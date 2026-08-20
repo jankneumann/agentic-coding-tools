@@ -1,0 +1,645 @@
+schema_version: 1
+
+feature:
+  id: add-sandboxed-harness-execution
+  title: "Sandboxed harness execution — backend seam, credential brokering, cloud sandbox lane"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-sandboxed-harness-execution/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/add-sandboxed-harness-execution/contracts/openapi/v1.yaml"
+      - "openspec/changes/add-sandboxed-harness-execution/contracts/schemas/dispatch-spec.schema.json"
+      - "openspec/changes/add-sandboxed-harness-execution/contracts/schemas/dispatch-audit-event.schema.json"
+      - "openspec/changes/add-sandboxed-harness-execution/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ---------------------------------------------------------------- wave 1 --
+  - package_id: wp-contracts
+    title: "Contracts — freeze DispatchSpec, audit event, coordinator additions"
+    task_type: contracts
+    description: |
+      Validate contracts/openapi/v1.yaml and both JSON Schemas; confirm the DispatchSpec
+      isolation/location enums mirror pin-isolation-contract (dg-05) and that no contract
+      here redefines inference-key issuance (owned by add-coordinator-llm-gateway) or
+      ledger records (owned by build-structured-vendor-result-channel).
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "contract:sandboxed-harness-dispatch-spec"
+      ttl_minutes: 60
+      reason: "Contract definitions consumed by every downstream package"
+    scope:
+      write_allow:
+        - "openspec/changes/add-sandboxed-harness-execution/contracts/**"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces:
+        - apis
+    worktree:
+      name: sandboxed-harness-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Contracts parse"
+          kind: command
+          command: "python3 -c \"import yaml,json; yaml.safe_load(open('openspec/changes/add-sandboxed-harness-execution/contracts/openapi/v1.yaml')); [json.load(open(p)) for p in ['openspec/changes/add-sandboxed-harness-execution/contracts/schemas/dispatch-spec.schema.json','openspec/changes/add-sandboxed-harness-execution/contracts/schemas/dispatch-audit-event.schema.json']]\""
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contracts_valid"
+    outputs:
+      result_keys:
+        - "contracts_valid"
+
+  - package_id: wp-vocabulary
+    title: "Isolation vocabulary — container mode and the location axis"
+    task_type: backend
+    description: |
+      Tasks 1.1–1.2. Widen VALID_ISOLATION_MODES with `container`, add VALID_LOCATIONS, add
+      resolve_effective_isolation(agent_type, dispatch_mode) beside get_agent_isolation();
+      JSON schema enums derive from the constants. Coordinate with pin-isolation-contract
+      (dg-05) — this package amends the vocabulary before dg-05 pins it.
+    role: backend-implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "agent-coordinator/src/agents_config.py"
+      keys:
+        - "feature:isolation-vocabulary"
+      ttl_minutes: 120
+      reason: "agents_config isolation constants and resolver"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/tests/test_agents_config_isolation.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/**"
+    context_impact:
+      surfaces:
+        - capabilities
+        - decisions
+    worktree:
+      name: sandboxed-harness-wp-vocabulary
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Isolation vocabulary tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config_isolation.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "test_count"
+              - "pass_count"
+    outputs:
+      result_keys:
+        - "test_count"
+        - "pass_count"
+
+  - package_id: wp-provider-spike
+    title: "Provider spike — Daytona vs E2B decision report"
+    task_type: research
+    description: |
+      Task 4.1, gating group 4. Measure egress-control granularity (is a domain allowlist
+      expressible?), snapshot build with the CLI roster, create/exec/teardown latency vs
+      subprocess spawn, and brokered-credential injection end-to-end. Daytona primary; E2B
+      compared because sentinel/verification specs already name it — one provider should
+      serve both uses. Output is a decision report, not code.
+    role: analyst
+    priority: 2
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "feature:cloud-sandbox-provider-spike"
+      ttl_minutes: 120
+      reason: "Provider evaluation report"
+    scope:
+      write_allow:
+        - "docs/proposals/cloud-sandbox-provider-spike.md"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/**"
+        - "agent-coordinator/src/**"
+    context_impact:
+      surfaces:
+        - documentation
+        - decisions
+    worktree:
+      name: sandboxed-harness-wp-spike
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Report answers all four spike questions"
+          kind: manual
+          manual_instructions: |
+            Confirm the report states, for each candidate provider: (1) whether a domain
+            allowlist is expressible in the provider's network controls, (2) snapshot build
+            time and CLI roster coverage, (3) create/exec/teardown latency vs subprocess
+            spawn, (4) an end-to-end brokered-credential injection result. Confirm it names
+            one selected provider with rationale.
+          evidence:
+            artifacts:
+              - "docs/proposals/cloud-sandbox-provider-spike.md"
+            result_keys:
+              - "provider_selected"
+              - "egress_granularity"
+    outputs:
+      result_keys:
+        - "provider_selected"
+        - "egress_granularity"
+
+  - package_id: wp-gate-coupling
+    title: "Trust-posture coupling — min_isolation gates autonomy"
+    task_type: backend
+    description: |
+      Tasks 4.5–4.6. Add min_isolation to the trust-posture schema and enforce it in the
+      approval gate: `auto`/`notify_with_timeout` are valid only when the dispatch's
+      resolved isolation meets the gate's minimum, else degrade to `block` with an audit
+      event. If build-approval-gate-service has not landed, implement against its planned
+      module path so the two converge rather than fork.
+    role: backend-implementer
+    priority: 3
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "skills/shared/approval_gate.py"
+        - "TRUST_POSTURE.template.md"
+      keys:
+        - "flag:trust-posture-min-isolation"
+      ttl_minutes: 120
+      reason: "Approval gate posture check"
+    scope:
+      write_allow:
+        - "skills/shared/approval_gate.py"
+        - "skills/tests/shared/test_approval_gate_isolation.py"
+        - "TRUST_POSTURE.template.md"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/shared/execution_backends/**"
+        - "agent-coordinator/src/**"
+    context_impact:
+      surfaces:
+        - capabilities
+        - documentation
+    worktree:
+      name: sandboxed-harness-wp-gate
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Gate coupling tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/shared/test_approval_gate_isolation.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "test_count"
+              - "pass_count"
+    outputs:
+      result_keys:
+        - "test_count"
+        - "pass_count"
+
+  # ---------------------------------------------------------------- wave 2 --
+  - package_id: wp-backend-seam
+    title: "Execution backend seam — protocol, registry, local backends"
+    task_type: backend
+    description: |
+      Tasks 2.1–2.5. skills/shared/execution_backends/ (DispatchSpec, ExecutionBackend
+      protocol, SUPPORTED_BACKENDS-style registry, local_process delegating to today's
+      subprocess path unchanged, local_sandbox wrapping argv via dg-07's
+      sandbox_profile.wrap_command). Route CliVendorAdapter through the seam and attach the
+      routing decision to the dispatch context.
+      ORDERING: must not run concurrently with build-structured-vendor-result-channel —
+      same CliVendorAdapter methods.
+    role: backend-implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+      keys:
+        - "feature:execution-backend-seam"
+        - "feature:cli-vendor-adapter"
+      ttl_minutes: 180
+      reason: "Dispatch chokepoint and backend registry"
+    scope:
+      write_allow:
+        - "skills/shared/execution_backends/**"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/tests/shared/test_execution_backends.py"
+        - "skills/tests/parallel-infrastructure/test_review_dispatcher_backends.py"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/src/**"
+    context_impact:
+      surfaces:
+        - capabilities
+        - architecture
+    worktree:
+      name: sandboxed-harness-wp-seam
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Backend seam and byte-identical legacy dispatch"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/shared/test_execution_backends.py skills/tests/parallel-infrastructure/test_review_dispatcher_backends.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "test_count"
+              - "pass_count"
+    outputs:
+      result_keys:
+        - "test_count"
+        - "pass_count"
+
+  - package_id: wp-coordinator-surfaces
+    title: "Coordinator — network-policy export and per-dispatch identities"
+    task_type: backend
+    description: |
+      Tasks 3.9–3.12. GET /policies/network/export (policy_version for narrower-never-wider
+      fallback checks) and /dispatch/identities issue+revoke wired into
+      COORDINATION_API_KEY_IDENTITIES. Revocation marks the in-flight dispatch failed in the
+      ledger and leaves sibling dispatches untouched.
+    role: backend-implementer
+    priority: 2
+    depends_on: [wp-contracts, wp-vocabulary]
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/network_policies.py"
+      keys:
+        - "api:GET /policies/network/export"
+        - "api:POST /dispatch/identities"
+      ttl_minutes: 150
+      reason: "Coordinator HTTP surface additions"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/network_policies.py"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/tests/test_dispatch_identities.py"
+        - "agent-coordinator/tests/test_network_policy_export.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/**"
+    context_impact:
+      surfaces:
+        - apis
+        - capabilities
+    worktree:
+      name: sandboxed-harness-wp-coordinator
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Coordinator surface tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_dispatch_identities.py agent-coordinator/tests/test_network_policy_export.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "test_count"
+              - "pass_count"
+    outputs:
+      result_keys:
+        - "test_count"
+        - "pass_count"
+
+  # ---------------------------------------------------------------- wave 3 --
+  - package_id: wp-credential-broker
+    title: "Credential brokering — env allowlist, broker, git and inference credentials"
+    task_type: backend
+    description: |
+      Tasks 3.1–3.8 and 3.13 (Phase 2 of the proposal). dispatch_env.py (allowlist +
+      DISPATCH_ENV_ALLOWLIST rollback flag + audit emission) wired into every registered
+      backend; credential_broker.py (broker AppRole auth, hardening verification, leaf
+      material assembly); github_app_tokens.py (~1h repo-scoped installation tokens);
+      inference provisioning (gateway virtual key where the CLI supports a base-URL
+      override, capped per-lane key otherwise, bypass audited); OpenBao hardening runbook.
+      INVARIANT: no workspace material may contain a vault address, role_id, secret_id, or
+      wrapping token.
+    role: backend-implementer
+    priority: 2
+    depends_on: [wp-backend-seam, wp-coordinator-surfaces]
+    locks:
+      files:
+        - "skills/shared/credential_broker.py"
+        - "skills/shared/dispatch_env.py"
+        - "agent-coordinator/agents.yaml"
+      keys:
+        - "feature:credential-brokering"
+        - "feature:openbao-broker-approle"
+      ttl_minutes: 180
+      reason: "Credential broker and dispatch environment construction"
+    scope:
+      write_allow:
+        - "skills/shared/credential_broker.py"
+        - "skills/shared/dispatch_env.py"
+        - "skills/shared/github_app_tokens.py"
+        - "skills/shared/execution_backends/local_process.py"
+        - "skills/shared/execution_backends/local_sandbox.py"
+        - "skills/tests/shared/test_dispatch_env.py"
+        - "skills/tests/shared/test_credential_broker.py"
+        - "skills/tests/shared/test_github_app_tokens.py"
+        - "skills/tests/shared/test_inference_credentials.py"
+        - "agent-coordinator/agents.yaml"
+        - "docs/openbao-secret-management.md"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/src/**"
+    context_impact:
+      surfaces:
+        - capabilities
+        - documentation
+        - decisions
+    worktree:
+      name: sandboxed-harness-wp-broker
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Broker, env allowlist, token and inference credential tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/shared/test_dispatch_env.py skills/tests/shared/test_credential_broker.py skills/tests/shared/test_github_app_tokens.py skills/tests/shared/test_inference_credentials.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "test_count"
+              - "pass_count"
+        - name: "Leaf-credential invariant holds (no vault reachability in workspace material)"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/shared/test_credential_broker.py -k leaf_credential -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "leaf_invariant_verified"
+    outputs:
+      result_keys:
+        - "test_count"
+        - "pass_count"
+        - "leaf_invariant_verified"
+
+  # ---------------------------------------------------------------- wave 4 --
+  - package_id: wp-cloud-backend
+    title: "Cloud sandbox backend — provisioning, egress rendering, routing rules"
+    task_type: backend
+    description: |
+      Tasks 4.2–4.4 and 4.7. cloud_sandbox.py behind the backend protocol
+      (create-from-snapshot, shallow-clone at branch, broker-material injection, exec,
+      auto-stop bound, teardown, ledger integration); render_<provider>_egress() at dg-07's
+      renderer seam from the exported policy; routing.yaml cloud-lane rules; pilot on review
+      fan-out. Zero-inbound invariant: config naming a tailnet address or credential fails
+      validation before any sandbox is created.
+    role: backend-implementer
+    priority: 3
+    depends_on: [wp-provider-spike, wp-credential-broker]
+    locks:
+      files:
+        - "skills/shared/sandbox_profile.py"
+        - "agent-coordinator/routing.yaml"
+      keys:
+        - "feature:cloud-sandbox-backend"
+        - "feature:routing-cloud-lane"
+      ttl_minutes: 180
+      reason: "Cloud backend, egress renderer, routing rules"
+    scope:
+      write_allow:
+        - "skills/shared/execution_backends/cloud_sandbox.py"
+        - "skills/shared/sandbox_profile.py"
+        - "skills/tests/shared/test_cloud_sandbox_backend.py"
+        - "agent-coordinator/routing.yaml"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/shared/credential_broker.py"
+        - "agent-coordinator/src/**"
+    context_impact:
+      surfaces:
+        - capabilities
+        - architecture
+        - decisions
+    worktree:
+      name: sandboxed-harness-wp-cloud
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Cloud backend contract tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/shared/test_cloud_sandbox_backend.py -v"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "test_count"
+              - "pass_count"
+        - name: "Review fan-out pilot against the chosen provider"
+          kind: manual
+          manual_instructions: |
+            Dispatch a review fan-out round to the cloud lane. Confirm each dispatch appears
+            in the completion ledger, results arrive as pushed branches on the
+            openspec/<change-id>--<agent-id> convention, sandboxes stop at their wall-clock
+            bound, and no vault address or role/secret id appears in any sandbox environment.
+          evidence:
+            artifacts:
+              - "artifacts/wp-cloud-backend/pilot-report.md"
+            result_keys:
+              - "pilot_dispatches"
+    outputs:
+      result_keys:
+        - "test_count"
+        - "pass_count"
+        - "pilot_dispatches"
+
+  - package_id: wp-docs
+    title: "Documentation — guides for backend lanes and cloud provisioning"
+    task_type: docs
+    description: |
+      Task 5.1. Update worktree-management (posture, not bool), cloud-vs-local-execution
+      (cloud sandbox as a provisioned environment alongside Claude web/Codespaces), and the
+      workflow guide (backend lanes); cross-link docs/proposals/sandboxed-harness-execution.md
+      as the design source.
+    role: documenter
+    priority: 4
+    depends_on: [wp-cloud-backend, wp-gate-coupling]
+    locks:
+      files: []
+      keys:
+        - "feature:docs-dispatch-lanes"
+      ttl_minutes: 60
+      reason: "Guide updates"
+    scope:
+      write_allow:
+        - "docs/guides/worktree-management.md"
+        - "docs/cloud-vs-local-execution.md"
+        - "docs/guides/workflow.md"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/**"
+        - "agent-coordinator/**"
+    context_impact:
+      surfaces:
+        - documentation
+    worktree:
+      name: sandboxed-harness-wp-docs
+      mode: isolated
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Guides reference the backend lanes and the design source"
+          kind: manual
+          manual_instructions: |
+            Confirm each updated guide describes the backend lanes (local process, local
+            sandbox, cloud sandbox), that cloud-vs-local-execution lists the cloud sandbox
+            as a provisioned isolated environment, and that all three cross-link
+            docs/proposals/sandboxed-harness-execution.md as the design source.
+          evidence:
+            artifacts:
+              - "docs/cloud-vs-local-execution.md"
+            result_keys:
+              - "docs_updated"
+    outputs:
+      result_keys:
+        - "docs_updated"
+
+  # ------------------------------------------------------------ integration --
+  - package_id: wp-integration
+    title: "Integration merge and full test suite"
+    task_type: integrate
+    description: |
+      Merge all package worktrees, run the full suites for both venvs, and verify the
+      cross-package invariants: legacy (local, none|worktree) dispatch byte-identical; every
+      degradation path emits a dispatch-audit-event enum value; no credential material in
+      logs or audit payloads.
+    priority: 1
+    depends_on:
+      - wp-contracts
+      - wp-vocabulary
+      - wp-provider-spike
+      - wp-gate-coupling
+      - wp-backend-seam
+      - wp-coordinator-surfaces
+      - wp-credential-broker
+      - wp-cloud-backend
+      - wp-docs
+    locks:
+      files: []
+      keys: []
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces:
+        - capabilities
+        - apis
+        - architecture
+        - decisions
+        - documentation
+        - semantic_code
+    worktree:
+      name: sandboxed-harness-wp-integration
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 0
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full skills suite"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "test_count"
+        - name: "Full coordinator suite"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "test_count"
+    outputs:
+      result_keys:
+        - "merge_commit"
+        - "test_count"

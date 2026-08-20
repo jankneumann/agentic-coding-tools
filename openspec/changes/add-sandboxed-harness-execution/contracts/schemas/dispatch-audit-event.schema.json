@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openspec/changes/add-sandboxed-harness-execution/contracts/schemas/dispatch-audit-event.schema.json",
+  "title": "DispatchAuditEvent",
+  "description": "Coordinator audit payload for every loud degradation or refusal on the dispatch path (design D7: degradation is loud, never silent). One event type, discriminated by 'event'.",
+  "type": "object",
+  "required": ["event", "dispatch_id", "timestamp"],
+  "additionalProperties": false,
+  "properties": {
+    "event": {
+      "type": "string",
+      "enum": [
+        "backend_unresolvable",
+        "env_allowlist_bypassed",
+        "sandbox_requested_not_applied",
+        "gateway_bypassed_per_lane_key",
+        "policy_export_fallback_used",
+        "egress_enforcement_degraded",
+        "vault_hardening_failed_remote_refused",
+        "gate_degraded_to_block",
+        "dispatch_identity_revoked",
+        "ledger_unreachable_dispatch_parked",
+        "sandbox_wall_clock_timeout"
+      ]
+    },
+    "dispatch_id": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "agent_type": { "type": "string" },
+    "routing_decision": {
+      "type": "object",
+      "properties": {
+        "location": { "type": "string", "enum": ["local", "cloud"] },
+        "isolation": { "type": "string", "enum": ["none", "worktree", "sandbox", "container"] }
+      }
+    },
+    "gate": {
+      "type": "string",
+      "description": "For gate_degraded_to_block: the trust-posture gate name."
+    },
+    "declared_disposition": { "type": "string", "enum": ["auto", "notify_with_timeout", "block"] },
+    "min_isolation_required": { "type": "string", "enum": ["none", "worktree", "sandbox", "container"] },
+    "detail": { "type": "string", "description": "Human-readable cause; MUST NOT contain credential material." }
+  }
+}
