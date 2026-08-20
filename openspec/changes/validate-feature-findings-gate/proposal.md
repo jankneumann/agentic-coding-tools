@@ -1,230 +1,59 @@
-# Proposal: Findings-Model + Enforcement Gate for `validate-feature`
+# Proposal: Residual Ephemeral Validation Worktree
 
 **Change ID**: validate-feature-findings-gate
-**Status**: Draft
+**Status**: Approved (residual scope)
 **Created**: 2026-06-26
-**Tier**: coordinated
+**Scope revised**: 2026-08-19
+
+## Supersession boundary
+
+`introduce-fitness-function-gates` superseded the original findings model,
+pre-push gate, and finding-triage phases while they remained untouched at 0/31
+tasks. Those phases MUST NOT be implemented here: the merged fitness-function
+work owns the current findings, DEGRADED-status, architecture-gate, and report
+semantics.
+
+The original Phase 3 was not absorbed. It remains a prerequisite of
+`phase-scoped-worktree-lifecycle`, whose authoritative prerequisite contract
+requires these exact surfaces:
+
+- `skills/validate-feature/scripts/validation_worktree.py`
+- `skills/tests/validate-feature/test_validation_worktree.py`
+
+This proposal is therefore narrowed to that residual deliverable only.
 
 ## Why
 
-`validate-feature` is **deep but advisory**. It deploys the feature locally, runs
-security/behavioral/E2E/spec phases, and writes a human-readable
-`validation-report.md` — but its output is prose, its enforcement is optional
-("Option 3: Skip non-critical failures and proceed"), and its isolation reuses
-the live feature worktree. The external [no-mistakes](https://github.com/kunchenguid/no-mistakes)
-workflow ("kill all the slop, raise clean PR") occupies the same goal space from
-a different layer — a git push-proxy — and is forced by that position into four
-properties we lack:
-
-1. **Findings as first-class data** with an auto-fix vs human-escalation tier
-   ("safe, mechanical fixes are applied automatically; anything that touches your
-   intent is escalated to approve / fix / skip").
-2. **A hard enforcement gate** — "nothing reaches the configured push target
-   until every check is green."
-3. **Disposable-worktree-per-run isolation** — validation runs against a
-   throwaway copy, leaving zero residue on the branch under test.
-4. **Interactive per-finding triage** (a TUI plus a `-y` auto mode).
-
-These are the four approaches the no-mistakes-vs-validate-feature analysis
-flagged as worth adopting. This change adapts them onto our existing
-infrastructure — reusing the **finding-record conventions** familiar from
-`openspec/schemas/review-findings.schema.json` (a new self-contained
-`validation-findings.schema.json` carries the validation artifact; the review
-schema itself is left unchanged) and the `consensus_synthesizer` / `fix-scrub` /
-`simplify` machinery — rather than inventing gratuitously different structures or
-importing a Go push-proxy.
-
-The change is explicitly scoped to **strengthen** `validate-feature`, never to
-weaken its depth. The live deploy, security scans, Playwright E2E, and the
-CRITICAL task-drift gate (SKILL.md §7.0) all remain. We are bolting a structured
-output model, an opt-in gate, an ephemeral mode, and an interactive triage
-surface onto a pipeline that already does the hard evidence-gathering.
+Validation may create deploy artifacts, scanner output, logs, and partial
+reports. Running those operations directly in the feature checkout can leave
+residue or accidentally validate stale `HEAD` while local changes exist. A
+disposable worktree gives each run an exact, inspectable input and a deterministic
+cleanup boundary.
 
 ## What Changes
 
-Four capabilities, delivered as ordered phases of a single change. Phase 1 is the
-backbone the others consume; Phase 4 depends on Phase 1's data model.
+- Add `--ephemeral` validation mode backed by a detached scratch worktree at the
+  current `HEAD`.
+- Fail fast on a dirty source checkout unless `--include-dirty` is explicitly
+  requested; that opt-in materializes staged, unstaged, and untracked state and
+  records the resulting Git tree.
+- Persist only `validation-report.md` and `validation-findings.json` back to the
+  change checkout, recording the exact validated commit and tree before teardown.
+- Always remove the scratch checkout, including when validation fails.
+- Fall back to in-place execution when shared environment detection reports that
+  the cloud harness already provides isolation.
+- Document the flags in the canonical `validate-feature` skill and regenerate
+  runtime mirrors from `skills/`.
 
-- **Phase 1 — Findings model + auto-fix tier (item #3 in the analysis).** Every
-  `validate-feature` phase emits its issues as structured finding records (not just
-  prose) into a per-run `validation-findings.json`, and records an explicit
-  per-phase status (`pass` / `fail` / `skip` / `not-run` / `error`) so a pass is
-  never merely inferred from the absence of findings. The file uses a new,
-  self-contained `validation-findings.schema.json` (envelope + phase statuses +
-  validated commit + its own finding record) — it does **not** reuse
-  `review-findings.schema.json`, which is scoped to plan/implementation reviews and
-  requires review-only fields (`disposition`, `axis`, `severity`); the review
-  schema is left entirely unchanged. Each validation finding carries an optional
-  `fixability` tier of `auto-fix` (mechanical, behavior-preserving) or `escalate`
-  (touches intent). A new triage step walks `auto-fix` findings one at a time and
-  applies each through a narrow, single-finding fixer — the low-level tool-native
-  executor (e.g. `ruff --fix`), in place with no branch/commit — then re-runs the
-  affected phase and reverts on regression. It does not run the full
-  `simplify`/`fix-scrub` skill workflows (those remain manual escalation). The
-  markdown report is rendered *from* the findings file, so humans and automation
-  read the same source of truth.
+## Non-goals
 
-- **Phase 2 — Opt-in pre-push enforcement gate (item #1).** Add an opt-in
-  `pre-push` git hook (alongside the existing `.githooks/pre-commit` /
-  `post-merge`) that runs the **critical** subset of `validate-feature`
-  (`smoke`, the spec task-drift gate, and `security` thresholds) and **blocks the
-  push** when any critical finding is unresolved. A documented kill-switch
-  (`VALIDATE_GATE=0` / config flag) and a `--no-verify` escape hatch keep it
-  non-coercive. This directly closes the incident class recorded in SKILL.md §7.0
-  (the `specialized-workflow-agents` change shipped 29 tasks to main with 0/29
-  checkboxes flipped).
+- Reintroducing the superseded findings schema, pre-push hook, auto-fix, or
+  interactive triage design.
+- Changing current DEGRADED, architecture-gate, coverage, or validation-report
+  semantics.
+- Creating commits or branches from validation.
 
-- **Phase 3 — Ephemeral disposable-worktree mode (item #2).** Add a
-  `--ephemeral` flag that clones the current `HEAD` into a throwaway scratch
-  worktree, runs validation there, and discards it on completion — so deploy
-  artifacts, security-scan output, and log files never mutate the branch under
-  test. Cloud-harness environments (which already short-circuit worktree ops)
-  fall back to the existing in-place behavior.
+## Rollback
 
-- **Phase 4 — Interactive per-finding triage (item #4).** Add a `--triage` mode
-  that walks `escalate` findings one at a time and collects an
-  `approve` / `fix` / `skip` `triage_state` per finding (via `AskUserQuestion` in
-  the agent harness, or a prompt loop in CLI), plus a `-y` / `--auto` mode that
-  applies the default `triage_state` non-interactively. The `triage_state` is a
-  new field written back into the Phase 1 findings file (the existing
-  `disposition` field is never touched) so a re-run resumes from curated state.
-
-### Non-goals
-
-- Replacing the live-deploy / security / E2E / spec depth of `validate-feature`
-  with no-mistakes' lighter review/test/docs/lint set. We adopt its *structure*,
-  not its scope.
-- Building a standalone Go push-proxy or a separate TUI binary. The gate is a git
-  hook; the triage surface rides the existing agent/CLI harness.
-- Making the enforcement gate on-by-default or mandatory. It is opt-in with a
-  kill-switch and a `--no-verify` escape hatch.
-- Modifying `review-findings.schema.json`. We leave it entirely unchanged. Instead
-  we add one self-contained `validation-findings.schema.json` (envelope + phase
-  statuses + validated commit + its own finding record), because a validation run
-  is not a plan/implementation review and needs a phase-status container and a
-  record without review-only required fields (see Risks).
-
-## Approaches Considered
-
-### Approach A — Phased enhancement reusing existing infrastructure *(Recommended)*
-
-One change, four ordered phases, built on the finding-record conventions and the
-existing `simplify` / `fix-scrub` fixers and `consensus_synthesizer` matching (a
-new self-contained `validation-findings.schema.json` carries the artifact; the
-review schema is untouched). The gate is an opt-in git hook; the ephemeral mode
-reuses the `worktree` skill; triage rides `AskUserQuestion` / a CLI prompt loop.
-
-- **Pros**
-  - Maximal reuse — the finding-record conventions, low-risk fixers, worktree
-    lifecycle, and consensus dedup are all existing assets; net-new surface is the
-    validation-findings schema, the finding-emit shims, the hook, the ephemeral
-    flag, and the triage loop.
-  - Unifies `validate-feature` output with `fix-scrub` and the consensus
-    synthesizer, so findings flow across skills instead of dead-ending in prose.
-  - Each phase is independently shippable and independently valuable; Phase 1
-    alone is useful even if 2–4 never land.
-  - Adopts no-mistakes' transferable structure without its transport coupling.
-- **Cons**
-  - Touching every phase's output path is broad (but mechanical and test-guarded).
-  - Two human-loop surfaces (gate block message + triage loop) to keep coherent.
-- **Effort**: L
-
-### Approach B — Import the no-mistakes push-proxy model wholesale
-
-Install a local git proxy that intercepts `git push` and runs the full pipeline
-in a disposable repo before forwarding, mirroring no-mistakes' architecture.
-
-- **Pros**
-  - Strongest enforcement guarantee — the gate owns the `push` verb itself.
-  - Disposable isolation comes for free from the proxy's design.
-- **Cons**
-  - A second, parallel orchestration layer competing with our OpenSpec lifecycle
-    and coordinator — high operational surface and conceptual overlap.
-  - Transport-level interception is opaque to the change-id / coordinator / memory
-    loop that the rest of our stack depends on.
-  - A push-proxy can't see the OpenSpec change context (specs, tasks.md drift)
-    that makes our validation valuable.
-- **Effort**: XL
-
-### Approach C — Findings model only (skip the gate, ephemeral, and triage)
-
-Ship Phase 1 alone: structured findings + auto-fix tier, but keep enforcement
-advisory and isolation in-place.
-
-- **Pros**
-  - Smallest change; delivers the highest-leverage single idea (findings-as-data).
-  - No new git hook or worktree mode to document and maintain.
-- **Cons**
-  - Leaves the documented enforcement gap (SKILL.md §7.0 incident) unaddressed —
-    findings can still be ignored by walking past the advisory report.
-  - No isolation improvement; validation residue still lands on the branch.
-  - Triage has no home, so the auto-fix/escalate split is only half-realized.
-- **Effort**: M
-
-### Selected Approach
-
-**Approach A — phased enhancement reusing existing infrastructure.** It captures
-all four adoptable ideas from the analysis while honoring our existing posture:
-OpenSpec-lifecycle-bound, coordinator-aware, convention-reusing (its own
-`validation-findings.schema.json`, review schema untouched), and opt-in for
-anything coercive. Approach B's wholesale proxy import duplicates orchestration
-we already own and severs the change-context coupling that gives our validation
-its depth; Approach C under-delivers by leaving the enforcement gap open.
-
-### Recommendation
-
-**Approach A.** It is the only option that adopts no-mistakes' four transferable
-properties — findings-as-data, a hard gate, disposable isolation, and interactive
-triage — without importing its transport-layer architecture or sacrificing the
-OpenSpec/coordinator integration that distinguishes `validate-feature`. Phasing
-keeps each idea independently shippable, with Phase 1 (the findings model) as the
-backbone the gate and triage build on.
-
-## Risks
-
-- **Schema churn on `review-findings.schema.json`.** The schema already defines a
-  required `disposition` field (enum `fix`/`regenerate`/`accept`/`escalate`) used
-  by the parallel-review pipeline; repurposing it would break existing consumers
-  (architecture linters, consensus synthesizer). *Mitigation*: do **not** modify
-  `review-findings.schema.json` at all; put every validation-only concept (phase
-  statuses, validated commit, the `fixability` / `triage_state` fields, the finding
-  record itself) in a **separate** self-contained `validation-findings.schema.json`;
-  add contract tests asserting the review schema is byte-for-byte unchanged and a
-  full validation-findings file validates against the new schema.
-- **Auto-fix applying an unsafe change.** A finding mis-classified as `auto-fix`
-  could alter behavior. *Mitigation*: the narrow fixer applies only a single,
-  tool-native, behavior-preserving change per finding (e.g. `ruff --fix`) in place
-  with no branch/commit; every auto-fix re-runs the affected phase and reverts that
-  finding's change on regression; the classifier defaults to `escalate` when
-  uncertain; anything beyond the tool-native fixers is manual escalation.
-- **Enforcement gate blocking a legitimate emergency push.** *Mitigation*: opt-in
-  install, `VALIDATE_GATE=0` kill-switch, and the standard `git push --no-verify`
-  escape hatch, all documented at the block message.
-- **Ephemeral clone cost / cloud-harness incompatibility.** *Mitigation*:
-  `--ephemeral` is opt-in; cloud-harness detection (`environment_profile.detect()`)
-  short-circuits to in-place behavior, matching the rest of the worktree stack.
-- **Triage loop divergence between agent (`AskUserQuestion`) and CLI surfaces.**
-  *Mitigation*: both write the same `triage_state` fields back to the findings
-  file; a single render/apply path consumes them regardless of how they were
-  collected.
-
-## Impact
-
-- **New**: a finding-emit helper shared by `validate-feature` phases; a
-  findings→markdown renderer; a narrow single-finding auto-fix step (tool-native
-  executors, in-place, no branch/commit); `.githooks/pre-push` + installer entry; a
-  `--ephemeral` worktree path; a `--triage` / `-y` triage-state loop.
-- **Modified**: `skills/validate-feature/SKILL.md` (phase output contracts, new
-  flags, gate/triage/ephemeral sections); `skills/validate-feature/scripts/*`
-  (phases emit findings); the report-rendering step (§11) reads the findings file;
-  a new `openspec/schemas/validation-findings.schema.json` (envelope +
-  `phase_statuses[]` + validated commit + a self-contained finding record with
-  optional `fixability` / `triage_state`); `review-findings.schema.json` is left
-  unchanged.
-- **Reused**: the `review-findings.schema.json` finding-record *conventions* (not
-  the schema file itself, which is untouched), the tool-native fixers (`ruff --fix`
-  / formatters) that `simplify`/`fix-scrub` also wrap — invoked directly per
-  finding, not via those skills' full workflows — `consensus_synthesizer.py`
-  matching, the `worktree` skill lifecycle,
-  `environment_profile.detect()`, `AskUserQuestion`, coordinator
-  `memory`/`audit`, and the existing `.githooks` installer.
+The mode is opt-in. Removing the flag wiring and reverting the single residual
+implementation commit returns validation to the existing in-place behavior.
