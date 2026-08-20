@@ -7,7 +7,7 @@ final section.
 
 ## 1. Plan schema + emission
 
-- [ ] 1.1 Write tests for the merge-plan schema and its producer
+- [x] 1.1 Write tests for the merge-plan schema and its producer
   **Spec scenarios**: merge-pull-requests "Analysis round emits a durable plan", "Dependency edges are derived from file overlap and base branch"; merge-infrastructure "Plan state is separated into definition and live fields"
   **Contracts**: contracts/schemas/merge-plan.schema.json
   **Design decisions**: D1 (definition vs live state), D2 (DAG edges)
