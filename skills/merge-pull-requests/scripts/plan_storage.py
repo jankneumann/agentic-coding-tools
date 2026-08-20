@@ -8,10 +8,10 @@ import json
 from pathlib import Path
 from typing import Any, Protocol
 
-from build_plan import write_plan
+from build_plan import write_plan_bundle
 from merge_backend import _get_coordinator_status
 from merge_plan import MergePlanValidationError, validate_plan
-from render_plan import write_projection
+from render_plan import render_plan, write_projection
 
 
 class PlanStore(Protocol):
@@ -33,14 +33,20 @@ class FilePlanStore:
     def load(self) -> dict[str, Any]:
         plan = json.loads(self.path.read_text(encoding="utf-8"))
         validate_plan(plan)
+        expected_projection = render_plan(plan)
+        try:
+            actual_projection = self.projection_path.read_text(encoding="utf-8")
+        except OSError:
+            actual_projection = ""
+        if actual_projection != expected_projection:
+            write_projection(plan, self.projection_path)
         return plan
 
     def save(self, plan: dict[str, Any]) -> None:
         persisted = copy.deepcopy(plan)
         persisted["storage_tier"] = "file"
         validate_plan(persisted)
-        write_plan(persisted, self.path)
-        write_projection(persisted, self.projection_path)
+        write_plan_bundle(persisted, self.path)
 
     def update_state(self, pr_number: int, **changes: Any) -> dict[str, Any]:
         plan = self.load()

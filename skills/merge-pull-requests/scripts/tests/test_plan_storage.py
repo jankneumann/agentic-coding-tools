@@ -61,3 +61,16 @@ def test_coordinator_storage_is_an_explicit_phase_two_seam(tmp_path: Path) -> No
     assert isinstance(store, CoordinatorPlanStore)
     with pytest.raises(NotImplementedError, match="Phase 2"):
         store.load()
+
+
+def test_load_repairs_a_missing_or_stale_projection(tmp_path: Path) -> None:
+    path = tmp_path / "merge-plan.json"
+    store = FilePlanStore(path)
+    store.save(valid_plan())
+    path.with_suffix(".md").write_text("stale projection", encoding="utf-8")
+
+    store.load()
+
+    repaired = path.with_suffix(".md").read_text(encoding="utf-8")
+    assert repaired.startswith("# Merge Plan")
+    assert "stale projection" not in repaired

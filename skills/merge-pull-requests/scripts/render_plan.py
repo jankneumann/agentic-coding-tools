@@ -29,9 +29,10 @@ def render_plan(plan: dict[str, Any]) -> str:
         "",
         "## Nodes",
         "",
-        "| PR | Title | Origin | Outcome | Strategy | Auto | Gates | Revalidate |",
-        "|----|-------|--------|---------|----------|------|-------|------------|",
+        "| PR | Title | Origin | Outcome | Strategy | Auto | Gates | CI | Staleness | Comments | Revalidate | Blocking reason |",
+        "|----|-------|--------|---------|----------|------|-------|----|-----------|----------|------------|-----------------|",
     ]
+    comment_details: list[str] = []
     for node in plan["nodes"]:
         definition = node["definition"]
         state = node["state"]
@@ -41,8 +42,20 @@ def render_plan(plan: dict[str, Any]) -> str:
             f"#{node['pr']} | {_cell(node.get('title', ''))} | {node['origin']} | "
             f"{state['outcome']} | {node['strategy']} | "
             f"{'yes' if node['auto_executable'] else 'no'} | {_cell(gates)} | "
-            f"{'yes' if state.get('needs_revalidation', False) else 'no'} |",
+            f"{state['ci_state']} | {state['staleness']} | "
+            f"{state['unresolved_comments']} | "
+            f"{'yes' if state.get('needs_revalidation', False) else 'no'} | "
+            f"{_cell(state.get('blocking_reason') or '—')} |",
         )
+
+        comment_summary = state.get("unresolved_comment_summary")
+        if comment_summary:
+            comment_details.append(
+                f"- Comments for #{node['pr']}: {_cell(comment_summary)}",
+            )
+
+    if comment_details:
+        lines.extend(["", "## Unresolved Comment Summaries", "", *comment_details])
 
     lines.extend(["", "## Dependency Edges", ""])
     edges = [
@@ -57,7 +70,9 @@ def render_plan(plan: dict[str, Any]) -> str:
 
 def write_projection(plan: dict[str, Any], destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(render_plan(plan), encoding="utf-8")
+    temporary = destination.with_suffix(destination.suffix + ".tmp")
+    temporary.write_text(render_plan(plan), encoding="utf-8")
+    temporary.replace(destination)
 
 
 def main() -> int:

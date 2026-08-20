@@ -33,3 +33,21 @@ def test_render_plan_does_not_mutate_authoritative_json() -> None:
     render_plan(plan)
 
     assert plan == before
+
+
+def test_render_plan_preserves_live_blocking_ci_staleness_and_comment_state() -> None:
+    plan = valid_plan()
+    state = plan["nodes"][1]["state"]
+    state["ci_state"] = "blocked"
+    state["staleness"] = "stale"
+    state["unresolved_comments"] = 2
+    state["unresolved_comment_summary"] = "src/a.py: fix edge case"
+    state["blocking_reason"] = "security scan failed"
+
+    rendered = render_plan(plan)
+
+    assert "blocked" in rendered
+    assert "stale" in rendered
+    assert "2" in rendered
+    assert "security scan failed" in rendered
+    assert "src/a.py: fix edge case" in rendered

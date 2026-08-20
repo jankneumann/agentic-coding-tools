@@ -12,6 +12,10 @@ written as machine-readable `merge-plan.json` conforming to
 classification, staleness, CI/gate state, unresolved-comment count, merge strategy, an
 `auto_executable` flag, optional `gate` markers, dependency edges to other nodes, and a
 mutable `outcome` (`pending`, `merged`, `closed`, `deferred`, or `failed`).
+The Markdown projection SHALL surface each node's current CI state, staleness,
+unresolved-comment count and summary, and blocking reason. JSON and Markdown
+persistence SHALL be atomic as a unit or recoverably consistent: if a write is
+interrupted, the authoritative JSON SHALL be sufficient to repair the projection.
 
 #### Scenario: Analysis round emits a durable plan
 
@@ -35,7 +39,13 @@ vendor review when eligible, merge using the node's strategy subject to gate rul
 write the resulting `outcome` back to the plan. After a successful merge, execution SHALL
 mark every downstream node depending on the merged node for re-validation before it is
 executed. Execution SHALL invoke helper scripts via canonical `skills/...` paths and SHALL
-NOT rely on the `.claude/skills` runtime mirror.
+NOT rely on `.agents/skills`, `.claude/skills`, or other runtime mirrors. File-tier
+execution SHALL run the skill's active-agent sync-point guard before any refresh or merge
+side effect. It SHALL persist an `in_progress` claim before those side effects, reject an
+unowned replay, and reconcile a claimed node from live terminal GitHub state so a crash
+after the remote merge cannot cause a duplicate merge. Every execution attempt SHALL
+recompute live staleness even when the snapshot says `fresh`. When vendor review is
+eligible, dispatch failure or the absence of a consensus verdict SHALL block the merge.
 
 #### Scenario: Executing one node updates the plan and flags downstream nodes
 
@@ -49,6 +59,24 @@ NOT rely on the `.claude/skills` runtime mirror.
 - **WHEN** a node is marked `auto_executable: false` or carries a `requires_human_approval` gate
 - **THEN** execution SHALL stop before merging and surface the gate to the operator
 - **AND** SHALL NOT merge the node without explicit operator approval
+
+#### Scenario: OpenSpec acceptance cannot be bypassed by generic approval
+
+- **WHEN** an OpenSpec node is executed, including with the generic execution approval flag
+- **THEN** the node SHALL remain non-auto-executable with a `proposal_acceptance` gate
+- **AND** execution SHALL halt for the dedicated proposal-acceptance workflow
+
+#### Scenario: Interrupted execution reconciles instead of replaying the merge
+
+- **WHEN** a node is durably claimed and the process stops after GitHub merges the PR but before the final plan write
+- **THEN** a subsequent execution SHALL observe the live merged state and persist `outcome: merged`
+- **AND** SHALL NOT invoke the merge operation again
+
+#### Scenario: Eligible vendor review fails closed
+
+- **WHEN** a node is eligible for vendor review but dispatch errors or returns no consensus verdict
+- **THEN** execution SHALL keep the node pending with the blocking reason recorded
+- **AND** SHALL NOT invoke the merge operation
 
 #### Scenario: Execution respects the security-check backstop
 

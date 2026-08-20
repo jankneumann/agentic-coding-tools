@@ -30,7 +30,7 @@ def valid_plan() -> dict:
                 "auto_executable": False,
                 "definition": {
                     "depends_on": [],
-                    "gates": ["requires_human_approval"],
+                    "gates": ["proposal_acceptance"],
                     "changed_files": ["src/a.py"],
                 },
                 "state": {
@@ -98,4 +98,41 @@ def test_plan_requires_analysis_state_on_every_node() -> None:
     del plan["nodes"][0]["state"]["ci_state"]
 
     with pytest.raises(MergePlanValidationError, match="ci_state"):
+        validate_plan(plan)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            lambda plan: plan["nodes"][0].update(auto_executable=True),
+            "OpenSpec",
+        ),
+        (
+            lambda plan: plan["nodes"][0]["definition"].update(gates=[]),
+            "proposal_acceptance",
+        ),
+        (
+            lambda plan: plan["nodes"][1]["definition"].update(
+                gates=["required_review"],
+            ),
+            "auto-executable",
+        ),
+        (
+            lambda plan: (
+                plan["nodes"][1].update(auto_executable=False),
+                plan["nodes"][1]["definition"].update(gates=[]),
+            ),
+            "non-auto-executable",
+        ),
+    ],
+)
+def test_plan_rejects_gate_and_auto_execution_contradictions(
+    mutate,
+    message: str,
+) -> None:
+    plan = valid_plan()
+    mutate(plan)
+
+    with pytest.raises(MergePlanValidationError, match=message):
         validate_plan(plan)

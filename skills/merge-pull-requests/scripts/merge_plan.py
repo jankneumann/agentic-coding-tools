@@ -77,11 +77,47 @@ def _validate_dag(plan: dict[str, Any]) -> None:
         visit(number)
 
 
+def _validate_execution_semantics(plan: dict[str, Any]) -> None:
+    """Reject contradictory or privilege-expanding gate declarations.
+
+    JSON Schema can constrain the vocabulary, but it cannot express the
+    relationship between origin, gate markers, and automatic execution.  Keep
+    those invariants in the same semantic validation layer as the DAG rules so
+    every producer and consumer sees the same fail-closed contract.
+    """
+
+    for node in plan["nodes"]:
+        number = node["pr"]
+        origin = node["origin"]
+        auto_executable = node["auto_executable"]
+        gates = node["definition"]["gates"]
+
+        if origin == "openspec":
+            if auto_executable:
+                raise MergePlanValidationError(
+                    f"OpenSpec PR #{number} cannot be auto-executable",
+                )
+            if "proposal_acceptance" not in gates:
+                raise MergePlanValidationError(
+                    f"OpenSpec PR #{number} requires the proposal_acceptance gate",
+                )
+
+        if auto_executable and gates:
+            raise MergePlanValidationError(
+                f"auto-executable PR #{number} cannot carry human gates",
+            )
+        if not auto_executable and not gates:
+            raise MergePlanValidationError(
+                f"non-auto-executable PR #{number} must carry at least one gate",
+            )
+
+
 def validate_plan(plan: dict[str, Any]) -> None:
     """Validate the shipped JSON contract and producer-enforced DAG rules."""
 
     _validate_schema(plan)
     _validate_dag(plan)
+    _validate_execution_semantics(plan)
 
 
 def amend_plan(

@@ -38,3 +38,41 @@
 ### Context
 Planned a durable, dynamic merge-plan orchestration for the merge-pull-requests skill. Selected the tiered storage approach (coordinator system-of-record + file projection, degrade to file). Specified the full two-phase architecture; scoped implementation to Phase 1 (file-tier artifact + --execute --pr <n> + downstream re-validation). Motivated by a real triage session where state had to be rebuilt by hand after a context clear and a mid-flight joserfc CVE re-ordered the cohort.
 
+---
+
+## Phase: Implementation (2026-08-20)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Keep the file tier authoritative in Phase 1** `architectural: merge-infrastructure` — The approved proposal requires offline operation and the coordinator-backed system of record is a separately scoped Phase-2 capability.
+2. **Reuse canonical merge and review helpers** `architectural: merge-pull-requests` — The plan executor resolves the repository root, composes existing safety gates, and keeps one source of truth for merge policy without selecting generated mirrors.
+3. **Treat the durable claim as the crash boundary** `architectural: merge-pull-requests` — Persisting `in_progress` before side effects and reconciling live terminal state prevents duplicate merges after a process crash or final-save failure.
+
+### Alternatives Considered
+- Implement coordinator-backed plan persistence now: rejected because it would expand the approved Phase-1 scope into authentication, event delivery, and cross-host concurrency
+
+### Trade-offs
+- Accepted an explicit NotImplementedError seam for coordinator plan storage over an unverified partial adapter because it fails clearly and preserves the honest Phase-1 capability boundary
+
+### Capability Gaps Observed
+- **coordinator_transport_mismatch**: Coordinator capabilities were detected but the HTTP bridge was unreachable, so the handoff uses the local fallback artifact. (skill: implement-feature, severity: low)
+- **dispatch_capacity**: All collaboration slots were occupied, so package quality verification ran inline. (skill: implement-feature, severity: low)
+
+### Completed Work
+- Durable merge-plan schema, semantic DAG validation, builder, and renderer
+- File storage selection and definition-preserving live-state updates
+- Guarded single-node execution, downstream revalidation, and living-plan amendment
+- 321 merge-pull-requests tests, including independent-review safety gaps; ruff; mypy; OpenSpec strict validation; and package DAG validation
+
+### Next Steps
+- Run the complete deploy, smoke, security, E2E, architecture, evidence, spec, and CI validation gates
+- Push the rebased feature branch and open a new implementation PR without merging it
+
+### Relevant Files
+- `skills/merge-pull-requests/scripts/execute_plan.py` — guarded execution orchestrator
+- `skills/merge-pull-requests/contracts/merge-plan.schema.json` — durable plan contract
+- `openspec/changes/add-merge-plan-orchestration/change-context.md` — requirements and evidence matrix
+
+### Context
+Implemented the approved Phase-1 merge-plan contract in a managed worktree. The analysis round now emits a validated JSON DAG plus faithful Markdown, file storage is authoritative without coordinator queue support, and a guarded one-node executor refreshes live state, delegates unresolved comments, reuses the existing merge backend, persists outcomes, and invalidates downstream nodes. Phase-2 coordinator authority and cross-host dispatch remain explicitly deferred.
