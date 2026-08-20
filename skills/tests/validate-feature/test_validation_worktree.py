@@ -128,3 +128,14 @@ def test_cloud_harness_downgrades_to_in_place(repo: Path, caplog: pytest.LogCapt
 
     assert "downgraded to in-place" in caplog.text
     assert "test-cloud" in caplog.text
+
+
+def test_skill_wires_ephemeral_flags_to_the_canonical_helper() -> None:
+    skill = (REPO_ROOT / "skills" / "validate-feature" / "SKILL.md").read_text()
+
+    assert "`--ephemeral` —" in skill
+    assert "`--include-dirty` —" in skill
+    assert "from validation_worktree import validation_worktree" in skill
+    assert '"<skill-base-dir>/scripts/validation_worktree.py"' in skill
+    assert "VALIDATION_VALIDATED_COMMIT" in skill
+    assert "VALIDATION_VALIDATED_TREE" in skill

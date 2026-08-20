@@ -19,9 +19,9 @@
 - [x] 1.5 Implement the environment-profile fallback to in-place validation.
   **Dependencies**: 1.2
   **Design decisions**: D5
-- [ ] 1.6 Wire and document `--ephemeral` / `--include-dirty` in canonical
+- [x] 1.6 Wire and document `--ephemeral` / `--include-dirty` in canonical
   `skills/validate-feature/SKILL.md` and the worktree guide.
-- [ ] 1.7 Run strict OpenSpec and environment-safe validation.
+- [x] 1.7 Run strict OpenSpec and environment-safe validation.
   **Dependencies**: 1.1-1.6
-- [ ] 1.8 Regenerate runtime skill mirrors from canonical `skills/` and verify
+- [x] 1.8 Regenerate runtime skill mirrors from canonical `skills/` and verify
   mirror drift checks. **Dependencies**: 1.6
