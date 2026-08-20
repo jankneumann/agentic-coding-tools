@@ -294,8 +294,24 @@ class TestProfileCacheInvalidation:
         first = await service.get_profile(agent_id="grok-local", agent_type="grok")
         assert first.source == "default"
 
+        # A cache hit must be indistinguishable from the lookup it replaces.
+        #
+        # This previously asserted `cached.source == "cache"`, which pinned a
+        # live escalation rather than a feature: `resolve_trust_level` credits a
+        # non-registry principal with a profile's trust only when provenance is
+        # "assignment", so overwriting provenance with a "cache" marker made
+        # every hit inside the TTL fall back to `default_trust_level`. Where the
+        # assigned level was *lower* than the default that is an escalation — a
+        # principal pinned to a trust-0 (suspended) profile resolved 0 on the
+        # cold call and 2 on every cached call, un-suspending itself.
+        #
+        # The call_count assertion below is what still proves the cache is
+        # working; provenance being preserved is not the same as not caching.
         cached = await service.get_profile(agent_id="grok-local", agent_type="grok")
-        assert cached.source == "cache"
+        assert cached.source == "default", (
+            "cache hits must report the original provenance, not a cache marker"
+        )
+        assert route.call_count == 1, "second lookup must be served from cache"
 
         service.invalidate_cache()
         refetched = await service.get_profile(agent_id="grok-local", agent_type="grok")

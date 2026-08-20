@@ -51,7 +51,18 @@ class AgentProfile:
 
 @dataclass
 class ProfileResult:
-    """Result of a profile lookup."""
+    """Result of a profile lookup.
+
+    ``source`` is *provenance*: how the row was reached — ``'assignment'`` (an
+    explicit ``agent_profile_assignments`` row bound this agent to this
+    profile) or ``'default'`` (the ``agent_type`` fallback inside
+    ``get_agent_profile()``). It is an authorization input, not a diagnostic:
+    :func:`src.trust_resolution.resolve_trust_level` credits a principal the
+    registry does not name with a profile's trust level only when provenance is
+    ``'assignment'``. A lookup served from the in-process cache therefore
+    reports the *original* provenance, never a cache marker — see
+    :attr:`ProfilesService._cache`.
+    """
 
     success: bool
     profile: AgentProfile | None = None
@@ -93,7 +104,19 @@ class ProfilesService:
 
     def __init__(self, db: DatabaseClient | None = None):
         self._db = db
-        self._cache: dict[str, tuple[AgentProfile, float]] = {}
+        #: Memoized lookups: ``cache_key -> (profile, source, cached_at)``.
+        #:
+        #: The provenance (``source``) is cached *with* the profile because a
+        #: cache hit must be indistinguishable from the lookup it replaces. An
+        #: earlier version stored only ``(profile, cached_at)`` and reported
+        #: ``source="cache"`` on every hit, which erased the
+        #: ``'assignment'`` / ``'default'`` distinction that
+        #: :func:`src.trust_resolution.resolve_trust_level` gates on. Every hit
+        #: within the TTL therefore discarded an explicitly assigned trust
+        #: level and returned ``profiles.default_trust_level`` instead — an
+        #: *escalation* whenever the assigned level is lower, up to and
+        #: including un-suspending a trust-0 agent on its second request.
+        self._cache: dict[str, tuple[AgentProfile, str | None, float]] = {}
 
     @property
     def db(self) -> DatabaseClient:
@@ -131,15 +154,18 @@ class ProfilesService:
         agent_id = agent_id or config.agent.agent_id
         agent_type = agent_type or config.agent.agent_type
 
-        # Check cache
+        # Check cache. The hit replays the cached lookup verbatim, provenance
+        # included: `source` is an authorization input (see ProfileResult), so
+        # reporting a cache marker here would strip an assigned profile of the
+        # very property that makes its trust level creditable.
         cache_key = f"{agent_id}:{agent_type}"
         if cache_key in self._cache:
-            profile, cached_at = self._cache[cache_key]
+            profile, source, cached_at = self._cache[cache_key]
             if time.monotonic() - cached_at < config.profiles.cache_ttl_seconds:
                 return ProfileResult(
                     success=True,
                     profile=profile,
-                    source="cache",
+                    source=source,
                     delegated_from=delegated_from,
                 )
 
@@ -154,9 +180,13 @@ class ProfilesService:
         profile_result = ProfileResult.from_dict(result)
         profile_result.delegated_from = delegated_from
 
-        # Cache successful lookups
+        # Cache successful lookups, provenance included.
         if profile_result.success and profile_result.profile:
-            self._cache[cache_key] = (profile_result.profile, time.monotonic())
+            self._cache[cache_key] = (
+                profile_result.profile,
+                profile_result.source,
+                time.monotonic(),
+            )
 
         return profile_result
 

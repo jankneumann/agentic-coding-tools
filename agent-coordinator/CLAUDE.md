@@ -191,11 +191,11 @@ All write endpoints require `X-API-Key` header.
 ```bash
 # Required: choose ONE database backend
 
-# Option A: PostgreSQL via ParadeDB (default for local dev — set DB_BACKEND=postgres)
+# Option A: PostgreSQL via ParadeDB (the default; DB_BACKEND may be omitted)
 DB_BACKEND=postgres
 POSTGRES_DSN=postgresql://postgres:postgres@localhost:54322/postgres
 
-# Option B: Supabase (cloud-managed alternative — set DB_BACKEND=supabase)
+# Option B: Supabase (cloud-managed alternative — opt in with DB_BACKEND=supabase)
 # DB_BACKEND=supabase
 # SUPABASE_URL=https://xxx.supabase.co
 # SUPABASE_SERVICE_KEY=...

@@ -219,10 +219,52 @@ class WorkQueueService:
         a local fallback: letting
         :class:`~src.trust_resolution.TrustResolutionError` propagate is the
         intended behavior.
+
+        "Propagate" means *out of the calling method*, not merely out of this
+        one. Each of the three call sites (claim / complete / submit) wraps its
+        guardrail block in ``except Exception`` so that a guardrail *service*
+        outage cannot brick the queue — and that handler used to swallow this
+        error too, which turned an unresolvable trust level into "skip the
+        guardrail scan and proceed". Skipping the scan is strictly worse than
+        the fail-open it replaced: with the old local fallback the scan at
+        least ran at trust 2 and still blocked ``git push --force`` /
+        ``rm -rf`` (``min_trust_level: 3``); with the scan skipped, nothing is
+        blocked at all. Every call site therefore re-raises
+        :class:`~src.trust_resolution.TrustResolutionError` ahead of its
+        generic handler.
         """
         from .trust_resolution import resolve_trust_level
 
         return await resolve_trust_level(agent_id, agent_type)
+
+    async def _release_claimed_task(
+        self, task_id: UUID, agent_id: str, error_message: str
+    ) -> None:
+        """Hand a claimed task back so it does not sit claimed by nobody.
+
+        Used when ``claim()`` decides, *after* the atomic DB claim, that the
+        task must not be worked (guardrail violation, or a trust level that
+        could not be resolved). Never raises: the caller is already returning
+        or re-raising a failure, and a bookkeeping error must not mask it.
+        """
+        try:
+            await self.db.rpc(
+                "complete_task",
+                {
+                    "p_task_id": str(task_id),
+                    "p_agent_id": agent_id,
+                    "p_success": False,
+                    "p_result": None,
+                    "p_error_message": error_message,
+                },
+            )
+        except Exception:
+            logger.error(
+                "Failed to release claimed task %s (%s)",
+                task_id,
+                error_message,
+                exc_info=True,
+            )
 
     async def claim(
         self,
@@ -357,6 +399,8 @@ class WorkQueueService:
 
             # Guardrails pre-execution check on claimed task description/input
             if claim_result.success:
+                from .trust_resolution import TrustResolutionError
+
                 try:
                     from .guardrails import get_guardrails_service
 
@@ -399,29 +443,12 @@ class WorkQueueService:
                             # Release the DB claim so the task doesn't stay
                             # stuck in "claimed" with no agent to work it.
                             if claim_result.task_id:
-                                try:
-                                    msg = (
-                                        "Blocked by guardrails: "
-                                        f"{', '.join(patterns)}"
-                                    )
-                                    await self.db.rpc(
-                                        "complete_task",
-                                        {
-                                            "p_task_id": str(
-                                                claim_result.task_id
-                                            ),
-                                            "p_agent_id": resolved_agent_id,
-                                            "p_success": False,
-                                            "p_result": None,
-                                            "p_error_message": msg,
-                                        },
-                                    )
-                                except Exception:
-                                    logger.error(
-                                        "Failed to release guardrail-blocked task %s",
-                                        claim_result.task_id,
-                                        exc_info=True,
-                                    )
+                                await self._release_claimed_task(
+                                    claim_result.task_id,
+                                    resolved_agent_id,
+                                    "Blocked by guardrails: "
+                                    f"{', '.join(patterns)}",
+                                )
                             return ClaimResult(
                                 success=False,
                                 reason=(
@@ -429,6 +456,23 @@ class WorkQueueService:
                                     f"{', '.join(patterns)}"
                                 ),
                             )
+                except TrustResolutionError as exc:
+                    # Fail closed. The generic handler below exists so a
+                    # guardrail *service* outage cannot brick the queue; an
+                    # unresolvable trust level is a different fault and must
+                    # not be answered by handing out an unscanned task.
+                    # Re-raise rather than returning a plain failure: this is a
+                    # broken agent_profiles projection (a coordinator
+                    # misconfiguration, HTTP 500), not a policy denial the
+                    # caller could act on, and silently reporting "no work"
+                    # would leave the projection broken and invisible.
+                    if claim_result.task_id:
+                        await self._release_claimed_task(
+                            claim_result.task_id,
+                            resolved_agent_id,
+                            f"Claim released, trust level unresolvable: {exc.reason}",
+                        )
+                    raise
                 except Exception:
                     logger.error(
                         "Guardrails check failed during claim", exc_info=True
@@ -502,6 +546,8 @@ class WorkQueueService:
 
             # Guardrails pre-execution check on task result
             if success and result:
+                from .trust_resolution import TrustResolutionError
+
                 try:
                     from .guardrails import get_guardrails_service
 
@@ -529,6 +575,11 @@ class WorkQueueService:
                                 f"{', '.join(patterns)}"
                             ),
                         )
+                except TrustResolutionError:
+                    # Fail closed: nothing has been written yet, and the
+                    # result payload must not land unscanned. See
+                    # _resolve_trust_level.
+                    raise
                 except Exception:
                     logger.error(
                         "Guardrails check failed during complete", exc_info=True
@@ -651,6 +702,8 @@ class WorkQueueService:
                 return SubmitResult(success=False, task_id=None)
 
             # Guardrails check on submitted task content
+            from .trust_resolution import TrustResolutionError
+
             try:
                 from .guardrails import get_guardrails_service
 
@@ -672,6 +725,11 @@ class WorkQueueService:
                         success=False,
                         task_id=None,
                     )
+            except TrustResolutionError:
+                # Fail closed: the task is not persisted, so an unscanned
+                # description cannot reach a claimant. See
+                # _resolve_trust_level.
+                raise
             except Exception:
                 logger.error(
                     "Guardrails check failed during submit", exc_info=True

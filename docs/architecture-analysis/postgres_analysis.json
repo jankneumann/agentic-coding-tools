@@ -1059,6 +1059,12 @@
           "type": "UNKNOWN",
           "nullable": true,
           "default": null
+        },
+        {
+          "name": "delegated_from",
+          "type": "TEXT",
+          "nullable": true,
+          "default": "NULL"
         }
       ],
       "primary_key": [
@@ -2773,7 +2779,7 @@
     {
       "name": "auth.role",
       "file": "000_bootstrap.sql",
-      "line": 31,
+      "line": 47,
       "language": "sql",
       "parameters": [],
       "return_type": "text",
@@ -3717,7 +3723,7 @@
   ],
   "summary": {
     "total_tables": 27,
-    "total_columns": 294,
+    "total_columns": 295,
     "total_foreign_keys": 11,
     "total_indexes": 69,
     "most_referenced_tables": [
@@ -3772,6 +3778,10 @@
         "column_count": 13
       },
       {
+        "table": "public.audit_log",
+        "column_count": 12
+      },
+      {
         "table": "public.guardrail_violations",
         "column_count": 12
       },
@@ -3782,10 +3792,6 @@
       {
         "table": "public.verification_results",
         "column_count": 12
-      },
-      {
-        "table": "public.audit_log",
-        "column_count": 11
       },
       {
         "table": "public.changesets",

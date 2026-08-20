@@ -1078,14 +1078,28 @@ def _is_unique_violation(exc: BaseException) -> bool:
     return _UNIQUE_VIOLATION_TEXT in str(exc)
 
 
-def _registry_sync_timestamp() -> str:
+def _registry_sync_timestamp() -> datetime:
     """Value for ``agent_profiles.synced_from_registry_at`` on this write.
 
     Migration 032 added the column so operators can tell registry-projected
     rows from hand-maintained ones; it stays NULL unless the projection
     actually stamps it.
+
+    Returns a ``datetime``, **not** an ISO string. asyncpg binds ``timestamptz``
+    parameters through its own codec and rejects strings outright
+    (``expected a datetime.date or datetime.datetime instance, got 'str'``), so
+    stamping an ISO string made ``sync_profiles()`` raise against real
+    PostgreSQL — and because sync failure fails boot by design, the coordinator
+    would not start at all. The unit fakes accept strings, so the whole suite
+    stayed green; only a live boot surfaced it.
+
+    Do not "simplify" this back to ``.isoformat()``. Other call sites in this
+    codebase (e.g. ``approval.py``) do pass ISO strings, but those reach the
+    database through the Supabase/PostgREST client, which JSON-encodes the
+    payload and therefore *requires* strings. The two backends want different
+    representations; passing the Python object lets each one serialize it.
     """
-    return datetime.now(UTC).isoformat()
+    return datetime.now(UTC)
 
 
 def _desired_profile_row(agent: AgentEntry) -> dict[str, Any]:

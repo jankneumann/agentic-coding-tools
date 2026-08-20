@@ -52,6 +52,41 @@ def _checksum(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()
 
 
+#: SQLSTATE classes that mean "this migration's objects are already here".
+#:
+#: 42710 duplicate_object, 42P07 duplicate_table, 42723 duplicate_function,
+#: 42P06 duplicate_schema, 42701 duplicate_column, 42P16 invalid_table_definition
+#: (raised by ``ALTER PUBLICATION ... ADD TABLE`` for a table already in it).
+_ALREADY_APPLIED_SQLSTATES = frozenset(
+    {"42710", "42P07", "42723", "42P06", "42701", "42P16"}
+)
+
+
+def _is_already_applied_error(exc: BaseException) -> bool:
+    """Does this error mean the migration was already applied out-of-band?
+
+    Only duplicate-object errors qualify. The bootstrap path used to treat
+    *every* first-run failure as "already applied" and record the migration as
+    done, which made a genuinely broken migration permanently invisible: the
+    tracking row said applied, so no later run ever retried it.
+
+    That is not hypothetical. ``000_bootstrap.sql`` hardcoded
+    ``GRANT anon TO postgres``, so on a database owned by any other role it
+    aborted with ``role "postgres" does not exist`` — an *undefined*-object
+    error, the opposite of a duplicate. It was recorded as applied, the ``auth``
+    schema and ``supabase_realtime`` publication it should have created never
+    existed, and 001, 002 and 015 then aborted and were recorded in turn. The
+    coordinator booted reporting 33 applied migrations against a database
+    missing ``work_queue``, ``agent_sessions`` and ``coordinator_notify()`` —
+    and every ``audit_log`` insert failed on the surviving 024 trigger.
+
+    Narrowing the swallow keeps the Docker-initdb case working (those failures
+    *are* duplicate-object errors) while letting a real failure stop the boot.
+    """
+    sqlstate = getattr(exc, "sqlstate", None)
+    return sqlstate in _ALREADY_APPLIED_SQLSTATES
+
+
 async def run_migrations(
     dsn: str,
     *,
@@ -115,10 +150,11 @@ async def run_migrations(
                     )
                 newly_applied.append(filename)
             except Exception as exc:  # noqa: BLE001
-                if bootstrapping:
-                    # First run with an empty tracking table — the database was
-                    # likely bootstrapped by Docker initdb.  Record the migration
-                    # as already applied so future runs skip it.
+                if bootstrapping and _is_already_applied_error(exc):
+                    # First run with an empty tracking table and the migration
+                    # failed *because its objects already exist* — the database
+                    # was bootstrapped by Docker initdb.  Record it as applied
+                    # so future runs skip it.
                     logger.info(
                         "Migration %s already applied (bootstrap, error: %s) — recording.",
                         filename,

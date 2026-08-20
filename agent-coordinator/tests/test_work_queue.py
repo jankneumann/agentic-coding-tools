@@ -1,12 +1,29 @@
 """Tests for the work queue service."""
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import Response
 
 from src.policy_engine import PolicyDecision
 from src.work_queue import ClaimResult, CompleteResult, SubmitResult, Task, WorkQueueService
+
+
+def _allow_policy(monkeypatch):
+    """Make the pre-queue authorization gate permit, so later stages are reachable.
+
+    ``claim``/``submit`` call ``get_policy_engine().check_operation`` before
+    touching the queue. Under the default native engine an unregistered test
+    principal is denied there, so the guardrail block further down is never
+    reached — which is why a test that only called the public method could pass
+    whether or not the trust-failure path was fixed.
+    """
+    from unittest.mock import AsyncMock
+
+    engine = AsyncMock()
+    engine.check_operation.return_value = PolicyDecision.allow("test")
+    monkeypatch.setattr("src.policy_engine.get_policy_engine", lambda: engine)
+    return engine
 
 
 class TestWorkQueueService:
@@ -521,3 +538,94 @@ class TestWorkQueueTrustResolution:
         )
         assert trust == 2
         reset_config()
+
+
+@pytest.mark.asyncio
+class TestTrustFailureNeverSkipsGuardrails:
+    """A trust-resolution failure must not silently skip the guardrail scan.
+
+    ``claim``/``complete``/``submit`` each wrap their guardrail block in
+    ``except Exception`` so that a guardrail *service* outage cannot brick the
+    queue. Once ``_resolve_trust_level`` began raising ``TrustResolutionError``
+    for a broken projection, that broad handler swallowed it — and because the
+    resolve call sits *before* ``guardrails.check_operation``, the scan was
+    never reached at all.
+
+    That is strictly worse than the fail-open it replaced: previously a broken
+    projection yielded trust 2 and the scan still ran, blocking
+    ``git push --force`` / ``git reset --hard`` / ``rm -rf`` (all
+    ``min_trust_level: 3``). Afterwards nothing was blocked.
+
+    ``TestWorkQueueTrustResolution`` above calls ``_resolve_trust_level``
+    directly and asserts it raises; it never exercises ``claim()``, which is
+    exactly why this gap survived. These tests drive the public method.
+    """
+
+    @staticmethod
+    def _raising_resolver():
+        from src.trust_resolution import TrustResolutionError
+
+        async def _raise(agent_id: str, agent_type: str) -> int:
+            raise TrustResolutionError(
+                agent_id, agent_type, "no profile row named 'grok_local'"
+            )
+
+        return _raise
+
+    async def test_claim_fails_closed_when_trust_cannot_be_resolved(
+        self, monkeypatch, mock_supabase, db_client
+    ):
+        """The destructive task must not be handed over unscanned."""
+        from src.trust_resolution import TrustResolutionError
+
+        mock_supabase.post(
+            "https://test.supabase.co/rest/v1/rpc/claim_task"
+        ).mock(
+            return_value=Response(
+                200,
+                json={
+                    "success": True,
+                    "task_id": str(uuid4()),
+                    "task_type": "refactor",
+                    # Would be blocked by guardrails at trust < 3.
+                    "description": "run git push --force origin main and rm -rf /",
+                    "input_data": {},
+                    "priority": 1,
+                    "deadline": None,
+                },
+            )
+        )
+
+        # claim() authorizes before it touches the queue; that gate is not what
+        # is under test here, so let it through and exercise the guardrail block.
+        _allow_policy(monkeypatch)
+
+        service = WorkQueueService(db_client)
+        monkeypatch.setattr(
+            service, "_resolve_trust_level", self._raising_resolver()
+        )
+
+        with pytest.raises(TrustResolutionError):
+            await service.claim(agent_id="grok-local", agent_type="grok")
+
+    async def test_submit_fails_closed_when_trust_cannot_be_resolved(
+        self, monkeypatch, mock_supabase, db_client
+    ):
+        from src.trust_resolution import TrustResolutionError
+
+        mock_supabase.post(
+            "https://test.supabase.co/rest/v1/rpc/submit_task"
+        ).mock(return_value=Response(200, json={"success": True, "task_id": str(uuid4())}))
+
+        _allow_policy(monkeypatch)
+
+        service = WorkQueueService(db_client)
+        monkeypatch.setattr(
+            service, "_resolve_trust_level", self._raising_resolver()
+        )
+
+        with pytest.raises(TrustResolutionError):
+            await service.submit(
+                task_type="refactor",
+                description="rm -rf / --no-preserve-root",
+            )

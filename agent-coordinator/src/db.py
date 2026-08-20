@@ -1,8 +1,8 @@
 """Database client abstraction for Agent Coordinator.
 
 Provides a DatabaseClient protocol with two implementations:
-- SupabaseClient: PostgREST HTTP via httpx (default, zero-config with Supabase)
-- DirectPostgresClient: asyncpg for direct PostgreSQL connections (self-hosted)
+- DirectPostgresClient: asyncpg for direct PostgreSQL connections (default)
+- SupabaseClient: PostgREST HTTP via httpx (opt in with DB_BACKEND=supabase)
 
 Usage:
     from src.db import get_db, DatabaseClient
@@ -74,7 +74,7 @@ class SupabaseClient:
     """Async Supabase client for coordination operations.
 
     Uses httpx to communicate with Supabase's PostgREST API.
-    This is the default backend (DB_BACKEND=supabase).
+    Opt in with DB_BACKEND=supabase; PostgreSQL is the default.
     """
 
     def __init__(self, config: SupabaseConfig | None = None):
@@ -244,7 +244,7 @@ class SupabaseClient:
 def create_db_client() -> DatabaseClient:
     """Factory: returns the appropriate DatabaseClient based on config.
 
-    Uses DB_BACKEND env var (default: "supabase").
+    Uses DB_BACKEND env var (default: "postgres").
     """
     config = get_config()
     backend = config.database.backend

@@ -373,10 +373,24 @@ class NativePolicyEngine:
         agent_id: str,
         domain: str,
     ) -> PolicyDecision:
-        """Check network access using native NetworkPolicyService."""
-        from .network_policies import get_network_policy_service
+        """Check network access using native NetworkPolicyService.
 
-        service = get_network_policy_service()
+        The service is built over *this engine's* database client. It used to
+        call ``get_network_policy_service()``, a process-global that resolves
+        its own client via ``get_db()`` — so an engine constructed with an
+        explicit client silently made its network decisions against a
+        different database. When the two disagree the RPC raises and
+        ``check_domain`` falls back to the default policy, which denies; a
+        wrong-database read therefore surfaced as ordinary denials rather than
+        as an error, and stayed invisible.
+        """
+        from .network_policies import NetworkPolicyService, get_network_policy_service
+
+        service = (
+            NetworkPolicyService(self._db)
+            if self._db is not None
+            else get_network_policy_service()
+        )
         try:
             decision = await service.check_domain(
                 domain=domain, agent_id=agent_id
