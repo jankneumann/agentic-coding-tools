@@ -10,12 +10,14 @@
 ### Decisions
 1. **Narrow to residual Phase 3** `architectural: validate-feature-ephemeral` — introduce-fitness-function-gates explicitly superseded phases 1, 2, and 4 at 0/31 tasks; phase-scoped-worktree-lifecycle requires only the selected validation worktree.
 2. **Record exact commit and tree** `architectural: validate-feature-ephemeral` — A commit alone cannot identify an include-dirty run, so both source HEAD and the materialized Git tree are durable evidence.
+3. **Fail closed at filesystem boundaries** `security: validate-feature-ephemeral` — Copy-back and teardown operate on paths influenced by a change ID and persisted state, so identifiers, resolved containment, symlink endpoints, Git worktree registration, and atomic replacement are all verified before mutation.
+4. **Split scratch execution from durable bookkeeping** `architectural: validate-feature-ephemeral` — Steps through report persistence run in scratch; architecture impact crosses the explicit allowlist, then session-log/handoff writes run in the source checkout after finalization.
 
 ### Alternatives Considered
 - Implement the full original draft: rejected because It would overwrite merged DEGRADED and architecture-gate semantics on the same surface.
 
 ### Trade-offs
-- Accepted force removal of the uniquely owned scratch checkout over preserving validation residue because Only two allowlisted artifacts are durable; the scratch checkout is explicitly disposable and may be dirty by design.
+- Accepted force removal of the uniquely owned, registered scratch checkout over preserving validation residue because only three allowlisted artifacts are durable; the scratch checkout is explicitly disposable and may be dirty by design.
 
 ### Completed Work
 - residual OpenSpec scope
@@ -23,6 +25,9 @@
 - lifecycle tests
 - canonical skill wiring
 - runtime mirror generation
+- changed-only, symlink-safe atomic persistence
+- executable prepare/finalize lifecycle
+- security and stale-evidence regression coverage
 
 ### Next Steps
 - Validate the residual change and open a pull request without merging.
@@ -33,4 +38,4 @@
 - `skills/validate-feature/SKILL.md` — Ephemeral flag wiring
 
 ### Context
-Implemented the residual ephemeral validation-worktree prerequisite after confirming the original findings/gate/triage proposal was superseded. The helper isolates clean or explicitly materialized dirty state, persists only durable validation artifacts, and preserves current fitness-function semantics.
+Implemented the residual ephemeral validation-worktree prerequisite after confirming the original findings/gate/triage proposal was superseded. The helper isolates clean or explicitly materialized dirty state, persists only newly changed durable validation artifacts through a hardened boundary, and preserves current fitness-function semantics.

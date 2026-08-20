@@ -9,13 +9,16 @@
   "payload": {
     "agent_name": "codex",
     "session_id": null,
-    "summary": "Implemented the residual ephemeral validation-worktree prerequisite after confirming the original findings/gate/triage proposal was superseded. The helper isolates clean or explicitly materialized dirty state, persists only durable validation artifacts, and preserves current fitness-function semantics.",
+    "summary": "Implemented the residual ephemeral validation-worktree prerequisite after confirming the original findings/gate/triage proposal was superseded. The helper isolates exact source state, provides an executable prepare/finalize boundary, and persists only newly changed durable artifacts through a path-hardened atomic copy-back.",
     "completed_work": [
       "residual OpenSpec scope",
       "validation_worktree.py",
       "lifecycle tests",
       "canonical skill wiring",
-      "runtime mirror generation"
+      "runtime mirror generation",
+      "changed-only, symlink-safe atomic persistence",
+      "executable prepare/finalize lifecycle",
+      "security and stale-evidence regression coverage"
     ],
     "in_progress": [],
     "decisions": [
@@ -28,6 +31,18 @@
       {
         "title": "Record exact commit and tree",
         "rationale": "A commit alone cannot identify an include-dirty run, so both source HEAD and the materialized Git tree are durable evidence.",
+        "capability": "validate-feature-ephemeral",
+        "supersedes": null
+      },
+      {
+        "title": "Fail closed at filesystem boundaries",
+        "rationale": "Copy-back and teardown validate identifiers, resolved containment, symlink endpoints, registered worktree ownership, and atomic replacement before mutation.",
+        "capability": "validate-feature-ephemeral",
+        "supersedes": null
+      },
+      {
+        "title": "Keep bookkeeping durable",
+        "rationale": "Architecture impact crosses the explicit allowlist; session-log and handoff writes run from the source checkout after finalization.",
         "capability": "validate-feature-ephemeral",
         "supersedes": null
       }

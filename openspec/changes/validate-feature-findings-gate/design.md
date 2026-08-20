@@ -25,12 +25,15 @@ untracked file list before the scratch directory exists; applies them in that
 order; then writes the materialized scratch index tree id. The source index and
 working tree are never changed.
 
-### D3 — Only two artifacts cross the isolation boundary
+### D3 — Only three canonical artifacts cross the isolation boundary
 
 Immediately before teardown, the implementation records `validated_commit` and
-`validated_tree`, then copies only `validation-report.md` and
-`validation-findings.json` from the change directory. Deploy artifacts, scanner
-output, logs, and all other files remain disposable.
+`validated_tree`, then atomically copies only newly produced or changed
+`validation-report.md`, `validation-findings.json`, and
+`architecture-impact.md` from the change directory. Pre-existing unchanged
+results are never restamped after an early failure. Deploy artifacts, scanner
+output, logs, and all other files remain disposable. Session-log and handoff
+bookkeeping runs in the source checkout after finalization.
 
 ### D4 — Teardown is exception-safe and scratch-scoped
 
@@ -46,6 +49,15 @@ When `shared.environment_profile.detect()` reports `isolation_provided=true`,
 the helper logs a downgrade and yields the current checkout. It creates no nested
 worktree and performs no copy-back or teardown, matching the repository's shared
 cloud-execution contract.
+
+### D6 — Every filesystem boundary fails closed
+
+Change IDs are validated before path construction. Resolved change, scratch,
+and artifact paths must remain inside their declared parent; scratch teardown
+also requires a registered Git worktree. Artifact sources and destinations may
+not be symlinks, and copy-back uses same-directory temporary files plus atomic
+replacement. A persisted state file connects the concrete `prepare` and
+`finalize` CLI commands without trusting paths that are not revalidated.
 
 ## Compatibility
 

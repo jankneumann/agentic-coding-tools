@@ -160,48 +160,49 @@ If not on the feature branch, check out `$FEATURE_BRANCH` (which honors `OPENSPE
 
 ### 2.25. Enter Ephemeral Validation Scope (Optional)
 
-When `EPHEMERAL=true`, wrap Steps 2.5 through 14 with the canonical
-`validation_worktree()` context manager before their first write. The source is
-the current feature checkout, not `PROJECT_ROOT` (which may resolve to the main
-repository from inside a managed worktree):
-
-```python
-import os
-import sys
-from pathlib import Path
-
-skill_dir = Path("<skill-base-dir>").resolve()
-sys.path.insert(0, str(skill_dir / "scripts"))
-from validation_worktree import validation_worktree
-
-source_checkout = Path.cwd()
-with validation_worktree(
-    source_checkout,
-    CHANGE_ID,
-    include_dirty=INCLUDE_DIRTY,
-) as validation:
-    os.chdir(validation.path)
-    # Execute Steps 2.5 through 14 here. All temporary artifacts stay in
-    # validation.path. The context manager persists only the report/findings.
-```
-
-The provider/CLI adapter may equivalently wrap an executable validation driver:
+When `EPHEMERAL=true`, enter the canonical prepare/finalize lifecycle before
+Step 2.5. The source is the current feature checkout, not the previously
+resolved `PROJECT_ROOT` (which may name the main repository from inside a
+managed worktree). This is an executable shell boundary: Steps 2.5 through 12
+run from `VALIDATION_PATH`; Step 12.5 copies the durable allowlist back and
+removes the scratch checkout; Steps 13 and 14 then run from `VALIDATION_SOURCE`
+so PR comments, the session log, and its handoff are durable.
 
 ```bash
+VALIDATION_HELPER="<skill-base-dir>/scripts/validation_worktree.py"
+VALIDATION_STATE_FILE=$(mktemp "${TMPDIR:-/tmp}/validate-feature-state.XXXXXX")
 INCLUDE_DIRTY_FLAG=""
 [ "$INCLUDE_DIRTY" = "true" ] && INCLUDE_DIRTY_FLAG="--include-dirty"
-python3 "<skill-base-dir>/scripts/validation_worktree.py" \
-  --change-id "$CHANGE_ID" $INCLUDE_DIRTY_FLAG -- \
-  <validation-driver-command>
+
+eval "$(python3 "$VALIDATION_HELPER" prepare \
+  --source "$PWD" \
+  --change-id "$CHANGE_ID" \
+  --state-file "$VALIDATION_STATE_FILE" \
+  $INCLUDE_DIRTY_FLAG \
+  --shell)"
+
+finalize_ephemeral_validation() {
+  validation_status=$?
+  cd "$VALIDATION_SOURCE" || return "$validation_status"
+  python3 "$VALIDATION_HELPER" finalize --state-file "$VALIDATION_STATE_FILE" || \
+    validation_status=$?
+  trap - EXIT INT TERM
+  return "$validation_status"
+}
+trap finalize_ephemeral_validation EXIT INT TERM
+
+cd "$VALIDATION_PATH"
+PROJECT_ROOT="$VALIDATION_PATH"
+OPENSPEC_PATH="$VALIDATION_PATH/openspec"
 ```
 
 On a dirty checkout, omit `--include-dirty` to fail closed or pass it explicitly
 to reproduce the exact index, working-tree, and untracked state. The helper
 records `VALIDATION_VALIDATED_COMMIT` and `VALIDATION_VALIDATED_TREE`, copies only
-`validation-report.md` and `validation-findings.json` back to the feature
-checkout, and removes the scratch worktree in a `finally` block. Under a cloud
-harness whose environment profile already provides isolation, it logs a
-downgrade and runs in place.
+`validation-report.md`, `validation-findings.json`, and `architecture-impact.md`
+back to the feature checkout, and removes the scratch worktree even when an
+earlier step exits. Under a cloud harness whose environment profile already
+provides isolation, it logs a downgrade and runs in place.
 
 ### 2.5. Prepare Validation Artifacts
 
@@ -987,6 +988,22 @@ EOF
 
 echo "Report written to: $REPORT_FILE"
 ```
+
+### 12.5. Finalize Ephemeral Validation Scope
+
+When `EPHEMERAL=true`, finalize before any durable source-checkout bookkeeping.
+This atomically copies only newly produced or changed allowlisted artifacts,
+removes the disposable worktree, and clears the failure trap:
+
+```bash
+finalize_ephemeral_validation
+PROJECT_ROOT="$VALIDATION_SOURCE"
+OPENSPEC_PATH="$VALIDATION_SOURCE/openspec"
+```
+
+Steps 13 and 14 now operate in `VALIDATION_SOURCE`. In particular,
+`PhaseRecord.write_both()` writes `session-log.md` and the validation handoff
+after scratch teardown, so neither durable bookkeeping artifact is discarded.
 
 ### 13. PR Comment
 

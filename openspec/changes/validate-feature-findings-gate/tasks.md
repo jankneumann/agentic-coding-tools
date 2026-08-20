@@ -25,3 +25,7 @@
   **Dependencies**: 1.1-1.6
 - [x] 1.8 Regenerate runtime skill mirrors from canonical `skills/` and verify
   mirror drift checks. **Dependencies**: 1.6
+- [x] 1.9 Harden review blockers: persist changed artifacts only, capture the
+  exact cloud tree, validate and contain all paths, reject symlinks, atomically
+  copy durable outputs, and expose a tested prepare/finalize CLI lifecycle.
+  **Dependencies**: 1.1-1.6 **Design decisions**: D2-D6
