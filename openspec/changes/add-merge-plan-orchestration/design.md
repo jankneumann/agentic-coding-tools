@@ -25,6 +25,10 @@ merge. A retry reconciles terminal GitHub state before human and sync-point gate
 only the same claim, and otherwise refuses to replay an in-flight attempt. Cross-host
 claim serialization remains a Phase-2 coordinator responsibility.
 
+The lock covers every file-tier mutation, not only claims. Whole-plan writes carry the
+revision read by that store, and node-scoped gate writes compare the expected outcome,
+so a stale pending snapshot cannot overwrite a newer `in_progress` claim.
+
 These are stored differently (D3). Conflating them in one flat file is what breaks
 multi-host dispatch.
 

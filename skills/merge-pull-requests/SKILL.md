@@ -127,7 +127,9 @@ staleness state, refreshes stale or invalidated nodes, runs eligible vendor
 review, and delegates the actual merge to the existing `merge_pr.py` safety
 path. Eligible review fails closed on dispatch error or a missing verdict. Before
 refresh/review/merge side effects it atomically persists `outcome=in_progress` and a
-same-host file-tier claim; a retry reconciles live merged/closed state before human or
+same-host file-tier claim. Every file-tier mutation shares that lock; stale whole-plan
+revisions and unexpected node outcomes are rejected instead of overwriting a claim. A
+retry reconciles live merged/closed state before human or
 sync-point gates and refuses an unowned in-flight claim rather than replaying the merge.
 A successful merge persists `outcome=merged` and sets `needs_revalidation=true` on every
 transitive dependant. The next executor refreshes and re-checks any flagged node before

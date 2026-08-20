@@ -48,7 +48,7 @@ final section.
   **Spec scenarios**: merge-pull-requests "Executing one node updates the plan and flags downstream nodes", "Gated node halts for human decision", "Execution respects the security-check backstop"
   **Design decisions**: D5 (merge serialisation), D6 (human gates), D9 (canonical paths)
   **Dependencies**: 1.1
-  **Also cover**: mirror invocation, active-agent sync-point blocking, OpenSpec non-bypass, fresh staleness recomputation, historical-overlap refresh, atomic same-host claims, pre-gate durable replay reconciliation, final-save failure, and eligible vendor-review fail-closed behavior
+  **Also cover**: mirror invocation, active-agent sync-point blocking, OpenSpec non-bypass, fresh staleness recomputation, historical-overlap refresh, atomic same-host claims, stale-writer CAS, concurrent approved-versus-gated executors, pre-gate durable replay reconciliation, final-save failure, and eligible vendor-review fail-closed behavior
 - [x] 4.2 Implement `--execute --pr <n>` in the skill entrypoint: load plan, re-check live PR/CI, refresh if stale, run `vendor_review.py` when eligible, merge via `merge_pr.py` respecting gates, write `outcome` back
   **Dependencies**: 4.1, 1.2, 3.2
 - [x] 4.3 On successful merge, flag downstream nodes (`needs_revalidation=true`) and recompute mergeability before executing a flagged node

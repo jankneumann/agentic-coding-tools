@@ -42,7 +42,9 @@ executed. Execution SHALL invoke helper scripts via canonical `skills/...` paths
 NOT rely on `.agents/skills`, `.claude/skills`, or other runtime mirrors. File-tier
 execution SHALL run the skill's active-agent sync-point guard before any refresh or merge
 side effect. It SHALL atomically persist an `in_progress` claim before those side effects,
-reject an unowned replay, and reconcile a claimed node from live terminal GitHub state
+serialize every same-host file-tier mutation under the same lock, reject writes based on
+a stale plan revision or expected node outcome, reject an unowned replay, and reconcile a
+claimed node from live terminal GitHub state
 before prerequisite, human, or sync-point gates so a crash after the remote merge cannot
 cause a duplicate merge or require the prior approval to be supplied again. Every
 execution attempt SHALL recompute live staleness even when the snapshot says `fresh`.
@@ -81,6 +83,12 @@ or the absence of a consensus verdict SHALL block the merge.
 - **WHEN** the overlap classifier remains `stale` after a successful branch refresh because it measures changes since PR creation
 - **THEN** execution SHALL accept the refreshed node only when its CI merge base is current, CI is fresh and passing, and the live PR state is mergeable
 - **AND** SHALL NOT require the historical overlap classification itself to become `fresh`
+
+#### Scenario: Stale gate writer cannot overwrite a winning claim
+
+- **WHEN** one file-tier executor reads a pending node and another executor atomically claims it before the first persists a gate result
+- **THEN** the stale gate write SHALL be rejected using the current plan revision or expected outcome
+- **AND** the winning `in_progress` claim SHALL remain durable
 
 #### Scenario: Eligible vendor review fails closed
 

@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from plan_storage import (  # noqa: E402
     CoordinatorPlanStore,
     FilePlanStore,
+    PlanWriteConflict,
     select_plan_store,
 )
 from test_merge_plan_contract import valid_plan  # noqa: E402
@@ -104,3 +105,21 @@ def test_file_store_claim_is_atomic_across_same_host_contenders(tmp_path: Path) 
     state = FilePlanStore(path).load()["nodes"][0]["state"]
     assert state["outcome"] == "in_progress"
     assert state["claimed_by"] == winner
+
+
+def test_stale_whole_plan_save_cannot_overwrite_a_winning_claim(tmp_path: Path) -> None:
+    path = tmp_path / "merge-plan.json"
+    FilePlanStore(path).save(valid_plan())
+    stale_store = FilePlanStore(path)
+    stale_plan = stale_store.load()
+
+    _claimed, acquired = FilePlanStore(path).claim_node(10, "winner")
+    assert acquired is True
+    stale_plan["nodes"][0]["state"]["blocking_reason"] = "stale gate result"
+
+    with pytest.raises(PlanWriteConflict, match="changed since it was loaded"):
+        stale_store.save(stale_plan)
+
+    state = FilePlanStore(path).load()["nodes"][0]["state"]
+    assert state["outcome"] == "in_progress"
+    assert state["claimed_by"] == "winner"
