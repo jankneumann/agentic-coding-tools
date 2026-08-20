@@ -17,7 +17,12 @@ Discover, triage, and merge open pull requests from multiple sources. Handles Op
 
 ## Arguments
 
-`$ARGUMENTS` - Optional flags: `--dry-run` (report only, no mutations)
+`$ARGUMENTS` supports two modes:
+
+- Interactive analysis/triage: optional `--dry-run` (report only, no mutations).
+- Fresh-context plan execution: `--execute <merge-plan.json> --pr <number>`, with
+  optional `--approve-gate` only after the operator explicitly approves that node's
+  surfaced human gates.
 
 ## Script Location
 
@@ -84,6 +89,59 @@ python merge_watcher.py run --interval 60
 ```
 
 When the coordinator is available, the watcher runs as a background asyncio task (disable via `MERGE_WATCHER_DISABLED=1`).
+
+## Durable Merge Plan and Fresh-Context Execution
+
+The analysis round can persist its joined `discover_prs.py`,
+`check_staleness.py`, and `analyze_comments.py` outputs as a durable plan. Save
+those outputs as JSON, then run the producer from the canonical skill tree:
+
+```bash
+python3 "<skill-base-dir>/scripts/build_plan.py" \
+  --prs /tmp/discovered-prs.json \
+  --staleness /tmp/staleness.json \
+  --comments /tmp/comments.json \
+  --output merge-plan.json
+```
+
+The command validates and writes both authoritative `merge-plan.json` and its
+pure `merge-plan.md` projection. The plan records definition fields (topology,
+strategies, and gates) separately from live execution state. File-overlap and
+stacked-base relationships become dependency edges; the Markdown projection
+surfaces those edges.
+
+To process one PR with a clean context, start a new session and provide only the
+plan plus the target number:
+
+```bash
+python3 "<skill-base-dir>/scripts/execute_plan.py" \
+  --execute merge-plan.json --pr 42
+```
+
+Execution re-checks live PR and CI state, refreshes stale or invalidated nodes,
+runs eligible vendor review, and delegates the actual merge to the existing
+`merge_pr.py` safety path. A successful merge persists `outcome=merged` and
+sets `needs_revalidation=true` on every transitive dependant. The next executor
+refreshes and re-checks any flagged node before it may merge.
+
+Human gates are fail-closed. If `auto_executable` is false or the plan carries a
+gate, the command stops and prints the gate. Only after explicit operator
+approval may the operator re-run the same command with `--approve-gate`. That
+flag never bypasses required security checks or GitHub's merge protections.
+
+When unresolved comments are found, execution records their summary in the
+plan and returns hand-off commands for `iterate-on-implementation` and
+`quick-task`; it never edits the PR branch. A caller that discovers a new
+cross-PR blocker may use `merge_plan.amend_plan()` to append a prerequisite,
+its reason, and dependency edges. Existing nodes are preserved and the amended
+DAG is revalidated before persistence.
+
+Phase 1 uses `merge-plan.json` as the authority when coordinator queue
+capabilities are unavailable. Coordinator-backed live plan state is an explicit
+Phase-2 `NotImplementedError` seam; do not imply multi-host safety until that
+follow-on lands. Plan-driven helpers resolve through canonical
+`skills/merge-pull-requests/scripts`, never `.claude/skills` or another runtime
+mirror.
 
 ## Steps
 
@@ -899,6 +957,10 @@ Output a full report:
 
 ## Output
 
+- `merge-plan.json` plus its non-mutating `merge-plan.md` projection when plan
+  output is requested
+- One-node execution results with persisted outcomes, blocking reasons,
+  delegation hand-offs, and downstream revalidation flags
 - PRs merged, closed, or skipped with reasons
 - PRs added to merge queue (for repos that use it)
 - Obsolete PRs batch-closed with explanatory comments

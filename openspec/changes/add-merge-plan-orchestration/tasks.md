@@ -76,15 +76,12 @@ final section.
 
 ## 6. Skill docs + wiring
 
-- [ ] 6.1 Update `merge-pull-requests/SKILL.md`: document the plan artifact, `--execute --pr <n>`, gates, and the fresh-context-per-merge workflow
+- [x] 6.1 Update `merge-pull-requests/SKILL.md`: document the plan artifact, `--execute --pr <n>`, gates, and the fresh-context-per-merge workflow
   **Dependencies**: 4.2
-- [ ] 6.2 Sync runtime mirrors (`bash skills/install.sh --mode rsync --force --deps none --python-tools none`) and run the skill test suite
+- [x] 6.2 Sync runtime mirrors (`bash skills/install.sh --mode rsync --force --deps none --python-tools none`) and run the skill test suite
   **Dependencies**: 6.1
 
-## Deferred — Phase 2 (follow-on change, specified in design.md)
+## Deferred — Phase 2
 
-- [ ] P2.1 Coordinator system-of-record: model plan nodes as `work_queue` (`task_type=pr_merge`, `blockedBy`) + `merge_queue` serialisation (design.md D3, D5)
-- [ ] P2.2 Event-driven re-validation over `event_bus` LISTEN/NOTIFY (design.md D4)
-- [ ] P2.3 Cross-host dispatch of per-PR executors with worktree isolation (design.md D5)
-- [ ] P2.4 Auth scoping for cloud-SDK plan endpoints (design.md D10)
-- [ ] P2.5 Automated comment-addressing via worktree-isolated sub-agents (out of scope here; design.md D8)
+The follow-on work is tracked in `deferred-tasks.md`; it is outside this Phase-1
+implementation and is not counted as incomplete work for this change.

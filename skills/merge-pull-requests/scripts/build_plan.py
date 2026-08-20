@@ -185,6 +185,17 @@ def write_plan(plan: dict[str, Any], destination: Path) -> None:
     temporary.replace(destination)
 
 
+def emit_plan(plan: dict[str, Any], destination: Path) -> Path:
+    """Persist the authoritative JSON and its human-readable projection."""
+
+    from render_plan import write_projection
+
+    write_plan(plan, destination)
+    projection = destination.with_suffix(".md")
+    write_projection(plan, projection)
+    return projection
+
+
 def _load_records(path: Path, *, key: str) -> dict[int, dict[str, Any]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(payload, dict):
@@ -204,8 +215,16 @@ def main() -> int:
     staleness = _load_records(args.staleness, key="pr_number")
     comments = _load_records(args.comments, key="pr_number")
     plan = build_plan(prs, staleness, comments)
-    write_plan(plan, args.output)
-    print(json.dumps({"plan": str(args.output), "nodes": len(plan["nodes"])}))
+    projection = emit_plan(plan, args.output)
+    print(
+        json.dumps(
+            {
+                "plan": str(args.output),
+                "projection": str(projection),
+                "nodes": len(plan["nodes"]),
+            },
+        ),
+    )
     return 0
 
 
