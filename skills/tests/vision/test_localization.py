@@ -211,6 +211,10 @@ def test_claims_a_worktree_before_writing(skill_text: str):
     assert "checkout_policy.py" in skill_text and "require-mutation" in skill_text, (
         "the mutation guard must run before the first write"
     )
+    assert "WORKTREE_PATH" in skill_text, (
+        "setup only prints shell assignments; without eval + cd \"$WORKTREE_PATH\" "
+        "the guard runs in the shared checkout and aborts every local run (PR #404 P1)"
+    )
 
 
 # --- Template integrity ---------------------------------------------------
@@ -234,3 +238,21 @@ def test_board_has_no_external_resource_loads(template_text: str):
     """The board opens from disk; a remote asset would make it fail offline."""
     remote = re.findall(r'(?:src|href)="(https?:)?//[^"]+"', template_text)
     assert not remote, f"board template loads external resources: {remote}"
+
+
+def test_draft_slot_is_not_a_template_literal(template_text: str):
+    """The vision's own output format mandates backticks (`{project}`), so a
+    backtick-delimited DRAFT literal breaks on every conforming draft (PR #404 P1).
+    The slot must be filled as a JSON string literal instead."""
+    assert "`{{DRAFT_MARKDOWN}}`" not in template_text, (
+        "DRAFT is a backtick template literal again; a conforming draft's inline "
+        "code closes it and blanks the board"
+    )
+    assert "JSON" in template_text, "the DRAFT slot must document its JSON encoding"
+
+
+def test_card_fields_are_escaped_before_innerhtml(template_text: str):
+    """Card fields quote repo history (untrusted text) and land in innerHTML;
+    every ${c.<field>} interpolation must pass through esc() (PR #404 P2)."""
+    bare = re.findall(r"\$\{c\.\w+\}", template_text)
+    assert not bare, f"unescaped card-field interpolations: {bare}"

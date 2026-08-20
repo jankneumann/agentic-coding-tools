@@ -107,7 +107,8 @@ target resolved in Step 0:
   mutate the shared checkout in local CLI execution.
 
   ```bash
-  python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup vision
+  eval "$(python3 "<skill-base-dir>/../worktree/scripts/worktree.py" setup vision)"
+  cd "$WORKTREE_PATH"
   python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
   ```
 
@@ -237,8 +238,11 @@ file cannot.
 
 Copy `<skill-base-dir>/assets/review-template.html` and `assets/review.css` next to each
 other on the work surface, then fill only the template's marked slots: `{{PROJECT}}`,
-`{{RUN_NOTE}}`, `{{DRAFT_MARKDOWN}}` (the full latest VISION.md text), and the `CARDS`
-array — one object per hypothetical: `{ id, title, body, tests, why }`.
+`{{RUN_NOTE}}`, `{{DRAFT_MARKDOWN}}` (the full latest VISION.md text as one JSON
+string literal — `JSON.stringify` it, replacing the quoted placeholder whole; raw
+splicing breaks on the backticks the output template mandates), and the `CARDS`
+array — one object per hypothetical: `{ id, title, body, tests, why }`, every field
+plain text (the board escapes them at render time).
 
 Change nothing else. The template already carries the house structure: full draft on the
 left, one card at a time on the right, the steelman in full view. No boilerplate gets
