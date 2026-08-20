@@ -13,13 +13,13 @@ final section.
   **Design decisions**: D1 (definition vs live state), D2 (DAG edges)
   **Also cover**: producer-enforced DAG semantic invariants JSON Schema cannot express (contracts/README.md) — tests MUST reject duplicate `node.pr`, dangling `depends_on` targets, self-dependencies, and cycles; and assert every node's `state` carries `staleness`/`ci_state`/`unresolved_comments`
   **Dependencies**: None
-- [ ] 1.2 Add `build_plan.py` (or extend the analysis round) to emit `merge-plan.json` from `discover_prs` + `check_staleness` + `analyze_comments` output, validating against the schema
+- [x] 1.2 Add `build_plan.py` (or extend the analysis round) to emit `merge-plan.json` from `discover_prs` + `check_staleness` + `analyze_comments` output, validating against the schema
   **Dependencies**: 1.1
-- [ ] 1.3 Derive dependency edges from file overlap + base-branch relationships between PR nodes
+- [x] 1.3 Derive dependency edges from file overlap + base-branch relationships between PR nodes
   **Design decisions**: D2
   **Dependencies**: 1.1
 
-- [ ] 1.4 Checkpoint: run tests, review diff, verify scope
+- [x] 1.4 Checkpoint: run tests, review diff, verify scope
 
 ## 2. Rendered projection
 
