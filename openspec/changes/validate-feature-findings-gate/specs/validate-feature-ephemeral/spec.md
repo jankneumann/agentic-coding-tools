@@ -72,6 +72,18 @@ in the source checkout.
 - **THEN** finalize SHALL copy the allowlist and remove scratch
 - **AND** subsequent session-log/handoff writes SHALL target the source checkout
 
+#### Scenario: Prepare fails before shell evaluation
+
+- **WHEN** dirty input, an unsafe path, or Git setup makes prepare exit nonzero
+- **THEN** the shell adapter SHALL remove its empty state file and exit nonzero
+- **AND** it SHALL NOT evaluate unset validation paths or continue in the source checkout
+
+#### Scenario: Validation receives an interrupt or termination signal
+
+- **WHEN** bash or zsh receives `INT` or `TERM` inside the ephemeral scope
+- **THEN** the shell adapter SHALL finalize scratch and exit with status 130 or 143 respectively
+- **AND** it SHALL NOT continue executing validation steps in the source checkout
+
 ### Requirement: Existing harness isolation is reused
 
 When the shared environment profile reports that isolation is already provided,
