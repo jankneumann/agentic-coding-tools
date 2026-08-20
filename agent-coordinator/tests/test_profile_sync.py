@@ -1018,11 +1018,26 @@ class TestSyncedFromRegistryAt:
     """
 
     @staticmethod
-    def _assert_recent_iso(value: Any) -> None:
-        assert isinstance(value, str), f"expected an ISO timestamp, got {value!r}"
-        stamped = datetime.fromisoformat(value)
-        assert stamped.tzinfo is not None, "timestamp must be timezone-aware"
-        assert abs((datetime.now(UTC) - stamped).total_seconds()) < 60
+    def _assert_recent_timestamp(value: Any) -> None:
+        """The column must be stamped with a ``datetime``, never an ISO string.
+
+        This assertion is deliberately about the *type*, because the original
+        version of it asserted ``isinstance(value, str)`` and that is precisely
+        why the bug shipped: asyncpg binds ``timestamptz`` through its own codec
+        and rejects a ``str`` outright, so ``sync_profiles()`` raised against
+        real PostgreSQL. Sync failure fails boot by design, so the coordinator
+        would not start — while this suite stayed green, because the fakes here
+        happily accept whatever they are handed. A live boot was the only thing
+        that caught it.
+
+        Pinning the type is what makes this test constrain the behavior the
+        database actually requires rather than the shape the fake tolerates.
+        """
+        assert isinstance(value, datetime), (
+            f"expected a datetime (asyncpg rejects str for timestamptz), got {value!r}"
+        )
+        assert value.tzinfo is not None, "timestamp must be timezone-aware"
+        assert abs((datetime.now(UTC) - value).total_seconds()) < 60
 
     async def test_insert_stamps_the_column(self) -> None:
         db = FakeDb()
@@ -1030,7 +1045,7 @@ class TestSyncedFromRegistryAt:
 
         await sync_profiles(agents, db=db, audit=FakeAudit())
 
-        self._assert_recent_iso(db.inserts[0].get("synced_from_registry_at"))
+        self._assert_recent_timestamp(db.inserts[0].get("synced_from_registry_at"))
 
     async def test_drift_update_stamps_the_column(self) -> None:
         db = FakeDb(
@@ -1047,7 +1062,7 @@ class TestSyncedFromRegistryAt:
 
         await sync_profiles(agents, db=db, audit=FakeAudit())
 
-        self._assert_recent_iso(db.updates[0][1].get("synced_from_registry_at"))
+        self._assert_recent_timestamp(db.updates[0][1].get("synced_from_registry_at"))
 
     async def test_orphan_disable_does_not_restamp(self) -> None:
         """Disabling an orphan is not a projection *of* that row.

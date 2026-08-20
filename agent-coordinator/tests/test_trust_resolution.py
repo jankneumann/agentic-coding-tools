@@ -380,3 +380,106 @@ class TestSingleImplementation:
 
         assert api.resolve_trust_level is shared.resolve_trust_level
         assert api.TrustResolutionError is shared.TrustResolutionError
+
+
+@pytest.mark.asyncio
+class TestCacheHitsDoNotEscalate:
+    """The profile cache must not launder provenance into an escalation.
+
+    Every other test in this file replaces ``get_profile`` with an
+    ``AsyncMock``, so none of them execute the real cache — which is exactly
+    how this escaped. ``ProfilesService`` memoizes a lookup for
+    ``cache_ttl_seconds`` (default 300); an earlier version cached the profile
+    *without* its provenance and reported ``source="cache"`` on every hit.
+
+    Because :func:`resolve_trust_level` credits a principal the registry does
+    not name only when provenance is ``'assignment'``, that marker made every
+    hit inside the TTL discard the assigned profile and fall back to
+    ``default_trust_level``. Where the assigned level is *lower* than the
+    default, that is an escalation — and at trust 0 it un-suspends a suspended
+    principal, which is the precise failure a previous commit claimed to fix.
+
+    So this test drives the real service and asserts the *trust level*, not the
+    source label: the label is an implementation detail, the privilege is not.
+    """
+
+    @staticmethod
+    def _service_over_fake_db(profile: dict[str, Any], source: str) -> Any:
+        from src.profiles import ProfilesService
+
+        class _FakeDb:
+            def __init__(self) -> None:
+                self.rpc_calls = 0
+
+            async def rpc(self, function_name: str, params: dict[str, Any]) -> Any:
+                assert function_name == "get_agent_profile"
+                self.rpc_calls += 1
+                return {"success": True, "profile": profile, "source": source}
+
+        db = _FakeDb()
+        return ProfilesService(db), db
+
+    @pytest.mark.usefixtures("_default_trust_2")
+    async def test_suspended_principal_stays_suspended_on_cache_hits(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """trust 0 assigned, default 2: the cached call must not return 2."""
+        from src.trust_resolution import resolve_trust_level
+
+        service, db = self._service_over_fake_db(
+            {
+                "id": "00000000-0000-0000-0000-000000000001",
+                "name": "quarantined_worker",
+                "agent_type": "codex",
+                "trust_level": 0,
+                "enabled": True,
+            },
+            source="assignment",
+        )
+        _patch_registry(monkeypatch, None)
+        monkeypatch.setattr("src.profiles._profiles_service", service)
+
+        cold = await resolve_trust_level("quarantined-worker", "codex")
+        warm = await resolve_trust_level("quarantined-worker", "codex")
+        warmer = await resolve_trust_level("quarantined-worker", "codex")
+
+        assert db.rpc_calls == 1, "second lookup must be served from the cache"
+        assert cold == 0
+        assert warm == 0, (
+            "cache hit escalated a suspended principal to the default trust level"
+        )
+        assert warmer == 0
+
+    @pytest.mark.usefixtures("_default_trust_2")
+    async def test_fallback_derived_profile_is_still_denied_on_cache_hits(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The converse: caching must not *promote* a fallback result either.
+
+        A profile reached through the ``agent_type`` fallback is not credited
+        to a non-registry principal. Accepting ``"cache"`` as an assignment-like
+        source would have reopened that hole, since a fallback result caches
+        identically — hence the fix preserves the original source rather than
+        widening the accepted set.
+        """
+        from src.trust_resolution import resolve_trust_level
+
+        service, db = self._service_over_fake_db(
+            {
+                "id": "00000000-0000-0000-0000-000000000002",
+                "name": "codex_local",
+                "agent_type": "codex",
+                "trust_level": 3,
+                "enabled": True,
+            },
+            source="default",
+        )
+        _patch_registry(monkeypatch, None)
+        monkeypatch.setattr("src.profiles._profiles_service", service)
+
+        cold = await resolve_trust_level("retired-codex", "codex")
+        warm = await resolve_trust_level("retired-codex", "codex")
+
+        assert db.rpc_calls == 1
+        assert cold == 2, "fallback result must not be credited"
+        assert warm == 2, "cache hit must not credit it either"
