@@ -41,12 +41,16 @@ packages:
       Tasks 1.1-3.9 (all of phases 1-3, including `report` and `configure`).
       Create the script-backed entrypoint and its suite.
 
-      Test-first throughout. Each settings-writer test must FAIL against the
-      behavior that ships today in SKILL.md:211-232 -- a test that passes on the
-      unmodified tree is decoration, not a gate. That behavior is markdown, not
-      code, so task 2.0 transcribes it into tests/setup-coordinator/legacy_shim.py
-      first; the tests are parametrized over {legacy, new} and assert
-      fail-on-legacy / pass-on-new (D7).
+      Test-first throughout: each settings-writer test asserts a required
+      property and fails because the writer does not exist yet.
+
+      An earlier revision required transcribing SKILL.md:211-232 into a
+      legacy_shim.py so every case could be asserted red against "current
+      behavior". That apparatus is DELETED. It produced more review findings than
+      defects it caught -- two of its seven parametrizations were already green on
+      the shim, making its gate unsatisfiable -- and it needed its own anti-xfail
+      rules to stay honest. The properties are the requirement; the discarded
+      shell fragment's behavior is not.
 
       Use atomic_write_bytes, NOT atomic_write_json. atomic_write_json
       serializes through canonical_json_bytes (sort_keys=True, indent=2), which
@@ -149,22 +153,15 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["json_matches_contract"]
-        # Red-before-green is only meaningful if the "before" is executable.
-        # legacy_shim.py transcribes SKILL.md:211-232; every settings-writer
-        # case must fail against it.
-        #
-        # `-k legacy` alone is NOT sufficient as a gate. xfail_strict is unset in
-        # skills/pyproject.toml, so a legacy leg written as a bare xfail reports
-        # XPASS and still exits 0 -- the gate would pass precisely when the shim
-        # stopped reproducing the defect. Two guards instead: assert no XPASS/xfail
-        # outcome is reported at all, and require a non-zero collected count so an
-        # empty selection cannot masquerade as success.
-        - name: "Legacy shim still exhibits all four defects (no xfail escape hatch)"
+        # Every spec scenario must be named by at least one task. Two review
+        # rounds passed with 7 of 27 orphaned, because spec prose was added
+        # without scheduling the work -- the failure mode this gate exists for.
+        - name: "No spec scenario is orphaned by tasks.md"
           kind: command
-          command: "out=$(skills/.venv/bin/python -m pytest skills/tests/setup-coordinator/ -q -k legacy -rX 2>&1); rc=$?; echo \"$out\"; [ $rc -eq 0 ] && echo \"$out\" | grep -qE '[1-9][0-9]* passed' && ! echo \"$out\" | grep -qE 'xpassed|xfailed'"
+          command: "skills/.venv/bin/python -c \"import re,pathlib,sys;d=pathlib.Path('openspec/changes/make-setup-coordinator-script-backed');spec=(d/'specs/setup-coordinator/spec.md').read_text();tasks=(d/'tasks.md').read_text();o=[n for n in re.findall(r'^#### Scenario: (.+)$',spec,re.M) if n.strip() not in tasks];print('orphans:',o);sys.exit(1 if o else 0)\""
           evidence:
             artifacts: []
-            result_keys: ["legacy_shim_red"]
+            result_keys: ["no_orphan_scenarios"]
         - name: "ruff clean at the locked version"
           kind: command
           command: "cd skills && uv run ruff check ."
@@ -180,7 +177,7 @@ packages:
         - "setup_coordinator_tests_pass"
         - "suite_registered"
         - "json_matches_contract"
-        - "legacy_shim_red"
+        - "no_orphan_scenarios"
         - "ruff_clean"
 
   - package_id: wp-integration

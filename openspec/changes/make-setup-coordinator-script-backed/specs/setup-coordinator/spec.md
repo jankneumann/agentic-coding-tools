@@ -119,6 +119,12 @@ The skill SHALL detect which coding-agent harnesses are present on the current h
 - **AND** SHALL NOT be reported as `config_missing`
 - **AND** the report SHALL NOT instruct the operator to run a login command for that vendor
 
+#### Scenario: Detection exit status reflects reportability, not vendor readiness
+- **WHEN** `detect-harnesses` produces a report
+- **THEN** it SHALL exit zero regardless of the mix of vendor states the report contains
+- **AND** SHALL exit non-zero only when no report could be produced at all
+- **AND** a host with some vendors absent SHALL NOT be treated as a detection failure, since an absent vendor is ordinary data rather than an error
+
 #### Scenario: Presence is not validity
 - **WHEN** a vendor is reported as `ready`
 - **THEN** the output SHALL indicate that credential validity and expiry were not checked
