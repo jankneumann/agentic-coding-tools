@@ -1,22 +1,10 @@
 <!doctype html>
 <!--
   /vision review board TEMPLATE (ships as skills/vision/assets/review-template.html).
-
-  Agent instructions:
-  1. Copy this file and review.css next to each other in your working directory.
-  2. Fill ONLY the four slots marked {{...}} below:
-       {{PROJECT}}        - the target repo name (appears in <title> and the header meta)
-       {{RUN_NOTE}}       - one short italic note for the header (mode, date, or blank)
-       {{DRAFT_MARKDOWN}} - the full latest VISION.md text (markdown: #, ##, paragraphs)
-       CARDS              - one object per hypothetical: { id, title, body, tests, why }
-  3. Change NOTHING else: no restyling, no layout edits, no extra sections.
-     The stylesheet and structure are the /vision house style.
-  4. Write the filled copy next to review.css as VISION-review.html and give the
-     author the path. It opens in a browser directly - no server, no npm package,
-     no external service between the author and their own vision.
-  5. This board is the READING surface. Verdicts of record come back through the
-     host's question tool (SKILL.md step 6c), never by reading the ledger below.
-     The in-page ledger is a convenience for the author, not the channel of record.
+  Fill ONLY the slots {{PROJECT}}, {{RUN_NOTE}}, {{DRAFT_MARKDOWN}}, and CARDS,
+  per SKILL.md step 6: copy next to review.css, change nothing else.
+  The in-page ledger is a convenience for the author, never the channel of record;
+  verdicts of record return through the host's question tool (SKILL.md step 6c).
 -->
 <html lang="en">
 <head>
@@ -45,7 +33,6 @@
     <div class="vr-done" id="vr-done" hidden>
       <h2>All verdicts recorded</h2>
       <ul class="vr-ledger" id="vr-ledger"></ul>
-      <textarea class="vr-reason" id="vr-transcript" readonly></textarea>
     </div>
   </aside>
 
@@ -113,14 +100,6 @@ function commit(i){
   if(!verdict) return;
   const notes = card.querySelector('.vr-reason').value.trim();
   ledger.push({ id: CARDS[i].id, verdict, notes });
-  // Optional host bridge. Absent in this repo's flow: verdicts of record are
-  // collected through the host's question tool (SKILL.md step 6c). Kept so a host
-  // that does expose a prompt queue still works without forking the template.
-  if (window.lavish?.queuePrompt) {
-    window.lavish.queuePrompt(
-      `${CARDS[i].id} (${CARDS[i].title}): ${verdict}.` + (notes ? ` Reasoning: ${notes}` : ''),
-      { tag:'vision-verdict', queueKey:CARDS[i].id, text:`${CARDS[i].id}: ${verdict}`, element:card, data:{ id:CARDS[i].id, verdict, notes } });
-  }
   card.classList.add('vr-gone');
   topIdx += 1;
   layout();
@@ -128,8 +107,6 @@ function commit(i){
   if (topIdx >= CARDS.length) {
     document.getElementById('vr-ledger').innerHTML =
       ledger.map(l => `<li><b>${l.id}</b> ${l.verdict}${l.notes ? ' - ' + esc(l.notes) : ''}</li>`).join('');
-    document.getElementById('vr-transcript').value =
-      ledger.map(l => `${l.id}: ${l.verdict}${l.notes ? ' - ' + l.notes : ''}`).join('\n');
     setTimeout(() => { document.getElementById('vr-done').hidden = false; }, 400);
   }
 }

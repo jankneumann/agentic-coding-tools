@@ -60,15 +60,6 @@ fetcher overwrites files in place and would clobber all three:
 
 When syncing upstream improvements, re-adapt these three; do not overwrite them.
 
-## Host requirement
-
-You need read access to the target repository and its real history. Work down the
-evidence ladder in Step 3 and stop at the first tier that yields material.
-
-If **no** tier yields readable history, **stop** and say so. Never fabricate the
-author's values, PR titles, proposals, or evidence. A vision built on invented evidence
-is worse than no vision.
-
 ## Hard rules
 
 1. **Evidence over vibes.** Every principle in the draft must be traceable to concrete
@@ -88,12 +79,9 @@ is worse than no vision.
    and no are both defensible, with both sides steelmanned. If you can predict the
    author's answer, replace the hypothetical.
 6. **The review board is built from the shipped template, and verdicts come back
-   through the host.** Draft and hypotheticals are presented as one board built from
-   `<skill-base-dir>/assets/review-template.html` + `assets/review.css`, used as-is:
-   black ink on white paper set like literature, full draft always fully visible, one
-   hypothetical at a time in a card stack. Fill the template's slots; never restyle or
-   restructure it. Verdicts return via `AskUserQuestion` (Step 6c), never by you reading
-   an answer into the record yourself.
+   through the host.** The board is the shipped template with only its slots filled,
+   never restyled or restructured; verdicts return via `AskUserQuestion`, never by you
+   reading an answer into the record yourself. Mechanics in Step 6.
 7. **Iterate in batches, trace every edit.** Each author verdict maps to a named edit in
    a changelog; the author must be able to see exactly how their answer changed the text.
 8. **Formatting of the VISION.md output.** One sentence per line. Plain hyphens, never
@@ -154,7 +142,7 @@ If the author names exemplar visions, read them; note shape, voice, length.
 
 - If the default branch has a `VISION.md`: delta mode (hard rule 2). Diff its age
   against the history and propose only evidence-backed candidate additions or edits,
-  each independently acceptable.
+  as a numbered list, each independently acceptable.
 - If not: from-scratch mode.
 
 ### Step 3 - Mine the evidence
@@ -163,6 +151,10 @@ Work down this ladder. **Tier A is the primary source in this repo** — a merge
 title tells you what was built; an archived proposal with its rejected alternatives
 tells you what was *chosen over what*, which is the raw material of an acceptance
 policy. Skip a tier only when its artifacts do not exist.
+
+If **no** tier yields readable history, **stop** and say so. Never fabricate the
+author's values, PR titles, proposals, or evidence. A vision built on invented
+evidence is worse than no vision.
 
 #### Tier A - Decision artifacts (OpenSpec repos)
 
@@ -184,11 +176,12 @@ Read broadly, then read deep: scan 30-60 archived proposal titles, then read 8-1
 #### Tier B - Merged pull requests
 
 ```bash
-gh pr list --author <owner> --state merged --limit 100
-gh pr view <n> --json title,body,closedAt
+gh pr list --author <owner> --state merged --limit 100 --json number,title,body,closedAt
 ```
 
-Aim for 30-100 titles and 8-15 full bodies spread across the range.
+One call returns titles and bodies together — scan 30-100 titles, then read 8-15 full
+bodies spread across the range from the same payload; no per-PR `gh pr view` round
+trips.
 
 #### Tier C - Commit history
 
@@ -211,8 +204,8 @@ commits, so `feat(scope):` prefixes cluster the work by capability for free.
 
 - Follow the Step 1 anatomy and the output template below.
 - Every line must map to the evidence sheet. Length target: 40-70 lines.
-- Delta mode instead yields: baseline unchanged + a numbered list of candidate line
-  additions/edits, each with its evidence.
+- In delta mode, keep the baseline untouched and emit the numbered candidate list
+  Step 2 defines.
 
 ### Step 5 - Design the hypotheticals
 
