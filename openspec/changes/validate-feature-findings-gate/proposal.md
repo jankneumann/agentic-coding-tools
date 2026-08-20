@@ -37,8 +37,13 @@ cleanup boundary.
 - Fail fast on a dirty source checkout unless `--include-dirty` is explicitly
   requested; that opt-in materializes staged, unstaged, and untracked state and
   records the resulting Git tree.
-- Persist only `validation-report.md` and `validation-findings.json` back to the
-  change checkout, recording the exact validated commit and tree before teardown.
+- Persist only newly produced or changed `validation-report.md`,
+  `validation-findings.json`, and `architecture-impact.md` back to the change
+  checkout, recording the exact validated commit and tree before teardown.
+- Reject unsafe identifiers, escaping or symlinked paths, and use atomic
+  replacement for every copy-back artifact.
+- Provide a concrete prepare/finalize CLI boundary so the documented validation
+  phases run in scratch while session-log/handoff bookkeeping remains durable.
 - Always remove the scratch checkout, including when validation fails.
 - Fall back to in-place execution when shared environment detection reports that
   the cloud harness already provides isolation.

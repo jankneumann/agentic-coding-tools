@@ -33,14 +33,44 @@ SHALL record the resulting Git tree.
 ### Requirement: Only durable validation artifacts survive
 
 Before scratch teardown, the system SHALL persist only
-`validation-report.md` and `validation-findings.json` to the change checkout and
-SHALL record the exact validated commit and tree in those artifacts.
+newly produced or changed `validation-report.md`, `validation-findings.json`,
+and `architecture-impact.md` to the change checkout and SHALL record the exact
+validated commit and tree in the report and findings artifacts.
 
 #### Scenario: Validation residue is discarded
 
 - **WHEN** an ephemeral run produces reports, logs, scanner output, and deploy residue
-- **THEN** only the report and findings file SHALL be copied back
+- **THEN** only the report, findings, and architecture-impact files SHALL be copied back
 - **AND** every other scratch artifact SHALL be discarded with the worktree
+
+#### Scenario: Stale evidence is not restamped
+
+- **WHEN** validation exits before changing a pre-existing report or findings file
+- **THEN** that artifact SHALL remain byte-for-byte unchanged
+
+### Requirement: Validation paths fail closed
+
+The system SHALL validate the change identifier, enforce resolved containment
+for change, scratch, and artifact paths, reject symlink artifact endpoints, and
+atomically replace every copied-back artifact.
+
+#### Scenario: A path attempts to escape its boundary
+
+- **WHEN** a change identifier or resolved symlink path escapes its declared parent
+- **THEN** validation SHALL fail before copying or deleting filesystem content
+
+### Requirement: The ephemeral phase boundary is executable
+
+The system SHALL provide concrete prepare and finalize commands that allow the
+validation phases through report persistence to run in scratch, copy the durable
+allowlist back, remove scratch, and then perform session-log/handoff bookkeeping
+in the source checkout.
+
+#### Scenario: A CLI validation run finalizes successfully
+
+- **WHEN** the prepare command creates scratch and the validation phases produce durable artifacts
+- **THEN** finalize SHALL copy the allowlist and remove scratch
+- **AND** subsequent session-log/handoff writes SHALL target the source checkout
 
 ### Requirement: Existing harness isolation is reused
 
