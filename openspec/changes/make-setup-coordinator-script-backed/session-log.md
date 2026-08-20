@@ -44,3 +44,16 @@
 ### Context
 Planned the conversion of setup-coordinator from a 359-line narrated-bash SKILL.md into a script-backed skill with a tested entrypoint. Selected Approach 1 (self-contained subcommand CLI) at Gate 1, with four operator sub-decisions fixed at the same gate. Coordinated tier; VAL_REVIEW enabled by the GATEKEEPER judge.
 
+---
+
+## Phase: Plan Gates (2026-08-20)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Gate 1 (Direction): Approach 1 approved unmodified** `architectural: setup-coordinator` — Self-contained subcommand CLI. Operator also fixed D1-D4 at the same gate.
+2. **Gate 2 (Plan): approved -- proceed to implementation** `architectural: setup-coordinator` — Plan validated clean on openspec --strict, work-packages schema/DAG/lock-keys, and JSON Schema. Three task red flags fixed before approval (two hidden two-outcome tasks split, checkpoint cadence raised).
+
+### Context
+Recorded both planning-gate outcomes for traceability.
+
