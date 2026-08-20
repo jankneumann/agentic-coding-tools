@@ -39,10 +39,15 @@
 </main>
 
 <script>
-const DRAFT = `{{DRAFT_MARKDOWN}}`;
+// {{DRAFT_MARKDOWN}} - replace the whole placeholder (quotes included) with the
+// full VISION.md text as ONE JSON string literal, i.e. JSON.stringify(markdown).
+// A raw template literal would break on the backticks the vision's own output
+// format mandates.
+const DRAFT = "{{DRAFT_MARKDOWN}}";
 
 const CARDS = [
-  // {{CARDS}} - one object per hypothetical, in presentation order:
+  // {{CARDS}} - one object per hypothetical, in presentation order; every field
+  // is plain text (escaped at render time, so quotes and angle brackets are safe):
   // { id:'H-1', title:'...', body:'the concrete proposal', tests:'tests: "the principle, quoted from the draft"', why:'both sides, steelmanned' },
 ];
 
@@ -67,11 +72,11 @@ const stack = document.getElementById('vr-stack');
 let topIdx = 0; const ledger = [];
 stack.innerHTML = CARDS.map((c,i) => `
   <div class="vr-card" id="vrc-${i}">
-    <span class="vr-card-id">${c.id} · ${i+1}/${CARDS.length}</span>
-    <h3 class="vr-card-title">${c.title}</h3>
-    <p class="vr-card-body">${c.body}</p>
-    <div class="vr-card-tests">${c.tests}</div>
-    <div class="vr-why"><span class="vr-why-label">Why the answer is not obvious</span><p>${c.why}</p></div>
+    <span class="vr-card-id">${esc(c.id)} · ${i+1}/${CARDS.length}</span>
+    <h3 class="vr-card-title">${esc(c.title)}</h3>
+    <p class="vr-card-body">${esc(c.body)}</p>
+    <div class="vr-card-tests">${esc(c.tests)}</div>
+    <div class="vr-why"><span class="vr-why-label">Why the answer is not obvious</span><p>${esc(c.why)}</p></div>
     <div class="vr-verdicts">${VERDICTS.map(v => `<button type="button" aria-pressed="false" onclick="pick(${i}, this)">${v}</button>`).join('')}</div>
     <textarea class="vr-reason" placeholder="reasoning (this is what the vision gets rebuilt from)"></textarea>
     <button type="button" class="vr-commit" disabled onclick="commit(${i})">Record verdict</button>
@@ -106,7 +111,7 @@ function commit(i){
   setTimeout(() => { card.hidden = true; layout(); }, 360);
   if (topIdx >= CARDS.length) {
     document.getElementById('vr-ledger').innerHTML =
-      ledger.map(l => `<li><b>${l.id}</b> ${l.verdict}${l.notes ? ' - ' + esc(l.notes) : ''}</li>`).join('');
+      ledger.map(l => `<li><b>${esc(l.id)}</b> ${esc(l.verdict)}${l.notes ? ' - ' + esc(l.notes) : ''}</li>`).join('');
     setTimeout(() => { document.getElementById('vr-done').hidden = false; }, 400);
   }
 }
