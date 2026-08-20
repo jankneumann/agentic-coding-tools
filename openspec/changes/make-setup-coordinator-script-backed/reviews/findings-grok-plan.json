@@ -6,44 +6,44 @@
     {
       "id": 1,
       "type": "spec_gap",
-      "criticality": "critical",
-      "description": "Critical: The MODIFIED Profile-Aware Setup requirement adds \"SHALL NOT import agent-coordinator source modules\" (spec.md:12) while retaining the Local profile setup scenario step that registers MCP \"with env vars from get_mcp_env()\" (spec.md:20). get_mcp_env() is an agent-coordinator API; satisfying that THEN clause requires the import the same requirement forbids. Portable Skill Payload (spec.md:157) repeats the ban. Design D3 keeps MCP registration as narrated make targets, which is also incompatible with naming get_mcp_env(). An implementer following the scenario literally produces an illegal dependency; following D3/Portable leaves the MODIFIED scenario unmet.",
-      "resolution": "Rewrite Local profile setup step 4 to the public surface the skill already uses (e.g. make -C \"$COORDINATOR_DIR\" mcp-setup / documented coordinator setup targets). Remove the get_mcp_env() reference. Clarify which Local/Railway steps remain SKILL.md narration versus script subcommands so the MODIFIED preamble and D3 stay aligned.",
+      "criticality": "high",
+      "description": "Critical: Round-1 B1 rewrote Profile-Aware Setup so the entrypoint owns precondition checking, but three of its scenarios still have no task, no red-phase test, and no work-packages gate. Mapped all 27 `#### Scenario:` headings in specs/setup-coordinator/spec.md against every quoted scenario name in tasks.md: 'Local profile setup' (spec.md:16-25), 'Railway profile setup' (spec.md:27-34), and 'Secrets file missing' (spec.md:36-41) are UNREFERENCED. Task 3.6 is the only `check` implementation task and lists only 'Agents file resolved from configuration' (tasks.md:158-163); rg over tasks.md for secret/docker/ParadeDB/container/Railway/Local returns zero hits. So the four local preconditions (runtime, ParadeDB health, MCP registration, tool discovery), the five Railway steps (URL resolve, curl /health, write-endpoint auth, coordination_bridge detect, capability flags), and the missing-.secrets.yaml report path have no scheduled work. Scenario clause 4 ('coordination tools discoverable through the registered MCP server') also has no probe design that stays inside the no-agent-coordinator-import rule.",
+      "resolution": "Add a Phase-3 red-phase test task and extend task 3.6's Spec scenarios to name Local profile setup, Railway profile setup, and Secrets file missing. Specify how each local precondition is observed (e.g. shutil.which for docker/podman; docker inspect/compose ps for ParadeDB; parse vendor MCP config files for registration) without importing agent-coordinator. For clause 4, either define a portable discovery check or drop it from the scenario. Assert Secrets reports the exact copy command and does not create the file.",
       "disposition": "fix",
-      "file_path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/tasks.md",
       "line_range": {
-        "start": 12,
-        "end": 22
+        "start": 158,
+        "end": 163
       },
       "axis": "correctness",
       "severity": "critical"
     },
     {
       "id": 2,
-      "type": "correctness",
+      "type": "spec_gap",
       "criticality": "high",
-      "description": "Critical: Design D2 says to follow skills/refresh-architecture/scripts/arch_utils/provenance.py:43-55 \"exactly\" for the guarded atomic import fallback. That precedent's except-branch _atomic_write_bytes (provenance.py:55-61) is target.write_bytes(payload) \u2014 not tmp+fsync+os.replace. Atomic Permission Allowlist / Concurrent reader safety (spec.md:116-117, 142-145) require a temporary file replaced into place with no partial reads, with no carve-out for the unbundled path. Portable Skill Payload (spec.md:159-160, Sibling skill unavailable) makes the fallback a supported production path. Following D2 \"exactly\" reintroduces defect #3 (non-atomic write) precisely when project-context-runtime is absent.",
-      "resolution": "Keep the guarded import of atomic_write_bytes, but define an inline fallback that still does same-directory tempfile + flush/fsync + os.replace + parent fsync (the durability the design rejected copying only to avoid duplication). Update D2 to state that the precedent is the import wiring, not the non-atomic fallback body. Add a test that with the import forced to fail, configure still performs an atomic replace.",
+      "description": "Critical: Round-1 B2 made degraded runs expressible (`degraded`/`warnings` required at harness-report.schema.json:8; scenarios at spec.md:90-99) but left them unenforced, so the fail-open can still ship. Neither 'Degraded run is distinguishable from an empty one' nor 'Complete run asserts completeness' is named by any task; task 1.4 says only 'same as 1.3, 1.3a, 1.3b' (tasks.md:60). The wp-core contract gate (work-packages.yaml:146-148) runs one successful detect-harnesses and accepts `degraded:false`/`warnings:[]`, so an implementation that hardcodes those two values passes every declared gate. New inconsistency introduced by the fix: schema.md description and the Degraded scenario list 'unreadable roster' as a degraded-report cause, while task 1.3a / Agents-file scenario require an unresolvable roster to exit non-zero before producing a report \u2014 so the named degradation source cannot appear in JSON under the current task graph.",
+      "resolution": "Add a Phase-1 red-phase task covering both degradation scenarios: force sibling ImportError (vendor_health/yaml) and/or a skipped layer, assert degraded=true with a non-empty warnings entry, and assert a clean run has degraded=false and warnings=[]. Name both scenarios on task 1.4. Reconcile 'unreadable roster': either emit --json with degraded=true and non-zero exit, or remove 'unreadable roster' from the degraded scenario/schema description and keep resolve-miss as exit-nonzero-only. Add a wp-core verification step that forces a degraded run and asserts degraded is true so the flag cannot be a constant.",
       "disposition": "fix",
-      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/tasks.md",
       "line_range": {
-        "start": 121,
-        "end": 137
+        "start": 56,
+        "end": 63
       },
       "axis": "correctness",
       "severity": "critical"
     },
     {
       "id": 3,
-      "type": "contract_mismatch",
+      "type": "spec_gap",
       "criticality": "high",
-      "description": "Critical: harness-report.schema.json admits state=ready with config_artifact=null and config_present=true (Draft202012Validator reports 0 errors for that document). Spec Harness Presence Detection defines ready as \"CLI present and config artifact present\" (spec.md:81) and D5/unknown semantics treat a null artifact as unknown, not ready. The ready if/then branch only const-checks cli_on_path and config_present (schema lines 117-124), so the wp-core \"Entrypoint --json output validates against the contract\" gate can green-light an incoherent report that the spec forbids.",
-      "resolution": "Extend the ready if/then branch to require config_artifact as a non-empty string (and keep config_present const true). Mirror the config_missing branch's artifact constraint. Add a negative schema test fixture for ready+null artifact.",
+      "description": "Critical: Round-1 B3 added scenario 'Fallback write is atomic' (spec.md:179-182) and design.md:139-143 requires the inline fallback to do tmp\u2192fsync\u2192os.replace, but no task forces or asserts the fallback path. Task 2.3 names 'Sibling skill unavailable', 'Concurrent reader safety', and 'Settings file is not in canonical JSON form' (tasks.md:114-115), not 'Fallback write is atomic'. Task 2.1 parametrizes only {legacy_shim, new writer} (tasks.md:91-94) \u2014 the legacy-vs-new axis \u2014 so the import-failure branch is dead under test. Verified the hazard is real: provenance.py:55-61 still ends in `target.write_bytes(payload)`. Copying that body would reintroduce defect #3 while every declared gate stays green because project-context-runtime is present in this repo.",
+      "resolution": "Extend task 2.1 with a second axis {imported atomic_write_bytes, inline fallback} by monkeypatching the import to raise ImportError; on the fallback leg assert the write goes through a temp path + os.replace (no partial content) and unrelated keys stay byte-identical. Name 'Fallback write is atomic' in task 2.3's Spec scenarios line.",
       "disposition": "fix",
-      "file_path": "openspec/changes/make-setup-coordinator-script-backed/contracts/harness-report.schema.json",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/tasks.md",
       "line_range": {
-        "start": 117,
-        "end": 124
+        "start": 112,
+        "end": 122
       },
       "axis": "correctness",
       "severity": "critical"
@@ -52,28 +52,28 @@
       "id": 4,
       "type": "correctness",
       "criticality": "high",
-      "description": "Nit: Design D7 and work-packages prescribe settings-writer cases as xfail-on-legacy / pass-on-new, and wp-core verifies with `pytest ... -k legacy` under the name \"Legacy shim still exhibits all four defects\". skills/ has no xfail_strict (confirmed absent from pyproject/pytest config). Under pytest 9 defaults, an unexpectedly passing xfail (XPASS) exits 0 \u2014 reproduced locally \u2014 so if the shim stops exhibiting a defect, the gate still passes. That is the same class of self-defeating gate the iterate pass already called out elsewhere.",
-      "resolution": "Prefer positive assertions of defective legacy behavior (assert the deny-list false positive still occurs) rather than xfail on the corrected behavior; or set xfail(strict=True) on legacy params and assert the gate fails on XPASS. Name/parametrize with stable ids containing \"legacy\" so -k legacy cannot silently deselect.",
-      "disposition": "fix",
-      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
-      "line_range": {
-        "start": 230,
-        "end": 235
-      },
-      "axis": "correctness",
-      "severity": "nit"
-    },
-    {
-      "id": 5,
-      "type": "spec_gap",
-      "criticality": "medium",
-      "description": "Nit: Script-Backed Entrypoint requires binary exit codes \"0 when the requested state is satisfied, non-zero when it is not\" (spec.md:59) but never defines the satisfied state for detect-harnesses (or report). Presence reporting can succeed while every vendor is cli_missing. Task 3.1 covers \"exit-code discipline\" without pinning whether mixed/non-ready reports are exit 0 or non-zero, so two conforming implementations diverge and the contract gate only checks JSON shape.",
-      "resolution": "Add an explicit SHALL: detect-harnesses exits 0 when a roster was resolved and a report emitted (presence check succeeded), independent of per-vendor state; reserve non-zero for resolve failures / usage errors. State the analogous rule for report/check/configure.",
+      "description": "Critical: Script-Backed Entrypoint requires binary exit codes '0 when the requested state is satisfied, non-zero when it is not' (spec.md:64) but never defines satisfied for detect-harnesses (or report). Presence reporting can succeed while vendors are cli_missing/unknown \u2014 the live roster has antigravity-local (no artifact \u2192 unknown) and pi-local (needs OPENROUTER_API_KEY). Task 3.1 covers 'exit-code discipline' without pinning mixed-state reports to 0 or non-zero. The wp-core contract gate (work-packages.yaml:148) does `sys.exit(...) if r.returncode else None` before schema validation, so an implementation that treats 'all ready' as the satisfied state makes the gate fail on ordinary developer hosts for the wrong reason; an implementation that always exits 0 on a completed report also conforms. Two plan-following implementations diverge and one breaks the declared verification step.",
+      "resolution": "Add an explicit SHALL: detect-harnesses exits 0 when a roster was resolved and a report emitted (presence check succeeded), independent of per-vendor state; reserve non-zero for resolve failures, usage errors, and (if retained) hard degradation modes. State the analogous satisfied-state rule for check/configure/report. Pin the rule in task 3.1's tests.",
       "disposition": "fix",
       "file_path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
       "line_range": {
-        "start": 56,
-        "end": 59
+        "start": 61,
+        "end": 64
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: Round-1 B4 added `cli_on_path: {\"const\": true}` to the unknown branch (harness-report.schema.json:127-135), but scenario 'Vendor has no detectable config location' (spec.md:116-120) is still unconditional \u2014 WHEN a vendor declares no artifact, THEN state=unknown, with no CLI-present precondition. Design D5 and task 1.4 fix precedence as cli_missing \u2192 unknown \u2192 ready/config_missing (design.md:200-202; tasks.md:59). Verified with Draft202012Validator: a VendorReport with state=unknown and cli_on_path=false yields exactly one error (`True was expected`). Task 1.3 owns this scenario and can build a fixture with neither CLI nor artifact, then assert the state the scenario literally promises \u2014 producing a schema-invalid document or a test that disagrees with D5.",
+      "resolution": "Update the scenario WHEN clause to 'WHEN a vendor's CLI is on PATH and it declares no home-directory configuration artifact to check', aligning spec, D5 precedence, and the schema conditional.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
+      "line_range": {
+        "start": 116,
+        "end": 120
       },
       "axis": "correctness",
       "severity": "nit"
@@ -81,61 +81,76 @@
     {
       "id": 6,
       "type": "spec_gap",
-      "criticality": "medium",
-      "description": "Nit: After MODIFIED merge, Local profile setup and Railway profile setup scenarios (spec.md:14-31) still list docker auto-start, MCP registration, curl health, and coordination_bridge detect as unconditional skill SHALLs, but tasks 3.6\u20133.8 only implement profile resolution, settings configure, and capability report, and D3 keeps make mcp-setup/hooks-setup as narration. No task maps those orchestration steps to an automated test. As written, the scenarios are either untestable obligations on markdown or silent scope creep into the entrypoint.",
-      "resolution": "Split each scenario into script-backed THEN clauses (check/report/configure) versus narrated operator steps (compose up, make mcp-setup, bridge detect), or move the orchestration bullets under a non-normative note so validate-feature/playwright-style checks are not implied.",
+      "criticality": "low",
+      "description": "Nit: The B3 edit left a requirement-level SHALL stranded inside a scenario block. spec.md:183 \u2014 'Where a sibling module depends on a third-party package that a consumer payload may not provide, the resulting failure SHALL be caught at the point of use and reported as a degraded capability' \u2014 belongs in the Portable Skill Payload bullet list (spec.md:173-177). It currently sits after the THEN/AND bullets of 'Fallback write is atomic', reading as a third assertion of that scenario despite being about pyyaml-style third-party degradation (design.md:311 Risks). openspec validate --strict does not catch this.",
+      "resolution": "Move the spec.md:183 bullet into the requirement bullet list immediately after spec.md:177; leave the Fallback write is atomic scenario with only its WHEN/THEN/AND clauses.",
       "disposition": "fix",
       "file_path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
       "line_range": {
-        "start": 14,
-        "end": 31
+        "start": 179,
+        "end": 184
       },
       "axis": "readability",
       "severity": "nit"
     },
     {
       "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: contracts/README.md:51-58 delegates summary cardinality to the test suite ('summary.total must equal len(vendors)'; each counter equals the count of vendors in that state) because JSON Schema cannot express it, but no task creates that assertion. Task 1.3 covers four states / unknown / validity disclaimer and never mentions summary. Confirmed: a document with vendors:[] and summary.total:99 validates with 0 errors against harness-report.schema.json. The sibling delegation in the same paragraph ('at most one entry per vendor key') IS covered by task 1.3b, which makes this look like an oversight.",
+      "resolution": "Add a summary-consistency assertion to task 1.3: recompute the five counters from the emitted vendors array and assert equality with summary.*.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/contracts/README.md",
+      "line_range": {
+        "start": 51,
+        "end": 58
+      },
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: The sub-decision table in proposal.md is split by an inserted refinement paragraph, so D3/D4 render as orphaned rows. The table opens at proposal.md:150 with header + D1/D2, then lines 155-167 insert prose about D1a/D1b/D2, then lines 168-169 resume bare `| D3 |` / `| D4 |` rows with no header. Markdown will not render those rows as part of the original table, even though line 148 promises four sub-decisions fixed at the same gate.",
+      "resolution": "Move the D1a/D1b/D2 refinement paragraph (proposal.md:155-167) below the full D1\u2013D4 table so all four rows stay contiguous under one header.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/proposal.md",
+      "line_range": {
+        "start": 148,
+        "end": 172
+      },
+      "axis": "readability",
+      "severity": "nit"
+    },
+    {
+      "id": 9,
       "type": "spec_gap",
       "criticality": "low",
-      "description": "Optional: Task 3.7 implements report with no preceding failing-test task (unlike detect-harnesses, settings writer, and CLI dispatch). Profile-Aware Setup still requires capability-flag reporting, so report can land unpinned except for manual checkpoints.",
-      "resolution": "Add a small red-test task before 3.7 asserting transport/CAN_* summary shape for --json and human output, or explicitly mark report as covered by extending task 3.1's CLI contract tests.",
+      "description": "Optional: Scenario 'Tests do not touch operator state' (spec.md:212-215) is the seventh UNREFERENCED scenario in the systematic map. Behavior is partially covered by task notes (tmp_path / fake HOME) and manual checklist V.6 (tasks.md:243-244), but no task's Spec scenarios line names it and no automated assertion prevents a future test from reading real `~` or the repo settings file. Lower risk than the B1\u2013B3 gaps because implementers are repeatedly warned, but the scenario-to-task map is still incomplete.",
+      "resolution": "Either name the scenario on tasks 1.3/2.1 (and optionally add a suite-level guard that fails if HOME is the real home or if .claude/settings.local.json is opened) or fold the scenario into V.6-only and drop it from the ADDED requirement if it is not meant to be a testable Spec scenario.",
       "disposition": "accept",
-      "file_path": "openspec/changes/make-setup-coordinator-script-backed/tasks.md",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
       "line_range": {
-        "start": 157,
-        "end": 159
+        "start": 212,
+        "end": 215
       },
       "axis": "correctness",
       "severity": "optional"
     },
     {
-      "id": 8,
-      "type": "architecture",
-      "criticality": "low",
-      "description": "The intentional write_allow overlap on skills/tests/setup-coordinator/test_skill_md.py between wp-core (tests/setup-coordinator/**) and wp-integration is sound: packages are strictly sequential via depends_on, and wp-integration's description forbids wp-core from creating that file. Combined with D1a/D1b matching vendor_health.load_agents_yaml (lines 110-155) and the live agents.yaml roster (seven cli agents including claude-remote/codex-remote), the core detection plan is grounded in repository reality rather than assumed APIs.",
-      "resolution": "No change.",
-      "disposition": "accept",
-      "file_path": "openspec/changes/make-setup-coordinator-script-backed/work-packages.yaml",
-      "line_range": {
-        "start": 220,
-        "end": 224
-      },
-      "axis": "architecture",
-      "severity": "none"
-    },
-    {
-      "id": 9,
+      "id": 10,
       "type": "correctness",
       "criticality": "low",
-      "description": "Design D2's correction to call atomic_write_bytes rather than atomic_write_json is accurately grounded: canonical_json_bytes in atomic.py:31-40 uses sort_keys=True, and the live .claude/settings.local.json top-level order is [permissions, disabledMcpjsonServers], so canonicalization would both reformat unrelated keys and defeat idempotent no-op detection. Requiring that seam is the highest-value plan correction from the iterate pass.",
-      "resolution": "No change.",
+      "description": "Verified positives that should survive the next iterate: (1) harness-report.schema.json conditionals bite \u2014 ready+null artifact, ready+empty artifact, unknown+cli_on_path:false, degraded+empty warnings each produce errors under Draft202012Validator; (2) design file:line claims hold \u2014 vendor_health D6 at :99-101, load_agents_yaml :110-155 with exists()-guarded explicit path then network then cwd then {}, check_vendor defaults command to \"\", atomic canonical_json_bytes sort_keys=True, provenance.py fallback is write_bytes, SKILL.md:211-232 has all four defects, frontmatter omits user_invocable so D9 tail-block obligation is real, cross_skill_dependencies.setup-coordinator is currently [coordination-bridge] at install-manifest.json top level; (3) verification commands are executable as written \u2014 install.sh --check works, validate_install_manifest and dependency_direction both require --skills-root, skills/.venv has jsonschema+pyyaml while system python3 does not; (4) wp-core/wp-integration write_allow overlap on test_skill_md.py is sound because depends_on: [wp-core] makes the packages sequential.",
+      "resolution": "Keep these constraints and gates; do not regress them while fixing findings 1\u20134.",
       "disposition": "accept",
-      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/contracts/harness-report.schema.json",
       "line_range": {
-        "start": 90,
-        "end": 119
+        "start": 64,
+        "end": 161
       },
-      "axis": "correctness",
+      "axis": "architecture",
       "severity": "none"
     }
   ]

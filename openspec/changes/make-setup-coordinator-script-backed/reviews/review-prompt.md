@@ -75,6 +75,34 @@ that a claim is missing. Files worth checking:
    assert. Flag scenarios that are untestable as written, and tests described
    in tasks.md that would pass vacuously.
 
+## Round-1 findings already fixed — do not simply re-raise them
+
+A PLAN_FIX pass landed these. Re-raise ONLY with new evidence that a fix is
+incomplete or introduced a new defect:
+
+1. `Profile-Aware Setup` responsibility split (entrypoint vs operator-invoked).
+2. A degraded detection run is now expressible: `degraded` + `warnings` are
+   required at the report root.
+3. The atomic-write precedent is wiring-only; the inline fallback must itself
+   do tmp -> fsync -> `os.replace`.
+4. `harness-report.schema.json` conditionals: `ready` requires a non-empty
+   `config_artifact`; `unknown` requires `cli_on_path: true`.
+5. The legacy-shim red-phase gate now requires pytest rc=0 AND a non-zero pass
+   count AND no xfail/xpass outcome.
+
+Two round-1 findings were REFUTED with evidence. Do NOT raise them again:
+
+- "the deny list blocks reads" — `check_scope_compliance` applies `deny` to
+  `files_modified` only.
+- "the live settings file is absent" — `.claude/settings.local.json` exists and
+  is gitignored, so it is simply absent from a fresh worktree. Its absence here
+  is expected and is not a finding.
+
+The highest-value thing you can do this round is check whether each fix is
+**complete**. A spec clause or `#### Scenario:` added by a fix that no task in
+`tasks.md` implements or tests is exactly the kind of defect worth reporting —
+check the scenario-to-task mapping systematically rather than by impression.
+
 ## Output
 
 Emit **only** a single JSON document on stdout, no prose before or after, no
