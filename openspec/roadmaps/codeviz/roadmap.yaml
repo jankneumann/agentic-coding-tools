@@ -197,6 +197,10 @@ items:
     expected to score higher than WebGL renderers (Sigma, three.js) whose headless-GPU
     output may vary; the score MUST be recorded in render-comparison.md even though
     it does not by itself decide the winner.'
+  - 'The three.js CodeCity variant skeleton MAY be seeded from the architecture-map
+    skill (almendili/skills) isometric React/TSX assets, adapted to consume the measured
+    subgraph payload instead of a hand-authored graph; seeding does not exempt it
+    from the scoring matrix.'
 - item_id: source-viewer-panel
   title: Source viewer panel with deep links
   status: approved
@@ -536,11 +540,22 @@ items:
     enforces structural invariants on every PR: no new cross-layer flows beyond an
     allowlist, no new disconnected endpoints, no removal of IMPLEMENTS_PROPOSAL edges
     for active OpenSpec changes, no new TODO/FIXME markers in critical-path nodes.
-    Rules expressed as YAML in architecture-fitness.yaml. Violations emitted as event
-    artifacts with mandatory headers.'
+    Two rules adapted from the architecture-map skill (almendili/skills, see proposal
+    Adapted prior art): coverage exhaustiveness (every in-scope source file maps to
+    exactly one module/zone in the measured graph, no unmapped or double-mapped files)
+    and authored-layer drift (every entity referenced by the authored Atlas overlay
+    resolves to a live node in the measured graph). Rules expressed as YAML in
+    architecture-fitness.yaml. Violations emitted as event artifacts with mandatory
+    headers.'
   acceptance_outcomes:
   - A fitness-rule engine MUST be invokable via `make architecture-validate --fitness`.
-  - At least four rules MUST ship in architecture-fitness.yaml with documented rationale.
+  - At least six rules MUST ship in architecture-fitness.yaml with documented rationale,
+    including the coverage-exhaustiveness and authored-layer-drift rules.
+  - The coverage-exhaustiveness rule MUST report the exact set of unmapped and double-mapped
+    files, and MUST pass on the current repo after an initial mapping backfill.
+  - The authored-layer-drift rule MUST fail when an authored overlay entry references
+    a node absent from the current architecture.graph.json, and its report MUST name
+    the dangling references.
   - A CI step MUST fail the build on fitness violations and post a structured PR comment.
   - Fitness reports MUST be written as event artifacts under docs/architecture-analysis/fitness/<YYYY-MM-DD>/<run-id>.json.
 - item_id: lens-framework
@@ -561,6 +576,10 @@ items:
     state.
   - A lens MUST be expressible declaratively (YAML schema) for the common cases.
   - Lens choice MUST be URL-encoded and survive page reload.
+  - 'The structure lens top semantic-zoom level MUST render the authored overlay from
+    codeviz.overlay.yaml (4-7 neighborhood groupings with prose descriptions and named
+    flows, tagged evidence_kind: human-authored), with every overlay entry resolving
+    to live measured node IDs as validated by the authored-layer-drift fitness rule.'
 - item_id: runtime-incident-correlation
   title: Runtime and incident correlation
   status: approved
