@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from typing import Any
@@ -81,3 +82,46 @@ def validate_plan(plan: dict[str, Any]) -> None:
 
     _validate_schema(plan)
     _validate_dag(plan)
+
+
+def amend_plan(
+    plan: dict[str, Any],
+    prerequisite_node: dict[str, Any],
+    *,
+    affected_prs: list[int],
+    reason: str,
+) -> dict[str, Any]:
+    """Append a discovered prerequisite and block affected pending nodes."""
+
+    validate_plan(plan)
+    amended = copy.deepcopy(plan)
+    existing = {node["pr"]: node for node in amended["nodes"]}
+    prerequisite = copy.deepcopy(prerequisite_node)
+    prerequisite_number = prerequisite.get("pr")
+    if prerequisite_number in existing:
+        raise MergePlanValidationError(
+            f"PR #{prerequisite_number} already exists in the merge plan",
+        )
+    unknown = sorted(set(affected_prs) - set(existing))
+    if unknown:
+        raise MergePlanValidationError(
+            f"affected PR #{unknown[0]} is not present in the merge plan",
+        )
+    if not reason.strip():
+        raise MergePlanValidationError("an amendment reason is required")
+
+    prerequisite["definition"]["inserted_reason"] = reason.strip()
+    amended["nodes"].append(prerequisite)
+    for pr_number in affected_prs:
+        node = existing[pr_number]
+        dependencies = node["definition"]["depends_on"]
+        if prerequisite_number not in dependencies:
+            dependencies.append(prerequisite_number)
+            dependencies.sort()
+        if node["state"]["outcome"] == "pending":
+            node["state"]["blocking_reason"] = (
+                f"waiting for prerequisite #{prerequisite_number}: {reason.strip()}"
+            )
+
+    validate_plan(amended)
+    return amended
