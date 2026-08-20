@@ -61,18 +61,18 @@ final section.
 
 ## 5. Living-plan amendment + comment-addressing seam
 
-- [ ] 5.1 Write tests for inserting a discovered prerequisite node and for the comment-addressing delegation hand-off
+- [x] 5.1 Write tests for inserting a discovered prerequisite node and for the comment-addressing delegation hand-off
   **Spec scenarios**: merge-pull-requests "A discovered blocker is inserted as a prerequisite", "Unresolved comments produce a delegation hand-off"
   **Design decisions**: D7 (living plan), D8 (delegation seam)
   **Dependencies**: 4.1
-- [ ] 5.2 Implement plan amendment: insert prerequisite node + edges with a reason; block affected nodes until it merges
+- [x] 5.2 Implement plan amendment: insert prerequisite node + edges with a reason; block affected nodes until it merges
   **Design decisions**: D7
   **Dependencies**: 5.1, 4.2
-- [ ] 5.3 Implement the comment-addressing seam: record unresolved comments on the node and offer delegation to `iterate-on-implementation`/`quick-task` (no automated code-writing)
+- [x] 5.3 Implement the comment-addressing seam: record unresolved comments on the node and offer delegation to `iterate-on-implementation`/`quick-task` (no automated code-writing)
   **Design decisions**: D8
   **Dependencies**: 5.1
 
-- [ ] 5.4 Checkpoint: run tests, review diff, verify scope
+- [x] 5.4 Checkpoint: run tests, review diff, verify scope
 
 ## 6. Skill docs + wiring
 
