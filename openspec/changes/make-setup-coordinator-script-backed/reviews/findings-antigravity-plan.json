@@ -1,0 +1,52 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: In harness-report.schema.json, the 'then' schema for state='ready' asserts 'cli_on_path: true' and 'config_present: true', but does not constrain 'config_artifact' to be a non-null string ('type: string, minLength: 1'), unlike the 'state=config_missing' clause at lines 130-139.",
+      "resolution": "Add 'config_artifact': { 'type': 'string', 'minLength': 1 } to the 'then' block for state='ready' in harness-report.schema.json.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/contracts/harness-report.schema.json",
+      "line_range": {
+        "start": 118,
+        "end": 125
+      }
+    },
+    {
+      "id": 2,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The creation of legacy_shim.py transcribing lines 211-232 of SKILL.md into executable Python for TDD parametrization (Design D7) is an excellent pattern. It ensures all 4 settings-writer defects are proven reproducible in code prior to writing the fix.",
+      "resolution": "Accept design choice.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "line_range": {
+        "start": 217,
+        "end": 242
+      }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Selecting atomic_write_bytes instead of atomic_write_json (Design D2) accurately identifies that canonical_json_bytes would re-sort keys and break indentation preservation on .claude/settings.local.json, avoiding a regression of defect #2.",
+      "resolution": "Accept design choice.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "line_range": {
+        "start": 91,
+        "end": 120
+      }
+    }
+  ]
+}

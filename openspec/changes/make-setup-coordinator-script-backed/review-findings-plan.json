@@ -1,0 +1,127 @@
+{
+  "review_type": "plan",
+  "target": "make-setup-coordinator-script-backed",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The MODIFIED `Profile-Aware Setup` requirement adds the binding sentence \"Profile resolution, precondition checking, and capability reporting SHALL be performed by the skill's own script entrypoint rather than by shell fragments narrated in SKILL.md\" (spec.md:7) while retaining three pre-existing clauses/scenarios verbatim from openspec/specs/setup-coordinator/spec.md: the `.secrets.yaml` bullet (spec.md:11), Scenario \"Local profile setup\" (spec.md:14-22, which mandates container-runtime detection, ParadeDB auto-start, health wait, and MCP registration), and Scenario \"Secrets file missing\" (spec.md:33-36, which mandates copying `.secrets.yaml.example` to `.secrets.yaml`). Design D3 (design.md:139-147) explicitly excludes all of that from the script: \"This keeps exactly one mutating operation in the script.\" Grepping tasks.md for secret/docker/paradedb/container/mcp returns exactly one hit — task 3.8, which emits `make mcp-setup` as printed text rather than performing it. So the delta commits the script to work no task schedules. This reproduces the exact defect proposal.md:20-23 opens by naming: \"A spec violation on main ... No code does this. The requirement has never been satisfied.\" The change fixes bullet 10 (agents.yaml) and leaves bullet 11 and two scenarios in the same unsatisfied state, now under a stronger SHALL.",
+      "resolution": "Rewrite the retained scenario bodies so the SHALL-subject matches D3. OpenSpec rejects dropping scenarios from a MODIFIED requirement, so rewrite in place rather than delete: (a) restate \"Local profile setup\" and \"Railway profile setup\" so the script performs detection/precondition-checking/reporting and the mutating steps (container start, MCP registration, hook install) are explicitly the operator's, driven by the `make` commands `configure` prints; (b) either add a task implementing the `.secrets.yaml` presence check (report-only, no copy) and narrow the scenario to match, or scope the new script-backed sentence to enumerate only profile resolution, roster resolution, harness detection, and the allowlist write. Also add the chosen scenarios to the `**Spec scenarios**:` field of the tasks that satisfy them, so the gap is visible in traceability rather than only on read-through.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
+      "line_range": { "start": 5, "end": 36 }
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The `--json` contract has no way to express a degraded run, so the degradation path is a silent fail-open. `harness-report.schema.json:7` sets `additionalProperties: false` at the top level, `:38` sets `vendors.minItems: 0`, and the required set (`:8`) has no warning/degraded member. Meanwhile spec.md:160 requires \"the resulting failure SHALL be caught at the point of use and reported as a degraded capability\" and spec.md:165 requires the capability to \"degrade with a reported warning\"; design.md:292 names the concrete trigger (pyyaml absent in a consumer payload, since `vendor_health.load_agents_yaml` imports yaml lazily). A degraded `detect-harnesses --json` therefore emits `{\"schema_version\":1,\"checked_validity\":false,\"host\":{...},\"vendors\":[],\"summary\":{\"ready\":0,...,\"total\":0}}`, which validates cleanly and is byte-indistinguishable from an honest \"no harnesses installed on this host\". I validated that exact document against the committed schema: zero errors. I also confirmed the escape is closed — adding `degraded`/`warnings` to the document yields a validation error, because `additionalProperties: false` forbids them. That is the same silent-failure shape the change exists to remove (proposal.md:35 \"This one fails silently, which is the worst shape\"; design.md:185-196), and it is the same fail-open D1a rejects in `load_agents_yaml` (design.md:44-46, \"it fails open — an unresolvable roster yields an empty report and exit 0\"). The plan removes the fail-open from roster resolution and reintroduces it one layer up, in the contract.",
+      "resolution": "Add a required `degraded` boolean and a required `warnings` array of strings to the top-level object in contracts/harness-report.schema.json (required, not optional — the contracts/README.md:38-43 argument about omission-escapable constraints applies with equal force here). Add a spec scenario under `Portable Skill Payload` fixing the observable: when detection degrades, `--json` SHALL set `degraded: true` and carry at least one warning naming the missing dependency, and the process SHALL exit non-zero per the binary exit-code rule (spec.md:59). Add the assertion to task 1.3 or a new task so the degraded path is exercised, and note that a degraded run must not be reported as an empty-but-healthy roster.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/contracts/harness-report.schema.json",
+      "line_range": { "start": 6, "end": 54 }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The red-phase gate that D7's whole legacy-shim apparatus exists to support cannot fail. Design D7 (design.md:233-235) and task 2.1 (tasks.md:91-92) specify that every settings-writer case be \"parametrized over {legacy, new}\" and assert \"`xfail`-on-legacy / pass-on-new\", and D7 claims \"the shim keeps failing forever, so a future refactor that reintroduces any of them is caught\". The wp-core verification step \"Legacy shim still exhibits all four defects\" (work-packages.yaml:155-160) runs `pytest ... -k legacy` to enforce it — a step commit 99e746c8 added while fixing four other gates that \"could not fail for the reason they existed\", so this is the fifth instance of that same class, introduced by the pass that removed the others. But `xfail_strict` is not set anywhere in skills/pyproject.toml or the root pyproject.toml — I grepped both — so it takes pytest's default of `false`. Under that default a legacy case that stops exhibiting its defect is reported XPASS, not a failure, and pytest exits 0. I reproduced this against the project's own interpreter and config: a `pytest.param(..., marks=pytest.mark.xfail(...))` case that passes reports `1 xpassed` and exits 0 under `-q -k legacy`. The gate therefore passes whether or not the shim is still red, which is precisely the decoration the repo's gates-must-fail-before-work convention forbids, and it silently defeats the regression guarantee D7 was chosen for.",
+      "resolution": "Do not rely on bare `xfail`. Either (a) mark the legacy parametrization `@pytest.mark.xfail(strict=True)` so an XPASS is a failure — the narrowest fix and it needs no config change; or (b) drop `xfail` entirely and assert the defective behavior positively (e.g. `assert legacy_add_permission(...) reorders keys`, `assert the deny-only fixture is left unmodified`), which also documents each defect as an executable claim rather than an expected-failure marker. Update tasks.md 2.1 and design.md D7 to name the chosen mechanism explicitly, and add a V-step asserting that flipping the shim to correct behavior makes the `-k legacy` gate go red.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "line_range": { "start": 230, "end": 242 }
+    },
+    {
+      "id": 4,
+      "axis": "architecture",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Five of the contract's fields have no provenance in the spec delta or in tasks.md. Grepping specs/setup-coordinator/spec.md and tasks.md for `schema_version`, `checked_validity`, `host`, `summary`, `credential_env` returns zero hits for all five (the only `host` hits are the unrelated \"current host\" prose at spec.md:76 and \"unroutable host\" at tasks.md:36). The `Harness Presence Detection` requirement (spec.md:74-88) describes the four states and the filtering rule but never the envelope. Two consequences: (i) contracts/README.md:52-57 states that the `summary.total == len(vendors)` and per-state cardinality relations \"cannot be expressed in JSON Schema, so this is asserted in the test suite instead\" — but no task in tasks.md schedules that assertion, and V.8 (tasks.md:239-241) only validates against the schema, which by the README's own argument cannot catch it; (ii) `credential_env_var`/`credential_env_set` are the only two non-required properties in VendorReport and nothing in the plan populates or forbids them, so they are either dead schema surface or an undeclared feature.",
+      "resolution": "Add a spec bullet under `Harness Presence Detection` describing the report envelope (schema version, the presence-only marker, the inspected host, and the per-state summary), and state the cardinality invariant as a normative clause so it is testable. Add the summary-cardinality assertion to task 1.3's scope explicitly. For `credential_env_var`/`credential_env_set`: either promote them to required-with-null (matching the argument contracts/README.md:38-43 makes for the other nullable fields) plus a spec bullet sourcing them from `cli.api_key_env`, or delete them from the schema.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/contracts/README.md",
+      "line_range": { "start": 52, "end": 58 }
+    },
+    {
+      "id": 5,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: The \"explicit root argument\" that two clauses of `Atomic Permission Allowlist Update` depend on is never declared anywhere. spec.md:113 requires the settings path be \"resolved absolutely from an explicit root\" and the Scenario \"Working directory independence\" (spec.md:147-150) requires operating \"on the settings file resolved from its explicit root argument\" — but the `Script-Backed Entrypoint` requirement (spec.md:52-59) enumerates only the four subcommands and `--json`, task 3.2 (tasks.md:127-132) lists only `main`, `cmd_*`, and `--json`, and task 3.8 (tasks.md:161-163) says only \"settings write only\". No artifact names the flag, and none fixes the behavior when it is omitted. This matters because the scenario passes the argument explicitly, so it cannot detect a cwd-derived default — and a cwd-derived default is exactly defect #1 (proposal.md:26-28, `SETTINGS_FILE=\".claude/settings.local.json\"`) surviving the rewrite in its default path.",
+      "resolution": "Add the flag to the `Script-Backed Entrypoint` requirement (e.g. `configure` SHALL accept `--project-root <path>`), state the behavior when it is omitted (require it, or resolve by ascending from an explicit anchor — but not from `Path.cwd()`), and add a scenario asserting that invoking `configure` with the flag omitted from an unrelated directory does not create or modify a settings file under that directory. Name the flag in task 3.2 so the argparse surface test in 3.1 pins it.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
+      "line_range": { "start": 109, "end": 150 }
+    },
+    {
+      "id": 6,
+      "axis": "architecture",
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: Only one of the four `--json` surfaces is schematized. spec.md:58 requires *every* subcommand to accept `--json` and spec.md:65-68 requires each to emit \"a single JSON document on stdout\", but contracts/harness-report.schema.json covers `detect-harnesses` alone; `check`, `configure`, and `report` have no schema, no scenario describing their document shape, and no task pinning it (tasks.md 3.6, 3.7, 3.8 describe behavior in prose only). contracts/README.md:19-20 argues the reason a CLI output schema is the canonical contract here is that \"leaving it unspecified would make 'emits JSON' untestable beyond 'parses as JSON'\" — which is the state three of the four subcommands are left in. `configure --json` is the most consequential omission, because it is the only mutating subcommand and its report of changed/unchanged is what the idempotency requirement (spec.md:118, 136-140) is observed through.",
+      "resolution": "Either add schemas for the remaining subcommands under contracts/ (at minimum `configure`, whose document should carry the settings path written, a boolean `changed`, and the next-step commands D3 requires it to emit), or narrow spec.md:58 and 65-68 so the `--json` obligation and its testable shape apply only where a schema exists, and record the narrowing as a design decision. Whichever is chosen, name the covering artifact in the `**Spec scenarios**` field of tasks 3.6-3.8.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/contracts/README.md",
+      "line_range": { "start": 14, "end": 24 }
+    },
+    {
+      "id": 7,
+      "axis": "security",
+      "severity": "nit",
+      "type": "security",
+      "criticality": "low",
+      "description": "Nit: The deny-list fix leaves the operator's explicit signal silently overridden. Scenario \"Wildcard present only in the deny list\" (spec.md:126-129) requires that when `mcp__coordination__*` is in `deny` but not `allow`, `configure` SHALL add it to `allow` and SHALL NOT report it as already configured. That correctly kills the false-positive guard at SKILL.md:215, but the resulting file lists the same pattern in both `allow` and `deny`, and no clause requires the operator be told. A `deny` entry for a coordination wildcard is a deliberate act — the only reason to write it — and the tool that quietly writes the opposite entry into `allow` is making a permission-surface decision without surfacing it. The requirement is one-sided: it forbids the wrong conclusion (\"already configured\") but does not require the right report.",
+      "resolution": "Add an `AND` clause to the \"Wildcard present only in the deny list\" scenario requiring `configure` to report the conflict — that the wildcard is also present in `deny` and that the deny entry takes precedence — on stderr for the human path and as a field in the `configure --json` document. Add the assertion to task 2.1's case list so the deny fixture checks the report, not only the file.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
+      "line_range": { "start": 126, "end": 129 }
+    },
+    {
+      "id": 8,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: The wp-integration dependency-direction gate scans untracked, generated trees. `skills/.venv/bin/python skills/validate-feature/scripts/linters/dependency_direction.py --skills-root .` (work-packages.yaml:275) resolves the root to the repository and `_installed_payload_files` rglobs it, keeping every file whose path contains a `skills` part (`_is_skills_file`, dependency_direction.py:67-70). Both runtime mirrors exist here (`.claude/skills/`, `.agents/skills/`) and `git ls-files` returns zero entries for them — they are install.sh rsync targets. `.git-worktrees/*/skills/**` would be swept in too. So a stale mirror from an earlier install can fail a gate wp-integration cannot fix by editing any tracked file, and doing so surfaces exactly the generated-copy drift the repo convention says not to surface. The sibling gate in the same package already uses the narrower form (`validate_install_manifest.py --skills-root skills`, work-packages.yaml:269). I verified `--skills-root skills` passes identically on the current tree.",
+      "resolution": "Change the command to `--skills-root skills` to match the sibling manifest gate and scope the scan to the canonical tree. If the wider sweep is intentional, say so in the step comment and add an exclusion for `.claude/skills`, `.agents/skills`, and `.git-worktrees` so the gate cannot fail on regenerated copies.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/work-packages.yaml",
+      "line_range": { "start": 273, "end": 278 }
+    },
+    {
+      "id": 9,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "D1a's roster-resolution analysis holds up under independent verification, and it is the sharpest part of the plan. I read `vendor_health.load_agents_yaml` (vendor_health.py:110-155) directly: the explicit branch is guarded by `explicit and explicit.exists()`, so a resolved-but-absent path falls straight through to a `urlopen` against `$COORDINATION_API_URL/agents/dispatch-configs`, then to `Path.cwd()/\"agent-coordinator\"/\"agents.yaml\"`, then returns `{}` with no error — exactly the four-step chain design.md:36-41 draws, including the failure-open terminal. D1b is equally well grounded: the live roster has seven agents carrying a `cli` block, of which `claude-remote` and `codex-remote` are remotes that would double-count `claude` and `codex`, and `check_vendor` does default a missing command to `\"\"` (vendor_health.py:54) against a contract declaring `cli_command` with `minLength: 1`, so the non-empty-command guard is load-bearing as claimed.",
+      "resolution": "No action. Keep the explicit-path-plus-existence-check resolution and the `-local` filter as specified.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "line_range": { "start": 31, "end": 82 }
+    },
+    {
+      "id": 10,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "D2's atomic-write correction and the contract's conditional design both verify. `canonical_json_bytes` is `json.dumps(..., sort_keys=True, indent=2)` plus one trailing newline (atomic.py:31-40) and `atomic_write_json` routes through it, so the design's claim that it would re-sort and defeat idempotency is exact; `scripts/__init__.py` confirms in its own docstring that the `atomic` module \"is intentionally not re-exported\", which is why the flat-name import in D2 is the right seam. The live `.claude/settings.local.json` has top-level key order `[\"permissions\", \"disabledMcpjsonServers\"]`, two-space indent, no `deny` key, and no wildcard — so sorted order is indeed the reverse, and D7's point that the deny-list defect is latent against the real file is correct. The contract's required-plus-nullable conditionals also bite exactly as contracts/README.md:38-43 claims: an `unknown` VendorReport omitting the three nullable fields yields 3 validation errors, and one carrying a `remediation` yields 1. Separately, task 4.4's note that `test_skill_md.py` must import from `skill_invariants` rather than `conftest` is right for a reason the plan does not state — `skills/pyproject.toml` sets `pythonpath = [\"tests/_shared\"]`, which is what makes the flat import resolve.",
+      "resolution": "No action.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "line_range": { "start": 83, "end": 138 }
+    }
+  ]
+}

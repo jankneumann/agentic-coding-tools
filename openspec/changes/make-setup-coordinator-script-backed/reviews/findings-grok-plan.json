@@ -1,0 +1,142 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: The MODIFIED Profile-Aware Setup requirement adds \"SHALL NOT import agent-coordinator source modules\" (spec.md:12) while retaining the Local profile setup scenario step that registers MCP \"with env vars from get_mcp_env()\" (spec.md:20). get_mcp_env() is an agent-coordinator API; satisfying that THEN clause requires the import the same requirement forbids. Portable Skill Payload (spec.md:157) repeats the ban. Design D3 keeps MCP registration as narrated make targets, which is also incompatible with naming get_mcp_env(). An implementer following the scenario literally produces an illegal dependency; following D3/Portable leaves the MODIFIED scenario unmet.",
+      "resolution": "Rewrite Local profile setup step 4 to the public surface the skill already uses (e.g. make -C \"$COORDINATOR_DIR\" mcp-setup / documented coordinator setup targets). Remove the get_mcp_env() reference. Clarify which Local/Railway steps remain SKILL.md narration versus script subcommands so the MODIFIED preamble and D3 stay aligned.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
+      "line_range": {
+        "start": 12,
+        "end": 22
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Design D2 says to follow skills/refresh-architecture/scripts/arch_utils/provenance.py:43-55 \"exactly\" for the guarded atomic import fallback. That precedent's except-branch _atomic_write_bytes (provenance.py:55-61) is target.write_bytes(payload) \u2014 not tmp+fsync+os.replace. Atomic Permission Allowlist / Concurrent reader safety (spec.md:116-117, 142-145) require a temporary file replaced into place with no partial reads, with no carve-out for the unbundled path. Portable Skill Payload (spec.md:159-160, Sibling skill unavailable) makes the fallback a supported production path. Following D2 \"exactly\" reintroduces defect #3 (non-atomic write) precisely when project-context-runtime is absent.",
+      "resolution": "Keep the guarded import of atomic_write_bytes, but define an inline fallback that still does same-directory tempfile + flush/fsync + os.replace + parent fsync (the durability the design rejected copying only to avoid duplication). Update D2 to state that the precedent is the import wiring, not the non-atomic fallback body. Add a test that with the import forced to fail, configure still performs an atomic replace.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "line_range": {
+        "start": 121,
+        "end": 137
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: harness-report.schema.json admits state=ready with config_artifact=null and config_present=true (Draft202012Validator reports 0 errors for that document). Spec Harness Presence Detection defines ready as \"CLI present and config artifact present\" (spec.md:81) and D5/unknown semantics treat a null artifact as unknown, not ready. The ready if/then branch only const-checks cli_on_path and config_present (schema lines 117-124), so the wp-core \"Entrypoint --json output validates against the contract\" gate can green-light an incoherent report that the spec forbids.",
+      "resolution": "Extend the ready if/then branch to require config_artifact as a non-empty string (and keep config_present const true). Mirror the config_missing branch's artifact constraint. Add a negative schema test fixture for ready+null artifact.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/contracts/harness-report.schema.json",
+      "line_range": {
+        "start": 117,
+        "end": 124
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Nit: Design D7 and work-packages prescribe settings-writer cases as xfail-on-legacy / pass-on-new, and wp-core verifies with `pytest ... -k legacy` under the name \"Legacy shim still exhibits all four defects\". skills/ has no xfail_strict (confirmed absent from pyproject/pytest config). Under pytest 9 defaults, an unexpectedly passing xfail (XPASS) exits 0 \u2014 reproduced locally \u2014 so if the shim stops exhibiting a defect, the gate still passes. That is the same class of self-defeating gate the iterate pass already called out elsewhere.",
+      "resolution": "Prefer positive assertions of defective legacy behavior (assert the deny-list false positive still occurs) rather than xfail on the corrected behavior; or set xfail(strict=True) on legacy params and assert the gate fails on XPASS. Name/parametrize with stable ids containing \"legacy\" so -k legacy cannot silently deselect.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "line_range": {
+        "start": 230,
+        "end": 235
+      },
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Script-Backed Entrypoint requires binary exit codes \"0 when the requested state is satisfied, non-zero when it is not\" (spec.md:59) but never defines the satisfied state for detect-harnesses (or report). Presence reporting can succeed while every vendor is cli_missing. Task 3.1 covers \"exit-code discipline\" without pinning whether mixed/non-ready reports are exit 0 or non-zero, so two conforming implementations diverge and the contract gate only checks JSON shape.",
+      "resolution": "Add an explicit SHALL: detect-harnesses exits 0 when a roster was resolved and a report emitted (presence check succeeded), independent of per-vendor state; reserve non-zero for resolve failures / usage errors. State the analogous rule for report/check/configure.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
+      "line_range": {
+        "start": 56,
+        "end": 59
+      },
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: After MODIFIED merge, Local profile setup and Railway profile setup scenarios (spec.md:14-31) still list docker auto-start, MCP registration, curl health, and coordination_bridge detect as unconditional skill SHALLs, but tasks 3.6\u20133.8 only implement profile resolution, settings configure, and capability report, and D3 keeps make mcp-setup/hooks-setup as narration. No task maps those orchestration steps to an automated test. As written, the scenarios are either untestable obligations on markdown or silent scope creep into the entrypoint.",
+      "resolution": "Split each scenario into script-backed THEN clauses (check/report/configure) versus narrated operator steps (compose up, make mcp-setup, bridge detect), or move the orchestration bullets under a non-normative note so validate-feature/playwright-style checks are not implied.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
+      "line_range": {
+        "start": 14,
+        "end": 31
+      },
+      "axis": "readability",
+      "severity": "nit"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Optional: Task 3.7 implements report with no preceding failing-test task (unlike detect-harnesses, settings writer, and CLI dispatch). Profile-Aware Setup still requires capability-flag reporting, so report can land unpinned except for manual checkpoints.",
+      "resolution": "Add a small red-test task before 3.7 asserting transport/CAN_* summary shape for --json and human output, or explicitly mark report as covered by extending task 3.1's CLI contract tests.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/tasks.md",
+      "line_range": {
+        "start": 157,
+        "end": 159
+      },
+      "axis": "correctness",
+      "severity": "optional"
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The intentional write_allow overlap on skills/tests/setup-coordinator/test_skill_md.py between wp-core (tests/setup-coordinator/**) and wp-integration is sound: packages are strictly sequential via depends_on, and wp-integration's description forbids wp-core from creating that file. Combined with D1a/D1b matching vendor_health.load_agents_yaml (lines 110-155) and the live agents.yaml roster (seven cli agents including claude-remote/codex-remote), the core detection plan is grounded in repository reality rather than assumed APIs.",
+      "resolution": "No change.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/work-packages.yaml",
+      "line_range": {
+        "start": 220,
+        "end": 224
+      },
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Design D2's correction to call atomic_write_bytes rather than atomic_write_json is accurately grounded: canonical_json_bytes in atomic.py:31-40 uses sort_keys=True, and the live .claude/settings.local.json top-level order is [permissions, disabledMcpjsonServers], so canonicalization would both reformat unrelated keys and defeat idempotent no-op detection. Requiring that seam is the highest-value plan correction from the iterate pass.",
+      "resolution": "No change.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "line_range": {
+        "start": 90,
+        "end": 119
+      },
+      "axis": "correctness",
+      "severity": "none"
+    }
+  ]
+}
