@@ -49,7 +49,7 @@
       },
       {
         "title": "Fail closed in bash and zsh adapters",
-        "rationale": "Prepare output is evaluated only after success; INT and TERM finalize then explicitly exit 130 or 143.",
+        "rationale": "Prepare output is parsed strictly as JSON data only after success; INT and TERM finalize then explicitly exit 130 or 143.",
         "capability": "validate-feature-ephemeral",
         "supersedes": null
       }

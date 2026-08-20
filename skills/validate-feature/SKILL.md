@@ -179,8 +179,24 @@ if VALIDATION_PREPARE_OUTPUT=$(python3 "$VALIDATION_HELPER" prepare \
     --change-id "$CHANGE_ID" \
     --state-file "$VALIDATION_STATE_FILE" \
     $INCLUDE_DIRTY_FLAG \
-    --shell); then
-  eval "$VALIDATION_PREPARE_OUTPUT"
+    ); then
+  validation_json_field() {
+    printf '%s' "$VALIDATION_PREPARE_OUTPUT" | \
+      python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]], end="")' "$1"
+  }
+  if VALIDATION_SOURCE=$(validation_json_field source) && \
+      VALIDATION_PATH=$(validation_json_field path) && \
+      VALIDATION_VALIDATED_COMMIT=$(validation_json_field validated_commit) && \
+      VALIDATION_VALIDATED_TREE=$(validation_json_field validated_tree); then
+    export VALIDATION_SOURCE VALIDATION_PATH
+    export VALIDATION_VALIDATED_COMMIT VALIDATION_VALIDATED_TREE
+  else
+    VALIDATION_PARSE_STATUS=$?
+    python3 "$VALIDATION_HELPER" finalize --state-file "$VALIDATION_STATE_FILE" || true
+    rm -f -- "$VALIDATION_STATE_FILE"
+    echo "ERROR: could not parse ephemeral validation state" >&2
+    exit "$VALIDATION_PARSE_STATUS"
+  fi
 else
   VALIDATION_PREPARE_STATUS=$?
   rm -f -- "$VALIDATION_STATE_FILE"
