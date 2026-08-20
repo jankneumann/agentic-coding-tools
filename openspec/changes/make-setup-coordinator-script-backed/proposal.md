@@ -45,9 +45,12 @@ nothing is testable.
 
 ## What Changes
 
-- **ADD** `skills/setup-coordinator/scripts/setup_coordinator.py` — a portable,
-  stdlib-only entrypoint with four subcommands: `detect-harnesses`, `check`,
-  `configure`, `report`.
+- **ADD** `skills/setup-coordinator/scripts/setup_coordinator.py` — a portable
+  entrypoint with four subcommands: `detect-harnesses`, `check`, `configure`,
+  `report`. Module scope imports only the standard library and sibling skill
+  modules; the single third-party dependency, `pyyaml`, is reached lazily inside
+  `vendor_health.load_agents_yaml` and its absence degrades detection rather
+  than breaking import.
 - **ADD** presence-only harness detection: CLI on PATH plus a home-directory
   config artifact, with four states (`ready`, `cli_missing`, `config_missing`,
   `unknown`). Authentication and login remain the operator's responsibility.
@@ -148,6 +151,20 @@ Four sub-decisions were fixed at the same gate and bind all downstream artifacts
 |----|----------|-------------|
 | D1 | Hybrid detection — call `vendor_health.check_all_vendors()` unmodified, layer home-directory presence locally | No `vendor-ux` delta; `parallel-infrastructure` joins `cross_skill_dependencies` |
 | D2 | Import `atomic.py` from `project-context-runtime`, with an inline fallback when unbundled | Second `cross_skill_dependencies` entry; follows the `refresh-architecture` precedent |
+
+Planning refined two of these without reopening the gate decision:
+
+- **D1a/D1b** — "call it unmodified" means *with an explicitly resolved path*.
+  Called with no argument, `load_agents_yaml` reaches the network and falls back
+  to a cwd-relative roster, and fails open with an empty result; and its output
+  includes `claude-remote`/`codex-remote`, which are not host-local harnesses.
+  Resolution, existence-checking, and `-local` filtering are therefore owned by
+  this skill. See design D1a, D1b.
+- **D2** — the correct import is `atomic_write_bytes`, **not**
+  `atomic_write_json`. The latter canonicalizes (`sort_keys=True`), which would
+  re-sort the settings file's top-level keys and so reintroduce the whole-file
+  reformat this change exists to remove, while also breaking the idempotent
+  re-run. See design D2.
 | D3 | `configure` mutates **only** the settings file; MCP/hooks registration stays as narrated `make` invocations | Skill remains usable without a coordinator checkout |
 | D4 | `SKILL.md` reduced to ~120-150 lines — knowledge content stays, improvised glue goes | Transport table, HTTP guidance, and troubleshooting survive |
 
