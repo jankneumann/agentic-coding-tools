@@ -493,6 +493,60 @@ items:
   - The capability MUST document the added toolchain dependency (Node >= 22, FFmpeg,
     headless Chrome via Puppeteer) and MUST fail with an actionable error when FFmpeg
     or Chrome is missing rather than producing a partial render.
+- item_id: code-story-narrative
+  title: Narrative change-story export (adopt code-story)
+  status: approved
+  priority: 8
+  effort: S
+  depends_on:
+  - diff-graph-artifact
+  - subgraph-retrieval
+  - saved-views-url-state
+  description: 'Generate chaptered, wizard-style HTML explainers ("code stories")
+    that teach a reviewer how and why a change works — the narrative counterpart to
+    timelapse-review-export (which shows what changed over time; a story explains
+    the mechanism and reasoning). Adopts code-story (will-ness-ai/skills) — an agent
+    skill that turns a PR/diff/branch/commit plus clarifications into a self-contained
+    HTML story page (single-question chapters organized by mechanism, newcomer-accessible
+    prose, line-cited code excerpts anchoring every claim, diagrams, auto-generated
+    chapter numbering/progress/note linking) — as the authoring/rendering layer ONLY.
+    Adopted, NOT vendored: unlike fetch-vendor-skills.sh entries, the skill content
+    is never copied into skills/; it is consumed from upstream at a commit SHA pinned
+    in an adoption manifest, upgrades move the pin, and fixes go upstream as PRs.
+    This repo owns only a thin codeviz-story wrapper that prepares graph-grounded
+    inputs — the change''s diff-graph.json (change_kind, blast_radius_summary), a
+    token-budgeted subgraph-retrieval context bundle with per-item provenance, and
+    related Proposal/Finding artifacts — and invokes the upstream skill so chapters
+    cite graph evidence, not just raw diff text. Chapters deep-link into the live
+    SPA via saved-view URLs. Untrusted repo-derived strings injected into the story
+    HTML MUST be escaped (covered by threat-model-artifact).'
+  acceptance_outcomes:
+  - The code-story skill MUST be consumed from upstream will-ness-ai/skills at a commit
+    SHA pinned in an adoption manifest (separate from vendor-manifest.json); no entry
+    MUST be added to fetch-vendor-skills.sh and no copy of upstream skill content
+    MUST be committed under skills/.
+  - Upgrades MUST happen by moving the pin; a drift check MUST report when upstream
+    HEAD has moved past the pinned SHA (mirroring fetch-vendor-skills.sh --check),
+    and local patches to upstream content MUST NOT exist — divergence needs go upstream
+    as PRs.
+  - A codeviz-story wrapper skill MUST produce a story for a single PR or OpenSpec
+    change from its diff-graph.json; invocation MUST fail with an actionable error
+    (not a degraded story) when the upstream pin is unreachable.
+  - Every chapter claim about code MUST carry line-level citations; graph-derived
+    claims (blast radius, change_kind, callers/dependents) MUST carry provenance (evidence_kind
+    + confidence) inherited from the retrieval bundle, and claims lacking graph evidence
+    MUST be acknowledged rather than speculated.
+  - Chapters MUST deep-link to saved-view URLs that restore the cited selection, lens,
+    and diff overlay in the SPA.
+  - Story HTML MUST follow the storage-tier policy — written to the operational cache
+    (e.g. .codeviz-cache/stories/) or published as an artifact, never committed; only
+    a sidecar JSON carrying the mandatory artifact header (source change-id, diff-graph
+    digest, upstream skill pin, output digest) is committed as an event artifact under
+    docs/codeviz/stories/<YYYY-MM-DD>/<run-id>.json.
+  - All repo-derived strings injected into the story HTML MUST be escaped before rendering;
+    this surface MUST be listed in docs/codeviz/threat-model.md.
+  - The export MUST be classified reversible-write by the shared op_reversibility
+    classifier, MUST emit an audit event, and MUST NOT mutate graph state.
 - item_id: codecity-3d-view
   title: Optional CodeCity 3D view (experimental)
   status: approved
@@ -886,4 +940,4 @@ items:
   - A fixture suite MUST verify ingestion across all supported tools and catch SARIF
     schema regressions.
 created_at: '2026-05-12T09:04:37.603266+00:00'
-updated_at: '2026-08-04T17:14:33.248463+00:00'
+updated_at: '2026-08-20T11:43:52+00:00'
