@@ -36,7 +36,7 @@ items:
 - item_id: pca-02
   title: Per-agent OpenBao secrets done right
   change_id: restructure-openbao-per-agent-secrets
-  status: planning
+  status: candidate
   priority: 2
   effort: M
   depends_on:
@@ -64,7 +64,7 @@ items:
 - item_id: pca-03
   title: Issued session credentials replace static keys
   change_id: replace-static-api-keys-with-session-tokens
-  status: planning
+  status: candidate
   priority: 3
   effort: L
   depends_on:
@@ -89,11 +89,13 @@ items:
 - item_id: pca-04
   title: Unified dispatch posture
   change_id: unify-dispatch-posture-resolution
-  status: planning
+  status: candidate
   priority: 4
   effort: M
   depends_on:
   - pca-03
+  external_depends_on:
+  - dispatch-governance:dg-08
   description: resolve_posture(principal, dispatch_mode) -> {trust, isolation,
     credential_delivery, vendor_credentials} becomes the single per-dispatch decision
     consumed by guardrails/policy, the sandbox renderer (dg-07's srt seam, later
@@ -102,7 +104,13 @@ items:
     credentials from OpenBao and injects them into the subprocess env; local srt
     tier) and gateway (the adapter injects proxy tokens only, and dg-08's iron-proxy
     swaps in the real key at egress under its own service principal; gateway
-    postures). Consumes dg-07's renderer and the task router's isolation output
+    postures). Proxy tokens are per-dispatch, short-TTL, audience-bound to the
+    gateway, and encode exactly the resolved vendor_credentials - the token, not
+    the gateway principal, is the authorization for each swap. Vendor credentials
+    already brokered by the coordinator LLM gateway (LiteLLM virtual keys,
+    add-coordinator-llm-gateway) stay out of the swap path in both modes - the
+    virtual key is the inference credential and carries its own budget and model
+    enforcement. Consumes dg-07's renderer and the task router's isolation output
     rather than re-deciding them.
   rationale: Trust level, isolation mode, and credential scope are three facets of one
     dispatch decision currently spread across inert config, an advisory policy
@@ -119,5 +127,7 @@ items:
     secret
   - In a gateway posture the subprocess env contains proxy tokens and no real vendor
     secret at all
+  - A proxy token authorizes exactly its dispatch's resolved vendor_credentials;
+    an end-to-end test proves the gateway rejects a swap for any other vendor
   - OpenShell adoption is a renderer + authenticator addition, demonstrated by a
     contract test against the seam interfaces

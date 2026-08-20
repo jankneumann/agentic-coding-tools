@@ -208,7 +208,22 @@ only *rendered* for the runtime.
 The gateway also closes the credential loop with `principal-credential-architecture` Phase 4:
 in a gateway posture the dispatch adapter injects **proxy tokens** rather than real vendor
 keys, and iron-proxy swaps in the real secret at egress, fetched under its own service
-principal. The sandbox never holds anything worth exfiltrating.
+principal (seeded by pca-02, hence the `external_depends_on` edge). The sandbox never holds
+anything worth exfiltrating. Two boundaries on that swap keep it from recreating the authority
+it removes:
+
+- **Token-scope binding.** The gateway principal can read all of `secret/vendors/*`, so the
+  proxy token — not the principal — is the authorization: per-dispatch, short-TTL,
+  audience-bound to the gateway, encoding exactly pca-04's resolved `vendor_credentials`. A
+  swap request for any vendor outside that scope is rejected with an audit event; without
+  this, a compromised agent could ask the gateway to spend any credential the principal can
+  read, recreating cross-vendor authority at one hop's remove.
+- **Inference traffic is excluded.** `add-coordinator-llm-gateway` already makes LiteLLM the
+  provider-key boundary for metered LLM dispatch — virtual keys scoped to budget, model
+  allowlist, and TTL, with inline enforcement and spend callbacks. iron-proxy performs no
+  secret swap on that traffic: the virtual key *is* the credential and passes through
+  untouched, with the LLM gateway simply an allowlisted destination. A second credential
+  path for inference would bypass budget enforcement, which is that change's entire point.
 
 Deployment is posture-gated, which is why dg-03 is a dependency. The gateway deploys only
 where the network dimension reports real interception — self-managed containers, the Sentinel
@@ -223,8 +238,14 @@ policy stays deterministic, matching the router's own no-model-call constraint.
 **Acceptance Outcomes:**
 - The coordinator's network policy renders to iron-proxy configuration through the same export path dg-07 uses; no allowlist is hand-authored in gateway config
 - In a gateway posture a dispatched agent's only reachable destination is the gateway; a denied domain is blocked with a structured audit event naming the matched policy
-- A dispatched subprocess in a gateway posture holds proxy tokens only; the real vendor key never appears in the sandbox env (integration test)
+- A swap request for a vendor outside the presenting token's per-dispatch scope is rejected with an audit event, despite the gateway principal's broader read access (rejection test)
+- Requests to the coordinator LLM gateway pass through with their LiteLLM virtual key untouched; no secret swap occurs on inference routes
 - Local-uid and managed-cloud postures skip gateway deployment with an audit event recording why
+
+The end-to-end outcome — a dispatched subprocess whose env holds proxy tokens and no real
+vendor secret — belongs to pca-04, which owns dispatch-side injection; dg-08 deliberately
+claims only the gateway side, so its acceptance contract is attainable without pca-04 having
+shipped.
 
 ## Constraints
 
