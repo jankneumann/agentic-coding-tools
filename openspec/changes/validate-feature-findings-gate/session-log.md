@@ -12,7 +12,7 @@
 2. **Record exact commit and tree** `architectural: validate-feature-ephemeral` — A commit alone cannot identify an include-dirty run, so both source HEAD and the materialized Git tree are durable evidence.
 3. **Fail closed at filesystem boundaries** `security: validate-feature-ephemeral` — Copy-back and teardown operate on paths influenced by a change ID and persisted state, so identifiers, resolved containment, symlink endpoints, Git worktree registration, and atomic replacement are all verified before mutation.
 4. **Split scratch execution from durable bookkeeping** `architectural: validate-feature-ephemeral` — Steps through report persistence run in scratch; architecture impact crosses the explicit allowlist, then session-log/handoff writes run in the source checkout after finalization.
-5. **Fail closed in bash and zsh adapters** `security: validate-feature-ephemeral` — Prepare output is evaluated only after an explicit zero exit; INT and TERM each finalize then exit with their conventional 130/143 status instead of resuming in the source checkout.
+5. **Fail closed in bash and zsh adapters** `security: validate-feature-ephemeral` — Prepare output is parsed as JSON data only after an explicit zero exit; no generated shell is evaluated. INT and TERM each finalize then exit with their conventional 130/143 status instead of resuming in the source checkout.
 
 ### Alternatives Considered
 - Implement the full original draft: rejected because It would overwrite merged DEGRADED and architecture-gate semantics on the same surface.

@@ -72,11 +72,11 @@ in the source checkout.
 - **THEN** finalize SHALL copy the allowlist and remove scratch
 - **AND** subsequent session-log/handoff writes SHALL target the source checkout
 
-#### Scenario: Prepare fails before shell evaluation
+#### Scenario: Prepare fails before shell continuation
 
 - **WHEN** dirty input, an unsafe path, or Git setup makes prepare exit nonzero
 - **THEN** the shell adapter SHALL remove its empty state file and exit nonzero
-- **AND** it SHALL NOT evaluate unset validation paths or continue in the source checkout
+- **AND** it SHALL NOT parse unset validation paths or continue in the source checkout
 
 #### Scenario: Validation receives an interrupt or termination signal
 

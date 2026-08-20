@@ -282,6 +282,8 @@ def test_skill_wires_ephemeral_flags_to_the_canonical_helper() -> None:
     assert "VALIDATION_VALIDATED_TREE" in skill
     assert "<validation-driver-command>" not in skill
     assert "if VALIDATION_PREPARE_OUTPUT=$(" in skill
+    assert "json.load(sys.stdin)[sys.argv[1]]" in skill
+    assert 'eval "$VALIDATION_PREPARE_OUTPUT"' not in skill
     assert "trap 'finalize_ephemeral_validation $?' EXIT" in skill
     assert "finalize_ephemeral_validation 130; exit 130" in skill
     assert "finalize_ephemeral_validation 143; exit 143" in skill
