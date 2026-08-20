@@ -126,11 +126,14 @@ Execution runs the active-agent sync-point guard, re-checks live PR, CI, and
 staleness state, refreshes stale or invalidated nodes, runs eligible vendor
 review, and delegates the actual merge to the existing `merge_pr.py` safety
 path. Eligible review fails closed on dispatch error or a missing verdict. Before
-refresh/review/merge side effects it persists `outcome=in_progress` and a claim;
-a retry reconciles live merged/closed state and refuses an unowned in-flight
-claim rather than replaying the merge. A successful merge persists `outcome=merged` and
-sets `needs_revalidation=true` on every transitive dependant. The next executor
-refreshes and re-checks any flagged node before it may merge.
+refresh/review/merge side effects it atomically persists `outcome=in_progress` and a
+same-host file-tier claim; a retry reconciles live merged/closed state before human or
+sync-point gates and refuses an unowned in-flight claim rather than replaying the merge.
+A successful merge persists `outcome=merged` and sets `needs_revalidation=true` on every
+transitive dependant. The next executor refreshes and re-checks any flagged node before
+it may merge. Because historical file overlap can remain `stale` after refresh, the
+post-refresh decision requires a current CI merge base, fresh passing CI, and live
+mergeability instead of requiring the overlap label to become `fresh`.
 
 Human gates are fail-closed. If `auto_executable` is false or the plan carries a
 gate, the command stops and prints the gate. Only after explicit operator

@@ -41,11 +41,15 @@ mark every downstream node depending on the merged node for re-validation before
 executed. Execution SHALL invoke helper scripts via canonical `skills/...` paths and SHALL
 NOT rely on `.agents/skills`, `.claude/skills`, or other runtime mirrors. File-tier
 execution SHALL run the skill's active-agent sync-point guard before any refresh or merge
-side effect. It SHALL persist an `in_progress` claim before those side effects, reject an
-unowned replay, and reconcile a claimed node from live terminal GitHub state so a crash
-after the remote merge cannot cause a duplicate merge. Every execution attempt SHALL
-recompute live staleness even when the snapshot says `fresh`. When vendor review is
-eligible, dispatch failure or the absence of a consensus verdict SHALL block the merge.
+side effect. It SHALL atomically persist an `in_progress` claim before those side effects,
+reject an unowned replay, and reconcile a claimed node from live terminal GitHub state
+before prerequisite, human, or sync-point gates so a crash after the remote merge cannot
+cause a duplicate merge or require the prior approval to be supplied again. Every
+execution attempt SHALL recompute live staleness even when the snapshot says `fresh`.
+After refreshing a historically-overlapping PR, execution SHALL require a current CI
+merge base, fresh passing CI, and a live mergeable state; historical overlap alone SHALL
+NOT permanently block the refreshed PR. When vendor review is eligible, dispatch failure
+or the absence of a consensus verdict SHALL block the merge.
 
 #### Scenario: Executing one node updates the plan and flags downstream nodes
 
@@ -71,6 +75,12 @@ eligible, dispatch failure or the absence of a consensus verdict SHALL block the
 - **WHEN** a node is durably claimed and the process stops after GitHub merges the PR but before the final plan write
 - **THEN** a subsequent execution SHALL observe the live merged state and persist `outcome: merged`
 - **AND** SHALL NOT invoke the merge operation again
+
+#### Scenario: Historical overlap is safe after current-base revalidation
+
+- **WHEN** the overlap classifier remains `stale` after a successful branch refresh because it measures changes since PR creation
+- **THEN** execution SHALL accept the refreshed node only when its CI merge base is current, CI is fresh and passing, and the live PR state is mergeable
+- **AND** SHALL NOT require the historical overlap classification itself to become `fresh`
 
 #### Scenario: Eligible vendor review fails closed
 

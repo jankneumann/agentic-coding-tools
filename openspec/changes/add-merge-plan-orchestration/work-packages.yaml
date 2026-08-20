@@ -55,6 +55,7 @@ packages:
     context_impact:
       surfaces:
         - apis
+        - capabilities
         - documentation
         - semantic_code
     worktree:

@@ -20,8 +20,10 @@ The plan has two parts with different lifecycles:
   concurrently-mutated.
 
 In the file tier, `in_progress` plus `claimed_by` is also the crash boundary. It is
-persisted before refresh, review dispatch, or merge. A retry reconciles terminal GitHub
-state, resumes only the same claim, and otherwise refuses to replay an in-flight attempt.
+atomically persisted under a same-host file lock before refresh, review dispatch, or
+merge. A retry reconciles terminal GitHub state before human and sync-point gates, resumes
+only the same claim, and otherwise refuses to replay an in-flight attempt. Cross-host
+claim serialization remains a Phase-2 coordinator responsibility.
 
 These are stored differently (D3). Conflating them in one flat file is what breaks
 multi-host dispatch.
@@ -34,6 +36,11 @@ mergeability of downstream nodes (observed repeatedly: same-file dependabot PRs 
 `CONFLICTING`; #227's large mirror-deletion flipped downstream PRs to `UNKNOWN`). Therefore
 executing a node MUST mark downstream nodes for re-validation (recompute mergeability /
 `refresh-branch`) before they are executed.
+
+The overlap classifier intentionally measures history since PR creation, so an overlap
+can remain `stale` after `refresh-branch`. Post-refresh safety therefore uses the current
+CI merge-base signal, fresh passing CI, and live mergeability rather than waiting for the
+historical classifier to become `fresh`.
 
 ### D3 — Tiered storage: coordinator is system-of-record; file is a projection; degrade to file
 

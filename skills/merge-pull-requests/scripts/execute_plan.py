@@ -33,6 +33,12 @@ if str(CANONICAL_SCRIPTS_DIR) not in sys.path:
 
 from analyze_comments import analyze as analyze_pr_comments  # noqa: E402
 from check_staleness import check_staleness as check_pr_staleness  # noqa: E402
+from execution_safety import (  # noqa: E402
+    default_sync_point_guard,
+    live_terminal_outcome,
+    refreshed_branch_block_reason,
+    vendor_review_block_reason,
+)
 from merge_pr import (  # noqa: E402
     merge_pr,
     refresh_branch,
@@ -85,33 +91,8 @@ def _default_vendor_review(
     return result
 
 
-def _default_sync_point_guard(repo_root: Path) -> dict[str, Any]:
-    """Reuse the merge skill's active-agent guard and fail closed on errors."""
-
-    skills_root = repo_root / "skills"
-    if str(skills_root) not in sys.path:
-        sys.path.insert(0, str(skills_root))
-    try:
-        from shared.active_agents import check_no_active_agents
-
-        clear, active = check_no_active_agents(repo_root=repo_root)
-    except Exception as exc:  # noqa: BLE001 - a missing guard must block
-        return {
-            "allowed": False,
-            "reason": f"active-agent guard unavailable: {type(exc).__name__}: {exc}",
-        }
-    if clear:
-        return {"allowed": True, "reason": "no active agents"}
-    labels = [getattr(agent, "label", str(agent)) for agent in active]
-    return {
-        "allowed": False,
-        "reason": "active agents hold worktrees: " + ", ".join(labels),
-        "active_agents": labels,
-    }
-
-
 DEFAULT_DEPENDENCIES = ExecutionDependencies(
-    guard_sync_point=_default_sync_point_guard,
+    guard_sync_point=default_sync_point_guard,
     get_live_status=validate_pr,
     check_staleness=check_pr_staleness,
     refresh_branch=refresh_branch,
@@ -172,46 +153,6 @@ def _comment_summary(comments: dict[str, Any]) -> str | None:
     return "; ".join(summaries)
 
 
-def _blocking_vendor_count(review: dict[str, Any]) -> int | None:
-    consensus = review.get("consensus")
-    if consensus is None and isinstance(review.get("review"), dict):
-        consensus = review["review"].get("consensus")
-    if not isinstance(consensus, dict):
-        return None
-    summary = consensus.get("summary")
-    if not isinstance(summary, dict) or "blocking_count" not in summary:
-        return None
-    try:
-        return int(summary["blocking_count"])
-    except (TypeError, ValueError):
-        return None
-
-
-def _vendor_review_block_reason(review: dict[str, Any]) -> str | None:
-    eligibility = review.get("eligibility")
-    if not isinstance(eligibility, dict):
-        return "vendor review returned no eligibility decision"
-    if not eligibility.get("eligible"):
-        if eligibility.get("reason") == "changes_requested":
-            return "existing review has unresolved change requests"
-        return None
-    if review.get("error"):
-        return f"eligible vendor review failed: {review['error']}"
-    if review.get("dispatched") is not True:
-        return "eligible vendor review was not dispatched"
-    vendors = review.get("vendors")
-    if not isinstance(vendors, list) or not any(
-        isinstance(vendor, dict) and vendor.get("success") for vendor in vendors
-    ):
-        return "eligible vendor review produced no successful reviewer result"
-    blocking = _blocking_vendor_count(review)
-    if blocking is None:
-        return "eligible vendor review produced no consensus verdict"
-    if blocking:
-        return f"vendor review reported {blocking} blocking finding(s)"
-    return None
-
-
 def _mark_downstream(plan: dict[str, Any], merged_pr: int) -> list[int]:
     downstream: set[int] = set()
     frontier = [merged_pr]
@@ -231,24 +172,13 @@ def _mark_downstream(plan: dict[str, Any], merged_pr: int) -> list[int]:
 
 
 def _delegation_commands(pr_number: int, branch: str) -> list[str]:
-    change_id = branch.removeprefix("openspec/") if branch.startswith("openspec/") else f"pr-{pr_number}"
+    change_id = (
+        branch.removeprefix("openspec/") if branch.startswith("openspec/") else f"pr-{pr_number}"
+    )
     return [
         f"/iterate-on-implementation {change_id}",
         f'/quick-task "Address unresolved review comments on PR #{pr_number}"',
     ]
-
-
-def _live_terminal_outcome(live: dict[str, Any]) -> str | None:
-    state = str(live.get("state") or live.get("status") or "").upper()
-    if live.get("merged") is True or state == "MERGED":
-        return "merged"
-    if state == "CLOSED":
-        return "closed"
-    return None
-
-
-def _repo_root() -> Path:
-    return CANONICAL_SCRIPTS_DIR.parents[2]
 
 
 def _persist_pending(
@@ -307,15 +237,30 @@ def execute_node(
             "pr": pr_number,
         }
 
+    execution_claim = claim_id or f"file-executor:{os.getpid()}"
+    if state["outcome"] == "in_progress":
+        # Recovery is read-only until a terminal remote outcome is observed, so
+        # it must precede gates that were already satisfied by the crashed run.
+        recovery_live = dependencies.get_live_status(pr_number)
+        terminal = live_terminal_outcome(recovery_live)
+        if terminal is not None:
+            return _reconcile_terminal(store, plan, state, pr_number, terminal)
+        if state.get("claimed_by") != execution_claim:
+            return {
+                "action": "execution_in_progress",
+                "outcome": "in_progress",
+                "pr": pr_number,
+                "claimed_by": state.get("claimed_by"),
+                "reason": "another execution claim must be reconciled before replay",
+            }
+
     blocked_by = [
         dependency
         for dependency in definition["depends_on"]
         if _find_node(plan, dependency)["state"]["outcome"] != "merged"
     ]
     if blocked_by:
-        reason = "waiting for prerequisites: " + ", ".join(
-            f"#{number}" for number in blocked_by
-        )
+        reason = "waiting for prerequisites: " + ", ".join(f"#{number}" for number in blocked_by)
         state["blocking_reason"] = reason
         store.save(plan)
         return {
@@ -346,7 +291,7 @@ def execute_node(
             "override_allowed": not openspec_gate,
         }
 
-    guard = dependencies.guard_sync_point(_repo_root())
+    guard = dependencies.guard_sync_point(CANONICAL_SCRIPTS_DIR.parents[2])
     if guard.get("allowed") is not True:
         reason = str(guard.get("reason") or "sync-point guard did not allow execution")
         state["blocking_reason"] = reason
@@ -360,26 +305,30 @@ def execute_node(
         }
 
     live = dependencies.get_live_status(pr_number)
-    terminal = _live_terminal_outcome(live)
+    terminal = live_terminal_outcome(live)
     if terminal is not None:
         return _reconcile_terminal(store, plan, state, pr_number, terminal)
 
-    execution_claim = claim_id or f"file-executor:{os.getpid()}"
-    if state["outcome"] == "in_progress" and state.get("claimed_by") != execution_claim:
+    # This compare-and-claim is the crash boundary: no refresh, review dispatch,
+    # or merge side effect occurs until the atomic file-tier claim succeeds.
+    plan, acquired = store.claim_node(pr_number, execution_claim)
+    node = _find_node(plan, pr_number)
+    state = node["state"]
+    definition = node["definition"]
+    if not acquired:
+        if state["outcome"] in {"merged", "closed", "deferred", "failed"}:
+            return {
+                "action": "already_terminal",
+                "outcome": state["outcome"],
+                "pr": pr_number,
+            }
         return {
             "action": "execution_in_progress",
-            "outcome": "in_progress",
+            "outcome": state["outcome"],
             "pr": pr_number,
             "claimed_by": state.get("claimed_by"),
             "reason": "another execution claim must be reconciled before replay",
         }
-
-    # The durable claim is the crash boundary: no refresh, review dispatch, or
-    # merge side effect occurs until this write succeeds.
-    state["outcome"] = "in_progress"
-    state["claimed_by"] = execution_claim
-    state["blocking_reason"] = None
-    store.save(plan)
 
     state["ci_state"] = _ci_state(live)
     try:
@@ -402,7 +351,9 @@ def execute_node(
     if needs_refresh:
         refreshed = dependencies.refresh_branch(pr_number)
         if not refreshed.get("success"):
-            reason = str(refreshed.get("reason") or refreshed.get("error") or "branch refresh failed")
+            reason = str(
+                refreshed.get("reason") or refreshed.get("error") or "branch refresh failed"
+            )
             _persist_pending(store, plan, state, reason)
             return {
                 "action": "revalidation_failed",
@@ -411,14 +362,19 @@ def execute_node(
                 "reason": reason,
             }
         live = dependencies.get_live_status(pr_number)
-        terminal = _live_terminal_outcome(live)
+        terminal = live_terminal_outcome(live)
         if terminal is not None:
             return _reconcile_terminal(store, plan, state, pr_number, terminal)
         state["ci_state"] = _ci_state(live)
         refreshed_staleness = dependencies.check_staleness(pr_number, node["origin"])
         state["staleness"] = str(refreshed_staleness.get("staleness", "unknown"))
-        if state["staleness"] != "fresh":
-            reason = f"PR remains {state['staleness']} after branch refresh"
+        refresh_reason = refreshed_branch_block_reason(
+            refreshed_staleness,
+            live,
+            state["ci_state"],
+        )
+        if refresh_reason:
+            reason = refresh_reason
             _persist_pending(store, plan, state, reason)
             return {
                 "action": "revalidation_failed",
@@ -475,7 +431,7 @@ def execute_node(
             "error": f"{type(exc).__name__}: {exc}",
         }
     state["vendor_verdict"] = review
-    vendor_reason = _vendor_review_block_reason(review)
+    vendor_reason = vendor_review_block_reason(review)
     if vendor_reason:
         _persist_pending(store, plan, state, vendor_reason)
         return {
@@ -488,7 +444,7 @@ def execute_node(
     result = dependencies.merge(pr_number, node["strategy"])
     if not result.get("success"):
         live_after_failure = dependencies.get_live_status(pr_number)
-        terminal = _live_terminal_outcome(live_after_failure)
+        terminal = live_terminal_outcome(live_after_failure)
         if terminal is not None:
             return _reconcile_terminal(store, plan, state, pr_number, terminal)
         reason = str(result.get("reason") or result.get("error") or "merge failed")

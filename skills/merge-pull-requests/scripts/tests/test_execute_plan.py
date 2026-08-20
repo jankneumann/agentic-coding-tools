@@ -39,7 +39,10 @@ def dependencies(**overrides) -> ExecutionDependencies:
     values = {
         "guard_sync_point": lambda _root: {"allowed": True},
         "get_live_status": lambda _pr: passing_status(),
-        "check_staleness": lambda _pr, _origin: {"staleness": "fresh"},
+        "check_staleness": lambda _pr, _origin: {
+            "staleness": "fresh",
+            "ci_merge_base_stale": False,
+        },
         "refresh_branch": lambda _pr: {"success": True},
         "analyze_comments": lambda _pr: {
             "unresolved_count": 0,
@@ -243,7 +246,10 @@ def test_each_execution_recomputes_live_staleness_before_refresh(tmp_path: Path)
 
     def stale(_pr: int, _origin: str) -> dict:
         calls["staleness"] += 1
-        return {"staleness": "stale" if calls["staleness"] == 1 else "fresh"}
+        return {
+            "staleness": "stale" if calls["staleness"] == 1 else "fresh",
+            "ci_merge_base_stale": calls["staleness"] == 1,
+        }
 
     result = execute_node(
         path,
@@ -257,6 +263,68 @@ def test_each_execution_recomputes_live_staleness_before_refresh(tmp_path: Path)
 
     assert result["action"] == "merged"
     assert calls == {"staleness": 2, "refresh": 1}
+
+
+def test_refresh_accepts_historical_overlap_when_merge_base_and_ci_are_fresh(
+    tmp_path: Path,
+) -> None:
+    """Historical overlap remains stale even after a successful branch refresh."""
+
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    path = persisted_plan(tmp_path, plan)
+    calls = {"staleness": 0, "refresh": 0, "merge": 0}
+
+    def overlap_classifier(_pr: int, _origin: str) -> dict:
+        calls["staleness"] += 1
+        return {
+            "staleness": "stale",
+            "ci_merge_base_stale": calls["staleness"] == 1,
+            "overlapping_files": ["skills/example.py"],
+        }
+
+    result = execute_node(
+        path,
+        11,
+        claim_id="overlap-refresh",
+        dependencies=dependencies(
+            check_staleness=overlap_classifier,
+            refresh_branch=lambda _pr: calls.__setitem__("refresh", 1) or {"success": True},
+            merge=lambda _pr, _strategy: (
+                calls.__setitem__("merge", 1) or {"success": True, "status": "merged"}
+            ),
+        ),
+    )
+
+    assert result["action"] == "merged"
+    assert calls == {"staleness": 2, "refresh": 1, "merge": 1}
+
+
+def test_refresh_blocks_until_current_merge_base_and_fresh_ci(tmp_path: Path) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    path = persisted_plan(tmp_path, plan)
+    statuses = iter(
+        [
+            passing_status(),
+            passing_status(checks_pending=True, checks_passing=False, can_merge=False),
+        ]
+    )
+
+    result = execute_node(
+        path,
+        11,
+        dependencies=dependencies(
+            get_live_status=lambda _pr: next(statuses),
+            check_staleness=lambda _pr, _origin: {
+                "staleness": "stale",
+                "ci_merge_base_stale": False,
+            },
+        ),
+    )
+
+    assert result["action"] == "revalidation_failed"
+    assert "CI" in result["reason"]
 
 
 def test_claim_is_persisted_before_refresh_review_and_merge(tmp_path: Path) -> None:
@@ -322,6 +390,29 @@ def test_retry_reconciles_merged_live_state_without_merging_again(tmp_path: Path
     assert result["outcome"] == "merged"
     assert calls == []
     assert FilePlanStore(path).load()["nodes"][1]["state"]["claimed_by"] is None
+
+
+def test_retry_reconciles_before_prerequisites_human_gate_and_sync_guard(
+    tmp_path: Path,
+) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"].update(outcome="in_progress", claimed_by="old-run")
+    path = persisted_plan(tmp_path, plan)
+
+    result = execute_node(
+        path,
+        10,
+        claim_id="retry-run",
+        dependencies=dependencies(
+            get_live_status=lambda _pr: passing_status(state="MERGED", merged=True),
+            guard_sync_point=lambda _root: pytest.fail(
+                "terminal reconciliation must precede the sync guard"
+            ),
+        ),
+    )
+
+    assert result["action"] == "reconciled"
+    assert result["outcome"] == "merged"
 
 
 def test_crash_after_remote_merge_is_reconciled_on_retry(tmp_path: Path) -> None:
@@ -402,8 +493,9 @@ def test_final_save_failure_leaves_reconcilable_in_progress_claim(
             claim_id="save-failure-run",
             store=FailFinalSaveStore(path),
             dependencies=dependencies(
-                merge=lambda pr, _strategy: merge_calls.append(pr)
-                or {"success": True, "status": "merged"},
+                merge=lambda pr, _strategy: (
+                    merge_calls.append(pr) or {"success": True, "status": "merged"}
+                ),
             ),
         )
 
