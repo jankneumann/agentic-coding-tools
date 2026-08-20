@@ -1,66 +1,55 @@
 ## ADDED Requirements
 
-### Requirement: Ephemeral disposable-worktree mode
+### Requirement: Validation can run in a disposable worktree
 
-The system SHALL accept a `--ephemeral` flag that runs validation against a
-throwaway scratch worktree cloned from the current `HEAD`, leaving the branch
-under test free of validation *residue* — deploy artifacts, security-scan output,
-log files, and the scratch worktree itself. The one intentional exception is the
-persisted `validation-report.md` / `validation-findings.json` (see "Report still
-lands on the change branch"), which SHALL be the only files ephemeral mode writes
-back to the change branch. To avoid validating a stale tree, `--ephemeral` SHALL fail
-fast with a clear error when the working tree has uncommitted (staged or unstaged)
-changes, unless the operator passes `--include-dirty` to materialize the exact
-working-tree and index state into the scratch worktree. The commit (or
-materialized tree) that was actually validated SHALL be recorded in the findings
-file and report.
+The system SHALL accept a `--ephemeral` validation mode that runs against a
+detached scratch worktree at the current `HEAD`, records the validated commit
+and tree, and removes the scratch worktree when validation completes or raises.
 
-#### Scenario: Validation runs in a disposable worktree
+#### Scenario: Clean validation is isolated and removed
 
-- **WHEN** `validate-feature <change-id> --ephemeral` is invoked on a clean tree
-- **THEN** the system SHALL create a scratch worktree at the current `HEAD`
-- **AND** all deploy artifacts, security-scan output, and log files SHALL be
-  written inside the scratch worktree
-- **AND** the validated commit SHA SHALL be recorded in `validation-findings.json`
-  and the report
+- **WHEN** `validate-feature <change-id> --ephemeral` runs from a clean local checkout
+- **THEN** validation SHALL run in a detached scratch worktree at the source `HEAD`
+- **AND** the scratch worktree SHALL be removed on pass or failure
 
-#### Scenario: Dirty worktree fails fast
+### Requirement: Dirty validation input is explicit
 
-- **WHEN** `--ephemeral` is invoked and the working tree has uncommitted changes
-- **THEN** the run SHALL abort with an error explaining that `HEAD` would validate
-  a stale tree
-- **AND** the message SHALL name `--include-dirty` as the opt-in to validate the
-  exact working-tree/index state instead
+The system SHALL refuse ephemeral validation when the source index or working
+tree is dirty unless `--include-dirty` is present. With that opt-in, it SHALL
+materialize staged, unstaged, and untracked state without mutating the source and
+SHALL record the resulting Git tree.
 
-#### Scenario: Scratch worktree discarded on completion
+#### Scenario: Dirty source fails closed by default
 
-- **WHEN** an `--ephemeral` run finishes (pass or fail)
-- **THEN** the scratch worktree SHALL be removed
-- **AND** the branch under test SHALL contain no validation residue other than the
-  persisted `validation-report.md` / `validation-findings.json`
+- **WHEN** ephemeral validation sees uncommitted state without `--include-dirty`
+- **THEN** it SHALL fail with guidance naming `--include-dirty`
 
-### Requirement: Report still lands on the change branch
+#### Scenario: Include-dirty reproduces the source state
 
-Even in ephemeral mode, the validation report and findings file SHALL be
-persisted to the change branch so results are durable after the scratch worktree
-is discarded.
+- **WHEN** `--include-dirty` is passed
+- **THEN** staged, unstaged, and untracked files SHALL appear in the scratch worktree
+- **AND** the source index and working tree SHALL remain unchanged
 
-#### Scenario: Report persisted before teardown
+### Requirement: Only durable validation artifacts survive
 
-- **WHEN** an `--ephemeral` run produces a report and findings file
-- **THEN** those artifacts SHALL be copied to
-  `openspec/changes/<change-id>/` on the change branch before the scratch
-  worktree is removed
+Before scratch teardown, the system SHALL persist only
+`validation-report.md` and `validation-findings.json` to the change checkout and
+SHALL record the exact validated commit and tree in those artifacts.
 
-### Requirement: Cloud-harness fallback
+#### Scenario: Validation residue is discarded
 
-`--ephemeral` SHALL fall back to the existing in-place validation behavior in a
-cloud-harness environment (as detected by the shared environment profile),
-rather than creating a worktree.
+- **WHEN** an ephemeral run produces reports, logs, scanner output, and deploy residue
+- **THEN** only the report and findings file SHALL be copied back
+- **AND** every other scratch artifact SHALL be discarded with the worktree
 
-#### Scenario: Cloud environment skips worktree creation
+### Requirement: Existing harness isolation is reused
 
-- **WHEN** `--ephemeral` is requested and `environment_profile.detect()` reports
-  a cloud-harness environment
-- **THEN** the system SHALL run validation in place
-- **AND** SHALL log that ephemeral mode was downgraded for the cloud harness
+When the shared environment profile reports that isolation is already provided,
+the system SHALL run in place, log the downgrade, and SHALL NOT create or remove
+a nested worktree.
+
+#### Scenario: Cloud harness downgrades to in-place
+
+- **WHEN** `--ephemeral` is requested under a cloud harness
+- **THEN** validation SHALL use the harness checkout
+- **AND** the downgrade reason SHALL be logged
