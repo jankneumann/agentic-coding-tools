@@ -195,7 +195,16 @@ picks the strongest the posture supports:
   in the real vendor key at egress under its `service/egress-gateway` principal.
   Request-time exchange — the real secret never enters the sandbox, which is the strongest
   answer available to this epic's motivating threat of a prompt-injected agent reading
-  credentials.
+  credentials. The token, not the gateway principal, is the authorization: proxy tokens are
+  per-dispatch, short-TTL, audience-bound to the gateway, and encode exactly the resolved
+  `vendor_credentials`, so a compromised agent cannot ask the gateway to spend a credential
+  its dispatch was never granted — even though the principal itself can read all of
+  `secret/vendors/*`.
+
+In both modes, vendor credentials already brokered by the coordinator LLM gateway
+(`add-coordinator-llm-gateway`'s LiteLLM virtual keys) stay out of this phase's injection and
+swap paths: the virtual key is the inference credential, carries its own budget and model
+enforcement, and passes through any egress gateway untouched.
 
 **Acceptance Outcomes:**
 - One audit event per dispatch records the full resolved posture (principal, trust,
@@ -203,6 +212,8 @@ picks the strongest the posture supports:
 - A dispatched `pi` subprocess env contains the OpenRouter key and no other vendor secret
 - In a gateway posture the subprocess env contains proxy tokens and no real vendor secret
   at all
+- A proxy token authorizes exactly its dispatch's resolved `vendor_credentials`; an
+  end-to-end test proves the gateway rejects a swap for any other vendor
 - OpenShell adoption is a renderer + authenticator addition, demonstrated by a design-level
   contract test against the seam interfaces
 
@@ -214,11 +225,16 @@ consistent). Cross-roadmap edges:
 - **dg-07 / `add-dispatch-sandbox-enforcement`** owns the sandbox renderer seam and
   `resolve_isolation()`; Phase 4 consumes them and must not run concurrently against
   `review_dispatcher.py`.
-- **dg-08 / `add-egress-gateway-boundary`** owns the iron-proxy renderer and gateway
-  deployment; Phase 2 seeds its service principal, and Phase 4's `gateway` delivery mode
-  activates only where dg-08 has a gateway posture to offer. Either side ships without the
-  other: without dg-08, every posture resolves to `direct`; without Phase 4, dg-08 enforces
-  egress policy but vendor keys stay directly injected.
+- **dg-08 / `add-egress-gateway-boundary`** owns the iron-proxy renderer, gateway
+  deployment, and the gateway-side swap with token-scope rejection; Phase 4 owns
+  dispatch-side proxy-token issuance and injection. The ordering is encoded where the
+  roadmap runtime actually reads it, as `external_depends_on` edges (`ready_items()`
+  honors only those across roadmaps): dg-08 requires Phase 2's service principal
+  (`principal-credential-architecture:pca-02`), and Phase 4 requires dg-08
+  (`dispatch-governance:dg-08`) — the chain is pca-02 → dg-08 → pca-04. dg-08's
+  acceptance contract is deliberately gateway-side only, so it is attainable before
+  Phase 4 ships; the end-to-end "no real key in the sandbox env" outcome lives here in
+  Phase 4. Without dg-08 every posture resolves to `direct`.
 - **symphony `trust-posture-binding`** owns posture *declaration*; Phase 4 is additional
   enforcement surface for what it declares.
 - **`implement-the-task-router-vendor-x-location-x-model`** produces the isolation decision

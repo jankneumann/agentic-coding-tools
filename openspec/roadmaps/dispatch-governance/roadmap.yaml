@@ -214,16 +214,25 @@ items:
   depends_on:
   - dg-03
   - dg-07
+  external_depends_on:
+  - principal-credential-architecture:pca-02
   description: Add render_iron_proxy_config() beside dg-07's srt renderer, turning
     the coordinator's network policy into an iron-proxy configuration (default-deny
     domain allowlist, header allowlist, structured audit log) so egress policy stays
     authored once. In postures whose dg-03 network dimension reports real interception
     (self-managed containers, the Sentinel fleet, an OpenShell netns later), dispatch
     egress routes through a per-boundary iron-proxy and the sandbox network policy
-    admits only the gateway address. The gateway carries pca-04's credential scope
-    to its conclusion - the subprocess env holds proxy tokens, and iron-proxy swaps
-    in real vendor keys at egress. Explicitly not deployed DNS-only on the local uid
-    (same-uid workloads can bypass the resolver, so a gateway there simulates containment)
+    admits only the gateway address. The gateway-side secret swap authenticates as
+    pca-02's egress-gateway service principal and validates every swap request
+    against the presenting token's per-dispatch scope - a request for a vendor the
+    token does not authorize is rejected, never served from the principal's broader
+    secret/vendors/* read access. Traffic to the coordinator LLM gateway
+    (add-coordinator-llm-gateway) is excluded from the swap path - LiteLLM virtual
+    keys are the inference credential and pass through untouched so budget and model
+    enforcement is not bypassed; iron-proxy merely allowlists that destination.
+    Dispatch-side injection of proxy tokens instead of real keys is pca-04's half
+    of the contract. Explicitly not deployed DNS-only on the local uid (same-uid
+    workloads can bypass the resolver, so a gateway there simulates containment)
     and not deployed inside the managed cloud harness, whose platform proxy already
     terminates TLS and owns the allowlist.
   rationale: dg-07's srt backend can only allow or deny a connection; it cannot
@@ -240,8 +249,10 @@ items:
   - In a gateway posture a dispatched agent's only reachable destination is the gateway;
     a denied domain is blocked at the proxy with a structured audit event naming the
     matched policy
-  - A dispatched subprocess in a gateway posture holds proxy tokens only; the real
-    vendor key is attached at egress and never appears in the sandbox env (integration
-    test)
+  - A swap request for a vendor outside the presenting token's per-dispatch scope is
+    rejected with an audit event, despite the gateway principal's broader read access
+    (rejection test)
+  - Requests to the coordinator LLM gateway pass through with their LiteLLM virtual
+    key untouched; iron-proxy performs no secret swap on inference routes
   - Local-uid and managed-cloud postures skip gateway deployment with an audit event
     recording why, rather than deploying a bypassable proxy
