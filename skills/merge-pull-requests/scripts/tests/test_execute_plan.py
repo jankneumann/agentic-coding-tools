@@ -479,11 +479,11 @@ def test_final_save_failure_leaves_reconcilable_in_progress_claim(
             super().__init__(plan_path)
             self.saves = 0
 
-        def save(self, pending: dict) -> None:
+        def _save_locked(self, pending: dict) -> None:
             self.saves += 1
             if self.saves == 2:
                 raise OSError("final plan save failed")
-            super().save(pending)
+            super()._save_locked(pending)
 
     merge_calls: list[int] = []
     with pytest.raises(OSError, match="final plan save failed"):

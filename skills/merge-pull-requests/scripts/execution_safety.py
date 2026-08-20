@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from plan_storage import FilePlanStore, PlanWriteConflict
+
 
 def default_sync_point_guard(repo_root: Path) -> dict[str, Any]:
     """Reuse the merge skill's active-agent guard and fail closed on errors."""
@@ -101,4 +103,37 @@ def refreshed_branch_block_reason(
         failures.append("live PR state is not mergeable")
     if failures:
         return "branch refresh incomplete: " + "; ".join(failures)
+    return None
+
+
+def record_preclaim_blocker(
+    store: FilePlanStore,
+    pr_number: int,
+    reason: str,
+) -> dict[str, Any] | None:
+    """Persist a gate reason without overwriting a concurrent claim."""
+
+    try:
+        store.update_state(
+            pr_number,
+            expected_outcome="pending",
+            blocking_reason=reason,
+        )
+    except PlanWriteConflict:
+        plan = store.load()
+        state = next(node["state"] for node in plan["nodes"] if node["pr"] == pr_number)
+        if state["outcome"] == "in_progress":
+            return {
+                "action": "execution_in_progress",
+                "outcome": "in_progress",
+                "pr": pr_number,
+                "claimed_by": state.get("claimed_by"),
+                "reason": "another execution claim won before gate persistence",
+            }
+        return {
+            "action": "state_conflict",
+            "outcome": state["outcome"],
+            "pr": pr_number,
+            "reason": "plan state changed before gate persistence",
+        }
     return None

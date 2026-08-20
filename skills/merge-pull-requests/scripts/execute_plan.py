@@ -36,6 +36,7 @@ from check_staleness import check_staleness as check_pr_staleness  # noqa: E402
 from execution_safety import (  # noqa: E402
     default_sync_point_guard,
     live_terminal_outcome,
+    record_preclaim_blocker,
     refreshed_branch_block_reason,
     vendor_review_block_reason,
 )
@@ -239,8 +240,6 @@ def execute_node(
 
     execution_claim = claim_id or f"file-executor:{os.getpid()}"
     if state["outcome"] == "in_progress":
-        # Recovery is read-only until a terminal remote outcome is observed, so
-        # it must precede gates that were already satisfied by the crashed run.
         recovery_live = dependencies.get_live_status(pr_number)
         terminal = live_terminal_outcome(recovery_live)
         if terminal is not None:
@@ -261,8 +260,9 @@ def execute_node(
     ]
     if blocked_by:
         reason = "waiting for prerequisites: " + ", ".join(f"#{number}" for number in blocked_by)
-        state["blocking_reason"] = reason
-        store.save(plan)
+        conflict = record_preclaim_blocker(store, pr_number, reason)
+        if conflict:
+            return conflict
         return {
             "action": "blocked",
             "outcome": state["outcome"],
@@ -280,8 +280,9 @@ def execute_node(
             if openspec_gate
             else "explicit operator approval required"
         )
-        state["blocking_reason"] = reason
-        store.save(plan)
+        conflict = record_preclaim_blocker(store, pr_number, reason)
+        if conflict:
+            return conflict
         return {
             "action": "human_gate",
             "outcome": state["outcome"],
@@ -294,8 +295,9 @@ def execute_node(
     guard = dependencies.guard_sync_point(CANONICAL_SCRIPTS_DIR.parents[2])
     if guard.get("allowed") is not True:
         reason = str(guard.get("reason") or "sync-point guard did not allow execution")
-        state["blocking_reason"] = reason
-        store.save(plan)
+        conflict = record_preclaim_blocker(store, pr_number, reason)
+        if conflict:
+            return conflict
         return {
             "action": "sync_point_blocked",
             "outcome": state["outcome"],
@@ -309,8 +311,6 @@ def execute_node(
     if terminal is not None:
         return _reconcile_terminal(store, plan, state, pr_number, terminal)
 
-    # This compare-and-claim is the crash boundary: no refresh, review dispatch,
-    # or merge side effect occurs until the atomic file-tier claim succeeds.
     plan, acquired = store.claim_node(pr_number, execution_claim)
     node = _find_node(plan, pr_number)
     state = node["state"]
