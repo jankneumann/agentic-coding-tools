@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
+import re
+import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -29,6 +33,43 @@ def _git(repo: Path, *args: str, input_text: str | None = None) -> str:
         check=True,
     )
     return result.stdout.strip()
+
+
+def _ephemeral_shell_block() -> str:
+    skill = (REPO_ROOT / "skills" / "validate-feature" / "SKILL.md").read_text()
+    match = re.search(r"```bash\n(VALIDATION_HELPER=.*?)\n```", skill, re.DOTALL)
+    assert match is not None
+    return match.group(1).replace(
+        "<skill-base-dir>",
+        str(REPO_ROOT / "skills" / "validate-feature"),
+    )
+
+
+def _run_ephemeral_shell_block(
+    shell: str,
+    repo: Path,
+    tmp_path: Path,
+    *,
+    change_id: str,
+    suffix: str = "",
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir(exist_ok=True)
+    script = (
+        f"cd {shlex.quote(str(repo))}\n"
+        f"CHANGE_ID={shlex.quote(change_id)}\n"
+        "INCLUDE_DIRTY=false\n"
+        f"{_ephemeral_shell_block()}\n"
+        f"{suffix}\n"
+    )
+    return subprocess.run(
+        [shell, "-c", script],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "TMPDIR": str(state_dir), **(env or {})},
+        check=False,
+    )
 
 
 @pytest.fixture
@@ -240,6 +281,11 @@ def test_skill_wires_ephemeral_flags_to_the_canonical_helper() -> None:
     assert "VALIDATION_VALIDATED_COMMIT" in skill
     assert "VALIDATION_VALIDATED_TREE" in skill
     assert "<validation-driver-command>" not in skill
+    assert "if VALIDATION_PREPARE_OUTPUT=$(" in skill
+    assert "trap 'finalize_ephemeral_validation $?' EXIT" in skill
+    assert "finalize_ephemeral_validation 130; exit 130" in skill
+    assert "finalize_ephemeral_validation 143; exit 143" in skill
+    assert "trap finalize_ephemeral_validation EXIT INT TERM" not in skill
 
 
 @pytest.mark.parametrize(
@@ -377,3 +423,81 @@ def test_prepare_finalize_cli_is_an_end_to_end_ephemeral_path(repo: Path) -> Non
     assert not state_file.exists()
     assert "# PASS" in (change_dir / "validation-report.md").read_text()
     assert (change_dir / "architecture-impact.md").read_text() == "# Impact\n"
+
+
+@pytest.mark.parametrize("shell_name", ["bash", "zsh"])
+@pytest.mark.parametrize("failure", ["dirty", "unsafe-path", "setup"])
+def test_documented_shell_boundary_fails_closed_before_eval(
+    repo: Path,
+    tmp_path: Path,
+    shell_name: str,
+    failure: str,
+) -> None:
+    shell = shutil.which(shell_name)
+    if shell is None:
+        pytest.skip(f"{shell_name} is unavailable")
+    change_id = "example"
+    command_env: dict[str, str] = {}
+    if failure == "dirty":
+        (repo / "tracked.txt").write_text("dirty\n")
+    elif failure == "unsafe-path":
+        change_id = "../escape"
+    else:
+        wrapper_dir = tmp_path / "bin"
+        wrapper_dir.mkdir()
+        wrapper = wrapper_dir / "git"
+        real_git = shutil.which("git")
+        assert real_git is not None
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            'if [ "$1" = "worktree" ] && [ "$2" = "add" ]; then exit 29; fi\n'
+            f"exec {shlex.quote(real_git)} \"$@\"\n"
+        )
+        wrapper.chmod(0o755)
+        command_env["PATH"] = f"{wrapper_dir}{os.pathsep}{os.environ['PATH']}"
+
+    marker = tmp_path / "continued-after-prepare"
+    result = _run_ephemeral_shell_block(
+        shell,
+        repo,
+        tmp_path,
+        change_id=change_id,
+        suffix=f"printf reached > {shlex.quote(str(marker))}",
+        env=command_env,
+    )
+
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert not marker.exists()
+    assert list((tmp_path / "state").glob("validate-feature-state.*")) == []
+    assert ".validation/" not in _git(repo, "worktree", "list", "--porcelain")
+
+
+@pytest.mark.parametrize("shell_name", ["bash", "zsh"])
+@pytest.mark.parametrize(("signal_name", "expected_status"), [("INT", 130), ("TERM", 143)])
+def test_documented_shell_signal_handler_finalizes_and_exits(
+    repo: Path,
+    tmp_path: Path,
+    shell_name: str,
+    signal_name: str,
+    expected_status: int,
+) -> None:
+    shell = shutil.which(shell_name)
+    if shell is None:
+        pytest.skip(f"{shell_name} is unavailable")
+    marker = tmp_path / "continued-after-signal"
+
+    result = _run_ephemeral_shell_block(
+        shell,
+        repo,
+        tmp_path,
+        change_id="example",
+        suffix=(
+            f"kill -{signal_name} $$\n"
+            f"printf reached > {shlex.quote(str(marker))}"
+        ),
+    )
+
+    assert result.returncode == expected_status, result.stdout + result.stderr
+    assert not marker.exists()
+    assert list((tmp_path / "state").glob("validate-feature-state.*")) == []
+    assert ".validation/" not in _git(repo, "worktree", "list", "--porcelain")

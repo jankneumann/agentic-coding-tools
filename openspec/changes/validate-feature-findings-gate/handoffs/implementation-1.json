@@ -18,7 +18,8 @@
       "runtime mirror generation",
       "changed-only, symlink-safe atomic persistence",
       "executable prepare/finalize lifecycle",
-      "security and stale-evidence regression coverage"
+      "security and stale-evidence regression coverage",
+      "literal bash/zsh prepare-failure and signal-handler coverage"
     ],
     "in_progress": [],
     "decisions": [
@@ -43,6 +44,12 @@
       {
         "title": "Keep bookkeeping durable",
         "rationale": "Architecture impact crosses the explicit allowlist; session-log and handoff writes run from the source checkout after finalization.",
+        "capability": "validate-feature-ephemeral",
+        "supersedes": null
+      },
+      {
+        "title": "Fail closed in bash and zsh adapters",
+        "rationale": "Prepare output is evaluated only after success; INT and TERM finalize then explicitly exit 130 or 143.",
         "capability": "validate-feature-ephemeral",
         "supersedes": null
       }

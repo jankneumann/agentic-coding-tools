@@ -174,22 +174,35 @@ VALIDATION_STATE_FILE=$(mktemp "${TMPDIR:-/tmp}/validate-feature-state.XXXXXX")
 INCLUDE_DIRTY_FLAG=""
 [ "$INCLUDE_DIRTY" = "true" ] && INCLUDE_DIRTY_FLAG="--include-dirty"
 
-eval "$(python3 "$VALIDATION_HELPER" prepare \
-  --source "$PWD" \
-  --change-id "$CHANGE_ID" \
-  --state-file "$VALIDATION_STATE_FILE" \
-  $INCLUDE_DIRTY_FLAG \
-  --shell)"
+if VALIDATION_PREPARE_OUTPUT=$(python3 "$VALIDATION_HELPER" prepare \
+    --source "$PWD" \
+    --change-id "$CHANGE_ID" \
+    --state-file "$VALIDATION_STATE_FILE" \
+    $INCLUDE_DIRTY_FLAG \
+    --shell); then
+  eval "$VALIDATION_PREPARE_OUTPUT"
+else
+  VALIDATION_PREPARE_STATUS=$?
+  rm -f -- "$VALIDATION_STATE_FILE"
+  echo "ERROR: could not prepare ephemeral validation" >&2
+  exit "$VALIDATION_PREPARE_STATUS"
+fi
 
 finalize_ephemeral_validation() {
-  validation_status=$?
-  cd "$VALIDATION_SOURCE" || return "$validation_status"
-  python3 "$VALIDATION_HELPER" finalize --state-file "$VALIDATION_STATE_FILE" || \
-    validation_status=$?
+  validation_status="${1:-$?}"
+  validation_cleanup_status=0
   trap - EXIT INT TERM
+  cd "$VALIDATION_SOURCE" || validation_cleanup_status=$?
+  python3 "$VALIDATION_HELPER" finalize --state-file "$VALIDATION_STATE_FILE" || \
+    validation_cleanup_status=$?
+  if [ "$validation_status" -eq 0 ]; then
+    validation_status=$validation_cleanup_status
+  fi
   return "$validation_status"
 }
-trap finalize_ephemeral_validation EXIT INT TERM
+trap 'finalize_ephemeral_validation $?' EXIT
+trap 'finalize_ephemeral_validation 130; exit 130' INT
+trap 'finalize_ephemeral_validation 143; exit 143' TERM
 
 cd "$VALIDATION_PATH"
 PROJECT_ROOT="$VALIDATION_PATH"
