@@ -1,0 +1,112 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: `harness-report.schema.json` admits `state: \"unknown\"` when `cli_on_path` is false, but the spec says a missing CLI SHALL be reported as `cli_missing` and design D5 fixes state precedence as `cli_missing` before `unknown`. An implementation could hide an absent CLI behind `unknown` and still pass the contract.",
+      "resolution": "In the schema's `unknown` branch, also require `cli_on_path: true`; add a negative contract test for `{state: \"unknown\", cli_on_path: false}` and a positive test for CLI-present/no-artifact unknown.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/contracts/harness-report.schema.json",
+      "line_range": {
+        "start": 107,
+        "end": 115
+      }
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The portable-payload spec requires missing sibling modules or missing third-party packages to degrade with a reported warning, but the JSON contract has `additionalProperties: false` and no `warnings` or `degraded_capabilities` field. With `--json`, emitting the warning outside the single JSON document would violate the machine-readable output scenario, so the required warning is unrepresentable.",
+      "resolution": "Add a top-level `warnings` array, or a structured `degradations` array, to the schema and require tests for the sibling-unavailable and `pyyaml`-unavailable cases to populate it without interleaving stderr/stdout prose into `--json` output.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/contracts/harness-report.schema.json",
+      "line_range": {
+        "start": 6,
+        "end": 9
+      }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Design D3 says the script has exactly one mutating operation, the settings-file write, but the modified spec still requires the skill to copy `.secrets.yaml.example` to `.secrets.yaml` when secrets are missing. Tasks only describe profile checks and settings mutation, so following the plan cannot satisfy the retained secrets scenario.",
+      "resolution": "Either remove/modify the secrets-copy scenario to a non-mutating prompt-only check, or add an explicit task and tests for the subcommand that performs the template copy, including its path resolution and write scope.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "line_range": {
+        "start": 139,
+        "end": 147
+      }
+    },
+    {
+      "id": 4,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `wp-core` forbids `agent-coordinator/**` in `scope.deny`, and the work-package schema defines deny globs as forbidden even if allowed elsewhere, but the package's implementation and verification require reading `agent-coordinator/agents.yaml` and the JSON validation command passes `AGENTS_YAML='agent-coordinator/agents.yaml'`. A scoped worker cannot both obey the package scope and run the planned gate.",
+      "resolution": "Remove `agent-coordinator/**` from `wp-core.scope.deny` and rely on `write_allow` to prevent writes, or replace it with a narrower convention the package schema actually supports. Keep `agent-coordinator/agents.yaml` in readable context because it is a required input.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/work-packages.yaml",
+      "line_range": {
+        "start": 110,
+        "end": 114
+      }
+    },
+    {
+      "id": 5,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: The plan says the legacy shim cases are `xfail` on legacy and verifies them with `pytest -k legacy`, but pytest's default `xfail` is non-strict. If a legacy parametrization unexpectedly passes, pytest reports XPASS but still exits 0 unless strict xfail is enabled, so the red-phase gate can pass for the wrong reason.",
+      "resolution": "Require `pytest.mark.xfail(strict=True)` for legacy parametrizations, set `xfail_strict = true` in the suite, or assert the legacy outcome explicitly without using non-strict xfail.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "line_range": {
+        "start": 230,
+        "end": 235
+      }
+    },
+    {
+      "id": 6,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: Several artifacts cite a live `.claude/settings.local.json` with a `disabledMcpjsonServers` sibling key, but this worktree has no `.claude/settings.local.json`; the only committed Claude settings file is `.claude/settings.json`, with `permissions`, `hooks`, and `outputStyle`. The fixture strategy is still sound, but the ground-truth claim is false.",
+      "resolution": "Replace the live-file claim with a constructed fixture claim, or cite the actual `.claude/settings.json` shape if that is the intended realism anchor. Keep tests on `tmp_path` as already planned.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "line_range": {
+        "start": 197,
+        "end": 200
+      }
+    },
+    {
+      "id": 7,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The round-2 artifacts correctly pin the key roster-resolution hazard: `vendor_health.load_agents_yaml` falls through from a missing explicit path to network and cwd fallbacks, and the plan now requires resolving and existence-checking `agents.yaml` before calling `check_all_vendors`. This matches the inspected `vendor_health.py` behavior.",
+      "resolution": "No change needed.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+      "line_range": {
+        "start": 31,
+        "end": 61
+      }
+    }
+  ]
+}
