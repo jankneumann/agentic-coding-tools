@@ -41,3 +41,28 @@
 
 ### Context
 Implemented the residual ephemeral validation-worktree prerequisite after confirming the original findings/gate/triage proposal was superseded. The helper isolates clean or explicitly materialized dirty state, persists only newly changed durable validation artifacts through a hardened boundary, and preserves current fitness-function semantics.
+
+---
+
+## Phase: Validation (2026-08-20)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Fail the security hard gate** — OWASP Dependency-Check completed with one critical and five high findings; baseline status does not exempt configured high-threshold findings.
+2. **Keep validation isolated** — Used a disposable worktree and persisted only the three allowlisted changed artifacts after service teardown.
+
+### Completed Work
+- Passed 34 focused lifecycle/security tests and 341 scoped regression tests with 1 skip.
+- Passed 2586 full source-worktree tests, 11 live smoke tests, and 19 live E2E tests.
+- Completed ZAP and OWASP Dependency-Check scans and recorded truthful FAIL evidence.
+
+### Next Steps
+- Remediate the high/critical dependency findings, rerun validation, and merge PR 401 only after the security gate passes or the user explicitly authorizes a recorded override.
+
+### Relevant Files
+- `openspec/changes/validate-feature-findings-gate/validation-report.md` — Stamped validation result and hard-gate decision
+- `openspec/changes/validate-feature-findings-gate/validation-findings.json` — Structured security and architecture findings
+
+### Context
+Implementation validation passed except for the mandatory dependency-security hard gate; merge is blocked by reproduced baseline high/critical findings.
