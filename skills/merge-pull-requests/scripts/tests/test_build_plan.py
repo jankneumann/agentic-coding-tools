@@ -10,7 +10,7 @@ from pathlib import Path
 SCRIPTS = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS))
 
-from build_plan import build_plan, write_plan  # noqa: E402
+from build_plan import build_plan, emit_plan, write_plan  # noqa: E402
 from merge_plan import validate_plan  # noqa: E402
 
 
@@ -89,3 +89,17 @@ def test_write_plan_persists_schema_valid_json(tmp_path: Path) -> None:
     written = json.loads(destination.read_text(encoding="utf-8"))
     assert written == plan
     validate_plan(written)
+
+
+def test_emit_plan_writes_json_and_markdown_projection(tmp_path: Path) -> None:
+    prs, staleness, comments = analysis_inputs()
+    plan = build_plan(prs, staleness, comments, generated_at="2026-08-19T12:00:00+00:00")
+    destination = tmp_path / "merge-plan.json"
+
+    projection = emit_plan(plan, destination)
+
+    assert destination.exists()
+    assert projection == tmp_path / "merge-plan.md"
+    assert "| #20 | Base feature | openspec | pending |" in projection.read_text(
+        encoding="utf-8",
+    )
