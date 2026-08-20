@@ -152,9 +152,16 @@ packages:
         # Red-before-green is only meaningful if the "before" is executable.
         # legacy_shim.py transcribes SKILL.md:211-232; every settings-writer
         # case must fail against it.
-        - name: "Legacy shim still exhibits all four defects"
+        #
+        # `-k legacy` alone is NOT sufficient as a gate. xfail_strict is unset in
+        # skills/pyproject.toml, so a legacy leg written as a bare xfail reports
+        # XPASS and still exits 0 -- the gate would pass precisely when the shim
+        # stopped reproducing the defect. Two guards instead: assert no XPASS/xfail
+        # outcome is reported at all, and require a non-zero collected count so an
+        # empty selection cannot masquerade as success.
+        - name: "Legacy shim still exhibits all four defects (no xfail escape hatch)"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/setup-coordinator/ -q -k legacy"
+          command: "out=$(skills/.venv/bin/python -m pytest skills/tests/setup-coordinator/ -q -k legacy -rX 2>&1); rc=$?; echo \"$out\"; [ $rc -eq 0 ] && echo \"$out\" | grep -qE '[1-9][0-9]* passed' && ! echo \"$out\" | grep -qE 'xpassed|xfailed'"
           evidence:
             artifacts: []
             result_keys: ["legacy_shim_red"]

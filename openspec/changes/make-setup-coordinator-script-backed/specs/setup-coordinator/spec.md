@@ -4,22 +4,25 @@
 
 ### Requirement: Profile-Aware Setup
 
-The setup-coordinator skill SHALL accept a `--profile <local|railway>` argument and drive setup steps from the active profile. Profile resolution, precondition checking, and capability reporting SHALL be performed by the skill's own script entrypoint rather than by shell fragments narrated in `SKILL.md`.
+The setup-coordinator skill SHALL accept a `--profile <local|railway>` argument and drive setup steps from the active profile.
+
+Responsibility for each setup step SHALL be explicit. Profile resolution, precondition checking, harness detection, the permissions allow-list write, and capability reporting SHALL be performed by the skill's own script entrypoint rather than by shell fragments narrated in `SKILL.md`. Container lifecycle, MCP-server registration, and hook installation SHALL remain operator-invoked commands published by the coordinator checkout; the skill SHALL report whether each has taken effect and SHALL NOT perform them itself. No clause of this requirement SHALL oblige the entrypoint to perform a step that another clause forbids it from reaching.
 
 - When `--profile` is not provided, the skill SHALL read `COORDINATOR_PROFILE` env var, defaulting to `"local"`
 - The skill SHALL read `agents.yaml` to determine which agents to configure, resolving its location from the `AGENTS_YAML` env var when set and otherwise from `$COORDINATOR_DIR/agents.yaml`
-- The skill SHALL check for `.secrets.yaml` and prompt the user to create it from `.secrets.yaml.example` if missing
+- The skill SHALL check for `.secrets.yaml` and, when it is missing, SHALL report the exact copy command to run from `.secrets.yaml.example` rather than performing the copy itself
 - Profile resolution SHALL be implemented against the profile YAML directly and SHALL NOT import `agent-coordinator` source modules
 
 #### Scenario: Local profile setup
 - **WHEN** `--profile local` is specified
-- **THEN** the skill SHALL:
-  1. Detect container runtime (Docker / Podman)
-  2. Auto-start ParadeDB container if `docker.auto_start` is true
-  3. Wait for container health
-  4. Register MCP server in vendor config (e.g., `~/.claude/mcp.json`) with env vars from `get_mcp_env()`
-  5. Verify MCP tool discovery
-  6. Report capability flags
+- **THEN** the skill SHALL report, for each of the following, whether it is satisfied and — when it is not — the exact operator command that satisfies it:
+  1. Container runtime present (Docker / Podman)
+  2. ParadeDB container running and healthy
+  3. MCP server registered in the vendor's own configuration
+  4. Coordination tools discoverable through the registered MCP server
+- **AND** SHALL report capability flags
+- **AND** SHALL NOT start containers, write vendor MCP configuration, or install hooks itself
+- **AND** SHALL NOT reference `agent-coordinator` internal functions as the source of registration values, since a sibling clause of this requirement forbids importing that source
 
 #### Scenario: Railway profile setup
 - **WHEN** `--profile railway` is specified
@@ -32,8 +35,10 @@ The setup-coordinator skill SHALL accept a `--profile <local|railway>` argument 
 
 #### Scenario: Secrets file missing
 - **WHEN** `.secrets.yaml` does not exist
-- **THEN** the skill SHALL copy `.secrets.yaml.example` to `.secrets.yaml`
-- **AND** prompt the user to fill in real values before continuing
+- **THEN** the skill SHALL report it as an unsatisfied precondition
+- **AND** SHALL emit the exact command that copies `.secrets.yaml.example` to `.secrets.yaml`
+- **AND** SHALL prompt the user to fill in real values before continuing
+- **AND** SHALL NOT create the file itself, so that the settings allow-list write remains the entrypoint's only mutating operation
 
 #### Scenario: Agents file resolved from configuration
 - **WHEN** the skill resolves which agents to configure
@@ -80,6 +85,18 @@ The skill SHALL detect which coding-agent harnesses are present on the current h
 - Detection SHALL report exactly the agents whose identifier ends in `-local` and that declare a non-empty `cli.command`, and SHALL derive the reported vendor key by removing the `-local` suffix
 - Each vendor SHALL be classified into exactly one of four states: `ready` (CLI present and config artifact present), `cli_missing`, `config_missing`, or `unknown` (the vendor has no detectable configuration location)
 - Output SHALL state that presence is not proof of valid or unexpired credentials
+- The report SHALL carry an explicit degradation flag and a list of reasons, so that an incomplete run is distinguishable from a run that genuinely found nothing. An empty vendor list SHALL NOT be emitted as a complete result when any detection layer failed
+
+#### Scenario: Degraded run is distinguishable from an empty one
+- **WHEN** any detection layer fails — an unreadable roster, an unavailable sibling module, or a skipped layer
+- **THEN** the report SHALL set its degradation flag true
+- **AND** SHALL carry at least one reason describing what degraded
+- **AND** a caller SHALL be able to distinguish this from a successful run that found no vendors
+
+#### Scenario: Complete run asserts completeness
+- **WHEN** every detection layer succeeds
+- **THEN** the degradation flag SHALL be false
+- **AND** the reason list SHALL be empty
 
 #### Scenario: Remote and command-less agents are excluded
 - **WHEN** the resolved agent roster contains agents whose identifier does not end in `-local`
@@ -157,6 +174,12 @@ The entrypoint SHALL remain usable when installed into a consumer repository tha
 - The entrypoint SHALL NOT import `agent-coordinator` source modules
 - Sibling-skill imports SHALL be declared in `cross_skill_dependencies` in `skills/install-manifest.json`
 - Where a sibling module may be absent from an installed payload, the import SHALL degrade to an inline fallback rather than raising at import time
+- An inline fallback SHALL satisfy every behavioral requirement its imported counterpart satisfies. In particular, a fallback for the settings write SHALL itself be atomic; a fallback that writes in place is not a permitted degradation, because atomicity is required on every path rather than only when a sibling skill happens to be installed
+
+#### Scenario: Fallback write is atomic
+- **WHEN** the settings write executes through the inline fallback rather than the imported sibling module
+- **THEN** the write SHALL still be performed to a temporary file and moved into place atomically
+- **AND** SHALL still leave every unrelated key byte-identical
 - Where a sibling module depends on a third-party package that a consumer payload may not provide, the resulting failure SHALL be caught at the point of use and reported as a degraded capability
 
 #### Scenario: Sibling skill unavailable

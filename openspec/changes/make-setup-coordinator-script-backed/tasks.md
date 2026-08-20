@@ -92,6 +92,14 @@ Test tasks precede the implementation they verify (TDD red → green).
       fail-on-legacy / pass-on-new. Prefer "the unified diff touches only lines
       inside `permissions.allow`" over key-by-key equality — the latter accepts
       reindentation and key reordering
+      **Constraint**: the legacy leg MUST use a positive assertion that the defect
+      is observable (e.g. `assert legacy_output != expected`), NOT a bare
+      `pytest.mark.xfail`. `xfail_strict` is unset in `skills/pyproject.toml`
+      (only `addopts = ["--import-mode=importlib"]` is set), so an XPASS exits 0
+      — a shim that stopped exhibiting a defect would be reported as green. If
+      `xfail` is used at all it MUST carry `strict=True` inline; do not set
+      `xfail_strict` globally, which would change semantics for all ~53 other
+      suites in the tree
 
 - [ ] 2.2 Implement the settings writer — absolute root resolution, parse-and-check
       `permissions.allow` membership, minimal mutation, `sort_keys=False`,

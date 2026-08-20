@@ -1,11 +1,54 @@
 {
-  "blocking_findings": [],
+  "schema_version": 4,
   "change_id": "make-setup-coordinator-script-backed",
-  "cli_review_enabled": true,
-  "current_phase": "PLAN",
-  "error": null,
-  "escalation_reason": null,
+  "current_phase": "PLAN_REVIEW",
+  "iteration": 0,
+  "total_iterations": 0,
+  "max_phase_iterations": 3,
   "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {
+    "antigravity": true,
+    "claude_code": true,
+    "codex": true,
+    "grok": true,
+    "pi": false
+  },
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "plan-iterate-1"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-08-19T23:54:37.054130+00:00",
+      "note": "handoff write refused by coordinator (403 local-profile key gap); verdict recorded via in-process gatekeeper semantics",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-08-20T01:44:52.612289+00:00",
+      "note": "Gate 1 + Gate 2 approved; 32 coordinator issues seeded",
+      "outcome": "complete",
+      "phase": "PLAN"
+    },
+    {
+      "at": "2026-08-20T02:34:39.553258+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    }
+  ],
+  "last_handoff_id": "plan-iterate-1",
+  "started_at": "2026-08-19T23:48:31.626717+00:00",
+  "phase_started_at": "2026-08-20T01:44:52.612303+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": null,
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -19,35 +62,5 @@
     "package_count": 0,
     "total_loc_estimate": null
   },
-  "gate_verdict": "proceed_with_review",
-  "handoff_ids": [],
-  "implementation_strategy": {},
-  "iteration": 0,
-  "last_handoff_id": null,
-  "max_phase_iterations": 3,
-  "memory_ids": [],
-  "package_authors": {},
-  "packages_status": {},
-  "phase_archetype": "architect",
-  "phase_history": [
-    {
-      "at": "2026-08-19T23:54:37.054130+00:00",
-      "note": "handoff write refused by coordinator (403 local-profile key gap); verdict recorded via in-process gatekeeper semantics",
-      "outcome": "proceed_with_review",
-      "phase": "GATEKEEPER"
-    }
-  ],
-  "phase_started_at": "2026-08-19T23:54:37.054256+00:00",
-  "previous_phase": null,
-  "schema_version": 4,
-  "started_at": "2026-08-19T23:48:31.626717+00:00",
-  "total_iterations": 0,
-  "val_review_enabled": true,
-  "vendor_availability": {
-    "antigravity": true,
-    "claude_code": true,
-    "codex": true,
-    "grok": true,
-    "pi": false
-  }
+  "gate_verdict": "proceed_with_review"
 }

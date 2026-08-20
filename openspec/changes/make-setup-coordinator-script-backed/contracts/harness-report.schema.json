@@ -5,12 +5,21 @@
   "description": "Output of `setup_coordinator.py detect-harnesses --json`. Reports presence only; credential validity is never checked.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "checked_validity", "host", "vendors", "summary"],
+  "required": ["schema_version", "checked_validity", "degraded", "warnings", "host", "vendors", "summary"],
   "properties": {
     "schema_version": {
       "type": "integer",
       "minimum": 1,
       "description": "Monotonic. Increment on any breaking shape change."
+    },
+    "degraded": {
+      "type": "boolean",
+      "description": "True when the report is incomplete for any reason the caller should not read as 'nothing found' -- an unreadable roster, an unavailable sibling module, or a skipped detection layer. An empty `vendors` array with degraded=false asserts that zero vendors genuinely exist; with degraded=true it asserts nothing. Without this field a failed run and a clean empty run are byte-identical, which reintroduces the fail-open the roster resolution was fixed to remove."
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Human-readable reasons the run degraded. MUST be non-empty when degraded is true, and empty when it is false -- a degraded report that cannot say why is not actionable."
     },
     "checked_validity": {
       "const": false,
@@ -52,6 +61,16 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "degraded": { "const": true } }, "required": ["degraded"] },
+      "then": { "properties": { "warnings": { "minItems": 1 } } }
+    },
+    {
+      "if": { "properties": { "degraded": { "const": false } }, "required": ["degraded"] },
+      "then": { "properties": { "warnings": { "maxItems": 0 } } }
+    }
+  ],
   "$defs": {
     "VendorReport": {
       "type": "object",
@@ -108,6 +127,7 @@
           "if": { "properties": { "state": { "const": "unknown" } }, "required": ["state"] },
           "then": {
             "properties": {
+              "cli_on_path": { "const": true },
               "config_artifact": { "type": "null" },
               "config_present": { "type": "null" },
               "remediation": { "type": "null" }
@@ -119,6 +139,7 @@
           "then": {
             "properties": {
               "cli_on_path": { "const": true },
+              "config_artifact": { "type": "string", "minLength": 1 },
               "config_present": { "const": true }
             }
           }

@@ -119,9 +119,28 @@ imports at exactly this granularity — `atomic_write_bytes` and
 `canonical_json_bytes` as separate names — which is why that seam exists.
 
 `skills/refresh-architecture/scripts/arch_utils/provenance.py:43-55` is the
-precedent for the wiring: a guarded `from atomic import ...` with an inline
-fallback definition when the runtime is not bundled. This change follows it
-exactly.
+precedent for **the wiring only** — a guarded `from atomic import ...` with an
+inline fallback definition when the runtime is not bundled. Copy that shape.
+
+**Do not copy its fallback body.** `provenance.py:55-61` defines a fallback
+named `_atomic_write_bytes` whose final statement is:
+
+```python
+target.write_bytes(payload)
+```
+
+That is a plain in-place write. The name promises atomicity the body does not
+deliver — acceptable for a provenance digest, but not here: reproducing it
+would reintroduce defect #3 (non-atomic write) on precisely the path this
+change's spec declares supported, and it would do so under a name that reads as
+if the defect were fixed. That is the same shape as the deny-list bug: a guard
+whose name asserts a property its implementation lacks.
+
+The inline fallback in this change MUST perform a real
+tmp-write → `fsync` → `os.replace` sequence. A fallback is a degradation in
+*dependency availability*, never in *correctness guarantees* — the spec
+requires atomicity on every path, not only when a sibling skill happens to be
+installed.
 
 Two constraints discovered during planning:
 - Import the `atomic` module **by flat name** after a `sys.path` insert, not via
