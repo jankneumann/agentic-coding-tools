@@ -12,8 +12,11 @@ Covers:
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
@@ -363,20 +366,42 @@ class TestMalformedArtifacts:
         ]
         assert len(impl_findings) == 0
 
-    def test_unreadable_file_produces_warning(self, tmp_path: Path) -> None:
+    def test_unreadable_path_produces_warning(self, tmp_path: Path) -> None:
+        """An unreadable artifact is reported, not silently dropped.
+
+        The unreadable path here is a directory standing where a findings file
+        is expected: ``open()`` raises IsADirectoryError, an OSError, which is
+        the branch under test.  A chmod-based version of this test cannot carry
+        that load on its own -- root ignores permission bits, so it passes
+        vacuously wherever tests run as root (containers, CI images, the cloud
+        sandbox) and stops guarding the branch exactly where nobody notices.
+        This one holds for every uid.
+        """
+        change_dir = _make_active_change(tmp_path, "unreadable")
+        (change_dir / "impl-findings.md").mkdir()
+
+        result = collect(str(tmp_path))
+
+        assert result.status == "ok"
+        assert any("cannot read" in m for m in result.messages), result.messages
+
+    @pytest.mark.skipif(
+        os.geteuid() == 0,
+        reason="root bypasses permission bits, so chmod 000 stays readable",
+    )
+    def test_permission_denied_produces_warning(self, tmp_path: Path) -> None:
+        """The same branch via the realistic trigger: a mode-000 file."""
         change_dir = _make_active_change(tmp_path, "unreadable")
         fpath = change_dir / "impl-findings.md"
         fpath.write_text("some content")
-        # Make the file unreadable
         fpath.chmod(0o000)
 
         try:
             result = collect(str(tmp_path))
             assert result.status == "ok"
-            # Should have a warning message about being unable to read
             assert any("cannot read" in m for m in result.messages)
         finally:
-            # Restore permissions for cleanup
+            # Restore permissions so tmp_path cleanup can remove the file.
             fpath.chmod(0o644)
 
     def test_deferred_tasks_with_no_table(self, tmp_path: Path) -> None:
