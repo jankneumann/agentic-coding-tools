@@ -89,7 +89,7 @@ Test tasks precede the implementation they verify (TDD red → green).
 
 ## Phase 2 — Settings writer
 
-- [ ] 2.1 Write failing tests for the settings writer — assert the required
+- [x] 2.1 Write failing tests for the settings writer — assert the required
       *properties* directly, one test per defect: sibling-key preservation,
       deny-list-only case, idempotent re-run, atomic replace, cwd independence,
       non-canonical input preservation, and collapsing individual entries into
@@ -115,7 +115,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       honest. The properties above are what matter; how the discarded fragment
       behaved is not a requirement of this change
 
-- [ ] 2.2 Implement the settings writer — absolute root resolution, parse-and-check
+- [x] 2.2 Implement the settings writer — absolute root resolution, parse-and-check
       `permissions.allow` membership, minimal mutation, `sort_keys=False`,
       indentation inherited from the input file
       **Spec scenarios**: as 2.1
@@ -123,7 +123,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       **Dependencies**: 2.1
       **Size**: M
 
-- [ ] 2.3 Wire `atomic_write_bytes` (**not** `atomic_write_json`) from
+- [x] 2.3 Wire `atomic_write_bytes` (**not** `atomic_write_json`) from
       `project-context-runtime` with the guarded inline fallback
       **Spec scenarios**: "Sibling skill unavailable", "Concurrent reader safety",
       "Settings file is not in canonical JSON form"
@@ -135,7 +135,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       top-level keys and makes the idempotent re-run rewrite the file. Serialize
       locally, hand finished bytes to `atomic_write_bytes`
 
-- [ ] 2.3a Write a failing test for the inline fallback path — force the sibling
+- [x] 2.3a Write a failing test for the inline fallback path — force the sibling
       import to fail, then assert the fallback write is still atomic and still
       leaves unrelated keys byte-identical
       **Spec scenarios**: "Fallback write is atomic", "Sibling skill unavailable"
@@ -147,7 +147,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       suite while silently reintroducing defect #3, so this test is the only
       thing standing between the fallback and that regression
 
-- [ ] 2.4 Checkpoint: run tests, review diff, verify scope
+- [x] 2.4 Checkpoint: run tests, review diff, verify scope
 
 ## Phase 3 — CLI surface
 
