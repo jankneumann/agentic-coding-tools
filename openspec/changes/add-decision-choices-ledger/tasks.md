@@ -30,17 +30,17 @@
 
 ## Phase 2 — Auditor skill
 
-- [ ] 2.1 Write tests for the ledger writer plus renderer
+- [x] 2.1 Write tests for the ledger writer plus renderer
   **Spec scenarios**: skill-workflow.4 (Re-audit is idempotent), skill-workflow.5 (Rendering enforces the ranking invariant)
   **Contracts**: openspec/schemas/decision-choices.schema.json
   **Design decisions**: D2, D3
   **Dependencies**: 1.2
   **Size**: S
-- [ ] 2.2 Create skills/audit-choices/scripts/choices_ledger.py
+- [x] 2.2 Create skills/audit-choices/scripts/choices_ledger.py
   **Design decisions**: D2, D3, D4
   **Dependencies**: 2.1
   **Size**: M
-- [ ] 2.3 Create the choices.md renderer in choices_ledger.py
+- [x] 2.3 Create the choices.md renderer in choices_ledger.py
   **Design decisions**: D2
   **Dependencies**: 2.2
   **Size**: S
