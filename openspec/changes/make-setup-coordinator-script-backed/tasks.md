@@ -219,7 +219,7 @@ Test tasks precede the implementation they verify (TDD red → green).
 
 ## Phase 4 — Manifest, SKILL.md, and gates
 
-- [ ] 4.1 Add `parallel-infrastructure` and `project-context-runtime` to
+- [x] 4.1 Add `parallel-infrastructure` and `project-context-runtime` to
       `cross_skill_dependencies["setup-coordinator"]` in `skills/install-manifest.json`
       **Spec scenarios**: "Sibling skill unavailable"
       **Design decisions**: D2
@@ -228,11 +228,11 @@ Test tasks precede the implementation they verify (TDD red → green).
       **Note**: single edit to one list — the "and" in this title is one outcome,
       not two, so the splitting heuristic does not apply
 
-- [ ] 4.2 Register the entrypoint in `smoke_entrypoints` with `args: ["--help"]`
+- [x] 4.2 Register the entrypoint in `smoke_entrypoints` with `args: ["--help"]`
       **Dependencies**: 4.1
       **Size**: XS
 
-- [ ] 4.2a Checkpoint: run tests, review diff, verify scope
+- [x] 4.2a Checkpoint: run tests, review diff, verify scope
 
 - [ ] 4.3 Rewrite `SKILL.md` to ~120-150 lines — keep the transport table,
       when-to-use-HTTP guidance, and troubleshooting list; replace every bash
@@ -253,7 +253,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       **Note**: this introduces the tail-block requirement rather than merely
       asserting it — the file has never satisfied it
 
-- [ ] 4.5 Verify the dependency-direction gate reports no `agent-coordinator`
+- [x] 4.5 Verify the dependency-direction gate reports no `agent-coordinator`
       import from `skills/setup-coordinator/`
       **Spec scenarios**: "Dependency direction enforced"
       **Dependencies**: 3.2
@@ -266,7 +266,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       module-level constant on its own line, away from any `Path(` call, so the
       gate stays satisfiable without weakening it
 
-- [ ] 4.5a Run `skills/tests/install_sh/` — the manifest edits in 4.1/4.2 change
+- [x] 4.5a Run `skills/tests/install_sh/` — the manifest edits in 4.1/4.2 change
       the inputs of a suite this package cannot write to
       **Dependencies**: 4.2
       **Size**: XS
