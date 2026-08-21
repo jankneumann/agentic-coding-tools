@@ -159,6 +159,14 @@ verify_openspec() {
 # ---------------------------------------------------------------------------
 # Verify skills installed
 # ---------------------------------------------------------------------------
+# Number of installed skills in one mirror tree, or 0 when the tree is absent.
+# The -d guard is load-bearing under `set -euo pipefail`; see verify_skills.
+count_skills() {
+    local dir="$1"
+    [[ -d "$dir" ]] || { printf '0\n'; return; }
+    find "$dir" -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d '[:space:]'
+}
+
 verify_skills() {
     local source_installer="$PROJECT_DIR/skills/install.sh"  # source-contribution-only
     if [[ ! -f "$source_installer" ]]; then
@@ -169,9 +177,17 @@ verify_skills() {
     # partial or failed install leaves an empty .claude/skills/ behind, and
     # "the directory is there" would report that as healthy while the harness
     # discovers nothing.
+    #
+    # count_skills guards on -d before running find.  Handing find a path that
+    # does not exist makes it exit 1, and under `set -euo pipefail` that status
+    # survives the pipe and fails the assignment, aborting this function before
+    # it can install anything -- on a fresh clone, which is precisely the case
+    # this check exists to repair.  The ERR trap does not save it either: that
+    # trap does not fire inside functions without `set -E`, so the run would end
+    # silently, mid-pass, looking like a clean bootstrap.
     local installed
-    installed=$(find "$PROJECT_DIR/.claude/skills" "$PROJECT_DIR/.agents/skills" \
-        -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d '[:space:]')
+    installed=$(( $(count_skills "$PROJECT_DIR/.claude/skills")
+                + $(count_skills "$PROJECT_DIR/.agents/skills") ))
 
     if [[ "$installed" -gt 0 ]]; then
         ok "skills installed ($installed)"
