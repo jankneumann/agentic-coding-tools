@@ -183,7 +183,11 @@ def test_check_and_detect_share_one_roster_resolver(monkeypatch, isolated_root, 
     assert sc.coordinator_dir({"COORDINATOR_DIR": "/x"}) == Path("/x")
     resolved, tried = sc.resolve_agents_yaml({"COORDINATOR_DIR": "/x"})
     assert resolved is None
-    assert tried == [str(Path("/x") / sc.AGENTS_FILENAME)]
+    # Both locations are reported even when one of them has no path to report:
+    # an unset variable is named as unset rather than omitted, because the spec
+    # requires naming both locations tried and "one path, silently" is what let
+    # the cwd-relative fallback hide.
+    assert tried == ["$AGENTS_YAML (unset)", str(Path("/x") / sc.AGENTS_FILENAME)]
 
 
 # --------------------------------------------------------------------------- #
