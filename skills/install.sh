@@ -352,6 +352,63 @@ install_python_tools() {
   echo "  export PATH=\"$venv_path/bin:\$PATH\""
 }
 
+# Mirror a directory tree from <src> into <dest>.
+#
+# rsync is preferred: checksum comparison, --delete, and excludes in one pass.
+# But minimal container images routinely ship without it, and a missing rsync
+# used to abort this installer outright.  setup-cloud.sh invokes the installer
+# as `... || log WARNING` and still exits 0, so a cloud session came up
+# reporting a successful setup with no skills installed at all -- the harness
+# then had no skills to discover.  cp exists in every base image, so degrade to
+# it instead of failing.
+#
+# Usage: mirror_tree <src> <dest> [--delete] [--exclude <dirname>]...
+# An exclude names one directory component (e.g. "tests/"), matching how the
+# rsync call sites here use it.
+mirror_tree() {
+  local src="$1" dest="$2"
+  shift 2
+  local delete=0
+  local excludes=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --delete)  delete=1; shift ;;
+      --exclude) excludes+=("${2%/}"); shift 2 ;;
+      *) echo "mirror_tree: unknown option $1" >&2; return 1 ;;
+    esac
+  done
+
+  local e
+  if command -v rsync >/dev/null 2>&1; then
+    local args=(-a --checksum)
+    [[ $delete -eq 1 ]] && args+=(--delete)
+    for e in ${excludes[@]+"${excludes[@]}"}; do
+      args+=(--exclude="$e/")
+    done
+    rsync "${args[@]}" "$src/" "$dest/"
+    return
+  fi
+
+  # --delete means "dest ends up matching src exactly"; replacing the
+  # destination achieves that.  Guarded so a malformed argument cannot turn
+  # this into a wildcard delete.
+  if [[ $delete -eq 1 && -d "$dest" ]]; then
+    case "$dest" in
+      ""|"/"|"$HOME")
+        echo "mirror_tree: refusing to replace '$dest'" >&2
+        return 1
+        ;;
+    esac
+    rm -rf "${dest:?mirror_tree: empty destination}"
+  fi
+  mkdir -p "$dest"
+  # `src/.` copies the contents rather than nesting src inside dest.
+  cp -R "$src/." "$dest/"
+  for e in ${excludes[@]+"${excludes[@]}"}; do
+    find "$dest" -type d -name "$e" -prune -exec rm -rf {} + 2>/dev/null || true
+  done
+}
+
 sync_skill_openspec_assets() {
   local mode="$1"
   local assets_seen=0
@@ -382,13 +439,8 @@ sync_skill_openspec_assets() {
       continue
     fi
 
-    if ! command -v rsync >/dev/null 2>&1; then
-      echo "OpenSpec asset sync requires rsync, but rsync was not found in PATH" >&2
-      return 1
-    fi
-
     mkdir -p "$TARGET_ROOT/openspec"
-    rsync -a --checksum "$assets_dir/" "$TARGET_ROOT/openspec/"
+    mirror_tree "$assets_dir" "$TARGET_ROOT/openspec"
     files_seen=$((files_seen + $(find "$assets_dir" -type f | wc -l | tr -d ' ')))
     echo "  openspec-assets  $skill_name -> openspec/"
   done
@@ -409,15 +461,41 @@ check_openspec_cli() {
     return 0
   fi
 
+  # Pin shared with CI and the setup scripts.  Empty when the file is absent
+  # (mirror-layout consumer repos), which falls back to unpinned behavior.
+  local pinned=""
+  if [[ -f "$TARGET_ROOT/.openspec-version" ]]; then
+    pinned="$(tr -d '[:space:]' < "$TARGET_ROOT/.openspec-version")"
+  fi
+  local spec="@fission-ai/openspec${pinned:+@$pinned}"
+
   printf '\nOpenSpec CLI preflight (mode=%s)\n' "$mode"
   if command -v openspec >/dev/null 2>&1; then
-    echo "OpenSpec CLI: $(openspec --version 2>/dev/null || echo installed)"
-    return 0
+    local installed
+    installed="$(openspec --version 2>/dev/null || echo unknown)"
+    if [[ -z "$pinned" || "$installed" == "$pinned" ]]; then
+      echo "OpenSpec CLI: $installed"
+      return 0
+    fi
+    # Reported, not silently accepted: a stale CLI's `--strict` semantics
+    # disagree with CI's pin, which surfaces as a phantom spec failure
+    # (issue #318).
+    echo "OpenSpec CLI: $installed (pinned $pinned)"
+    echo "Update with:"
+    echo "  npm install -g $spec"
+    [[ "$mode" == "required" ]] && return 1
+    [[ "$mode" != "apply" ]] && return 0
+    if ! command -v npm >/dev/null 2>&1; then
+      echo "npm not found; cannot update OpenSpec CLI." >&2
+      return 1
+    fi
+    npm install -g "$spec"
+    return
   fi
 
   echo "OpenSpec CLI missing."
   echo "Install with:"
-  echo "  npm install -g @fission-ai/openspec"
+  echo "  npm install -g $spec"
 
   if [[ "$mode" == "required" ]]; then
     return 1
@@ -432,7 +510,7 @@ check_openspec_cli() {
     return 1
   fi
 
-  npm install -g @fission-ai/openspec
+  npm install -g "$spec"
 }
 
 # Top-level shared helper libraries that ship alongside skills. These are
@@ -513,7 +591,7 @@ sync_references_library() {
     echo "  refs  references -> $refs_src (symlinked library)"
   else
     mkdir -p "$refs_dest"
-    rsync -a --checksum --delete "$refs_src/" "$refs_dest/"
+    mirror_tree "$refs_src" "$refs_dest" --delete
     echo "  refs  references -> $refs_dest (shared library, not a skill)"
   fi
 }
@@ -532,7 +610,7 @@ sync_install_manifest() {
     fi
     ln -s "$INSTALL_MANIFEST" "$manifest_dest"
   else
-    rsync -a --checksum "$INSTALL_MANIFEST" "$manifest_dest"
+    cp -p "$INSTALL_MANIFEST" "$manifest_dest"
   fi
   echo "  manifest  install-manifest.json -> $manifest_dest"
 }
@@ -606,8 +684,10 @@ total_skipped=0
 
 if [[ "$MODE" == "rsync" || "$MODE" == "copy" ]]; then
   if ! command -v rsync >/dev/null 2>&1; then
-    echo "$MODE mode requested but rsync was not found in PATH" >&2
-    exit 1
+    # Not fatal any more: mirror_tree falls back to cp.  This used to exit 1,
+    # which setup-cloud.sh downgraded to a warning, producing cloud sessions
+    # that reported successful setup with zero skills installed.
+    echo "rsync not found in PATH; using cp to mirror skill directories." >&2
   fi
 fi
 
@@ -689,7 +769,8 @@ for agent in "${agent_list[@]}"; do
       echo "  link  $skill_name -> $skill_path"
     else
       mkdir -p "$dest_path"
-      rsync -a --checksum --delete --exclude='tests/' --exclude='__pycache__/' "$skill_path/" "$dest_path/"
+      mirror_tree "$skill_path" "$dest_path" --delete \
+        --exclude 'tests/' --exclude '__pycache__/'
       echo "  $sync_label  $skill_name -> $dest_path"
     fi
     total_installed=$((total_installed + 1))
@@ -740,7 +821,8 @@ for agent in "${agent_list[@]}"; do
       echo "  link  $lib_name (shared) -> $lib_src"
     else
       mkdir -p "$lib_dest"
-      rsync -a --checksum --delete --exclude='tests/' --exclude='__pycache__/' "$lib_src/" "$lib_dest/"
+      mirror_tree "$lib_src" "$lib_dest" --delete \
+        --exclude 'tests/' --exclude '__pycache__/'
       echo "  $sync_label  $lib_name (shared) -> $lib_dest"
     fi
     total_installed=$((total_installed + 1))
