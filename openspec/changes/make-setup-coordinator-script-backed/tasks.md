@@ -289,24 +289,24 @@ Test tasks precede the implementation they verify (TDD red → green).
 
 ## Verification
 
-- [ ] V.1 `skills/.venv/bin/python -m pytest skills/tests/setup-coordinator/ -v` — all green
-- [ ] V.2 Confirm the new suite appears in collection from the repo pytest config
+- [x] V.1 `skills/.venv/bin/python -m pytest skills/tests/setup-coordinator/ -v` — all green
+- [x] V.2 Confirm the new suite appears in collection from the repo pytest config
       **with no path argument** (proves 1.2 landed; an unregistered dir fails open
       and looks identical to zero tests, and naming the dir bypasses `testpaths`)
-- [ ] V.3 `cd skills && uv run ruff check .` — clean at the locked ruff version
-- [ ] V.4 `openspec validate make-setup-coordinator-script-backed --strict`
-- [ ] V.5 Confirm `SKILL.md` line count is within the 120-150 target
-- [ ] V.6 Confirm no test reads or writes the operator's real `~` or the repo's own
+- [x] V.3 `cd skills && uv run ruff check .` — clean at the locked ruff version
+- [x] V.4 `openspec validate make-setup-coordinator-script-backed --strict`
+- [x] V.5 Confirm `SKILL.md` line count is within the 120-150 target
+- [x] V.6 Confirm no test reads or writes the operator's real `~` or the repo's own
       `.claude/settings.local.json`
       **Spec scenarios**: "Tests do not touch operator state"
       **How**: run the suite with `HOME` pointed at an empty temp dir and confirm
       it still passes — a suite that depends on the real home will fail, and one
       that merely *reads* it will not be caught by inspection alone
-- [ ] V.7 Confirm every spec scenario is named by at least one task. Run the
+- [x] V.7 Confirm every spec scenario is named by at least one task. Run the
       orphan check: extract `#### Scenario:` names from
       `specs/setup-coordinator/spec.md` and assert each appears in `tasks.md`.
       Two review rounds passed with 7 of 27 orphaned because spec prose was added
       without scheduling the work — this makes that failure mode visible
-- [ ] V.8 `detect-harnesses --json` validates against
+- [x] V.8 `detect-harnesses --json` validates against
       `contracts/harness-report.schema.json`, run with an explicit `AGENTS_YAML`
       and the same interpreter as the suite (system `python3` has no `pyyaml`)

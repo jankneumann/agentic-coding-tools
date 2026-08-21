@@ -232,7 +232,7 @@ assertable:
   reindentation and key reordering that a key-by-key equality check silently
   accepts.
 
-### D7 — Tests must construct the failure cases, and the "before" must be executable
+### D7 — Tests construct the failure cases; the properties are the requirement
 
 The repository's own `.claude/settings.local.json` has only an `allow` list and
 no `deny` key, so the deny-list defect is **latent**. A test asserting against
@@ -243,22 +243,23 @@ The repo's "gates must fail before work" convention says each test must fail
 against the behavior that ships today. Taken literally that is unsatisfiable
 here: today's behavior is a bash-and-Python fragment *inside a markdown fence*.
 There is nothing to import and nothing to run, so "run the test against the old
-code" has no referent, and an instruction with no referent gets quietly
-dropped.
+code" has no referent.
 
-The resolution is to make the "before" executable: transcribe `SKILL.md:211-232`
-verbatim into `skills/tests/setup-coordinator/legacy_shim.py` as
-`legacy_add_permission(settings_path)`, faithful down to the `grep`-equivalent
-substring guard and the `json.dumps(..., indent=2)` rewrite. Then every
-settings-writer test is parametrized over `{legacy, new}` and asserts
-`xfail`-on-legacy / pass-on-new.
+An earlier revision resolved that by transcribing `SKILL.md:211-232` into a
+test-only `legacy_shim.py` and parametrizing every settings-writer test over
+`{legacy, new}` with `xfail`-on-legacy. **That apparatus is deleted.** It
+generated more review findings than defects it caught — two of its seven
+parametrizations were already green on the shim, which made its own gate
+unsatisfiable as written — and it needed bespoke anti-`xfail` rules to stay
+honest. The red phase is real without it: each test fails because the writer
+does not exist yet.
 
-This buys three things a one-shot manual check does not: the red phase is real
-and reproducible, the four defects are documented as executable claims rather
-than prose, and the shim keeps failing forever, so a future refactor that
-reintroduces any of them is caught. The shim is test-only — it lives under
-`skills/tests/`, is never shipped in the payload, and is never imported by the
-entrypoint.
+What replaces it is a property assertion per defect, plus one mutation check
+that cannot be satisfied by accident: the fallback-atomicity test records the
+target's bytes at the instant `os.replace` runs and forbids `Path.write_bytes`
+on the target, so substituting the `provenance.py` fallback body turns the
+suite red. The properties are the requirement; the discarded fragment's
+behavior is not.
 
 ### D8 — The payload linter constrains how the new files may be written
 
