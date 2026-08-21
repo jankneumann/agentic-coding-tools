@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-18T22:23:29+00:00",
+  "generated_at": "2026-08-21T09:23:24.032600+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -9299,6 +9299,573 @@
       "file": "issue_service.py",
       "line": 594,
       "suggestion": "Add tests that reference 'get_issue_service' (e.g., test_get_issue_service or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'App' has no corresponding test references",
+      "node_id": "ts:App",
+      "file": "kanban-viz/src/App.tsx",
+      "line": 14,
+      "suggestion": "Add tests that reference 'App' (e.g., test_App or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'Board' has no corresponding test references",
+      "node_id": "ts:Board",
+      "file": "kanban-viz/src/components/Board.tsx",
+      "line": 24,
+      "suggestion": "Add tests that reference 'Board' (e.g., test_Board or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'relativeTime' has no corresponding test references",
+      "node_id": "ts:relativeTime",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "line": 28,
+      "suggestion": "Add tests that reference 'relativeTime' (e.g., test_relativeTime or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'Card' has no corresponding test references",
+      "node_id": "ts:Card",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "line": 41,
+      "suggestion": "Add tests that reference 'Card' (e.g., test_Card or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'emitHighlight' has no corresponding test references",
+      "node_id": "ts:emitHighlight",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 22,
+      "suggestion": "Add tests that reference 'emitHighlight' (e.g., test_emitHighlight or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'useHighlightState' has no corresponding test references",
+      "node_id": "ts:useHighlightState",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 32,
+      "suggestion": "Add tests that reference 'useHighlightState' (e.g., test_useHighlightState or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'ClusterBadge' has no corresponding test references",
+      "node_id": "ts:ClusterBadge",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 72,
+      "suggestion": "Add tests that reference 'ClusterBadge' (e.g., test_ClusterBadge or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'ClusterBadgeInner' has no corresponding test references",
+      "node_id": "ts:ClusterBadgeInner",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 81,
+      "suggestion": "Add tests that reference 'ClusterBadgeInner' (e.g., test_ClusterBadgeInner or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'ClusterHighlightWrapper' has no corresponding test references",
+      "node_id": "ts:ClusterHighlightWrapper",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 130,
+      "suggestion": "Add tests that reference 'ClusterHighlightWrapper' (e.g., test_ClusterHighlightWrapper or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'Column' has no corresponding test references",
+      "node_id": "ts:Column",
+      "file": "kanban-viz/src/components/Column.tsx",
+      "line": 25,
+      "suggestion": "Add tests that reference 'Column' (e.g., test_Column or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'ConsentPrompt' has no corresponding test references",
+      "node_id": "ts:ConsentPrompt",
+      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
+      "line": 12,
+      "suggestion": "Add tests that reference 'ConsentPrompt' (e.g., test_ConsentPrompt or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'shortForm' has no corresponding test references",
+      "node_id": "ts:shortForm",
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "line": 16,
+      "suggestion": "Add tests that reference 'shortForm' (e.g., test_shortForm or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'HiddenReposToggle' has no corresponding test references",
+      "node_id": "ts:HiddenReposToggle",
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "line": 30,
+      "suggestion": "Add tests that reference 'HiddenReposToggle' (e.g., test_HiddenReposToggle or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'PRCardView' has no corresponding test references",
+      "node_id": "ts:PRCardView",
+      "file": "kanban-viz/src/components/PRCardView.tsx",
+      "line": 75,
+      "suggestion": "Add tests that reference 'PRCardView' (e.g., test_PRCardView or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'loadFromStorage' has no corresponding test references",
+      "node_id": "ts:loadFromStorage",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line": 28,
+      "suggestion": "Add tests that reference 'loadFromStorage' (e.g., test_loadFromStorage or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'saveToStorage' has no corresponding test references",
+      "node_id": "ts:saveToStorage",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line": 45,
+      "suggestion": "Add tests that reference 'saveToStorage' (e.g., test_saveToStorage or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'PROriginFilter' has no corresponding test references",
+      "node_id": "ts:PROriginFilter",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line": 69,
+      "suggestion": "Add tests that reference 'PROriginFilter' (e.g., test_PROriginFilter or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'filterByOrigin' has no corresponding test references",
+      "node_id": "ts:filterByOrigin",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line": 137,
+      "suggestion": "Add tests that reference 'filterByOrigin' (e.g., test_filterByOrigin or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'ProposalCardView' has no corresponding test references",
+      "node_id": "ts:ProposalCardView",
+      "file": "kanban-viz/src/components/ProposalCardView.tsx",
+      "line": 22,
+      "suggestion": "Add tests that reference 'ProposalCardView' (e.g., test_ProposalCardView or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'RefreshButton' has no corresponding test references",
+      "node_id": "ts:RefreshButton",
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "line": 30,
+      "suggestion": "Add tests that reference 'RefreshButton' (e.g., test_RefreshButton or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'formatRelative' has no corresponding test references",
+      "node_id": "ts:formatRelative",
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "line": 134,
+      "suggestion": "Add tests that reference 'formatRelative' (e.g., test_formatRelative or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'hashString' has no corresponding test references",
+      "node_id": "ts:hashString",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line": 22,
+      "suggestion": "Add tests that reference 'hashString' (e.g., test_hashString or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'repoToColor' has no corresponding test references",
+      "node_id": "ts:repoToColor",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line": 33,
+      "suggestion": "Add tests that reference 'repoToColor' (e.g., test_repoToColor or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'RepoBadge' has no corresponding test references",
+      "node_id": "ts:RepoBadge",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line": 53,
+      "suggestion": "Add tests that reference 'RepoBadge' (e.g., test_RepoBadge or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'slugify' has no corresponding test references",
+      "node_id": "ts:slugify",
+      "file": "kanban-viz/src/components/SaveViewButton.tsx",
+      "line": 43,
+      "suggestion": "Add tests that reference 'slugify' (e.g., test_slugify or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'SaveViewButton' has no corresponding test references",
+      "node_id": "ts:SaveViewButton",
+      "file": "kanban-viz/src/components/SaveViewButton.tsx",
+      "line": 53,
+      "suggestion": "Add tests that reference 'SaveViewButton' (e.g., test_SaveViewButton or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'bucketIssues' has no corresponding test references",
+      "node_id": "ts:bucketIssues",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 70,
+      "suggestion": "Add tests that reference 'bucketIssues' (e.g., test_bucketIssues or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'bucketPRs' has no corresponding test references",
+      "node_id": "ts:bucketPRs",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 79,
+      "suggestion": "Add tests that reference 'bucketPRs' (e.g., test_bucketPRs or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'bucketProposals' has no corresponding test references",
+      "node_id": "ts:bucketProposals",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 88,
+      "suggestion": "Add tests that reference 'bucketProposals' (e.g., test_bucketProposals or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'IssueSourceRow' has no corresponding test references",
+      "node_id": "ts:IssueSourceRow",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 108,
+      "suggestion": "Add tests that reference 'IssueSourceRow' (e.g., test_IssueSourceRow or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'PRSourceRow' has no corresponding test references",
+      "node_id": "ts:PRSourceRow",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 245,
+      "suggestion": "Add tests that reference 'PRSourceRow' (e.g., test_PRSourceRow or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'PartialResultChip' has no corresponding test references",
+      "node_id": "ts:PartialResultChip",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 393,
+      "suggestion": "Add tests that reference 'PartialResultChip' (e.g., test_PartialResultChip or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'ProposalSourceRow' has no corresponding test references",
+      "node_id": "ts:ProposalSourceRow",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 442,
+      "suggestion": "Add tests that reference 'ProposalSourceRow' (e.g., test_ProposalSourceRow or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'SourceSwimlanes' has no corresponding test references",
+      "node_id": "ts:SourceSwimlanes",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 554,
+      "suggestion": "Add tests that reference 'SourceSwimlanes' (e.g., test_SourceSwimlanes or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'fetchSyncStatus' has no corresponding test references",
+      "node_id": "ts:fetchSyncStatus",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "line": 24,
+      "suggestion": "Add tests that reference 'fetchSyncStatus' (e.g., test_fetchSyncStatus or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'SyncPointBanner' has no corresponding test references",
+      "node_id": "ts:SyncPointBanner",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "line": 43,
+      "suggestion": "Add tests that reference 'SyncPointBanner' (e.g., test_SyncPointBanner or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'extractVendor' has no corresponding test references",
+      "node_id": "ts:extractVendor",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 29,
+      "suggestion": "Add tests that reference 'extractVendor' (e.g., test_extractVendor or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'groupByVendor' has no corresponding test references",
+      "node_id": "ts:groupByVendor",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 46,
+      "suggestion": "Add tests that reference 'groupByVendor' (e.g., test_groupByVendor or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'determineConsensus' has no corresponding test references",
+      "node_id": "ts:determineConsensus",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 60,
+      "suggestion": "Add tests that reference 'determineConsensus' (e.g., test_determineConsensus or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'VendorSwimlanes' has no corresponding test references",
+      "node_id": "ts:VendorSwimlanes",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 64,
+      "suggestion": "Add tests that reference 'VendorSwimlanes' (e.g., test_VendorSwimlanes or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'clusterBoardCards' has no corresponding test references",
+      "node_id": "ts:clusterBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 57,
+      "suggestion": "Add tests that reference 'clusterBoardCards' (e.g., test_clusterBoardCards or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'fetchPRs' has no corresponding test references",
+      "node_id": "ts:fetchPRs",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 179,
+      "suggestion": "Add tests that reference 'fetchPRs' (e.g., test_fetchPRs or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'fetchProposals' has no corresponding test references",
+      "node_id": "ts:fetchProposals",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 190,
+      "suggestion": "Add tests that reference 'fetchProposals' (e.g., test_fetchProposals or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'useBoardCards' has no corresponding test references",
+      "node_id": "ts:useBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 211,
+      "suggestion": "Add tests that reference 'useBoardCards' (e.g., test_useBoardCards or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'fetchIssuesForSingleChange' has no corresponding test references",
+      "node_id": "ts:fetchIssuesForSingleChange",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 64,
+      "suggestion": "Add tests that reference 'fetchIssuesForSingleChange' (e.g., test_fetchIssuesForSingleChange or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'fetchIssuesUnioned' has no corresponding test references",
+      "node_id": "ts:fetchIssuesUnioned",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 96,
+      "suggestion": "Add tests that reference 'fetchIssuesUnioned' (e.g., test_fetchIssuesUnioned or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'mintEventsToken' has no corresponding test references",
+      "node_id": "ts:mintEventsToken",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 114,
+      "suggestion": "Add tests that reference 'mintEventsToken' (e.g., test_mintEventsToken or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'useCoordinator' has no corresponding test references",
+      "node_id": "ts:useCoordinator",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 132,
+      "suggestion": "Add tests that reference 'useCoordinator' (e.g., test_useCoordinator or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'assertNever' has no corresponding test references",
+      "node_id": "ts:assertNever",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 208,
+      "suggestion": "Add tests that reference 'assertNever' (e.g., test_assertNever or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'issueStatusToColumn' has no corresponding test references",
+      "node_id": "ts:issueStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 218,
+      "suggestion": "Add tests that reference 'issueStatusToColumn' (e.g., test_issueStatusToColumn or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'prStatusToColumn' has no corresponding test references",
+      "node_id": "ts:prStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 236,
+      "suggestion": "Add tests that reference 'prStatusToColumn' (e.g., test_prStatusToColumn or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'proposalStatusToColumn' has no corresponding test references",
+      "node_id": "ts:proposalStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 250,
+      "suggestion": "Add tests that reference 'proposalStatusToColumn' (e.g., test_proposalStatusToColumn or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'toIssueCard' has no corresponding test references",
+      "node_id": "ts:toIssueCard",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 295,
+      "suggestion": "Add tests that reference 'toIssueCard' (e.g., test_toIssueCard or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'deriveIssueRepo' has no corresponding test references",
+      "node_id": "ts:deriveIssueRepo",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 336,
+      "suggestion": "Add tests that reference 'deriveIssueRepo' (e.g., test_deriveIssueRepo or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'getClusterKey' has no corresponding test references",
+      "node_id": "ts:getClusterKey",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 364,
+      "suggestion": "Add tests that reference 'getClusterKey' (e.g., test_getClusterKey or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'classify' has no corresponding test references",
+      "node_id": "ts:classify",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "line": 46,
+      "suggestion": "Add tests that reference 'classify' (e.g., test_classify or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'classifyOrDefault' has no corresponding test references",
+      "node_id": "ts:classifyOrDefault",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "line": 54,
+      "suggestion": "Add tests that reference 'classifyOrDefault' (e.g., test_classifyOrDefault or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'requiresConsent' has no corresponding test references",
+      "node_id": "ts:requiresConsent",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "line": 59,
+      "suggestion": "Add tests that reference 'requiresConsent' (e.g., test_requiresConsent or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'isTauri' has no corresponding test references",
+      "node_id": "ts:isTauri",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "line": 12,
+      "suggestion": "Add tests that reference 'isTauri' (e.g., test_isTauri or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'isBrowser' has no corresponding test references",
+      "node_id": "ts:isBrowser",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "line": 21,
+      "suggestion": "Add tests that reference 'isBrowser' (e.g., test_isBrowser or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'saveView' has no corresponding test references",
+      "node_id": "ts:saveView",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line": 35,
+      "suggestion": "Add tests that reference 'saveView' (e.g., test_saveView or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'saveBrowser' has no corresponding test references",
+      "node_id": "ts:saveBrowser",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line": 47,
+      "suggestion": "Add tests that reference 'saveBrowser' (e.g., test_saveBrowser or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'saveTauri' has no corresponding test references",
+      "node_id": "ts:saveTauri",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line": 68,
+      "suggestion": "Add tests that reference 'saveTauri' (e.g., test_saveTauri or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -20130,6 +20697,798 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'kanban-viz/src/App' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/App",
+      "file": "kanban-viz/src/App.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'App' is unreachable from any entrypoint or test",
+      "node_id": "ts:App",
+      "file": "kanban-viz/src/App.tsx",
+      "line": 14,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/Board' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/Board",
+      "file": "kanban-viz/src/components/Board.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'Board' is unreachable from any entrypoint or test",
+      "node_id": "ts:Board",
+      "file": "kanban-viz/src/components/Board.tsx",
+      "line": 24,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/Card' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/Card",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'relativeTime' is unreachable from any entrypoint or test",
+      "node_id": "ts:relativeTime",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "line": 28,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'Card' is unreachable from any entrypoint or test",
+      "node_id": "ts:Card",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "line": 41,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/ClusterBadge' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/ClusterBadge",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'emitHighlight' is unreachable from any entrypoint or test",
+      "node_id": "ts:emitHighlight",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 22,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'useHighlightState' is unreachable from any entrypoint or test",
+      "node_id": "ts:useHighlightState",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 32,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'ClusterBadge' is unreachable from any entrypoint or test",
+      "node_id": "ts:ClusterBadge",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 72,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'ClusterBadgeInner' is unreachable from any entrypoint or test",
+      "node_id": "ts:ClusterBadgeInner",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 81,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'ClusterHighlightWrapper' is unreachable from any entrypoint or test",
+      "node_id": "ts:ClusterHighlightWrapper",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 130,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/Column' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/Column",
+      "file": "kanban-viz/src/components/Column.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'Column' is unreachable from any entrypoint or test",
+      "node_id": "ts:Column",
+      "file": "kanban-viz/src/components/Column.tsx",
+      "line": 25,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/ConsentPrompt' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/ConsentPrompt",
+      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'ConsentPrompt' is unreachable from any entrypoint or test",
+      "node_id": "ts:ConsentPrompt",
+      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
+      "line": 12,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/HiddenReposToggle' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/HiddenReposToggle",
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'shortForm' is unreachable from any entrypoint or test",
+      "node_id": "ts:shortForm",
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "line": 16,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'HiddenReposToggle' is unreachable from any entrypoint or test",
+      "node_id": "ts:HiddenReposToggle",
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "line": 30,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/PRCardView' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/PRCardView",
+      "file": "kanban-viz/src/components/PRCardView.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'PRCardView' is unreachable from any entrypoint or test",
+      "node_id": "ts:PRCardView",
+      "file": "kanban-viz/src/components/PRCardView.tsx",
+      "line": 75,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/PROriginFilter' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/PROriginFilter",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'loadFromStorage' is unreachable from any entrypoint or test",
+      "node_id": "ts:loadFromStorage",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line": 28,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'saveToStorage' is unreachable from any entrypoint or test",
+      "node_id": "ts:saveToStorage",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line": 45,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'PROriginFilter' is unreachable from any entrypoint or test",
+      "node_id": "ts:PROriginFilter",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line": 69,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'filterByOrigin' is unreachable from any entrypoint or test",
+      "node_id": "ts:filterByOrigin",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line": 137,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/ProposalCardView' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/ProposalCardView",
+      "file": "kanban-viz/src/components/ProposalCardView.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'ProposalCardView' is unreachable from any entrypoint or test",
+      "node_id": "ts:ProposalCardView",
+      "file": "kanban-viz/src/components/ProposalCardView.tsx",
+      "line": 22,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/RefreshButton' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/RefreshButton",
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'RefreshButton' is unreachable from any entrypoint or test",
+      "node_id": "ts:RefreshButton",
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "line": 30,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'formatRelative' is unreachable from any entrypoint or test",
+      "node_id": "ts:formatRelative",
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "line": 134,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/RepoBadge' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/RepoBadge",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'hashString' is unreachable from any entrypoint or test",
+      "node_id": "ts:hashString",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line": 22,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'repoToColor' is unreachable from any entrypoint or test",
+      "node_id": "ts:repoToColor",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line": 33,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'RepoBadge' is unreachable from any entrypoint or test",
+      "node_id": "ts:RepoBadge",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line": 53,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/SaveViewButton' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/SaveViewButton",
+      "file": "kanban-viz/src/components/SaveViewButton.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'slugify' is unreachable from any entrypoint or test",
+      "node_id": "ts:slugify",
+      "file": "kanban-viz/src/components/SaveViewButton.tsx",
+      "line": 43,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'SaveViewButton' is unreachable from any entrypoint or test",
+      "node_id": "ts:SaveViewButton",
+      "file": "kanban-viz/src/components/SaveViewButton.tsx",
+      "line": 53,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/SourceSwimlanes' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/SourceSwimlanes",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'bucketIssues' is unreachable from any entrypoint or test",
+      "node_id": "ts:bucketIssues",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 70,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'bucketPRs' is unreachable from any entrypoint or test",
+      "node_id": "ts:bucketPRs",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 79,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'bucketProposals' is unreachable from any entrypoint or test",
+      "node_id": "ts:bucketProposals",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 88,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'IssueSourceRow' is unreachable from any entrypoint or test",
+      "node_id": "ts:IssueSourceRow",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 108,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'PRSourceRow' is unreachable from any entrypoint or test",
+      "node_id": "ts:PRSourceRow",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 245,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'PartialResultChip' is unreachable from any entrypoint or test",
+      "node_id": "ts:PartialResultChip",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 393,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'ProposalSourceRow' is unreachable from any entrypoint or test",
+      "node_id": "ts:ProposalSourceRow",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 442,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'SourceSwimlanes' is unreachable from any entrypoint or test",
+      "node_id": "ts:SourceSwimlanes",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 554,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/SyncPointBanner' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/SyncPointBanner",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'fetchSyncStatus' is unreachable from any entrypoint or test",
+      "node_id": "ts:fetchSyncStatus",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "line": 24,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'SyncPointBanner' is unreachable from any entrypoint or test",
+      "node_id": "ts:SyncPointBanner",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "line": 43,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/components/VendorSwimlanes' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/components/VendorSwimlanes",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'extractVendor' is unreachable from any entrypoint or test",
+      "node_id": "ts:extractVendor",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 29,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'groupByVendor' is unreachable from any entrypoint or test",
+      "node_id": "ts:groupByVendor",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 46,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'determineConsensus' is unreachable from any entrypoint or test",
+      "node_id": "ts:determineConsensus",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 60,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'VendorSwimlanes' is unreachable from any entrypoint or test",
+      "node_id": "ts:VendorSwimlanes",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 64,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/hooks/useBoardCards' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/hooks/useBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'clusterBoardCards' is unreachable from any entrypoint or test",
+      "node_id": "ts:clusterBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 57,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'fetchPRs' is unreachable from any entrypoint or test",
+      "node_id": "ts:fetchPRs",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 179,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'fetchProposals' is unreachable from any entrypoint or test",
+      "node_id": "ts:fetchProposals",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 190,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'useBoardCards' is unreachable from any entrypoint or test",
+      "node_id": "ts:useBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 211,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/hooks/useCoordinator' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/hooks/useCoordinator",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'fetchIssuesForSingleChange' is unreachable from any entrypoint or test",
+      "node_id": "ts:fetchIssuesForSingleChange",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 64,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'fetchIssuesUnioned' is unreachable from any entrypoint or test",
+      "node_id": "ts:fetchIssuesUnioned",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 96,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'mintEventsToken' is unreachable from any entrypoint or test",
+      "node_id": "ts:mintEventsToken",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 114,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'useCoordinator' is unreachable from any entrypoint or test",
+      "node_id": "ts:useCoordinator",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 132,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/lib/coordinator-types' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/lib/coordinator-types",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'assertNever' is unreachable from any entrypoint or test",
+      "node_id": "ts:assertNever",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 208,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'issueStatusToColumn' is unreachable from any entrypoint or test",
+      "node_id": "ts:issueStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 218,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'prStatusToColumn' is unreachable from any entrypoint or test",
+      "node_id": "ts:prStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 236,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'proposalStatusToColumn' is unreachable from any entrypoint or test",
+      "node_id": "ts:proposalStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 250,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'toIssueCard' is unreachable from any entrypoint or test",
+      "node_id": "ts:toIssueCard",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 295,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'deriveIssueRepo' is unreachable from any entrypoint or test",
+      "node_id": "ts:deriveIssueRepo",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 336,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'getClusterKey' is unreachable from any entrypoint or test",
+      "node_id": "ts:getClusterKey",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 364,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/lib/reversibility' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/lib/reversibility",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'classify' is unreachable from any entrypoint or test",
+      "node_id": "ts:classify",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "line": 46,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'classifyOrDefault' is unreachable from any entrypoint or test",
+      "node_id": "ts:classifyOrDefault",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "line": 54,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'requiresConsent' is unreachable from any entrypoint or test",
+      "node_id": "ts:requiresConsent",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "line": 59,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/lib/runtime' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/lib/runtime",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'isTauri' is unreachable from any entrypoint or test",
+      "node_id": "ts:isTauri",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "line": 12,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'isBrowser' is unreachable from any entrypoint or test",
+      "node_id": "ts:isBrowser",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "line": 21,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/lib/saveView' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/lib/saveView",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'saveView' is unreachable from any entrypoint or test",
+      "node_id": "ts:saveView",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line": 35,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'saveBrowser' is unreachable from any entrypoint or test",
+      "node_id": "ts:saveBrowser",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line": 47,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'saveTauri' is unreachable from any entrypoint or test",
+      "node_id": "ts:saveTauri",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line": 68,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/main' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/main",
+      "file": "kanban-viz/src/main.tsx",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/src/vite-env.d' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/src/vite-env.d",
+      "file": "kanban-viz/src/vite-env.d.ts",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'kanban-viz/vite.config' is unreachable from any entrypoint or test",
+      "node_id": "ts:kanban-viz/vite.config",
+      "file": "kanban-viz/vite.config.ts",
+      "line": 1,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'kanban_viz_files' is unreachable from any entrypoint or test",
       "node_id": "py:kanban_viz_files",
       "file": "kanban_viz_files.py",
@@ -24536,15 +25895,366 @@
       "file": "worktrees_view.py",
       "line": 41,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'relativeTime' uses camelCase but most functions use snake_case",
+      "node_id": "ts:relativeTime",
+      "file": "kanban-viz/src/components/Card.tsx",
+      "line": 28,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'emitHighlight' uses camelCase but most functions use snake_case",
+      "node_id": "ts:emitHighlight",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 22,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'useHighlightState' uses camelCase but most functions use snake_case",
+      "node_id": "ts:useHighlightState",
+      "file": "kanban-viz/src/components/ClusterBadge.tsx",
+      "line": 32,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'shortForm' uses camelCase but most functions use snake_case",
+      "node_id": "ts:shortForm",
+      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
+      "line": 16,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'loadFromStorage' uses camelCase but most functions use snake_case",
+      "node_id": "ts:loadFromStorage",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line": 28,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'saveToStorage' uses camelCase but most functions use snake_case",
+      "node_id": "ts:saveToStorage",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line": 45,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'filterByOrigin' uses camelCase but most functions use snake_case",
+      "node_id": "ts:filterByOrigin",
+      "file": "kanban-viz/src/components/PROriginFilter.tsx",
+      "line": 137,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'formatRelative' uses camelCase but most functions use snake_case",
+      "node_id": "ts:formatRelative",
+      "file": "kanban-viz/src/components/RefreshButton.tsx",
+      "line": 134,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'hashString' uses camelCase but most functions use snake_case",
+      "node_id": "ts:hashString",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line": 22,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'repoToColor' uses camelCase but most functions use snake_case",
+      "node_id": "ts:repoToColor",
+      "file": "kanban-viz/src/components/RepoBadge.tsx",
+      "line": 33,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'bucketIssues' uses camelCase but most functions use snake_case",
+      "node_id": "ts:bucketIssues",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 70,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'bucketPRs' uses camelCase but most functions use snake_case",
+      "node_id": "ts:bucketPRs",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 79,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'bucketProposals' uses camelCase but most functions use snake_case",
+      "node_id": "ts:bucketProposals",
+      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
+      "line": 88,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'fetchSyncStatus' uses camelCase but most functions use snake_case",
+      "node_id": "ts:fetchSyncStatus",
+      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
+      "line": 24,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'extractVendor' uses camelCase but most functions use snake_case",
+      "node_id": "ts:extractVendor",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 29,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'groupByVendor' uses camelCase but most functions use snake_case",
+      "node_id": "ts:groupByVendor",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 46,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'determineConsensus' uses camelCase but most functions use snake_case",
+      "node_id": "ts:determineConsensus",
+      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
+      "line": 60,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'clusterBoardCards' uses camelCase but most functions use snake_case",
+      "node_id": "ts:clusterBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 57,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'fetchPRs' uses camelCase but most functions use snake_case",
+      "node_id": "ts:fetchPRs",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 179,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'fetchProposals' uses camelCase but most functions use snake_case",
+      "node_id": "ts:fetchProposals",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 190,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'useBoardCards' uses camelCase but most functions use snake_case",
+      "node_id": "ts:useBoardCards",
+      "file": "kanban-viz/src/hooks/useBoardCards.ts",
+      "line": 211,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'fetchIssuesForSingleChange' uses camelCase but most functions use snake_case",
+      "node_id": "ts:fetchIssuesForSingleChange",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 64,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'fetchIssuesUnioned' uses camelCase but most functions use snake_case",
+      "node_id": "ts:fetchIssuesUnioned",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 96,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'mintEventsToken' uses camelCase but most functions use snake_case",
+      "node_id": "ts:mintEventsToken",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 114,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'useCoordinator' uses camelCase but most functions use snake_case",
+      "node_id": "ts:useCoordinator",
+      "file": "kanban-viz/src/hooks/useCoordinator.ts",
+      "line": 132,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'assertNever' uses camelCase but most functions use snake_case",
+      "node_id": "ts:assertNever",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 208,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'issueStatusToColumn' uses camelCase but most functions use snake_case",
+      "node_id": "ts:issueStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 218,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'prStatusToColumn' uses camelCase but most functions use snake_case",
+      "node_id": "ts:prStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 236,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'proposalStatusToColumn' uses camelCase but most functions use snake_case",
+      "node_id": "ts:proposalStatusToColumn",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 250,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'toIssueCard' uses camelCase but most functions use snake_case",
+      "node_id": "ts:toIssueCard",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 295,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'deriveIssueRepo' uses camelCase but most functions use snake_case",
+      "node_id": "ts:deriveIssueRepo",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 336,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'getClusterKey' uses camelCase but most functions use snake_case",
+      "node_id": "ts:getClusterKey",
+      "file": "kanban-viz/src/lib/coordinator-types.ts",
+      "line": 364,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'classifyOrDefault' uses camelCase but most functions use snake_case",
+      "node_id": "ts:classifyOrDefault",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "line": 54,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'requiresConsent' uses camelCase but most functions use snake_case",
+      "node_id": "ts:requiresConsent",
+      "file": "kanban-viz/src/lib/reversibility.ts",
+      "line": 59,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'isTauri' uses camelCase but most functions use snake_case",
+      "node_id": "ts:isTauri",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "line": 12,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'isBrowser' uses camelCase but most functions use snake_case",
+      "node_id": "ts:isBrowser",
+      "file": "kanban-viz/src/lib/runtime.ts",
+      "line": 21,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'saveView' uses camelCase but most functions use snake_case",
+      "node_id": "ts:saveView",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line": 35,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'saveBrowser' uses camelCase but most functions use snake_case",
+      "node_id": "ts:saveBrowser",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line": 47,
+      "suggestion": "Rename to follow snake_case convention"
+    },
+    {
+      "severity": "info",
+      "category": "pattern_consistency",
+      "message": "'saveTauri' uses camelCase but most functions use snake_case",
+      "node_id": "ts:saveTauri",
+      "file": "kanban-viz/src/lib/saveView.ts",
+      "line": 68,
+      "suggestion": "Rename to follow snake_case convention"
     }
   ],
   "summary": {
-    "total_findings": 2726,
+    "total_findings": 2916,
     "errors": 0,
-    "warnings": 2638,
-    "info": 88,
+    "warnings": 2789,
+    "info": 127,
     "entrypoints_checked": 96,
     "flows_with_coverage": 0,
-    "flows_without_coverage": 1327
+    "flows_without_coverage": 1390
   }
 }
