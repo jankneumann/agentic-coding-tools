@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-20T02:35:00.000000+00:00",
+  "coordinator_error": {
+    "error_type": "http_403",
+    "message": "API key is not permitted to act as requested agent_id",
+    "http_status": 403
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "PLAN_ITERATE refinement pass over make-setup-coordinator-script-backed (iteration 0 -> 1). Refined all seven plan artifacts across completeness, feasibility, consistency, testability, and assumptions. Three correctness defects were found by reading the referenced sources rather than trusting the plan's description of them: design D2 prescribed atomic_write_json, whose canonicalizer would have reintroduced the whole-file reformat this change exists to remove; D1's 'call check_all_vendors() unmodified' with no argument reaches the network and fails open; and nothing filtered the roster to -local agents, so claude-remote and codex-remote would double-count claude and codex against a contract promising one entry per vendor. Four verification gates could not fail for the reason they existed and were fixed. Baseline re-confirmed green: openspec --strict valid, validate_work_packages 4/4, contract a valid JSON Schema whose tightened constraints were behaviorally checked. Committed as 99e746c8 and pushed to origin/openspec/make-setup-coordinator-script-backed.",
+    "completed_work": [
+      "Corrected design D2 to import atomic_write_bytes rather than atomic_write_json",
+      "Added design D1a (local agents.yaml resolution, no network, verified path before the call)",
+      "Added design D1b (report only <vendor>-local agents with a non-empty cli.command)",
+      "Added design D8 (payload-linter constraints) and D9 (SKILL.md tail-block budget)",
+      "Rewrote design D7 so the red phase has an executable 'before' (task 2.0 legacy_shim)",
+      "Fixed four self-defeating verification gates in work-packages.yaml",
+      "Tightened harness-report.schema.json and verified the new constraints bite",
+      "Fixed task-graph defects: orphaned tasks 3.7/3.8, wrong 4.3 dependencies, duplicated 3.4"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Import atomic_write_bytes, not atomic_write_json",
+        "rationale": "atomic_write_json serializes through canonical_json_bytes (sort_keys=True, indent=2). The live .claude/settings.local.json has top-level key order [permissions, disabledMcpjsonServers]; sorted order is the reverse. So the prescribed fix would have re-sorted the file -- trading defect #2 for a tidier version of defect #2 -- and would have broken the idempotent re-run, because canonical bytes differ from the live file's bytes, so a re-run with the wildcard already present would still rewrite it. The seam is at bytes, not objects; refresh-architecture imports at exactly this granularity, which is why the seam exists.",
+        "capability": "setup-coordinator",
+        "supersedes": "D2 as written at Gate 1"
+      },
+      {
+        "title": "This skill resolves agents.yaml itself and passes an explicitly verified path",
+        "rationale": "'Call check_all_vendors unmodified' is not 'call it with no arguments'. load_agents_yaml resolves AGENTS_YAML -> HTTP GET $COORDINATION_API_URL/agents/dispatch-configs -> $CWD/agent-coordinator/agents.yaml -> {}. That chain has no $COORDINATOR_DIR step at all, silently reaches the network, and fails open with an empty roster and exit 0 instead of the required non-zero. Its explicit-path branch is guarded by exists(), so passing a path that does not exist falls through to the network branch too -- the miss must be caught before the call, not after.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Report only <vendor>-local agents declaring a non-empty cli.command",
+        "rationale": "check_all_vendors returns every agent carrying a cli block, which currently includes claude-remote and codex-remote -- dispatch destinations, not harnesses installed on this host. Passing them through double-counts claude and codex against a contract that promises one entry per <vendor>-local agent, and asserts host-local presence about a remote runner. The non-empty-command guard is load-bearing because check_vendor defaults a missing command to the empty string while the contract declares cli_command with minLength 1.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "The red phase needs an executable 'before'",
+        "rationale": "Today's behavior is bash-and-Python inside a markdown fence. There is nothing to import and nothing to run, so 'the test must fail against current behavior' has no referent, and an instruction with no referent gets quietly dropped. Task 2.0 transcribes SKILL.md:211-232 into tests/setup-coordinator/legacy_shim.py and every settings-writer test is parametrized over {legacy, new}. This makes the red phase reproducible, documents the four defects as executable claims, and keeps failing forever so a future refactor reintroducing any of them is caught.",
+        "capability": "setup-coordinator",
+        "supersedes": "D7 as written at Gate 1"
+      },
+      {
+        "title": "Contract nullable fields are required, not optional",
+        "rationale": "JSON Schema if/then over properties is vacuously satisfied when a key is absent, so the 'unknown implies null remediation' constraint the contracts README calls load-bearing did not bite -- a producer could escape it by omitting the fields. Making config_artifact, config_present, and remediation required-with-nullable-types closes that, and a config_missing branch was added so the state that does emit a login instruction can only be reached when a declared artifact was actually checked and actually absent. Verified behaviorally: omitting the three fields on an unknown-state report now yields 3 errors; claiming a remediation yields 1.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "A verification gate that cannot fail is decoration",
+        "rationale": "The testpaths gate ran pytest --collect-only against an explicitly named suite directory, which bypasses testpaths entirely and passes identically whether or not task 1.2 landed -- the exact fail-open the plan itself warned about. Three more were the same shape: the contract gate shelled out to bare python3 (which has no pyyaml) and ignored the exit code, validate_install_manifest.py was invoked without its required --skills-root so it would exit 2 on an argparse error, and the SKILL.md size gate allowed 100 lines against a stated 120-150 target.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Registering a smoke entrypoint widens a gate this package cannot write to",
+        "rationale": "skills/tests/install_sh/test_consumer_portability.py executes every smoke_entrypoints entry inside a freshly installed payload with PYTHONPATH stripped. Task 4.2 therefore turns --help into a consumer-portability gate, and that suite is outside wp-integration's write_allow while being invalidated by its manifest edit. Added as task 4.5a plus an explicit verification step, per the repo's write_allow-misses-invalidated-files convention.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Fast-forward the managed worktree at .git-worktrees/make-setup-coordinator-script-backed: its local branch ref is still at cf9a4c25 while origin is at 99e746c8. Refinements were committed from an isolated agent worktree because the harness blocked both git operations and file writes against the shared checkout.",
+      "Implementation order is unchanged: task 1.2 (testpaths registration) first, verified by a --collect-only run with NO path argument.",
+      "Task 2.0 (legacy_shim transcription) now precedes all settings-writer tests and is a hard prerequisite for the red phase being real.",
+      "Budget the SKILL.md rewrite against ~90-120 usable lines, not 150 -- the tail block that test_skill_md.py newly requires consumes 25-30 and does not exist today.",
+      "wp-integration must run skills/tests/install_sh/ (task 4.5a) because its install-manifest.json edit invalidates that suite."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+        "description": "decisions D1, D1a, D1b, D2 (corrected), D3-D7 (D7 rewritten), D8, D9"
+      },
+      {
+        "path": "openspec/changes/make-setup-coordinator-script-backed/tasks.md",
+        "description": "adds 1.3a, 1.3b, 2.0, 4.5a; fixes 3.4, 4.3, 4.5 dependencies; adds V.7, V.8"
+      },
+      {
+        "path": "openspec/changes/make-setup-coordinator-script-backed/work-packages.yaml",
+        "description": "four corrected gates plus three added ones; wp-core now covers 1.1-3.9"
+      },
+      {
+        "path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
+        "description": "1 MODIFIED + 5 ADDED requirements; adds network-abstinence, roster-filtering, non-canonical-input, and consumer-payload scenarios"
+      },
+      {
+        "path": "openspec/changes/make-setup-coordinator-script-backed/contracts/harness-report.schema.json",
+        "description": "canonical --json output contract, with required nullable fields and a config_missing branch"
+      },
+      {
+        "path": "skills/project-context-runtime/scripts/atomic.py",
+        "description": "canonical_json_bytes at lines 31-40 is why atomic_write_json is the wrong import here"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/vendor_health.py",
+        "description": "load_agents_yaml at lines 110-155 is the resolution chain D1a works around"
+      }
+    ]
+  }
+}

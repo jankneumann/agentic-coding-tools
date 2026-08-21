@@ -129,7 +129,9 @@
       "coordination-bridge"
     ],
     "setup-coordinator": [
-      "coordination-bridge"
+      "coordination-bridge",
+      "parallel-infrastructure",
+      "project-context-runtime"
     ],
     "supervise": [
       "plan-roadmap",
@@ -375,6 +377,12 @@
     }
   },
   "smoke_entrypoints": [
+    {
+      "path": "setup-coordinator/scripts/setup_coordinator.py",
+      "args": [
+        "--help"
+      ]
+    },
     {
       "path": "merge-pull-requests/scripts/discover_prs.py",
       "args": [

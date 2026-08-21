@@ -13,347 +13,136 @@ triggers:
 
 # Setup Coordinator
 
-Configure coordinator access for local and cloud agent runtimes, verify capability detection, and capture fallback expectations.
+Configure coordinator access for local and cloud agent runtimes and verify
+capability detection. The deterministic half of that work belongs to one tested
+entrypoint; this file carries only what the entrypoint cannot — which transport
+applies, when HTTP is the right answer, and what a failure means.
 
 ## Transport Model
 
-The coordinator has two transports — **MCP (stdio)** and **HTTP** — both backed by the same service layer and shared Postgres database. Coordination happens at the database level, not the transport level.
+The coordinator has two transports — **MCP (stdio)** and **HTTP** — both backed
+by the same service layer and the same Postgres database. Coordination happens
+at the database level, not the transport level.
 
 | Scenario | Transport | Database |
 |----------|-----------|----------|
-| Local (solo or multi-agent) | MCP (stdio) → direct Postgres | Local ParadeDB |
-| Cloud agents | HTTP → Coordination API | Railway Postgres |
+| Local (solo or multi-agent) | MCP (stdio) to direct Postgres | Local ParadeDB |
+| Cloud agents | HTTP to Coordination API | Railway Postgres |
 | Cross-environment (local + cloud) | Local: HTTP bridge, Cloud: HTTP | Railway Postgres |
 
-For local development, multiple CLI agents (Claude, Codex) each spawn their own MCP server process, all connecting to the same local ParadeDB. No cloud infrastructure needed.
+## When to use HTTP
 
-For cross-environment coordination, local agents switch to the HTTP transport via `coordination_bridge.py` so the database is not publicly exposed.
+- **Cloud or web agents** that cannot run an MCP stdio process at all.
+- **Cross-environment coordination**, where local and cloud agents share state.
+  Local agents switch to HTTP through the `coordination-bridge` sibling so the
+  database is never publicly exposed.
 
-## Arguments
+For local-only multi-agent work MCP is sufficient — every CLI agent spawns its
+own server process against the same ParadeDB. Reaching for HTTP there adds a
+network hop and an API key to a path that already had neither.
 
-`$ARGUMENTS` - Optional flags:
+## Entrypoint
 
-- `--profile <local|railway>` (default: read from `COORDINATOR_PROFILE` env var, fallback `local`)
-- `--mode <auto|cli|web>` (default: `auto`)
-- `--http-url <url>` (for HTTP verification)
-- `--api-key <key>` (for HTTP verification)
-- `--coordinator-dir <path>` (optional external coordinator checkout for local
-  MCP setup; fallback `COORDINATOR_DIR`)
+Every deterministic step is a subcommand: `--profile <local|railway>` defaults
+to `COORDINATOR_PROFILE` then `local`, `--root <path>` names the repository
+whose settings file is read or written, and `--json` gives machine-readable
+output. Resolve `<skill-base-dir>` to the directory holding this `SKILL.md`. An
+external coordinator checkout is named by `COORDINATOR_DIR`; the HTTP path needs
+only `COORDINATION_API_URL` and works with no checkout at all.
 
-Resolve `<skill-base-dir>` to the directory containing this loaded `SKILL.md`.
-The HTTP path is fully portable and requires only the co-installed
-`coordination-bridge` sibling. Local MCP registration is optional and requires
-an explicitly configured external coordinator checkout; this skill never
-assumes that `agent-coordinator/` was bundled into a consumer repository.
-
-## Objectives
-
-- Load deployment profile (`local` or `railway`) and apply configuration
-- Register MCP server with CLI agents (Claude Code, Codex CLI)
-- Configure HTTP access for cloud agents and cross-environment coordination
-- Read `agents.yaml` to determine which agents to configure
-- Verify capability detection contract used by integrated skills
-- Confirm graceful standalone fallback when coordinator is unavailable
-
-## Steps
-
-### 1. Determine Profile and Setup Mode
+| Step | Subcommand |
+|---|---|
+| Which harnesses are installed on this host | `detect-harnesses` |
+| Profile resolution and precondition report | `check` |
+| Allow-list coordination tools in Claude Code | `configure --root <path>` |
+| Capability-flag summary | `report` |
 
 ```bash
-PROFILE=local   # Parse --profile from $ARGUMENTS, or read COORDINATOR_PROFILE env var
-MODE=auto       # Parse --mode from $ARGUMENTS when provided
+<skill-base-dir>/scripts/setup_coordinator.py check --profile local --root .
+<skill-base-dir>/scripts/setup_coordinator.py detect-harnesses --json
+<skill-base-dir>/scripts/setup_coordinator.py configure --root .
+<skill-base-dir>/scripts/setup_coordinator.py report --json
 ```
 
-- Profiles: `local` (MCP + Docker), `railway` (HTTP + cloud)
-- Modes: `auto` (run both CLI and Web checks), `cli` (MCP only), `web` (HTTP only)
+`check` reports, per precondition, whether it is satisfied and — when it is not
+— the exact operator command that satisfies it. Preconditions whose truth
+cannot be established without starting a process are reported as `UNKNOWN` with
+that command rather than guessed.
 
-### 1a. Load Profile and Check Secrets
+`detect-harnesses` reports **presence only**. A vendor shown as `ready` has its
+CLI on PATH and its configuration artifact on disk; neither proves a valid or
+unexpired credential. A vendor with no detectable configuration location is
+reported `unknown`, never `config_missing`, because it has no login command to
+recommend. A degraded run sets its flag and lists reasons, so an incomplete
+report is never mistaken for a host with nothing installed.
 
-```bash
-# Local source is required only when CLI/MCP checks are selected. Web mode is
-# independently runnable from an installed skill through the public HTTP API.
-COORDINATOR_DIR="${COORDINATOR_DIR:-}"
-if [ "$MODE" != "web" ]; then
-  if [ -z "$COORDINATOR_DIR" ] || [ ! -d "$COORDINATOR_DIR" ]; then
-    echo "Local MCP setup requires --coordinator-dir or COORDINATOR_DIR." >&2
-    echo "Use --mode web with COORDINATION_API_URL for a source-free setup." >&2
-    exit 2
-  fi
+`configure` is the only subcommand that writes anything, and it writes exactly
+one file: the Claude Code permissions allow-list. The write is atomic, scoped to
+`permissions.allow`, and a no-op when the wildcard is already there.
 
-  if [ ! -f "$COORDINATOR_DIR/.secrets.yaml" ]; then
-    cp "$COORDINATOR_DIR/.secrets.yaml.example" "$COORDINATOR_DIR/.secrets.yaml"
-    echo "Created .secrets.yaml from template — fill in real values before continuing."
-  fi
-elif [ -z "${COORDINATION_API_URL:-}" ]; then
-  echo "Web setup requires COORDINATION_API_URL." >&2
-  exit 2
-fi
+## Operator-owned steps
 
-# Profile loading happens automatically via config.py when COORDINATOR_PROFILE is set
-export COORDINATOR_PROFILE="$PROFILE"
-```
-
-Read `agents.yaml` to determine which agents need configuration:
-
-- **MCP agents** (transport: mcp): generate vendor-specific MCP config via `get_mcp_env(agent_id)`
-- **HTTP agents** (transport: http): derive `COORDINATION_API_KEY_IDENTITIES` via `get_api_key_identities()`
-
-### 2. Validate Coordinator Runtime Prerequisites
-
-#### Local profile
+These are published by the coordinator checkout and stay operator-invoked. The
+entrypoint reports whether each has taken effect; it never performs them.
 
 ```bash
-# The coordinator checkout owns its compose contract. Invoke it through its
-# public deployment surface instead of importing private src modules.
-docker compose --project-directory "$COORDINATOR_DIR" \
-  -f "$COORDINATOR_DIR/docker-compose.yml" up -d
-
-# Coordinator API health
-curl -s "http://localhost:${API_PORT:-8081}/health"
-```
-
-#### Railway profile
-
-```bash
-# Verify COORDINATION_API_URL resolves (from profile + secrets)
-curl -s "$COORDINATION_API_URL/health"
-
-# Bridge-level detection (HTTP contract)
-python3 "<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py" detect
-```
-
-If health fails, fix the explicitly configured external runtime first (for
-example, run its documented compose/API startup with `DB_BACKEND=postgres`).
-
-### 3. CLI Path (MCP) Setup and Verification
-
-Run this section when mode is `auto` or `cli`.
-
-#### 3a. Register MCP server with CLI agents
-
-Use the explicitly configured coordinator checkout's public setup targets to
-register with each CLI's native `mcp add` command:
-
-```bash
-# Register with all CLI agents at once
+cp "$COORDINATOR_DIR/.secrets.yaml.example" "$COORDINATOR_DIR/.secrets.yaml"
+docker compose --project-directory "$COORDINATOR_DIR" -f "$COORDINATOR_DIR/docker-compose.yml" up -d
 make -C "$COORDINATOR_DIR" mcp-setup
-
-# Or register individually:
-make -C "$COORDINATOR_DIR" claude-mcp-setup
-make -C "$COORDINATOR_DIR" codex-mcp-setup
-```
-
-Each target registers the coordination MCP server with:
-- Absolute path to the venv Python binary (`.venv/bin/python -m src.coordination_mcp`)
-- `DB_BACKEND=postgres` and `POSTGRES_DSN` pointing to local ParadeDB
-- Provider-specific identity by default:
-  - Claude Code: `AGENT_ID=claude-code-1`, `AGENT_TYPE=claude_code`
-  - Codex CLI: `AGENT_ID=codex-1`, `AGENT_TYPE=codex`
-- `COORDINATION_API_URL` and `COORDINATION_API_KEY` (optional) — enables HTTP proxy fallback when the local DB is unavailable
-- Claude Code also gets `cwd` via `add-json` (Codex doesn't need it — all file lookups use `Path(__file__)`)
-
-Pass `AGENT_ID=... AGENT_TYPE=...` to preserve the old behavior of using one
-identity for every target, or pass `CLAUDE_AGENT_ID` or `CODEX_AGENT_ID` to
-override one provider only.
-
-Restart each CLI after registration to activate.
-
-**HTTP proxy fallback**: When `POSTGRES_DSN` is unreachable at startup and `COORDINATION_API_URL` is set to a reachable coordinator (e.g., `https://coord.rotkohl.ai`), the MCP server automatically proxies tool calls through the HTTP API instead of the local database. Set `COORDINATION_ALLOWED_HOSTS` to allow remote hosts (e.g., `coord.rotkohl.ai`) past the SSRF allowlist. See `src/http_proxy.py` for details.
-
-#### 3a.1. Install lifecycle hooks (status reporting & notifications)
-
-Lifecycle hooks auto-register agents on session start, report status after each turn (heartbeat), and deregister on exit. They install at **user scope** so they work from any repo:
-
-```bash
-# Install for all agents at once
 make -C "$COORDINATOR_DIR" hooks-setup
-
-# Or individually:
-make -C "$COORDINATOR_DIR" claude-hooks-setup
-make -C "$COORDINATOR_DIR" codex-hooks-setup
 ```
 
-**How each agent gets lifecycle integration:**
-
-| Agent | Mechanism | Events |
-|-------|-----------|--------|
-| Claude Code | `~/.claude/settings.json` | SessionStart, Stop, SubagentStop, SessionEnd |
-| Codex CLI | `~/.codex/hooks.json` | SessionStart, Stop |
-
-Hook scripts use absolute paths under `$COORDINATOR_DIR/scripts/`, so they
-resolve correctly regardless of the current working directory.
-The installed Claude and Codex commands do not set `AGENT_ID`, `AGENT_TYPE`,
-`COORDINATION_API_URL`, or `COORDINATION_API_KEY` inline. They inherit
-`COORDINATION_API_URL` and `COORDINATION_API_KEY` from the current run
-environment, and the coordinator resolves `agent_id` / `agent_type` from the
-API-key identity mapping when the key is bound in server config.
-
-#### 3a.2. Configure notifications (optional)
-
-To receive push notifications (approvals, escalations, stale agents) set:
-
-```bash
-export NOTIFICATION_CHANNELS=gmail    # gmail, telegram, webhook (comma-separated)
-export SMTP_HOST=smtp.gmail.com
-export SMTP_PORT=587
-export SMTP_USER=you@gmail.com
-export SMTP_PASSWORD=your-app-password
-export NOTIFICATION_RECIPIENT_EMAIL=you@gmail.com
-export NOTIFICATION_ALLOWED_SENDERS=you@gmail.com
-```
-
-Reply to notification emails to approve/deny, unblock escalations, or inject guidance. Omit `NOTIFICATION_CHANNELS` to disable.
-
-#### 3b. Allow-list coordination tools in Claude Code permissions
-
-After MCP registration, ensure all coordination tools are allow-listed so they don't trigger permission prompts during workflow execution:
-
-```bash
-# Check if mcp__coordination__* is already in settings.local.json
-SETTINGS_FILE=".claude/settings.local.json"
-
-if ! grep -q 'mcp__coordination__\*' "$SETTINGS_FILE" 2>/dev/null; then
-  # Add the wildcard permission using python3 for safe JSON manipulation
-  python3 -c "
-import json, pathlib
-p = pathlib.Path('$SETTINGS_FILE')
-settings = json.loads(p.read_text()) if p.exists() else {}
-perms = settings.setdefault('permissions', {}).setdefault('allow', [])
-# Remove any individual mcp__coordination__ entries
-perms[:] = [e for e in perms if not e.startswith('mcp__coordination__') or e == 'mcp__coordination__*']
-perms.append('mcp__coordination__*')
-p.parent.mkdir(parents=True, exist_ok=True)
-p.write_text(json.dumps(settings, indent=2) + '\n')
-print('Added mcp__coordination__* to permissions allow-list')
-"
-else
-  echo "mcp__coordination__* already in permissions"
-fi
-```
-
-This replaces any individual coordination tool entries (e.g., `mcp__coordination__submit_work`) with the single wildcard `mcp__coordination__*`.
-
-#### 3c. Verify MCP capabilities
-
-Verify the MCP server is connected in each CLI:
-
-```bash
-claude mcp list   # Should show: coordination → ✓ Connected
-codex mcp list    # Should show: coordination → enabled
-```
-
-Verify tool discovery includes coordinator tools:
-
-- `acquire_lock`, `release_lock`
-- `submit_work`, `get_work`, `complete_work`
-- `write_handoff`, `read_handoff`
-- `remember`, `recall`
-- `check_guardrails`
-
-Expected detection result in integrated skills:
-
-- `COORDINATION_TRANSPORT=mcp`
-- `COORDINATOR_AVAILABLE=true`
-- `CAN_*` flags reflect discovered MCP tools
-
-### 4. HTTP Path Setup and Verification
-
-Run this section when mode is `auto` or `web`, or when local agents need to coordinate with cloud agents.
-
-#### 4a. When to use HTTP
-
-- **Cloud/web agents** that cannot run MCP stdio processes
-- **Cross-environment coordination** where local and cloud agents share state — local agents switch to HTTP via `coordination_bridge.py` so the database is not publicly exposed
-
-For local-only multi-agent coordination, MCP is sufficient — all agents connect to the same local ParadeDB.
-
-#### 4b. Configure HTTP access
-
-Set runtime secrets/env:
-
-```bash
-export COORDINATION_API_URL="https://your-app.railway.app"
-export COORDINATION_API_KEY="<your-provisioned-api-key>"
-# Allow Railway hosts in SSRF filter
-export COORDINATION_ALLOWED_HOSTS="your-app.railway.app,your-app-production.up.railway.app"
-```
-
-Verify detection and capability flags:
-
-```bash
-curl -s "$COORDINATION_API_URL/health"
-# Expected: {"status": "ok", "db": "connected", "version": "0.2.0"}
-
-python3 "<skill-base-dir>/../coordination-bridge/scripts/coordination_bridge.py" detect \
-  --http-url "$COORDINATION_API_URL" \
-  --api-key "$COORDINATION_API_KEY"
-```
-
-Expected detection result in integrated skills:
-
-- `COORDINATION_TRANSPORT=http`
-- `COORDINATOR_AVAILABLE=true`
-- `CAN_*` flags reflect reachable HTTP endpoints for that credential scope
-
-If only some endpoints are available, keep `COORDINATOR_AVAILABLE=true` and set missing capabilities to `false`.
-
-For server deployment details, consult
-`$COORDINATOR_DIR/docs/cloud-deployment.md` in the explicitly configured
-external coordinator checkout.
-
-### 5. Capability Summary and Hook Expectations
-
-For the active runtime, summarize:
-
-- Transport: `mcp`, `http`, or `none`
-- Capability flags: `CAN_LOCK`, `CAN_QUEUE_WORK`, `CAN_HANDOFF`, `CAN_MEMORY`, `CAN_GUARDRAILS`
-- Which hooks will activate in each workflow skill
-
-Hook activation rule:
-
-- A hook runs only when its `CAN_*` flag is true.
-
-### 6. Fallback and Troubleshooting
-
-If setup fails (connectivity, auth, policy, or missing tools/endpoints):
-
-- Report exact failing step and error
-- Keep skill workflow in standalone mode (`COORDINATOR_AVAILABLE=false`, `COORDINATION_TRANSPORT=none`)
-- Do not block feature workflow execution on coordinator setup failure
-
-Common checks:
-
-- API key validity (`X-API-Key` acceptance on write endpoints)
-- Runtime network allowlist / egress restrictions
-- MCP server process and env variables
-- Coordinator `/health` reachability
-- Railway health check failing: verify `POSTGRES_DSN` uses private network URL
-- SSRF blocking cloud URL: add hostname to `COORDINATION_ALLOWED_HOSTS`
-- API key rejected: verify `COORDINATION_API_KEYS` on server matches client key
+Fill in real values in `.secrets.yaml` first, and restart each CLI after MCP
+registration. Hook installation is user-scoped and applies from any repository.
 
 ## Profile Configuration
 
-An external coordinator checkout uses YAML deployment profiles under
-`$COORDINATOR_DIR/profiles/`, with inheritance and `${VAR}` secret
-interpolation from `$COORDINATOR_DIR/.secrets.yaml`. Existing environment
-variables win.
+Deployment profiles are YAML under `$COORDINATOR_DIR/profiles/`, with
+inheritance and `${VAR}` interpolation from `$COORDINATOR_DIR/.secrets.yaml`;
+existing environment variables win. `local.yaml` selects MCP plus local
+ParadeDB, `railway.yaml` selects HTTP plus the cloud deployment, `base.yaml`
+holds shared defaults. Agent identity comes from `AGENTS_YAML` when set and
+otherwise `$COORDINATOR_DIR/agents.yaml` — never from the network.
 
-- `local.yaml`: MCP transport, Docker auto-start, ParadeDB on localhost
-- `railway.yaml`: HTTP transport, Railway cloud deployment
-- `base.yaml`: Shared defaults inherited by both
+## Fallback and Troubleshooting
 
-Agent identity is declared by `AGENTS_YAML` when set, otherwise by
-`$COORDINATOR_DIR/agents.yaml` for explicitly configured local setup.
+Setup failure must not block feature work. Report the failing step and its error,
+then continue standalone with `COORDINATOR_AVAILABLE=false`, transport `none`.
 
-## Backend Note
+- API key rejected: the server's `COORDINATION_API_KEYS` must contain the key.
+- SSRF filter blocking a cloud URL: add the host to `COORDINATION_ALLOWED_HOSTS`.
+- Railway health check failing: `POSTGRES_DSN` must use the private network URL.
+- MCP server shows disconnected: check its process, env vars, and `/health`.
+- Some endpoints missing: keep `COORDINATOR_AVAILABLE=true` and set only the
+  unreachable `CAN_*` flags false.
+- Permission prompts on coordination tools: the allow-list write did not land.
 
-Cloud deployment may use Railway with ParadeDB Postgres. Its deployment files
-belong to the external coordinator service, not this installed skill. Use
-`COORDINATION_API_URL` and `COORDINATION_API_KEY` to consume that service.
+## Common Rationalizations
 
-## Output
+| Rationalization | Reality |
+|---|---|
+| "I will just inline the JSON edit, it is three lines." | Those three lines are the four defects this entrypoint exists to remove. Run `configure`. |
+| "The CLI is installed, so the vendor is authenticated." | Presence is not validity. Nothing here checks credential expiry. |
+| "Detection found nothing, so this host is empty." | Only if the degradation flag is false. A degraded report asserts nothing. |
+| "The roster is missing; I will assume the usual agents." | A guessed roster configures the wrong agents silently. Fix `AGENTS_YAML`. |
+| "`check` reported UNKNOWN, so it is broken." | UNKNOWN means the step needs an operator command that this skill will not run for you. |
 
-- Mode executed (`cli`, `web`, or both)
-- Per-runtime verification summary (transport + capability flags)
-- Failure diagnostics and remediation steps (if any)
-- Standalone fallback confirmation when coordinator is unavailable
+## Red Flags
+
+- Copying a bash fragment out of this file instead of calling a subcommand.
+- Reporting a vendor as ready because its binary exists, without saying that
+  validity was not checked.
+- Writing `.secrets.yaml`, starting a container, or registering an MCP server
+  from inside this skill.
+- Treating an absent vendor as a detection failure, or a degraded report as an
+  empty one.
+- Editing the settings file with a whole-file rewrite, a `grep` guard, or a
+  path relative to the current working directory.
+
+## Verification
+
+1. `check` exits zero, or every unsatisfied precondition names a command.
+2. `detect-harnesses --json` has `degraded: false`, or its `warnings` explain why.
+3. `configure` run twice leaves the settings file byte-identical the second time.
+4. `report` shows the transport you expect and `CAN_*` flags consistent with it.
+5. Coordination tools no longer raise permission prompts during a workflow run.
