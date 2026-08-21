@@ -409,17 +409,42 @@ mirror_tree() {
   done
 }
 
+# True when the target root is the very repository that owns this skills/ tree.
+#
+# The distinction decides who wins when an asset and its installed copy differ.
+# In a consumer repo, openspec/ holds install output and the shipped asset is
+# authoritative, so overwriting is the whole point.  In THIS repository,
+# openspec/ is hand-maintained source that the assets are copied FROM, and
+# overwriting it silently reverts whatever feature work last edited it --
+# three schemas were rolled back that way before this guard existed.
+is_self_install() {
+  local target_skills
+  target_skills="$(canonicalize_existing_dir "$TARGET_ROOT/skills" 2>/dev/null || true)"
+  [[ -n "$target_skills" && "$target_skills" == "$SCRIPT_DIR" ]]
+}
+
 sync_skill_openspec_assets() {
   local mode="$1"
   local assets_seen=0
   local files_seen=0
+  local -a drifted=()
+  # Counted separately: bash 3.2 (still /bin/bash on macOS) errors on
+  # ${#drifted[@]} for an empty array under `set -u`, the same reason
+  # mirror_tree above expands its arrays with the ${a[@]+"${a[@]}"} idiom.
+  local drift_count=0
+  local self_install=0
 
   if [[ "$mode" == "none" ]]; then
     echo "OpenSpec skill assets: skipped (--openspec-assets none)"
     return 0
   fi
 
+  is_self_install && self_install=1
+
   printf '\nSkill-owned OpenSpec assets (mode=%s)\n' "$mode"
+  [[ $self_install -eq 1 ]] && \
+    echo "  (self-install: openspec/ is source here, so differing files are reported, not overwritten)"
+
   for skill_path in "${skills[@]}"; do
     local skill_name assets_dir
     skill_name="$(basename "$skill_path")"
@@ -432,16 +457,35 @@ sync_skill_openspec_assets() {
       echo "  openspec-assets  $skill_name (print)"
       while IFS= read -r asset_file; do
         local rel_asset
-        rel_asset="${asset_file#$assets_dir/}"
+        rel_asset="${asset_file#"$assets_dir"/}"
         echo "    openspec/$rel_asset"
         files_seen=$((files_seen + 1))
       done < <(find "$assets_dir" -type f | sort)
       continue
     fi
 
-    mkdir -p "$TARGET_ROOT/openspec"
-    mirror_tree "$assets_dir" "$TARGET_ROOT/openspec"
-    files_seen=$((files_seen + $(find "$assets_dir" -type f | wc -l | tr -d ' ')))
+    # Copy file by file rather than mirroring the tree, so an individual
+    # destination can be compared before it is replaced.
+    while IFS= read -r asset_file; do
+      local rel_asset dest_file
+      rel_asset="${asset_file#"$assets_dir"/}"
+      dest_file="$TARGET_ROOT/openspec/$rel_asset"
+      files_seen=$((files_seen + 1))
+
+      if [[ -f "$dest_file" ]] && cmp -s "$asset_file" "$dest_file"; then
+        continue  # already identical
+      fi
+
+      if [[ $self_install -eq 1 && -f "$dest_file" ]]; then
+        drifted+=("openspec/$rel_asset (shipped by $skill_name)")
+        drift_count=$((drift_count + 1))
+        continue
+      fi
+
+      mkdir -p "$(dirname "$dest_file")"
+      cp -p "$asset_file" "$dest_file"
+    done < <(find "$assets_dir" -type f | sort)
+
     echo "  openspec-assets  $skill_name -> openspec/"
   done
 
@@ -451,6 +495,19 @@ sync_skill_openspec_assets() {
   fi
 
   echo "OpenSpec assets processed: $assets_seen skill(s), $files_seen file(s)"
+
+  if [[ $drift_count -gt 0 ]]; then
+    # Reported, never silently applied.  Nothing here can tell which side is
+    # newer, so the installer refuses to choose and leaves openspec/ intact.
+    echo
+    echo "WARNING: $drift_count OpenSpec asset(s) differ from this repository's openspec/ copy:" >&2
+    local entry
+    for entry in ${drifted[@]+"${drifted[@]}"}; do
+      echo "  $entry" >&2
+    done
+    echo "Left openspec/ untouched. Reconcile the two copies -- the openspec/ file is" >&2
+    echo "normally the newer one, so copy it over the skill's install_assets/ copy." >&2
+  fi
 }
 
 check_openspec_cli() {
