@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 # ---------------------------------------------------------------------------
 # sys.path insertion so we can import collector modules from scripts/
@@ -610,16 +612,21 @@ class TestCollectOpenspec:
         assert result.status == "ok"
         assert len(result.findings) == 2
 
-        # ERROR issue on a change, with a file-shaped path.
+        # ERROR issue on a change, with a file-shaped path.  Nothing exists at
+        # /fake/project, so the path does not resolve and file_path stays empty
+        # rather than pointing fix-scrub at a file that is not there.  See
+        # test_change_path_resolves_under_change_dir for the resolving case.
         f0 = result.findings[0]
         assert f0.source == "openspec"
         assert f0.severity == "high"
         assert f0.category == "spec-violation"
         assert "Probe Requirement" in f0.title
         assert "SHALL or MUST" in f0.title
-        assert f0.file_path == "probe-cap/spec.md"
+        assert f0.file_path == ""
         assert "broken-probe" in f0.id
         assert "broken-probe" in f0.detail
+        # The raw pointer is still recoverable from the detail line.
+        assert "probe-cap/spec.md" in f0.detail
 
         # INFO issue on a spec, whose path is a structural pointer rather than
         # a file.  It must not be reported as a file path.
@@ -628,6 +635,154 @@ class TestCollectOpenspec:
         assert "very long" in f1.title
         assert f1.file_path == ""
         assert "requirements[0]" in f1.detail
+
+    @staticmethod
+    def _payload(item_type: str, item_id: str, path: str) -> str:
+        return json.dumps(
+            {
+                "items": [
+                    {
+                        "id": item_id,
+                        "type": item_type,
+                        "valid": False,
+                        "issues": [
+                            {
+                                "level": "ERROR",
+                                "path": path,
+                                "message": "m",
+                            }
+                        ],
+                    }
+                ],
+                "version": "1.0",
+            }
+        )
+
+    @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
+    @patch("collect_openspec.subprocess.run")
+    def test_change_path_resolves_under_change_dir(
+        self, mock_run: MagicMock, mock_which: MagicMock, tmp_path
+    ) -> None:
+        """A change's file-shaped path is item-relative, not repo-relative.
+
+        openspec reports "probe-cap/spec.md" for a delta that actually lives at
+        openspec/changes/<id>/specs/probe-cap/spec.md.  Storing the raw value
+        hands fix-scrub a path that does not exist.
+        """
+        delta = (
+            tmp_path
+            / "openspec/changes/broken-probe/specs/probe-cap/spec.md"
+        )
+        delta.parent.mkdir(parents=True)
+        delta.write_text("## ADDED Requirements\n")
+
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["openspec", "validate"],
+            returncode=1,
+            stdout=self._payload("change", "broken-probe", "probe-cap/spec.md"),
+            stderr="",
+        )
+
+        result = collect_openspec.collect(str(tmp_path))
+
+        assert result.findings[0].file_path == (
+            "openspec/changes/broken-probe/specs/probe-cap/spec.md"
+        )
+        assert (tmp_path / result.findings[0].file_path).is_file()
+
+    @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
+    @patch("collect_openspec.subprocess.run")
+    def test_change_non_delta_file_resolves(
+        self, mock_run: MagicMock, mock_which: MagicMock, tmp_path
+    ) -> None:
+        """A change's own files sit one level above its specs/ directory."""
+        proposal = tmp_path / "openspec/changes/c1/proposal.md"
+        proposal.parent.mkdir(parents=True)
+        proposal.write_text("## Why\n")
+
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["openspec", "validate"],
+            returncode=1,
+            stdout=self._payload("change", "c1", "proposal.md"),
+            stderr="",
+        )
+
+        result = collect_openspec.collect(str(tmp_path))
+
+        assert result.findings[0].file_path == (
+            "openspec/changes/c1/proposal.md"
+        )
+
+    @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
+    @patch("collect_openspec.subprocess.run")
+    def test_spec_path_resolves_under_spec_dir(
+        self, mock_run: MagicMock, mock_which: MagicMock, tmp_path
+    ) -> None:
+        """A spec's file-shaped path resolves under openspec/specs/<id>/."""
+        spec = tmp_path / "openspec/specs/cap/spec.md"
+        spec.parent.mkdir(parents=True)
+        spec.write_text("# cap\n")
+
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["openspec", "validate"],
+            returncode=1,
+            stdout=self._payload("spec", "cap", "spec.md"),
+            stderr="",
+        )
+
+        result = collect_openspec.collect(str(tmp_path))
+
+        assert result.findings[0].file_path == "openspec/specs/cap/spec.md"
+
+    @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
+    @patch("collect_openspec.subprocess.run")
+    def test_unresolvable_file_path_is_dropped(
+        self, mock_run: MagicMock, mock_which: MagicMock, tmp_path
+    ) -> None:
+        """A path that resolves to nothing on disk yields no file_path.
+
+        Emitting a best guess would recreate the defect this resolution exists
+        to fix -- a confident pointer to a file that is not there.  The raw
+        value stays in the detail line for a human to follow.
+        """
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["openspec", "validate"],
+            returncode=1,
+            stdout=self._payload("change", "ghost", "nowhere/spec.md"),
+            stderr="",
+        )
+
+        result = collect_openspec.collect(str(tmp_path))
+
+        assert result.findings[0].file_path == ""
+        assert "nowhere/spec.md" in result.findings[0].detail
+
+    @pytest.mark.parametrize("pointer", ["requirements[0]", "overview", "file"])
+    @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
+    @patch("collect_openspec.subprocess.run")
+    def test_structural_pointers_are_not_file_paths(
+        self,
+        mock_run: MagicMock,
+        mock_which: MagicMock,
+        pointer: str,
+        tmp_path,
+    ) -> None:
+        """Structural pointers emitted by openspec are never file paths.
+
+        All three shapes are captured from openspec 1.9.0: "requirements[0]"
+        indexes a parsed document, "overview" names a section, and "file" is
+        what a change with no deltas at all reports.
+        """
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["openspec", "validate"],
+            returncode=1,
+            stdout=self._payload("change", "c1", pointer),
+            stderr="",
+        )
+
+        result = collect_openspec.collect(str(tmp_path))
+
+        assert result.findings[0].file_path == ""
 
     @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
     @patch("collect_openspec.subprocess.run")

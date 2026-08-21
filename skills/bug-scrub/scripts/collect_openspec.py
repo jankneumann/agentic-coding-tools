@@ -19,6 +19,7 @@ indistinguishable from a clean repository.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -48,21 +49,54 @@ def _slugify(text: str, max_len: int = 40) -> str:
     return slug.strip("-")[:max_len]
 
 
-def _as_file_path(path: str) -> str:
-    """Return ``path`` when it denotes a file, else "".
+def _candidate_paths(path: str, item_type: str, item_id: str) -> list[str]:
+    """Repository-relative candidates for an issue's item-relative ``path``.
 
-    An issue's ``path`` is either a file relative to the change or spec
-    directory ("probe-cap/spec.md") or a structural pointer into the parsed
-    document ("requirements[0]").  Only the former belongs in Finding.file_path
-    -- reporting a pointer as a file path sends fix-scrub looking for a file
-    that does not exist.
+    openspec reports a file-shaped path relative to the *item*, not the
+    repository root.  A change's "probe-cap/spec.md" lives at
+    ``openspec/changes/<id>/specs/probe-cap/spec.md``; a spec's would live
+    under ``openspec/specs/<id>/``.  Ordered most- to least-likely, plus the
+    raw value last in case a future CLI starts reporting repo-relative paths.
+    """
+    candidates: list[str] = []
+    if item_type == "change":
+        candidates.append(f"openspec/changes/{item_id}/specs/{path}")
+        # Non-delta files of a change (proposal.md, tasks.md) sit one level up.
+        candidates.append(f"openspec/changes/{item_id}/{path}")
+    elif item_type == "spec":
+        candidates.append(f"openspec/specs/{item_id}/{path}")
+    candidates.append(path)
+    return candidates
+
+
+def _as_file_path(
+    path: str, item_type: str, item_id: str, project_dir: str
+) -> str:
+    """Resolve an issue's ``path`` to a repository-relative file, else "".
+
+    An issue's ``path`` is either a file relative to its item ("probe-cap/
+    spec.md") or a structural pointer into the parsed document
+    ("requirements[0]", "overview", "file").  Only the former belongs in
+    Finding.file_path -- reporting a pointer as a file path sends fix-scrub
+    looking for a file that does not exist.
+
+    A file-shaped path is resolved against the item it belongs to and returned
+    only if it is actually on disk.  An unresolvable path yields "" rather than
+    a plausible-looking guess, for the same reason: a wrong path is worse than
+    no path.  The raw pointer survives in the finding's detail either way.
     """
     if not path or "[" in path:
         return ""
-    return path if "." in path.rsplit("/", 1)[-1] else ""
+    if "." not in path.rsplit("/", 1)[-1]:
+        return ""
+
+    for candidate in _candidate_paths(path, item_type, item_id):
+        if os.path.isfile(os.path.join(project_dir, candidate)):
+            return candidate
+    return ""
 
 
-def _parse_findings(payload: dict) -> list[Finding]:
+def _parse_findings(payload: dict, project_dir: str) -> list[Finding]:
     """Extract findings from a parsed ``openspec validate --json`` payload."""
     findings: list[Finding] = []
     for item in payload.get("items", []):
@@ -91,7 +125,9 @@ def _parse_findings(payload: dict) -> list[Finding]:
                         f"{level or 'ISSUE'} in {item_type}/{item_id}"
                         f"{f' at {path}' if path else ''}: {message}"
                     ),
-                    file_path=_as_file_path(path),
+                    file_path=_as_file_path(
+                        path, item_type, item_id, project_dir
+                    ),
                 ),
             )
     return findings
@@ -188,7 +224,7 @@ def collect(project_dir: str) -> SourceResult:
             ],
         )
 
-    findings = _parse_findings(payload)
+    findings = _parse_findings(payload, project_dir)
 
     messages: list[str] = []
     if result.returncode != 0:
