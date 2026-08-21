@@ -234,7 +234,7 @@ Test tasks precede the implementation they verify (TDD red → green).
 
 - [x] 4.2a Checkpoint: run tests, review diff, verify scope
 
-- [ ] 4.3 Rewrite `SKILL.md` to ~120-150 lines — keep the transport table,
+- [x] 4.3 Rewrite `SKILL.md` to ~120-150 lines — keep the transport table,
       when-to-use-HTTP guidance, and troubleshooting list; replace every bash
       fragment with a script invocation; add the required tail block
       **Design decisions**: D4, D8, D9
@@ -247,7 +247,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       `skills/setup-coordinator/scripts/...` in an executable context is rejected
       by the payload linter (D8), as are markdown links outside the payload
 
-- [ ] 4.4 Add `test_skill_md.py` importing from `skill_invariants` (not `conftest`)
+- [x] 4.4 Add `test_skill_md.py` importing from `skill_invariants` (not `conftest`)
       **Dependencies**: 4.3
       **Size**: XS
       **Note**: this introduces the tail-block requirement rather than merely
@@ -276,7 +276,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       cannot fail for a third-party import at module scope, which is precisely the
       condition it would be claimed to enforce
 
-- [ ] 4.6 Run `bash skills/install.sh --check` to confirm the standalone payload
+- [x] 4.6 Run `bash skills/install.sh --check` to confirm the standalone payload
       **Spec scenarios**:
       "Entrypoint loads in a consumer payload with no source checkout"
       **Dependencies**: 4.2, 4.3
@@ -285,7 +285,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       enforced by 4.5's linter and by code review, not here — see 4.5a for why the
       installed-payload suite cannot fail on a third-party module-scope import
 
-- [ ] 4.7 Checkpoint: run full skills suite, ruff, review diff, verify scope
+- [x] 4.7 Checkpoint: run full skills suite, ruff, review diff, verify scope
 
 ## Verification
 
