@@ -2,13 +2,13 @@
 
 ## Phase 1 — Schema and artifact registration
 
-- [ ] 1.1 Write tests for the decision-choices JSON schema
+- [x] 1.1 Write tests for the decision-choices JSON schema
   **Spec scenarios**: skill-workflow.1 (Ledger pair is schema-valid), skill-workflow.3 (Unreported decision is flagged)
   **Contracts**: openspec/schemas/decision-choices.schema.json
   **Design decisions**: D1, D4
   **Dependencies**: None
   **Size**: S
-- [ ] 1.2 Add openspec/schemas/decision-choices.schema.json
+- [x] 1.2 Add openspec/schemas/decision-choices.schema.json
   **Design decisions**: D1, D3, D4
   **Dependencies**: 1.1
   **Size**: S
