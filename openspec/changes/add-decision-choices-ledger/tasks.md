@@ -44,7 +44,7 @@
   **Design decisions**: D2
   **Dependencies**: 2.2
   **Size**: S
-- [ ] Checkpoint: run tests, review diff, verify scope
+- [x] Checkpoint: run tests, review diff, verify scope
 - [x] 2.4 Write tests for the evidence collector
   **Spec scenarios**: skill-workflow.2 (Auditor writes only the ledger pair)
   **Design decisions**: D5, D7
@@ -59,13 +59,13 @@
   **Design decisions**: D5
   **Dependencies**: 2.5
   **Size**: S
-- [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 2.7 Write the read-only posture test for the audit driver
+- [x] Checkpoint: run tests, review diff, verify scope
+- [x] 2.7 Write the read-only posture test for the audit driver
   **Spec scenarios**: skill-workflow.2 (Auditor writes only the ledger pair), skill-workflow.6 (Adverse verdicts never block)
   **Design decisions**: D6, D7
   **Dependencies**: 2.5
   **Size**: S
-- [ ] 2.8 Create skills/audit-choices/SKILL.md
+- [x] 2.8 Create skills/audit-choices/SKILL.md
   **Design decisions**: D6, D7
   **Dependencies**: 2.2, 2.5, 2.7
   **Size**: M
