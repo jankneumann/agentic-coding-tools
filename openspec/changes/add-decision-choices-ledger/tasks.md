@@ -45,16 +45,16 @@
   **Dependencies**: 2.2
   **Size**: S
 - [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 2.4 Write tests for the evidence collector
+- [x] 2.4 Write tests for the evidence collector
   **Spec scenarios**: skill-workflow.2 (Auditor writes only the ledger pair)
   **Design decisions**: D5, D7
   **Dependencies**: 1.2
   **Size**: S
-- [ ] 2.5 Create skills/audit-choices/scripts/collect_evidence.py
+- [x] 2.5 Create skills/audit-choices/scripts/collect_evidence.py
   **Design decisions**: D5, D7
   **Dependencies**: 2.4
   **Size**: M
-- [ ] 2.6 Create the session-log cross-reference resolver in collect_evidence.py
+- [x] 2.6 Create the session-log cross-reference resolver in collect_evidence.py
   **Spec scenarios**: skill-workflow.3 (Unreported decision is flagged)
   **Design decisions**: D5
   **Dependencies**: 2.5
