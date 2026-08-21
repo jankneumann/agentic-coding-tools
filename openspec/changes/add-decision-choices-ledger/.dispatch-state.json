@@ -1,0 +1,7 @@
+{
+  "change_id": "add-decision-choices-ledger",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

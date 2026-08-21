@@ -110,3 +110,10 @@ rules:
     - "Limit total length to 500 lines — summarize, do not transcribe"
     - "Session Metadata section must include agent type, session ID(s), date range, and content source"
     - "Artifact is optional — missing session-log.md does not fail validation or block archive"
+
+  choices:
+    - "Artifact is optional — missing choices.json/choices.md does not fail validation or block archive"
+    - "choices.json is the source of truth; choices.md is rendered from it, never hand-edited"
+    - "Entries in choices.md are ordered least-confident-first (low, medium, high); within equal confidence, needs-user before unsound before sound"
+    - "Produced by an independent, read-only auditor pass over git history and planning artifacts — never hand-authored during planning or implementation"
+    - "The auditor never writes to session-log.md, docs/decisions/, or any source file"
