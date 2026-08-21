@@ -12,19 +12,19 @@
   **Design decisions**: D1, D3, D4
   **Dependencies**: 1.1
   **Size**: S
-- [ ] 1.3 Register the choices artifact in feature-workflow schema.yaml
+- [x] 1.3 Register the choices artifact in feature-workflow schema.yaml
   **Design decisions**: D8
   **Dependencies**: 1.2
   **Size**: XS
-- [ ] 1.4 Add templates/choices.md to feature-workflow templates
+- [x] 1.4 Add templates/choices.md to feature-workflow templates
   **Dependencies**: 1.3
   **Size**: XS
-- [ ] Checkpoint: run tests, review diff, verify scope
-- [ ] 1.5 Mirror schema.yaml plus template into plan-feature install_assets
+- [x] Checkpoint: run tests, review diff, verify scope
+- [x] 1.5 Mirror schema.yaml plus template into plan-feature install_assets
   **Design decisions**: D8
   **Dependencies**: 1.3, 1.4
   **Size**: XS
-- [ ] 1.6 Add a choices rules block to openspec/config.yaml
+- [x] 1.6 Add a choices rules block to openspec/config.yaml
   **Dependencies**: 1.3
   **Size**: XS
 
