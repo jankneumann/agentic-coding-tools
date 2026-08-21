@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "change_id": "make-setup-coordinator-script-backed",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "iteration": 0,
   "total_iterations": 0,
   "max_phase_iterations": 3,
@@ -43,57 +43,63 @@
       "phase": "PLAN_ITERATE"
     },
     {
-      "phase": "PLAN_REVIEW",
+      "at": "2026-08-20T23:42:50.434109+00:00",
+      "note": "rounds 1-2, 4/4 quorum. B4/B5 closed. Operator elected apparatus simplification over round 3 (round 2 cost 10.2h; trend 5->7 driven by plan-machinery findings).",
       "outcome": "not_converged",
-      "at": "2026-08-20T23:42:50.434109+00:00",
-      "note": "rounds 1-2, 4/4 quorum. B4/B5 closed. Operator elected apparatus simplification over round 3 (round 2 cost 10.2h; trend 5->7 driven by plan-machinery findings)."
+      "phase": "PLAN_REVIEW"
     },
     {
-      "phase": "PLAN_FIX",
-      "outcome": "complete",
       "at": "2026-08-20T23:42:50.434109+00:00",
-      "note": "legacy_shim apparatus deleted; all 28 scenarios scheduled; orphan gate replaces legacy_shim_red"
+      "note": "legacy_shim apparatus deleted; all 28 scenarios scheduled; orphan gate replaces legacy_shim_red",
+      "outcome": "complete",
+      "phase": "PLAN_FIX"
     },
     {
-      "phase": "IMPLEMENT",
-      "outcome": "complete",
       "at": "2026-08-21T18:19:11.605350+00:00",
-      "note": "both packages; 97 new tests; verified independently by orchestrator (suite, collection-without-path, ruff, orphan gate, dep-direction, contract, behavioral defect tests). No coordinator handoff minted (issue #399)."
-    },
-    {
-      "phase": "IMPL_ITERATE",
-      "outcome": "skipped",
-      "at": "2026-08-21T18:49:31.829151+00:00",
-      "note": "Operator elected VALIDATE-then-PR. Not a fallback and not a failure: plan artifacts already went through 2 multi-vendor rounds (4/4 quorum), and the orchestrator independently re-verified the implementation (97 new tests, 2633 full-tree, all gates, behavioral defect tests)."
-    },
-    {
-      "phase": "IMPL_REVIEW",
-      "outcome": "skipped",
-      "at": "2026-08-21T18:49:31.829151+00:00",
-      "note": "Operator elected VALIDATE-then-PR. Not a fallback and not a failure: plan artifacts already went through 2 multi-vendor rounds (4/4 quorum), and the orchestrator independently re-verified the implementation (97 new tests, 2633 full-tree, all gates, behavioral defect tests)."
-    },
-    {
-      "phase": "VALIDATE",
-      "outcome": "failed",
-      "at": "2026-08-21T22:34:26.847134+00:00",
-      "note": "Blocking: cwd-relative roster fallback (spec-forbidden). Also found the orchestrator's own live evidence was produced BY the defect, and that all 97 tests passed with and without it."
-    },
-    {
-      "phase": "VAL_FIX",
+      "note": "both packages; 97 new tests; verified independently by orchestrator (suite, collection-without-path, ruff, orphan gate, dep-direction, contract, behavioral defect tests). No coordinator handoff minted (issue #399).",
       "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-08-21T18:49:31.829151+00:00",
+      "note": "Operator elected VALIDATE-then-PR. Not a fallback and not a failure: plan artifacts already went through 2 multi-vendor rounds (4/4 quorum), and the orchestrator independently re-verified the implementation (97 new tests, 2633 full-tree, all gates, behavioral defect tests).",
+      "outcome": "skipped",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-08-21T18:49:31.829151+00:00",
+      "note": "Operator elected VALIDATE-then-PR. Not a fallback and not a failure: plan artifacts already went through 2 multi-vendor rounds (4/4 quorum), and the orchestrator independently re-verified the implementation (97 new tests, 2633 full-tree, all gates, behavioral defect tests).",
+      "outcome": "skipped",
+      "phase": "IMPL_REVIEW"
+    },
+    {
       "at": "2026-08-21T22:34:26.847134+00:00",
-      "note": "Fallback removed; 2 mutation-proven tests added. Non-blocking idempotency defect also fixed with 2 tests. Not re-validated by a fresh adversarial pass."
+      "note": "Blocking: cwd-relative roster fallback (spec-forbidden). Also found the orchestrator's own live evidence was produced BY the defect, and that all 97 tests passed with and without it.",
+      "outcome": "failed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-08-21T22:34:26.847134+00:00",
+      "note": "Fallback removed; 2 mutation-proven tests added. Non-blocking idempotency defect also fixed with 2 tests. Not re-validated by a fresh adversarial pass.",
+      "outcome": "complete",
+      "phase": "VAL_FIX"
+    },
+    {
+      "phase": "SUBMIT_PR",
+      "outcome": "complete",
+      "at": "2026-08-21T22:40:35.792262+00:00",
+      "note": "PR #413; rebased onto main (was 61 behind), testpaths conflict resolved keeping both entries"
     }
   ],
   "last_handoff_id": "validate-1",
   "started_at": "2026-08-19T23:48:31.626717+00:00",
-  "phase_started_at": "2026-08-21T22:34:26.847134+00:00",
+  "phase_started_at": "2026-08-21T22:40:35.792262+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": null,
+  "phase_archetype": "runner",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
