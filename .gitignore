@@ -137,6 +137,12 @@ celerybeat.pid
 # Environments
 .env
 .env.cloud
+# Per-host coordinator env files written by scripts/add_agent_keys.py
+# (.env.gx10, .env.<label>, ...) — these carry live API key material.
+.env.*
+!.env.example
+# Generated `railway variable set` scripts — also live key material.
+.railway-vars.*.sh
 .envrc
 .venv
 env/
