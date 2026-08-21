@@ -151,26 +151,26 @@ Test tasks precede the implementation they verify (TDD red → green).
 
 ## Phase 3 — CLI surface
 
-- [ ] 3.1 Write failing tests for the CLI contract — subcommand dispatch, exit-code
+- [x] 3.1 Write failing tests for the CLI contract — subcommand dispatch, exit-code
       discipline, `--json` exclusivity, usage-on-no-subcommand
       **Spec scenarios**: "Subcommand dispatch", "Machine-readable output",
       "No subcommand supplied"
       **Dependencies**: 1.1
       **Size**: S
 
-- [ ] 3.2 Implement the argparse surface — `main(argv=None) -> int`,
+- [x] 3.2 Implement the argparse surface — `main(argv=None) -> int`,
       `cmd_*(args) -> int` handlers, per-subcommand `--json` with
       `dest="json_output"`
       **Spec scenarios**: as 3.1
       **Dependencies**: 3.1, 1.4, 2.2
       **Size**: M
 
-- [ ] 3.3 Write failing tests for profile resolution — `--profile` precedence over
+- [x] 3.3 Write failing tests for profile resolution — `--profile` precedence over
       `COORDINATOR_PROFILE`, default `local`
       **Dependencies**: 1.1
       **Size**: S
 
-- [ ] 3.4 Extend the 1.3a roster-resolution tests to cover `check` — the same
+- [x] 3.4 Extend the 1.3a roster-resolution tests to cover `check` — the same
       resolver is shared by `check` and `detect-harnesses`, so assert the shared
       helper is reused rather than re-deriving precedence per subcommand
       **Spec scenarios**: "Agents file resolved from configuration"
@@ -179,16 +179,16 @@ Test tasks precede the implementation they verify (TDD red → green).
       **Note**: resolution itself is specified and tested in 1.3a; this task
       exists only to pin that `check` does not grow a second copy of it
 
-- [ ] 3.5 Checkpoint: run tests, review diff, verify scope
+- [x] 3.5 Checkpoint: run tests, review diff, verify scope
 
-- [ ] 3.6 Implement `check` — profile resolution against the YAML directly plus
+- [x] 3.6 Implement `check` — profile resolution against the YAML directly plus
       precondition checks
       **Spec scenarios**: "Agents file resolved from configuration"
       **Design decisions**: D3
       **Dependencies**: 3.3, 3.4, 3.2
       **Size**: M
 
-- [ ] 3.6a Write failing tests for per-step responsibility reporting — for each
+- [x] 3.6a Write failing tests for per-step responsibility reporting — for each
       profile, every precondition is reported as satisfied or not, with the exact
       operator command when not; and the entrypoint starts no container, writes no
       vendor MCP config, installs no hooks, and creates no `.secrets.yaml`
@@ -203,19 +203,19 @@ Test tasks precede the implementation they verify (TDD red → green).
       responsibility was split per step; leaving them unscheduled is what kept B1
       open across two review rounds
 
-- [ ] 3.7 Implement `report` — capability-flag summary rendering
+- [x] 3.7 Implement `report` — capability-flag summary rendering
       **Spec scenarios**: "Local profile setup", "Railway profile setup",
       "Secrets file missing"
       **Dependencies**: 3.6, 3.6a
       **Size**: S
 
-- [ ] 3.8 Implement `configure` — settings write only; emit the `make mcp-setup` /
+- [x] 3.8 Implement `configure` — settings write only; emit the `make mcp-setup` /
       `hooks-setup` commands as reported next steps rather than running them
       **Design decisions**: D3
       **Dependencies**: 3.2, 2.3
       **Size**: S
 
-- [ ] 3.9 Checkpoint: run tests, review diff, verify scope
+- [x] 3.9 Checkpoint: run tests, review diff, verify scope
 
 ## Phase 4 — Manifest, SKILL.md, and gates
 
