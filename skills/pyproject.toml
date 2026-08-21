@@ -119,6 +119,12 @@ testpaths = [
     # upstream-adapted evidence ladder and verdict channel from regressing on a
     # future upstream sync.
     "tests/vision",
+    # setup-coordinator entrypoint suite. Registered as its own task because an
+    # unregistered test directory fails open: pytest collects nothing and the
+    # run is indistinguishable from a suite with zero tests. Verify this entry
+    # by collecting with NO path argument — naming the directory bypasses
+    # `testpaths` and passes identically whether or not this line exists.
+    "tests/setup-coordinator",
     "expedite/scripts/tests",
     # NOTE: validate-feature/scripts/tests, autopilot/scripts/tests,
     # security-review/tests and parallel-infrastructure/tests are deliberately

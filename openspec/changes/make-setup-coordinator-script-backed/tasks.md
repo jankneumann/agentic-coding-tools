@@ -5,14 +5,14 @@ Test tasks precede the implementation they verify (TDD red → green).
 
 ## Phase 1 — Scaffolding and detection
 
-- [ ] 1.1 Create `skills/tests/setup-coordinator/conftest.py` — `sys.path` insert of
+- [x] 1.1 Create `skills/tests/setup-coordinator/conftest.py` — `sys.path` insert of
       `parents[2]/"setup-coordinator"/"scripts"`; **no** `__init__.py` in the dir
       **Spec scenarios**: setup-coordinator "Suite is collected by CI"
       **Design decisions**: D7
       **Dependencies**: None
       **Size**: XS
 
-- [ ] 1.2 Register `"tests/setup-coordinator"` in `testpaths` in `skills/pyproject.toml`
+- [x] 1.2 Register `"tests/setup-coordinator"` in `testpaths` in `skills/pyproject.toml`
       **Spec scenarios**: setup-coordinator "Suite is collected by CI"
       **Dependencies**: 1.1
       **Size**: XS
@@ -21,7 +21,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       Run `--collect-only` with **no path argument**: naming the directory
       bypasses `testpaths` entirely and passes identically whether or not 1.2 landed
 
-- [ ] 1.3 Write failing tests for harness detection — four states, `unknown` for a
+- [x] 1.3 Write failing tests for harness detection — four states, `unknown` for a
       vendor with no declared artifact, and the presence-≠-validity disclaimer
       **Spec scenarios**: "Vendor fully present", "Vendor CLI absent",
       "Vendor has no detectable config location", "Presence is not validity"
@@ -30,7 +30,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       **Size**: M
       **Note**: fixtures fake `PATH` and a temp HOME — never read the real `~`
 
-- [ ] 1.3a Write failing tests for roster resolution and network abstinence —
+- [x] 1.3a Write failing tests for roster resolution and network abstinence —
       `AGENTS_YAML` wins over `$COORDINATOR_DIR/agents.yaml`; an unresolvable
       roster exits non-zero naming both paths tried; with `COORDINATION_API_URL`
       pointed at an unroutable host no request is attempted on either path
@@ -43,7 +43,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       `.exists()`, so a missing resolved path silently falls through to the
       network branch — the miss must be caught before the call, not after
 
-- [ ] 1.3b Write failing tests for roster filtering — `-local` agents only,
+- [x] 1.3b Write failing tests for roster filtering — `-local` agents only,
       vendor key is the agent-id stem, one entry per vendor, agents with an
       empty `cli.command` excluded
       **Spec scenarios**: "Remote and command-less agents are excluded"
@@ -53,7 +53,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       **Note**: the current roster has `claude-remote` and `codex-remote`; an
       unfiltered pass-through double-counts `claude` and `codex`
 
-- [ ] 1.4 Implement `detect-harnesses` — resolve and verify the roster path
+- [x] 1.4 Implement `detect-harnesses` — resolve and verify the roster path
       locally, call `vendor_health.check_all_vendors(path)` unmodified with it,
       filter to `-local`, layer the home-dir artifact table, classify into four
       states in the order cli_missing → unknown → ready/config_missing
@@ -62,7 +62,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       **Dependencies**: 1.3, 1.3a, 1.3b
       **Size**: M
 
-- [ ] 1.4a Write failing tests for degradation reporting — a report whose roster
+- [x] 1.4a Write failing tests for degradation reporting — a report whose roster
       is unreadable or whose sibling module is unavailable sets the degradation
       flag with at least one reason; a fully successful run clears both
       **Spec scenarios**: "Degraded run is distinguishable from an empty one",
@@ -73,7 +73,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       **Note**: the discriminating assertion is that an empty vendor list is NOT
       byte-equal between a failed run and a clean run
 
-- [ ] 1.4b Implement degradation reporting in `detect-harnesses` — populate the
+- [x] 1.4b Implement degradation reporting in `detect-harnesses` — populate the
       flag and reasons, and define the subcommand's exit contract: exit 0 when
       the report was produced (whatever mix of vendor states it contains),
       non-zero only when the report could not be produced at all
@@ -85,7 +85,7 @@ Test tasks precede the implementation they verify (TDD red → green).
       CLI is a normal machine; exiting non-zero for it would make the contract
       gate in wp-core abort before it ever validates the JSON
 
-- [ ] 1.5 Checkpoint: run tests, review diff, verify scope
+- [x] 1.5 Checkpoint: run tests, review diff, verify scope
 
 ## Phase 2 — Settings writer
 
