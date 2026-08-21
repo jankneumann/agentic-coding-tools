@@ -162,25 +162,33 @@ verify_skills_present() {
     claude_count="$(count_skills "$PROJECT_DIR/.claude/skills")"
     agents_count="$(count_skills "$PROJECT_DIR/.agents/skills")"
 
-    # .agents/ is Codex's tree; a repo that only targets Claude legitimately
-    # ships without it, so this is advisory.
-    if [[ "$agents_count" -eq 0 ]]; then
-        log "NOTE: no skills under .agents/skills (fine if this repo targets Claude only)"
-    else
-        log "Skills present: $agents_count under .agents/skills"
-    fi
+    [[ "$claude_count" -gt 0 ]] && log "Skills present: $claude_count under .claude/skills"
+    [[ "$agents_count" -gt 0 ]] && log "Skills present: $agents_count under .agents/skills"
 
-    if [[ "$claude_count" -eq 0 ]]; then
-        log "ERROR: no skills installed under .claude/skills"
+    # Either harness tree satisfies the post-condition.  .claude/ is Claude
+    # Code's and .agents/ is Codex's, and a mirror-layout consumer repo
+    # legitimately ships only the one its harness reads -- failing a healthy
+    # Codex-only checkout because .claude/skills is absent would break the
+    # documented Codex setup script for no reason.  What is never right is
+    # both trees being empty: no harness can discover anything.
+    if [[ "$claude_count" -eq 0 && "$agents_count" -eq 0 ]]; then
+        log "ERROR: no skills installed under .claude/skills or .agents/skills"
         log "       PROJECT_DIR=$PROJECT_DIR"
-        log "       Claude Code discovers skills there; an empty tree means no"
+        log "       Harnesses discover skills there; two empty trees mean no"
         log "       skills are available to this session."
-        log "       Canonical-layout repos rebuild it with the source installer;"
+        log "       Canonical-layout repos rebuild them with the source installer;"
         log "       mirror-layout repos commit the tree directly."
         log "       Check above for a failed installer run or a wrong PROJECT_DIR."
         return 1
     fi
-    log "Skills present: $claude_count under .claude/skills"
+
+    # One empty tree is only worth a note: which one is expected depends on
+    # which harness the repo targets, and this script cannot tell.
+    if [[ "$claude_count" -eq 0 ]]; then
+        log "NOTE: no skills under .claude/skills (fine if this repo targets Codex only)"
+    elif [[ "$agents_count" -eq 0 ]]; then
+        log "NOTE: no skills under .agents/skills (fine if this repo targets Claude only)"
+    fi
 }
 
 # ---------------------------------------------------------------------------
