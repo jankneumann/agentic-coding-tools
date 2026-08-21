@@ -211,13 +211,26 @@ def resolve_agents_yaml(
 
     explicit = environ.get("AGENTS_YAML")
     if explicit:
-        candidate = Path(explicit).expanduser()
+        candidate = Path(explicit).expanduser().absolute()
         tried.append(str(candidate))
         if candidate.is_file():
             return candidate, tried
+    else:
+        tried.append("$AGENTS_YAML (unset)")
 
+    # No cwd-relative last resort. Defaulting the base to a bare
+    # Path(COORDINATOR_DIRNAME) would resolve against the process working
+    # directory, which the spec forbids by name -- and it fails *silently*, in
+    # the sense that the command succeeds from the repository root and fails
+    # from anywhere else with identical environment. That is the same
+    # cwd-dependence chain D1a exists to eliminate, and no test can catch it
+    # while a fallback makes the vulnerable branch unreachable.
     base = coordinator_dir(environ)
-    fallback = (base or Path(COORDINATOR_DIRNAME)) / AGENTS_FILENAME
+    if base is None:
+        tried.append("$COORDINATOR_DIR (unset)")
+        return None, tried
+
+    fallback = (base / AGENTS_FILENAME).absolute()
     tried.append(str(fallback))
     if fallback.is_file():
         return fallback, tried
@@ -458,7 +471,13 @@ def add_coordination_permission(root: Path | str) -> dict:
     collapsed = [item for item in allow if item not in kept and item != WILDCARD]
     desired = [*kept, WILDCARD]
 
-    if already and desired == list(allow):
+    # "Already configured" is about membership, not position. Comparing against
+    # `desired` (which appends the wildcard last) would rewrite a file whose
+    # allow-list already carries the wildcard somewhere other than the end --
+    # reordering an operator's list to satisfy an internal preference, and
+    # breaking "SHALL make no modification" for a file that needs none. Only an
+    # entry that actually has to be collapsed justifies a write.
+    if already and not collapsed:
         return {
             "changed": False,
             "path": str(path),

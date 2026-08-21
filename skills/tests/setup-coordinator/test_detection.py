@@ -318,6 +318,48 @@ def test_resolution_never_falls_back_to_a_cwd_relative_roster(
         )
 
 
+def test_resolution_refuses_cwd_roster_when_coordinator_dir_is_unset(
+    tmp_path, fake_home, monkeypatch
+):
+    """The vulnerable configuration: BOTH env vars unset, cwd holding a roster.
+
+    The sibling test above sets ``COORDINATOR_DIR``, which makes the base
+    non-None and routes past the branch that defaults it. That left the real
+    defect untestable: an implementation defaulting the base to a bare relative
+    ``Path("agent-coordinator")`` passed the whole suite while succeeding from
+    the repository root and failing from every other directory with identical
+    environment.
+    """
+    cwd = tmp_path / "elsewhere"
+    (cwd / "agent-coordinator").mkdir(parents=True)
+    (cwd / "agent-coordinator" / "agents.yaml").write_text(
+        "agents:\n  ghost-local:\n    type: ghost\n    cli:\n      command: ghost\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(cwd)
+
+    with pytest.raises(sc.RosterNotFoundError):
+        sc.build_harness_report(env={}, home=fake_home)
+
+
+def test_unresolvable_roster_reports_both_locations_absolutely(
+    tmp_path, fake_home, monkeypatch
+):
+    """The spec requires naming both locations tried, and a relative path is
+    not a location -- it is a location plus an unstated working directory."""
+    monkeypatch.chdir(tmp_path)
+
+    _, tried = sc.resolve_agents_yaml(env={})
+    assert len(tried) == 2, tried
+    assert any("AGENTS_YAML" in t for t in tried), tried
+    assert any("COORDINATOR_DIR" in t for t in tried), tried
+    for entry in tried:
+        assert not entry.startswith(("agent-coordinator", "./")), (
+            f"{entry!r} is cwd-relative; the report must not depend on where "
+            "the process happened to be started"
+        )
+
+
 # --------------------------------------------------------------------------- #
 # Task 1.3b — roster filtering
 # --------------------------------------------------------------------------- #

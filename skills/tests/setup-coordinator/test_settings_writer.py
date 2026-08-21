@@ -239,6 +239,50 @@ def test_wildcard_in_an_unrelated_key_does_not_count_as_configured(settings_json
 # --------------------------------------------------------------------------- #
 
 
+def test_idempotent_rerun_when_wildcard_is_not_last(settings_json, monkeypatch):
+    """Scenario: Idempotent re-run — position must not matter.
+
+    The sibling test below places the wildcard last, which is where the writer
+    would put it anyway. That left a gap: an implementation comparing the
+    allow-list against ``[*kept, WILDCARD]`` rewrote any file whose wildcard sat
+    earlier, reordering an operator's list to satisfy an internal preference and
+    violating "SHALL make no modification" for a file needing none.
+    """
+    root, target = settings_json(
+        {"permissions": {"allow": [sc.WILDCARD, "Bash(ls:*)"]}, "other": 1}
+    )
+    before = target.read_bytes()
+
+    def _forbidden(*args, **kwargs):  # pragma: no cover - must never run
+        raise AssertionError("idempotent re-run attempted a write")
+
+    monkeypatch.setattr(sc, "_atomic_write_bytes", _forbidden)
+
+    result = sc.add_coordination_permission(root)
+
+    assert result["changed"] is False
+    assert result["reason"] == "already-configured"
+    assert target.read_bytes() == before
+    # Order preserved exactly as the operator wrote it.
+    assert json.loads(before)["permissions"]["allow"][0] == sc.WILDCARD
+
+
+def test_wildcard_present_but_individual_entries_still_collapse(settings_json):
+    """The position fix must not disable collapsing.
+
+    A file carrying both the wildcard and a redundant individual entry still
+    needs a write — "already present" alone is not sufficient grounds to skip.
+    """
+    root, target = settings_json(
+        {"permissions": {"allow": [sc.WILDCARD, "mcp__coordination__recall"]}}
+    )
+
+    result = sc.add_coordination_permission(root)
+
+    assert result["changed"] is True
+    assert json.loads(target.read_text())["permissions"]["allow"] == [sc.WILDCARD]
+
+
 def test_idempotent_rerun_does_not_modify_the_file(settings_json, monkeypatch):
     """Scenario: Idempotent re-run."""
     root, target = settings_json(
