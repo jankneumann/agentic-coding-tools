@@ -90,7 +90,7 @@
         },
         "status": {
           "type": "string",
-          "enum": ["candidate", "approved", "in_progress", "completed", "failed", "blocked", "replan_required", "skipped"],
+          "enum": ["candidate", "approved", "in_progress", "completed", "failed", "blocked", "replan_required", "skipped", "superseded"],
           "description": "Item lifecycle status."
         },
         "priority": {
@@ -107,6 +107,24 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Item IDs that must complete before this item can execute."
+        },
+        "external_depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^:\\s]+:[^:\\s]+$",
+            "description": "A cross-roadmap item reference of the form '<roadmap-id>:<item-id>'."
+          },
+          "description": "Cross-roadmap prerequisites. Each entry is an item_ref '<roadmap-id>:<item-id>' pointing at an item in another roadmap that must reach status 'completed' before this item can execute."
+        },
+        "superseded_by": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^:\\s]+:[^:\\s]+$",
+            "description": "A cross-roadmap item reference of the form '<roadmap-id>:<item-id>'."
+          },
+          "description": "Cross-roadmap item_refs '<roadmap-id>:<item-id>' that supersede this item. Typically paired with status 'superseded'."
         },
         "acceptance_outcomes": {
           "type": "array",

@@ -223,7 +223,7 @@ Caveats:
   last deploy), restore may hit missing-column errors on new tables; restore
   table-by-table (`pg_restore -t <table>`) for the state you care about.
 - Skipping this phase entirely is legitimate: file locks and work-queue
-  entries are ephemeral. Episodic/procedural memory and the audit log are
+  entries are ephemeral. Episodic memory and the audit log are
   the tables worth carrying over.
 
 ### Phase 3 — Create the tunnel

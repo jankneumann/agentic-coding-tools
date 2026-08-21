@@ -2,7 +2,14 @@
 """Tree-sitter-based SQL migration analyzer.
 
 Replaces the regex-based analyze_postgres.py with a proper CST parser.
-Produces the same postgres_analysis.json schema for backward compatibility.
+Produces the same postgres_analysis.json schema for backward compatibility,
+and in the refresh pipeline (step 1.2b) it *overwrites* that module's output —
+so this is the analyzer whose view of the schema reaches the graph.
+
+Like analyze_postgres.py, it replays migrations in order and applies removals
+as well as creations, via the shared ``arch_utils.sql_drops`` semantics: a
+directory read as an append-only set of ``CREATE`` statements keeps describing
+dropped tables (issue #386).
 
 Usage:
     python scripts/analyze_sql_treesitter.py <migrations_directory> \
@@ -20,6 +27,10 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from arch_utils import sql_drops  # noqa: E402
 
 logger = logging.getLogger("analyze_sql_treesitter")
 
@@ -355,6 +366,15 @@ class TreeSitterSchemaParser:
         statements = _split_statements(source)
 
         for stmt_text, stmt_line in statements:
+            # Removals are matched on text, not through the CST: the generic
+            # SQL grammar mangles them (`DROP TABLE a, b` leaves the second
+            # name in an ERROR node, `DROP TRIGGER x ON t` does not parse at
+            # all), and their syntax is trivial enough that text is both
+            # simpler and more accurate. A statement fully consumed here needs
+            # no CST pass; an ALTER TABLE that also adds still gets one.
+            if sql_drops.apply_drop_statement(self, stmt_text):
+                continue
+
             tree = self.parser.parse(stmt_text.encode("utf8"))
             root = tree.root_node
 
@@ -967,8 +987,9 @@ class TreeSitterSchemaParser:
         ]
         widest = sorted(
             [{"table": t.name, "column_count": len(t.columns)} for t in self.tables.values()],
-            key=lambda x: x["column_count"],
-            reverse=True,
+            # Table name breaks column-count ties so the cut at 10 selects the
+            # same tables on every run (issue #362).
+            key=lambda x: (-x["column_count"], x["table"]),
         )[:10]
 
         summary = {

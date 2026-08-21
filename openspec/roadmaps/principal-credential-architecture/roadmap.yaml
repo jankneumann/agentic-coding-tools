@@ -1,0 +1,112 @@
+schema_version: 1
+roadmap_id: principal-credential-architecture
+source_proposal: openspec/roadmaps/principal-credential-architecture/proposal.md
+status: planning
+items:
+- item_id: pca-01
+  title: Registry-derived identity and trust
+  change_id: derive-agent-identity-from-registry
+  status: approved
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Make agents.yaml the single source of truth for agent identity and
+    trust. Remove the transport == "http" filter on API-key identity generation, sync
+    DB agent_profiles from the registry at coordinator startup (upsert; disable rows
+    the registry no longer names), unify the trust scale to one 0-4 definition across
+    YAML schema, DB constraint, and policy-engine tiers, make missing projections for
+    known agents fail loud, rewrite setup_cloud.py as a thin wrapper deriving its
+    roster from the registry, and add a CI invariant test proving every registry agent
+    resolves to a profile, an identity, and a posture.
+  rationale: The add-agy-grok-pi-harnesses change updated dispatch plumbing but not
+    authorization plumbing, and nothing failed - the new harnesses silently run at
+    trust 2 with no identities from the canonical file. Fail-open drift across four
+    disconnected layers (agents.yaml, env vars, DB profiles, OpenBao) is the root
+    cause; collapsing to one declared source with derived projections is the fix that
+    requires no OpenBao and unblocks every later phase.
+  acceptance_outcomes:
+  - Adding a harness to agents.yaml is sufficient for it to authenticate with the
+    declared trust level; CI fails when any projection cannot be derived
+  - resolve_trust_level() returns the registry-declared value for every registry agent;
+    the silent trust-2 fallback for known agents is gone
+  - Retired gemini/strands profile rows are disabled by the sync; setup_cloud.py
+    contains no second agent roster
+  - One trust scale (0-4, named levels) is validated identically in YAML schema, DB
+    constraint, and policy-engine tier thresholds
+- item_id: pca-02
+  title: Per-agent OpenBao secrets done right
+  change_id: restructure-openbao-per-agent-secrets
+  status: planning
+  priority: 2
+  effort: M
+  depends_on:
+  - pca-01
+  description: Rework bao_seed.py to per-agent AppRoles named by SPIFFE ID, per-agent
+    KV paths (secret/agents/<name>, secret/vendors/<vendor>) and least-privilege
+    policies, and response-wrapped single-use secret_id delivery. Remove the shared
+    BAO_SECRET_ID bootstrap. Coordinator loads its identity map from OpenBao with
+    periodic hot-reload so rotation needs no redeploy. Fail-open OpenBao resolution
+    becomes fail-loud with an audit event.
+  rationale: The current seeding gives every agent the same bootstrap secret and read
+    access to one shared KV path holding all coordination and vendor keys - any one
+    compromised agent can impersonate or read every other. Fixing the secret topology
+    before more keys migrate into Bao caps the blast radius while keys are still
+    static.
+  acceptance_outcomes:
+  - No two agents share a secret_id, KV path, or policy; an agent's Bao token cannot
+    read another agent's secrets (integration test against dev-mode OpenBao)
+  - Rotating any agent's coordination key takes effect without coordinator restart
+  - OpenBao resolution errors for a configured agent produce a hard failure plus an
+    audit event, never a silent static fallback
+- item_id: pca-03
+  title: Issued session credentials replace static keys
+  change_id: replace-static-api-keys-with-session-tokens
+  status: planning
+  priority: 3
+  effort: L
+  depends_on:
+  - pca-02
+  description: Add POST /auth/session with a pluggable authenticator seam (initially
+    OpenBao token lookup backed by AppRole login) returning short-TTL signed session
+    tokens shaped like JWT-SVIDs (sub = SPIFFE ID, aud = coordinator, trust/profile
+    claims). All authenticated endpoints validate tokens statelessly. Delete
+    COORDINATION_API_KEYS and COORDINATION_API_KEY_IDENTITIES; retire setup_cloud.py
+    key minting; signing key lives in OpenBao.
+  rationale: Static long-lived keys in env vars require redeploy to rotate, are equal
+    in power, and constitute standing credentials. The bootstrap-credential ->
+    authentication -> short-lived session -> authorization-by-claims shape is the
+    practice this repo exists to demonstrate, and the authenticator seam keeps
+    Kubernetes service-account or CI OIDC validation adoptable later without rework.
+  acceptance_outcomes:
+  - No standing coordination credential exists in any env var, file, or Railway
+    variable
+  - Revoking an agent is one AppRole revocation; its next session request fails
+  - A second authenticator can be added without modifying existing ones (seam
+    demonstrated by a test double)
+- item_id: pca-04
+  title: Unified dispatch posture
+  change_id: unify-dispatch-posture-resolution
+  status: planning
+  priority: 4
+  effort: M
+  depends_on:
+  - pca-03
+  description: resolve_posture(principal, dispatch_mode) -> {trust, isolation,
+    vendor_credentials} becomes the single per-dispatch decision consumed by
+    guardrails/policy, the sandbox renderer (dg-07's srt seam, later OpenShell), and
+    credential injection - the dispatch adapter fetches only the listed vendor
+    credentials from OpenBao and injects them into the subprocess env. Consumes
+    dg-07's renderer and the task router's isolation output rather than re-deciding
+    them.
+  rationale: Trust level, isolation mode, and credential scope are three facets of one
+    dispatch decision currently spread across inert config, an advisory policy
+    service, and ambient developer-uid credentials. Unifying them behind one resolver
+    is what makes OpenShell adoption a renderer-plus-authenticator addition and gives
+    the audit trail a complete per-dispatch posture record.
+  acceptance_outcomes:
+  - One audit event per dispatch records the full resolved posture (principal, trust,
+    isolation, credential scope, authenticator)
+  - A dispatched pi subprocess env contains the OpenRouter key and no other vendor
+    secret
+  - OpenShell adoption is a renderer + authenticator addition, demonstrated by a
+    contract test against the seam interfaces

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/schemas/traceability-exclusions.schema.json",
+  "title": "Requirement traceability exclusions",
+  "description": "Per-capability exclusions for requirements that legitimately have no contracted operation, at openspec/contracts/<capability>/traceability-exclusions.yaml. The file's existence is also the capability's reverse-enforcement opt-in (design D13): creating it is the act of triaging the capability's requirement set, so the switch cannot be flipped without doing the work it certifies. An empty exclusion list is valid and means every requirement must be cited. Shape lifted from check_coverage_completeness.py's exclusion list, per design D4.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["exclusions"],
+  "properties": {
+    "exclusions": {
+      "type": "array",
+      "description": "Requirements excused from reverse completeness, each with a reason a reviewer can weigh. An exclusion naming a requirement that no longer resolves fails the gate — a stale exclusion keeps a slot warm for the next requirement to reuse the slug, inheriting an approval nobody granted it.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requirement", "reason"],
+        "properties": {
+          "requirement": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]*$",
+            "description": "The excluded requirement's identifier, `<capability>.<slug-of-heading>`. The capability prefix MUST be the owning capability — the one whose directory holds this file. A cross-capability exclusion fails the gate naming both capabilities. Cross-capability *citations* are permitted (D9), but exclusions are not, and the asymmetry is deliberate: a citation adds a claim the cited capability can audit, whereas an exclusion discharges an obligation that capability owns and cannot see. JSON Schema cannot express the constraint (the schema has no access to the file's own path), so it is enforced by the gate and stated here."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Why no operation serves this requirement. Written for a reviewer, not for the checker. Say what would have to change for the exclusion to be removed. `Enforced by review; no interface` is a reason. `N/A` is not."
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "exclusions": []
+    },
+    {
+      "exclusions": [
+        {
+          "requirement": "gen-eval-framework.scenario-files-are-validated-on-load",
+          "reason": "Served by the framework API, not the CLI surface; no contracted operation exposes it directly. Would need a citation if a CLI flag or endpoint ever fronted it."
+        }
+      ]
+    }
+  ]
+}

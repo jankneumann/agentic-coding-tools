@@ -168,6 +168,11 @@ class ProfilesConfig:
     default_trust_level: int = 2  # Standard trust for unregistered agents
     enforce_resource_limits: bool = True
     cache_ttl_seconds: int = 300  # Profile cache TTL
+    # Startup projection of agents.yaml onto agent_profiles (design D1).
+    # Enabled by default — that IS the intended behavior; setting
+    # PROFILE_SYNC_ENABLED=false is the documented rollback lever (design D8)
+    # that restores pre-sync runtime behavior.
+    sync_enabled: bool = True
 
     @classmethod
     def from_env(cls) -> ProfilesConfig:
@@ -182,6 +187,10 @@ class ProfilesConfig:
             cache_ttl_seconds=int(
                 os.environ.get("PROFILES_CACHE_TTL", "300")
             ),
+            sync_enabled=os.environ.get(
+                "PROFILE_SYNC_ENABLED", "true"
+            ).lower()
+            == "true",
         )
 
 
@@ -416,11 +425,19 @@ class ApiConfig:
         else:
             # Auto-populate from agents.yaml when no explicit env var is set.
             try:
-                from src.agents_config import get_api_key_identities
+                from src.agents_config import (
+                    DuplicateApiKeyError,
+                    get_api_key_identities,
+                )
 
                 identities = get_api_key_identities()
             except FileNotFoundError:
                 logger.debug("agents.yaml not found — skipping API key identity auto-population")
+            except DuplicateApiKeyError:
+                # Deliberately NOT swallowed (design D6): two principals sharing
+                # a key is an identity-confusion bug, and degrading to an empty
+                # identity map would hide it behind a warning.
+                raise
             except Exception:  # noqa: BLE001
                 logger.warning(
                     "Could not auto-populate API key identities from agents.yaml",

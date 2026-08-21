@@ -7,8 +7,10 @@ database, or the architecture analyzer toolchain.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -24,7 +26,7 @@ from _runtime import (
     ValidationResult,
     ValidationStatus,
 )
-from models import OperationState, SemanticIndexStatus
+from models import ChangeKind, OperationState, RepositoryArtifact, SemanticIndexStatus
 from registry import Producer, ProducerSpec, register
 from semantic_adapter import SemanticIndexOutcome
 from store import OperationStore
@@ -559,6 +561,95 @@ def test_reuse_rewrites_a_corrupted_manifest(tmp_path):
     )
     assert second.manifest_sha256 == first.manifest_sha256
     assert json.loads(manifest.read_text())["refresh_status"] == "succeeded"
+
+
+class _WritingProducer(Producer):
+    """A fake that materializes an artifact and records its digest."""
+
+    def __init__(self, pid: str, relative_path: str, content: str):
+        self.spec = ProducerSpec(
+            producer_id=pid,
+            producer_version="1",
+            owner="fake-owner",
+            inputs=("x",),
+            outputs=(relative_path,),
+        )
+        self.relative_path = relative_path
+        self.content = content
+        self.runs = 0
+
+    def run(self, mode, repository, source_revision):  # noqa: ANN001
+        self.runs += 1
+        target = Path(repository) / self.relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(self.content, encoding="utf-8")
+        base = _result(self.spec.producer_id, ProducerStatus.FRESH)
+        return replace(
+            base,
+            artifacts=(
+                RepositoryArtifact(
+                    path=self.relative_path,
+                    change=ChangeKind.MODIFIED,
+                    sha256=hashlib.sha256(self.content.encode()).hexdigest(),
+                ),
+            ),
+        )
+
+
+def test_succeeded_reuse_verifies_artifacts_against_the_worktree(tmp_path):
+    # Issue #385: the operation ledger lives in the shared git common dir and is
+    # keyed on (repository_id, revision), so a succeeded record alone is not
+    # evidence that THIS worktree contains the recorded artifacts — a sibling
+    # worktree at the same HEAD, or local tampering, satisfies the key. Reuse
+    # must re-verify the recorded digests and regenerate in place on mismatch.
+    producer = _WritingProducer(
+        "documentation.inventory", "docs/generated.md", "canonical\n"
+    )
+    _register_fakes(producer)
+    store = _store(tmp_path)
+    first = orchestrator.generate(
+        tmp_path, revision=FULL_SHA, store=store,
+        architecture=_fresh_architecture, semantic_indexer=_ok_indexer,
+    )
+    assert first.outcome is OperationState.SUCCEEDED
+    artifact = tmp_path / "docs" / "generated.md"
+    assert artifact.read_text(encoding="utf-8") == "canonical\n"
+    runs_after_first = producer.runs
+
+    artifact.write_text("tampered\n", encoding="utf-8")
+
+    second = orchestrator.generate(
+        tmp_path, revision=FULL_SHA, store=store,
+        architecture=_fresh_architecture, semantic_indexer=_ok_indexer,
+    )
+    assert second.operation_id == first.operation_id
+    assert producer.runs > runs_after_first, (
+        "reuse returned the record verbatim without re-running producers"
+    )
+    assert artifact.read_text(encoding="utf-8") == "canonical\n", (
+        "reuse did not restore the tampered artifact in this worktree"
+    )
+
+
+def test_succeeded_reuse_with_current_artifacts_does_not_rerun(tmp_path):
+    # The verification must not tax the honest path: matching digests keep the
+    # verbatim-reuse behavior (no producer re-run, no repository diff).
+    producer = _WritingProducer(
+        "documentation.inventory", "docs/generated.md", "canonical\n"
+    )
+    _register_fakes(producer)
+    store = _store(tmp_path)
+    orchestrator.generate(
+        tmp_path, revision=FULL_SHA, store=store,
+        architecture=_fresh_architecture, semantic_indexer=_ok_indexer,
+    )
+    runs_after_first = producer.runs
+
+    orchestrator.generate(
+        tmp_path, revision=FULL_SHA, store=store,
+        architecture=_fresh_architecture, semantic_indexer=_ok_indexer,
+    )
+    assert producer.runs == runs_after_first
 
 
 def test_architecture_fallback_is_constructible_and_degrades(tmp_path):

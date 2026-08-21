@@ -43,6 +43,16 @@ def setup_env(monkeypatch):
     monkeypatch.setenv("AGENT_TYPE", "test_agent")
     monkeypatch.setenv("SESSION_ID", "test-session-1")
     monkeypatch.setenv("LOCK_TTL_MINUTES", "30")
+    # Startup registry projection is OFF by default under test. Tests that build
+    # the app with `with TestClient(app)` run the lifespan, and the projection
+    # would try to read agent_profiles from the fake Supabase URL above and fail
+    # boot — correctly, since sync failure is deliberately not swallowed
+    # (design D1/D3). Disabling it here declares "this test does not exercise the
+    # projection" rather than weakening the production contract. The suites that
+    # DO exercise it (test_profile_sync.py, test_registry_projection.py) delenv
+    # this in their own fixtures to restore the enabled default, and
+    # test_coordination_api.py pins the fail-loud lifespan wiring explicitly.
+    monkeypatch.setenv("PROFILE_SYNC_ENABLED", "false")
 
     # Reset global singletons after each test
     yield

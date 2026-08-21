@@ -371,14 +371,23 @@ else
   SECURITY_EXIT=$?
 
   if [ $SECURITY_EXIT -eq 0 ]; then
-    SECURITY_RESULT="pass"
-    echo "Security: PASS — No threshold findings"
+    # Exit 0 under --allow-degraded-pass can mean "no findings" OR "a scanner
+    # never ran and we passed anyway". Those are different facts, so read the
+    # gate reasons rather than trusting the exit code alone (D6).
+    if grep -q "DEGRADED" docs/security-review/gate.json 2>/dev/null; then
+      SECURITY_RESULT="DEGRADED"
+      SECURITY_NOT_CHECKED=$(python3 -c "import json,sys; print('; '.join(r for r in json.load(open('docs/security-review/gate.json')).get('reasons', []) if 'DEGRADED' in r))" 2>/dev/null)
+      echo "Security: DEGRADED — ${SECURITY_NOT_CHECKED:-a scanner did not run; coverage incomplete}"
+    else
+      SECURITY_RESULT="pass"
+      echo "Security: PASS — No threshold findings"
+    fi
   elif [ $SECURITY_EXIT -eq 10 ]; then
     SECURITY_RESULT="fail"
     echo "Security: FAIL — Threshold findings detected"
   elif [ $SECURITY_EXIT -eq 11 ]; then
-    SECURITY_RESULT="degraded"
-    echo "Security: INCONCLUSIVE — Scanners degraded (check prerequisites)"
+    SECURITY_RESULT="DEGRADED"
+    echo "Security: DEGRADED (INCONCLUSIVE) — Scanners could not run (check prerequisites)"
   else
     SECURITY_RESULT="fail"
     echo "Security: ERROR — Unexpected exit code $SECURITY_EXIT"
@@ -387,6 +396,21 @@ fi
 ```
 
 The Security phase reuses the `/security-review` skill's scripts without requiring a separate invocation. The `--allow-degraded-pass` flag ensures missing prerequisites (Java, container runtime) degrade gracefully instead of blocking validation.
+
+Write `$SECURITY_RESULT` into `validation-report.md` verbatim — including `DEGRADED`
+— together with a one-line "what was not checked and why". `DEGRADED` is **not** a
+pass: `gate_logic.py` blocks the pre-merge gate on a DEGRADED required phase unless the
+operator passes `--accept-degraded Security`, and that override is echoed into the gate
+summary:
+
+```bash
+# Blocks: Security could not be checked
+python3 "<skill-base-dir>/scripts/gate_logic.py" openspec/changes/"$CHANGE_ID"/validation-report.md
+
+# Proceeds, recording the override in the gate summary
+python3 "<skill-base-dir>/scripts/gate_logic.py" openspec/changes/"$CHANGE_ID"/validation-report.md \
+  --accept-degraded Security
+```
 
 ### 6. E2E Phase
 
@@ -397,6 +421,7 @@ The Security phase reuses the `/security-review` skill's scripts without requiri
 # Skip if --skip-e2e flag was provided
 if [ "$SKIP_E2E" = true ]; then
   echo "SKIP: E2E phase skipped (--skip-e2e flag)"
+  E2E_RESULT="skip"
 else
   # Check if pytest-playwright is installed
   if python3 -c "import playwright" 2>/dev/null; then
@@ -410,10 +435,12 @@ else
 
   if [ -z "$E2E_DIR" ]; then
     echo "SKIP: No tests/e2e/ directory found. Skipping E2E phase."
+    E2E_RESULT="skip"
   elif [ "$PLAYWRIGHT_AVAILABLE" = false ]; then
-    echo "SKIP: pytest-playwright not installed. To install:"
+    echo "DEGRADED: E2E tests were NOT CHECKED because pytest-playwright is unavailable. To install:"
     echo "  pip install pytest-playwright"
     echo "  playwright install chromium"
+    E2E_RESULT="DEGRADED"
   else
     echo "Running E2E tests from $E2E_DIR..."
     pytest "$E2E_DIR" -v --tb=short 2>&1
@@ -431,39 +458,78 @@ fi
 ### 6b. Architecture Diagnostics Phase
 
 **Phase name:** `architecture`
-**Criticality:** Non-critical (continues on failure)
+**Criticality:** Config-ratcheted via `gates.architecture.mode` in `architecture.config.yaml`
+(OpenSpec `introduce-fitness-function-gates`, D4)
 
-Run architecture flow validation and structural linters against the changed files:
+| `gates.architecture.mode` | Effect |
+|---|---|
+| `advisory` (shipped default, and the fallback when the config file is absent or unreadable) | Findings are reported prominently in `validation-report.md` with their severities; the phase is **not** in `REQUIRED_PHASES` and never fails a run. |
+| `blocking` | `"Architecture"` joins `REQUIRED_PHASES` in `gate_logic.py`; a new dependency cycle (`severity_thresholds.new_cycle: critical`) fails the pre-merge gate. |
+
+The flip to `blocking` is a deliberate one-line config change made after
+`clean_runs_before_flip` (3) clean advisory runs, recorded with a date and rationale —
+not something a validation run decides for itself. Report the findings either way:
+
+```bash
+python3 -c "import sys; sys.path.insert(0, '<skill-base-dir>/scripts'); \
+  import gate_logic; print(gate_logic.architecture_mode())"
+```
+
+Run the baseline architecture diff, flow validation, and structural linters
+against the changed files. The diff producer runs first so new dependency cycles
+exist as findings before gate_logic.architecture_status() evaluates the phase:
 
 ```bash
 # Get changed files relative to main
-CHANGED_FILES=$(git diff --name-only main...HEAD | tr '\n' ',')
+CHANGED_FILES=$(git diff --name-only main...HEAD | tr "\n" ",")
+
+# --- Sub-phase 0: Baseline graph diff (new-cycle producer) ---
+ARCH_BASE_SHA=$(git merge-base main HEAD)
+ARCH_DIFF="docs/architecture-analysis/architecture.diff.json"
+if [ -f Makefile ] && [ -f "docs/architecture-analysis/architecture.graph.json" ]; then
+  echo "Running architecture baseline diff against $ARCH_BASE_SHA..."
+  if make architecture && make architecture-diff BASE_SHA="$ARCH_BASE_SHA"; then
+    ARCH_NEW_CYCLES=$(python3 -c "import json; d=json.load(open(\"$ARCH_DIFF\")); print(d[\"summary\"][\"new_cycles\"])")
+    ARCH_DIFF_RESULT=$(python3 -c "import json,sys; sys.path.insert(0, \"<skill-base-dir>/scripts\"); import gate_logic; d=json.load(open(\"$ARCH_DIFF\")); findings=[{\"category\": \"new_cycle\", \"description\": \"New dependency cycle: \" + \" -> \".join(c)} for c in d[\"details\"][\"new_cycles\"]]; print(gate_logic.architecture_status(findings))")
+    echo "Architecture diff: $ARCH_NEW_CYCLES new cycle(s); gate status: $ARCH_DIFF_RESULT"
+  else
+    echo "DEGRADED: Architecture baseline diff was NOT CHECKED because the producer failed"
+    ARCH_DIFF_RESULT="DEGRADED"
+  fi
+else
+  echo "DEGRADED: Architecture baseline diff was NOT CHECKED because Makefile or graph artifacts are unavailable"
+  ARCH_DIFF_RESULT="DEGRADED"
+fi
 
 # --- Sub-phase 1: Flow validation (validate_flows.py) ---
 if [ -f "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" ] && [ -f "docs/architecture-analysis/architecture.graph.json" ]; then
   echo "Running architecture flow validation on changed files..."
+  # Scoped run: omit --output so the validator writes the scoped artifact
+  # (architecture.diagnostics.scoped.json) rather than the committed full-scope
+  # architecture.diagnostics.json, which only refresh-architecture full run
+  # should produce.
+  ARCH_DIAGNOSTICS="docs/architecture-analysis/architecture.diagnostics.scoped.json"
   python3 "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" \
     --graph docs/architecture-analysis/architecture.graph.json \
-    --output docs/architecture-analysis/architecture.diagnostics.json \
     --files "$CHANGED_FILES" 2>&1
   ARCH_EXIT=$?
 
   if [ $ARCH_EXIT -eq 0 ]; then
-    ARCH_RESULT="pass"
-    ARCH_ERRORS=$(python3 -c "import json; d=json.load(open('docs/architecture-analysis/architecture.diagnostics.json')); print(d['summary']['errors'])" 2>/dev/null || echo 0)
-    ARCH_WARNINGS=$(python3 -c "import json; d=json.load(open('docs/architecture-analysis/architecture.diagnostics.json')); print(d['summary']['warnings'])" 2>/dev/null || echo 0)
+    FLOW_RESULT="pass"
+    ARCH_ERRORS=$(python3 -c "import json; d=json.load(open(\"$ARCH_DIAGNOSTICS\")); print(d[\"summary\"][\"errors\"])" 2>/dev/null || echo 0)
+    ARCH_WARNINGS=$(python3 -c "import json; d=json.load(open(\"$ARCH_DIAGNOSTICS\")); print(d[\"summary\"][\"warnings\"])" 2>/dev/null || echo 0)
     if [ "$ARCH_ERRORS" -gt 0 ]; then
-      ARCH_RESULT="fail"
+      FLOW_RESULT="fail"
     elif [ "$ARCH_WARNINGS" -gt 0 ]; then
-      ARCH_RESULT="warn"
+      FLOW_RESULT="warn"
     fi
   else
-    ARCH_RESULT="fail"
+    FLOW_RESULT="fail"
   fi
 else
-  echo "SKIP: Architecture flow validation not available (missing scripts or artifacts)"
-  echo "  Run 'make architecture' to generate architecture artifacts"
-  ARCH_RESULT="skip"
+  echo "DEGRADED: Architecture flow validation was NOT CHECKED (missing scripts or artifacts)"
+  echo "  Run make architecture to generate architecture artifacts"
+  FLOW_RESULT="DEGRADED"
 fi
 
 # --- Sub-phase 2: Structural linters (dependency direction, file-size, naming) ---
@@ -477,21 +543,35 @@ if [ $LINTER_EXIT -eq 0 ]; then
   LINTER_RESULT="pass"
 else
   LINTER_RESULT="fail"
-  # Merge linter findings into architecture phase result
-  if [ "$ARCH_RESULT" != "fail" ]; then
-    ARCH_RESULT="fail"
-  fi
 fi
 
 echo "Structural linters: $LINTER_RESULT"
+
+# Aggregate without allowing a later passing sub-phase to erase an earlier
+# failure or unavailable checker.
+ARCH_RESULT="pass"
+for SUBPHASE_RESULT in "$ARCH_DIFF_RESULT" "$FLOW_RESULT" "$LINTER_RESULT"; do
+  if [ "$SUBPHASE_RESULT" = "fail" ]; then
+    ARCH_RESULT="fail"
+  elif [ "$SUBPHASE_RESULT" = "DEGRADED" ] && [ "$ARCH_RESULT" != "fail" ]; then
+    ARCH_RESULT="DEGRADED"
+  elif [ "$SUBPHASE_RESULT" = "warn" ] && [ "$ARCH_RESULT" = "pass" ]; then
+    ARCH_RESULT="warn"
+  fi
+done
 ```
 
-Report architecture diagnostics including broken flows, missing test coverage, orphaned code, disconnected endpoints, dependency direction violations, oversized files, and naming convention issues. Structural linter findings are output in `review-findings.schema.json` format for integration with the consensus synthesizer.
+Render architecture.diff.json in validation-report.md before running the hard
+gate, including its summary.new_cycles count and every details.new_cycles path.
+Also report broken flows, missing test coverage, orphaned code, disconnected
+endpoints, dependency direction violations, oversized files, and naming convention
+issues. Structural linter findings are output in review-findings.schema.json format
+for integration with the consensus synthesizer.
 
 ### 7. Spec Compliance Phase (via Change Context)
 
 **Phase name:** `spec`
-**Criticality:** Non-critical (continues on failure) — EXCEPT the task-drift gate (7.0) which is CRITICAL within this phase.
+**Criticality:** Non-critical (continues on failure) — EXCEPT the task-drift gate (7.0) and the requirement-traceability gate (7.0b), which are CRITICAL within this phase.
 
 #### 7.0. Task Checkbox Drift Gate (CRITICAL)
 
@@ -524,6 +604,94 @@ fi
 **Why this is CRITICAL**: Archive validation (`openspec archive`) checks the tasks artifact's overall status, not individual checkboxes — meaning drift can slip through archive-time and leave inaccurate history. Catching it here, before the archive path, ensures the spec phase is the single source of truth for "does the plan document match what was built?" Per the incident log, `specialized-workflow-agents` shipped 29 tasks' worth of implementation to main with 0/29 checkboxes flipped because the validation gate didn't catch the drift (this check was added 2026-04-22 in response).
 
 **In CI-vs-local behavior**: In local validation, `exit 1` halts the phase immediately. In CI-invoked validation (where halting would abort merge-gate automation unhelpfully), record the drift as a CRITICAL finding in `validation-report.md` under "Phase Results" with Result=`fail` and Details listing the specific unchecked task IDs — do not silently continue.
+
+#### 7.0b. Requirement-to-Contract Traceability Gate (CRITICAL, change-scoped)
+
+This is the enforcement point for the requirement-to-contract edge: a
+contracted operation the change touches must cite the requirements it serves,
+and a requirement the change adds must be cited or excluded, before the
+change validates. Pre-existing violations the change did not create are
+reported by the gate without failing it, so this wiring blocks only new debt
+— it never fails a change for a gap it did not introduce.
+
+Detection first, exactly like the Gen-Eval phase (4b) above: `skills/validate-feature/`
+ships via `install.sh` into consumer repositories that have neither
+`packages/gen-eval/` nor `openspec/contracts/`, where the gate cannot run at
+all. Wiring it unconditionally would fail every validation in every
+downstream repo, so the SKIP is printed explicitly rather than the step being
+silently absent — an unprinted skip and a passing gate are the same
+observation in a log.
+
+```bash
+# This gate evaluates the tree UNDER VALIDATION, not the shared checkout.
+# PROJECT_ROOT resolves to MAIN_REPO inside a managed worktree, and a gate
+# rooted there would evaluate main's contracts instead of this branch's —
+# SKIPping on every worktree validation and validating the wrong tree after
+# merge. The gate therefore derives its own root from the current tree.
+TRACE_ROOT="$(git rev-parse --show-toplevel)"
+TRACE_GATE="$TRACE_ROOT/packages/gen-eval/scripts/check_traceability.py"
+TRACE_CONTRACTS_DIR="$TRACE_ROOT/openspec/contracts"
+
+if [ ! -f "$TRACE_GATE" ]; then
+  echo "SKIP: requirement-traceability gate unavailable ($TRACE_GATE not found). Skipping."
+  TRACE_RESULT="skip"
+elif [ ! -d "$TRACE_CONTRACTS_DIR" ]; then
+  echo "SKIP: requirement-traceability gate unavailable ($TRACE_CONTRACTS_DIR not found). Skipping."
+  TRACE_RESULT="skip"
+else
+  TRACE_PYTHON="$TRACE_ROOT/packages/gen-eval/.venv/bin/python"
+  if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
+  # Bare, never piped — a pipeline's $? is the last stage's exit status, so
+  # `check_traceability.py | tail` would report tail's 0 on a failing gate.
+  #
+  # errexit is suspended across the capture. This fragment is pasted into
+  # whatever shell the running agent has, and a failing gate under `set -e`
+  # aborts on the assignment itself: the shell dies before `echo "$TRACE_OUTPUT"`
+  # ever runs, so the violation text the report is supposed to quote is lost and
+  # the operator sees a bare non-zero exit. The gate failing is the case this
+  # phase exists to report, so it is precisely the case that must not kill the
+  # reporter. Saved and restored rather than left off, so nothing after this
+  # block silently loses errexit.
+  case $- in *e*) _TRACE_HAD_ERREXIT=1;; *) _TRACE_HAD_ERREXIT=0;; esac
+  set +e
+  TRACE_OUTPUT=$(cd "$TRACE_ROOT/packages/gen-eval" && "$TRACE_PYTHON" scripts/check_traceability.py \
+    --scope change --change "$CHANGE_ID")
+  TRACE_EXIT=$?
+  [ "$_TRACE_HAD_ERREXIT" = "1" ] && set -e
+  echo "$TRACE_OUTPUT"
+  if [ $TRACE_EXIT -ne 0 ]; then
+    echo "FAIL: requirement-traceability gate exited $TRACE_EXIT"
+    TRACE_RESULT="fail"
+  else
+    echo "PASS: requirement-traceability gate"
+    TRACE_RESULT="pass"
+  fi
+fi
+
+# Skip and pass both leave this sub-step at exit 0; fail propagates the
+# gate's own non-zero status so a caller chaining this fragment observes it
+# without re-deriving TRACE_RESULT.
+[ "${TRACE_RESULT:-}" = "fail" ] && exit "$TRACE_EXIT"
+exit 0
+```
+
+**Note**: `--scope change --change "$CHANGE_ID"` is the only invocation this
+skill makes. It shadows the archive with this change's own delta and reports
+touched violations only — pre-existing gaps the change did not create are
+reported, never failed (this is what makes the gate safe to make blocking).
+The full-capability sweep (every requirement, every capability, unbounded by
+change scope) is a separate, CI-only invocation and is never run here.
+
+**In CI-vs-local behavior**, mirroring 7.0: in local validation, a `fail`
+result halts further spec-compliance work — do not proceed to 7.1's
+per-requirement matrix update as if the phase passed. In CI-invoked
+validation, record `TRACE_RESULT=fail` as a CRITICAL finding in
+`validation-report.md` under "Phase Results" with Result=`fail` and Details
+set to `$TRACE_OUTPUT` (it already names the violating operations and
+requirements) — do not silently continue past it.
+
+A `skip` result is not a failure: record it as a skipped sub-step (○) and
+proceed normally.
 
 #### 7.1. Requirement Traceability (per-requirement live verification)
 
@@ -717,6 +885,7 @@ Produce a structured summary of all phases:
   - test_login_flow: TimeoutError on /api/auth
   - test_dashboard_load: Element not found: #stats-panel
 ✓ Architecture: No broken flows (2 warnings: orphaned functions)
+○ Traceability: Skipped (packages/gen-eval/ not found) _or_ ✓ Traceability: gate passed (16 operations cite 12 requirements) _or_ ✗ Traceability: gate failed — 2 violations (see gate output)
 ✓ Spec Compliance: 8/8 requirements verified (see change-context.md)
 ⚠ Log Analysis: 3 warnings found
   - [WARNING] Deprecated function call: old_api_handler (line 142)

@@ -25,17 +25,13 @@ from typing import Any
 
 import pytest
 from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = PACKAGE_ROOT.parent.parent
-SCHEMA_PATH = (
-    REPO_ROOT
-    / "openspec"
-    / "contracts"
-    / "gen-eval-framework"
-    / "schemas"
-    / "cli-contract.schema.json"
-)
+SCHEMAS_DIR = REPO_ROOT / "openspec" / "contracts" / "gen-eval-framework" / "schemas"
+SCHEMA_PATH = SCHEMAS_DIR / "cli-contract.schema.json"
+TRACEABILITY_SCHEMA_PATH = SCHEMAS_DIR / "traceability.schema.json"
 
 
 @pytest.fixture(scope="module")
@@ -50,8 +46,28 @@ def schema() -> dict[str, Any]:
 
 
 @pytest.fixture(scope="module")
-def validator(schema: dict[str, Any]) -> Draft202012Validator:
-    return Draft202012Validator(schema)
+def traceability_schema() -> dict[str, Any]:
+    if not TRACEABILITY_SCHEMA_PATH.is_file():
+        pytest.fail(
+            f"traceability schema not promoted to "
+            f"{TRACEABILITY_SCHEMA_PATH.relative_to(REPO_ROOT)} (task 2.0)"
+        )
+    return json.loads(TRACEABILITY_SCHEMA_PATH.read_text())
+
+
+@pytest.fixture(scope="module")
+def validator(
+    schema: dict[str, Any], traceability_schema: dict[str, Any]
+) -> Draft202012Validator:
+    # cli-contract.schema.json $refs traceability.schema.json by relative
+    # filename (task 2.0); a registry resolves it without a network fetch.
+    registry = Registry().with_resources(
+        [
+            (schema["$id"], Resource.from_contents(schema)),
+            (traceability_schema["$id"], Resource.from_contents(traceability_schema)),
+        ]
+    )
+    return Draft202012Validator(schema, registry=registry)
 
 
 def _minimal() -> dict[str, Any]:
@@ -310,6 +326,80 @@ class TestRejectsMalformedExitCodes:
     ) -> None:
         contract = _minimal()
         contract["exit_codes"] = [{"code": code, "meaning": "out of range"}]
+        with pytest.raises(Exception):
+            validator.validate(contract)
+
+
+class TestAcceptsTraceability:
+    """Task 2.0: `traceability` is admitted at command, flag, and positional
+    levels, `$ref`-ing the promoted `traceability.schema.json`. Rejected by
+    the schema before this task — `additionalProperties: false` at all three
+    levels — so ``ToolCommandSpec(**c)`` would have silently dropped it.
+    """
+
+    def test_flag_with_citations(self, validator: Draft202012Validator) -> None:
+        contract = _minimal()
+        contract["commands"][0]["flags"][0]["traceability"] = {
+            "requirements": ["gen-eval-framework.descriptor-is-required"]
+        }
+        validator.validate(contract)
+
+    def test_flag_with_an_exclusion(self, validator: Draft202012Validator) -> None:
+        contract = _minimal()
+        contract["commands"][0]["flags"][0]["traceability"] = {
+            "excluded": {"reason": "process configuration, no requirement governs it"}
+        }
+        validator.validate(contract)
+
+    def test_positional_with_citations(self, validator: Draft202012Validator) -> None:
+        contract = _minimal()
+        contract["commands"][0]["positionals"] = [
+            {
+                "name": "target",
+                "type": "path",
+                "traceability": {"requirements": ["gen-eval-framework.x"]},
+            }
+        ]
+        validator.validate(contract)
+
+    def test_named_command_with_citations(self, validator: Draft202012Validator) -> None:
+        contract = _minimal()
+        contract["commands"] = [
+            {
+                "name": "lock acquire",
+                "traceability": {"requirements": ["agent-coordinator.file-locking"]},
+            }
+        ]
+        validator.validate(contract)
+
+    def test_traceability_with_both_requirements_and_excluded_is_rejected(
+        self, validator: Draft202012Validator
+    ) -> None:
+        contract = _minimal()
+        contract["commands"][0]["flags"][0]["traceability"] = {
+            "requirements": ["gen-eval-framework.x"],
+            "excluded": {"reason": "y"},
+        }
+        with pytest.raises(Exception):
+            validator.validate(contract)
+
+    def test_traceability_with_neither_is_rejected(
+        self, validator: Draft202012Validator
+    ) -> None:
+        contract = _minimal()
+        contract["commands"][0]["flags"][0]["traceability"] = {}
+        with pytest.raises(Exception):
+            validator.validate(contract)
+
+    def test_still_rejects_unknown_flag_keys_alongside_traceability(
+        self, validator: Draft202012Validator
+    ) -> None:
+        """Adding `traceability` did not loosen `additionalProperties: false`
+        elsewhere on the flag object."""
+        contract = _minimal()
+        contract["commands"][0]["flags"][0]["trace_ability"] = {  # typo'd key
+            "requirements": ["gen-eval-framework.x"]
+        }
         with pytest.raises(Exception):
             validator.validate(contract)
 

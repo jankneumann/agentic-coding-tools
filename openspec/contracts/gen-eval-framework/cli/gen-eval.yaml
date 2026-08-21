@@ -38,11 +38,19 @@ commands:
           Print the published JSON Schema contract version (one line) and exit
           0. Short-circuits before --descriptor is enforced, so a consumer can
           probe an arbitrary gen-eval on PATH without owning a descriptor.
+        traceability:
+          requirements:
+            - gen-eval-framework.descriptor-reclamation-is-announced
 
       - name: --descriptor
         type: path
         required: true
         description: Path to the interface descriptor YAML.
+        traceability:
+          requirements:
+            - gen-eval-framework.interface-descriptor
+            - gen-eval-framework.contract-as-descriptor-source-of-truth
+            - gen-eval-framework.service-and-tool-descriptor-archetypes
 
       - name: --mode
         type: enum
@@ -52,34 +60,56 @@ commands:
           - sdk-only
         default: template-only
         description: Generator mode.
+        traceability:
+          requirements:
+            - gen-eval-framework.scenario-generation
 
       - name: --cli-command
         type: string
         default: claude
         description: CLI tool for cli-augmented mode.
+        traceability:
+          requirements:
+            - gen-eval-framework.scenario-generation
 
       - name: --time-budget
         type: number
         default: 60.0
         description: Time budget in minutes for CLI mode.
+        traceability:
+          requirements:
+            - gen-eval-framework.budget-management
 
       - name: --sdk-budget
         type: number
         description: USD budget cap for SDK mode.
+        traceability:
+          requirements:
+            - gen-eval-framework.budget-management
 
       - name: --max-iterations
         type: integer
         default: 1
         description: Feedback loop iterations.
+        traceability:
+          requirements:
+            - gen-eval-framework.feedback-loop
 
       - name: --parallel
         type: integer
         default: 5
         description: Concurrent scenario execution.
+        traceability:
+          requirements:
+            - gen-eval-framework.orchestration
 
       - name: --changed-features-ref
         type: string
         description: Git ref for change detection; filters scenarios to changed features.
+        traceability:
+          requirements:
+            - gen-eval-framework.orchestration
+            - gen-eval-framework.scenario-generation
 
       - name: --categories
         type: string
@@ -88,6 +118,10 @@ commands:
           Filter to specific scenario categories. Declared repeatable because
           argparse binds it with nargs="*" — an array parameter reached by
           repeating the flag rather than by a delimited value.
+        traceability:
+          requirements:
+            - gen-eval-framework.scenario-model
+            - gen-eval-framework.scenario-generation
 
       - name: --report-format
         type: enum
@@ -97,16 +131,27 @@ commands:
           - both
         default: both
         description: Report output format.
+        traceability:
+          requirements:
+            - gen-eval-framework.orchestration
 
       - name: --output-dir
         type: path
         default: "."
         description: Report output directory.
+        traceability:
+          requirements:
+            - gen-eval-framework.orchestration
 
       - name: --verbose
         type: boolean
         default: false
         description: Enable verbose output.
+        traceability:
+          excluded:
+            reason: >-
+              Diagnostic output only; serves no contracted behaviour. Neither
+              annotation model nor the operator found a governing requirement.
 
       - name: --no-services
         type: boolean
@@ -115,6 +160,10 @@ commands:
           Skip service startup and teardown, assuming services are already
           running. The health check still runs, so an unreachable service is
           still caught.
+        traceability:
+          requirements:
+            - gen-eval-framework.orchestration
+            - gen-eval-framework.interface-descriptor
 
       - name: --fail-threshold
         type: number
@@ -122,6 +171,9 @@ commands:
         description: >-
           Minimum pass rate to exit 0. A run that evaluated zero scenarios
           always exits 1 regardless of this value.
+        traceability:
+          requirements:
+            - gen-eval-framework.pass-rate-gating-governs-exit-status
 
       - name: --min-coverage
         type: number
@@ -134,6 +186,10 @@ commands:
           which gates nothing. Values between 0 and 1 are rejected as a usage
           error: they are almost always a rate typed into a percent flag, and
           as a percent they would pass silently.
+        traceability:
+          requirements:
+            - gen-eval-framework.operation-and-surface-coverage-model
+            - gen-eval-framework.orchestration
 
       - name: --openspec-change
         type: string
@@ -141,6 +197,9 @@ commands:
           OpenSpec change-id whose Requirement+Scenario blocks augment the
           cli-augmented prompt as constraints. Must match ^[a-zA-Z0-9_-]+$;
           effective only with --mode cli-augmented.
+        traceability:
+          requirements:
+            - gen-eval-framework.multi-source-scenario-bootstrap
 
 exit_codes:
   - code: 0

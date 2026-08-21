@@ -1,0 +1,51 @@
+{
+  "handoff_id": "plan-review-20260731T202758Z",
+  "phase": "PLAN_REVIEW",
+  "round": 4,
+  "change_id": "trace-requirements-to-contracts",
+  "branch": "openspec/trace-requirements-to-contracts",
+  "commit_under_review": "8b864cd2d59b925fb1b187bf8c41a9a5a4b39f07",
+  "reviewer_vendor": "claude_code/opus-5",
+  "outcome": "not_converged",
+  "findings_file": "openspec/changes/trace-requirements-to-contracts/review-findings-plan.json",
+  "previous_round_preserved_at": "openspec/changes/trace-requirements-to-contracts/reviews/review-findings-plan-r3.json",
+  "counts": {
+    "critical": 1,
+    "nit": 5,
+    "none": 4,
+    "fyi": 1
+  },
+  "findings_trend": [10, 6, 3, 1],
+  "summary": "All three round-3 findings are genuinely closed under the operator's decisions, and the fix propagated correctly in every direction round 4 was asked to check but one. F3: the gate now states one resolution rule keyed on --change, blocking-ness is explicitly a CI-job property, and the removed formulation left zero residue across the change dir. F2: test_resolution_modes.py is present in all three required places (wp-gate test-file mapping line 262, write_allow line 289, pytest verification command line 307), task 3.16 owns both modes plus the flag/scope orthogonality, and wp-gate precedes wp-wiring in the DAG. F1: the diff-derived change id and the zero-directories SKIP are stated in the spec, design.md D12, task 5.7's notes, and wp-wiring's description, and they do not collide with task 5.6's consumer-repo SKIP, which is keyed on a different absence. Both deterministic validators pass. All four replacement scenarios are implementable and testable, including the two CI-side ones, via the bash-fragment extraction pattern the repo already uses in skills/tests/validate-feature/test_gen_eval_mode_selection.py.\n\nOne blocking finding survives, and it is a defect the round-3 fix introduced rather than one it inherited. The new clause 'Where the diff touches no change directory, the blocking job SHALL print an explicit SKIP naming the branch and SHALL NOT fail' never defines what 'the diff' is computed against, and its SHALL-NOT-fail is unconditional. So an empty or uncomputable diff is indistinguishable from a legitimately non-OpenSpec pull request: both touch zero change directories, and the spec as written mandates SKIP-and-exit-zero for both. The change-scope requirement in the same file is careful about exactly this (merge base named, unresolvable base is an error, not an empty scope) and the same file forbids the pattern in terms at lines 433-436. The reachable instance is merge_group: ci.yml triggers on it unfiltered at line 7, a derivation written against github.event.pull_request.base.sha yields an empty diff there, and the blocking sweep would then skip silently inside the merge queue. No acceptance task would catch it, because 4.3 and 5.7c both run the gate by hand rather than through the CI job.",
+  "blocking_findings": [
+    {
+      "id": 1,
+      "severity": "critical",
+      "title": "The blocking job's SKIP is unconditional, so an empty or uncomputable diff fails open at exactly the merge point",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "517-522",
+      "fix": "Qualify the SKIP in the spec requirement and in task 5.7. (a) State the base the blocking job's diff is computed against - the merge base with the integration branch, matching design.md:485-489, which already says an unresolvable merge base is an error and never an empty scope but is currently bound only to the change-scoped run. (b) State that a diff which cannot be computed is an error rather than a SKIP, so the mechanical case and the semantic case have different exit codes. (c) State whether the blocking job runs on merge_group and what its base is there. (d) Extend non-openspec-pr-skips, or add a fifth scenario, so the uncomputable-diff case is asserted to fail rather than skip.",
+      "not_a_relitigation": "The operator's F1 decision covers work not planned through OpenSpec, which is the semantic case and is correctly implemented. This finding is the mechanical case where the diff itself is unavailable and currently borrows the same exit path."
+    }
+  ],
+  "non_blocking_findings": [
+    "nit 2: wp-wiring got the two new CI-side scenarios but no named test file, no test-file mapping line, and no verification step that can fail if the test is never written - the standard F2 just set for wp-gate, not applied to the other half of the same fix. Buildable and testable as-is, so not blocking.",
+    "nit 3: non-openspec-pr-skips' third AND asserts the post-merge run's behavior, which the test under its WHEN cannot observe; it duplicates omitted-change-flag-unions-deltas.",
+    "nit 4: gen-eval-framework.cross-capability-exclusion-fails is cited by no task (pre-existing since 3891089b, survived three rounds).",
+    "nit 5: carried from round 3 - D12's heading still says the full sweep runs on main while its body places the blocking sweep on pull_request.",
+    "nit 6: carried from round 3 - task 5.7's 'keep the invocation bare' reads against the mandatory --change; 5.6 shows 'bare' means unpiped."
+  ],
+  "commands_run": [
+    "git show --stat 8b864cd2 / git show 8b864cd2 (per-file)",
+    "grep -rn 'blocking-sweep-requires-a-change-id|blocking sweep resolves against|require an active change id' over *.md *.json *.yaml -> no residue",
+    "grep -n test_resolution_modes work-packages.yaml -> 262, 289, 307",
+    "python3 yaml dump of all five packages: write_allow, verification steps, depends_on",
+    "scenario->task coverage sweep over both spec deltas",
+    "sed -n '1,20p' .github/workflows/ci.yml -> pull_request and merge_group unfiltered at lines 6-7",
+    "grep -rn 'merge_group|merge queue|merge base' tasks.md design.md specs/ work-packages.yaml",
+    "git log -S 'One capability cannot excuse another' -> 3891089b",
+    "npx @fission-ai/openspec validate trace-requirements-to-contracts --strict -> valid",
+    "agent-coordinator/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py ... -> VALID"
+  ],
+  "state_ownership": "No runner.py subcommand was executed and loop-state.json was not read or modified by this agent."
+}

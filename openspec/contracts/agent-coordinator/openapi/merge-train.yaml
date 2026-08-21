@@ -1,0 +1,163 @@
+# agent-coordinator merge-train contract (issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Speculative merge train"
+  version: 1.0.0
+  description: >-
+    Speculative merge-train composition, ejection, status, CI result
+    reporting, affected-test computation, and throughput metrics. Spec lines
+    2278-2589 (R1-R14), 2011-2019 (HTTP-11); merge-infrastructure spec 96-115.
+paths:
+  /merge-train/compose:
+    post:
+      operationId: composeTrain
+      summary: Compose a speculative merge train from the queue
+      description: >-
+        Spec 1983 (HTTP-11): composes a speculative merge train from the
+        queue. Spec 2280-2287 (R1): entries are grouped into partitions by
+        lock-key prefix overlap, each entry carrying train_id, partition_id,
+        and train_position.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.speculative-merge-train-composition-r1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Composed train with partitions, or an empty train (spec 2280-2298)}
+        "401": {description: Missing or invalid X-API-Key}
+  /merge-train/eject:
+    post:
+      operationId: ejectFromTrain
+      summary: Eject a feature from its train
+      description: >-
+        Spec 1984 (HTTP-11): ejects a feature from its train. Spec 2355-2373
+        (R4): the train continues for independent entries. Spec 2423-2439
+        (R6): the caller must own the feature or hold sufficient trust.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.priority-eject-recovery-r4
+          - agent-coordinator.train-operation-authorization-r6
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [feature_id]
+              properties:
+                feature_id: {type: string}
+      responses:
+        "200": {description: Eject result, success false with reason for unknown features (spec 1984)}
+        "401": {description: Missing or invalid X-API-Key}
+        "403": {description: Caller neither owns the feature nor holds sufficient trust (spec 2423-2439)}
+  /merge-train/status/{train_id}:
+    get:
+      operationId: getTrainStatus
+      summary: Get every entry belonging to a train
+      description: >-
+        Spec 1985 (HTTP-11): returns every entry belonging to the train; an
+        empty list means the train is no longer active. Spec 2330-2353 (R3):
+        entries carry their state-machine status.
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.train-entry-state-machine-r3
+      parameters:
+        - name: train_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Train entries, empty when the train is no longer active (spec 1985)}
+  /merge-train/report-result:
+    post:
+      operationId: reportSpecResult
+      summary: Record a speculative CI verification result
+      description: >-
+        Spec 1986 (HTTP-11): records a speculative CI verification result.
+        Spec 2330-2353 (R3): SPECULATING entries transition to SPEC_PASSED on
+        pass and BLOCKED with an error message on failure; other statuses are
+        idempotent no-ops. Spec 2500-2517 (R9): BLOCKED entries are recovered
+        from here.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.train-entry-state-machine-r3
+          - agent-coordinator.blocked-entry-recovery-r9
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [feature_id, passed]
+              properties:
+                feature_id: {type: string}
+                passed: {type: boolean}
+                error_message: {type: string}
+      responses:
+        "200": {description: Result recorded with the resulting entry state (spec 1986)}
+        "401": {description: Missing or invalid X-API-Key}
+  /merge-train/affected-tests:
+    post:
+      operationId: computeAffectedTests
+      summary: Compute the test subset for changed files
+      description: >-
+        Spec 1987 (HTTP-11): returns the test subset for a set of changed
+        files, or full_suite_required true when the dependency graph is
+        missing or stale.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [changed_files]
+              properties:
+                changed_files: {type: array, items: {type: string}}
+      responses:
+        "200": {description: Test subset, or full_suite_required true on a missing/stale graph (spec 1987)}
+        "401": {description: Missing or invalid X-API-Key}
+  /merge-train/metrics:
+    get:
+      operationId: getMergeTrainMetrics
+      summary: Get aggregated merge-throughput metrics
+      description: >-
+        Spec 1988 (HTTP-11): returns aggregated merge-throughput metrics from
+        the audit log. merge-infrastructure spec 96-115: a GET
+        /merge-train/metrics endpoint returns aggregated merge metrics from
+        the audit service.
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - merge-infrastructure.merge-throughput-metrics
+      responses:
+        "200": {description: Aggregated merge metrics (merge-infrastructure spec 115)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

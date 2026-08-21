@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Memory Response Schemas",
-  "description": "JSON Schema definitions for memory store and query responses.",
+  "description": "JSON Schema definitions for memory store and query responses. Episodic memory is the only wired memory layer: the working- and procedural-memory endpoints and MCP tools were removed in ri-15 and their tables dropped in migration 031, so their response definitions were removed here too (issue #389). Nothing $ref'd them.",
   "definitions": {
     "memory_store_response": {
       "type": "object",
@@ -38,39 +38,6 @@
           "type": "integer",
           "minimum": 0,
           "description": "Total number of matching memories"
-        }
-      },
-      "additionalProperties": false
-    },
-
-    "working_memory_update_response": {
-      "type": "object",
-      "description": "Response from POST /memory/working/update and mcp:update_working_memory",
-      "required": ["success"],
-      "properties": {
-        "success": {
-          "type": "boolean",
-          "description": "Whether working memory was successfully updated"
-        },
-        "message": {
-          "type": "string",
-          "description": "Human-readable status message"
-        }
-      },
-      "additionalProperties": false
-    },
-
-    "working_memory_get_response": {
-      "type": "object",
-      "description": "Response from POST /memory/working/get and mcp:get_working_memory",
-      "required": ["working_memory"],
-      "properties": {
-        "working_memory": {
-          "oneOf": [
-            { "$ref": "#/definitions/working_memory_record" },
-            { "type": "null" }
-          ],
-          "description": "Current working memory state, or null if none set"
         }
       },
       "additionalProperties": false
@@ -116,42 +83,6 @@
           "type": "string",
           "format": "date-time",
           "description": "When the memory was stored"
-        }
-      },
-      "additionalProperties": true
-    },
-
-    "working_memory_record": {
-      "type": "object",
-      "description": "Working memory state for an agent",
-      "required": ["agent_id"],
-      "properties": {
-        "agent_id": {
-          "type": "string",
-          "description": "Agent the working memory belongs to"
-        },
-        "current_task": {
-          "type": ["string", "null"],
-          "description": "What the agent is currently working on"
-        },
-        "context": {
-          "type": "object",
-          "description": "Arbitrary context data for the agent's current work"
-        },
-        "goals": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Active goals the agent is pursuing"
-        },
-        "blockers": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Known blockers for the agent"
-        },
-        "updated_at": {
-          "type": "string",
-          "format": "date-time",
-          "description": "When working memory was last updated"
         }
       },
       "additionalProperties": true
