@@ -1061,11 +1061,18 @@ class TestSyncedFromRegistryAt:
     """
 
     @staticmethod
-    def _assert_recent_iso(value: Any) -> None:
-        assert isinstance(value, str), f"expected an ISO timestamp, got {value!r}"
-        stamped = datetime.fromisoformat(value)
-        assert stamped.tzinfo is not None, "timestamp must be timezone-aware"
-        assert abs((datetime.now(UTC) - stamped).total_seconds()) < 60
+    def _assert_recent_datetime(value: Any) -> None:
+        # A datetime INSTANCE, never an ISO string: asyncpg binds TIMESTAMPTZ
+        # from datetime objects only. The str regression this pins crashed
+        # every production boot whose sync needed a profile write (2026-08-22)
+        # — FakeDb accepted the string, the real codec did not.
+        assert not isinstance(value, str), (
+            f"synced_from_registry_at must be a datetime, got ISO string {value!r} "
+            "(asyncpg DataError at bind time on the postgres backend)"
+        )
+        assert isinstance(value, datetime), f"expected a datetime, got {value!r}"
+        assert value.tzinfo is not None, "timestamp must be timezone-aware"
+        assert abs((datetime.now(UTC) - value).total_seconds()) < 60
 
     async def test_insert_stamps_the_column(self) -> None:
         db = FakeDb()
@@ -1073,7 +1080,7 @@ class TestSyncedFromRegistryAt:
 
         await sync_profiles(agents, db=db, audit=FakeAudit())
 
-        self._assert_recent_iso(db.inserts[0].get("synced_from_registry_at"))
+        self._assert_recent_datetime(db.inserts[0].get("synced_from_registry_at"))
 
     async def test_drift_update_stamps_the_column(self) -> None:
         db = FakeDb(
@@ -1090,7 +1097,7 @@ class TestSyncedFromRegistryAt:
 
         await sync_profiles(agents, db=db, audit=FakeAudit())
 
-        self._assert_recent_iso(db.updates[0][1].get("synced_from_registry_at"))
+        self._assert_recent_datetime(db.updates[0][1].get("synced_from_registry_at"))
 
     async def test_orphan_disable_does_not_restamp(self) -> None:
         """Disabling an orphan is not a projection *of* that row.
