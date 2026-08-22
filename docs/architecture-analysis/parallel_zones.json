@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-22T00:57:02+00:00",
+  "generated_at": "2026-08-22T01:03:57+00:00",
   "independent_groups": [
     {
       "id": 0,
@@ -710,6 +710,25 @@
     {
       "id": 5,
       "modules": [
+        "py:db_postgres.DirectPostgresClient.delete",
+        "py:db_postgres.DirectPostgresClient.insert",
+        "py:db_postgres.DirectPostgresClient.query",
+        "py:db_postgres.DirectPostgresClient.rpc",
+        "py:db_postgres.DirectPostgresClient.update",
+        "py:db_postgres._coerce_filter_value",
+        "py:db_postgres._parse_iso_datetime",
+        "py:db_postgres._serialize_for_asyncpg",
+        "py:db_postgres._validate_identifier",
+        "py:db_postgres._validate_select_clause"
+      ],
+      "language_mix": [
+        "python"
+      ],
+      "size": 10
+    },
+    {
+      "id": 6,
+      "modules": [
         "py:code_search_runtime.CodeSearchRuntime.__init__",
         "py:code_search_runtime.CodeSearchRuntime._status_after_lock",
         "py:code_search_runtime.CodeSearchRuntime.close",
@@ -719,24 +738,6 @@
         "py:code_search_runtime._pool_from_env",
         "py:code_search_runtime._provider_from_env",
         "py:code_search_runtime._status"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 9
-    },
-    {
-      "id": 6,
-      "modules": [
-        "py:db_postgres.DirectPostgresClient.delete",
-        "py:db_postgres.DirectPostgresClient.insert",
-        "py:db_postgres.DirectPostgresClient.query",
-        "py:db_postgres.DirectPostgresClient.rpc",
-        "py:db_postgres.DirectPostgresClient.update",
-        "py:db_postgres._coerce_filter_value",
-        "py:db_postgres._serialize_for_asyncpg",
-        "py:db_postgres._validate_identifier",
-        "py:db_postgres._validate_select_clause"
       ],
       "language_mix": [
         "python"
@@ -22955,7 +22956,7 @@
     }
   ],
   "summary": {
-    "total_modules": 1982,
+    "total_modules": 1983,
     "total_groups": 1277,
     "largest_group_size": 538,
     "leaf_count": 1581,

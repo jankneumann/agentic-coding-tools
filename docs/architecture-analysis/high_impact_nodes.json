@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-22T00:57:02+00:00",
+  "generated_at": "2026-08-22T01:03:57+00:00",
   "threshold": 5,
-  "total_high_impact": 113,
+  "total_high_impact": 114,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
@@ -337,6 +337,10 @@
     },
     {
       "id": "py:coordination_mcp.get_agent_id",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:db_postgres._parse_iso_datetime",
       "dependent_count": 6
     },
     {

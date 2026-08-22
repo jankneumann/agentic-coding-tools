@@ -490,6 +490,7 @@
       "imports": [
         "json",
         "re",
+        "datetime",
         "typing",
         "uuid",
         "asyncpg",
@@ -11584,11 +11585,34 @@
       "docstring": "Reset the global database client (for testing)."
     },
     {
+      "name": "_parse_iso_datetime",
+      "qualified_name": "db_postgres._parse_iso_datetime",
+      "file": "db_postgres.py",
+      "line_start": 32,
+      "line_end": 45,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "_ISO_DT_RE.match",
+        "datetime.fromisoformat",
+        "val.replace"
+      ],
+      "called_by": [
+        "db_postgres._coerce_filter_value",
+        "db_postgres._serialize_for_asyncpg"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Parse an ISO-8601 timestamp if `val` looks like one.\n\nDatabaseClient callers write TIMESTAMPTZ values as ISO strings so\nthe PostgREST JSON backend can serialize them. asyncpg rejects those\nstrings (`DataError: invalid input for query argument $N`) and\nrequires a datetime instance instead."
+    },
+    {
       "name": "_coerce_filter_value",
       "qualified_name": "db_postgres._coerce_filter_value",
       "file": "db_postgres.py",
-      "line_start": 25,
-      "line_end": 43,
+      "line_start": 48,
+      "line_end": 69,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -11596,7 +11620,8 @@
         "_UUID_RE.match",
         "UUID",
         "int",
-        "float"
+        "float",
+        "_parse_iso_datetime"
       ],
       "called_by": [
         "db_postgres.DirectPostgresClient.query"
@@ -11605,14 +11630,14 @@
       "tags": [
         "private"
       ],
-      "docstring": "Coerce a PostgREST filter string value to the appropriate Python type.\n\nasyncpg requires typed parameters — passing a string for a UUID or int\ncolumn causes a type mismatch error."
+      "docstring": "Coerce a PostgREST filter string value to the appropriate Python type.\n\nasyncpg requires typed parameters — passing a string for a UUID, int,\nor timestamptz column causes a type mismatch error."
     },
     {
       "name": "_validate_identifier",
       "qualified_name": "db_postgres._validate_identifier",
       "file": "db_postgres.py",
-      "line_start": 46,
-      "line_end": 51,
+      "line_start": 72,
+      "line_end": 77,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -11639,8 +11664,8 @@
       "name": "_validate_select_clause",
       "qualified_name": "db_postgres._validate_select_clause",
       "file": "db_postgres.py",
-      "line_start": 54,
-      "line_end": 63,
+      "line_start": 80,
+      "line_end": 89,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -11664,13 +11689,14 @@
       "name": "_serialize_for_asyncpg",
       "qualified_name": "db_postgres._serialize_for_asyncpg",
       "file": "db_postgres.py",
-      "line_start": 66,
-      "line_end": 75,
+      "line_start": 92,
+      "line_end": 109,
       "is_async": false,
       "decorators": [],
       "calls": [
         "isinstance",
-        "json.dumps"
+        "json.dumps",
+        "_parse_iso_datetime"
       ],
       "called_by": [
         "db_postgres.DirectPostgresClient.rpc",
@@ -11681,14 +11707,14 @@
       "tags": [
         "private"
       ],
-      "docstring": "Serialize dict values to JSON strings for asyncpg jsonb columns.\n\nasyncpg requires JSON strings (not Python dicts) when binding\nparameters to jsonb columns. Lists are left as-is because asyncpg\nhandles PostgreSQL array types (TEXT[], etc.) natively."
+      "docstring": "Adapt Python values to asyncpg parameter types.\n\n- dicts become JSON strings for jsonb columns\n- ISO-8601 timestamp strings become datetime for timestamptz columns\n- lists are left as-is (asyncpg handles PostgreSQL arrays natively)\n\nServices emit ISO strings to satisfy the PostgREST JSON contract;\nthis adapter converts them so asyncpg does not raise DataError on\nTIMESTAMPTZ binds (the issue_close completed_at/closed_at path)."
     },
     {
       "name": "__init__",
       "qualified_name": "db_postgres.DirectPostgresClient.__init__",
       "file": "db_postgres.py",
-      "line_start": 85,
-      "line_end": 87,
+      "line_start": 119,
+      "line_end": 121,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -11705,8 +11731,8 @@
       "name": "_get_pool",
       "qualified_name": "db_postgres.DirectPostgresClient._get_pool",
       "file": "db_postgres.py",
-      "line_start": 89,
-      "line_end": 96,
+      "line_start": 123,
+      "line_end": 130,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -11724,8 +11750,8 @@
       "name": "rpc",
       "qualified_name": "db_postgres.DirectPostgresClient.rpc",
       "file": "db_postgres.py",
-      "line_start": 98,
-      "line_end": 126,
+      "line_start": 132,
+      "line_end": 160,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -11753,8 +11779,8 @@
       "name": "query",
       "qualified_name": "db_postgres.DirectPostgresClient.query",
       "file": "db_postgres.py",
-      "line_start": 128,
-      "line_end": 215,
+      "line_start": 162,
+      "line_end": 249,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -11791,8 +11817,8 @@
       "name": "insert",
       "qualified_name": "db_postgres.DirectPostgresClient.insert",
       "file": "db_postgres.py",
-      "line_start": 217,
-      "line_end": 243,
+      "line_start": 251,
+      "line_end": 277,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -11822,8 +11848,8 @@
       "name": "update",
       "qualified_name": "db_postgres.DirectPostgresClient.update",
       "file": "db_postgres.py",
-      "line_start": 245,
-      "line_end": 285,
+      "line_start": 279,
+      "line_end": 319,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -11853,8 +11879,8 @@
       "name": "delete",
       "qualified_name": "db_postgres.DirectPostgresClient.delete",
       "file": "db_postgres.py",
-      "line_start": 287,
-      "line_end": 307,
+      "line_start": 321,
+      "line_end": 341,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -11880,8 +11906,8 @@
       "name": "close",
       "qualified_name": "db_postgres.DirectPostgresClient.close",
       "file": "db_postgres.py",
-      "line_start": 309,
-      "line_end": 313,
+      "line_start": 343,
+      "line_end": 347,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -28101,8 +28127,8 @@
       "name": "DirectPostgresClient",
       "qualified_name": "db_postgres.DirectPostgresClient",
       "file": "db_postgres.py",
-      "line_start": 78,
-      "line_end": 313,
+      "line_start": 112,
+      "line_end": 347,
       "bases": [],
       "methods": [
         "__init__",
@@ -30849,6 +30875,10 @@
     {
       "from": "db_postgres",
       "to": "re"
+    },
+    {
+      "from": "db_postgres",
+      "to": "datetime"
     },
     {
       "from": "db_postgres",
@@ -34820,7 +34850,7 @@
     }
   ],
   "summary": {
-    "total_functions": 1079,
+    "total_functions": 1080,
     "total_classes": 248,
     "total_modules": 77,
     "async_functions": 435,

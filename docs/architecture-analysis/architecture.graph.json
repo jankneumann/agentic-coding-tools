@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-08-22T00:57:02+00:00",
-      "git_sha": "1c815ff53fd8c5f05e7f96f979e79adac1dca30a",
+      "generated_at": "2026-08-22T01:03:57+00:00",
+      "git_sha": "f86ee022b4a664afbcf77283748ce569591c015a",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -2656,8 +2656,8 @@
       "name": "DirectPostgresClient",
       "file": "db_postgres.py",
       "span": {
-        "start": 78,
-        "end": 313
+        "start": 112,
+        "end": 347
       },
       "tags": [],
       "signatures": {}
@@ -10615,14 +10615,29 @@
       "signatures": {}
     },
     {
+      "id": "py:db_postgres._parse_iso_datetime",
+      "kind": "function",
+      "language": "python",
+      "name": "_parse_iso_datetime",
+      "file": "db_postgres.py",
+      "span": {
+        "start": 32,
+        "end": 45
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:db_postgres._coerce_filter_value",
       "kind": "function",
       "language": "python",
       "name": "_coerce_filter_value",
       "file": "db_postgres.py",
       "span": {
-        "start": 25,
-        "end": 43
+        "start": 48,
+        "end": 69
       },
       "tags": [
         "private"
@@ -10636,8 +10651,8 @@
       "name": "_validate_identifier",
       "file": "db_postgres.py",
       "span": {
-        "start": 46,
-        "end": 51
+        "start": 72,
+        "end": 77
       },
       "tags": [
         "private"
@@ -10651,8 +10666,8 @@
       "name": "_validate_select_clause",
       "file": "db_postgres.py",
       "span": {
-        "start": 54,
-        "end": 63
+        "start": 80,
+        "end": 89
       },
       "tags": [
         "private"
@@ -10666,8 +10681,8 @@
       "name": "_serialize_for_asyncpg",
       "file": "db_postgres.py",
       "span": {
-        "start": 66,
-        "end": 75
+        "start": 92,
+        "end": 109
       },
       "tags": [
         "private"
@@ -10681,8 +10696,8 @@
       "name": "__init__",
       "file": "db_postgres.py",
       "span": {
-        "start": 85,
-        "end": 87
+        "start": 119,
+        "end": 121
       },
       "tags": [
         "dunder"
@@ -10696,8 +10711,8 @@
       "name": "_get_pool",
       "file": "db_postgres.py",
       "span": {
-        "start": 89,
-        "end": 96
+        "start": 123,
+        "end": 130
       },
       "tags": [
         "async",
@@ -10712,8 +10727,8 @@
       "name": "rpc",
       "file": "db_postgres.py",
       "span": {
-        "start": 98,
-        "end": 126
+        "start": 132,
+        "end": 160
       },
       "tags": [
         "async"
@@ -10727,8 +10742,8 @@
       "name": "query",
       "file": "db_postgres.py",
       "span": {
-        "start": 128,
-        "end": 215
+        "start": 162,
+        "end": 249
       },
       "tags": [
         "async"
@@ -10742,8 +10757,8 @@
       "name": "insert",
       "file": "db_postgres.py",
       "span": {
-        "start": 217,
-        "end": 243
+        "start": 251,
+        "end": 277
       },
       "tags": [
         "async",
@@ -10758,8 +10773,8 @@
       "name": "update",
       "file": "db_postgres.py",
       "span": {
-        "start": 245,
-        "end": 285
+        "start": 279,
+        "end": 319
       },
       "tags": [
         "async",
@@ -10774,8 +10789,8 @@
       "name": "delete",
       "file": "db_postgres.py",
       "span": {
-        "start": 287,
-        "end": 307
+        "start": 321,
+        "end": 341
       },
       "tags": [
         "async",
@@ -10790,8 +10805,8 @@
       "name": "close",
       "file": "db_postgres.py",
       "span": {
-        "start": 309,
-        "end": 313
+        "start": 343,
+        "end": 347
       },
       "tags": [
         "async"
@@ -32767,11 +32782,25 @@
       "evidence": "ast:call:create_db_client"
     },
     {
+      "from": "py:db_postgres._coerce_filter_value",
+      "to": "py:db_postgres._parse_iso_datetime",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_parse_iso_datetime"
+    },
+    {
       "from": "py:db_postgres._validate_select_clause",
       "to": "py:db_postgres._validate_identifier",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_validate_identifier"
+    },
+    {
+      "from": "py:db_postgres._serialize_for_asyncpg",
+      "to": "py:db_postgres._parse_iso_datetime",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_parse_iso_datetime"
     },
     {
       "from": "py:db_postgres.DirectPostgresClient.rpc",

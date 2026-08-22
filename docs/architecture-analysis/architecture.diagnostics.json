@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-22T00:57:02+00:00",
+  "generated_at": "2026-08-22T01:03:57+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -6675,10 +6675,19 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function '_parse_iso_datetime' has no corresponding test references",
+      "node_id": "py:db_postgres._parse_iso_datetime",
+      "file": "db_postgres.py",
+      "line": 32,
+      "suggestion": "Add tests that reference '_parse_iso_datetime' (e.g., test__parse_iso_datetime or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function '_coerce_filter_value' has no corresponding test references",
       "node_id": "py:db_postgres._coerce_filter_value",
       "file": "db_postgres.py",
-      "line": 25,
+      "line": 48,
       "suggestion": "Add tests that reference '_coerce_filter_value' (e.g., test__coerce_filter_value or import it in a test file)"
     },
     {
@@ -6687,7 +6696,7 @@
       "message": "Function '_validate_identifier' has no corresponding test references",
       "node_id": "py:db_postgres._validate_identifier",
       "file": "db_postgres.py",
-      "line": 46,
+      "line": 72,
       "suggestion": "Add tests that reference '_validate_identifier' (e.g., test__validate_identifier or import it in a test file)"
     },
     {
@@ -6696,7 +6705,7 @@
       "message": "Function '_validate_select_clause' has no corresponding test references",
       "node_id": "py:db_postgres._validate_select_clause",
       "file": "db_postgres.py",
-      "line": 54,
+      "line": 80,
       "suggestion": "Add tests that reference '_validate_select_clause' (e.g., test__validate_select_clause or import it in a test file)"
     },
     {
@@ -6705,7 +6714,7 @@
       "message": "Function '_serialize_for_asyncpg' has no corresponding test references",
       "node_id": "py:db_postgres._serialize_for_asyncpg",
       "file": "db_postgres.py",
-      "line": 66,
+      "line": 92,
       "suggestion": "Add tests that reference '_serialize_for_asyncpg' (e.g., test__serialize_for_asyncpg or import it in a test file)"
     },
     {
@@ -6714,7 +6723,7 @@
       "message": "Function 'DirectPostgresClient' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient",
       "file": "db_postgres.py",
-      "line": 78,
+      "line": 112,
       "suggestion": "Add tests that reference 'DirectPostgresClient' (e.g., test_DirectPostgresClient or import it in a test file)"
     },
     {
@@ -6723,7 +6732,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.__init__",
       "file": "db_postgres.py",
-      "line": 85,
+      "line": 119,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -6732,7 +6741,7 @@
       "message": "Function '_get_pool' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient._get_pool",
       "file": "db_postgres.py",
-      "line": 89,
+      "line": 123,
       "suggestion": "Add tests that reference '_get_pool' (e.g., test__get_pool or import it in a test file)"
     },
     {
@@ -6741,7 +6750,7 @@
       "message": "Function 'rpc' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.rpc",
       "file": "db_postgres.py",
-      "line": 98,
+      "line": 132,
       "suggestion": "Add tests that reference 'rpc' (e.g., test_rpc or import it in a test file)"
     },
     {
@@ -6750,7 +6759,7 @@
       "message": "Function 'query' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.query",
       "file": "db_postgres.py",
-      "line": 128,
+      "line": 162,
       "suggestion": "Add tests that reference 'query' (e.g., test_query or import it in a test file)"
     },
     {
@@ -6759,7 +6768,7 @@
       "message": "Function 'insert' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.insert",
       "file": "db_postgres.py",
-      "line": 217,
+      "line": 251,
       "suggestion": "Add tests that reference 'insert' (e.g., test_insert or import it in a test file)"
     },
     {
@@ -6768,7 +6777,7 @@
       "message": "Function 'update' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.update",
       "file": "db_postgres.py",
-      "line": 245,
+      "line": 279,
       "suggestion": "Add tests that reference 'update' (e.g., test_update or import it in a test file)"
     },
     {
@@ -6777,7 +6786,7 @@
       "message": "Function 'delete' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.delete",
       "file": "db_postgres.py",
-      "line": 287,
+      "line": 321,
       "suggestion": "Add tests that reference 'delete' (e.g., test_delete or import it in a test file)"
     },
     {
@@ -6786,7 +6795,7 @@
       "message": "Function 'close' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.close",
       "file": "db_postgres.py",
-      "line": 309,
+      "line": 343,
       "suggestion": "Add tests that reference 'close' (e.g., test_close or import it in a test file)"
     },
     {
@@ -18231,10 +18240,19 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'_parse_iso_datetime' is unreachable from any entrypoint or test",
+      "node_id": "py:db_postgres._parse_iso_datetime",
+      "file": "db_postgres.py",
+      "line": 32,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'_coerce_filter_value' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._coerce_filter_value",
       "file": "db_postgres.py",
-      "line": 25,
+      "line": 48,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18243,7 +18261,7 @@
       "message": "'_validate_identifier' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._validate_identifier",
       "file": "db_postgres.py",
-      "line": 46,
+      "line": 72,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18252,7 +18270,7 @@
       "message": "'_validate_select_clause' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._validate_select_clause",
       "file": "db_postgres.py",
-      "line": 54,
+      "line": 80,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18261,7 +18279,7 @@
       "message": "'_serialize_for_asyncpg' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._serialize_for_asyncpg",
       "file": "db_postgres.py",
-      "line": 66,
+      "line": 92,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18270,7 +18288,7 @@
       "message": "'DirectPostgresClient' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient",
       "file": "db_postgres.py",
-      "line": 78,
+      "line": 112,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18279,7 +18297,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.__init__",
       "file": "db_postgres.py",
-      "line": 85,
+      "line": 119,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18288,7 +18306,7 @@
       "message": "'_get_pool' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient._get_pool",
       "file": "db_postgres.py",
-      "line": 89,
+      "line": 123,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18297,7 +18315,7 @@
       "message": "'rpc' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.rpc",
       "file": "db_postgres.py",
-      "line": 98,
+      "line": 132,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18306,7 +18324,7 @@
       "message": "'query' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.query",
       "file": "db_postgres.py",
-      "line": 128,
+      "line": 162,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18315,7 +18333,7 @@
       "message": "'insert' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.insert",
       "file": "db_postgres.py",
-      "line": 217,
+      "line": 251,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18324,7 +18342,7 @@
       "message": "'update' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.update",
       "file": "db_postgres.py",
-      "line": 245,
+      "line": 279,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18333,7 +18351,7 @@
       "message": "'delete' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.delete",
       "file": "db_postgres.py",
-      "line": 287,
+      "line": 321,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18342,7 +18360,7 @@
       "message": "'close' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.close",
       "file": "db_postgres.py",
-      "line": 309,
+      "line": 343,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -26249,12 +26267,12 @@
     }
   ],
   "summary": {
-    "total_findings": 2916,
+    "total_findings": 2918,
     "errors": 0,
-    "warnings": 2789,
+    "warnings": 2791,
     "info": 127,
     "entrypoints_checked": 96,
     "flows_with_coverage": 0,
-    "flows_without_coverage": 1390
+    "flows_without_coverage": 1391
   }
 }
