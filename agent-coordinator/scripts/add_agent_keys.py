@@ -12,18 +12,32 @@ Agent type, profile name, and CLI command are derived from the matching
 ``<vendor>-local`` entry in ``agents.yaml`` — nothing about vendors is
 hardcoded here beyond the shell alias spellings.
 
+Each minted identity also records the host's **isolation posture** — an
+operator assertion of how contained the runtime is (``--isolation
+fs=<mode>,net=<mode>``). Posture is recorded, not yet enforced: it is the
+input the trust clamp proposed in
+``openspec/changes/clamp-trust-by-isolation-posture`` reads. Assert only what
+the host actually provides; the default (``fs=none,net=open``) is the most
+conservative and never understates risk.
+
 Outputs (nothing is applied without --apply):
   1. an env file for the new host (0600) with per-agent aliases
   2. a shell script of ``railway variable set`` commands (0600), so full key
      material never lands in your shell history
-  3. a SQL migration assigning each new agent_id to its profile, creating any
-     profile agents.yaml references but the DB never seeded
+  3. a SQL migration assigning each new agent_id to its profile. The registry
+     startup sync (src/agents_config.py sync_profiles) owns profile *content*
+     and reconciles it on every boot; this migration only bootstraps rows so a
+     fresh-DB replay cannot order assignments before their profiles exist.
 
 Usage:
     # dry run — writes the three artifacts, touches nothing remote
     python3 scripts/add_agent_keys.py --host-label gx10 --domain coord.rotkohl.ai
 
-    # same, and push both variables to Railway
+    # same, asserting the host runs agents inside a filesystem sandbox
+    python3 scripts/add_agent_keys.py --host-label gx10 --domain coord.rotkohl.ai \
+        --isolation fs=sandbox,net=open
+
+    # push both variables to Railway
     python3 scripts/add_agent_keys.py --host-label gx10 --domain coord.rotkohl.ai --apply
 
     # offline: supply current Railway values from a file instead of calling the CLI
@@ -87,6 +101,54 @@ ALIAS_OVERRIDES = {"claude": "ccc", "codex": "ccodex"}
 # Placeholder that agents.yaml uses for keys resolved at runtime; such an
 # entry carries no usable key material and is not a rotation candidate.
 INTERPOLATION_RE = re.compile(r"\$\{[^}]+\}")
+
+# `assigned_by` stamp on the assignment rows this script's migration writes.
+# Must differ from src.agents_config.ASSIGNMENT_ASSIGNED_BY ("registry_sync"):
+# the startup sync garbage-collects only rows carrying its own stamp, so this
+# spelling is what keeps per-host instance assignments alive across boots.
+ENROLLMENT_ASSIGNED_BY = "add_agent_keys.py"
+
+# Operator-asserted isolation posture (--isolation fs=...,net=...).
+# `fs` is containment, not workspace hygiene — a git worktree grants full
+# filesystem access and therefore is NOT a value here. Recorded on each minted
+# identity; enforcement (posture-capped effective trust) is the
+# clamp-trust-by-isolation-posture proposal.
+VALID_FS_ISOLATION = {"vm", "container", "sandbox", "none"}
+VALID_NET_ISOLATION = {"restricted", "open"}
+DEFAULT_ISOLATION = {"fs": "none", "net": "open"}
+
+
+def parse_isolation(raw: str | None) -> dict[str, str]:
+    """Parse ``fs=<mode>,net=<mode>`` into a posture dict, defaulting closed.
+
+    Both dimensions are optional; whatever is omitted keeps the conservative
+    default. Unknown dimensions or modes are hard errors — a typo silently
+    recorded as posture would later feed the trust clamp.
+    """
+    posture = dict(DEFAULT_ISOLATION)
+    if not raw:
+        return posture
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        dim, sep, mode = part.partition("=")
+        dim, mode = dim.strip(), mode.strip()
+        if not sep or not mode:
+            sys.exit(f"ERROR: --isolation expects fs=<mode>,net=<mode>, got '{part}'")
+        if dim == "fs":
+            valid = VALID_FS_ISOLATION
+        elif dim == "net":
+            valid = VALID_NET_ISOLATION
+        else:
+            sys.exit(f"ERROR: unknown --isolation dimension '{dim}' (use fs, net)")
+        if mode not in valid:
+            sys.exit(
+                f"ERROR: invalid {dim} isolation '{mode}'. "
+                f"Valid: {', '.join(sorted(valid))}"
+            )
+        posture[dim] = mode
+    return posture
 
 
 # -- agents.yaml -------------------------------------------------------------
@@ -204,12 +266,12 @@ def railway_set_variable(name: str, value: str, service: str, environment: str |
 # -- Merge -------------------------------------------------------------------
 
 
-def read_current(variables: dict[str, str]) -> tuple[list[str], dict[str, dict[str, str]]]:
+def read_current(variables: dict[str, str]) -> tuple[list[str], dict[str, dict[str, Any]]]:
     raw_keys = variables.get(KEYS_VAR, "")
     keys = [k.strip() for k in raw_keys.split(",") if k.strip()]
 
     raw_identities = variables.get(IDENTITIES_VAR, "").strip()
-    identities: dict[str, dict[str, str]] = {}
+    identities: dict[str, dict[str, Any]] = {}
     if raw_identities:
         try:
             parsed = json.loads(raw_identities)
@@ -226,11 +288,17 @@ def read_current(variables: dict[str, str]) -> tuple[list[str], dict[str, dict[s
 
 def merge(
     existing_keys: list[str],
-    existing_identities: dict[str, dict[str, str]],
+    existing_identities: dict[str, dict[str, Any]],
     specs: list[AgentSpec],
     allow_rotate: bool,
-) -> tuple[dict[str, str], list[str], dict[str, dict[str, str]]]:
+    isolation: dict[str, str],
+) -> tuple[dict[str, str], list[str], dict[str, dict[str, Any]]]:
     """Mint one key per spec and fold it into the existing allowlist and map.
+
+    Each new identity entry carries the operator-asserted ``isolation``
+    posture alongside agent_id/agent_type. Consumers that only know the
+    two-field shape ignore the extra key (`identities.get(key, {})` access);
+    the posture rides along until the trust clamp starts reading it.
 
     Returns (spec.agent_id -> new key, merged key list, merged identity map).
     """
@@ -261,7 +329,11 @@ def merge(
         key = generate_key()
         minted[spec.agent_id] = key
         merged_keys.append(key)
-        merged_identities[key] = {"agent_id": spec.agent_id, "agent_type": spec.agent_type}
+        merged_identities[key] = {
+            "agent_id": spec.agent_id,
+            "agent_type": spec.agent_type,
+            "isolation": dict(isolation),
+        }
 
     verify_additive(existing_keys, existing_identities, merged_keys, merged_identities, specs)
     return minted, merged_keys, merged_identities
@@ -269,9 +341,9 @@ def merge(
 
 def verify_additive(
     existing_keys: list[str],
-    existing_identities: dict[str, dict[str, str]],
+    existing_identities: dict[str, dict[str, Any]],
     merged_keys: list[str],
-    merged_identities: dict[str, dict[str, str]],
+    merged_identities: dict[str, dict[str, Any]],
     specs: list[AgentSpec],
 ) -> None:
     """Fail loud if the merge dropped or altered anything it should not have.
@@ -311,12 +383,19 @@ def write_secure(path: Path, content: str) -> None:
 
 
 def build_env_file(
-    domain: str, host_label: str, specs: list[AgentSpec], minted: dict[str, str]
+    domain: str,
+    host_label: str,
+    specs: list[AgentSpec],
+    minted: dict[str, str],
+    isolation: dict[str, str],
 ) -> str:
     default_spec = next((s for s in specs if s.vendor == "claude"), specs[0])
     lines = [
         f"# Coordinator configuration for host: {host_label}",
         f"# Generated by scripts/add_agent_keys.py for domain: {domain}",
+        f"# Asserted isolation posture: fs={isolation['fs']}, net={isolation['net']}",
+        "# (recorded on each key's coordinator identity; if this host's containment",
+        "#  changes, re-enroll with --rotate and the correct --isolation)",
         "#",
         "# Copy to the target host and source it from ~/.zshrc / ~/.bashrc.",
         "# Contains live key material — keep mode 0600, never commit.",
@@ -357,7 +436,7 @@ def build_railway_script(
     service: str,
     environment: str | None,
     merged_keys: list[str],
-    merged_identities: dict[str, dict[str, str]],
+    merged_identities: dict[str, dict[str, Any]],
 ) -> str:
     env_flag = f" --environment {environment}" if environment else ""
     keys_csv = ",".join(merged_keys)
@@ -421,13 +500,17 @@ def build_migration(number: int, host_label: str, specs: list[AgentSpec]) -> str
     if missing:
         lines += [
             "-- =============================================================================",
-            "-- Create profiles agents.yaml references but no migration ever seeded",
+            "-- Bootstrap profile rows for a fresh-DB replay (content owned by sync)",
             "-- =============================================================================",
-            "-- agents.yaml names these under `profile:`, but 007/018/019 only seeded the",
-            "-- claude_code_*, codex_*, gemini_* and strands_* rows. Cloned from",
-            f"-- {PROFILE_TEMPLATE} so they inherit trust level and the operation list as",
-            "-- later migrations extended it (e.g. 022's merge-queue operations), instead",
-            "-- of pinning a copy that drifts.",
+            "-- On the running production DB these rows already exist: the registry",
+            "-- startup sync (src/agents_config.py sync_profiles) projects agents.yaml",
+            "-- into agent_profiles on every boot and reconciles trust level and",
+            "-- operations. The clones below exist ONLY so a from-scratch migration",
+            "-- replay cannot order this file before the first sync: migrations run",
+            "-- before sync at startup, and the assignment INSERTs further down are",
+            "-- SELECT-driven — a missing profile row would turn them into silent",
+            "-- no-ops and trip the verification block. ON CONFLICT DO NOTHING keeps",
+            "-- this inert wherever sync has already materialized the row.",
             "",
         ]
         for profile in missing:
@@ -453,12 +536,17 @@ def build_migration(number: int, host_label: str, specs: list[AgentSpec]) -> str
         "-- =============================================================================",
         f"-- Assign each {host_label} agent_id to its profile",
         "-- =============================================================================",
+        f"-- assigned_by='{ENROLLMENT_ASSIGNED_BY}' is load-bearing: the startup sync",
+        "-- garbage-collects assignments for agent_ids absent from agents.yaml, but",
+        "-- only rows stamped with its own 'registry_sync'. These agent_ids are",
+        "-- per-host *instances* of registry-declared types — deliberately not",
+        "-- registry entries — and this stamp is what exempts them from that sweep.",
         "",
     ]
     for spec in specs:
         lines += [
             "INSERT INTO agent_profile_assignments (agent_id, profile_id, assigned_by)",
-            f"SELECT '{spec.agent_id}', id, 'add_agent_keys.py'",
+            f"SELECT '{spec.agent_id}', id, '{ENROLLMENT_ASSIGNED_BY}'",
             f"    FROM agent_profiles WHERE name = '{spec.profile}'",
             "ON CONFLICT (agent_id) DO UPDATE",
             "    SET profile_id = EXCLUDED.profile_id, assigned_at = now();",
@@ -519,6 +607,16 @@ def main() -> None:
         "--rotate", action="store_true",
         help="Replace keys for agent_ids that already exist (they stop working immediately)",
     )
+    parser.add_argument(
+        "--isolation",
+        help=(
+            "Operator-asserted isolation posture of this host, as "
+            "fs=<vm|container|sandbox|none>,net=<restricted|open>. "
+            "Default fs=none,net=open (raw filesystem, open egress) — the "
+            "conservative assertion. Recorded on each minted identity; read by "
+            "the posture-based trust clamp."
+        ),
+    )
     parser.add_argument("--env-output", help="Path for the host env file")
     parser.add_argument("--railway-output", help="Path for the railway-set shell script")
     parser.add_argument("--migration-output", help="Path for the SQL migration")
@@ -529,12 +627,15 @@ def main() -> None:
         sys.exit("ERROR: --host-label must not be empty")
     domain = args.domain.removeprefix("https://").removeprefix("http://").rstrip("/")
     vendors = [v.strip() for v in args.vendors.split(",") if v.strip()] if args.vendors else None
+    isolation = parse_isolation(args.isolation)
 
     specs = load_local_agents(host_label, vendors)
 
     print("=" * 70)
     print(f"Add coordinator keys for host '{host_label}'")
     print("=" * 70)
+    posture_note = "asserted" if args.isolation else "default — no --isolation given"
+    print(f"Isolation posture: fs={isolation['fs']}, net={isolation['net']} ({posture_note})")
 
     print("\n1. Current Railway state")
     if args.from_json:
@@ -560,7 +661,7 @@ def main() -> None:
 
     print("\n2. Minting keys")
     minted, merged_keys, merged_identities = merge(
-        existing_keys, existing_identities, specs, args.rotate
+        existing_keys, existing_identities, specs, args.rotate, isolation
     )
     for spec in specs:
         print(
@@ -578,7 +679,7 @@ def main() -> None:
     )
 
     print("\n3. Artifacts")
-    write_secure(env_path, build_env_file(domain, host_label, specs, minted))
+    write_secure(env_path, build_env_file(domain, host_label, specs, minted, isolation))
     print(f"   {env_path}  (0600 — copy to the {host_label} host, then source it)")
 
     write_secure(

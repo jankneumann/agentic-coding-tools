@@ -730,7 +730,11 @@ class TestSyncAssignments:
         """A pointer is not authorization state — deleting it loses nothing."""
         db = FakeDb(
             [_row("gemini_local", agent_type="gemini")],
-            assignments=[_assignment("gemini-local", "gemini_local")],
+            assignments=[
+                _assignment(
+                    "gemini-local", "gemini_local", assigned_by=ASSIGNMENT_ASSIGNED_BY
+                )
+            ],
         )
         agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
 
@@ -744,6 +748,35 @@ class TestSyncAssignments:
         # The profile it pointed at survives, disabled — D2 still holds there.
         gemini = next(r for r in db.rows if r["name"] == "gemini_local")
         assert gemini["enabled"] is False
+
+    async def test_assignment_not_owned_by_sync_is_retained(self) -> None:
+        """The sync garbage-collects only rows it wrote (`assigned_by` check).
+
+        Hand-written rows (migration 018: assigned_by NULL) and per-host
+        enrollment rows (add_agent_keys.py stamps its own name) describe agent
+        *instances* the registry deliberately does not declare. Deleting them
+        on every startup would return those agents to the oldest-row-of-type
+        fallback — the exact drift 018 eliminated.
+        """
+        db = FakeDb(
+            [_row("gemini_local", agent_type="gemini")],
+            assignments=[
+                # Migration-018-style hand-written row.
+                _assignment("gemini-local", "gemini_local", assigned_by=None),
+                # Per-host enrollment row for an instance of a declared type.
+                _assignment(
+                    "claude-gx10", "gemini_local", assigned_by="add_agent_keys.py"
+                ),
+            ],
+        )
+        agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
+
+        result = await sync_profiles(agents, db=db, audit=FakeAudit())
+
+        assert result.unassigned == []
+        assert db.deletes == []
+        surviving = {a["agent_id"] for a in db.assignments}
+        assert {"gemini-local", "claude-gx10", "grok-local"} <= surviving
 
     async def test_idempotent_rerun_writes_no_assignments(self) -> None:
         db = FakeDb()
@@ -788,7 +821,11 @@ class TestSyncAssignments:
     async def test_stale_assignment_delete_failure_raises(self) -> None:
         db = FakeDb(
             [_row("gemini_local", agent_type="gemini")],
-            assignments=[_assignment("gemini-local", "gemini_local")],
+            assignments=[
+                _assignment(
+                    "gemini-local", "gemini_local", assigned_by=ASSIGNMENT_ASSIGNED_BY
+                )
+            ],
         )
         db.fail_delete = True
         agents = [_agent("grok-local", profile="grok_local", agent_type="grok")]
@@ -839,8 +876,12 @@ class TestAuditContract:
                 _row("grok_local", agent_type="grok", trust_level=1),
             ],
             assignments=[
-                # An agent the registry no longer declares → unassign.
-                _assignment("gemini-local", "gemini_local"),
+                # A sync-owned row for an agent the registry no longer
+                # declares → unassign. (Rows the sync did not write are
+                # retained, so the fixture must carry the sync's stamp.)
+                _assignment(
+                    "gemini-local", "gemini_local", assigned_by=ASSIGNMENT_ASSIGNED_BY
+                ),
                 # A hand-written assignment pointing at the wrong row → reassign.
                 _assignment("grok-local", "gemini_local"),
                 # pi-local has no assignment at all → assign.
@@ -873,7 +914,9 @@ class TestAuditContract:
                 ),
             ],
             assignments=[
-                _assignment("gemini-local", "gemini_local"),
+                _assignment(
+                    "gemini-local", "gemini_local", assigned_by=ASSIGNMENT_ASSIGNED_BY
+                ),
                 _assignment("grok-local", "gemini_local"),
             ],
         )

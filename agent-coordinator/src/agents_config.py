@@ -1309,6 +1309,23 @@ async def _sync_assignments(
     for agent_id, row in existing.items():
         if agent_id in declared:
             continue
+        # The sync garbage-collects only rows it wrote. `assigned_by` exists
+        # precisely to tell a projected assignment from everything else:
+        # migration 018's hand-written rows carry NULL, and per-host enrollment
+        # (scripts/add_agent_keys.py) stamps its own name. Those agent_ids are
+        # *instances* — deliberately not registry entries, because the registry
+        # declares vendor types, not machines — so treating "absent from
+        # agents.yaml" as "stale" would delete every enrolled host's assignment
+        # at each startup and drop resolution back to the oldest-row-of-type
+        # tiebreak that migration 018 was written to eliminate.
+        if row.get("assigned_by") != ASSIGNMENT_ASSIGNED_BY:
+            logger.debug(
+                "Retaining assignment for undeclared agent '%s' "
+                "(assigned_by=%r is not the registry projection's)",
+                agent_id,
+                row.get("assigned_by"),
+            )
+            continue
         # Stale pointers are DELETEd, deliberately unlike D2's
         # disable-don't-delete rule for profiles: this table has no `enabled`
         # column, and an assignment is a *pointer*, not authorization state. The
