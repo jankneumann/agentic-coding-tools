@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-08-22T00:57:02+00:00",
+  "generated_at": "2026-08-22T01:03:57+00:00",
   "treesitter_version": "unknown",
   "comments": {
-    "total": 2440,
+    "total": 2443,
     "with_markers": 20,
     "items": [
       {
@@ -6328,7 +6328,7 @@
       },
       {
         "file": "db_postgres.py",
-        "line": 15,
+        "line": 16,
         "text": "# noqa: I001",
         "language": "python",
         "type": "inline",
@@ -6337,7 +6337,34 @@
       },
       {
         "file": "db_postgres.py",
-        "line": 106,
+        "line": 24,
+        "text": "# datetime.now(UTC).isoformat() and common Zulu variants. Requires a",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "db_postgres.py",
+        "line": 25,
+        "text": "# timezone so we don't swallow date-only or naive strings that belong",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "db_postgres.py",
+        "line": 26,
+        "text": "# on TEXT columns.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "db_postgres.py",
+        "line": 140,
         "text": "# Build named parameter call \u2014 serialize dicts/lists for JSONB params",
         "language": "python",
         "type": "inline",
@@ -6346,7 +6373,7 @@
       },
       {
         "file": "db_postgres.py",
-        "line": 119,
+        "line": 153,
         "text": "# asyncpg returns function JSONB results as strings (not dicts)",
         "language": "python",
         "type": "inline",
@@ -6355,7 +6382,7 @@
       },
       {
         "file": "db_postgres.py",
-        "line": 120,
+        "line": 154,
         "text": "# because function return types aren't introspected from the schema.",
         "language": "python",
         "type": "inline",
@@ -6364,7 +6391,7 @@
       },
       {
         "file": "db_postgres.py",
-        "line": 158,
+        "line": 192,
         "text": "# Accept PostgREST-style JSONB text extraction:",
         "language": "python",
         "type": "inline",
@@ -6373,7 +6400,7 @@
       },
       {
         "file": "db_postgres.py",
-        "line": 159,
+        "line": 193,
         "text": "#   parameters->>change_id=eq.<value>",
         "language": "python",
         "type": "inline",
@@ -6382,7 +6409,7 @@
       },
       {
         "file": "db_postgres.py",
-        "line": 160,
+        "line": 194,
         "text": "# becomes: parameters->>'change_id' = $N",
         "language": "python",
         "type": "inline",
@@ -6391,7 +6418,7 @@
       },
       {
         "file": "db_postgres.py",
-        "line": 197,
+        "line": 231,
         "text": "# Parse PostgREST IN syntax: (val1,val2,val3)",
         "language": "python",
         "type": "inline",
@@ -22707,27 +22734,27 @@
         },
         {
           "file": "db_postgres.py",
-          "line": 114,
+          "line": 148,
           "enclosing_node": "py:db_postgres.DirectPostgresClient.rpc"
         },
         {
           "file": "db_postgres.py",
-          "line": 213,
+          "line": 247,
           "enclosing_node": "py:db_postgres.DirectPostgresClient.query"
         },
         {
           "file": "db_postgres.py",
-          "line": 237,
+          "line": 271,
           "enclosing_node": "py:db_postgres.DirectPostgresClient.insert"
         },
         {
           "file": "db_postgres.py",
-          "line": 279,
+          "line": 313,
           "enclosing_node": "py:db_postgres.DirectPostgresClient.update"
         },
         {
           "file": "db_postgres.py",
-          "line": 306,
+          "line": 340,
           "enclosing_node": "py:db_postgres.DirectPostgresClient.delete"
         },
         {
@@ -22923,7 +22950,7 @@
       ]
     },
     "type_hints": {
-      "count": 2002,
+      "count": 2004,
       "items": [
         {
           "file": "agents_config.py",
@@ -28415,175 +28442,189 @@
         },
         {
           "file": "db_postgres.py",
-          "line": 25,
+          "line": 32,
+          "function": "_parse_iso_datetime",
+          "kind": "return_type",
+          "enclosing_node": "py:db_postgres._parse_iso_datetime"
+        },
+        {
+          "file": "db_postgres.py",
+          "line": 32,
+          "parameter": "val",
+          "kind": "param_type",
+          "enclosing_node": "py:db_postgres._parse_iso_datetime"
+        },
+        {
+          "file": "db_postgres.py",
+          "line": 48,
           "function": "_coerce_filter_value",
           "kind": "return_type",
           "enclosing_node": "py:db_postgres._coerce_filter_value"
         },
         {
           "file": "db_postgres.py",
-          "line": 25,
+          "line": 48,
           "parameter": "val",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres._coerce_filter_value"
         },
         {
           "file": "db_postgres.py",
-          "line": 46,
+          "line": 72,
           "function": "_validate_identifier",
           "kind": "return_type",
           "enclosing_node": "py:db_postgres._validate_identifier"
         },
         {
           "file": "db_postgres.py",
-          "line": 46,
+          "line": 72,
           "parameter": "identifier",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres._validate_identifier"
         },
         {
           "file": "db_postgres.py",
-          "line": 54,
+          "line": 80,
           "function": "_validate_select_clause",
           "kind": "return_type",
           "enclosing_node": "py:db_postgres._validate_select_clause"
         },
         {
           "file": "db_postgres.py",
-          "line": 54,
+          "line": 80,
           "parameter": "select",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres._validate_select_clause"
         },
         {
           "file": "db_postgres.py",
-          "line": 66,
+          "line": 92,
           "function": "_serialize_for_asyncpg",
           "kind": "return_type",
           "enclosing_node": "py:db_postgres._serialize_for_asyncpg"
         },
         {
           "file": "db_postgres.py",
-          "line": 66,
+          "line": 92,
           "parameter": "value",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres._serialize_for_asyncpg"
         },
         {
           "file": "db_postgres.py",
-          "line": 89,
+          "line": 123,
           "function": "_get_pool",
           "kind": "return_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient._get_pool"
         },
         {
           "file": "db_postgres.py",
-          "line": 98,
+          "line": 132,
           "function": "rpc",
           "kind": "return_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.rpc"
         },
         {
           "file": "db_postgres.py",
-          "line": 98,
+          "line": 132,
           "parameter": "function_name",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.rpc"
         },
         {
           "file": "db_postgres.py",
-          "line": 98,
+          "line": 132,
           "parameter": "params",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.rpc"
         },
         {
           "file": "db_postgres.py",
-          "line": 128,
+          "line": 162,
           "function": "query",
           "kind": "return_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.query"
         },
         {
           "file": "db_postgres.py",
-          "line": 130,
+          "line": 164,
           "parameter": "table",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.query"
         },
         {
           "file": "db_postgres.py",
-          "line": 217,
+          "line": 251,
           "function": "insert",
           "kind": "return_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.insert"
         },
         {
           "file": "db_postgres.py",
-          "line": 219,
+          "line": 253,
           "parameter": "table",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.insert"
         },
         {
           "file": "db_postgres.py",
-          "line": 220,
+          "line": 254,
           "parameter": "data",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.insert"
         },
         {
           "file": "db_postgres.py",
-          "line": 245,
+          "line": 279,
           "function": "update",
           "kind": "return_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.update"
         },
         {
           "file": "db_postgres.py",
-          "line": 247,
+          "line": 281,
           "parameter": "table",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.update"
         },
         {
           "file": "db_postgres.py",
-          "line": 248,
+          "line": 282,
           "parameter": "match",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.update"
         },
         {
           "file": "db_postgres.py",
-          "line": 249,
+          "line": 283,
           "parameter": "data",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.update"
         },
         {
           "file": "db_postgres.py",
-          "line": 287,
+          "line": 321,
           "function": "delete",
           "kind": "return_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.delete"
         },
         {
           "file": "db_postgres.py",
-          "line": 289,
+          "line": 323,
           "parameter": "table",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.delete"
         },
         {
           "file": "db_postgres.py",
-          "line": 290,
+          "line": 324,
           "parameter": "match",
           "kind": "param_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.delete"
         },
         {
           "file": "db_postgres.py",
-          "line": 309,
+          "line": 343,
           "function": "close",
           "kind": "return_type",
           "enclosing_node": "py:db_postgres.DirectPostgresClient.close"

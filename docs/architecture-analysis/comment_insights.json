@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-22T00:57:02+00:00",
+  "generated_at": "2026-08-22T01:03:57+00:00",
   "summary": {
-    "total_comments": 2440,
+    "total_comments": 2443,
     "total_with_markers": 20,
     "marker_totals": {
       "NOTE": 4,
@@ -11,7 +11,7 @@
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1982,
+    "total_graph_nodes": 1983,
     "documented_nodes": 317,
     "documentation_coverage": 0.16
   },
@@ -266,7 +266,7 @@
     },
     {
       "file": "db_postgres.py",
-      "total_comments": 8,
+      "total_comments": 11,
       "with_markers": 0,
       "languages": [
         "python"
