@@ -47,6 +47,7 @@ from typing import Any
 import pytest
 
 from src.agents_config import (
+    ASSIGNMENT_ASSIGNED_BY,
     UNMANAGED_PROFILES,
     AgentEntry,
     DuplicateApiKeyError,
@@ -443,19 +444,29 @@ class TestRegistryProjectionInvariant:
                 f"depends on which profile row of type {agent.type!r} is oldest"
             )
 
-    async def test_assignments_are_projected_only_for_registry_agents(
+    async def test_stale_projected_assignments_are_removed_and_foreign_rows_kept(
         self, registry: list[AgentEntry]
     ) -> None:
-        """Migration 018's rows for dropped harnesses are stale pointers.
+        """The sync removes only stale rows it wrote; everything else survives.
 
-        ``gemini-local`` / ``gemini-remote`` left the registry; their assignments
-        point into profiles this sync disables. Assignments have no ``enabled``
-        column, so removal is the only option (design D11) — the profile itself
-        is still retained and disabled.
+        ``gemini-local`` left the registry after an earlier boot's sync stamped
+        its assignment — a stale projected pointer, removed (design D11; the
+        profile itself is retained and disabled). ``gemini-remote``'s row is
+        hand-written (migration 018 wrote ``assigned_by`` NULL), and
+        ``claude-gx10`` is a per-host enrollment row
+        (scripts/add_agent_keys.py): agent *instances* the registry
+        deliberately does not enumerate. Sweeping those on every startup would
+        return them to the oldest-row-of-type fallback that 018 eliminated.
         """
         stale = [
-            _assignment("gemini-local", "gemini_local_worker"),
+            _assignment(
+                "gemini-local", "gemini_local_worker",
+                assigned_by=ASSIGNMENT_ASSIGNED_BY,
+            ),
             _assignment("gemini-remote", "gemini_cloud_worker"),
+            _assignment(
+                "claude-gx10", "claude_code_local", assigned_by="add_agent_keys.py"
+            ),
         ]
         db = await _synced_db(
             registry,
@@ -466,8 +477,9 @@ class TestRegistryProjectionInvariant:
             ],
             assignments=stale,
         )
-        assert sorted(a["agent_id"] for a in db.assignments) == sorted(
-            a.name for a in registry
+        surviving = sorted(a["agent_id"] for a in db.assignments)
+        assert surviving == sorted(
+            [*(a.name for a in registry), "gemini-remote", "claude-gx10"]
         )
         for name in ("gemini_local_worker", "gemini_cloud_worker"):
             row = next(r for r in db.rows if r["name"] == name)
