@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-08-18T22:23:29+00:00",
+  "generated_at": "2026-08-22T00:08:38+00:00",
   "treesitter_version": "unknown",
   "comments": {
-    "total": 2431,
+    "total": 2440,
     "with_markers": 20,
     "items": [
       {
@@ -1533,7 +1533,7 @@
       {
         "file": "agents_config.py",
         "line": 1312,
-        "text": "# Stale pointers are DELETEd, deliberately unlike D2's",
+        "text": "# The sync garbage-collects only rows it wrote. `assigned_by` exists",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -1542,7 +1542,7 @@
       {
         "file": "agents_config.py",
         "line": 1313,
-        "text": "# disable-don't-delete rule for profiles: this table has no `enabled`",
+        "text": "# precisely to tell a projected assignment from everything else:",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -1551,7 +1551,7 @@
       {
         "file": "agents_config.py",
         "line": 1314,
-        "text": "# column, and an assignment is a *pointer*, not authorization state. The",
+        "text": "# migration 018's hand-written rows carry NULL, and per-host enrollment",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -1560,7 +1560,7 @@
       {
         "file": "agents_config.py",
         "line": 1315,
-        "text": "# profile it referenced is retained (and disabled by the profile phase),",
+        "text": "# (scripts/add_agent_keys.py) stamps its own name. Those agent_ids are",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -1569,7 +1569,7 @@
       {
         "file": "agents_config.py",
         "line": 1316,
-        "text": "# and the audit event below records the name it pointed at, so the",
+        "text": "# *instances* \u2014 deliberately not registry entries, because the registry",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -1578,6 +1578,87 @@
       {
         "file": "agents_config.py",
         "line": 1317,
+        "text": "# declares vendor types, not machines \u2014 so treating \"absent from",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._sync_assignments"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1318,
+        "text": "# agents.yaml\" as \"stale\" would delete every enrolled host's assignment",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._sync_assignments"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1319,
+        "text": "# at each startup and drop resolution back to the oldest-row-of-type",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._sync_assignments"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1320,
+        "text": "# tiebreak that migration 018 was written to eliminate.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._sync_assignments"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1329,
+        "text": "# Stale pointers are DELETEd, deliberately unlike D2's",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._sync_assignments"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1330,
+        "text": "# disable-don't-delete rule for profiles: this table has no `enabled`",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._sync_assignments"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1331,
+        "text": "# column, and an assignment is a *pointer*, not authorization state. The",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._sync_assignments"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1332,
+        "text": "# profile it referenced is retained (and disabled by the profile phase),",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._sync_assignments"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1333,
+        "text": "# and the audit event below records the name it pointed at, so the",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._sync_assignments"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1334,
         "text": "# removal stays reconstructible from the audit trail alone.",
         "language": "python",
         "type": "inline",
@@ -1586,7 +1667,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1392,
+        "line": 1409,
         "text": "# Refusing to run on an empty registry is a safety property, not a",
         "language": "python",
         "type": "inline",
@@ -1595,7 +1676,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1393,
+        "line": 1410,
         "text": "# convenience: orphan disabling against an empty roster would disable",
         "language": "python",
         "type": "inline",
@@ -1604,7 +1685,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1394,
+        "line": 1411,
         "text": "# every profile in the table.",
         "language": "python",
         "type": "inline",
@@ -1613,7 +1694,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1433,
+        "line": 1450,
         "text": "# Stamp every projected write so migration 032.s",
         "language": "python",
         "type": "inline",
@@ -1622,7 +1703,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1434,
+        "line": 1451,
         "text": "# synced_from_registry_at column means what its comment claims.",
         "language": "python",
         "type": "inline",
@@ -1631,7 +1712,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1442,
+        "line": 1459,
         "text": "# A concurrent worker may have inserted the same name between",
         "language": "python",
         "type": "inline",
@@ -1640,7 +1721,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1443,
+        "line": 1460,
         "text": "# our read and our write (UNIQUE (name)). Converge via update",
         "language": "python",
         "type": "inline",
@@ -1649,7 +1730,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1444,
+        "line": 1461,
         "text": "# rather than failing the boot of the slower worker. ONLY for a",
         "language": "python",
         "type": "inline",
@@ -1658,7 +1739,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1445,
+        "line": 1462,
         "text": "# real uniqueness collision: any other failure means the row was",
         "language": "python",
         "type": "inline",
@@ -1667,7 +1748,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1446,
+        "line": 1463,
         "text": "# never written, and retrying it as an UPDATE would match zero",
         "language": "python",
         "type": "inline",
@@ -1676,7 +1757,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1447,
+        "line": 1464,
         "text": "# rows, raise nothing, and be reported as a successful insert.",
         "language": "python",
         "type": "inline",
@@ -1685,7 +1766,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1542,
+        "line": 1559,
         "text": "# The profiles service caches lookups by agent_id:agent_type with a",
         "language": "python",
         "type": "inline",
@@ -1694,7 +1775,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1543,
+        "line": 1560,
         "text": "# TTL. At boot the cache is empty and this is a no-op; on a re-sync in",
         "language": "python",
         "type": "inline",
@@ -1703,7 +1784,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1544,
+        "line": 1561,
         "text": "# a live process it stops pre-sync trust levels from being served until",
         "language": "python",
         "type": "inline",
@@ -1712,7 +1793,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1545,
+        "line": 1562,
         "text": "# the TTL expires.",
         "language": "python",
         "type": "inline",
@@ -1721,7 +1802,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1565,
+        "line": 1582,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1730,7 +1811,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1566,
+        "line": 1583,
         "text": "# MCP environment generation",
         "language": "python",
         "type": "inline",
@@ -1739,7 +1820,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1567,
+        "line": 1584,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1748,7 +1829,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1591,
+        "line": 1608,
         "text": "# Include database connection settings from the current environment.",
         "language": "python",
         "type": "inline",
@@ -1757,7 +1838,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1600,
+        "line": 1617,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1766,7 +1847,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1601,
+        "line": 1618,
         "text": "# Global config singleton (lazy)",
         "language": "python",
         "type": "inline",
@@ -1775,7 +1856,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1602,
+        "line": 1619,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1784,7 +1865,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1637,
+        "line": 1654,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1793,7 +1874,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1638,
+        "line": 1655,
         "text": "# Dispatch config helpers",
         "language": "python",
         "type": "inline",
@@ -1802,43 +1883,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1639,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 1705,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 1706,
-        "text": "# Isolation helpers",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 1707,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 1721,
+        "line": 1656,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1848,7 +1893,7 @@
       {
         "file": "agents_config.py",
         "line": 1722,
-        "text": "# Archetype loading + helpers",
+        "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -1857,6 +1902,15 @@
       {
         "file": "agents_config.py",
         "line": 1723,
+        "text": "# Isolation helpers",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1724,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1865,7 +1919,34 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1780,
+        "line": 1738,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1739,
+        "text": "# Archetype loading + helpers",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1740,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1797,
         "text": "# D3 structured-field enforcement (supervisor invariant): the",
         "language": "python",
         "type": "inline",
@@ -1874,7 +1955,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1781,
+        "line": 1798,
         "text": "# supervisor archetype is a read-only adjudicator that delegates every",
         "language": "python",
         "type": "inline",
@@ -1883,7 +1964,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1782,
+        "line": 1799,
         "text": "# change to a write-capable worker. Reject any config that marks it",
         "language": "python",
         "type": "inline",
@@ -1892,7 +1973,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1783,
+        "line": 1800,
         "text": "# write_capable at load time \u2014 fail loud, same posture as the",
         "language": "python",
         "type": "inline",
@@ -1901,7 +1982,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1784,
+        "line": 1801,
         "text": "# write-capable-phase gate in resolve_archetype_for_phase.",
         "language": "python",
         "type": "inline",
@@ -1910,7 +1991,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1800,
+        "line": 1817,
         "text": "# Phase mapping (optional, schema_version=2). Validate archetype refs after",
         "language": "python",
         "type": "inline",
@@ -1919,7 +2000,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1801,
+        "line": 1818,
         "text": "# all archetypes are constructed so cross-references resolve.",
         "language": "python",
         "type": "inline",
@@ -1928,7 +2009,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1943,
+        "line": 1960,
         "text": "# Optional tiers degrade gracefully: a provider without a",
         "language": "python",
         "type": "inline",
@@ -1937,7 +2018,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1944,
+        "line": 1961,
         "text": "# frontier model serves its premium model instead of failing.",
         "language": "python",
         "type": "inline",
@@ -1946,44 +2027,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1978,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 1979,
-        "text": "# Prompt composition (D2: composition, not replacement)",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 1980,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 1994,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
         "line": 1995,
-        "text": "# Complexity-based escalation (D3: at dispatch time)",
+        "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -1992,6 +2037,15 @@
       {
         "file": "agents_config.py",
         "line": 1996,
+        "text": "# Prompt composition (D2: composition, not replacement)",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1997,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2000,7 +2054,34 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2008,
+        "line": 2011,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2012,
+        "text": "# Complexity-based escalation (D3: at dispatch time)",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2013,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2025,
         "text": "# Strip trailing wildcards and filename patterns",
         "language": "python",
         "type": "inline",
@@ -2009,7 +2090,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2010,
+        "line": 2027,
         "text": "# Keep only directory-like components (no wildcards)",
         "language": "python",
         "type": "inline",
@@ -2018,7 +2099,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2117,
+        "line": 2134,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2027,7 +2108,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2118,
+        "line": 2135,
         "text": "# Phase-aware archetype resolution (D2: coordinator-owned phase mapping)",
         "language": "python",
         "type": "inline",
@@ -2036,7 +2117,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2119,
+        "line": 2136,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2045,7 +2126,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2162,
+        "line": 2179,
         "text": "# Validated at load time; this branch only fires if the cache is mutated.",
         "language": "python",
         "type": "inline",
@@ -2054,7 +2135,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2169,
+        "line": 2186,
         "text": "# Enforce the write-capability contract at resolution time (design D3 /",
         "language": "python",
         "type": "inline",
@@ -2063,7 +2144,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2170,
+        "line": 2187,
         "text": "# Task 2.5): a write-capable phase MUST resolve to a write_capable archetype.",
         "language": "python",
         "type": "inline",
@@ -2072,7 +2153,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2171,
+        "line": 2188,
         "text": "# This is the structured-field gate \u2014 no substring matching over prompts.",
         "language": "python",
         "type": "inline",
@@ -2081,7 +2162,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2180,
+        "line": 2197,
         "text": "# Filter signals to keys listed in the phase entry \u2014 security-style",
         "language": "python",
         "type": "inline",
@@ -2090,7 +2171,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2181,
+        "line": 2198,
         "text": "# whitelist that mirrors the spec's \"unknown keys silently dropped\" rule.",
         "language": "python",
         "type": "inline",
@@ -9215,7 +9296,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9224,7 +9305,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9233,7 +9314,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9242,7 +9323,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9251,7 +9332,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9260,7 +9341,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9269,7 +9350,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9278,7 +9359,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9287,7 +9368,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9296,7 +9377,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9305,7 +9386,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9314,7 +9395,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9323,7 +9404,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9332,7 +9413,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9341,7 +9422,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9350,7 +9431,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9359,7 +9440,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9368,7 +9449,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9377,7 +9458,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9386,7 +9467,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:App"
       },
       {
         "file": "kanban-viz/src/__tests__/App.test.tsx",
@@ -12004,7 +12085,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Board"
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12013,7 +12094,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Board"
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12022,7 +12103,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Board"
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12031,7 +12112,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Board"
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12040,7 +12121,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Board"
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12049,7 +12130,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Board"
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12058,7 +12139,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Board"
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12067,7 +12148,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Board"
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12076,7 +12157,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Board"
       },
       {
         "file": "kanban-viz/src/components/Card.tsx",
@@ -12130,7 +12211,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Card"
       },
       {
         "file": "kanban-viz/src/components/Card.tsx",
@@ -12139,7 +12220,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Card"
       },
       {
         "file": "kanban-viz/src/components/Card.tsx",
@@ -12148,7 +12229,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Card"
       },
       {
         "file": "kanban-viz/src/components/Card.tsx",
@@ -12157,7 +12238,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Card"
       },
       {
         "file": "kanban-viz/src/components/Card.tsx",
@@ -12166,7 +12247,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Card"
       },
       {
         "file": "kanban-viz/src/components/Card.tsx",
@@ -12175,7 +12256,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:Card"
       },
       {
         "file": "kanban-viz/src/components/ClusterBadge.tsx",
@@ -12184,7 +12265,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/components/ClusterBadge"
       },
       {
         "file": "kanban-viz/src/components/ClusterBadge.tsx",
@@ -12238,7 +12319,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:ClusterBadge"
       },
       {
         "file": "kanban-viz/src/components/ClusterBadge.tsx",
@@ -12301,7 +12382,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/components/ConsentPrompt"
       },
       {
         "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
@@ -12310,7 +12391,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/components/HiddenReposToggle"
       },
       {
         "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
@@ -12357,7 +12438,7 @@
         "markers": [
           "WARNING"
         ],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/components/PRCardView"
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12393,7 +12474,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:PRCardView"
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12402,7 +12483,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:PRCardView"
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12411,7 +12492,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:PRCardView"
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12420,7 +12501,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:PRCardView"
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12429,7 +12510,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:PRCardView"
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12438,7 +12519,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:PRCardView"
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12447,7 +12528,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:PRCardView"
       },
       {
         "file": "kanban-viz/src/components/PROriginFilter.tsx",
@@ -12456,7 +12537,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/components/PROriginFilter"
       },
       {
         "file": "kanban-viz/src/components/PROriginFilter.tsx",
@@ -12465,7 +12546,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:loadFromStorage"
       },
       {
         "file": "kanban-viz/src/components/PROriginFilter.tsx",
@@ -12474,7 +12555,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:saveToStorage"
       },
       {
         "file": "kanban-viz/src/components/PROriginFilter.tsx",
@@ -12501,7 +12582,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:PROriginFilter"
       },
       {
         "file": "kanban-viz/src/components/PROriginFilter.tsx",
@@ -12510,7 +12591,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:PROriginFilter"
       },
       {
         "file": "kanban-viz/src/components/PROriginFilter.tsx",
@@ -12528,7 +12609,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/components/ProposalCardView"
       },
       {
         "file": "kanban-viz/src/components/ProposalCardView.tsx",
@@ -12537,7 +12618,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:ProposalCardView"
       },
       {
         "file": "kanban-viz/src/components/ProposalCardView.tsx",
@@ -12546,7 +12627,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:ProposalCardView"
       },
       {
         "file": "kanban-viz/src/components/ProposalCardView.tsx",
@@ -12555,7 +12636,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:ProposalCardView"
       },
       {
         "file": "kanban-viz/src/components/ProposalCardView.tsx",
@@ -12564,7 +12645,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:ProposalCardView"
       },
       {
         "file": "kanban-viz/src/components/ProposalCardView.tsx",
@@ -12573,7 +12654,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:ProposalCardView"
       },
       {
         "file": "kanban-viz/src/components/ProposalCardView.tsx",
@@ -12582,7 +12663,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:ProposalCardView"
       },
       {
         "file": "kanban-viz/src/components/RefreshButton.tsx",
@@ -12591,7 +12672,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/components/RefreshButton"
       },
       {
         "file": "kanban-viz/src/components/RefreshButton.tsx",
@@ -12618,7 +12699,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:RefreshButton"
       },
       {
         "file": "kanban-viz/src/components/RepoBadge.tsx",
@@ -12627,7 +12708,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/components/RepoBadge"
       },
       {
         "file": "kanban-viz/src/components/RepoBadge.tsx",
@@ -12645,7 +12726,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:hashString"
       },
       {
         "file": "kanban-viz/src/components/RepoBadge.tsx",
@@ -12654,7 +12735,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:hashString"
       },
       {
         "file": "kanban-viz/src/components/RepoBadge.tsx",
@@ -12672,7 +12753,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:repoToColor"
       },
       {
         "file": "kanban-viz/src/components/RepoBadge.tsx",
@@ -12699,7 +12780,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/components/SaveViewButton"
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12744,7 +12825,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:slugify"
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12753,7 +12834,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:slugify"
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12762,7 +12843,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SaveViewButton"
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12771,7 +12852,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SaveViewButton"
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12780,7 +12861,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SaveViewButton"
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12789,7 +12870,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SaveViewButton"
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12798,7 +12879,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SaveViewButton"
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12807,7 +12888,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SaveViewButton"
       },
       {
         "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
@@ -12816,7 +12897,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/components/SourceSwimlanes"
       },
       {
         "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
@@ -12951,7 +13032,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:PRSourceRow"
       },
       {
         "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
@@ -13005,7 +13086,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SourceSwimlanes"
       },
       {
         "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
@@ -13014,7 +13095,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SourceSwimlanes"
       },
       {
         "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
@@ -13023,7 +13104,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SourceSwimlanes"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13032,7 +13113,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/components/SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13050,7 +13131,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13059,7 +13140,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13070,7 +13151,7 @@
         "markers": [
           "BUG"
         ],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13079,7 +13160,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13088,7 +13169,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13097,7 +13178,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13106,7 +13187,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13115,7 +13196,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13124,7 +13205,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13133,7 +13214,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13142,7 +13223,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13151,7 +13232,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13160,7 +13241,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13169,7 +13250,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13178,7 +13259,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13187,7 +13268,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13196,7 +13277,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13205,7 +13286,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13214,7 +13295,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13223,7 +13304,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13232,7 +13313,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13241,7 +13322,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13250,7 +13331,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13259,7 +13340,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13268,7 +13349,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13277,7 +13358,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13286,7 +13367,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13295,7 +13376,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13304,7 +13385,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:SyncPointBanner"
       },
       {
         "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
@@ -13313,7 +13394,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/components/VendorSwimlanes"
       },
       {
         "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
@@ -13385,7 +13466,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:VendorSwimlanes"
       },
       {
         "file": "kanban-viz/src/components/__tests__/ClusterBadge.test.tsx",
@@ -14134,7 +14215,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/hooks/useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14179,7 +14260,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14188,7 +14269,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14197,7 +14278,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14206,7 +14287,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14215,7 +14296,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14224,7 +14305,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14233,7 +14314,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14242,7 +14323,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14251,7 +14332,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14260,7 +14341,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14269,7 +14350,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14278,7 +14359,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14287,7 +14368,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14296,7 +14377,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14305,7 +14386,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14314,7 +14395,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14323,7 +14404,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14332,7 +14413,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14341,7 +14422,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14350,7 +14431,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:clusterBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14440,7 +14521,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:fetchProposals"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14449,7 +14530,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:fetchProposals"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14458,7 +14539,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:fetchProposals"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14467,7 +14548,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14476,7 +14557,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14485,7 +14566,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14494,7 +14575,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14503,7 +14584,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14512,7 +14593,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14521,7 +14602,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14530,7 +14611,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14539,7 +14620,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14548,7 +14629,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14557,7 +14638,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14566,7 +14647,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14575,7 +14656,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useBoardCards"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14584,7 +14665,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/hooks/useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14674,7 +14755,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14683,7 +14764,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14692,7 +14773,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14701,7 +14782,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14710,7 +14791,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14719,7 +14800,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14728,7 +14809,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14737,7 +14818,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14746,7 +14827,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14755,7 +14836,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14764,7 +14845,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14773,7 +14854,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14782,7 +14863,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14791,7 +14872,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14800,7 +14881,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14809,7 +14890,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14818,7 +14899,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14827,7 +14908,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14836,7 +14917,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14845,7 +14926,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14854,7 +14935,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14863,7 +14944,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14872,7 +14953,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14881,7 +14962,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:useCoordinator"
       },
       {
         "file": "kanban-viz/src/lib/__tests__/cluster-key.test.ts",
@@ -15207,7 +15288,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/lib/coordinator-types"
       },
       {
         "file": "kanban-viz/src/lib/coordinator-types.ts",
@@ -15510,7 +15591,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:deriveIssueRepo"
       },
       {
         "file": "kanban-viz/src/lib/coordinator-types.ts",
@@ -15528,7 +15609,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:getClusterKey"
       },
       {
         "file": "kanban-viz/src/lib/coordinator-types.ts",
@@ -15537,7 +15618,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:getClusterKey"
       },
       {
         "file": "kanban-viz/src/lib/reversibility.ts",
@@ -15546,7 +15627,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/lib/reversibility"
       },
       {
         "file": "kanban-viz/src/lib/reversibility.ts",
@@ -15591,7 +15672,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/lib/runtime"
       },
       {
         "file": "kanban-viz/src/lib/runtime.ts",
@@ -15609,7 +15690,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/lib/saveView"
       },
       {
         "file": "kanban-viz/src/lib/saveView.ts",
@@ -15627,7 +15708,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:saveTauri"
       },
       {
         "file": "kanban-viz/src/lib/saveView.ts",
@@ -15636,7 +15717,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:saveTauri"
       },
       {
         "file": "kanban-viz/src/lib/saveView.ts",
@@ -15645,7 +15726,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:saveTauri"
       },
       {
         "file": "kanban-viz/src/lib/saveView.ts",
@@ -15654,7 +15735,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:saveTauri"
       },
       {
         "file": "kanban-viz/src/lib/saveView.ts",
@@ -15663,7 +15744,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:saveTauri"
       },
       {
         "file": "kanban-viz/src/vite-env.d.ts",
@@ -15672,7 +15753,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": null
+        "enclosing_node": "ts:kanban-viz/src/vite-env.d"
       },
       {
         "file": "kanban-viz/vite.config.ts",
@@ -22616,7 +22697,7 @@
         },
         {
           "file": "agents_config.py",
-          "line": 1759,
+          "line": 1776,
           "enclosing_node": "py:agents_config.load_archetypes_config"
         },
         {
@@ -23098,301 +23179,301 @@
         },
         {
           "file": "agents_config.py",
-          "line": 1336,
+          "line": 1353,
           "function": "sync_profiles",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.sync_profiles"
         },
         {
           "file": "agents_config.py",
-          "line": 1569,
+          "line": 1586,
           "function": "get_mcp_env",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_mcp_env"
         },
         {
           "file": "agents_config.py",
-          "line": 1570,
+          "line": 1587,
           "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_mcp_env"
         },
         {
           "file": "agents_config.py",
-          "line": 1607,
+          "line": 1624,
           "function": "get_agents_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1623,
+          "line": 1640,
           "function": "get_agent_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_agent_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1623,
+          "line": 1640,
           "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_agent_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1631,
+          "line": 1648,
           "function": "reset_agents_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.reset_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1641,
+          "line": 1658,
           "function": "get_dispatch_configs",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_dispatch_configs"
         },
         {
           "file": "agents_config.py",
-          "line": 1709,
+          "line": 1726,
           "function": "get_agent_isolation",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_agent_isolation"
         },
         {
           "file": "agents_config.py",
-          "line": 1709,
+          "line": 1726,
           "parameter": "agent_type",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_agent_isolation"
         },
         {
           "file": "agents_config.py",
-          "line": 1725,
+          "line": 1742,
           "function": "_default_archetypes_path",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._default_archetypes_path"
         },
         {
           "file": "agents_config.py",
-          "line": 1729,
+          "line": 1746,
           "function": "load_archetypes_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.load_archetypes_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1826,
+          "line": 1843,
           "function": "get_archetype",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_archetype"
         },
         {
           "file": "agents_config.py",
-          "line": 1826,
+          "line": 1843,
           "parameter": "name",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_archetype"
         },
         {
           "file": "agents_config.py",
-          "line": 1840,
+          "line": 1857,
           "function": "get_phase_mapping",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_phase_mapping"
         },
         {
           "file": "agents_config.py",
-          "line": 1852,
+          "line": 1869,
           "function": "reset_archetypes_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.reset_archetypes_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1860,
+          "line": 1877,
           "function": "_normalize_provider_model_map",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._normalize_provider_model_map"
         },
         {
           "file": "agents_config.py",
-          "line": 1860,
+          "line": 1877,
           "parameter": "raw_map",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._normalize_provider_model_map"
         },
         {
           "file": "agents_config.py",
-          "line": 1887,
+          "line": 1904,
           "function": "get_provider_model_map",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_provider_model_map"
         },
         {
           "file": "agents_config.py",
-          "line": 1894,
+          "line": 1911,
           "function": "_tier_entry_to_spec",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._tier_entry_to_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1894,
+          "line": 1911,
           "parameter": "entry",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._tier_entry_to_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1909,
+          "line": 1926,
           "function": "resolve_provider_model_spec",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_provider_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1910,
+          "line": 1927,
           "parameter": "model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1912,
+          "line": 1929,
           "parameter": "provider",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1962,
+          "line": 1979,
           "function": "resolve_provider_model",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_provider_model"
         },
         {
           "file": "agents_config.py",
-          "line": 1963,
+          "line": 1980,
           "parameter": "model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model"
         },
         {
           "file": "agents_config.py",
-          "line": 1965,
+          "line": 1982,
           "parameter": "provider",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model"
         },
         {
           "file": "agents_config.py",
-          "line": 1982,
+          "line": 1999,
           "function": "compose_prompt",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.compose_prompt"
         },
         {
           "file": "agents_config.py",
-          "line": 1982,
+          "line": 1999,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.compose_prompt"
         },
         {
           "file": "agents_config.py",
-          "line": 1982,
+          "line": 1999,
           "parameter": "task_prompt",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.compose_prompt"
         },
         {
           "file": "agents_config.py",
-          "line": 1998,
+          "line": 2015,
           "function": "_unique_dir_prefixes",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._unique_dir_prefixes"
         },
         {
           "file": "agents_config.py",
-          "line": 1998,
+          "line": 2015,
           "parameter": "write_allow",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._unique_dir_prefixes"
         },
         {
           "file": "agents_config.py",
-          "line": 2017,
+          "line": 2034,
           "function": "resolve_model",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2018,
+          "line": 2035,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2019,
+          "line": 2036,
           "parameter": "package_metadata",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2056,
+          "line": 2073,
           "function": "_resolve_model_spec",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._resolve_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2057,
+          "line": 2074,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2058,
+          "line": 2075,
           "parameter": "package_metadata",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2065,
+          "line": 2082,
           "function": "_finalize",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._resolve_model_spec._finalize"
         },
         {
           "file": "agents_config.py",
-          "line": 2065,
+          "line": 2082,
           "parameter": "reasons",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec._finalize"
         },
         {
           "file": "agents_config.py",
-          "line": 2065,
+          "line": 2082,
           "parameter": "source_model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec._finalize"
         },
         {
           "file": "agents_config.py",
-          "line": 2122,
+          "line": 2139,
           "function": "resolve_archetype_for_phase",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
         },
         {
           "file": "agents_config.py",
-          "line": 2123,
+          "line": 2140,
           "parameter": "phase",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
@@ -36893,73 +36974,73 @@
           "file": "kanban-viz/src/components/Card.tsx",
           "line": 87,
           "is_empty": false,
-          "enclosing_node": null
+          "enclosing_node": "ts:Card"
         },
         {
           "file": "kanban-viz/src/components/PROriginFilter.tsx",
           "line": 39,
           "is_empty": true,
-          "enclosing_node": null
+          "enclosing_node": "ts:loadFromStorage"
         },
         {
           "file": "kanban-viz/src/components/PROriginFilter.tsx",
           "line": 48,
           "is_empty": true,
-          "enclosing_node": null
+          "enclosing_node": "ts:saveToStorage"
         },
         {
           "file": "kanban-viz/src/components/RefreshButton.tsx",
           "line": 40,
           "is_empty": false,
-          "enclosing_node": null
+          "enclosing_node": "ts:RefreshButton"
         },
         {
           "file": "kanban-viz/src/components/SaveViewButton.tsx",
           "line": 109,
           "is_empty": false,
-          "enclosing_node": null
+          "enclosing_node": "ts:SaveViewButton"
         },
         {
           "file": "kanban-viz/src/components/SyncPointBanner.tsx",
           "line": 64,
           "is_empty": false,
-          "enclosing_node": null
+          "enclosing_node": "ts:SyncPointBanner"
         },
         {
           "file": "kanban-viz/src/components/SyncPointBanner.tsx",
           "line": 139,
           "is_empty": false,
-          "enclosing_node": null
+          "enclosing_node": "ts:SyncPointBanner"
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 208,
           "is_empty": false,
-          "enclosing_node": null
+          "enclosing_node": "ts:useCoordinator"
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 236,
           "is_empty": true,
-          "enclosing_node": null
+          "enclosing_node": "ts:useCoordinator"
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 256,
           "is_empty": true,
-          "enclosing_node": null
+          "enclosing_node": "ts:useCoordinator"
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 272,
           "is_empty": true,
-          "enclosing_node": null
+          "enclosing_node": "ts:useCoordinator"
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 295,
           "is_empty": false,
-          "enclosing_node": null
+          "enclosing_node": "ts:useCoordinator"
         }
       ]
     },
@@ -37004,7 +37085,7 @@
         {
           "file": "kanban-viz/src/lib/saveView.ts",
           "line": 77,
-          "enclosing_node": null
+          "enclosing_node": "ts:saveTauri"
         }
       ]
     },
@@ -37033,31 +37114,31 @@
           "file": "kanban-viz/src/components/PROriginFilter.tsx",
           "line": 39,
           "is_empty": true,
-          "enclosing_node": null
+          "enclosing_node": "ts:loadFromStorage"
         },
         {
           "file": "kanban-viz/src/components/PROriginFilter.tsx",
           "line": 48,
           "is_empty": true,
-          "enclosing_node": null
+          "enclosing_node": "ts:saveToStorage"
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 236,
           "is_empty": true,
-          "enclosing_node": null
+          "enclosing_node": "ts:useCoordinator"
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 256,
           "is_empty": true,
-          "enclosing_node": null
+          "enclosing_node": "ts:useCoordinator"
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 272,
           "is_empty": true,
-          "enclosing_node": null
+          "enclosing_node": "ts:useCoordinator"
         }
       ]
     }

@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-18T22:23:29+00:00",
+  "generated_at": "2026-08-22T00:08:38+00:00",
   "summary": {
-    "total_comments": 2431,
+    "total_comments": 2440,
     "total_with_markers": 20,
     "marker_totals": {
       "NOTE": 4,
@@ -11,9 +11,9 @@
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1892,
-    "documented_nodes": 273,
-    "documentation_coverage": 0.144
+    "total_graph_nodes": 1982,
+    "documented_nodes": 317,
+    "documentation_coverage": 0.16
   },
   "marker_hotspots": [
     {
@@ -145,12 +145,24 @@
       "markers": [
         "WARN"
       ]
+    },
+    "ts:kanban-viz/src/components/PRCardView": {
+      "comment_count": 1,
+      "markers": [
+        "WARNING"
+      ]
+    },
+    "ts:SyncPointBanner": {
+      "comment_count": 29,
+      "markers": [
+        "BUG"
+      ]
     }
   },
   "file_summaries": [
     {
       "file": "agents_config.py",
-      "total_comments": 232,
+      "total_comments": 241,
       "with_markers": 2,
       "languages": [
         "python"
