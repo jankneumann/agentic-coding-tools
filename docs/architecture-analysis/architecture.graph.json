@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-08-22T00:43:00+00:00",
-      "git_sha": "70418624fa89beb791aed0195e1a9baf38bdf50b",
+      "generated_at": "2026-08-22T00:57:02+00:00",
+      "git_sha": "1c815ff53fd8c5f05e7f96f979e79adac1dca30a",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -4410,7 +4410,7 @@
       "file": "agents_config.py",
       "span": {
         "start": 1081,
-        "end": 1088
+        "end": 1094
       },
       "tags": [
         "private"
@@ -4424,8 +4424,8 @@
       "name": "_desired_profile_row",
       "file": "agents_config.py",
       "span": {
-        "start": 1091,
-        "end": 1101
+        "start": 1097,
+        "end": 1107
       },
       "tags": [
         "private"
@@ -4439,8 +4439,8 @@
       "name": "_profile_drift",
       "file": "agents_config.py",
       "span": {
-        "start": 1104,
-        "end": 1119
+        "start": 1110,
+        "end": 1125
       },
       "tags": [
         "private",
@@ -4455,8 +4455,8 @@
       "name": "_emit_sync_audit",
       "file": "agents_config.py",
       "span": {
-        "start": 1122,
-        "end": 1164
+        "start": 1128,
+        "end": 1170
       },
       "tags": [
         "async",
@@ -4471,8 +4471,8 @@
       "name": "_sync_assignments",
       "file": "agents_config.py",
       "span": {
-        "start": 1167,
-        "end": 1350
+        "start": 1173,
+        "end": 1356
       },
       "tags": [
         "async",
@@ -4488,8 +4488,8 @@
       "name": "sync_profiles",
       "file": "agents_config.py",
       "span": {
-        "start": 1353,
-        "end": 1579
+        "start": 1359,
+        "end": 1585
       },
       "tags": [
         "async",
@@ -4504,8 +4504,8 @@
       "name": "get_mcp_env",
       "file": "agents_config.py",
       "span": {
-        "start": 1586,
-        "end": 1614
+        "start": 1592,
+        "end": 1620
       },
       "tags": [
         "db_access"
@@ -4519,8 +4519,8 @@
       "name": "get_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1624,
-        "end": 1637
+        "start": 1630,
+        "end": 1643
       },
       "tags": [],
       "signatures": {}
@@ -4532,8 +4532,8 @@
       "name": "get_agent_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1640,
-        "end": 1645
+        "start": 1646,
+        "end": 1651
       },
       "tags": [],
       "signatures": {}
@@ -4545,8 +4545,8 @@
       "name": "reset_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1648,
-        "end": 1651
+        "start": 1654,
+        "end": 1657
       },
       "tags": [],
       "signatures": {}
@@ -4558,8 +4558,8 @@
       "name": "get_dispatch_configs",
       "file": "agents_config.py",
       "span": {
-        "start": 1658,
-        "end": 1719
+        "start": 1664,
+        "end": 1725
       },
       "tags": [],
       "signatures": {}
@@ -4571,8 +4571,8 @@
       "name": "get_agent_isolation",
       "file": "agents_config.py",
       "span": {
-        "start": 1726,
-        "end": 1735
+        "start": 1732,
+        "end": 1741
       },
       "tags": [],
       "signatures": {}
@@ -4584,8 +4584,8 @@
       "name": "_default_archetypes_path",
       "file": "agents_config.py",
       "span": {
-        "start": 1742,
-        "end": 1743
+        "start": 1748,
+        "end": 1749
       },
       "tags": [
         "private"
@@ -4599,8 +4599,8 @@
       "name": "load_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1746,
-        "end": 1835
+        "start": 1752,
+        "end": 1841
       },
       "tags": [
         "db_access"
@@ -4614,8 +4614,8 @@
       "name": "get_archetype",
       "file": "agents_config.py",
       "span": {
-        "start": 1843,
-        "end": 1854
+        "start": 1849,
+        "end": 1860
       },
       "tags": [
         "db_access"
@@ -4629,8 +4629,8 @@
       "name": "get_phase_mapping",
       "file": "agents_config.py",
       "span": {
-        "start": 1857,
-        "end": 1866
+        "start": 1863,
+        "end": 1872
       },
       "tags": [],
       "signatures": {}
@@ -4642,8 +4642,8 @@
       "name": "reset_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1869,
-        "end": 1874
+        "start": 1875,
+        "end": 1880
       },
       "tags": [],
       "signatures": {}
@@ -4655,8 +4655,8 @@
       "name": "_normalize_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 1877,
-        "end": 1901
+        "start": 1883,
+        "end": 1907
       },
       "tags": [
         "private"
@@ -4670,8 +4670,8 @@
       "name": "get_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 1904,
-        "end": 1908
+        "start": 1910,
+        "end": 1914
       },
       "tags": [],
       "signatures": {}
@@ -4683,8 +4683,8 @@
       "name": "_tier_entry_to_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 1911,
-        "end": 1923
+        "start": 1917,
+        "end": 1929
       },
       "tags": [
         "private",
@@ -4699,8 +4699,8 @@
       "name": "resolve_provider_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 1926,
-        "end": 1976
+        "start": 1932,
+        "end": 1982
       },
       "tags": [
         "db_access"
@@ -4714,8 +4714,8 @@
       "name": "resolve_provider_model",
       "file": "agents_config.py",
       "span": {
-        "start": 1979,
-        "end": 1992
+        "start": 1985,
+        "end": 1998
       },
       "tags": [],
       "signatures": {}
@@ -4727,8 +4727,8 @@
       "name": "compose_prompt",
       "file": "agents_config.py",
       "span": {
-        "start": 1999,
-        "end": 2008
+        "start": 2005,
+        "end": 2014
       },
       "tags": [],
       "signatures": {}
@@ -4740,8 +4740,8 @@
       "name": "_unique_dir_prefixes",
       "file": "agents_config.py",
       "span": {
-        "start": 2015,
-        "end": 2031
+        "start": 2021,
+        "end": 2037
       },
       "tags": [
         "private",
@@ -4756,8 +4756,8 @@
       "name": "resolve_model",
       "file": "agents_config.py",
       "span": {
-        "start": 2034,
-        "end": 2070
+        "start": 2040,
+        "end": 2076
       },
       "tags": [],
       "signatures": {}
@@ -4769,8 +4769,8 @@
       "name": "_resolve_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 2073,
-        "end": 2131
+        "start": 2079,
+        "end": 2137
       },
       "tags": [
         "private",
@@ -4785,8 +4785,8 @@
       "name": "_finalize",
       "file": "agents_config.py",
       "span": {
-        "start": 2082,
-        "end": 2094
+        "start": 2088,
+        "end": 2100
       },
       "tags": [
         "private"
@@ -4800,8 +4800,8 @@
       "name": "resolve_archetype_for_phase",
       "file": "agents_config.py",
       "span": {
-        "start": 2139,
-        "end": 2225
+        "start": 2145,
+        "end": 2231
       },
       "tags": [],
       "signatures": {}
