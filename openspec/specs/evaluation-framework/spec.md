@@ -121,7 +121,7 @@ The system SHALL provide adapters for integrating external benchmarks into the e
 #### Scenario: Context-Bench adapter
 - **WHEN** user selects the Context-Bench adapter
 - **THEN** the adapter SHALL load multi-step context management tasks from Letta's evaluation framework
-- **AND** map tasks to evaluate the agent-coordinator's episodic and working memory subsystems
+- **AND** map tasks to evaluate the agent-coordinator's episodic memory subsystem
 
 #### Scenario: MultiAgentBench adapter
 - **WHEN** user selects the MultiAgentBench/MARBLE adapter

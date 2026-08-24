@@ -1,94 +1,156 @@
 {
-  "generated_at": "2026-03-06T01:24:31.173589+00:00",
+  "generated_at": "2026-08-22T01:03:57+00:00",
   "python_patterns": {
+    "assertions": {
+      "count": 2,
+      "files": {
+        "code_search.py": 1,
+        "feature_flags.py": 1
+      }
+    },
     "bare_except": {
       "count": 0,
       "files": {}
     },
     "broad_except": {
-      "count": 37,
+      "count": 131,
       "files": {
-        "work_queue.py": 8,
-        "policy_engine.py": 6,
-        "guardrails.py": 4,
-        "discovery.py": 3,
-        "handoffs.py": 3,
+        "coordination_api.py": 29,
+        "work_queue.py": 15,
+        "policy_engine.py": 9,
+        "code_search_runtime.py": 7,
+        "langfuse_tracing.py": 7,
+        "coordination_mcp.py": 6,
+        "guardrails.py": 5,
+        "langfuse_middleware.py": 5,
+        "locks.py": 5,
+        "notifications/gmail.py": 5,
+        "code_search.py": 4,
+        "discovery.py": 4,
+        "github_openspec_fetcher.py": 3,
         "merge_queue.py": 3,
-        "coordination_api.py": 2,
+        "agents_config.py": 2,
+        "audit_triage.py": 2,
         "feature_registry.py": 2,
-        "locks.py": 2,
-        "config.py": 1,
-        "memory.py": 1,
-        "network_policies.py": 1,
-        "profiles.py": 1
+        "handoffs.py": 2,
+        "audit.py": 1,
+        "config.py": 1
       }
     },
     "context_managers": {
-      "count": 14,
+      "count": 46,
       "files": {
+        "feature_flags.py": 7,
         "db_postgres.py": 5,
         "port_allocator.py": 5,
+        "github_prs_api.py": 3,
+        "work_queue.py": 3,
+        "agents_config.py": 2,
+        "event_bus.py": 2,
+        "kanban_viz_files.py": 2,
+        "locks.py": 2,
+        "openspec_proposals_api.py": 2,
+        "policy_engine.py": 2,
         "profile_loader.py": 2,
-        "agents_config.py": 1,
+        "code_search_runtime.py": 1,
+        "github_openspec_fetcher.py": 1,
+        "guardrails.py": 1,
+        "http_proxy.py": 1,
+        "merge_train.py": 1,
+        "migrations.py": 1,
+        "sync_points.py": 1,
         "teams.py": 1
       }
     },
     "type_hints": {
-      "count": 481,
+      "count": 2004,
       "files": {
-        "policy_engine.py": 51,
-        "coordination_mcp.py": 50,
-        "coordination_api.py": 42,
+        "coordination_api.py": 179,
+        "coordination_mcp.py": 133,
+        "http_proxy.py": 122,
+        "agents_config.py": 79,
+        "policy_engine.py": 71,
+        "code_search_runtime.py": 68,
+        "merge_train.py": 67,
+        "code_search_authorization.py": 66,
+        "coordination_cli.py": 66,
+        "code_search.py": 49,
         "db.py": 39,
-        "work_queue.py": 29,
-        "db_postgres.py": 25,
-        "profile_loader.py": 23,
-        "feature_registry.py": 21,
-        "audit.py": 19,
-        "github_coordination.py": 19,
-        "discovery.py": 18,
-        "locks.py": 17,
-        "merge_queue.py": 17,
-        "config.py": 15,
-        "profiles.py": 15,
-        "handoffs.py": 12,
-        "port_allocator.py": 12,
-        "guardrails.py": 11,
-        "teams.py": 11,
-        "agents_config.py": 10
+        "merge_train_service.py": 39,
+        "git_adapter.py": 38,
+        "openspec_proposals_api.py": 38,
+        "event_bus.py": 33,
+        "feature_flags.py": 33,
+        "work_queue.py": 31,
+        "github_openspec_fetcher.py": 30,
+        "notifications/gmail.py": 28,
+        "db_postgres.py": 27
       }
-    },
-    "assertions": {
-      "count": 0,
-      "files": {}
     }
   },
   "typescript_patterns": {
-    "empty_catch": {
-      "count": 0,
-      "files": {}
-    },
     "catch_clauses": {
-      "count": 0,
-      "files": {}
+      "count": 16,
+      "files": {
+        "kanban-viz/src/hooks/useCoordinator.ts": 5,
+        "kanban-viz/src/__tests__/e2e.integration.test.tsx": 3,
+        "kanban-viz/src/components/PROriginFilter.tsx": 2,
+        "kanban-viz/src/components/SyncPointBanner.tsx": 2,
+        "kanban-viz/src/__tests__/useCoordinator.test.tsx": 1,
+        "kanban-viz/src/components/Card.tsx": 1,
+        "kanban-viz/src/components/RefreshButton.tsx": 1,
+        "kanban-viz/src/components/SaveViewButton.tsx": 1
+      }
     },
     "dynamic_imports": {
-      "count": 0,
-      "files": {}
+      "count": 8,
+      "files": {
+        "kanban-viz/src/__tests__/e2e.integration.test.tsx": 4,
+        "kanban-viz/src/__tests__/runtime.test.ts": 3,
+        "kanban-viz/src/lib/saveView.ts": 1
+      }
+    },
+    "empty_catch": {
+      "count": 8,
+      "files": {
+        "kanban-viz/src/hooks/useCoordinator.ts": 3,
+        "kanban-viz/src/__tests__/e2e.integration.test.tsx": 2,
+        "kanban-viz/src/components/PROriginFilter.tsx": 2,
+        "kanban-viz/src/__tests__/useCoordinator.test.tsx": 1
+      }
     }
   },
   "type_hint_coverage": {
-    "functions_with_return_type": 233,
-    "typed_parameters": 207
+    "functions_with_return_type": 988,
+    "typed_parameters": 943
   },
   "exception_handling": {
     "bare_except": 0,
-    "broad_except": 37,
-    "total_except_issues": 37
+    "broad_except": 131,
+    "total_except_issues": 131
   },
   "security": {
-    "total": 0,
-    "by_severity": {},
-    "by_category": {}
+    "total": 10,
+    "by_severity": {
+      "medium": 5,
+      "high": 5
+    },
+    "by_category": {
+      "hardcoded_secret": {
+        "count": 5,
+        "severity": "medium",
+        "files": {
+          "config.py": 3,
+          "agents_config.py": 2
+        }
+      },
+      "sql_concatenation": {
+        "count": 5,
+        "severity": "high",
+        "files": {
+          "agents_config.py": 5
+        }
+      }
+    }
   }
 }

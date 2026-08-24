@@ -31,7 +31,7 @@ Implement the internal finding store and its state machine (`candidate → verdi
 
 ### Service: Sandbox and Scope Enforcement
 
-Provide sandbox-by-infrastructure for the role fleet: egress constrained to an allowlist (LLM providers, issue tracker, testbed) enforced by ephemeral containers and E2B, target mounts read-only, and operator hard-rules injected into every agent system prompt as defense-in-depth.
+Provide sandbox-by-infrastructure for the role fleet: egress constrained to an allowlist (LLM providers, issue tracker, testbed) enforced by ephemeral containers and E2B, target mounts read-only, and operator hard-rules injected into every agent system prompt as defense-in-depth. For the container lane, the candidate allowlist enforcement is a per-fleet iron-proxy rendered from coordinator network policy (`dispatch-governance` dg-08) — the fleet's netns admits only the gateway, giving per-request structured audit and keeping vendor keys out of role sandboxes, which matters most here because the fleet reads adversarial target content by design. E2B-native egress controls remain the alternative for the E2B lane; acceptance outcomes are backend-neutral.
 
 **Acceptance Outcomes:**
 - An agent with elevated privileges cannot reach a host outside the allowlist.

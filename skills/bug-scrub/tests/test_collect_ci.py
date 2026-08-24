@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 # ---------------------------------------------------------------------------
 # sys.path insertion so we can import collector modules from scripts/
@@ -528,14 +530,67 @@ class TestCollectMypy:
 class TestCollectOpenspec:
     """Tests for collect_openspec.collect()."""
 
-    SAMPLE_VALIDATION_OUTPUT = (
-        "Validating specs...\n"
-        "error: REQ-001 has no acceptance criteria "
-        "(spec: specs/core.yaml:12)\n"
-        "warning: Change 2025-001 proposal is missing test plan\n"
-        "error: REQ-005 references undefined dependency REQ-999 "
-        "(spec: specs/deps.yaml:44)\n"
-        "3 issues found\n"
+    # Captured verbatim from `openspec validate --strict --all --json` (CLI
+    # 1.7.0).  The previous fixture here was invented -- it used a
+    # `error: msg (spec: file:12)` shape that no release of the CLI has ever
+    # emitted, so the collector parsed real output into zero findings while
+    # this test stayed green.  Keep these fixtures byte-faithful to the CLI.
+    SAMPLE_VALIDATION_JSON = json.dumps(
+        {
+            "items": [
+                {
+                    "id": "broken-probe",
+                    "type": "change",
+                    "valid": False,
+                    "issues": [
+                        {
+                            "level": "ERROR",
+                            "path": "probe-cap/spec.md",
+                            "message": (
+                                'ADDED "Probe Requirement" must contain '
+                                "SHALL or MUST"
+                            ),
+                        }
+                    ],
+                    "durationMs": 1,
+                },
+                {
+                    "id": "agent-archetypes",
+                    "type": "spec",
+                    "valid": True,
+                    "issues": [
+                        {
+                            "level": "INFO",
+                            "path": "requirements[0]",
+                            "message": (
+                                "Requirement text is very long (>500 "
+                                "characters). Consider breaking it down."
+                            ),
+                        }
+                    ],
+                    "durationMs": 3,
+                },
+            ],
+            "summary": {
+                "totals": {"items": 2, "passed": 1, "failed": 1},
+                "byType": {
+                    "change": {"items": 1, "passed": 0, "failed": 1},
+                    "spec": {"items": 1, "passed": 1, "failed": 0},
+                },
+            },
+            "version": "1.0",
+            "root": {"path": "/fake/project", "source": "nearest"},
+        }
+    )
+
+    # Real human-readable output of the same command.  Note it carries no
+    # per-issue detail at all -- only a per-item tick and a totals line.  That
+    # is why the collector asks for --json instead of scraping this.
+    SAMPLE_VALIDATION_TEXT = (
+        "- Validating...\n"
+        "✗ change/broken-probe\n"
+        "Totals: 0 passed, 1 failed (1 items)\n"
+        "Details: openspec validate broken-probe --type change\n"
     )
 
     @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
@@ -543,11 +598,11 @@ class TestCollectOpenspec:
     def test_parse_validation_output(
         self, mock_run: MagicMock, mock_which: MagicMock
     ) -> None:
-        """Realistic openspec validate output is parsed into findings."""
+        """Real openspec --json output is parsed into findings."""
         mock_run.return_value = subprocess.CompletedProcess(
             args=["openspec", "validate"],
             returncode=1,
-            stdout=self.SAMPLE_VALIDATION_OUTPUT,
+            stdout=self.SAMPLE_VALIDATION_JSON,
             stderr="",
         )
 
@@ -555,31 +610,241 @@ class TestCollectOpenspec:
 
         assert result.source == "openspec"
         assert result.status == "ok"
-        assert len(result.findings) == 3
+        assert len(result.findings) == 2
 
-        # First finding: error with file location
+        # ERROR issue on a change, with a file-shaped path.  Nothing exists at
+        # /fake/project, so the path does not resolve and file_path stays empty
+        # rather than pointing fix-scrub at a file that is not there.  See
+        # test_change_path_resolves_under_change_dir for the resolving case.
         f0 = result.findings[0]
         assert f0.source == "openspec"
-        assert f0.severity == "medium"
+        assert f0.severity == "high"
         assert f0.category == "spec-violation"
-        assert "REQ-001" in f0.title
-        assert "acceptance criteria" in f0.title
-        assert f0.file_path == "specs/core.yaml"
-        assert f0.line == 12
-        assert f0.id.startswith("openspec-")
+        assert "Probe Requirement" in f0.title
+        assert "SHALL or MUST" in f0.title
+        assert f0.file_path == ""
+        assert "broken-probe" in f0.id
+        assert "broken-probe" in f0.detail
+        # The raw pointer is still recoverable from the detail line.
+        assert "probe-cap/spec.md" in f0.detail
 
-        # Second finding: warning without file location
+        # INFO issue on a spec, whose path is a structural pointer rather than
+        # a file.  It must not be reported as a file path.
         f1 = result.findings[1]
-        assert "2025-001" in f1.title
-        assert "test plan" in f1.title
+        assert f1.severity == "info"
+        assert "very long" in f1.title
         assert f1.file_path == ""
-        assert f1.line is None
+        assert "requirements[0]" in f1.detail
 
-        # Third finding: error with file location
-        f2 = result.findings[2]
-        assert "REQ-005" in f2.title
-        assert f2.file_path == "specs/deps.yaml"
-        assert f2.line == 44
+    @staticmethod
+    def _payload(item_type: str, item_id: str, path: str) -> str:
+        return json.dumps(
+            {
+                "items": [
+                    {
+                        "id": item_id,
+                        "type": item_type,
+                        "valid": False,
+                        "issues": [
+                            {
+                                "level": "ERROR",
+                                "path": path,
+                                "message": "m",
+                            }
+                        ],
+                    }
+                ],
+                "version": "1.0",
+            }
+        )
+
+    @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
+    @patch("collect_openspec.subprocess.run")
+    def test_change_path_resolves_under_change_dir(
+        self, mock_run: MagicMock, mock_which: MagicMock, tmp_path
+    ) -> None:
+        """A change's file-shaped path is item-relative, not repo-relative.
+
+        openspec reports "probe-cap/spec.md" for a delta that actually lives at
+        openspec/changes/<id>/specs/probe-cap/spec.md.  Storing the raw value
+        hands fix-scrub a path that does not exist.
+        """
+        delta = (
+            tmp_path
+            / "openspec/changes/broken-probe/specs/probe-cap/spec.md"
+        )
+        delta.parent.mkdir(parents=True)
+        delta.write_text("## ADDED Requirements\n")
+
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["openspec", "validate"],
+            returncode=1,
+            stdout=self._payload("change", "broken-probe", "probe-cap/spec.md"),
+            stderr="",
+        )
+
+        result = collect_openspec.collect(str(tmp_path))
+
+        assert result.findings[0].file_path == (
+            "openspec/changes/broken-probe/specs/probe-cap/spec.md"
+        )
+        assert (tmp_path / result.findings[0].file_path).is_file()
+
+    @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
+    @patch("collect_openspec.subprocess.run")
+    def test_change_non_delta_file_resolves(
+        self, mock_run: MagicMock, mock_which: MagicMock, tmp_path
+    ) -> None:
+        """A change's own files sit one level above its specs/ directory."""
+        proposal = tmp_path / "openspec/changes/c1/proposal.md"
+        proposal.parent.mkdir(parents=True)
+        proposal.write_text("## Why\n")
+
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["openspec", "validate"],
+            returncode=1,
+            stdout=self._payload("change", "c1", "proposal.md"),
+            stderr="",
+        )
+
+        result = collect_openspec.collect(str(tmp_path))
+
+        assert result.findings[0].file_path == (
+            "openspec/changes/c1/proposal.md"
+        )
+
+    @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
+    @patch("collect_openspec.subprocess.run")
+    def test_spec_path_resolves_under_spec_dir(
+        self, mock_run: MagicMock, mock_which: MagicMock, tmp_path
+    ) -> None:
+        """A spec's file-shaped path resolves under openspec/specs/<id>/."""
+        spec = tmp_path / "openspec/specs/cap/spec.md"
+        spec.parent.mkdir(parents=True)
+        spec.write_text("# cap\n")
+
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["openspec", "validate"],
+            returncode=1,
+            stdout=self._payload("spec", "cap", "spec.md"),
+            stderr="",
+        )
+
+        result = collect_openspec.collect(str(tmp_path))
+
+        assert result.findings[0].file_path == "openspec/specs/cap/spec.md"
+
+    @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
+    @patch("collect_openspec.subprocess.run")
+    def test_unresolvable_file_path_is_dropped(
+        self, mock_run: MagicMock, mock_which: MagicMock, tmp_path
+    ) -> None:
+        """A path that resolves to nothing on disk yields no file_path.
+
+        Emitting a best guess would recreate the defect this resolution exists
+        to fix -- a confident pointer to a file that is not there.  The raw
+        value stays in the detail line for a human to follow.
+        """
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["openspec", "validate"],
+            returncode=1,
+            stdout=self._payload("change", "ghost", "nowhere/spec.md"),
+            stderr="",
+        )
+
+        result = collect_openspec.collect(str(tmp_path))
+
+        assert result.findings[0].file_path == ""
+        assert "nowhere/spec.md" in result.findings[0].detail
+
+    @pytest.mark.parametrize("pointer", ["requirements[0]", "overview", "file"])
+    @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
+    @patch("collect_openspec.subprocess.run")
+    def test_structural_pointers_are_not_file_paths(
+        self,
+        mock_run: MagicMock,
+        mock_which: MagicMock,
+        pointer: str,
+        tmp_path,
+    ) -> None:
+        """Structural pointers emitted by openspec are never file paths.
+
+        All three shapes are captured from openspec 1.9.0: "requirements[0]"
+        indexes a parsed document, "overview" names a section, and "file" is
+        what a change with no deltas at all reports.
+        """
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["openspec", "validate"],
+            returncode=1,
+            stdout=self._payload("change", "c1", pointer),
+            stderr="",
+        )
+
+        result = collect_openspec.collect(str(tmp_path))
+
+        assert result.findings[0].file_path == ""
+
+    @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
+    @patch("collect_openspec.subprocess.run")
+    def test_severity_maps_from_issue_level(
+        self, mock_run: MagicMock, mock_which: MagicMock
+    ) -> None:
+        """ERROR/WARNING/INFO map onto distinct bug-scrub severities."""
+        payload = {
+            "items": [
+                {
+                    "id": "c",
+                    "type": "change",
+                    "valid": False,
+                    "issues": [
+                        {"level": "ERROR", "path": "a.md", "message": "e"},
+                        {"level": "WARNING", "path": "b.md", "message": "w"},
+                        {"level": "INFO", "path": "c.md", "message": "i"},
+                    ],
+                }
+            ],
+            "version": "1.0",
+        }
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["openspec", "validate"],
+            returncode=1,
+            stdout=json.dumps(payload),
+            stderr="",
+        )
+
+        result = collect_openspec.collect("/fake/project")
+
+        assert [f.severity for f in result.findings] == [
+            "high",
+            "medium",
+            "info",
+        ]
+
+    @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
+    @patch("collect_openspec.subprocess.run")
+    def test_unparseable_output_errors_loudly(
+        self, mock_run: MagicMock, mock_which: MagicMock
+    ) -> None:
+        """Non-JSON output must not degrade to a silent zero-finding pass.
+
+        A collector that returns ok/0-findings when it failed to understand
+        the tool is indistinguishable from a clean repo -- the exact failure
+        that hid the old regex bug.  Raw output is preserved for diagnosis.
+        """
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["openspec", "validate"],
+            returncode=1,
+            stdout=self.SAMPLE_VALIDATION_TEXT,
+            stderr="",
+        )
+
+        result = collect_openspec.collect("/fake/project")
+
+        assert result.status == "error"
+        assert result.findings == []
+        assert any("JSON" in m for m in result.messages)
+        # The raw output survives rather than being discarded.
+        assert any("broken-probe" in m for m in result.messages)
 
     @patch("collect_openspec.shutil.which", return_value=None)
     def test_tool_not_on_path(self, mock_which: MagicMock) -> None:
@@ -614,10 +879,24 @@ class TestCollectOpenspec:
         self, mock_run: MagicMock, mock_which: MagicMock
     ) -> None:
         """Clean openspec validate yields ok with no findings."""
+        clean = {
+            "items": [
+                {
+                    "id": "add-adaptive-model-router",
+                    "type": "change",
+                    "valid": True,
+                    "issues": [],
+                    "durationMs": 6,
+                }
+            ],
+            "summary": {"totals": {"items": 1, "passed": 1, "failed": 0}},
+            "version": "1.0",
+            "root": {"path": "/fake/project", "source": "nearest"},
+        }
         mock_run.return_value = subprocess.CompletedProcess(
             args=["openspec", "validate"],
             returncode=0,
-            stdout="Validating specs...\nAll checks passed.\n",
+            stdout=json.dumps(clean),
             stderr="",
         )
 
@@ -648,11 +927,16 @@ class TestCollectOpenspec:
     def test_nonzero_exit_message(
         self, mock_run: MagicMock, mock_which: MagicMock
     ) -> None:
-        """Non-zero exit code is reported in messages."""
+        """Non-zero exit code is reported in messages.
+
+        A failing validation exits 1 while still emitting a well-formed JSON
+        report, so the run is still status "ok" -- the collector ran fine, the
+        specs did not.
+        """
         mock_run.return_value = subprocess.CompletedProcess(
             args=["openspec", "validate"],
             returncode=1,
-            stdout="error: something went wrong\n",
+            stdout=self.SAMPLE_VALIDATION_JSON,
             stderr="",
         )
 
@@ -663,22 +947,24 @@ class TestCollectOpenspec:
 
     @patch("collect_openspec.shutil.which", return_value="/usr/bin/openspec")
     @patch("collect_openspec.subprocess.run")
-    def test_findings_from_stderr(
+    def test_stderr_is_surfaced_not_merged(
         self, mock_run: MagicMock, mock_which: MagicMock
     ) -> None:
-        """Findings in stderr are also parsed (combined output)."""
+        """stderr is reported as a message, never merged into the JSON parse.
+
+        The CLI keeps --json output clean on stdout and puts diagnostics on
+        stderr.  Concatenating the two (as this collector used to) would make
+        any stderr chatter corrupt the payload.
+        """
         mock_run.return_value = subprocess.CompletedProcess(
             args=["openspec", "validate"],
             returncode=1,
-            stdout="",
-            stderr="error: Missing required field 'name' "
-            "(spec: specs/manifest.yaml:3)\n",
+            stdout=self.SAMPLE_VALIDATION_JSON,
+            stderr="warning: telemetry disabled\n",
         )
 
         result = collect_openspec.collect("/fake/project")
 
         assert result.status == "ok"
-        assert len(result.findings) == 1
-        assert "Missing required field" in result.findings[0].title
-        assert result.findings[0].file_path == "specs/manifest.yaml"
-        assert result.findings[0].line == 3
+        assert len(result.findings) == 2
+        assert any("telemetry disabled" in m for m in result.messages)

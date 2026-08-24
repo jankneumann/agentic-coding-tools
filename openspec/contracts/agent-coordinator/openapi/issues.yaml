@@ -1,0 +1,133 @@
+# agent-coordinator issues contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Issue tracking"
+  version: 1.0.0
+  description: >-
+    Issue lifecycle endpoints, one per coordination-bridge helper. Spec lines 1945-1951, 2693-2713.
+paths:
+  /issues/create:
+    post:
+      operationId: createIssue
+      summary: Create an issue
+      description: 'Spec 2699: bridge helper try_issue_create delegates here.'
+      security:
+        - coordinatorApiKey: []
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses:
+        "200": {description: Issue created (spec 2699)}
+  /issues/list:
+    post:
+      operationId: listIssues
+      summary: List issues
+      description: >-
+        Spec 2695, 2700: bridge helper try_issue_list; also the CAN_ISSUES
+        capability probe — an empty body returning 200 with
+        {"success": true, "issues": [], "count": 0} advertises issue
+        availability (spec 2711-2713).
+      security:
+        - coordinatorApiKey: []
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses:
+        "200":
+          description: Issues list; probe shape (spec 2712)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: {type: boolean}
+                  issues: {type: array, items: {type: object}}
+                  count: {type: integer}
+  /issues/{issue_id}:
+    get:
+      operationId: showIssue
+      summary: Show one issue
+      description: 'Spec 2701: bridge helper try_issue_show delegates here.'
+      security:
+        - coordinatorApiKey: []
+      parameters:
+        - name: issue_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Issue detail (spec 2701)}
+  /issues/update:
+    post:
+      operationId: updateIssue
+      summary: Update an issue
+      description: 'Spec 2702: bridge helper try_issue_update delegates here.'
+      security:
+        - coordinatorApiKey: []
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses:
+        "200": {description: Issue updated (spec 2702)}
+  /issues/close:
+    post:
+      operationId: closeIssue
+      summary: Close an issue
+      description: 'Spec 2703: bridge helper try_issue_close delegates here.'
+      security:
+        - coordinatorApiKey: []
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses:
+        "200": {description: Issue closed (spec 2703)}
+  /issues/comment:
+    post:
+      operationId: commentIssue
+      summary: Comment on an issue
+      description: 'Spec 2704: bridge helper try_issue_comment delegates here.'
+      security:
+        - coordinatorApiKey: []
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses:
+        "200": {description: Comment recorded (spec 2704)}
+  /issues/ready:
+    post:
+      operationId: readyIssues
+      summary: List or mark ready issues
+      description: 'Spec 1946, 2705: bridge helper try_issue_ready delegates here.'
+      security:
+        - coordinatorApiKey: []
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses:
+        "200": {description: Ready issues (spec 2705)}
+  /issues/blocked:
+    get:
+      operationId: blockedIssues
+      summary: List blocked issues
+      description: >-
+        Spec 1947, 2706: bridge helper try_issue_blocked delegates here, with
+        limit as a query parameter.
+      security:
+        - coordinatorApiKey: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer}
+      responses:
+        "200": {description: Blocked issues (spec 2706)}
+  /issues/search:
+    post:
+      operationId: searchIssues
+      summary: Search issues
+      description: 'Spec 1945, 1951, 2707: bridge helper try_issue_search delegates here.'
+      security:
+        - coordinatorApiKey: []
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses:
+        "200": {description: Search results (spec 2707)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-20T01:16:46.079376+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implemented the residual ephemeral validation-worktree prerequisite after confirming the original findings/gate/triage proposal was superseded. The helper isolates exact source state, provides an executable prepare/finalize boundary, and persists only newly changed durable artifacts through a path-hardened atomic copy-back.",
+    "completed_work": [
+      "residual OpenSpec scope",
+      "validation_worktree.py",
+      "lifecycle tests",
+      "canonical skill wiring",
+      "runtime mirror generation",
+      "changed-only, symlink-safe atomic persistence",
+      "executable prepare/finalize lifecycle",
+      "security and stale-evidence regression coverage",
+      "literal bash/zsh prepare-failure and signal-handler coverage"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Narrow to residual Phase 3",
+        "rationale": "introduce-fitness-function-gates explicitly superseded phases 1, 2, and 4 at 0/31 tasks; phase-scoped-worktree-lifecycle requires only the selected validation worktree.",
+        "capability": "validate-feature-ephemeral",
+        "supersedes": null
+      },
+      {
+        "title": "Record exact commit and tree",
+        "rationale": "A commit alone cannot identify an include-dirty run, so both source HEAD and the materialized Git tree are durable evidence.",
+        "capability": "validate-feature-ephemeral",
+        "supersedes": null
+      },
+      {
+        "title": "Fail closed at filesystem boundaries",
+        "rationale": "Copy-back and teardown validate identifiers, resolved containment, symlink endpoints, registered worktree ownership, and atomic replacement before mutation.",
+        "capability": "validate-feature-ephemeral",
+        "supersedes": null
+      },
+      {
+        "title": "Keep bookkeeping durable",
+        "rationale": "Architecture impact crosses the explicit allowlist; session-log and handoff writes run from the source checkout after finalization.",
+        "capability": "validate-feature-ephemeral",
+        "supersedes": null
+      },
+      {
+        "title": "Fail closed in bash and zsh adapters",
+        "rationale": "Prepare output is parsed strictly as JSON data only after success; INT and TERM finalize then explicitly exit 130 or 143.",
+        "capability": "validate-feature-ephemeral",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Validate the residual change and open a pull request without merging."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/validate-feature/scripts/validation_worktree.py",
+        "description": "Disposable validation checkout lifecycle"
+      },
+      {
+        "path": "skills/tests/validate-feature/test_validation_worktree.py",
+        "description": "Behavioral lifecycle coverage"
+      },
+      {
+        "path": "skills/validate-feature/SKILL.md",
+        "description": "Ephemeral flag wiring"
+      }
+    ]
+  }
+}

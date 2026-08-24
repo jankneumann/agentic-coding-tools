@@ -1,0 +1,87 @@
+# agent-coordinator policies contract (task 5.1, trace-requirements-to-contracts;
+# corrected and opted in by the issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
+#
+# The original document contracted POST /policies/write-operations/rollback
+# with a `version` query parameter — a shape the application never served (a
+# round-1 reviewer demonstrated 422). The spec scenario and this document now
+# describe the served shape: policy name in the path, version in the body.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Policy management"
+  version: 1.0.0
+  description: >-
+    Cedar policy version history and rollback. Spec lines 1255-1279,
+    2029-2035 (HTTP-13).
+paths:
+  /policies/{policy_name}/versions:
+    get:
+      operationId: listPolicyVersions
+      summary: List a policy's version history
+      description: >-
+        Spec 2003 (HTTP-13): lists the named policy's version history.
+        Spec 1259-1261: history records include policy_id, version number,
+        policy_text, changed_by, changed_at, and change_type.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.policy-version-history
+      parameters:
+        - name: policy_name
+          in: path
+          required: true
+          schema: {type: string}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, default: 20}
+      responses:
+        "200": {description: Version history for the named policy (spec 1259-1261)}
+        "401": {description: Missing or invalid X-API-Key}
+  /policies/{policy_name}/rollback:
+    post:
+      operationId: rollbackPolicy
+      summary: Roll a policy back to a prior version
+      description: >-
+        Spec 1270-1274: retrieves the requested version from
+        cedar_policies_history, updates cedar_policies with the historical
+        policy_text, records a new history entry, and logs the rollback in the
+        audit trail. Spec 2004 (HTTP-13): the version is given in the JSON
+        request body.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.policy-version-history
+      parameters:
+        - name: policy_name
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version: {type: integer}
+      responses:
+        "200": {description: Policy rolled back to the requested version (spec 1271-1274)}
+        "401": {description: Missing or invalid X-API-Key}
+        "404": {description: Unknown policy or version}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

@@ -1,0 +1,207 @@
+{
+  "review_type": "plan",
+  "target": "trace-requirements-to-contracts",
+  "reviewer_vendor": "claude_code/opus-5",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: three capability directories under `openspec/contracts/` have no `openspec/specs/<capability>/spec.md` — `phase-record`, `project-context-refresh`, and `prototyping` (verified: `ls openspec/contracts/` vs `ls openspec/specs/`; the spec tree has `project-context-refresh-orchestration` and `project-context-refresh-records`, no `project-context-refresh`). specs/gen-eval-framework/spec.md 'The gate fails closed on malformed input' makes exactly that state a hard failure ('a capability directory containing contract documents but no capability spec SHALL fail'), with no opt-in escape — the fail-closed requirement is not gated on D6 or D13. Task 5.7 wires the full sweep as push-blocking on `main`. So merging this change reds `main` on the first push, on three capabilities the change never touches. The root cause is documented policy, not an accident: `openspec/contracts/README.md` organizes by short capability label ('Capability = short label'), while D2 assumes `<capability>` is a directory name under `openspec/specs/`.",
+      "resolution": "Pick one and write it down: (a) add a task before 5.7 that reconciles the three contract directory names to their spec capability names (or adds the missing spec dirs), or (b) weaken the fail-closed requirement so a contract capability with no spec is REPORTED with a distinct status unless it has opted in — and add a scenario for it. Either way add an acceptance outcome that the full sweep exits zero on the merge candidate, and make the final checkpoint record that run.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: the term 'contract document' is used 20+ times across specs/gen-eval-framework/spec.md, design.md D6/D10/D12/D13 and tasks.md, and is never defined anywhere in the change. It is load-bearing twice over: forward opt-in is keyed on the document (D6), and the fail-closed rule is keyed on 'a capability directory containing contract documents'. The real tree makes the ambiguity concrete: `openspec/contracts/` currently holds `*/schemas/*.schema.json` (13 of them), `gen-eval-framework/cli/gen-eval.yaml`, and `code-search/v2.yaml` — a full OpenAPI 3.1 document sitting at the capability root rather than under `openapi/`, contrary to `openspec/contracts/README.md`'s own layout table. After task 4.2b the tree also gains `gen-eval-framework/traceability-exclusions.yaml`, which a naive `**/*.yaml` discovery glob would itself parse as a contract document. No requirement, design decision, or task states the discovery rule, so the implementer of task 3.7 picks it silently — and the pick determines finding 1's severity.",
+      "resolution": "Add a requirement (or a clause on 'Completeness is evaluated per capability') defining contract-document discovery normatively: which sub-paths under `openspec/contracts/<capability>/` are contract documents, that `schemas/` and `traceability-exclusions.yaml` are not, and what happens to a contract instance outside the declared sub-paths (`code-search/v2.yaml` today). Add a scenario for a document outside the declared layout, and a note on task 3.7.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: D13's reverse switch has no fail-closed rule, so the direction D3 calls the valuable one fails open. Reverse enforcement is keyed on the mere existence of `openspec/contracts/<capability>/traceability-exclusions.yaml`, and the requirement 'The gate fails closed on malformed input' covers only contract documents, schema-invalid traceability blocks, and missing capability specs — it never mentions the exclusions file. An exclusions file that is unparseable YAML, schema-invalid, an empty file (YAML `None`, which the schema rejects because `exclusions` is required), or unreadable therefore reads indistinguishably from 'not opted in', and the capability's reverse completeness silently stops blocking. This is precisely the failure the same requirement's own rationale identifies for the forward direction ('a parse error that reads as \"no blocks found\" would silently downgrade a traced contract to untraced'), left unextended to the switch introduced one iteration later. Task 3.6's four bullets have no malformed-exclusions-file case. It also quietly inverts the precedent D4 claims to lift 'wholesale': `packages/gen-eval/scripts/check_coverage_completeness.py` lines 163-176 fail on a MISSING exclusions file ('a missing X is not a passing one') and separately fail on malformed YAML naming the file.",
+      "resolution": "Add a scenario to 'The gate fails closed on malformed input': an exclusions file that exists but cannot be parsed or does not validate against `traceability-exclusions.schema.json` SHALL fail the gate naming the file, and the capability SHALL NOT be reported as not-opted-in. Add the corresponding bullet to task 3.6 and to task 3.4's coverage list. In D13, state explicitly that missing-file-means-off is a deliberate inversion of the predecessor's missing-file-means-fail, and that malformed-file-means-fail is retained unchanged.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: cross-capability exclusions are permitted by the contract and unspecified by the spec. `contracts/traceability-exclusions.schema.json` documents the `requirement` field as 'Usually this capability's own prefix; a cross-capability exclusion is permitted and appears in the cross-capability report', but no requirement, scenario, design decision (D4, D9, D13) or task says whether capability A's exclusions file suppresses capability B's reverse-completeness failure. If it does, it is a laundering path — the proposal's risk table mitigates exactly that risk for cross-capability CITATIONS (report them as a distinct list, D9) and leaves the exclusion side unmitigated, which is worse because an exclusion asserts nobody needs to serve the requirement at all. It also relocates D4's stale-exclusion failure onto an owner who cannot see the cause: A's exclusion goes stale when B rewords a heading. If it does not suppress, the schema's description is simply false and will be implemented as written by whoever reads the schema first.",
+      "resolution": "Decide in D13 and write it into the reverse-enforcement requirement: either (a) a cross-capability exclusion is rejected — an exclusion may only name the owning capability's requirements, and the schema pattern description is corrected; or (b) it is permitted, credits nothing by default, and appears in the cross-capability report with an explicit scenario asserting whether B's reverse completeness is suppressed. Add the scenario to task 3.4 or 3.13.",
+      "disposition": "fix"
+    },
+    {
+      "id": 5,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: the skill tests wp-wiring must add will never run in CI. `skills/tests/validate-feature/` is NOT listed in `skills/pyproject.toml`'s `testpaths` (verified by grep; the list ends at `expedite/scripts/tests` and includes `tests/implement-feature`, `tests/plan-feature`, `tests/validate-packages` but not `tests/validate-feature`), and CI's `test-infra-skills` job runs a bare `uv run pytest` from `skills/`, which honours `testpaths`. The existing `skills/tests/validate-feature/test_gen_eval_mode_selection.py` is already invisible for this reason. So the skill-workflow ADDED scenario 'Skill wiring is covered by skill tests' would be satisfied by a suite CI never executes — the pyproject's own comment names this defect verbatim ('A test CI never runs fails the same way as one that always passes'). wp-wiring's verification step runs the path explicitly so package verification passes, which makes the gap invisible until long after merge. `skills/pyproject.toml` is in no package's `write_allow`.",
+      "resolution": "Add `\"tests/validate-feature\"` to `skills/pyproject.toml` `testpaths` as part of task 5.6, add `skills/pyproject.toml` to wp-wiring's `write_allow`, and add a verification step running a bare `uv run pytest -q` from `skills/` (not the explicit path) so the step fails if discovery is not wired.",
+      "disposition": "fix"
+    },
+    {
+      "id": 6,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: task 2.0 invalidates a generated artifact no package may write. Promoting `traceability.schema.json` and `traceability-exclusions.schema.json` to `openspec/contracts/gen-eval-framework/schemas/` changes the output of the `api.contracts` producer, which renders a deterministic inventory of every `openspec/contracts/**/*.schema.json` into `docs/architecture-analysis/contracts-inventory.md` (see `skills/project-context-refresh/scripts/producer_api_contracts.py`: `_INVENTORY_TARGET`, `_schema_files` rglob, and a rendered header line carrying the COUNT — currently `_13 contract schema(s)._` plus one table row per schema including each `$id`). Two more schemas make it 15 with two new rows, and the `context-drift-gate` CI job (`make context-drift-gate`, exit 2 = blocking drift) reds. `docs/architecture-analysis/contracts-inventory.md` appears in no package's `write_allow`, so the implementer of wp-model has no in-scope way to fix the gate it just broke. This is a DIFFERENT instance from the one the gatekeeper flagged — see finding 15, where the gatekeeper's specific claim is refuted.",
+      "resolution": "Add `docs/architecture-analysis/contracts-inventory.md` to wp-model's `write_allow`; add a note to task 2.0 requiring regeneration via `make context-refresh` (or `skills/project-context-refresh/scripts/cli.py refresh --producer api.contracts`) in the same commit as the promotion, after the `$id` rewrite; and add `make context-drift-gate PYTHON=skills/.venv/bin/python` as a wp-model verification step with `expect_exit_code: 0`.",
+      "disposition": "fix"
+    },
+    {
+      "id": 7,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: the change flips gen-eval-framework into blocking reverse enforcement (task 4.2b) and installs the blocking main sweep (task 5.7) in the same PR, and nothing requires the unmutated tree to pass at capability scope before merge. Task 4.3 proves the gate goes RED on two documented mutations; that is the falsifiability half. The GREEN half — `check_traceability.py --scope capability` exiting zero across every capability on the merge candidate — appears in no task, no verification step, and no acceptance outcome. Measured scale of the triage 4.2b must complete for that to hold: `openspec/specs/gen-eval-framework/spec.md` has 20 archived requirements, this change's own delta adds 14 more (all about the gate itself, none with any CLI surface, so each needs a written exclusion), and task 4.1 adds roughly one per contracted flag (17). That is ~51 requirements to cite-or-excuse inside one task sized `[M]` (2hr–1day).",
+      "resolution": "Add an explicit task (or final-checkpoint item) that runs `check_traceability.py --scope capability` over the whole tree on the merge candidate and records the command and exit 0 as evidence — the GREEN counterpart to 4.3's RED. Re-size 4.2b against the ~51-requirement denominator, or split it (archived set / this change's own 14 / 4.1's flag requirements).",
+      "disposition": "fix"
+    },
+    {
+      "id": 8,
+      "axis": "architecture",
+      "severity": "nit",
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Nit: the new skill-workflow requirement 'Validation-Time Requirement Traceability Gate' is unconditional — `/validate-feature` SHALL run `check_traceability.py` and SHALL fail validation on non-zero — but `skills/validate-feature/SKILL.md` is a shared payload that `install.sh` ships into consumer repositories that have neither `packages/gen-eval/scripts/check_traceability.py` nor `openspec/contracts/`. There is no gate-unavailable scenario. Either the skill hard-fails everywhere downstream, or it silently skips and the blocking gate becomes decoration in the repos it was installed into. The same skill already solves this correctly one phase up: the `gen-eval` phase auto-detects descriptors and prints an explicit `SKIP: No gen-eval descriptors found` line (SKILL.md ~lines 293-312). That the boundary is real and linted is confirmed by `skills/validate-feature/scripts/linters/dependency_direction.py`, which treats `.md` as a runtime file and flags canonical `skills/...` and `skills/.venv` paths inside skill payloads.",
+      "resolution": "Add a scenario to the ADDED requirement covering gate-unavailable: the skill SHALL detect the gate's absence and SHALL print an explicit skip line naming what was not found, and SHALL NOT record the phase as passed. Mirror the gen-eval phase's detection block in task 5.6's note, and check that whatever path 5.6 writes into SKILL.md survives `dependency_direction.py`.",
+      "disposition": "fix"
+    },
+    {
+      "id": 9,
+      "axis": "architecture",
+      "severity": "nit",
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: D13 gives the reverse direction an all-or-nothing switch and no staging mechanism, which strands the capability the change was motivated by. D10 gives forward a staging path (split the document, opt in per subsystem) and D10 itself concedes 'the reverse direction was never split-stageable in the first place'. The consequence is stated but not costed: agent-coordinator — where the proposal's headline measurement lives (10 requirements naming an operation the app does not serve) — cannot opt in without triaging all 122 requirements in one step, so task 5.2 defers it and no roadmap item claims it. The direction D3 argues is the valuable one, because nothing else in the repository detects it, will in practice be enforced for exactly one capability. D13 considers three alternatives (implied-by-any-document, standalone boolean, the file itself) but not a SUBSET declaration — the exclusions file naming which requirement groups or heading prefixes it certifies — which is not flippable-without-work (the certification is still per requirement) and does stage.",
+      "resolution": "Either add subset staging to D13's alternatives with the reason it is rejected, or adopt it. Either way, give the deferred coordinator reverse opt-in a revisit trigger in the style of D9's ('revisit if...') rather than leaving it as an unowned backlog line in task 5.3.",
+      "disposition": "fix"
+    },
+    {
+      "id": 10,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: two requirements give contradictory answers for a capability holding an exclusions file and no contract documents. 'The gate fails closed on malformed input' says 'a capability with a spec and no contracts SHALL be recorded as untraced ... the run SHALL NOT fail on it'; 'Reverse enforcement is opt-in per capability via the exclusions file' says reverse SHALL be enforced 'exactly when' the file exists. The state is reachable — the exclusions file lives under `openspec/contracts/<capability>/`, so creating that directory solely to hold it is the natural first move for a capability whose requirements are all served elsewhere or excluded. Under one reading the capability is recorded untraced and passes; under the other every requirement must be cited or excluded. The word 'untraced' is doing double duty as a per-document forward status and a per-capability status.",
+      "resolution": "State in the spec that `untraced` is a forward-direction status of a contract document (and of a capability with no traced documents), that reverse status is reported independently, and that a capability with an exclusions file and no contract documents is reverse-enforced — meaning every one of its requirements must be excluded. Add it to task 3.4's coverage list.",
+      "disposition": "fix"
+    },
+    {
+      "id": 11,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: the concentration denominator can be zero and the spec does not say what happens. 'The gate reports citation concentration deterministically' fixes the denominator as 'the capability's traced operations' and D7 repeats it. A capability that has opted into reverse enforcement but whose contract documents are all untraced has zero traced operations, which is reachable and in fact is the natural first state of a capability opting in reverse-first. Task 3.9's fixture (six traced operations, four citing one requirement) never exercises it.",
+      "resolution": "Pin the zero-denominator behaviour in D7 and in the requirement: the concentration section SHALL be emitted with no entries when the capability has no traced operations, and the gate SHALL NOT compute a share. Add it as a case in task 3.9.",
+      "disposition": "fix"
+    },
+    {
+      "id": 12,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: task 5.5 identifies the hand-fill-instruction-survives-the-generator hazard and then names only one of the two files carrying that instruction. `openspec/schemas/feature-workflow/templates/change-context.md` lines 13-14 say 'Phase 1: Fill Req ID, Spec Source, Description, Contract Ref, ...' and 'Contract Ref: path to contract file the requirement maps to (e.g., contracts/openapi/v1.yaml#/paths/~1users)'. The task's note covers `skills/implement-feature/SKILL.md` only, and the template appears in no package's `write_allow`, so wp-matrix cannot fix it even if the implementer notices. The template is the artifact an author actually copies, so leaving it stale is the more consequential of the two.",
+      "resolution": "Add `openspec/schemas/feature-workflow/templates/change-context.md` to wp-matrix's `write_allow` and name it alongside `skills/implement-feature/SKILL.md` in task 5.5's note.",
+      "disposition": "fix"
+    },
+    {
+      "id": 13,
+      "axis": "readability",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: the change's own spec delta contains an uncited requirement, in a change whose thesis is that requirements must be cited by what serves them. The skill-workflow MODIFIED requirement '3-Phase Incremental Generation' gains four new AND clauses in its Phase 1 scenario (Contract Ref generated from citations; join by parse position; no name re-matching; no hand-fill when a traced document exists), and no task's `**Spec scenarios**` line references 'Phase 1 — Test plan (pre-implementation)'. Tasks 5.4 and 5.5 implement exactly those clauses and cite only `D8`. Cross-checked mechanically: every other scenario in the change is referenced by at least one task; the three MODIFIED skill-workflow scenarios are the only unreferenced ones (the three ADDED ones are covered by 5.6's 'all three scenarios').",
+      "resolution": "Add `skill-workflow delta: 3-Phase Incremental Generation (Phase 1 — Test plan (pre-implementation))` to the `**Spec scenarios**` line of tasks 5.4 and 5.5.",
+      "disposition": "fix"
+    },
+    {
+      "id": 14,
+      "axis": "architecture",
+      "severity": "nit",
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: `deny: openspec/contracts/**` on wp-gate, wp-matrix and wp-wiring reproduces the exact defect the plan iteration just removed elsewhere. PLAN_ITERATE dropped `deny: openspec/specs/**` from every package on the grounds that deny beats read_allow in `IndexScopes.allows` and bought nothing on writes. Verified: `skills/validate-packages/scripts/context_impact.py` lines 174-178 — `if _matches_any(path, self.deny): return False` before consulting `read_allow`. The identical argument applies to `openspec/contracts/**`: none of the three packages has any `write_allow` entry under that tree, so the deny cannot prevent a write that `write_allow` does not already prevent, while it does remove the entire contract tree from the read/context scope of wp-gate — the package implementing `check_traceability.py`, whose default `--contracts-root` IS `openspec/contracts/` and which needs `gen-eval-framework/cli/gen-eval.yaml` as its reference for what a real traceability block looks like.",
+      "resolution": "Drop `deny: openspec/contracts/**` from wp-gate, wp-matrix and wp-wiring. Keep the intent where it belongs — it is already stated in wp-gate's description ('this package cannot and must not write under openspec/contracts/**') and enforced by the `write_allow` allow-list.",
+      "disposition": "fix"
+    },
+    {
+      "id": 15,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The plan iteration's refutation of the gatekeeper's wp-model write_allow suggestion is correct, verified empirically rather than accepted. (a) `packages/gen-eval/src/gen_eval/contracts/interface-descriptor.schema.json` has exactly these `$defs`: AuthConfig, BudgetConfig, CommandSpec, EndpointSpec, FileInterfaceMapping, McpToolSpec, ServiceSpec, StartupConfig, StateVerifier. FlagSpec, PositionalSpec, ToolCommandSpec, ExitCodeSpec, BindingSpec and OperationSpec are all absent, because `generate_contract_schemas.py` generates from `InterfaceDescriptor` alone while `ToolDescriptor` and `ServiceDescriptor` are SUBCLASSES that add those fields. Adding an optional `traceability` field to the four archetype-only models therefore cannot move a byte of that schema. (b) `generate_tool_descriptor.py` dumps flags, positionals and commands with `model_dump(mode=\"json\", exclude_defaults=True)` (lines 121, 129, 136), so a field whose default is the absent value keeps `evaluation/descriptor.yaml` byte-identical until a contract actually carries a citation — at which point task 4.2 already requires regeneration. The gatekeeper's suggested widening should NOT be applied; widening write scope would have licensed exactly the drift those two `--check` gates exist to catch. The correct constraint is the model-placement rule now written into task 2.2 and wp-model's description.",
+      "resolution": "No action. Keep the model-placement constraint prominent in task 2.2 — it is the load-bearing sentence, and a reviewer who does not read it will re-raise the gatekeeper's suggestion.",
+      "disposition": "accept"
+    },
+    {
+      "id": 16,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "D2's empirical claims hold exactly, reproduced independently. Implementing the normative slug algorithm as written (NFKD, drop combining marks, lowercase, collapse runs outside [a-z0-9] to a single `-`, strip leading/trailing `-`) over all 29 `openspec/specs/*/spec.md` files yields 632 requirement headings, of which 0 produce an identifier failing `traceability.schema.json`'s `^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]*$` citation pattern, and 0 intra-capability slug collisions. Both figures match the design's stated 632 and zero. That makes task 1.1's instruction to drive the check against every real spec — rather than a fixture authored alongside the resolver — both achievable today and the right discriminator.",
+      "resolution": "No action.",
+      "disposition": "accept"
+    },
+    {
+      "id": 17,
+      "axis": "correctness",
+      "severity": "fyi",
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "FYI: three other in-flight changes add requirements to `gen-eval-framework` — `extract-gen-eval-package` (6), `factory-missions-architecture-alignment` (3), `rename-descriptor-model-levels` (2). Once task 4.2b creates `openspec/contracts/gen-eval-framework/traceability-exclusions.yaml`, that capability is reverse-enforced, so each of those changes will fail its own change-scoped validation run until it cites or excludes its new requirements (the scenario 'A requirement the change adds and nobody cites fails the change-scoped run' fires). That is the ratchet behaving as designed and is not a defect, but their authors planned before the switch existed and will meet it as an unexplained validation failure.",
+      "resolution": "No plan change required. Worth a line in task 5.3's findings, or a note in DOWNSTREAM.md (task 5.9), naming the three affected in-flight changes so their authors are not surprised.",
+      "disposition": "accept"
+    },
+    {
+      "id": 18,
+      "axis": "architecture",
+      "severity": "optional",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Optional: `work-packages.yaml` declares no `context_impact` block on any of the five packages. Under ri-08 that records `unmigrated` rather than failing, so nothing breaks. But this change touches four of the six declared surfaces per `openspec/schemas/context-impact-rules.yaml`: `apis` (`openspec/contracts/**`, `**/*.schema.json`), `capabilities` (`openspec/changes/*/specs/**`), and `documentation` (`**/*.md`, `**/SKILL.md`). A change specifically about making contract-to-requirement impact explicit, declining to declare its own context impact, is an odd asymmetry — and finding 6 is a concrete instance of the drift the declaration exists to surface.",
+      "resolution": "Consider adding `context_impact.surfaces` to wp-model (apis), wp-matrix and wp-wiring (documentation). Optional: the gate does not require it, and declaring turns on strict one-way checking, so this is a judgement about whether the change wants to be an early adopter of its own sibling mechanism.",
+      "disposition": "accept"
+    },
+    {
+      "id": 19,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Mechanical checks that pass, recorded so a later reader knows they were run rather than assumed. `openspec validate trace-requirements-to-contracts --strict` → valid. `validate_work_packages.py` → VALID on all four checks (schema, depends_on_refs, dag_cycles, lock_keys). All 14 ADDED requirements in the gen-eval-framework delta carry SHALL on their FIRST line, which is the only line `--strict` inspects. The skill-workflow MODIFIED requirement heading `3-Phase Incremental Generation` matches the archived base at `openspec/specs/skill-workflow/spec.md:1548` exactly, preserves all three base scenarios, and drops no base AND clause — so the archive merge will find its base. Every `**Design decisions**` reference in tasks.md resolves to a decision defined in design.md, and every one of D1–D13 is referenced by at least one task. Every parenthesised `**Spec scenarios**` reference resolves to a real scenario heading. The RED-demonstration protocol is stated once at the top of tasks.md and referenced thereafter rather than restated per task, which is why the two wired-gate demonstrations in the final checkpoint are unambiguous.",
+      "resolution": "No action.",
+      "disposition": "accept"
+    },
+    {
+      "id": 20,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The strongest structural property of this plan is that its central negative is a task rather than a comment. Task 2.3 ('an operation whose name and path almost exactly match a requirement heading must still cite nothing') is the only test that can detect the single change — a helpful fuzzy matcher — that would make the entire gate worthless while leaving every other test green. D1, D2's display-only ranking caveat, D8's join-by-parse-position rule and D11's RENAMED fail-open analysis are four independent statements of the same invariant at four different layers, each with its own test. That is the correct shape for a gate whose failure mode is a false negative that looks like coverage.",
+      "resolution": "No action. Preserve task 2.3's wording verbatim into the test's docstring so the next reader cannot delete it as redundant.",
+      "disposition": "accept"
+    }
+  ]
+}

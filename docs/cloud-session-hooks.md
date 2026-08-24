@@ -215,7 +215,7 @@ these locations:
 4. **`.env.cloud` template** — If using `setup_cloud.py`, the `--domain` flag
    auto-populates `COORDINATION_ALLOWED_HOSTS`. Update for new domains:
    ```bash
-   python3 agent-coordinator/scripts/setup_cloud.py --domain new.domain.com
+   uv run --project agent-coordinator python agent-coordinator/scripts/setup_cloud.py --domain new.domain.com
    ```
 
 5. **CI/CD secrets** — Update GitHub Actions secrets or Railway service
@@ -235,7 +235,7 @@ export COORDINATION_ALLOWED_HOSTS="new.domain.com"
 #    (edit the allow array to include the new domain)
 
 # 4. Regenerate cloud config if using setup_cloud.py
-python3 agent-coordinator/scripts/setup_cloud.py --domain new.domain.com
+uv run --project agent-coordinator python agent-coordinator/scripts/setup_cloud.py --domain new.domain.com
 ```
 
 ## Verification

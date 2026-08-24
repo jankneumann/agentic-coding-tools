@@ -13,6 +13,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from .severity import prefix_description, severity_for_criticality
+
+# Naming is what the next maintainer reads first — the readability axis.
+_AXIS = "readability"
+_CRITICALITY = "low"
+
 # kebab-case: lowercase letters, digits, and hyphens only
 _KEBAB_CASE_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 
@@ -88,11 +94,14 @@ def check_naming_conventions(
                     findings.append({
                         "id": finding_id,
                         "type": "architecture",
-                        "criticality": "low",
+                        "axis": _AXIS,
+                        "severity": severity_for_criticality(_CRITICALITY),
+                        "criticality": _CRITICALITY,
                         "disposition": "fix",
-                        "description": (
+                        "description": prefix_description(
                             f"Skill directory '{skill_dir}' does not follow "
-                            f"kebab-case naming convention"
+                            f"kebab-case naming convention",
+                            severity_for_criticality(_CRITICALITY),
                         ),
                         "resolution": (
                             f"Rename the skill directory to kebab-case "
@@ -113,11 +122,14 @@ def check_naming_conventions(
                     findings.append({
                         "id": finding_id,
                         "type": "architecture",
-                        "criticality": "low",
+                        "axis": _AXIS,
+                        "severity": severity_for_criticality(_CRITICALITY),
+                        "criticality": _CRITICALITY,
                         "disposition": "fix",
-                        "description": (
+                        "description": prefix_description(
                             f"Script file '{path.name}' does not follow "
-                            f"snake_case naming convention"
+                            f"snake_case naming convention",
+                            severity_for_criticality(_CRITICALITY),
                         ),
                         "resolution": (
                             f"Rename the script file to snake_case "
@@ -141,7 +153,9 @@ def check_naming_conventions(
                 findings.append({
                     "id": finding_id,
                     "type": "architecture",
-                    "criticality": "low",
+                    "axis": _AXIS,
+                    "severity": severity_for_criticality(_CRITICALITY),
+                    "criticality": _CRITICALITY,
                     "disposition": "fix",
                     "description": (
                         f"Schema file '{path.name}' does not follow "

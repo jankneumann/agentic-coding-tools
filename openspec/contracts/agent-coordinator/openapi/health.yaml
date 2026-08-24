@@ -1,0 +1,76 @@
+# agent-coordinator health contract (task 5.1, trace-requirements-to-contracts;
+# extended and opted in by the issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Health and runtime probes"
+  version: 1.0.0
+  description: >-
+    Unauthenticated health, liveness, and readiness endpoints. Spec lines
+    188-190, 870-880, 2017-2021 (HTTP-16).
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Liveness and database connectivity check
+      description: >-
+        Spec 189-190: returns 200 with status and version, no authentication.
+        Spec 872: MUST include a database connectivity check reporting both API
+        and database status. Spec 875-876: db responsive -> 200
+        {"status": "ok", "db": "connected"}. Spec 879-880: db unresponsive
+        within 2 seconds -> 503 {"status": "degraded", "db": "unreachable"}.
+      x-traceability:
+        requirements:
+          - agent-coordinator.http-api-interface
+          - agent-coordinator.health-check-with-database-connectivity
+      responses:
+        "200":
+          description: Healthy (spec 876)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, enum: [ok]}
+                  db: {type: string, enum: [connected]}
+                  version: {type: string}
+        "503":
+          description: Database unreachable within 2 seconds (spec 879-880)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, enum: [degraded]}
+                  db: {type: string, enum: [unreachable]}
+  /live:
+    get:
+      operationId: getLive
+      summary: Container liveness probe
+      description: >-
+        Spec 2020 (HTTP-16): returns 200 without touching any dependency, so
+        a container platform can distinguish a hung process from a degraded
+        dependency.
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+      responses:
+        "200": {description: Process is alive (spec 2020)}
+  /ready:
+    get:
+      operationId: getReady
+      summary: Container readiness probe
+      description: >-
+        Spec 2021 (HTTP-16): verifies required dependencies and returns
+        success only when they are reachable.
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+      responses:
+        "200": {description: Required dependencies reachable (spec 2021)}
+        "503": {description: A required dependency is unavailable (spec 2021)}

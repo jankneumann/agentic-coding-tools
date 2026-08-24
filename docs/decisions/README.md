@@ -24,6 +24,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 
 - [agent-archetypes](./agent-archetypes.md)
 - [agent-coordinator](./agent-coordinator.md)
+- [agent-identity](./agent-identity.md)
 - [architecture-refresh](./architecture-refresh.md)
 - [code-search](./code-search.md)
 - [configuration](./configuration.md)

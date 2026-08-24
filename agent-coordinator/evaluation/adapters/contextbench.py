@@ -2,7 +2,7 @@
 
 Loads Letta Context-Bench tasks for evaluating
 long-horizon context management and memory effectiveness.
-Maps to the agent-coordinator's episodic and working memory subsystems.
+Maps to the agent-coordinator's episodic memory subsystem.
 """
 
 from __future__ import annotations

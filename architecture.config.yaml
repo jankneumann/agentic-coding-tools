@@ -27,12 +27,41 @@ report:
     - cross_layer_flows               # Omitted if no flows exist regardless
     - diagrams
 
+gates:
+  architecture:                       # Fitness-function gate for the Architecture phase
+    mode: advisory                    # "advisory" | "blocking" (default advisory when absent)
+                                      # advisory: findings are reported prominently but
+                                      #   never fail a run
+                                      # blocking: "Architecture" joins REQUIRED_PHASES in
+                                      #   skills/validate-feature/scripts/gate_logic.py and
+                                      #   a new dependency cycle fails the pre-merge gate
+    block_on:                         # Categories that fail the gate once mode is blocking
+      new_dependency_cycles: true
+    clean_runs_before_flip: 3         # Ratchet criterion: flip mode to "blocking" only after
+                                      # this many clean advisory runs. Documented, not enforced —
+                                      # the flip is a one-line PR recording date + rationale.
+    severity_thresholds:              # Gate-side category -> severity, graded {critical, major,
+                                      # minor}. Deliberately separate from health.severity_thresholds
+                                      # above: that key belongs to the architecture report and is
+                                      # graded {error, warning, info}. One key serving two
+                                      # vocabularies is how a threshold silently filters nothing.
+      new_cycle: critical             # A newly introduced dependency cycle blocks (once blocking)
+      cross_layer_violation: major    # Import crossing a layer boundary the layer map forbids
+      file_size: minor                # File over the configured max line count
+
 health:
   expected_categories:                # Diagnostic categories to mark "(expected)"
     - disconnected_flow
   category_explanations:              # Override/extend explanations per category
     disconnected_flow: "MCP routes have no frontend callers — expected (clients are AI agents)"
-  severity_thresholds: {}             # e.g. orphan: "warning" to skip info-level orphan findings
+  severity_thresholds: {}             # Report-side filtering, graded {error, warning, info}
+                                      # (see _SEVERITY_ORDER in
+                                      # skills/refresh-architecture/scripts/reports/architecture_report.py).
+                                      # A category graded in any other vocabulary resolves to
+                                      # min_level 0 here and filters nothing — silently.
+                                      # Gate thresholds are graded {critical, major, minor} and
+                                      # live under gates.architecture below. Two consumers, two
+                                      # vocabularies, deliberately two keys.
 
 best_practices:                       # Files whose content contextualizes findings
   - path: "CLAUDE.md"

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/contracts/merge-plan.schema.json",
+  "title": "MergePlan",
+  "description": "Durable merge plan emitted by the merge-pull-requests analysis round and consumed by plan-driven execution. Separates plan definition from live state.",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "storage_tier", "nodes"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "storage_tier": {"enum": ["file", "coordinator"]},
+    "base_branch": {"type": "string", "default": "main"},
+    "nodes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/node"}
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["pr", "origin", "strategy", "auto_executable", "definition", "state"],
+      "additionalProperties": false,
+      "properties": {
+        "pr": {"type": "integer", "minimum": 1},
+        "title": {"type": "string"},
+        "origin": {
+          "enum": ["openspec", "codex", "sentinel", "bolt", "palette", "jules", "dependabot", "renovate", "other"]
+        },
+        "strategy": {"enum": ["rebase", "squash", "merge"]},
+        "auto_executable": {"type": "boolean"},
+        "definition": {
+          "type": "object",
+          "required": ["depends_on", "gates"],
+          "additionalProperties": false,
+          "properties": {
+            "depends_on": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {"type": "integer", "minimum": 1}
+            },
+            "gates": {
+              "type": "array",
+              "items": {
+                "enum": ["requires_human_approval", "admin_override_needed", "proposal_acceptance", "required_review"]
+              }
+            },
+            "changed_files": {"type": "array", "items": {"type": "string"}},
+            "inserted_reason": {"type": "string"}
+          }
+        },
+        "state": {
+          "type": "object",
+          "required": ["outcome", "staleness", "ci_state", "unresolved_comments"],
+          "additionalProperties": false,
+          "properties": {
+            "outcome": {"enum": ["pending", "in_progress", "merged", "closed", "deferred", "failed"]},
+            "needs_revalidation": {"type": "boolean", "default": false},
+            "claimed_by": {"type": ["string", "null"]},
+            "staleness": {"enum": ["fresh", "stale", "obsolete", "unknown"]},
+            "ci_state": {"enum": ["clean", "unstable", "blocked", "dirty", "unknown"]},
+            "unresolved_comments": {"type": "integer", "minimum": 0},
+            "unresolved_comment_summary": {"type": ["string", "null"]},
+            "vendor_verdict": {"type": ["object", "null"], "additionalProperties": true},
+            "blocking_reason": {"type": ["string", "null"]}
+          }
+        }
+      }
+    }
+  }
+}

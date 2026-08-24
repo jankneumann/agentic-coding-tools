@@ -1,0 +1,69 @@
+# agent-coordinator gen-eval contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Gen-eval endpoints"
+  version: 1.0.0
+  description: >-
+    Scenario listing, validation, scaffolding, and runs. Spec lines 1935-1940.
+paths:
+  /gen-eval/scenarios:
+    get:
+      operationId: listGenEvalScenarios
+      summary: List available scenarios
+      description: 'Spec 1937: lists available scenarios.'
+      responses:
+        "200": {description: Available scenarios (spec 1937)}
+  /gen-eval/validate:
+    post:
+      operationId: validateGenEvalScenario
+      summary: Validate scenario YAML
+      description: 'Spec 1938: validates scenario YAML; requires API key.'
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Validation result (spec 1938)}
+  /gen-eval/create:
+    post:
+      operationId: createGenEvalScenario
+      summary: Generate scenario scaffolds
+      description: 'Spec 1939: generates scenario scaffolds; requires API key.'
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Scaffold generated (spec 1939)}
+  /gen-eval/run:
+    post:
+      operationId: runGenEval
+      summary: Execute a gen-eval test run
+      description: 'Spec 1940: executes gen-eval test runs; requires API key.'
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Run executed (spec 1940)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

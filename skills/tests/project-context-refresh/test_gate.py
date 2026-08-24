@@ -284,6 +284,22 @@ class TestExitCodes:
         assert [d["producer_id"] for d in result.report["failed"]] == ["architecture"]
         assert result.report["blocking_drift"] == []
 
+    def test_unnameable_drift_still_reports_the_producer_s_own_reason(self, tmp_path):
+        """Refusing to name an artifact is not a reason to discard the reason.
+
+        The generic "reported drift without naming any artifact" message used to
+        *replace* the producer's failed validations, leaving a reader with a
+        report that named neither a stale file nor a drift code — the gate's own
+        verdict became the least actionable thing in it. The guard stays; the
+        diagnostic rides along.
+        """
+        result = _run_gate(
+            tmp_path,
+            _drift_without_artifacts("architecture", "INPUT_FINGERPRINT_MISMATCH: inputs moved"),
+        )
+        reason = result.report["failed"][0]["reason"]
+        assert "INPUT_FINGERPRINT_MISMATCH: inputs moved" in reason
+
     def test_exit_code_field_matches_the_process_exit_code(self, tmp_path):
         for producers, expected in (
             ((_fresh(DOCUMENTATION_INVENTORY),), 0),
@@ -519,6 +535,86 @@ class TestReadOnly:
         assert before == after
         assert not (tmp_path / ".git-context").exists()
         assert result.report["exit_code"] in (0, 1, 2)
+
+
+class TestTreeIdentification:
+    """Issue #385 — the report names the exact tree the verdict applies to.
+
+    A green local run and a red CI run at "the same revision" turned out to be
+    two different trees (a checkout 59 commits behind the tested tip). The
+    verdict itself was right both times; what was missing was the report saying
+    which tree it graded, so the divergence read as gate nondeterminism.
+    """
+
+    @staticmethod
+    def _commit(repo: Path, message: str) -> str:
+        subprocess.run(
+            [
+                "git", "-C", str(repo),
+                "-c", "user.email=gate@test", "-c", "user.name=gate",
+                "commit", "--allow-empty", "-m", message,
+            ],
+            check=True, capture_output=True,
+        )
+        head = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True,
+        )
+        return head.stdout.strip()
+
+    def test_non_git_tree_falls_back_to_the_explicit_revision(self, tmp_path):
+        result = _run_gate(tmp_path, _fresh(DOCUMENTATION_INVENTORY))
+        tree = result.report["tree"]
+        assert tree["head"] == FULL_SHA
+        assert tree["dirty"] is False
+        assert tree["base"] == gate.DEFAULT_BASE
+        assert tree["base_upstream"] is None
+        assert tree["commits_behind_base_upstream"] is None
+        assert tree["commits_ahead_of_base_upstream"] is None
+
+    def test_clean_tree_renders_without_warning(self, tmp_path):
+        result = _run_gate(tmp_path, _fresh(DOCUMENTATION_INVENTORY))
+        text = gate.render_text(result.report)
+        assert "tree:" in text
+        assert "[WARN]" not in text
+
+    def test_dirty_checkout_is_named_and_warned(self, tmp_path):
+        subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+        self._commit(tmp_path, "base")
+        # Untracked content counts: producers render from the live filesystem,
+        # so an untracked skills/<new>/SKILL.md is part of the graded tree.
+        (tmp_path / "scratch.txt").write_text("untracked\n", encoding="utf-8")
+        result = _run_gate(tmp_path, _fresh(DOCUMENTATION_INVENTORY))
+        assert result.report["tree"]["dirty"] is True
+        text = gate.render_text(result.report)
+        assert "uncommitted changes" in text
+        assert "[WARN]" in text
+
+    def test_head_behind_base_upstream_is_counted_and_warned(self, tmp_path):
+        subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+        first = self._commit(tmp_path, "one")
+        second = self._commit(tmp_path, "two")
+        subprocess.run(
+            ["git", "-C", str(tmp_path), "update-ref", "refs/remotes/origin/main", second],
+            check=True, capture_output=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(tmp_path), "checkout", "--detach", first],
+            check=True, capture_output=True,
+        )
+        result = _run_gate(tmp_path, _fresh(DOCUMENTATION_INVENTORY))
+        tree = result.report["tree"]
+        assert tree["head"] == first
+        assert tree["base_upstream"] == "origin/main"
+        assert tree["commits_behind_base_upstream"] == 1
+        assert tree["commits_ahead_of_base_upstream"] == 0
+        text = gate.render_text(result.report)
+        assert "1 commit(s) behind origin/main" in text
+        assert "[WARN]" in text
+
+    def test_report_with_tree_block_validates(self, tmp_path, validator):
+        result = _run_gate(tmp_path, _fresh(DOCUMENTATION_INVENTORY))
+        assert list(validator.iter_errors(result.report)) == []
 
 
 # --------------------------------------------------------------------------- #

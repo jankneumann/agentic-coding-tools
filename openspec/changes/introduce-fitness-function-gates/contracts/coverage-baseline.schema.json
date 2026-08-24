@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/coverage-baseline.schema.json",
+  "title": "coverage-baseline.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tolerance_pp", "suites"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "tolerance_pp": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 5,
+      "description": "Allowed decrease in percentage points before the ratchet fails."
+    },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "updated_by": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "suites": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["line_coverage_pct", "command"],
+        "properties": {
+          "line_coverage_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+          "command": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The pytest --cov invocation that produced the number."
+          }
+        }
+      },
+      "description": "Keyed by suite name, e.g. 'agent-coordinator', 'skills'."
+    }
+  }
+}
