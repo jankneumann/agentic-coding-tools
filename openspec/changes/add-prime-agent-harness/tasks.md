@@ -112,6 +112,30 @@ checkpoint 1.5 passes.
 - [ ] 3.4 `review_dispatcher.py`: re-auth tables per P5; `_parse_findings` NDJSON
   branch only if P3 showed a shape the existing pi stream-parse cannot handle;
   daemon-hygiene cleanup step per P7/D6 if required (M)
+  **Dependencies**: 3.1, 3.4a
+
+- [ ] 3.4a Config-contract round-trip for the D6 cleanup field — **required before
+  3.4 can express a cleanup step in `agents.yaml`**. The `cli` object declares
+  `"additionalProperties": False` (`agent-coordinator/src/agents_config.py`), so a
+  `cleanup` key added to a vendor's `cli:` block is rejected today with
+  `Additional properties are not allowed ('cleanup' was unexpected)` — verified
+  against `load_agents_config` on 2026-08-24. Land the field through all four
+  round-trip points, or D6's "the dispatch config gains an explicit cleanup step"
+  is unimplementable and the value is dropped before dispatch:
+  1. **Schema** — add `cleanup` to the `cli` properties block alongside
+     `api_key_env` (`agents_config.py`, the block ending in
+     `"additionalProperties": False`).
+  2. **Parser** — add the field to the `CliConfig` dataclass and read it in the
+     `CliConfig(...)` construction via `raw_cli.get("cleanup", ...)`.
+  3. **Serializer** — emit it in the `cli_out` dict so a load→serialize round trip
+     is lossless.
+  4. **Endpoint/projection** — extend the registry projection and its test
+     (`agent-coordinator/tests/test_registry_projection.py`) so the field survives
+     the coordinator API surface.
+  Gate: a test that writes a `cleanup` value into a vendor's `cli:` block, loads it,
+  serializes it, and asserts the value round-trips unchanged. Skip this task only if
+  P7 concludes `--mode json` one-shots leave no resident processes — in which case
+  amend D6 to drop the config-level cleanup step rather than leaving it unbuildable. (S)
   **Dependencies**: 3.1
 
 - [ ] 3.5 Vendor enum updates: `consensus-report.schema.json` + mirrored
