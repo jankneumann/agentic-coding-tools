@@ -108,6 +108,15 @@ The current single shared KV path collapses all three classes into one blast rad
 target layout is `secret/agents/<name>/*` and `secret/vendors/<vendor>/*` with per-agent
 policies granting exactly the agent's own path plus its vendor's path.
 
+Vendor credentials additionally carry a **delivery mode**, because OpenBao can only do
+*issuance-time* exchange — whatever it issues, the workload ends up holding, and for static
+vendor keys the lease bounds the copy, not the key's validity. Where the dispatch posture
+includes an egress gateway (`dispatch-governance` dg-08's iron-proxy), delivery upgrades to
+*request-time* exchange: the sandbox holds only a proxy token and the gateway attaches the
+real key at egress, so the secret never enters the environment the untrusted code runs in.
+Direct injection remains the delivery mode for the local srt tier, where no gateway posture
+exists.
+
 ## Capabilities
 
 ### Capability: Registry-derived identity and trust (Phase 1)
@@ -140,6 +149,12 @@ with periodic hot-reload, so key rotation requires no redeploy. `_resolve_api_ke
 fail-open becomes fail-loud with an audit event. Static keys still exist but live only in
 OpenBao.
 
+One service principal is seeded beside the agents:
+`spiffe://coordinator.rotkohl.ai/service/egress-gateway`, with read access to
+`secret/vendors/*` and nothing else. This is dg-08's iron-proxy identity — it lets the
+gateway fetch vendor keys at egress through exactly the per-principal machinery this phase
+builds, without granting it any agent-path access.
+
 **Acceptance Outcomes:**
 - No two agents share a secret_id, KV path, or policy; an agent's Bao token cannot read
   another agent's secrets (asserted by an integration test against a dev-mode OpenBao)
@@ -163,18 +178,42 @@ The signing key lives in OpenBao. `setup_cloud.py` key minting is retired.
 
 ### Capability: Unified dispatch posture (Phase 4)
 
-`resolve_posture(principal, dispatch_mode) → {trust, isolation, vendor_credentials}` becomes
-the single per-dispatch decision, consumed by guardrails/policy, the sandbox renderer
-(`dispatch-governance` dg-07's srt seam, later OpenShell), and credential injection — the
-dispatch adapter fetches only the listed vendor credentials from OpenBao and injects them into
-the subprocess env; nothing else reaches the child process. This phase **consumes** dg-07's
-renderer and the task router's isolation output rather than re-deciding them, and supplies the
-credential-scope dimension both currently lack.
+`resolve_posture(principal, dispatch_mode) → {trust, isolation, credential_delivery,
+vendor_credentials}` becomes the single per-dispatch decision, consumed by guardrails/policy,
+the sandbox renderer (`dispatch-governance` dg-07's srt seam, later OpenShell), and credential
+injection. This phase **consumes** dg-07's renderer and the task router's isolation output
+rather than re-deciding them, and supplies the credential-scope dimension both currently lack.
+
+`credential_delivery` has two modes, chosen by the network posture, and the resolver always
+picks the strongest the posture supports:
+
+- **direct** (local srt tier): the dispatch adapter fetches only the listed vendor
+  credentials from OpenBao and injects them into the subprocess env; nothing else reaches
+  the child process. Issuance-time scoping — the key is present but its blast radius is
+  bounded.
+- **gateway** (dg-08 postures): the adapter injects **proxy tokens** only; iron-proxy swaps
+  in the real vendor key at egress under its `service/egress-gateway` principal.
+  Request-time exchange — the real secret never enters the sandbox, which is the strongest
+  answer available to this epic's motivating threat of a prompt-injected agent reading
+  credentials. The token, not the gateway principal, is the authorization: proxy tokens are
+  per-dispatch, short-TTL, audience-bound to the gateway, and encode exactly the resolved
+  `vendor_credentials`, so a compromised agent cannot ask the gateway to spend a credential
+  its dispatch was never granted — even though the principal itself can read all of
+  `secret/vendors/*`.
+
+In both modes, vendor credentials already brokered by the coordinator LLM gateway
+(`add-coordinator-llm-gateway`'s LiteLLM virtual keys) stay out of this phase's injection and
+swap paths: the virtual key is the inference credential, carries its own budget and model
+enforcement, and passes through any egress gateway untouched.
 
 **Acceptance Outcomes:**
 - One audit event per dispatch records the full resolved posture (principal, trust,
-  isolation, credential scope, authenticator)
+  isolation, credential scope, credential delivery mode, authenticator)
 - A dispatched `pi` subprocess env contains the OpenRouter key and no other vendor secret
+- In a gateway posture the subprocess env contains proxy tokens and no real vendor secret
+  at all
+- A proxy token authorizes exactly its dispatch's resolved `vendor_credentials`; an
+  end-to-end test proves the gateway rejects a swap for any other vendor
 - OpenShell adoption is a renderer + authenticator addition, demonstrated by a design-level
   contract test against the seam interfaces
 
@@ -186,6 +225,16 @@ consistent). Cross-roadmap edges:
 - **dg-07 / `add-dispatch-sandbox-enforcement`** owns the sandbox renderer seam and
   `resolve_isolation()`; Phase 4 consumes them and must not run concurrently against
   `review_dispatcher.py`.
+- **dg-08 / `add-egress-gateway-boundary`** owns the iron-proxy renderer, gateway
+  deployment, and the gateway-side swap with token-scope rejection; Phase 4 owns
+  dispatch-side proxy-token issuance and injection. The ordering is encoded where the
+  roadmap runtime actually reads it, as `external_depends_on` edges (`ready_items()`
+  honors only those across roadmaps): dg-08 requires Phase 2's service principal
+  (`principal-credential-architecture:pca-02`), and Phase 4 requires dg-08
+  (`dispatch-governance:dg-08`) — the chain is pca-02 → dg-08 → pca-04. dg-08's
+  acceptance contract is deliberately gateway-side only, so it is attainable before
+  Phase 4 ships; the end-to-end "no real key in the sandbox env" outcome lives here in
+  Phase 4. Without dg-08 every posture resolves to `direct`.
 - **symphony `trust-posture-binding`** owns posture *declaration*; Phase 4 is additional
   enforcement surface for what it declares.
 - **`implement-the-task-router-vendor-x-location-x-model`** produces the isolation decision
@@ -205,6 +254,12 @@ attestation adoptable when OpenShell's k3s makes it meaningful.
 **Accepted: OpenBao as a hard dependency for Phases 2+** (dev-mode instance in CI) over
 keeping a Bao-less static path alive forever. Phase 1 alone requires no Bao, which is the
 fallback posture if OpenBao is ever removed.
+
+**Accepted: two credential-exchange tiers instead of one.** Issuance-time exchange (OpenBao
+leases, `direct` delivery) is the ceiling on the local uid, where no unbypassable egress hop
+exists; request-time exchange (`gateway` delivery via dg-08's iron-proxy) is reserved for
+postures that can actually enforce it. Pretending the local tier has a secret boundary it
+cannot enforce would repeat the fail-open drift this epic exists to remove.
 
 **Accepted: Cedar policies stay hand-written.** Cedar *entities* are generated from the
 registry (drift-free); generated *policies* would hide the authorization logic this repo

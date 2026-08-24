@@ -1,17 +1,19 @@
 {
-  "generated_at": "2026-08-18T22:23:29+00:00",
-  "git_sha": "26ab704c4010da3a2118b5e2fdb53844ce83e362",
+  "generated_at": "2026-08-22T01:03:57+00:00",
+  "git_sha": "f86ee022b4a664afbcf77283748ce569591c015a",
   "stats": {
-    "total_nodes": 1892,
-    "total_edges": 1188,
+    "total_nodes": 1983,
+    "total_edges": 1190,
     "by_language": {
-      "python": 1456,
+      "python": 1457,
+      "typescript": 90,
       "sql": 436
     },
     "by_kind": {
-      "module": 77,
+      "module": 104,
       "class": 248,
-      "function": 1079,
+      "function": 1121,
+      "component": 22,
       "table": 27,
       "column": 294,
       "index": 69,
@@ -745,6 +747,10 @@
     },
     {
       "id": "py:coordination_mcp.get_agent_id",
+      "dependent_count": 6
+    },
+    {
+      "id": "py:db_postgres._parse_iso_datetime",
       "dependent_count": 6
     },
     {

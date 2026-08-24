@@ -99,18 +99,60 @@ step_python() {
 # ---------------------------------------------------------------------------
 # Step 2: OpenSpec CLI
 # ---------------------------------------------------------------------------
+# Pinned version of the OpenSpec CLI, shared with CI and the cloud bootstrap
+# scripts.  Empty if the file is missing (mirror-layout consumer repos).
+openspec_pin() {
+    [[ -f "$PROJECT_DIR/.openspec-version" ]] || return 0
+    tr -d '[:space:]' < "$PROJECT_DIR/.openspec-version"
+}
+
 step_openspec() {
     step "2/7: OpenSpec CLI"
 
-    if command -v openspec >/dev/null 2>&1; then
-        ok "openspec CLI ($(openspec --version 2>/dev/null || echo 'installed'))"
-    elif $CHECK_ONLY; then
-        miss "openspec CLI — install with: npm install -g @fission-ai/openspec"
-    else
-        info "Installing OpenSpec CLI..."
-        npm install -g @fission-ai/openspec
-        ok "openspec CLI installed"
+    local pinned installed
+    pinned="$(openspec_pin)"
+    installed=""
+    command -v openspec >/dev/null 2>&1 && installed="$(openspec --version 2>/dev/null || echo unknown)"
+
+    # Unpinned repo: fall back to presence-only.
+    if [[ -z "$pinned" ]]; then
+        if [[ -n "$installed" ]]; then
+            ok "openspec CLI ($installed, unpinned)"
+        elif $CHECK_ONLY; then
+            miss "openspec CLI — install with: npm install -g @fission-ai/openspec"
+        else
+            info "Installing OpenSpec CLI..."
+            npm install -g @fission-ai/openspec
+            ok "openspec CLI installed"
+        fi
+        return
     fi
+
+    if [[ "$installed" == "$pinned" ]]; then
+        ok "openspec CLI ($installed)"
+        return
+    fi
+
+    # A present-but-stale CLI is the case this exists to catch: `--strict`
+    # semantics move between minors, so an old local binary reports failures
+    # CI does not see, and the natural next step is to "fix" a spec that is
+    # not broken (issue #318).  Checking presence alone would let it sit.
+    if $CHECK_ONLY; then
+        if [[ -z "$installed" ]]; then
+            miss "openspec CLI — install with: npm install -g @fission-ai/openspec@$pinned"
+        else
+            miss "openspec CLI is $installed, pinned $pinned — run: npm install -g @fission-ai/openspec@$pinned"
+        fi
+        return
+    fi
+
+    if [[ -n "$installed" ]]; then
+        info "Updating OpenSpec CLI $installed -> $pinned..."
+    else
+        info "Installing OpenSpec CLI $pinned..."
+    fi
+    npm install -g "@fission-ai/openspec@$pinned"
+    ok "openspec CLI $pinned installed"
 }
 
 # ---------------------------------------------------------------------------

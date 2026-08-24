@@ -92,7 +92,15 @@ See [Parallel Agentic Development](parallel-agentic-development.md) for the full
 
 ## Prerequisites
 
-- OpenSpec CLI installed (v1.0+): `npm install -g @fission-ai/openspec`
+- OpenSpec CLI at the version pinned in [`.openspec-version`](../.openspec-version):
+  `npm install -g "@fission-ai/openspec@$(tr -d '[:space:]' < .openspec-version)"`.
+  `scripts/setup-cli.sh` installs and updates it for you.
+
+  Match the pin rather than taking whatever `@latest` gives you. `openspec
+  validate --strict` semantics shift between minor releases, so a CLI that is
+  merely newer or older reports failures CI does not see — a stale local 1.1.1
+  once flagged an already-merged change that CI considered valid. CI installs
+  this same pin and fails if the running binary disagrees with it (issue #318).
 - Repository initialized for OpenSpec (once per repo): `openspec init`
 - Validate environment before running workflow skills:
   - `openspec list`

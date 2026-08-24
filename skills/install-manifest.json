@@ -152,6 +152,10 @@
     ],
     "vendor-status": [
       "parallel-infrastructure"
+    ],
+    "vision": [
+      "shared",
+      "worktree"
     ]
   },
   "skills": {
@@ -361,6 +365,9 @@
       "distribution": "portable"
     },
     "vendor-status": {
+      "distribution": "portable"
+    },
+    "vision": {
       "distribution": "portable"
     },
     "worktree": {
