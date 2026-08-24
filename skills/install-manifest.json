@@ -12,115 +12,393 @@
     "references/**"
   ],
   "installed_assets": [
-    {"source_glob": "*/install_assets/openspec/**", "destination": "openspec/"}
+    {
+      "source_glob": "*/install_assets/openspec/**",
+      "destination": "openspec/"
+    }
   ],
   "cross_skill_dependencies": {
-    "archive-roadmap": ["roadmap-runtime", "shared", "worktree"],
-    "autopilot": ["coordination-bridge", "parallel-infrastructure", "shared"],
-    "autopilot-roadmap": ["autopilot", "parallel-infrastructure", "plan-roadmap", "roadmap-runtime", "shared", "worktree"],
-    "bao-vault": ["langfuse"],
-    "changelog-version": ["shared", "worktree"],
-    "cleanup-feature": ["coordination-bridge", "explore-feature", "merge-pull-requests", "session-log", "validate-feature", "worktree"],
-    "context-engineering": ["coordination-bridge", "parallel-infrastructure", "session-log"],
-    "explore-feature": ["coordination-bridge", "shared", "worktree"],
-    "fix-scrub": ["worktree"],
-    "implement-feature": ["coordination-bridge", "coordinator-task-status-renderer", "parallel-infrastructure", "project-context-refresh", "validate-feature", "worktree"],
-    "iterate-on-implementation": ["coordination-bridge", "parallel-infrastructure", "worktree"],
-    "iterate-on-plan": ["coordination-bridge", "parallel-infrastructure", "shared", "worktree"],
-    "langfuse": ["bao-vault"],
-    "merge-pull-requests": ["session-log", "shared"],
-    "parallel-review-plan": ["parallel-infrastructure"],
-    "plan-feature": ["coordination-bridge", "coordinator-task-status-renderer", "refresh-architecture", "validate-packages", "worktree"],
-    "plan-roadmap": ["parallel-infrastructure", "roadmap-runtime", "shared", "worktree"],
-    "project-context-refresh": ["validate-packages"],
-    "prototype-feature": ["parallel-infrastructure", "worktree"],
-    "quick-task": ["shared", "worktree"],
-    "refresh-architecture": ["shared", "validate-flows", "worktree"],
-    "review-artifacts": ["worktree"],
-    "security-review": ["coordination-bridge"],
-    "setup-coordinator": ["coordination-bridge"],
-    "update-specs": ["shared"],
-    "validate-feature": ["coordination-bridge", "security-review", "session-log", "shared", "validate-flows", "validate-packages", "worktree"],
-    "vendor-status": ["parallel-infrastructure"]
+    "archive-roadmap": [
+      "roadmap-runtime",
+      "shared",
+      "worktree"
+    ],
+    "autopilot": [
+      "coordination-bridge",
+      "parallel-infrastructure",
+      "shared"
+    ],
+    "autopilot-roadmap": [
+      "autopilot",
+      "parallel-infrastructure",
+      "plan-roadmap",
+      "roadmap-runtime",
+      "shared",
+      "worktree"
+    ],
+    "bao-vault": [
+      "langfuse"
+    ],
+    "changelog-version": [
+      "shared",
+      "worktree"
+    ],
+    "cleanup-feature": [
+      "coordination-bridge",
+      "explore-feature",
+      "merge-pull-requests",
+      "session-log",
+      "validate-feature",
+      "worktree"
+    ],
+    "context-engineering": [
+      "coordination-bridge",
+      "parallel-infrastructure",
+      "session-log"
+    ],
+    "explore-feature": [
+      "coordination-bridge",
+      "shared",
+      "worktree"
+    ],
+    "fix-scrub": [
+      "worktree"
+    ],
+    "implement-feature": [
+      "coordination-bridge",
+      "coordinator-task-status-renderer",
+      "parallel-infrastructure",
+      "project-context-refresh",
+      "validate-feature",
+      "worktree"
+    ],
+    "iterate-on-implementation": [
+      "coordination-bridge",
+      "parallel-infrastructure",
+      "worktree"
+    ],
+    "iterate-on-plan": [
+      "coordination-bridge",
+      "parallel-infrastructure",
+      "shared",
+      "worktree"
+    ],
+    "langfuse": [
+      "bao-vault"
+    ],
+    "merge-pull-requests": [
+      "session-log",
+      "shared"
+    ],
+    "parallel-review-plan": [
+      "parallel-infrastructure"
+    ],
+    "plan-feature": [
+      "coordination-bridge",
+      "coordinator-task-status-renderer",
+      "refresh-architecture",
+      "validate-packages",
+      "worktree"
+    ],
+    "plan-roadmap": [
+      "parallel-infrastructure",
+      "roadmap-runtime",
+      "shared",
+      "worktree"
+    ],
+    "project-context-refresh": [
+      "validate-packages"
+    ],
+    "prototype-feature": [
+      "parallel-infrastructure",
+      "worktree"
+    ],
+    "quick-task": [
+      "shared",
+      "worktree"
+    ],
+    "refresh-architecture": [
+      "shared",
+      "validate-flows",
+      "worktree"
+    ],
+    "review-artifacts": [
+      "worktree"
+    ],
+    "security-review": [
+      "coordination-bridge"
+    ],
+    "setup-coordinator": [
+      "coordination-bridge"
+    ],
+    "supervise": [
+      "plan-roadmap",
+      "prioritize-proposals",
+      "roadmap-runtime",
+      "shared",
+      "worktree"
+    ],
+    "update-specs": [
+      "shared"
+    ],
+    "validate-feature": [
+      "coordination-bridge",
+      "security-review",
+      "session-log",
+      "shared",
+      "validate-flows",
+      "validate-packages",
+      "worktree"
+    ],
+    "vendor-status": [
+      "parallel-infrastructure"
+    ],
+    "vision": [
+      "shared",
+      "worktree"
+    ]
   },
   "skills": {
-    "agent-metrics": {"distribution": "portable"},
-    "api-and-interface-design": {"distribution": "portable"},
-    "archive-roadmap": {"distribution": "portable"},
-    "autopilot": {"distribution": "portable"},
-    "autopilot-roadmap": {"distribution": "portable"},
-    "bao-vault": {"distribution": "portable"},
-    "browser-testing-with-devtools": {"distribution": "portable"},
-    "bug-scrub": {"distribution": "portable"},
-    "changelog-version": {"distribution": "portable"},
-    "claimable-postgres": {"distribution": "portable"},
-    "cleanup-feature": {"distribution": "portable"},
-    "collect-transcripts": {"distribution": "portable"},
-    "context-engineering": {"distribution": "portable"},
-    "coordination-bridge": {"distribution": "portable"},
-    "coordinator-task-status-renderer": {"distribution": "portable"},
-    "debugging-and-error-recovery": {"distribution": "portable"},
-    "defuddle": {"distribution": "portable"},
-    "deprecation-and-migration": {"distribution": "portable"},
-    "documentation-and-adrs": {"distribution": "portable"},
-    "expedite": {"distribution": "portable"},
-    "explore-feature": {"distribution": "portable"},
-    "fix-scrub": {"distribution": "portable"},
-    "frontend-ui-engineering": {"distribution": "portable"},
-    "gen-eval": {"distribution": "portable"},
-    "gen-eval-scenario": {"distribution": "portable"},
-    "implement-feature": {"distribution": "portable"},
-    "improve-harness": {"distribution": "portable"},
-    "iterate-on-implementation": {"distribution": "portable"},
-    "iterate-on-plan": {"distribution": "portable"},
-    "json-canvas": {"distribution": "portable"},
-    "langfuse": {"distribution": "portable"},
-    "merge-pull-requests": {"distribution": "portable"},
-    "neon-postgres": {"distribution": "portable"},
-    "obsidian-bases": {"distribution": "portable"},
-    "obsidian-cli": {"distribution": "portable"},
-    "obsidian-markdown": {"distribution": "portable"},
-    "parallel-infrastructure": {"distribution": "portable"},
-    "parallel-review-implementation": {"distribution": "portable"},
-    "parallel-review-plan": {"distribution": "portable"},
-    "performance-optimization": {"distribution": "portable"},
-    "plan-feature": {"distribution": "portable"},
-    "plan-roadmap": {"distribution": "portable"},
-    "playwright-validator": {"distribution": "portable"},
-    "prioritize-proposals": {"distribution": "portable"},
-    "project-context-refresh": {"distribution": "portable"},
-    "project-context-runtime": {"distribution": "portable"},
-    "prototype-feature": {"distribution": "portable"},
-    "quick-task": {"distribution": "portable"},
-    "refresh-architecture": {"distribution": "portable"},
-    "review-artifacts": {"distribution": "portable"},
-    "roadmap-runtime": {"distribution": "portable"},
-    "security-review": {"distribution": "portable"},
-    "session-bootstrap": {"distribution": "portable"},
-    "session-log": {"distribution": "portable"},
+    "agent-metrics": {
+      "distribution": "portable"
+    },
+    "api-and-interface-design": {
+      "distribution": "portable"
+    },
+    "archive-roadmap": {
+      "distribution": "portable"
+    },
+    "autopilot": {
+      "distribution": "portable"
+    },
+    "autopilot-roadmap": {
+      "distribution": "portable"
+    },
+    "bao-vault": {
+      "distribution": "portable"
+    },
+    "browser-testing-with-devtools": {
+      "distribution": "portable"
+    },
+    "bug-scrub": {
+      "distribution": "portable"
+    },
+    "changelog-version": {
+      "distribution": "portable"
+    },
+    "cite-requirements": {
+      "distribution": "repository-scoped",
+      "reason": "Traceability retrofit walkthrough for this repository's own contracts: imports gen_eval.traceability from packages/gen-eval and edits openspec/contracts/<capability>/, neither of which exists in consumer repos. Detect-and-skip would leave a dead skill in every consumer."
+    },
+    "claimable-postgres": {
+      "distribution": "portable"
+    },
+    "cleanup-feature": {
+      "distribution": "portable"
+    },
+    "collect-transcripts": {
+      "distribution": "portable"
+    },
+    "context-engineering": {
+      "distribution": "portable"
+    },
+    "coordination-bridge": {
+      "distribution": "portable"
+    },
+    "coordinator-task-status-renderer": {
+      "distribution": "portable"
+    },
+    "debugging-and-error-recovery": {
+      "distribution": "portable"
+    },
+    "defuddle": {
+      "distribution": "portable"
+    },
+    "deprecation-and-migration": {
+      "distribution": "portable"
+    },
+    "documentation-and-adrs": {
+      "distribution": "portable"
+    },
+    "expedite": {
+      "distribution": "portable"
+    },
+    "explore-feature": {
+      "distribution": "portable"
+    },
+    "fix-scrub": {
+      "distribution": "portable"
+    },
+    "frontend-ui-engineering": {
+      "distribution": "portable"
+    },
+    "gen-eval": {
+      "distribution": "portable"
+    },
+    "gen-eval-scenario": {
+      "distribution": "portable"
+    },
+    "implement-feature": {
+      "distribution": "portable"
+    },
+    "improve-harness": {
+      "distribution": "portable"
+    },
+    "iterate-on-implementation": {
+      "distribution": "portable"
+    },
+    "iterate-on-plan": {
+      "distribution": "portable"
+    },
+    "json-canvas": {
+      "distribution": "portable"
+    },
+    "langfuse": {
+      "distribution": "portable"
+    },
+    "merge-pull-requests": {
+      "distribution": "portable"
+    },
+    "neon-postgres": {
+      "distribution": "portable"
+    },
+    "obsidian-bases": {
+      "distribution": "portable"
+    },
+    "obsidian-cli": {
+      "distribution": "portable"
+    },
+    "obsidian-markdown": {
+      "distribution": "portable"
+    },
+    "parallel-infrastructure": {
+      "distribution": "portable"
+    },
+    "parallel-review-implementation": {
+      "distribution": "portable"
+    },
+    "parallel-review-plan": {
+      "distribution": "portable"
+    },
+    "performance-optimization": {
+      "distribution": "portable"
+    },
+    "plan-feature": {
+      "distribution": "portable"
+    },
+    "plan-roadmap": {
+      "distribution": "portable"
+    },
+    "playwright-validator": {
+      "distribution": "portable"
+    },
+    "prioritize-proposals": {
+      "distribution": "portable"
+    },
+    "project-context-refresh": {
+      "distribution": "portable"
+    },
+    "project-context-runtime": {
+      "distribution": "portable"
+    },
+    "prototype-feature": {
+      "distribution": "portable"
+    },
+    "quick-task": {
+      "distribution": "portable"
+    },
+    "refresh-architecture": {
+      "distribution": "portable"
+    },
+    "review-artifacts": {
+      "distribution": "portable"
+    },
+    "roadmap-runtime": {
+      "distribution": "portable"
+    },
+    "security-review": {
+      "distribution": "portable"
+    },
+    "session-bootstrap": {
+      "distribution": "portable"
+    },
+    "session-log": {
+      "distribution": "portable"
+    },
     "setup-coordinator": {
       "distribution": "portable",
-      "prerequisites": ["COORDINATOR_DIR for local coordinator administration"]
+      "prerequisites": [
+        "COORDINATOR_DIR for local coordinator administration"
+      ]
     },
-    "simplify": {"distribution": "portable"},
-    "source-driven-development": {"distribution": "portable"},
-    "supabase-postgres-best-practices": {"distribution": "portable"},
-    "tech-debt-analysis": {"distribution": "portable"},
-    "test-driven-development": {"distribution": "portable"},
-    "update-specs": {"distribution": "portable"},
-    "use-railway": {"distribution": "portable"},
-    "validate-feature": {"distribution": "portable"},
-    "validate-flows": {"distribution": "portable"},
-    "validate-packages": {"distribution": "portable"},
-    "vendor-status": {"distribution": "portable"},
-    "worktree": {"distribution": "portable"}
+    "simplify": {
+      "distribution": "portable"
+    },
+    "source-driven-development": {
+      "distribution": "portable"
+    },
+    "supabase-postgres-best-practices": {
+      "distribution": "portable"
+    },
+    "supervise": {
+      "distribution": "portable"
+    },
+    "tech-debt-analysis": {
+      "distribution": "portable"
+    },
+    "test-driven-development": {
+      "distribution": "portable"
+    },
+    "update-specs": {
+      "distribution": "portable"
+    },
+    "use-railway": {
+      "distribution": "portable"
+    },
+    "validate-feature": {
+      "distribution": "portable"
+    },
+    "validate-flows": {
+      "distribution": "portable"
+    },
+    "validate-packages": {
+      "distribution": "portable"
+    },
+    "vendor-status": {
+      "distribution": "portable"
+    },
+    "vision": {
+      "distribution": "portable"
+    },
+    "worktree": {
+      "distribution": "portable"
+    }
   },
   "smoke_entrypoints": [
-    {"path": "merge-pull-requests/scripts/discover_prs.py", "args": ["--help"]},
-    {"path": "autopilot/scripts/smoke_provider_dispatch.py", "args": ["--help"]},
-    {"path": "parallel-infrastructure/scripts/result_validator.py", "mode": "import"},
-    {"path": "prototype-feature/scripts/collect_outcomes.py", "mode": "import"},
-    {"path": "validate-flows/scripts/validate_flows.py", "mode": "import"}
+    {
+      "path": "merge-pull-requests/scripts/discover_prs.py",
+      "args": [
+        "--help"
+      ]
+    },
+    {
+      "path": "autopilot/scripts/smoke_provider_dispatch.py",
+      "args": [
+        "--help"
+      ]
+    },
+    {
+      "path": "parallel-infrastructure/scripts/result_validator.py",
+      "mode": "import"
+    },
+    {
+      "path": "prototype-feature/scripts/collect_outcomes.py",
+      "mode": "import"
+    },
+    {
+      "path": "validate-flows/scripts/validate_flows.py",
+      "mode": "import"
+    }
   ],
   "declared_external_prerequisites": [
     "bash",

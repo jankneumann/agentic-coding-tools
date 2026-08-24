@@ -66,6 +66,11 @@ def _parse_line_range(line_range: Any) -> tuple[int | None, int | None]:
 # Data classes
 # ---------------------------------------------------------------------------
 
+# Migration default for findings emitted before `axis` was required
+# (review-findings axis contract, rule 2).
+DEFAULT_AXIS = "correctness"
+
+
 @dataclass
 class Finding:
     """A single finding from a vendor review."""
@@ -80,6 +85,10 @@ class Finding:
     line_start: int | None = None
     line_end: int | None = None
     vendor: str = ""
+    # `axis` is required by review-findings.schema.json, but legacy payloads
+    # (and internally-constructed findings) predate it — default to
+    # "correctness" so old data keeps its current matching behavior.
+    axis: str = DEFAULT_AXIS
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], vendor: str) -> "Finding":
@@ -95,6 +104,7 @@ class Finding:
             line_start=line_start,
             line_end=line_end,
             vendor=vendor,
+            axis=data.get("axis") or DEFAULT_AXIS,
         )
 
 
@@ -134,6 +144,7 @@ class ConsensusFinding:
     recommended_disposition: str
     description: str
     vendor_dispositions: dict[str, str] | None = None
+    agreed_axis: str = DEFAULT_AXIS
 
 
 @dataclass
@@ -243,6 +254,12 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
         (score, basis) where score is 0.0-1.0 and basis describes
         the matching criteria used.
     """
+    # Axis is part of the cross-vendor matching key: an observability
+    # finding and a correctness finding on the same lines are two distinct
+    # signals, and merging them would silently drop one.
+    if _canonical_axis(a.axis) != _canonical_axis(b.axis):
+        return 0.0, ""
+
     same_type = _types_compatible(a.type, b.type)
     same_file = _paths_match(a.file_path, b.file_path)
 
@@ -274,6 +291,34 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
 def _higher_criticality(a: str, b: str) -> str:
     """Return the higher criticality level."""
     return a if _CRITICALITY_ORDER.get(a, 0) >= _CRITICALITY_ORDER.get(b, 0) else b
+
+
+def _canonical_axis(axis: str | None) -> str:
+    """Normalize an axis label; empty/None falls back to the migration default."""
+    if not axis:
+        return DEFAULT_AXIS
+    return axis.strip().lower().replace("-", "_")
+
+
+def _agreed_axis(findings: list[Finding]) -> str:
+    """Majority-vote the axis across matched findings.
+
+    Tie-break: prefer the axis of the more severe finding (highest
+    criticality among the findings carrying that axis). This is a recorded
+    open question in design.md (D3) — severity-first was chosen so that a
+    tie never demotes a critical signal to a lower-stakes axis. If a
+    weighted or reviewer-priority scheme is adopted later, this is the one
+    place to change.
+    """
+    counts: dict[str, int] = {}
+    best_criticality: dict[str, int] = {}
+    for f in findings:
+        axis = _canonical_axis(f.axis)
+        counts[axis] = counts.get(axis, 0) + 1
+        rank = _CRITICALITY_ORDER.get(f.criticality, 0)
+        best_criticality[axis] = max(best_criticality.get(axis, -1), rank)
+
+    return max(counts, key=lambda axis: (counts[axis], best_criticality[axis]))
 
 
 # ---------------------------------------------------------------------------
@@ -416,6 +461,7 @@ class ConsensusSynthesizer:
                     agreed_criticality=m.primary.criticality,
                     recommended_disposition="accept",
                     description=m.primary.description,
+                    agreed_axis=_canonical_axis(m.primary.axis),
                 ))
                 continue
 
@@ -447,6 +493,7 @@ class ConsensusSynthesizer:
                     agreed_criticality=agreed_crit,
                     recommended_disposition=m.primary.disposition,
                     description=m.primary.description,
+                    agreed_axis=_agreed_axis([m.primary, *m.matched]),
                 ))
             else:
                 # Disposition disagreement
@@ -465,6 +512,7 @@ class ConsensusSynthesizer:
                     recommended_disposition="escalate",
                     description=m.primary.description,
                     vendor_dispositions=all_dispositions,
+                    agreed_axis=_agreed_axis([m.primary, *m.matched]),
                 ))
 
         return results
@@ -488,6 +536,7 @@ class ConsensusSynthesizer:
                     "matched_findings": cf.matched_findings,
                     "match_score": cf.match_score,
                     "agreed_type": cf.agreed_type,
+                    "agreed_axis": cf.agreed_axis,
                     "agreed_criticality": cf.agreed_criticality,
                     "recommended_disposition": cf.recommended_disposition,
                     "description": cf.description,
@@ -640,6 +689,96 @@ def format_vendor_counts(per_vendor_counts: dict[str, int]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Canonical schema validation for per-vendor findings files
+# ---------------------------------------------------------------------------
+
+def _schema_mod() -> Any:
+    """Return the ``review_findings_schema`` module, or ``None`` if absent."""
+    try:
+        import review_findings_schema  # type: ignore[import-untyped]
+
+        return review_findings_schema
+    except ImportError:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "review_findings_schema",
+            Path(__file__).parent / "review_findings_schema.py",
+        )
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            try:
+                spec.loader.exec_module(mod)  # type: ignore[union-attr]
+                return mod
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("review_findings_schema load failed: %s", exc)
+                return None
+        return None
+
+
+def _resolve_canonical_schema(schema_arg: str | None) -> dict[str, Any]:
+    """Load the canonical review-findings schema for per-vendor validation.
+
+    Uses an explicit ``--schema`` path when given, else the canonical file
+    discovered via the shared module.
+
+    Raises :class:`ConsensusInputError` when the schema cannot be loaded. This
+    used to return ``None`` and downgrade validation to a no-op, which meant an
+    unreadable ``--schema`` path or a missing canonical file produced a
+    consensus report that looked identically trustworthy to a validated one.
+    An unenforceable contract is a hard error, not a quiet pass.
+    """
+    if schema_arg:
+        try:
+            return json.loads(Path(schema_arg).read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ConsensusInputError(
+                f"could not read --schema {schema_arg}: {exc}"
+            ) from exc
+    mod = _schema_mod()
+    if mod is None:
+        raise ConsensusInputError(
+            "review_findings_schema module could not be loaded, so per-vendor "
+            "findings cannot be validated against the canonical schema"
+        )
+    try:
+        return mod.load_schema()
+    except Exception as exc:  # noqa: BLE001 — re-raised with context
+        raise ConsensusInputError(
+            f"could not load the canonical review-findings schema: {exc}"
+        ) from exc
+
+
+def _validate_vendor_document(
+    data: dict[str, Any], path: Path, schema: dict[str, Any]
+) -> None:
+    """Validate a per-vendor findings document, raising loudly on drift.
+
+    Raises :class:`ConsensusInputError` when the document violates the
+    canonical review-findings schema, and equally when the check cannot run
+    because ``jsonschema`` is missing — "could not verify" must never be
+    reported as "verified".
+    """
+    try:
+        import jsonschema  # type: ignore[import-untyped]
+    except ImportError as exc:
+        raise ConsensusInputError(
+            "the 'jsonschema' package is required to validate per-vendor "
+            f"findings against the canonical schema but is not importable "
+            f"(while reading {path})"
+        ) from exc
+    validator = jsonschema.Draft202012Validator(schema)
+    errors = sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
+    if errors:
+        first = errors[0]
+        location = "/".join(str(p) for p in first.absolute_path) or "<root>"
+        raise ConsensusInputError(
+            f"{path}: review-findings schema violation: {first.message} "
+            f"(at {location})"
+        )
+
+
+# ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
 
@@ -700,6 +839,11 @@ def main() -> int:
                 continue
             findings_paths.append(path)
 
+    # Resolve the canonical schema once; every per-vendor file is validated
+    # against it so a drifted finding (missing required field / wrong enum)
+    # fails loudly here rather than passing silently into consensus.
+    canonical_schema = _resolve_canonical_schema(args.schema)
+
     for p in findings_paths:
         if not p.exists():
             print(f"Warning: {p} not found, skipping", file=sys.stderr)
@@ -709,6 +853,7 @@ def main() -> int:
             ))
             continue
         data = json.loads(p.read_text())
+        _validate_vendor_document(data, p, canonical_schema)
         # findings-claude.json -> "claude" (drop the "findings-" prefix)
         default_vendor = p.stem
         if default_vendor.startswith("findings-"):

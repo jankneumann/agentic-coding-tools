@@ -49,6 +49,10 @@ fi
 exit 1
 """,
     )
+    _write_executable(
+        fake_bin / "podman",
+        "#!/usr/bin/env bash\nexit 1\n",
+    )
 
     repo = tmp_path / "repo"
     repo.mkdir()

@@ -1,0 +1,57 @@
+{
+  "agent_name": "autopilot-gatekeeper",
+  "summary": "GATE VERDICT: proceed_with_review. trace-requirements-to-contracts is exceptionally well specified (11 ADDED requirements, 21 WHEN/THEN scenarios, 41 sized tasks each linked to a spec scenario and a design decision, 12 numbered design decisions, a JSON-Schema contract, and per-package verification commands with expected exit codes), so its outcomes are objectively checkable. Risk is low and reversible: no DB migration, zero external deps, file-level write_allow per package, and the gate itself defaults to opt-in ('untraced' does not fail). The 'has_security_signal' flag is a keyword false positive on the words 'author'/'authored' in the proposal and contract prose - no credentials, auth code, secrets, or permission logic are touched. VAL_REVIEW is recommended (not escalation) because this change lands a NEW BLOCKING CI gate and edits two shared skills, and because one concrete work-package scope gap was found: wp-model edits descriptor.py / service_descriptor.py, which feed two byte-identity --check gates in CI whose output paths are not in its write_allow.",
+  "completed_work": [
+    "Read proposal.md, design.md, tasks.md, work-packages.yaml, specs/gen-eval-framework/spec.md, and contracts/ (traceability.schema.json, README.md) in the managed worktree.",
+    "Verified VERIFIABILITY: 11 ADDED requirements, 21 named scenarios, 42 WHEN/THEN clauses, 41 checkbox tasks across 5 phases, all tasks sized XS/S/M with no L or XL, per-task 'Spec scenarios' and 'Design decisions' back-references, and a JSON-Schema contract for the traceability block.",
+    "Verified RISK signals against the artifacts: has_db_migration false (confirmed - no alembic/migration surface), external_dep_count 0 (confirmed - gate is a static read of two files, no coordinator runtime dependency, no npm dependency at gate runtime), has_broad_write_scope false (confirmed - each of the 3 packages declares explicit file-level write_allow plus deny on agent-coordinator/**, openspec/specs/**, and openspec/contracts/** for wp-gate).",
+    "Traced the has_security_signal:true flag to its source: keyword matches on 'author'/'authored' in proposal.md, work-packages.yaml, spec.md and contracts/README.md. No secret, credential, token, password, auth, or permission surface exists in this change.",
+    "Verified the hard prerequisite is satisfied: derive-descriptors-from-contracts is archived at openspec/changes/archive/2026-07-28-derive-descriptors-from-contracts, and its code artifacts exist on this branch (openspec/contracts/ layout with 5 capabilities, packages/gen-eval/scripts/check_coverage_completeness.py, descriptor.py, service_descriptor.py).",
+    "Confirmed the DAG shape: wp-resolver -> wp-model -> wp-gate is a genuine chain (shared file packages/gen-eval/src/gen_eval/traceability.py, shared lock key feature:gen-eval:traceability), not an artificially serialized plan.",
+    "Confirmed the plan self-imposes the gates-must-fail-before-work rule (acceptance outcome, wp-gate description, tasks 4.3 and the final checkpoint), including the __pycache__ clearing note that the mutation-check staleness lesson requires."
+  ],
+  "in_progress": [],
+  "decisions": [
+    {
+      "decision": "Verdict = proceed_with_review, not plain proceed.",
+      "rationale": "Verifiability is above the bar and risk is low, so escalation is unwarranted. But the change installs a NEW BLOCKING CI gate at /validate-feature (task 5.6) and on main (task 5.7), and rewires skills/implement-feature/SKILL.md and skills/validate-feature/SKILL.md. The characteristic failure mode of this change class - a gate that can only ever pass, or a gate that blocks unrelated work on pre-existing debt - is precisely what the extra VAL_REVIEW phase catches, and it is cheap relative to landing a broken gate on the shared workflow."
+    },
+    {
+      "decision": "Not escalating despite total_loc_estimate 1850 and has_security_signal true.",
+      "rationale": "Raw size is explicitly not the gate criterion, and 1850 LOC across 3 packages is well-specified rather than large-and-vague. The security signal is a false positive on the substring 'author'. Neither is an escalation cause."
+    },
+    {
+      "decision": "Reversibility judged high.",
+      "rationale": "The work is almost entirely new files under packages/gen-eval/. The gate defaults to opt-in per capability (D6: a capability with no traceability block records 'untraced' and does not fail), so landing it does not retroactively break existing capabilities. There is no data migration and no runtime coupling; a bad gate reverts in one commit. The mandatory human merge gate is the final backstop."
+    },
+    {
+      "decision": "Flagging - not blocking on - a work-package scope gap in wp-model.",
+      "rationale": "wp-model's write_allow includes packages/gen-eval/src/gen_eval/descriptor.py and service_descriptor.py. Two CI steps assert byte identity against artifacts derived from those models: generate_contract_schemas.py --check (output packages/gen-eval/src/gen_eval/contracts/) at ci.yml:411 and generate_tool_descriptor.py --check (output packages/gen-eval/evaluation/descriptor.yaml) at ci.yml:431. Neither output path is in wp-model's write_allow, so adding a traceability field to the descriptor models will red those gates with the implementer unable to regenerate in scope. This is the known write_allow-misses-invalidated-files pattern; it is a scope-tuning fix for the implement phase, not a reason to stop for a human."
+    },
+    {
+      "decision": "Flagging that tasks.md phases 4 and 5 are deliberately NOT work packages.",
+      "rationale": "work-packages.yaml states explicitly that phases 4 and 5 are human-led authoring work, because the gate cannot distinguish a considered citation from a guessed one (D1). tasks.md nonetheless contains tasks 4.1-5.9, so an implement phase driven from tasks.md rather than work-packages.yaml could dispatch citation authoring to an agent - which would produce exactly the plausible-looking mapping D1 forbids. The implement phase must treat work-packages.yaml as the dispatch authority."
+    }
+  ],
+  "next_steps": [
+    "Proceed to PLAN_REVIEW, then IMPLEMENT with the 3-package chain wp-resolver -> wp-model -> wp-gate as declared in work-packages.yaml.",
+    "Before dispatching wp-model, widen its write_allow to include packages/gen-eval/src/gen_eval/contracts/** and packages/gen-eval/evaluation/descriptor.yaml, or add an explicit regeneration step, so the two byte-identity --check gates in ci.yml (lines 411 and 431) can be kept green.",
+    "Dispatch ONLY wp-resolver, wp-model, and wp-gate. Do not dispatch tasks 4.1-5.9 to implementer agents; they are human-led authoring work per work-packages.yaml.",
+    "Enforce the plan's own gates-must-fail-before-work rule during IMPL_REVIEW: every check in check_traceability.py must be demonstrated red on an unmodified tree, with __pycache__ cleared before each confirming run.",
+    "Run VAL_REVIEW (val_review_enabled is already true in state). Give it Bash so it can independently execute the gate against the real tree rather than trusting the implementer's report.",
+    "At VALIDATE, confirm the change-scoped run proves BOTH halves of task 3.13 (touched violation fails, untouched pre-existing gap reported and does not fail) - a test asserting only the first passes against a gate with no scoping at all."
+  ],
+  "relevant_files": [
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/openspec/changes/trace-requirements-to-contracts/proposal.md",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/openspec/changes/trace-requirements-to-contracts/design.md",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/openspec/changes/trace-requirements-to-contracts/tasks.md",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/openspec/changes/trace-requirements-to-contracts/work-packages.yaml",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/openspec/changes/trace-requirements-to-contracts/contracts/traceability.schema.json",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/openspec/changes/trace-requirements-to-contracts/contracts/README.md",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/.github/workflows/ci.yml",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/scripts/generate_tool_descriptor.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/scripts/generate_contract_schemas.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/scripts/check_coverage_completeness.py"
+  ]
+}

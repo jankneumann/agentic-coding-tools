@@ -1,0 +1,35 @@
+{
+  "review_type": "implementation",
+  "target": "trace-requirements-to-contracts",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: the sweep treats a non-empty but unresolvable base SHA as a no-change SKIP. The spec requires an unresolvable base to fail naming the event and base, but derive_change_ids runs `git diff ... \"$1\" HEAD` inside command substitution and never checks the pipeline status. I drove the real extracted CI fragment against a throwaway repo with `PR_BASE_SHA=deadbeef...` and got exit 0 with `SKIP: requirement-traceability sweep ...`; stderr contained `fatal: bad object deadbeef...`. The same happens for `merge_group`. Make derive_change_ids fail closed on git diff failure and add tests for non-empty unresolvable SHAs, not only empty env vars.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": ".github/workflows/ci.yml",
+      "line_range": {
+        "start": 517,
+        "end": 523
+      }
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: the authored agent-coordinator OpenAPI contracts are not executable against the actual FastAPI route surface. A route-table comparison found declared paths absent or materially mismatched, and TestClient demonstrations confirmed contract-visible failures: `GET /status/agents` from `status.yaml` returns 404 while the contract declares 200, and `POST /policies/write-operations/rollback?version=3` returns 422 because the app expects the version in the request body on `/policies/{policy_name}/rollback`, while the contract declares a query parameter and 200. Correct the contract to the implemented surface or implement the spec-declared endpoints before treating these as shipped contracts.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/status.yaml",
+      "line_range": {
+        "start": 43,
+        "end": 52
+      }
+    }
+  ]
+}

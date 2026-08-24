@@ -146,7 +146,7 @@ curl -si https://coord.<yourdomain>/locks/status/x \
 curl -s https://coord.<yourdomain>/health
 ```
 
-`python agent-coordinator/scripts/setup_cloud.py --domain coord.<yourdomain>
+`uv run --project agent-coordinator python agent-coordinator/scripts/setup_cloud.py --domain coord.<yourdomain>
 --verify` also sends the token when `CF_ACCESS_CLIENT_ID/SECRET` are exported.
 
 ---

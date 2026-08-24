@@ -81,6 +81,37 @@ class TestCheckVendor:
         health = check_vendor("no-key-agent", config)
         assert health.api_key_available is False
 
+    def test_cli_declared_credential_unset_is_unhealthy(self, monkeypatch):
+        """A binary on PATH whose cli.api_key_env is unset cannot serve a
+        request — health must fail closed (issue #383: pi reported healthy
+        while OpenRouter returned 402 on every call)."""
+        monkeypatch.delenv("TEST_PI_HEALTH_KEY", raising=False)
+        config = {
+            "type": "pi",
+            "cli": {
+                "command": "python3",  # present binary
+                "dispatch_modes": {"review": {"args": ["-p"]}},
+                "api_key_env": "TEST_PI_HEALTH_KEY",
+            },
+        }
+        health = check_vendor("pi-local", config)
+        assert health.cli_installed is True
+        assert health.api_key_available is False
+        assert health.healthy is False
+
+    def test_cli_declared_credential_set_is_healthy(self):
+        config = {
+            "type": "pi",
+            "cli": {
+                "command": "python3",
+                "dispatch_modes": {"review": {"args": ["-p"]}},
+                "api_key_env": "TEST_PI_HEALTH_KEY",
+            },
+        }
+        with patch.dict("os.environ", {"TEST_PI_HEALTH_KEY": "sk-or-test"}):
+            health = check_vendor("pi-local", config)
+        assert health.healthy is True
+
     def test_models_collected(self):
         config = {
             "type": "codex",

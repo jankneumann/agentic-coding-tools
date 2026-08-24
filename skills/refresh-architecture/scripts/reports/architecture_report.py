@@ -442,9 +442,14 @@ def _section_dependency_layers(
     lines.append("```")
     lines.append("")
 
-    # Single points of failure callout
-    spof = [(m, len(imported_by.get(m, set()))) for m in foundation]
-    spof.sort(key=lambda x: -x[1])
+    # Single points of failure callout.
+    #
+    # Ranked by (descending importer count, then name). Ranking on the count
+    # alone left equal-count modules in the iteration order of the `foundation`
+    # set, so they swapped places between runs and every refresh produced a
+    # large diff carrying no information (issue #362).
+    spof = [(m, len(imported_by.get(m, set()))) for m in sorted(foundation)]
+    spof.sort(key=lambda x: (-x[1], x[0]))
     if spof:
         lines.append("**Single points of failure** — changes to these modules ripple widely:")
         lines.append("")

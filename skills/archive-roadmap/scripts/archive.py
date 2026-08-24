@@ -40,12 +40,16 @@ if str(_RUNTIME_DIR) not in sys.path:
 from models import ItemStatus, load_roadmap  # type: ignore[import-untyped]
 
 # Statuses that mean "this item reached a terminal state by design."
-# COMPLETED = work done; SKIPPED = work explicitly written off.
+# COMPLETED = work done; SKIPPED = work explicitly written off;
+# SUPERSEDED = the work moved to another roadmap's item (ri-17 typed
+# `superseded_by` edge), so it will never be executed here and its absence
+# from the archive is correct, not an omission.
 # Anything else (FAILED, BLOCKED, REPLAN_REQUIRED, IN_PROGRESS, APPROVED,
 # CANDIDATE) is unfinished and requires --force to archive.
 _TERMINAL_STATUSES: frozenset[ItemStatus] = frozenset({
     ItemStatus.COMPLETED,
     ItemStatus.SKIPPED,
+    ItemStatus.SUPERSEDED,
 })
 
 

@@ -1,0 +1,29 @@
+{
+  "review_type": "implementation",
+  "target": "trace-requirements-to-contracts",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "R1 introduced the runnability probe by guarding both the probe and the real gate on `${TRACE_RESULT:-} != skip`, but the fragment never initializes TRACE_RESULT. If TRACE_RESULT=skip is already set in the environment when the block starts \u2014 while packages/gen-eval/scripts/check_traceability.py and openspec/contracts/ both exist \u2014 the fragment prints nothing, never invokes the gate, and exits 0. Demonstrated: with a gate that prints VIOLATION and exits 1, a clean env yields `FAIL: requirement-traceability gate exited 1` and rc=1; the same tree with TRACE_RESULT=skip pre-set yields empty stdout (no SKIP line either), TRACE_RESULT remains skip, and rc=0. Pre-R1 always entered the else branch and overwrote TRACE_RESULT when the files existed, so ambient skip could not silence the gate. The suite cannot see this: _run builds a clean env with only PROJECT_ROOT/CHANGE_ID/PATH. Fix: set TRACE_RESULT= (or a dedicated availability flag) at the top of the 7.0b block before any branch, and add a test that pre-sets TRACE_RESULT=skip with a failing runnable gate and asserts FAIL.",
+      "resolution": "Initialize TRACE_RESULT= at the start of the 7.0b bash block (and the matching TRACE_GATE_FRAGMENT); add a regression test with TRACE_RESULT=skip pre-set and a failing runnable stub that must still FAIL.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "skills/validate-feature/SKILL.md"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "The --help runnability probe treats every non-zero probe exit as SKIP with the fixed message 'dependencies not installed; run uv sync'. That is correct for ModuleNotFoundError, but it also masks a broken gate that should fail the CRITICAL phase. Demonstrated: replace check_traceability.py with `def broken(\\n` (SyntaxError); the fragment exits 0 and prints SKIP blaming missing dependencies, with no FAIL. Pre-R1 that same syntax error would have been captured as TRACE_EXIT!=0 and failed validation. CI's requirement-traceability-sweep has no equivalent probe and would still red, but local /validate-feature is the change-scoped CRITICAL gate the skill-workflow spec requires to fail on non-zero gate exit. Narrow the SKIP to import/dependency failures (e.g. match ModuleNotFoundError on stderr), or fail closed on other probe failures.",
+      "resolution": "Distinguish dependency/import failures from other --help failures (syntax/runtime); only the former should SKIP, others should FAIL the phase.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "skills/validate-feature/SKILL.md"
+    }
+  ]
+}

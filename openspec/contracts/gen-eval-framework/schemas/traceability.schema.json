@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/jankneumann/agentic-coding-tools/main/openspec/contracts/gen-eval-framework/schemas/traceability.schema.json",
+  "title": "Requirement traceability block",
+  "description": "Citations from a contracted operation to the requirements it exists to serve, and exclusions for operations that legitimately serve none. Operation-side only: requirement-side exclusions live in the capability's traceability-exclusions.yaml (see traceability-exclusions.schema.json), whose existence is also the reverse-enforcement opt-in (design D13). Written by the contract author; never inferred (design D1). Carried as `x-traceability` on an OpenAPI operation and as `traceability` on a CLI contract flag, positional, or command.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "requirements": {
+      "type": "array",
+      "description": "Requirement identifiers this operation serves, as `<capability>.<slug-of-heading>`. An identifier that resolves to no requirement fails the gate rather than being ignored: a citation nobody can follow is indistinguishable from no citation, and silently dropping it would let a reworded heading quietly un-trace an operation.",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]*$",
+        "description": "Capability prefix and heading slug, e.g. `agent-coordinator.lock-acquisition-is-exclusive`. The prefix is explicit so a cross-capability citation is visible as one."
+      },
+      "minItems": 1
+    },
+    "excluded": {
+      "type": "object",
+      "description": "This operation serves no requirement, deliberately. Mutually exclusive with `requirements` — an operation that cites and excludes at once is stating both that it has a purpose and that it has none.",
+      "additionalProperties": false,
+      "required": ["reason"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why no requirement covers this operation. Written for a reviewer, not for the checker — the checker only asks that one exists. Say what would have to change for the exclusion to be removed, so the next reader can tell a real constraint from an old excuse. `Health probe; infrastructure rather than product surface` is a reason. `N/A` is not."
+        }
+      }
+    }
+  },
+  "oneOf": [
+    { "required": ["requirements"] },
+    { "required": ["excluded"] }
+  ],
+  "examples": [
+    {
+      "requirements": ["agent-coordinator.lock-acquisition-is-exclusive"]
+    },
+    {
+      "requirements": [
+        "agent-coordinator.lock-acquisition-is-exclusive",
+        "agent-coordinator.locks-expire-on-a-deadline"
+      ]
+    },
+    {
+      "excluded": {
+        "reason": "Liveness probe for the container orchestrator. Infrastructure rather than product surface: no requirement describes it because no consumer calls it deliberately. Would need a requirement if the probe ever reported anything beyond process liveness."
+      }
+    }
+  ]
+}

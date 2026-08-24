@@ -43,6 +43,7 @@ from .descriptor import (
     ServiceSpec,
 )
 from .openapi import iter_operations
+from .traceability import TraceabilityBlock
 
 #: Surfaces in the order they are declared, so the derived surface list is
 #: stable across runs — an unstable order is permanent drift under ``--check``.
@@ -54,6 +55,11 @@ MCP_EXTENSION = "x-gen-eval-mcp"
 
 #: Operation-level extension carrying the surface bindings (D4).
 SURFACE_EXTENSION = "x-gen-eval-surface"
+
+#: Operation-level extension carrying the requirement traceability block
+#: (`trace-requirements-to-contracts` design D1). The OpenAPI spelling of
+#: the same shape the CLI contract carries as a plain ``traceability`` key.
+TRACEABILITY_EXTENSION = "x-traceability"
 
 
 class SurfaceBinding(BaseModel):
@@ -84,6 +90,9 @@ class OperationSpec(BaseModel):
     #: Raw JSON Schema of the request body, if any.
     request_body: dict[str, Any] | None = None
     surfaces: dict[str, SurfaceBinding] = Field(default_factory=dict)
+    #: See ``descriptor.FlagSpec.traceability`` (design D1). Parsed from
+    #: ``x-traceability`` on the OpenAPI operation object.
+    traceability: TraceabilityBlock | None = None
 
     def interface_id(self, surface: str) -> str | None:
         """The declared identifier for this operation on ``surface``.
@@ -324,9 +333,22 @@ def _extract_operations(document: dict[str, Any], source: Path) -> list[Operatio
                 parameters=found.parameters,
                 request_body=_request_body_schema(found.raw),
                 surfaces=_surface_bindings(found.raw, found.method, found.path),
+                traceability=_traceability_block(found.raw),
             )
         )
     return operations
+
+
+def _traceability_block(operation: dict[str, Any]) -> TraceabilityBlock | None:
+    """Parse ``x-traceability`` off one operation object (D1: parse only).
+
+    ``None`` when the key is absent — nothing here infers a citation from
+    the operation's name or path.
+    """
+    declared = operation.get(TRACEABILITY_EXTENSION)
+    if declared is None:
+        return None
+    return TraceabilityBlock(**declared)
 
 
 def _request_body_schema(operation: dict[str, Any]) -> dict[str, Any] | None:

@@ -116,12 +116,12 @@ Then psql -c 'SELECT 1' is polled at 2-second intervals until it succeeds or tim
 
 ### Requirement: LST.4 Seed Data
 
-A `seed.sql` file SHALL provide representative idempotent test fixture data using `INSERT ... ON CONFLICT DO NOTHING` for the 7 cleanable tables: `agent_sessions`, `file_locks`, `work_queue`, `memory_episodic`, `memory_working`, `memory_procedural`, and `handoff_documents`. Minimum data: 2 agent sessions, 1 active lock, 2 work queue items (1 pending, 1 claimed), and 1 entry per memory type (3 total: episodic, working, procedural), plus 1 handoff document.
+A `seed.sql` file SHALL provide representative idempotent test fixture data using `INSERT ... ON CONFLICT DO NOTHING` for the 5 cleanable tables: `agent_sessions`, `file_locks`, `work_queue`, `memory_episodic`, and `handoff_documents`. Minimum data: 2 agent sessions, 1 active lock, 2 work queue items (1 pending, 1 claimed), and 1 episodic memory entry, plus 1 handoff document.
 
 #### Scenario: Seed data covers all tables
 Given the seed.sql file
 When parsed for INSERT statements
-Then it contains inserts for agent_sessions, file_locks, work_queue, memory_episodic, memory_working, memory_procedural, and handoff_documents
+Then it contains inserts for agent_sessions, file_locks, work_queue, memory_episodic, and handoff_documents
 
 #### Scenario: Seed data is idempotent
 Given a database with seed data already applied
@@ -131,7 +131,7 @@ Then no errors occur and row counts remain unchanged
 #### Scenario: Seed data minimum row counts
 Given an empty database with migrations applied
 When seed.sql is executed
-Then agent_sessions has >= 2 rows, file_locks >= 1, work_queue >= 2, memory_episodic >= 1, memory_working >= 1, memory_procedural >= 1, handoff_documents >= 1
+Then agent_sessions has >= 2 rows, file_locks >= 1, work_queue >= 2, memory_episodic >= 1, handoff_documents >= 1
 
 ### Requirement: LST.5 Migration Compatibility
 

@@ -1,0 +1,116 @@
+# agent-coordinator locks contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. FORWARD-ENFORCED (D6): both operations below carry an
+# x-traceability block (task 5.2), and the presence of any block is what opts
+# this document in — from here on every operation in this file must cite a
+# requirement or declare an exclusion, or the gate fails. The sibling documents
+# in this directory carry no block and remain untraced by design; reverse
+# enforcement for agent-coordinator is a separate, per-capability switch that
+# this change deliberately does not flip.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Lock service (HTTP bridge)"
+  version: 1.0.0
+  description: >-
+    HTTP surface of the file/logical lock service. Spec lines 174-195.
+paths:
+  /locks/acquire:
+    post:
+      operationId: acquireLock
+      summary: Acquire a lock via HTTP (cloud agents)
+      description: >-
+        Spec 176-177: with a valid API key the system delegates to the lock
+        service and returns a JSON response. Spec 180-181: a request without a
+        valid X-API-Key header returns 401. Spec 183-186: an API key bound to
+        an agent identity used with a different agent_id returns 403.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.http-api-interface
+          - agent-coordinator.file-locking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200": {description: Lock service JSON response (spec 177)}
+        "401": {description: Missing or invalid X-API-Key (spec 180-181)}
+        "403": {description: Identity-bound key used with a different agent_id (spec 183-186)}
+  /locks/status/{path}:
+    get:
+      operationId: getLockStatus
+      summary: Read lock status without authentication
+      description: >-
+        Spec 193-194: a GET without an API key returns the lock status with
+        200 — read-only endpoints skip auth. The application route template
+        was aligned to this name (issue #377 near-match).
+      x-traceability:
+        requirements:
+          - agent-coordinator.http-api-interface
+          - agent-coordinator.file-locking
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Lock status, no auth required (spec 194)}
+  /locks/release:
+    post:
+      operationId: releaseLock
+      summary: Release a lock held by the calling agent
+      description: >-
+        Spec 1961 (HTTP-8): releases a lock held by the calling agent.
+        Spec 63-65: releasing an owned lock returns success and the file
+        becomes available to other agents.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.file-locking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200": {description: Lock release result (spec 63-65)}
+        "401": {description: Missing or invalid X-API-Key}
+  /locks/{path}:
+    delete:
+      operationId: forceReleaseLock
+      summary: Force-release a lock regardless of holder
+      description: >-
+        Spec 1962 (HTTP-8): force-releases a lock regardless of holder and
+        emits an audit entry regardless of outcome. coordinator-kanban-viz
+        spec 285-318: a reversibility-classified destructive write invoked
+        from the kanban UI.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.file-locking
+          - coordinator-kanban-viz.new-coordinator-write-endpoints-for-ui-actions
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Release result naming the prior holder (spec 1962)}
+        "401": {description: Missing or invalid X-API-Key}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -10,6 +11,7 @@ import pytest
 
 from src.agents_config import (
     AgentEntry,
+    DuplicateApiKeyError,
     get_agent_config,
     get_api_key_identities,
     get_mcp_env,
@@ -108,6 +110,54 @@ class TestLoadAgentsConfig:
         local = next(a for a in agents if a.name == "test-local")
         assert local.api_key is None
 
+    def test_duplicate_profile_rejected_naming_both_agents(
+        self, tmp_path: Path,
+    ) -> None:
+        """Two agents sharing a profile is a silent privilege escalation.
+
+        ``sync_profiles()`` upserts by profile name in file order, so the later
+        entry overwrites the earlier one's trust level and operations. Here
+        ``test-local`` declares ``trust_level: 3`` but would end up owning a
+        profile row projected at 4 — promoted to admin without its own
+        ``trust_level`` line changing, and invisible to orphan disabling and to
+        the registry invariant check (both of which key on profile name).
+        """
+        agents_file = tmp_path / "agents.yaml"
+        _write(
+            agents_file,
+            VALID_AGENTS_YAML
+            + """
+  test-shadow:
+    type: claude_code
+    profile: claude_code_cli
+    trust_level: 4
+    transport: mcp
+    capabilities: [lock]
+    description: Squats on test-local's profile
+""",
+        )
+        with pytest.raises(ValueError, match="Duplicate profile") as excinfo:
+            load_agents_config(agents_file, secrets_path=tmp_path / "none")
+
+        message = str(excinfo.value)
+        assert "claude_code_cli" in message
+        assert "test-local" in message
+        assert "test-shadow" in message
+
+    def test_distinct_profiles_still_load(self, tmp_path: Path) -> None:
+        """The duplicate-profile guard must not reject a well-formed roster."""
+        agents_file = tmp_path / "agents.yaml"
+        _write(agents_file, VALID_AGENTS_YAML)
+        agents = load_agents_config(agents_file, secrets_path=tmp_path / "none")
+        profiles = [a.profile for a in agents]
+        assert len(profiles) == len(set(profiles))
+
+    def test_shipped_registry_has_no_duplicate_profiles(self) -> None:
+        """The real agents.yaml must satisfy the one-agent-one-profile rule."""
+        agents = load_agents_config()
+        profiles = [a.profile for a in agents]
+        assert len(profiles) == len(set(profiles))
+
 
 # ---------------------------------------------------------------------------
 # get_api_key_identities
@@ -115,7 +165,7 @@ class TestLoadAgentsConfig:
 
 
 class TestGetApiKeyIdentities:
-    def test_generates_from_http_agents(self) -> None:
+    def test_generates_for_agents_with_keys(self) -> None:
         agents = [
             AgentEntry(
                 name="c1", type="codex", profile="p", trust_level=2,
@@ -128,7 +178,42 @@ class TestGetApiKeyIdentities:
             ),
         ]
         result = get_api_key_identities(agents)
+        # m1 has no api_key at all, so it contributes nothing.
         assert result == {"key1": {"agent_id": "c1", "agent_type": "codex"}}
+
+    def test_mcp_transport_agent_receives_identity(self) -> None:
+        """Transport does not gate identity (design D5).
+
+        The MCP server's HTTP-proxy fallback makes local agents HTTP
+        principals in practice, so an `mcp` agent with a resolvable key
+        must appear in the identity map.
+        """
+        agents = [
+            AgentEntry(
+                name="grok-local", type="grok", profile="grok_local",
+                trust_level=3, transport="mcp", capabilities=[],
+                description="d", api_key="grok-key",
+            ),
+        ]
+        result = get_api_key_identities(agents)
+        assert result == {
+            "grok-key": {"agent_id": "grok-local", "agent_type": "grok"}
+        }
+
+    def test_full_roster_identity_map(self) -> None:
+        """Every agent with a resolvable key gets an entry, any transport."""
+        transports = ["mcp", "mcp", "mcp", "http", "http", "mcp", "http"]
+        agents = [
+            AgentEntry(
+                name=f"a{i}", type=f"t{i}", profile="p", trust_level=2,
+                transport=transport, capabilities=[], description="d",
+                api_key=f"key-{i}",
+            )
+            for i, transport in enumerate(transports)
+        ]
+        result = get_api_key_identities(agents)
+        assert len(result) == 7
+        assert result["key-0"]["agent_id"] == "a0"
 
     def test_skips_agents_without_key(self) -> None:
         agents = [
@@ -139,8 +224,22 @@ class TestGetApiKeyIdentities:
         ]
         assert get_api_key_identities(agents) == {}
 
-    def test_duplicate_key_warns(self) -> None:
-        """Two agents sharing the same API key: last one wins with a warning."""
+    def test_unresolved_placeholder_excluded(self) -> None:
+        agents = [
+            AgentEntry(
+                name="unresolved", type="codex", profile="p", trust_level=2,
+                transport="mcp", capabilities=[], description="d",
+                api_key="${NEVER_SET}",
+            ),
+        ]
+        assert get_api_key_identities(agents) == {}
+
+    def test_duplicate_key_raises_naming_both_agents(self) -> None:
+        """Duplicate resolved keys are a load error (design D6).
+
+        Previously the last writer won with a warning, which silently
+        misattributed one principal's operations to the other in audit logs.
+        """
         agents = [
             AgentEntry(
                 name="a1", type="codex", profile="p", trust_level=2,
@@ -149,12 +248,69 @@ class TestGetApiKeyIdentities:
             ),
             AgentEntry(
                 name="a2", type="gemini", profile="p", trust_level=2,
-                transport="http", capabilities=[], description="d",
+                transport="mcp", capabilities=[], description="d",
                 api_key="same-key",
             ),
         ]
-        result = get_api_key_identities(agents)
-        assert result["same-key"]["agent_id"] == "a2"  # last wins
+        with pytest.raises(DuplicateApiKeyError) as excinfo:
+            get_api_key_identities(agents)
+        message = str(excinfo.value)
+        assert "a1" in message
+        assert "a2" in message
+
+    def test_explicit_env_var_overrides_registry(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """COORDINATION_API_KEY_IDENTITIES still wins (design D8 rollback lever)."""
+        from src.config import ApiConfig
+
+        explicit = {"pinned": {"agent_id": "pinned-agent", "agent_type": "codex"}}
+        monkeypatch.setenv("COORDINATION_API_KEY_IDENTITIES", json.dumps(explicit))
+        monkeypatch.delenv("COORDINATION_API_KEYS", raising=False)
+        with patch(
+            "src.agents_config.get_api_key_identities",
+            side_effect=AssertionError("registry must not be consulted"),
+        ):
+            config = ApiConfig.from_env()
+        assert config.api_key_identities == explicit
+
+    def test_duplicate_key_not_swallowed_by_config(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A duplicate-key load error must reach the operator, not warn-and-empty."""
+        from src.config import ApiConfig
+
+        monkeypatch.delenv("COORDINATION_API_KEYS", raising=False)
+        monkeypatch.delenv("COORDINATION_API_KEY_IDENTITIES", raising=False)
+        with patch(
+            "src.agents_config.get_api_key_identities",
+            side_effect=DuplicateApiKeyError("a1", "a2"),
+        ), pytest.raises(DuplicateApiKeyError):
+            ApiConfig.from_env()
+
+
+# ---------------------------------------------------------------------------
+# Trust-scale wiring (design D4)
+# ---------------------------------------------------------------------------
+
+
+class TestTrustLevelSchemaBounds:
+    def test_schema_bounds_derive_from_trust_module(self) -> None:
+        from src.agents_config import AGENTS_SCHEMA
+        from src.trust_levels import MAX_TRUST, MIN_TRUST
+
+        trust_schema = (
+            AGENTS_SCHEMA["properties"]["agents"]["additionalProperties"]
+            ["properties"]["trust_level"]
+        )
+        assert trust_schema["minimum"] == MIN_TRUST
+        assert trust_schema["maximum"] == MAX_TRUST
+
+    def test_out_of_scale_trust_level_rejected(self, tmp_path: Path) -> None:
+        agents_file = tmp_path / "agents.yaml"
+        _write(agents_file, VALID_AGENTS_YAML.replace("trust_level: 3", "trust_level: 5"))
+        with pytest.raises(Exception):  # noqa: B017, PT011 — ValidationError
+            load_agents_config(agents_file, secrets_path=tmp_path / "none")
 
 
 # ---------------------------------------------------------------------------

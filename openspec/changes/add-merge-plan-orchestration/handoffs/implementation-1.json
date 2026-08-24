@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-20T01:41:03.548074+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implemented the approved Phase-1 merge-plan contract in a managed worktree. The analysis round now emits a validated JSON DAG plus faithful Markdown, file storage is authoritative without coordinator queue support, and a guarded one-node executor refreshes live state, delegates unresolved comments, reuses the existing merge backend, persists outcomes, and invalidates downstream nodes. Phase-2 coordinator authority and cross-host dispatch remain explicitly deferred.",
+    "completed_work": [
+      "Durable merge-plan schema, semantic DAG validation, builder, and renderer",
+      "File storage selection and definition-preserving live-state updates",
+      "Guarded single-node execution, downstream revalidation, and living-plan amendment",
+      "303 merge-pull-requests tests, ruff, mypy, OpenSpec strict validation, and package DAG validation"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Keep the file tier authoritative in Phase 1",
+        "rationale": "The approved proposal requires offline operation and the coordinator-backed system of record is a separately scoped Phase-2 capability.",
+        "capability": "merge-infrastructure",
+        "supersedes": null
+      },
+      {
+        "title": "Reuse canonical merge and review helpers",
+        "rationale": "The plan executor composes existing safety gates and keeps one source of truth for merge policy.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run the complete deploy, smoke, security, E2E, architecture, evidence, spec, and CI validation gates",
+      "Push the rebased feature branch and open a new implementation PR without merging it"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/merge-pull-requests/scripts/execute_plan.py",
+        "description": "guarded execution orchestrator"
+      },
+      {
+        "path": "skills/merge-pull-requests/contracts/merge-plan.schema.json",
+        "description": "durable plan contract"
+      },
+      {
+        "path": "openspec/changes/add-merge-plan-orchestration/change-context.md",
+        "description": "requirements and evidence matrix"
+      }
+    ]
+  }
+}

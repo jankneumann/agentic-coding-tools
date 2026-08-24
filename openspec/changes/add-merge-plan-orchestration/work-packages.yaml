@@ -1,39 +1,109 @@
+schema_version: 1
+
+feature:
+  id: add-merge-plan-orchestration
+  title: "Merge plan orchestration — Phase 1"
+  plan_revision: 2
+  created_by: codex
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "contracts/schemas/merge-plan.schema.json"
+    files:
+      - "contracts/schemas/merge-plan.schema.json"
+      - "contracts/README.md"
+
+defaults:
+  priority: 1
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
 packages:
-  - id: wp-main
-    name: "Merge plan orchestration — Phase 1 (file tier + --execute)"
+  - package_id: wp-main
+    title: "File-tier merge plan plus guarded single-PR execution"
+    task_type: implementation
     description: >
-      Durable merge-plan artifact emitted by the analysis round, a faithful
-      merge-plan.md projection, file-tier storage selection, plan-driven
-      single-PR execution with downstream re-validation, living-plan
-      amendment, and the comment-addressing delegation seam. Phase 2
-      (coordinator system-of-record, events, cross-host dispatch, auth)
-      is specified in design.md and deferred to a follow-on change.
-    tasks:
-      - "1.1"
-      - "1.2"
-      - "1.3"
-      - "2.1"
-      - "2.2"
-      - "3.1"
-      - "3.2"
-      - "4.1"
-      - "4.2"
-      - "4.3"
-      - "4.4"
-      - "5.1"
-      - "5.2"
-      - "5.3"
-      - "6.1"
-      - "6.2"
+      Durable merge-plan JSON and Markdown projection, file-tier storage,
+      plan-driven single-PR execution with downstream revalidation, living-plan
+      amendment, the comment-addressing delegation seam, and operator docs.
+      Coordinator-backed storage and cross-host execution remain Phase 2.
+    role: implementer
     priority: 1
-    dependencies: []
+    depends_on: []
+    locks:
+      files:
+        - "skills/merge-pull-requests"
+        - "openspec/changes/add-merge-plan-orchestration"
+      keys:
+        - "feature:add-merge-plan-orchestration:main"
+      ttl_minutes: 120
+      reason: "The single Phase-1 package owns the merge-plan runtime and change evidence."
     scope:
       write_allow:
         - "skills/merge-pull-requests/**"
         - "skills/tests/merge-pull-requests/**"
+        - "openspec/changes/add-merge-plan-orchestration/**"
+        - "docs/decisions/merge-infrastructure.md"
+        - "docs/decisions/merge-pull-requests.md"
       read_allow:
         - "skills/**"
         - "openspec/changes/add-merge-plan-orchestration/**"
       deny:
         - "agent-coordinator/**"
-    verification: tier_b
+    context_impact:
+      surfaces:
+        - apis
+        - capabilities
+        - decisions
+        - documentation
+        - semantic_code
+    worktree:
+      name: add-merge-plan-orchestration-wp-main
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Merge plan skill tests"
+          kind: command
+          command: "skills/.venv/bin/pytest skills/merge-pull-requests/scripts/tests skills/tests/merge-pull-requests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - merge_plan_tests_passed
+        - name: "OpenSpec strict validation"
+          kind: command
+          command: "openspec validate add-merge-plan-orchestration --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - openspec_valid
+    metadata:
+      loc_estimate: 1000
+      complexity: high
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - merge_plan_tests_passed
+        - openspec_valid
+      artifacts:
+        - "openspec/changes/add-merge-plan-orchestration/change-context.md"
+        - "openspec/changes/add-merge-plan-orchestration/context-checkpoints/wp-main.json"
+        - "openspec/changes/add-merge-plan-orchestration/session-log.md"
+        - "openspec/changes/add-merge-plan-orchestration/handoffs/implementation-1.json"
+        - "openspec/changes/add-merge-plan-orchestration/architecture-impact.md"
+        - "openspec/changes/add-merge-plan-orchestration/security-review-report.md"
+        - "openspec/changes/add-merge-plan-orchestration/validation-report.md"
+        - "docs/decisions/merge-infrastructure.md"
+        - "docs/decisions/merge-pull-requests.md"

@@ -46,7 +46,15 @@ ENRICHMENT_FILE  := $(ARCH_DIR)/treesitter_enrichment.json
 COMMENT_FILE     := $(ARCH_DIR)/comment_insights.json
 PATTERN_FILE     := $(ARCH_DIR)/pattern_insights.json
 QUERIES_DIR      := $(SCRIPTS_DIR)/treesitter_queries
-SCRIPTS_PYTHON   := $(SCRIPTS_DIR)/.venv/bin/python
+# Interpreter for the optional tree-sitter stages. Resolved by the same module
+# the shell pipeline and the provenance record use, so all three agree on
+# whether the tool is available; an empty value means it is not (issue #378).
+#
+# This was `$(SCRIPTS_DIR)/.venv/bin/python` — a per-skill venv that does not
+# exist here and that nothing creates — so `make architecture` skipped the
+# enrichment, comment-linker and pattern-reporter stages on every run, silently,
+# while still reporting success.
+SCRIPTS_PYTHON   ?= $(shell $(PYTHON) $(SCRIPTS_DIR)/arch_utils/interpreters.py 2>/dev/null)
 
 # Intermediate per-language outputs
 PY_ANALYSIS    := $(ARCH_DIR)/python_analysis.json
