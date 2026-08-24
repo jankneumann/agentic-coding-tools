@@ -41,4 +41,5 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 - [sentinel-security-eval](./sentinel-security-eval.md)
 - [skill-workflow](./skill-workflow.md)
 - [software-factory-tooling](./software-factory-tooling.md)
+- [validate-feature-ephemeral](./validate-feature-ephemeral.md)
 - [worktree](./worktree.md)

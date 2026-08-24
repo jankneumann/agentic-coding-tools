@@ -76,3 +76,47 @@ Planned a durable, dynamic merge-plan orchestration for the merge-pull-requests 
 
 ### Context
 Implemented the approved Phase-1 merge-plan contract in a managed worktree. The analysis round now emits a validated JSON DAG plus faithful Markdown, file storage is authoritative without coordinator queue support, and a guarded one-node executor refreshes live state, delegates unresolved comments, reuses the existing merge backend, persists outcomes, and invalidates downstream nodes. Phase-2 coordinator authority and cross-host dispatch remain explicitly deferred.
+
+---
+
+## Phase: Cleanup (2026-08-24)
+
+**Agent**: claude-opus-5 | **Session**: merge-pull-requests sync point
+
+### Decisions
+1. **Rebase-merged as an OpenSpec PR** — origin `openspec` selects rebase by default so the
+   granular implementation history (interface → implementation → tests) survives for
+   `git blame` / `git bisect`. No `wip:` commits were present on the head branch, so rebase
+   was safe.
+2. **Archived under `--defer-commit`** — this cleanup ran as phase 1 of Step 11.6 (Main
+   Context Convergence). Output is staged, not committed; the sync point produces the single
+   convergence commit covering every cleanup in the pass plus the deterministic refresh.
+3. **Phase-2 tasks left deferred, not migrated** — `tasks.md` has 0 unchecked items (20/20
+   complete). The five open items live in `deferred-tasks.md` and are intentionally scoped to
+   a follow-on change requiring coordinator persistence, event, and authorization contracts.
+   They are preserved in the archive rather than migrated to issues.
+
+### Alternatives Considered
+- Committing the archive from this skill: rejected — would produce N+1 commits for N archived
+  changes and invalidate the sync point's pre-push compare-and-swap.
+- Migrating `deferred-tasks.md` items to coordinator issues: rejected — they are documented
+  Phase-2 scope of a planned follow-on change, not residual incomplete work from this one.
+
+### Trade-offs
+- Accepted merging with an incomplete dependency scan: the PR description states "ZAP baseline:
+  0 high or critical findings; dependency scan is finalizing", and no completion commit landed
+  after 2026-08-20. Merged on explicit operator decision.
+- Accepted zero vendor-review coverage: all four vendors failed on this PR (antigravity and
+  codex on review-findings schema validation, grok on a 300s timeout, pi on billing/credits).
+  Absence of findings here reflects absence of review, not absence of defects.
+
+### Open Questions
+- [ ] Does the finalized dependency scan surface anything against the merged tree?
+- [ ] Should the four-vendor review be re-run against `main` now that the PR is merged, given
+      it received no coverage at merge time?
+
+### Context
+Post-merge cleanup for PR #402, merged 2026-08-24T16:53:53Z via rebase. Archives the change,
+merges the spec delta into `openspec/specs/`, and regenerates `docs/decisions/` in the same
+staged unit. Ran in the sync-point checkout on `main` at the merged revision with no cleanup
+worktree, per `--defer-commit` semantics.
