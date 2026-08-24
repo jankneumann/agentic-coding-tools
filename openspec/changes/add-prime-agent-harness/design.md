@@ -79,6 +79,14 @@ feature for interactive use, a leak for subprocess dispatch. P7 records whether
 gains an explicit cleanup step (`prime-agent shutdown` or per-session stop) and the
 smoke-test gate asserts zero resident `prime-agent` processes after a dispatch round.
 
+That cleanup step is **not** expressible in `agents.yaml` as the contract stands.
+The `cli` object declares `"additionalProperties": False`, so a `cleanup` key is
+rejected at load time (`Additional properties are not allowed ('cleanup' was
+unexpected)`). Task 3.4a lands the field through all four round-trip points —
+schema, `CliConfig` parser, serializer, registry projection — and 3.4 depends on
+it. If P7 finds that one-shots leave no residue, drop the config-level cleanup
+step from this decision rather than leaving a config key the loader refuses.
+
 ### D7. Prime Inference HTTP lane is a follow-up under `add-adaptive-model-router`, not this change
 
 Prime Inference is OpenAI-compatible (`https://api.pinference.ai/api/v1`,
