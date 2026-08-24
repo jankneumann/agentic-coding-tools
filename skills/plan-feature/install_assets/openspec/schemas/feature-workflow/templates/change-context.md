@@ -10,12 +10,21 @@
 
 <!-- One row per SHALL/MUST requirement from specs/<capability>/spec.md.
      Req ID format: <capability>.<N> (sequential per capability).
-     Phase 1: Fill Req ID, Spec Source, Description, Contract Ref, Design Decision, Test(s).
-       Contract Ref: path to contract file the requirement maps to (e.g., contracts/openapi/v1.yaml#/paths/~1users),
-         or "---" if no contract applies.
+     Phase 1: Fill Req ID, Spec Source, Description, Design Decision, Test(s).
+       Contract Ref SHALL NOT be populated by hand when the capability has any traced
+         contract document (a document declaring a `traceability`/`x-traceability` block,
+         per trace-requirements-to-contracts design D8): run
+         `packages/gen-eval/scripts/generate_contract_refs.py --change <change-id>` instead,
+         which joins each row to the contract documents whose operations cite that
+         requirement's derived identifier, by parse position — never by name similarity —
+         and writes "---" where no operation cites it. Populate the column by hand only
+         when `packages/gen-eval/scripts/generate_contract_refs.py` is absent (a repository
+         without gen-eval): use the path to the contract file the requirement maps to
+         (e.g., contracts/openapi/v1.yaml#/paths/~1users), or "---" if no contract applies.
        Design Decision: D# from design.md that this requirement validates (e.g., D3), or "---" if none.
        Files Changed and Evidence = "---".
-     Phase 2: Fill Files Changed after implementation. Evidence still "---".
+     Phase 2: Fill Files Changed after implementation. Evidence still "---". Re-run
+       generate_contract_refs.py if traceability citations changed during implementation.
      Phase 3: Fill Evidence with "pass <SHA>", "fail <SHA>", or "deferred <reason>". -->
 
 | Req ID | Spec Source | Description | Contract Ref | Design Decision | Files Changed | Test(s) | Evidence |

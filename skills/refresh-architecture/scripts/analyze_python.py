@@ -789,8 +789,10 @@ def _compute_summary(
             continue
         dead_code.append(func.qualified_name)
 
-    # Hot functions: sorted by number of callers (descending), top 10
-    hot = sorted(functions, key=lambda f: len(f.called_by), reverse=True)
+    # Hot functions: sorted by number of callers (descending), top 10. The
+    # qualified name breaks ties so the cut at 10 does not depend on the order
+    # the analyzer happened to visit files in (issue #362).
+    hot = sorted(functions, key=lambda f: (-len(f.called_by), f.qualified_name))
     hot_functions = [
         {"name": f.qualified_name, "caller_count": len(f.called_by)}
         for f in hot[:10]

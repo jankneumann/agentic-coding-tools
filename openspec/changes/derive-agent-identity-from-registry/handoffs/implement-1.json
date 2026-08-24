@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-14T16:50:30.359596+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented pca-01 across six work packages: agents.yaml is now canonical and the identity map, agent_profiles rows, and trust scale are derived projections, with fail-loud resolution and a CI invariant test. Full suite 2255 passed / 0 failed; mypy --strict and ruff clean. Two design decisions were amended from implementation findings, and integration surfaced a permission narrowing that was fixed at the registry.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "UNMANAGED_PROFILES carve-out for role profiles (D2 amended)",
+        "rationale": "evaluator is a role, not a harness identity: migration 027's claim_task has evaluator-specific self-review-exclusion logic, so blanket orphan-disabling would break evaluation task claiming. claude_code_reviewer and strands_local were checked the same way and are genuine ghosts.",
+        "capability": "agent-identity",
+        "supersedes": null
+      },
+      {
+        "title": "Concurrency via idempotent upserts, not an advisory lock (D9 amended)",
+        "rationale": "pg_advisory_lock is unreachable through DatabaseClient: no raw execute, rpc() emits named-parameter calls Postgres built-ins reject, and pooled connections make session-scoped locks unsafe. Convergent upserts satisfy the spec's concurrency requirement.",
+        "capability": "agent-identity",
+        "supersedes": null
+      },
+      {
+        "title": "PROFILE_SYNC_ENABLED disabled in test conftest, wiring pinned by two explicit tests",
+        "rationale": "24 tests across five modules build the app with `with TestClient(app)`, running the lifespan; the deliberately unwrapped sync then failed boot against the fake Supabase URL. Disabling in tests declares 'does not exercise the projection' rather than softening the production contract; two new lifespan tests keep the fail-loud wiring covered.",
+        "capability": "agent-identity",
+        "supersedes": null
+      },
+      {
+        "title": "Restored `discover` to codex-remote in agents.yaml",
+        "rationale": "The projection derives allowed_operations from declared capabilities, so the omission would have dropped register_session/heartbeat from the synced profile \u2014 operations the agent holds today and needs to register a session and avoid stale-reaping. A registry gap, not an intentional restriction.",
+        "capability": "agent-identity",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run /validate-feature derive-agent-identity-from-registry, then archive",
+      "pca-02 (restructure-openbao-per-agent-secrets) is the next roadmap item and is now unblocked"
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/trust_levels.py",
+        "description": "single programmatic trust scale"
+      },
+      {
+        "path": "agent-coordinator/tests/test_registry_projection.py",
+        "description": "the CI invariant that would have caught the original bug"
+      },
+      {
+        "path": "docs/registry-identity-projection.md",
+        "description": "operator projection model and rollback runbook"
+      }
+    ]
+  }
+}

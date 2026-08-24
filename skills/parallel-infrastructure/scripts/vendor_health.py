@@ -78,9 +78,12 @@ def check_vendor(agent_id: str, agent_config: dict) -> VendorHealth:
         health.models.append(model)
     health.models.extend(cli.get("model_fallbacks", []))
 
-    # Check 4: API key availability (check SDK section or env var)
+    # Check 4: API key availability (CLI-declared env var, SDK section, or
+    # direct api_key). cli.api_key_env is a credential the CLI itself needs
+    # to serve a request (pi: OPENROUTER_API_KEY, issue #383).
     sdk = agent_config.get("sdk", {})
-    api_key_env = sdk.get("api_key_env")
+    cli_api_key_env = cli.get("api_key_env")
+    api_key_env = cli_api_key_env or sdk.get("api_key_env")
     if api_key_env:
         health.api_key_available = bool(os.environ.get(api_key_env))
     else:
@@ -93,8 +96,13 @@ def check_vendor(agent_id: str, agent_config: dict) -> VendorHealth:
             env_var = api_key.strip("${}")
             health.api_key_available = bool(os.environ.get(env_var))
 
-    # Determine overall health: CLI installed OR API key available
-    health.healthy = health.cli_installed or health.api_key_available
+    # Determine overall health. When the CLI declares a required credential,
+    # a present binary without it cannot serve requests — fail closed. D6
+    # still holds: this is env-var resolution, not an inference probe.
+    if cli_api_key_env:
+        health.healthy = health.cli_installed and health.api_key_available
+    else:
+        health.healthy = health.cli_installed or health.api_key_available
 
     return health
 

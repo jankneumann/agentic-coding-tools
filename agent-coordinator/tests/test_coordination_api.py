@@ -644,3 +644,216 @@ def test_discovery_register_uses_api_key_identity_when_body_omits_identity(
     assert mock_service.register.await_args.kwargs["agent_type"] == "codex"
 
     reset_config()
+
+
+# =============================================================================
+# Fail-loud trust resolution (design D3)
+# =============================================================================
+
+
+def _profile_result(
+    *,
+    success: bool,
+    trust_level: int = 3,
+    enabled: bool = True,
+) -> Any:
+    from src.profiles import AgentProfile, ProfileResult
+
+    profile = None
+    if success:
+        profile = AgentProfile(
+            id="profile-1",
+            name="grok_local",
+            agent_type="grok",
+            trust_level=trust_level,
+            enabled=enabled,
+        )
+    return ProfileResult(success=success, profile=profile, source="default")
+
+
+@pytest.mark.asyncio
+async def test_unknown_principal_gets_default_trust(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A principal absent from agents.yaml still defaults low (unchanged)."""
+    from src.config import reset_config
+    from src.coordination_api import resolve_trust_level
+
+    monkeypatch.setenv("PROFILES_DEFAULT_TRUST", "2")
+    reset_config()
+
+    monkeypatch.setattr(
+        "src.agents_config.get_agent_config", lambda _agent_id: None
+    )
+    service = AsyncMock()
+    service.get_profile.return_value = _profile_result(success=False)
+    monkeypatch.setattr("src.profiles._profiles_service", service)
+
+    assert await resolve_trust_level("env-var-agent", "codex") == 2
+    reset_config()
+
+
+@pytest.mark.asyncio
+async def test_unknown_principal_default_on_lookup_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.config import reset_config
+    from src.coordination_api import resolve_trust_level
+
+    monkeypatch.setenv("PROFILES_DEFAULT_TRUST", "2")
+    reset_config()
+
+    monkeypatch.setattr(
+        "src.agents_config.get_agent_config", lambda _agent_id: None
+    )
+    service = AsyncMock()
+    service.get_profile.side_effect = RuntimeError("db down")
+    monkeypatch.setattr("src.profiles._profiles_service", service)
+
+    assert await resolve_trust_level("env-var-agent", "codex") == 2
+    reset_config()
+
+
+def _registry_entry() -> Any:
+    from src.agents_config import AgentEntry
+
+    return AgentEntry(
+        name="grok-local",
+        type="grok",
+        profile="grok_local",
+        trust_level=3,
+        transport="mcp",
+        capabilities=["lock"],
+        description="d",
+    )
+
+
+@pytest.mark.asyncio
+async def test_registry_agent_missing_profile_fails_loud(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A declared agent with no profile row is a 500-class configuration fault."""
+    from src.coordination_api import TrustResolutionError, resolve_trust_level
+
+    monkeypatch.setattr(
+        "src.agents_config.get_agent_config", lambda _agent_id: _registry_entry()
+    )
+    service = AsyncMock()
+    service.get_profile.return_value = _profile_result(success=False)
+    monkeypatch.setattr("src.profiles._profiles_service", service)
+
+    audit = AsyncMock()
+    monkeypatch.setattr("src.audit._audit_service", audit)
+
+    with pytest.raises(TrustResolutionError) as excinfo:
+        await resolve_trust_level("grok-local", "grok")
+
+    assert excinfo.value.status_code == 500
+    assert "grok_local" in str(excinfo.value.detail)
+    audit.log_operation.assert_awaited_once()
+    assert (
+        audit.log_operation.await_args.kwargs["operation"]
+        == "trust_resolution_failed"
+    )
+    assert audit.log_operation.await_args.kwargs["success"] is False
+
+
+@pytest.mark.asyncio
+async def test_registry_agent_disabled_profile_fails_loud(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.coordination_api import TrustResolutionError, resolve_trust_level
+
+    monkeypatch.setattr(
+        "src.agents_config.get_agent_config", lambda _agent_id: _registry_entry()
+    )
+    service = AsyncMock()
+    service.get_profile.return_value = _profile_result(success=True, enabled=False)
+    monkeypatch.setattr("src.profiles._profiles_service", service)
+    monkeypatch.setattr("src.audit._audit_service", AsyncMock())
+
+    with pytest.raises(TrustResolutionError, match="disabled"):
+        await resolve_trust_level("grok-local", "grok")
+
+
+@pytest.mark.asyncio
+async def test_registry_agent_lookup_error_fails_loud(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.coordination_api import TrustResolutionError, resolve_trust_level
+
+    monkeypatch.setattr(
+        "src.agents_config.get_agent_config", lambda _agent_id: _registry_entry()
+    )
+    service = AsyncMock()
+    service.get_profile.side_effect = RuntimeError("db down")
+    monkeypatch.setattr("src.profiles._profiles_service", service)
+    monkeypatch.setattr("src.audit._audit_service", AsyncMock())
+
+    with pytest.raises(TrustResolutionError, match="profile lookup failed"):
+        await resolve_trust_level("grok-local", "grok")
+
+
+@pytest.mark.asyncio
+async def test_registry_agent_with_healthy_profile_resolves(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.coordination_api import resolve_trust_level
+
+    monkeypatch.setattr(
+        "src.agents_config.get_agent_config", lambda _agent_id: _registry_entry()
+    )
+    service = AsyncMock()
+    service.get_profile.return_value = _profile_result(success=True, trust_level=3)
+    monkeypatch.setattr("src.profiles._profiles_service", service)
+
+    assert await resolve_trust_level("grok-local", "grok") == 3
+
+
+# =============================================================================
+# Startup registry projection wiring (design D1/D3)
+# =============================================================================
+#
+# tests/conftest.py disables PROFILE_SYNC_ENABLED for the suite so that app
+# construction does not attempt the projection against the fake Supabase URL.
+# These two tests re-enable it and pin the wiring itself, so the conftest
+# default cannot quietly leave the fail-loud contract untested.
+
+
+@pytest.mark.asyncio
+async def test_lifespan_runs_registry_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Startup invokes the registry projection when sync is enabled."""
+    monkeypatch.delenv("PROFILE_SYNC_ENABLED", raising=False)
+    monkeypatch.setattr("src.migrations.ensure_schema", AsyncMock(return_value=[]))
+    sync = AsyncMock()
+    monkeypatch.setattr("src.agents_config.sync_profiles", sync)
+
+    with TestClient(create_coordination_api()):
+        pass
+
+    sync.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_fails_boot_when_registry_sync_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sync failure propagates out of startup rather than warning and continuing.
+
+    Every other startup step in the lifespan swallows its exception. This one
+    deliberately does not: a coordinator whose authorization state diverges from
+    the registry must not serve. If someone converts the sync call to the
+    surrounding warn-and-continue pattern, this test fails.
+    """
+    from src.agents_config import ProfileSyncError
+
+    monkeypatch.delenv("PROFILE_SYNC_ENABLED", raising=False)
+    monkeypatch.setattr("src.migrations.ensure_schema", AsyncMock(return_value=[]))
+    monkeypatch.setattr(
+        "src.agents_config.sync_profiles",
+        AsyncMock(side_effect=ProfileSyncError("projection unavailable")),
+    )
+
+    with pytest.raises(ProfileSyncError, match="projection unavailable"):
+        with TestClient(create_coordination_api()):
+            pass

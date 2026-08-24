@@ -111,6 +111,48 @@
         }
       }
     },
+    "tree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "head",
+        "dirty",
+        "base",
+        "base_upstream",
+        "commits_behind_base_upstream",
+        "commits_ahead_of_base_upstream"
+      ],
+      "description": "Identity of the tree the verdict applies to (issue #385). A verdict is only comparable across environments when both graded the same tree; this block is what lets a reader see that a green local run and a red CI run graded different content instead of concluding the gate is nondeterministic. Optional for backward compatibility with schema_version 1 reports written before it existed; current gates always emit it.",
+      "properties": {
+        "head": {
+          "$ref": "https://agentic-coding-tools.dev/schemas/context-refresh-types.schema.json#/$defs/GitRevision",
+          "description": "Full SHA of the graded HEAD. Redundant with source_revision today, recorded separately so the tree block stays self-contained."
+        },
+        "dirty": {
+          "type": "boolean",
+          "description": "True when the working tree differs from HEAD, including untracked files -- producers render from the live filesystem, so untracked content is part of the graded tree."
+        },
+        "base": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The --base ref the changed-files diff was computed against."
+        },
+        "base_upstream": {
+          "type": ["string", "null"],
+          "description": "origin/<base> when that ref exists locally, else null. Resolved read-only: no fetch, so the comparison is only as current as the last fetch."
+        },
+        "commits_behind_base_upstream": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Commits on base_upstream not reachable from HEAD. Non-zero means a run at the upstream tip grades different content. Null when base_upstream is null."
+        },
+        "commits_ahead_of_base_upstream": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Commits on HEAD not reachable from base_upstream. Null when base_upstream is null."
+        }
+      }
+    },
     "semantic": {
       "type": "object",
       "additionalProperties": false,

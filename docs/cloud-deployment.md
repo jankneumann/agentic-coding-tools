@@ -200,10 +200,17 @@ source /path/to/agent-coordinator/.env.cloud
 This sets the shared coordinator URL and provides per-agent aliases:
 
 ```bash
-ccc          # launches 'claude' with claude-local coordinator key
+cclaude      # launches 'claude' with claude-local coordinator key
 ccodex       # launches 'codex' with codex-local coordinator key
-cgemini      # launches 'gemini' with gemini-local coordinator key
+cagy         # launches 'agy'    with antigravity-local coordinator key
+cgrok        # launches 'grok'   with grok-local coordinator key
+cpi          # launches 'pi'     with pi-local coordinator key
 ```
+
+The alias list is generated from `agents.yaml`, one alias per distinct CLI command
+(`c` + the command name), with the local `transport: mcp` agent supplying the key.
+Add a harness to the registry and its alias appears here on the next run — there is
+no second roster to update.
 
 Each alias overrides `COORDINATION_API_KEY` with the agent-specific key so the coordinator can distinguish agents in audit logs and apply the correct trust level.
 

@@ -208,19 +208,21 @@ class WorkQueueService:
         return self._db
 
     async def _resolve_trust_level(self, agent_id: str, agent_type: str) -> int:
-        """Resolve effective trust level for guardrail evaluation."""
-        from .profiles import get_profiles_service
+        """Resolve effective trust level for guardrail evaluation.
 
-        try:
-            profile = await get_profiles_service().get_profile(
-                agent_id=agent_id,
-                agent_type=agent_type,
-            )
-            if profile.success and profile.profile is not None:
-                return profile.profile.trust_level
-        except Exception:
-            logger.debug("Failed to resolve trust level; using default", exc_info=True)
-        return get_config().profiles.default_trust_level
+        Delegates to the single shared resolver. This method used to hold a
+        second, laxer copy: no registry check, no ``enabled`` check, and
+        ``except Exception`` → default trust. A registry agent whose profile
+        projection was broken therefore got a fail-loud 500 on the HTTP path
+        and a silent grant of trust 2 here — on the very paths (claim /
+        complete / submit) that feed guardrail evaluation. Do not reintroduce
+        a local fallback: letting
+        :class:`~src.trust_resolution.TrustResolutionError` propagate is the
+        intended behavior.
+        """
+        from .trust_resolution import resolve_trust_level
+
+        return await resolve_trust_level(agent_id, agent_type)
 
     async def claim(
         self,

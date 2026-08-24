@@ -352,3 +352,84 @@ class TestNativeRiskScoreAndSessionGrants:
         )
         assert result.allowed is False
         assert "suspended" in result.reason
+
+
+class TestPolicyEngineUsesSharedTrustResolver:
+    """The policy engine must not carry its own fail-open trust resolver.
+
+    Design D12. Before this fix `_do_check_operation` resolved trust with a
+    local copy that had no registry check, no ``enabled`` check, and an
+    ``except Exception`` falling back to the default trust level. It was the
+    third such copy and the most dangerous, because the resolved value feeds
+    the suspension check immediately below it: a projection failure promoted a
+    suspended agent (trust 0) to the default of 2 and un-suspended it.
+    """
+
+    @pytest.mark.asyncio
+    async def test_broken_projection_denies_instead_of_defaulting(
+        self, monkeypatch, mock_supabase, db_client
+    ):
+        """A registry agent whose projection is broken is denied, not defaulted."""
+        from src.trust_resolution import TrustResolutionError
+
+        async def _raise(agent_id: str, agent_type: str) -> int:
+            raise TrustResolutionError(agent_id, agent_type, "profile row is disabled")
+
+        monkeypatch.setattr("src.trust_resolution.resolve_trust_level", _raise)
+        engine = NativePolicyEngine(db_client)
+
+        result = await engine.check_operation(
+            agent_id="grok-local",
+            agent_type="grok",
+            operation="acquire_lock",  # a WRITE action the default trust 2 would allow
+        )
+
+        assert result.allowed is False
+        assert "trust_resolution_failed" in (result.reason or "")
+
+    @pytest.mark.asyncio
+    async def test_projection_failure_cannot_unsuspend_a_suspended_agent(
+        self, monkeypatch, mock_supabase, db_client
+    ):
+        """The escalation this fix closes: trust 0 must not become the default 2.
+
+        With the old local resolver, any exception while loading the profile
+        yielded ``default_trust_level`` (2), so the ``trust_level == UNTRUSTED``
+        suspension branch was skipped entirely and a suspended agent was let
+        through at standard trust.
+        """
+        from src.trust_resolution import TrustResolutionError
+
+        async def _raise(agent_id: str, agent_type: str) -> int:
+            raise TrustResolutionError(agent_id, agent_type, "profile lookup failed")
+
+        monkeypatch.setattr("src.trust_resolution.resolve_trust_level", _raise)
+        engine = NativePolicyEngine(db_client)
+
+        result = await engine.check_operation(
+            agent_id="suspended-agent",
+            agent_type="claude_code",
+            operation="check_locks",  # even a READ action must not slip through
+        )
+
+        assert result.allowed is False
+
+    @pytest.mark.asyncio
+    async def test_explicit_context_trust_still_bypasses_resolution(
+        self, monkeypatch, mock_supabase, db_client
+    ):
+        """A caller-supplied trust_level is still used directly (unchanged path)."""
+
+        async def _boom(agent_id: str, agent_type: str) -> int:
+            raise AssertionError("resolver must not be consulted when context supplies trust")
+
+        monkeypatch.setattr("src.trust_resolution.resolve_trust_level", _boom)
+        engine = NativePolicyEngine(db_client)
+
+        result = await engine.check_operation(
+            agent_id="test-agent",
+            agent_type="claude_code",
+            operation="acquire_lock",
+            context={"trust_level": 3},
+        )
+        assert result.allowed is True

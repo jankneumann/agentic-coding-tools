@@ -219,7 +219,7 @@ This gives the user the same information you have, enabling better answers to th
 
 #### 3b. Discovery Questions
 
-Ask clarifying questions using the **AskUserQuestion tool**. Draw from these six categories, selecting the most relevant ones based on the discovered context:
+Ask clarifying questions using the **AskUserQuestion tool**. Draw from these seven categories, selecting the most relevant ones based on the discovered context:
 
 1. **Motivation / latent intent** -- Use AskUserQuestion without preset options (open-ended). Ask FIRST when `INTERVIEW_MODE=true`.
    Goal: separate the user's surface request from the underlying need. A user who asks for "a microservice" may actually want "deployment isolation" -- surfacing that opens better approaches.
@@ -239,6 +239,10 @@ Ask clarifying questions using the **AskUserQuestion tool**. Draw from these six
 
 6. **Success criteria** -- Use AskUserQuestion without preset options (open-ended).
    Examples: "What does success look like for this feature?" / "How will you know this feature is working correctly?"
+
+7. **Non-functional requirements** -- Use AskUserQuestion with preset options for *which* qualities apply, then open-ended follow-ups for their thresholds.
+   Goal: capture architectural qualities (observability, resilience, performance, compatibility, operability) as objective, measurable targets -- an adjective like "should be fast" is not an answer, "p95 < 200ms under 50 rps" is. Answers populate the proposal's **Non-Functional Requirements** table (attribute / metric / target / verifying phase), which is what later fitness-function checks are written against.
+   Examples: "Which architectural qualities does this feature touch?" Options: "Observability" / "Resilience" / "Performance" / "Compatibility or operability" -- then: "What's the acceptance threshold for <selected quality>, as a number we could measure?" / "Which phase or check should verify that threshold?"
 
 **Rules for question generation:**
 - Questions MUST reference specific discoveries from Step 3a (e.g., "I found spec X covers Y. Should this feature extend that spec or create a new one?")

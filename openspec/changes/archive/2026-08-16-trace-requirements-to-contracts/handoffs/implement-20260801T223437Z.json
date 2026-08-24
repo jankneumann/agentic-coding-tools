@@ -1,0 +1,72 @@
+{
+  "agent_name": "autopilot-implement",
+  "summary": "Four of five work packages implemented and pushed: wp-resolver, wp-model, wp-gate, wp-matrix (tasks 1.1-1.5, 2.0-2.5, 3.1-3.16, 5.4-5.5). wp-wiring was NOT dispatched: its PREFLIGHT precondition (openspec/contracts/gen-eval-framework/traceability-exclusions.yaml present AND cli/gen-eval.yaml containing 'traceability:') was run before any edit and correctly failed (exit 1) because tasks 4.1/4.2/4.2b are [human] and out of this run's scope. This is the expected, designed outcome per the phase task brief, not a defect. Tasks 4.1, 4.2, 4.2b, 4.3, 5.1, 5.2, 5.3, 5.6, 5.7, 5.7b, 5.7c, 5.8, 5.9, and both remaining checkpoints are unchecked in tasks.md, all by design (human-only or blocked-by-human-prerequisite). 9 commits landed on openspec/trace-requirements-to-contracts, each with its task's checkbox flipped in the same commit; branch pushed (force-with-lease, since 8 prior plan-review rounds had already rewritten the branch's history relative to origin's 3-commit snapshot).",
+  "completed_work": [
+    "wp-resolver (1.1-1.5): gen_eval.traceability module — D2 slug algorithm (NFKD normalize, drop marks, lowercase, collapse to hyphens), RequirementResolver with specs_root/changes_root as constructor params (not repo-relative hops). Identifier derivation tested against all 632 real requirement headings across openspec/specs/*/spec.md (zero collisions, all schema-pattern-valid); collision-failure path exercised under tmp_path. Integration test cross-checks against `openspec show --json --type spec`, gated on openspec CLI presence. Effective requirement set (D11): archive shadowed by one change's delta, mirroring OpenSpec's own archiver operation order and validation (RENAMED->REMOVED->MODIFIED->ADDED) so it never accepts a delta the real archiver would reject. Driven by this change's own real ADDED delta (14 requirements) and a real other-change directory (add-coordinator-llm-gateway) for the other-changes-are-invisible case.",
+    "wp-model (2.0-2.5): Promoted contracts/traceability.schema.json and traceability-exclusions.schema.json to openspec/contracts/gen-eval-framework/schemas/ with $id rewritten; extended cli-contract.schema.json with an optional `traceability` property ($ref) at command/flag/positional levels; regenerated docs/architecture-analysis/contracts-inventory.md (13->15 schemas) in the same commit. Added TraceabilityBlock (oneOf requirements/excluded, pydantic-validated) to gen_eval.traceability, wired onto FlagSpec/PositionalSpec/ToolCommandSpec (descriptor.py) and OperationSpec (service_descriptor.py, parsed from x-traceability), all absent-by-default. Verified generate_contract_schemas.py --check, generate_tool_descriptor.py --check, and make context-drift-gate (outcome: fresh) all stay green since gen-eval's own contract is not yet retrofitted (task 4.2, human, not in this run).",
+    "wp-gate (3.1-3.16): packages/gen-eval/scripts/check_traceability.py, the full bidirectional gate. --scope change|capability, --change <id> optional. Document discovery is structural (D6: top-level `openapi` or `tool` key), scoped to openapi/, cli/, and capability-root (misplaced, reported not failed unless newly touched in change scope) — never schemas/. Forward completeness per document (D6 opt-in on any block), reverse completeness per capability unioning its documents (D10), keyed on traceability-exclusions.yaml presence (D13), cross-capability citations credited (D9), concentration reported not failed (D7, CONCENTRATION_REPORT_SHARE=0.5). Change scope computes a real touched set via git diff against a merge base (node-level block changes, the change's own spec delta, and both opt-in-widening rules) — tested against real tmp_path git repos with actual branch divergence, not just file mutation. Union resolution mode (D12, omitted --change) implemented locally in check_traceability.py since RequirementResolver is outside wp-gate's write_allow. Malformed input (unparseable contracts, schema-invalid traceability blocks, unreadable/empty/schema-invalid exclusions files, missing-spec-with-traceability) are unconditional errors regardless of scope. Verified against the real repository at all four scope/--change combinations: exit 0 throughout on the unmodified tree.",
+    "wp-matrix (5.4-5.5): packages/gen-eval/scripts/generate_contract_refs.py joins change-context.md's ordinal Req ID (<capability>.<N>) to citations by parse position of the same spec-delta parse (never by name similarity — proven by a fixture with two capabilities sharing an identical heading text). Updated skills/implement-feature/SKILL.md step 3a.2 and both source template copies (openspec/schemas/feature-workflow/templates/change-context.md, skills/plan-feature/install_assets/.../change-context.md) to require the generator, hand-fill only as a fallback when gen-eval is absent. Did NOT edit .agents/ or .claude/ copies (install.sh-generated).",
+    "wp-wiring: ran the PREFLIGHT exactly as instructed, before reading anything else or editing any file. It failed (exit 1) as expected — traceability-exclusions.yaml absent, gen-eval.yaml carries no traceability: block. Did not implement the package, did not create the human-authored artifacts.",
+    "Fixed one mypy finding (variable-shadowing false positive in compute_touched_set, renamed a local) and several ruff line-length findings across the session, all in the commit of the task that introduced them (or an immediate same-session follow-up).",
+    "Verification run at the end: openspec validate trace-requirements-to-contracts --strict passes; full packages/gen-eval regression suite green (1213 passed, 2 skipped, unrelated to this change); ruff clean across all touched files; mypy clean on all touched source modules."
+  ],
+  "in_progress": [],
+  "decisions": [
+    {
+      "decision": "Implemented union resolution mode (D12, omitted --change at capability scope) entirely inside check_traceability.py rather than extending RequirementResolver.",
+      "rationale": "work-packages.yaml's write_allow for wp-gate does not include packages/gen-eval/src/gen_eval/traceability.py (only wp-resolver and wp-model may write it). Union mode is deliberately lenient (skips a conflicting individual delta rather than raising), unlike the resolver's own archiver-mirroring strictness used for the single-change shadow path — documented inline as intentional, not an oversight."
+    },
+    {
+      "decision": "A MODIFIED delta block naming a heading absent from the current effective set raises MalformedDeltaError rather than being silently treated as an ADDED.",
+      "rationale": "The real OpenSpec archiver requires MODIFIED to match an existing requirement name exactly (specs-apply.js) and RENAMED is the only mechanism that moves an identifier. Design D11's prose ('a MODIFIED block that rewords its heading gets the same treatment as RENAMED') has no real repository instance and, read literally, would let both the old and new id resolve simultaneously in the interim — the fail-closed alternative (raise) was chosen as more defensible and was verified not to contradict any of task 1.4's five explicitly-listed spec scenarios, none of which cover this specific case."
+    },
+    {
+      "decision": "The gate's exit code never depends on --scope or whether --change was supplied, beyond capability-scope-vs-change-scope's own touched-set gating.",
+      "rationale": "D12 states the gate must not infer blocking-ness from the flag and must not treat --change's absence as a reason to change behavior beyond resolution mode. 'Blocking' vs 'non-blocking' is entirely a property of how CI wires the job (task 5.7, not dispatched this run) — confirmed against 5.7c's own note that the bare `--scope capability` post-merge run 'must not be made to pass'."
+    },
+    {
+      "decision": "Concentration threshold CONCENTRATION_REPORT_SHARE = 0.5.",
+      "rationale": "D7 requires a named module constant that is display-only (never affects exit code) with no repository-measured value to anchor it. 0.5 (a bare majority) is a defensible default; changing it later is safe by design since it can never change pass/fail."
+    },
+    {
+      "decision": "Did not touch openspec/contracts/README.md's 'Current contents' promotion table despite task 2.0's note referencing the Promotion section workflow.",
+      "rationale": "That file is not in wp-model's write_allow (only the two promoted schema files and cli-contract.schema.json are). Recording as NOTICED BUT NOT TOUCHING below."
+    }
+  ],
+  "next_steps": [
+    "wp-wiring cannot proceed until a human completes tasks 4.1 (flag-level requirements), 4.2 (citations in gen-eval.yaml), and 4.2b (gen-eval-framework's traceability-exclusions.yaml). Re-run wp-wiring's PREFLIGHT after those land; it should then pass and wp-wiring (5.6, 5.7, 5.7b, 5.8, 5.9) becomes dispatchable.",
+    "Task 5.1-5.3 (coordinator contract authoring) and 4.3/5.7c (RED/GREEN demonstrations against real artifacts) are human-led per D1 and are independent of wp-wiring's blocker — they can proceed in parallel with or ahead of the 4.x human tasks.",
+    "Once wp-wiring lands, the final checkpoint requires demonstrating both the change-scoped gate (5.6) and the full sweep (5.7) failing on their documented mutation and passing after restore, per the RED-demonstration protocol tasks.md states at the top of the file.",
+    "packages/gen-eval/README.md and DOWNSTREAM.md updates (5.8, 5.9) are wp-wiring's, not yet done."
+  ],
+  "relevant_files": [
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/src/gen_eval/traceability.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/src/gen_eval/descriptor.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/src/gen_eval/service_descriptor.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/scripts/check_traceability.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/scripts/generate_contract_refs.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/tests/test_requirement_resolver.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/tests/test_effective_spec_set.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/tests/test_traceability_model.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/tests/test_no_inference.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/tests/test_cli_contract_schema.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/tests/test_traceability_gate.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/tests/test_traceability_wording.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/tests/test_capability_scope.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/tests/test_change_scope.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/tests/test_resolution_modes.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/tests/test_contract_ref_generation.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/packages/gen-eval/tests/fixtures/traceability/builders.py",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/openspec/contracts/gen-eval-framework/schemas/cli-contract.schema.json",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/openspec/contracts/gen-eval-framework/schemas/traceability.schema.json",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/openspec/contracts/gen-eval-framework/schemas/traceability-exclusions.schema.json",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/skills/implement-feature/SKILL.md",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/openspec/schemas/feature-workflow/templates/change-context.md",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/change-context.md",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/openspec/changes/trace-requirements-to-contracts/tasks.md",
+    "/Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts/docs/architecture-analysis/contracts-inventory.md"
+  ],
+  "noticed_but_not_touching": [
+    "openspec/contracts/README.md: its 'Current contents' promotion table was not updated to list the two newly-promoted traceability schemas — out of scope for wp-model (not in write_allow), file a follow-up if the table's completeness matters before the change archives."
+  ]
+}

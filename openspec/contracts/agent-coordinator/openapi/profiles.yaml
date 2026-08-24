@@ -1,0 +1,37 @@
+# agent-coordinator profiles contract (issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Agent profiles"
+  version: 1.0.0
+  description: >-
+    Calling agent's profile projection. Spec lines 293-328, 1994 (HTTP-12).
+paths:
+  /profiles/me:
+    get:
+      operationId: getMyProfile
+      summary: Get the calling agent's profile
+      description: >-
+        Spec 1994 (HTTP-12): returns the calling agent's profile. Spec
+        295-302: profiles define allowed operations, trust level, and
+        resource limits, assignable per agent_id or agent_type.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.agent-profiles
+      responses:
+        "200": {description: Calling agent's profile (spec 295-302)}
+        "401": {description: Missing or invalid X-API-Key}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

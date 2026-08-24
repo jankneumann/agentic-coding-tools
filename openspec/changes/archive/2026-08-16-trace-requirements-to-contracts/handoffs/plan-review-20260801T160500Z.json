@@ -1,0 +1,56 @@
+{
+  "handoff_id": "plan-review-20260801T160500Z",
+  "change_id": "trace-requirements-to-contracts",
+  "phase": "PLAN_REVIEW",
+  "iteration": 6,
+  "outcome": "not_converged",
+  "reviewer_vendor": "claude_code/opus-5",
+  "commits_reviewed": ["26701d4b", "5979e25f"],
+  "branch": "openspec/trace-requirements-to-contracts",
+  "blocking_count": 2,
+  "nit_count": 3,
+  "fyi_count": 3,
+  "findings_file": "openspec/changes/trace-requirements-to-contracts/review-findings-plan.json",
+  "preserved": "round 5's findings copied to reviews/review-findings-plan-r5.json before overwrite",
+  "summary": "Round 6 was the confirming round on the operator-decided fix at 5979e25f, which no reviewer had read. It does not converge. The four narrow briefs (B2, B3, B4, B5) all came back clean and are recorded as fyi with the commands that verified them. B1 -- reading spec.md end to end as a normative document -- found the round's two blocking findings, and they are not stale prose: the operator's decision as written cannot be satisfied.\n\nThe decision routes merge_group to union mode AND blocking. Its stated justification is that on a merge-group branch openspec/changes/ 'holds precisely the changes that are landing'. That is false, and the same sentence says why: a merge-queue branch is the integration branch PLUS the batched PRs, so it inherits everything main carries. main carries 33 in-flight change directories (git ls-tree), three of which hold gen-eval-framework spec deltas adding ~10 requirements whose implementations have not landed. This change opts gen-eval-framework into blocking reverse enforcement (task 4.2b) in the same PR. Union mode therefore pulls ~10 uncited requirements into a reverse-enforced capability on a run that blocks.\n\nThe defect is unsatisfiable rather than merely expensive. The two blocking runs impose opposite requirements on one file: merge_group needs traceability-exclusions.yaml to exclude the other changes' requirements or it fails reverse completeness; the pull_request run needs it not to, because scenario other-changes-are-invisible (spec.md:404-411) says an exclusion naming a requirement that exists only in another in-flight change's delta SHALL fail the gate. No authoring of that file makes both blocking checks green, and no author has a remedy.\n\nThe second blocking finding is why nothing caught the first: 5.7c, the change's only acceptance criterion, runs only `--scope capability --change <id>` -- the pull_request invocation -- and asserts from its exit code that merging will not red main. It never runs the bare union invocation that actually gates the merge.\n\nR6-F1 needs an operator decision (three options are named in the finding); R6-F2 should be fixed whichever way F1 goes. The three nits are cheap and specific: an unqualified paragraph in design.md D12 that still describes derive/SKIP/ambiguity as universal; the job-runs-on-every-declared-event scenario's vacuity risk (it is an absence assertion and `grep -n 'if:' ci.yml` already returns only `if: failure()` today, so a careless test passes before the work); and union mode's glob not excluding openspec/changes/archive/ (128 archived deltas).\n\nNote on the round's premise: the risk this round was created to test -- fix lands in the named artifact, the consequence artifact goes stale -- did recur, but only at nit level (R6-N1). The blocking findings are of a different kind: the operator's decision itself is internally inconsistent with two pre-existing spec requirements, which no amount of propagation would have fixed.",
+  "blocking_findings": [
+    {
+      "id": "R6-F1",
+      "severity": "critical",
+      "title": "merge_group union-and-block rests on a refuted premise and makes traceability-exclusions.yaml unsatisfiable across the two blocking runs",
+      "artifacts_to_change": [
+        "specs/gen-eval-framework/spec.md:534-539,563-571",
+        "design.md:436-439,458-464",
+        "tasks.md:611-616",
+        "work-packages.yaml wp-wiring description"
+      ],
+      "requires_operator_decision": true,
+      "options": [
+        "(a) merge_group unions only the change directories its diff touches against event.merge_group.base_sha",
+        "(b) reverse enforcement on merge_group evaluates only requirements from deltas the merge group introduces",
+        "(c) merge_group is non-blocking; pull_request remains the only blocking run"
+      ],
+      "key_evidence": [
+        "git ls-tree --name-only origin/main openspec/changes/ | wc -l -> 34 (33 in-flight change dirs + archive/)",
+        "3 in-flight changes on main carry specs/gen-eval-framework/spec.md deltas adding 10 requirements total",
+        "spec.md:404-411 (other-changes-are-invisible) vs spec.md:224-228 (reverse opt-in) are jointly unsatisfiable under the decision"
+      ]
+    },
+    {
+      "id": "R6-F2",
+      "severity": "critical",
+      "title": "5.7c, the only acceptance criterion, never runs the invocation that gates the merge",
+      "artifacts_to_change": ["tasks.md:702-720", "proposal.md:232-233"],
+      "requires_operator_decision": false,
+      "fix": "5.7c records exit codes for BOTH `--scope capability --change trace-requirements-to-contracts` and bare `--scope capability` on the merge commit; both MUST be zero."
+    }
+  ],
+  "non_blocking_findings": ["R6-N1", "R6-N2", "R6-N3"],
+  "clean_verifications": [
+    "B2: four of the five new scenarios are testable and fail before the work; only job-runs-on-every-declared-event is weak (R6-N2)",
+    "B3: ci.yml declares push: branches:[main], pull_request, merge_group -- matches the spec's assumption; per-event non-blocking is expressible without continue-on-error, so no Actions-expressibility blocker exists",
+    "B4: wp-wiring's pointer to task 5.7 is by task number and its summary is accurate; nothing load-bearing lost in the trim (description is 3684 of 4000 chars)",
+    "B5: both template paths exist; the verification step exits 1 on the unmodified tree naming both files; .agents/ and .claude/ copies correctly excluded",
+    "openspec validate --strict: valid; validate_work_packages.py: VALID"
+  ]
+}

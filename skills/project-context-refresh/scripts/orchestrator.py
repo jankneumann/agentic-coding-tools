@@ -301,6 +301,8 @@ def _default_architecture_producer(
     # A reason that carries a path names an owned artifact; a provenance-level
     # reason names the provenance document itself, which is the artifact that is
     # actually wrong when there is no committed baseline to compare against.
+    # Pathless non-provenance reasons resolve to "" here and are named by the
+    # repository-level branch below; the consumer drops the empty entries.
     provenance_codes = (provenance.PROVENANCE_MISSING, provenance.PROVENANCE_INVALID)
     drifted_paths = [
         reason.path
@@ -310,6 +312,25 @@ def _default_architecture_producer(
         else ""
         for reason in outcome.reasons
     ]
+
+    # A producer-identity or input-fingerprint mismatch is repository-level: it
+    # carries no path because no single artifact is at fault — the identity or
+    # the inputs that produced *all* of them changed, so every recorded artifact
+    # is unverifiable. Naming them is what lets the gate report this as drift
+    # with a precise stale list instead of reclassifying it as an apparatus
+    # failure whose message names nothing a reader can act on.
+    if any(
+        not reason.path and reason.code not in provenance_codes
+        for reason in outcome.reasons
+    ):
+        recorded = [
+            art["path"]
+            for art in (outcome.provenance or {}).get("artifacts", [])
+            if art.get("path")
+        ]
+        # The provenance document itself as the floor: an empty stale list is the
+        # one output this branch must never produce.
+        drifted_paths.extend(recorded or [provenance_rel])
     validations = [
         R.failed_validation(
             R.vid("architecture", reason.code, reason.path or ""),
@@ -593,6 +614,54 @@ def _manifest_present(repo_root: Path, relative_path: str | None, sha256: str | 
         return False
 
 
+def _artifacts_current(op, repo_root: Path) -> bool:
+    """True when every artifact recorded on the operation matches this worktree.
+
+    The operation ledger lives in the shared git common dir and is keyed on
+    (repository_id, revision), so a ``succeeded`` record proves a refresh ran at
+    this revision — somewhere. It does not prove the artifacts are present in
+    *this* worktree: a sibling worktree at the same HEAD, or this worktree after
+    artifacts were edited or removed, satisfies the key while the tree no longer
+    matches the record (issue #385).
+    """
+    for result in op.producer_results:
+        for artifact in result.artifacts:
+            target = repo_root / artifact.path
+            if artifact.sha256 is None:
+                # A recorded deletion: the path reappearing is drift.
+                if target.exists():
+                    return False
+                continue
+            try:
+                if sha256_hex(target.read_bytes()) != artifact.sha256:
+                    return False
+            except OSError:
+                return False
+    return True
+
+
+def _reuse_succeeded(
+    op_store: OperationStore,
+    op,
+    repo_root: Path,
+    revision: str,
+    manifest_path: str,
+    architecture: ArchitectureProducer | None,
+) -> RefreshResult:
+    """Reuse a ``succeeded`` record only after proving it describes this tree.
+
+    When the recorded artifact digests no longer match the worktree, the
+    producers are re-run in place before the record is returned. The record
+    itself stays untouched (ri-06 is append-only and the run is deterministic
+    per revision: a clean tree reproduces the recorded bytes exactly); what the
+    re-run restores is the *worktree*, which is the thing a caller of
+    ``generate`` asked to be made current (issue #385).
+    """
+    if not _artifacts_current(op, repo_root):
+        _collect_results("generate", repo_root, revision, None, architecture)
+    return _reuse_terminal(op_store, op, repo_root, manifest_path)
+
+
 def _reuse_terminal(
     op_store: OperationStore, op, repo_root: Path, manifest_path: str
 ) -> RefreshResult:
@@ -699,7 +768,7 @@ def generate(
     op_store = store or OperationStore(repo_root)
     op = op_store.create_or_load(repository_id, rev)
     if op.state is OperationState.SUCCEEDED:
-        return _reuse_terminal(op_store, op, repo_root, manifest_path)
+        return _reuse_succeeded(op_store, op, repo_root, rev, manifest_path, architecture)
 
     try:
         op = op_store.begin_attempt(op.operation_id)
@@ -707,7 +776,9 @@ def generate(
         # A concurrent attempt finalized ``succeeded`` between load and begin.
         op = op_store.load(op.operation_id)
         if op.state is OperationState.SUCCEEDED:
-            return _reuse_terminal(op_store, op, repo_root, manifest_path)
+            return _reuse_succeeded(
+                op_store, op, repo_root, rev, manifest_path, architecture
+            )
         raise
 
     # Deterministic + architecture producers are recorded once per revision

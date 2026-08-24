@@ -1,17 +1,42 @@
-# teams.yaml - Declarative team composition
-team: agentic-coding-tools
-agents:
-  - name: lead
-    role: coordinator
-    capabilities: [planning, review, orchestration]
-    description: Decomposes tasks and coordinates workers
+# teams.yaml — crew manifest for supervisor-orchestrated dispatch.
+#
+# Declares the crew that runs a multi-agent change: the supervisor archetype
+# at its apex, the archetype roster, and which vendors may fill each role.
+# Read by src/teams.py (CrewManifest.from_file / get_crew_manifest). The
+# reader cross-validates every referenced archetype against archetypes.yaml
+# and every vendor against the known provider set, so a stale manifest fails
+# loud rather than routing work to a role or vendor that does not exist.
+#
+# This is the crew model the supervisor-orchestration layer consults when it
+# decomposes an objective and assigns each work package a role plus an
+# eligible vendor pool. Tune the roster here — no code changes needed.
+schema_version: 1
+crew: agentic-coding-tools
 
-  - name: implementer
-    role: worker
-    capabilities: [coding, testing]
-    description: Implements features from OpenSpec proposals
+# The supervisor sits at the apex: read-only, frontier, delegates everything.
+# Must reference an archetype declared write_capable: false in archetypes.yaml.
+supervisor: supervisor
 
-  - name: reviewer
-    role: worker
-    capabilities: [review, security-analysis]
-    description: Reviews PRs and checks for security issues
+# Roster: each archetype the crew can dispatch, plus the vendors permitted to
+# fill that role. Vendors are provider ids from archetypes.yaml model_aliases
+# (claude_code, codex, antigravity, grok, pi). The supervisor role appears in
+# the roster too, so its eligible-vendor pool is explicit.
+roster:
+  - archetype: supervisor
+    vendors: [claude_code]
+  - archetype: architect
+    vendors: [claude_code, codex]
+  - archetype: analyst
+    vendors: [claude_code, antigravity]
+  - archetype: implementer
+    vendors: [claude_code, codex, antigravity, grok, pi]
+  - archetype: reviewer
+    vendors: [claude_code, codex, grok]
+  - archetype: validator
+    vendors: [claude_code, codex]
+  - archetype: documenter
+    vendors: [claude_code]
+  - archetype: runner
+    vendors: [claude_code, pi]
+  - archetype: gatekeeper
+    vendors: [claude_code]

@@ -101,6 +101,16 @@ class ProfilesService:
             self._db = get_db()
         return self._db
 
+    def invalidate_cache(self) -> None:
+        """Drop all cached profile lookups.
+
+        Called after the startup registry sync mutates ``agent_profiles``
+        (design D1): at boot the cache is normally empty, but a re-sync in a
+        long-lived process would otherwise serve pre-sync trust levels until
+        the TTL expired.
+        """
+        self._cache.clear()
+
     async def get_profile(
         self,
         agent_id: str | None = None,

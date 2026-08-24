@@ -1,0 +1,66 @@
+# agent-coordinator discovery contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Agent discovery"
+  version: 1.0.0
+  description: >-
+    Agent registration, listing, heartbeat, and cleanup. Spec lines 1922-1929, 2817, 2829.
+paths:
+  /discovery/register:
+    post:
+      operationId: registerAgent
+      summary: Register an agent
+      description: 'Spec 1924: accepts agent registration; requires API key.'
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Agent registered (spec 1924)}
+  /discovery/agents:
+    get:
+      operationId: listActiveAgents
+      summary: List active agents
+      description: >-
+        Spec 1925: returns active agents. Spec 2817, 2829: each AgentInfo
+        record exposes phase_archetype.
+      responses:
+        "200": {description: Active agents with phase_archetype per AgentInfo (spec 1925, 2817)}
+  /discovery/heartbeat:
+    post:
+      operationId: agentHeartbeat
+      summary: Update an agent's heartbeat
+      description: 'Spec 1926: updates agent heartbeat; requires API key.'
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Heartbeat updated (spec 1926)}
+  /discovery/cleanup:
+    post:
+      operationId: cleanupDeadAgents
+      summary: Remove dead agents
+      description: 'Spec 1927: removes dead agents; requires API key.'
+      security:
+        - coordinatorApiKey: []
+      responses:
+        "200": {description: Dead agents removed (spec 1927)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

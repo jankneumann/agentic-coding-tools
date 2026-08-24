@@ -1,0 +1,147 @@
+# agent-coordinator merge-queue contract (task 5.1, trace-requirements-to-contracts;
+# extended and opted in by the issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Merge queue"
+  version: 1.0.0
+  description: >-
+    Merge queue lifecycle: enqueue, listing, pre-merge checks, next-to-merge,
+    merged, and removal. Spec lines 1448-1458, 1972-1978 (HTTP-10).
+paths:
+  /merge-queue:
+    get:
+      operationId: getMergeQueue
+      summary: List queued features in priority order
+      description: >-
+        Spec 1453-1454: with a valid API key returns a JSON array of queued
+        features in priority order.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.merge-queue-http-endpoints
+      responses:
+        "200": {description: Queued features in priority order (spec 1454)}
+  /merge-queue/check/{feature_id}:
+    post:
+      operationId: runPreMergeChecks
+      summary: Run pre-merge checks for a feature
+      description: >-
+        Spec 1457-1458: with a valid API key returns a JSON object with
+        passed, checks, issues, and conflicts fields.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.merge-queue-http-endpoints
+      parameters:
+        - name: feature_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Pre-merge check result (spec 1458)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  passed: {type: boolean}
+                  checks: {type: array, items: {type: object}}
+                  issues: {type: array, items: {type: object}}
+                  conflicts: {type: array, items: {type: object}}
+  /merge-queue/enqueue:
+    post:
+      operationId: enqueueMerge
+      summary: Add a registered feature to the merge queue
+      description: >-
+        Spec 1975 (HTTP-10): adds a registered feature to the merge queue,
+        mirroring the enqueue_merge MCP tool (spec 1438-1446). Spec 2574-2589
+        (R13): accepts the decomposition parameter for stacked-diff features.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.merge-queue-http-endpoints
+          - agent-coordinator.merge-queue-enqueue-decomposition-parameter-r13
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [feature_id]
+              properties:
+                feature_id: {type: string}
+      responses:
+        "200": {description: Queue entry with feature_id, merge_status, and merge_priority (spec 1440)}
+        "401": {description: Missing or invalid X-API-Key}
+  /merge-queue/next:
+    get:
+      operationId: getNextMerge
+      summary: Get the highest-priority feature ready to merge
+      description: >-
+        Spec 1976 (HTTP-10): returns the highest-priority feature ready to
+        merge, mirroring the get_next_merge MCP tool (spec 1438).
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.merge-queue-http-endpoints
+      responses:
+        "200": {description: Next feature ready to merge, or an empty result (spec 1976)}
+  /merge-queue/merged/{feature_id}:
+    post:
+      operationId: markMerged
+      summary: Mark a feature merged and deregister it
+      description: >-
+        Spec 1977 (HTTP-10): marks a feature merged and deregisters it,
+        mirroring the mark_merged MCP tool (spec 1438).
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.merge-queue-http-endpoints
+      parameters:
+        - name: feature_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Merge recorded and feature deregistered (spec 1977)}
+        "401": {description: Missing or invalid X-API-Key}
+  /merge-queue/{feature_id}:
+    delete:
+      operationId: removeFromMergeQueue
+      summary: Remove a feature from the queue without merging
+      description: >-
+        Spec 1978 (HTTP-10): removes a feature from the queue without merging,
+        mirroring the remove_from_merge_queue MCP tool (spec 1438).
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.merge-queue-http-endpoints
+      parameters:
+        - name: feature_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: Feature removed from the queue (spec 1978)}
+        "401": {description: Missing or invalid X-API-Key}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

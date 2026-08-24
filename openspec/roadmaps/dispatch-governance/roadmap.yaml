@@ -205,3 +205,54 @@ items:
   - Missing runtime or unsupported platform degrades to unsandboxed dispatch with a
     warning and an audit event
   - Adding a second runtime backend requires only a new renderer function
+- item_id: dg-08
+  title: Egress gateway rendering and request-time secret boundary
+  change_id: add-egress-gateway-boundary
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - dg-03
+  - dg-07
+  external_depends_on:
+  - principal-credential-architecture:pca-02
+  description: Add render_iron_proxy_config() beside dg-07's srt renderer, turning
+    the coordinator's network policy into an iron-proxy configuration (default-deny
+    domain allowlist, header allowlist, structured audit log) so egress policy stays
+    authored once. In postures whose dg-03 network dimension reports real interception
+    (self-managed containers, the Sentinel fleet, an OpenShell netns later), dispatch
+    egress routes through a per-boundary iron-proxy and the sandbox network policy
+    admits only the gateway address. The gateway-side secret swap authenticates as
+    pca-02's egress-gateway service principal and validates every swap request
+    against the presenting token's per-dispatch scope - a request for a vendor the
+    token does not authorize is rejected, never served from the principal's broader
+    secret/vendors/* read access. Traffic to the coordinator LLM gateway
+    (add-coordinator-llm-gateway) is excluded from the swap path - LiteLLM virtual
+    keys are the inference credential and pass through untouched so budget and model
+    enforcement is not bypassed; iron-proxy merely allowlists that destination.
+    Dispatch-side injection of proxy tokens instead of real keys is pca-04's half
+    of the contract. Explicitly not deployed DNS-only on the local uid (same-uid
+    workloads can bypass the resolver, so a gateway there simulates containment)
+    and not deployed inside the managed cloud harness, whose platform proxy already
+    terminates TLS and owns the allowlist.
+  rationale: dg-07's srt backend can only allow or deny a connection; it cannot
+    inspect headers or MCP tool calls, and it leaves real vendor keys in the sandbox
+    env - the primary threat this epic names is a prompt-injected agent reading
+    exactly those. An egress gateway with boundary-side secret injection removes
+    the secret from the sandbox entirely and enforces content-level policy, which
+    is the machine-level containment TRUST_POSTURE.md gate-flipping is waiting on.
+    Placing it behind the render_* seam keeps it an addition per dg-07's own
+    acceptance outcome rather than a parallel policy system.
+  acceptance_outcomes:
+  - The coordinator's network policy renders to iron-proxy configuration through the
+    same export path dg-07 uses; no allowlist is hand-authored in gateway config
+  - In a gateway posture a dispatched agent's only reachable destination is the gateway;
+    a denied domain is blocked at the proxy with a structured audit event naming the
+    matched policy
+  - A swap request for a vendor outside the presenting token's per-dispatch scope is
+    rejected with an audit event, despite the gateway principal's broader read access
+    (rejection test)
+  - Requests to the coordinator LLM gateway pass through with their LiteLLM virtual
+    key untouched; iron-proxy performs no secret swap on inference routes
+  - Local-uid and managed-cloud postures skip gateway deployment with an audit event
+    recording why, rather than deploying a bypassable proxy

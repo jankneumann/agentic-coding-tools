@@ -1,0 +1,49 @@
+{
+  "review_type": "implementation",
+  "target": "trace-requirements-to-contracts",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "SKILL.md 7.0b captures the gate with `TRACE_OUTPUT=$(cd ... && \"$TRACE_PYTHON\" scripts/check_traceability.py --scope change --change \"$CHANGE_ID\")` (line 571-572), which captures stdout ONLY. When the gate dies before writing to stdout, the CRITICAL finding the skill is instructed to file has an empty Details field. Demonstrated: with a gate stub that writes a ModuleNotFoundError traceback to stderr and exits 1, driving the real SKILL.md fragment under `bash -e` gives rc=1, stdout exactly '\\nFAIL: requirement-traceability gate exited 1\\n', and stderr \"Traceback...\\nModuleNotFoundError: No module named 'yaml'\" DISCARDED. SKILL.md:603-604 then instructs the agent to record Details as `$TRACE_OUTPUT` with the parenthetical '(it already names the violating operations and requirements)', which is false for this input \u2014 the operator gets a CRITICAL fail with no diagnosis at all. This is the stale-consequence shape the change is graded on, caused by round 2's own revert: round 1's `--help` probe was the only thing that named a non-runnable gate, and reverting it (correctly \u2014 it masked broken gates and added an unauthorized third skip condition) removed the diagnosis without giving the reporting path one. The reachable trigger is the already-escalated PROJECT_ROOT/venv situation, but it is any gate crash: import error, syntax error, an OSError on a contracts file. Fix is one token and reintroduces none of round 2's three objections (the gate still FAILS, no third skip condition, not ambient-poisonable): redirect stderr into the capture, `... --change \"$CHANGE_ID\" 2>&1)`. Verified independently that the CI sweep does NOT share this defect \u2014 it runs the gate bare, so stderr reaches the Actions log.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "skills/validate-feature/SKILL.md",
+      "line_range": {
+        "start": 571,
+        "end": 573
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Round 2's new `grep -E '^openspec/changes/[^/]+/'` stage drops any path git emits in C-quoted form, because a quoted path begins with `\"` and cannot match the `^openspec` anchor. git quotes the WHOLE path when any byte in it is non-ASCII (core.quotePath defaults to true), so this fires on an ordinary ASCII change id whose touched filename contains a non-ASCII character. Demonstrated on a throwaway repo: change dir `openspec/changes/my-change/` whose only touched file is `r\u00e9sum\u00e9-notes.md` yields `git diff --no-renames --diff-filter=d --name-only <base> HEAD -- openspec/changes/` = `\"openspec/changes/my-change/r\\303\\251sum\\303\\251-notes.md\"`; driving the real ci.yml fragment under `bash -e` with EVENT_NAME=pull_request gives rc=0 and 'SKIP: requirement-traceability sweep \u2014 no openspec/changes/<id>/ directory touched', with a stub gate rigged to exit 1. The blocking merge-candidate check silently does not run \u2014 the exact unfalsifiable-green outcome spec.md:588-600 forbids ('An unresolvable base and an absent change directory SHALL NOT share an exit path'). Control in the same repo: adding one ASCII sibling (`proposal.md`) restores rc=1 and `argv: --scope capability --change my-change`, so blast radius is limited to a change whose entire touched set is non-ASCII-named \u2014 narrow, which is why this is low. Note this is a loudness regression from round 2, not a new hole: pre-round-2 the same input produced `--change '\"openspec/changes/...\"'` (wrong, but noisy). One-token fix that makes both behaviours correct: `git -c core.quotePath=false diff --no-renames --diff-filter=d --name-only \"$1\" HEAD -- openspec/changes/`. The fix must land in ci.yml AND the byte-for-byte SWEEP_FRAGMENT constant in skills/tests/validate-feature/test_ci_sweep_wiring.py, which test_fragment_matches_ci_yml enforces.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": ".github/workflows/ci.yml",
+      "line_range": {
+        "start": 536,
+        "end": 543
+      }
+    },
+    {
+      "id": 3,
+      "type": "style",
+      "criticality": "low",
+      "description": "The derivation comment was updated from 'All three conditions' to 'All four conditions' (ci.yml:520) but the enumeration below it was not: it still lists exactly three \u2014 `--no-renames`, `--diff-filter=d`, `grep -v archive`. The fourth, round 2's `grep -E '^openspec/changes/[^/]+/'` at ci.yml:539, is never named anywhere in the comment, so the only in-repo explanation of a load-bearing pipeline stage does not mention it. Two consequences also went stale in the same edit: (a) the closing sentence 'Dropping any one breaks a real archive pull request' is false of the new condition \u2014 I removed the `grep -E` from both ci.yml and the synced constant and the two ARCHIVE tests stayed green while `test_file_directly_under_changes_is_not_a_change_id` and `test_file_directly_under_changes_does_not_trip_ambiguity` failed, i.e. dropping it breaks a stray-file pull request, not an archive one; (b) the pointer '(see design D12's measured table)' now covers four conditions but that table at design.md:509-516 has exactly four rows measuring only the three archive conditions across commits 247bc201/600744a5/a17e33f7 \u2014 it has no row for the path-shape filter and cannot acquire one, since the filter's failure mode is not an archive PR. This is the change's documented recurring defect shape (a fix lands in the artifact named, the artifact owning the consequence goes stale), reproduced in miniature by the review fix itself. Duplicated byte-for-byte at skills/tests/validate-feature/test_ci_sweep_wiring.py:90-96, so any correction must touch both files or test_fragment_matches_ci_yml fails. Suggest naming the fourth condition explicitly and scoping the 'breaks a real archive pull request' claim back to the three it is true of.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": ".github/workflows/ci.yml",
+      "line_range": {
+        "start": 520,
+        "end": 526
+      }
+    }
+  ]
+}

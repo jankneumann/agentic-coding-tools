@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "trace-requirements-to-contracts",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 0,
+      "elapsed_seconds": 110.95872141700238,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 785.3631125420798,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 2,
+      "elapsed_seconds": 329.6155560419429,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 2,
+      "elapsed_seconds": 828.4030956251081,
+      "error": null
+    },
+    {
+      "vendor": "pi",
+      "agent_id": "pi",
+      "success": false,
+      "findings_count": 0,
+      "elapsed_seconds": 1.3048240419011563,
+      "error": "Invalid JSON output"
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 5,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "behavioral_failure",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "SKILL.md 7.0b resolves every path it uses from `$PROJECT_ROOT`, and SKILL.md line 105 sets `PROJECT_ROOT=\"${MAIN_REPO:-$(git rev-parse --show-toplevel)}\"` \u2014 where `MAIN_REPO` comes from `worktree.py detect` (line 104) and, inside a worktree, is the SHARED MAIN CHECKOUT, not the worktree. Demonstrated live on this machine: `python3 skills/worktree/scripts/worktree.py detect` run from this worktree prints `MAIN_REPO=/Users/jankneumann/Coding/agentic-coding-tools`. Driving the extracted 7.0b block under `bash -e` with that PROJECT_ROOT and `CHANGE_ID=trace-requirements-to-contracts` gives: exit=0, stdout `SKIP: requirement-traceability gate unavailable (/Users/jankneumann/Coding/agentic-coding-tools/packages/gen-eval/scripts/check_traceability.py not found). Skipping.` \u2014 the CRITICAL gate this change exists to add never runs, on the very change that adds it, and on every other change validated from a worktree (which SKILL.md lines 64-65 mandate). The same run with `PROJECT_ROOT=<the worktree>` produces the real report. After the gate script lands on main the failure mode changes but does not go away: the gate then resolves `openspec/{specs,contracts,changes}` from the main checkout, where the in-flight change directory does not exist \u2014 I ran the gate with main's four roots and `--scope change --change trace-requirements-to-contracts` and it exited 0 with no error, a vacuous pass. Neither test suite can see this: `test_validate_feature_gate.py::_run` injects `PROJECT_ROOT=str(project_root)` directly, so the MAIN_REPO resolution the skill actually performs is never exercised. Note also that round 1's new comment at SKILL.md:559-566 justifies the runnability probe on the premise that 'a freshly created worktree ... has the gate script and openspec/contracts/ but no venv' \u2014 that premise is false, because PROJECT_ROOT is not the worktree; the main checkout does have `packages/gen-eval/.venv/bin/python`. Fix: resolve the traceability gate (and its contracts/specs/changes roots) against the worktree under validation \u2014 e.g. `TRACE_ROOT=\"$(git rev-parse --show-toplevel)\"` for 7.0b, or pass `--repo-root/--specs-root/--changes-root/--contracts-root` explicitly \u2014 and add a test that lets the fragment compute PROJECT_ROOT the way the skill does instead of injecting it."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "`--scope change --change <id>` accepts a change id whose directory does not exist and reports nothing about it. Demonstrated: `packages/gen-eval/.venv/bin/python scripts/check_traceability.py --repo-root <main-checkout> --specs-root <main>/openspec/specs --changes-root <main>/openspec/changes --contracts-root <main>/openspec/contracts --scope change --change trace-requirements-to-contracts` exits 0 and prints the normal `scope: change (trace-requirements-to-contracts) \u2014 touched operations and requirements only` header, even though `<main>/openspec/changes/trace-requirements-to-contracts/` does not exist. The header asserts a scope the gate never resolved. This is the same class the change's own sibling requirement forbids for the sweep ('An unresolvable merge base is an error, not an empty scope' / 'it SHALL NOT pass by evaluating an empty touched set'); a named-but-absent change directory is the change-scope analogue and currently takes the silent-pass path. It is what turns finding #1 from a loud error into a green validation. (The gate exits 1 for a bogus id inside this worktree \u2014 `--change no-such-change-at-all` gives exit 1 \u2014 but only incidentally, because this branch's contracts cite requirements that only this change's delta introduces; the exit status is content-dependent, not a check.) Fix: in `run_gate`, when `scope == 'change'`, error if `changes_root / change_id` is not a directory, naming the path."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Round 1 added a THIRD skip condition to 7.0b \u2014 the `--help` runnability probe (SKILL.md:571-574) \u2014 and updated only SKILL.md and its test. The two artifacts that own the consequence are now stale. (a) The normative delta `openspec/changes/trace-requirements-to-contracts/specs/skill-workflow/spec.md` authorizes exactly two: 'Where the gate or `openspec/contracts/` is absent, the skill SHALL print an explicit SKIP naming what is missing'; its scenario is titled 'Gate absent in a consumer repository' and enumerates the same two. An interpreter that cannot import the gate's dependencies is neither. (b) `packages/gen-eval/DOWNSTREAM.md:33-42` tells downstream consumers the phase 'invokes the gate above at `--scope change --change <id>` during spec-compliance validation, but **only when both** `packages/gen-eval/scripts/check_traceability.py` and `openspec/contracts/` exist \u2014 it prints an explicit `SKIP` naming whichever is missing otherwise.' That is now false in both directions: there is a third skip, and the SKIP text names something other than a missing path. `git show --stat a42b66f9` confirms the fix commit touched only ci.yml, locks.yaml, the two test files and SKILL.md. This is exactly the recurring defect shape the review brief names. The skip behaviour itself is defensible (an unrunnable interpreter and a violating gate must not share an exit path); what is missing is the requirement text and the notice that own its consequence."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The `*)` unhandled-event arm is normative \u2014 the sweep requirement states 'The rule is stated for the three events the job runs on precisely so that a fourth event, added later without a rule, fails loudly instead of passing quietly' \u2014 and no test covers it. Demonstrated by mutation: deleting the four-line `*)` arm from BOTH `.github/workflows/ci.yml` and `SWEEP_FRAGMENT` in `test_ci_sweep_wiring.py` (so the byte-for-byte drift guard does not mask the behavioural question), clearing `__pycache__`, and running `skills/.venv/bin/python -m pytest skills/tests/validate-feature/ --rootdir=.` leaves the suite fully green: `28 passed`. Driving the mutated fragment with `EVENT_NAME=schedule` under `bash -e` then gives exit 0 with empty stdout \u2014 a `case` that matches nothing exits 0, which is the unfalsifiable green this clause exists to prevent. Every other load-bearing behaviour I mutated (removing `set +e`; `return 2` collapsed to `return 0`; the caller checking `$? -eq 1`; `exit $?` rewritten to `exit 0` on pull_request; the merge_group loop aborting at the first failure; SKILL.md's errexit save/restore; SKILL.md's runnability probe; renaming the 7.0b heading) was CAUGHT \u2014 this is the one hole. Fix: add `test_unhandled_event_fails_loudly` driving the fragment with an event name outside the three, asserting exit 1 and `::error::` naming the event."
+    },
+    {
+      "id": 5,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "description": "Change-id derivation treats a path directly under `openspec/changes/` (not under an `<id>/` subdirectory) as a change id. The spec is explicit: derivation 'SHALL consider only paths that the diff ADDS or MODIFIES, under a directory matching `openspec/changes/<id>/`'. The sed at ci.yml:539 only rewrites paths that have a `/` after the id segment; a path like `openspec/changes/README.md` passes through unrewritten and survives `grep -v '^archive$'`. Demonstrated against a throwaway repo, driving the real fragment as `bash -e <file>`: a PR whose diff adds `openspec/changes/README.md` yields `argv: --scope capability --change openspec/changes/README.md` \u2014 the blocking gate invoked with a change id that is a file path. Worse, in the same probe with `openspec/changes/README.md` plus a real `openspec/changes/real-change/` in the diff, the job exits 1 with `::error::requirement-traceability sweep: ambiguous \u2014 pull request touches multiple change directories: openspec/changes/README.md real-change` \u2014 a hard block on a PR that touched exactly one change directory. There are no top-level files under `openspec/changes/` today (`git ls-files openspec/changes/ | awk -F/ 'NF==3'` is empty), so this is latent rather than live. Fix: restrict derivation to paths that actually match the directory form, e.g. `sed -n 's#^openspec/changes/\\([^/]*\\)/.*#\\1#p'`, and add a wiring test for a top-level file."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The ambiguity rule can hard-fail a pull request that touched exactly one change directory, when the diff against the base commit spans another change directory being ADDED on the integration branch. The sweep requirement itself establishes that a base commit predating other merges is a real condition \u2014 'The deletion filter also makes derivation robust to a base commit that predates an archive: without it, any pull request whose diff spans an archive commit derives the archived id alongside its own and fails the ambiguity rule.' Archive merges are handled (`--diff-filter=d` suppresses the source half, `grep -v archive` the destination half), but a plan PR merging to main is a pure ADD of `openspec/changes/<other-id>/`, which no filter touches. Demonstrated: throwaway repo, base commit B0, then a commit adding `openspec/changes/someone-elses-change/`, then a commit adding `openspec/changes/my-change/`; the real fragment under `bash -e` with `PR_BASE_SHA=B0` exits 1 with `::error::requirement-traceability sweep: ambiguous \u2014 pull request touches multiple change directories: my-change someone-elses-change`. On this repository plan PRs add change directories to main routinely, so the spanning condition the spec already assumes has an unhandled second half. Reachability depends on how stale `github.event.pull_request.base.sha` is relative to the checked-out merge ref, which I could not settle from the repo alone \u2014 but the spec's own premise is that it can be stale. Candidate fixes: derive against `git merge-base` rather than the raw base sha, or restrict derivation to ids whose directory exists on HEAD."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Section 7.0b's bash block ends with an unconditional `exit 0` (SKILL.md:608). It is the only unconditional exit in the file \u2014 `grep -n 'exit 0\\|exit 1' skills/validate-feature/SKILL.md` returns conditional `exit 1`s at 127/138/148/520 and this one `exit 0`. SKILL.md presents 7.0b as one sub-step of phase 7, and 7.0's fragment deliberately falls through on success. Demonstrated: an outer script `set -e; echo 'phase 7.0b:'; . ./inner.sh; echo 'PHASE 7.1 RAN'` with `inner.sh` holding the verbatim 7.0b block and a passing stub gate prints `phase 7.0b:` / the gate output / `PASS: requirement-traceability gate` and exits 0 \u2014 `PHASE 7.1 RAN` never appears. Appending any command after the fragment in a single script is likewise unreachable (verified). So a passing traceability gate silently terminates the rest of the spec-compliance phase at exit 0, which reads as a clean validation. Pasted into an interactive shell it closes the terminal. Fix: end the block the way 7.0 does \u2014 exit only on failure (`[ \"${TRACE_RESULT:-}\" = \"fail\" ] && exit \"$TRACE_EXIT\"` and nothing after it), or state explicitly in the surrounding prose that 7.0b must be run as its own script."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "R1 introduced the runnability probe by guarding both the probe and the real gate on `${TRACE_RESULT:-} != skip`, but the fragment never initializes TRACE_RESULT. If TRACE_RESULT=skip is already set in the environment when the block starts \u2014 while packages/gen-eval/scripts/check_traceability.py and openspec/contracts/ both exist \u2014 the fragment prints nothing, never invokes the gate, and exits 0. Demonstrated: with a gate that prints VIOLATION and exits 1, a clean env yields `FAIL: requirement-traceability gate exited 1` and rc=1; the same tree with TRACE_RESULT=skip pre-set yields empty stdout (no SKIP line either), TRACE_RESULT remains skip, and rc=0. Pre-R1 always entered the else branch and overwrote TRACE_RESULT when the files existed, so ambient skip could not silence the gate. The suite cannot see this: _run builds a clean env with only PROJECT_ROOT/CHANGE_ID/PATH. Fix: set TRACE_RESULT= (or a dedicated availability flag) at the top of the 7.0b block before any branch, and add a test that pre-sets TRACE_RESULT=skip with a failing runnable gate and asserts FAIL."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The --help runnability probe treats every non-zero probe exit as SKIP with the fixed message 'dependencies not installed; run uv sync'. That is correct for ModuleNotFoundError, but it also masks a broken gate that should fail the CRITICAL phase. Demonstrated: replace check_traceability.py with `def broken(\\n` (SyntaxError); the fragment exits 0 and prints SKIP blaming missing dependencies, with no FAIL. Pre-R1 that same syntax error would have been captured as TRACE_EXIT!=0 and failed validation. CI's requirement-traceability-sweep has no equivalent probe and would still red, but local /validate-feature is the change-scoped CRITICAL gate the skill-workflow spec requires to fail on non-zero gate exit. Narrow the SKIP to import/dependency failures (e.g. match ModuleNotFoundError on stderr), or fail closed on other probe failures."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 9,
+    "confirmed_count": 2,
+    "unconfirmed_count": 7,
+    "disagreement_count": 0,
+    "blocking_count": 2
+  }
+}

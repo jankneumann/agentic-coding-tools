@@ -9,6 +9,21 @@
 <!-- Bullet list of behavior/workflow changes.
      Mark breaking behavior explicitly with **BREAKING**. -->
 
+## Non-Functional Requirements
+
+<!-- Architectural qualities this change must hold to, as objective targets.
+     Every entry needs a metric that can be measured, not an adjective:
+     "p95 < 200ms under 50 rps", not "should be fast".
+     Draw attributes from observability, resilience, performance,
+     compatibility, operability -- whichever the change actually touches.
+     "Verified by" names the phase or check that measures the target
+     (e.g. Architecture validation, Performance phase, CI coverage job).
+     If no NFR applies, say so explicitly -- do not leave the table empty. -->
+
+| Attribute | Metric | Target | Verified by (phase) |
+|-----------|--------|--------|---------------------|
+| <quality> | <what is measured> | <threshold> | <phase or check> |
+
 ## Approaches Considered
 
 <!-- Present 2-3 distinct approaches (3-5 in --explore mode).
