@@ -16,6 +16,7 @@ import yaml
 from pydantic import BaseModel, Field
 
 from .config import BudgetConfig
+from .traceability import TraceabilityBlock
 
 
 class AuthConfig(BaseModel):
@@ -92,6 +93,11 @@ class FlagSpec(BaseModel):
     #: ``--version`` / ``--print-contract-version`` class).
     short_circuits: bool = False
     binds_to: BindingSpec | None = None
+    #: Requirement citations this flag exists to serve, or an exclusion with
+    #: a reason (design D1, `trace-requirements-to-contracts`). Absent by
+    #: default so ``exclude_defaults=True`` keeps an unretrofitted contract's
+    #: derived descriptor byte-identical.
+    traceability: TraceabilityBlock | None = None
 
 
 class PositionalSpec(BaseModel):
@@ -103,6 +109,8 @@ class PositionalSpec(BaseModel):
     variadic: bool = False
     description: str = ""
     binds_to: BindingSpec | None = None
+    #: See :attr:`FlagSpec.traceability`.
+    traceability: TraceabilityBlock | None = None
 
 
 class ExitCodeSpec(BaseModel):
@@ -139,6 +147,11 @@ class ToolCommandSpec(BaseModel):
     #: contracted service. A list because one surface element may serve
     #: several operations (D4/D7).
     operation_ids: list[str] = Field(default_factory=list)
+    #: See :attr:`FlagSpec.traceability`. Applies to the command's own
+    #: coverage unit — its non-empty ``name`` (D3); a flat command
+    #: contributes none of its own, so citations belong on its flags and
+    #: positionals instead.
+    traceability: TraceabilityBlock | None = None
 
     def coverage_units(self) -> list[str]:
         """Identifiers this command contributes to the declared surface.

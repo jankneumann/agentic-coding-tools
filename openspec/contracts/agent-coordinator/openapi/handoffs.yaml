@@ -1,0 +1,69 @@
+# agent-coordinator handoffs contract (task 5.1, trace-requirements-to-contracts;
+# extended and opted in by the issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Handoff documents"
+  version: 1.0.0
+  description: >-
+    Session-continuity handoff persistence and retrieval. Spec lines 526-544,
+    1415-1419, 2027 (HTTP-12).
+paths:
+  /handoffs/write:
+    post:
+      operationId: writeHandoff
+      summary: Write a handoff document
+      description: >-
+        Spec 1386-1388: a handoff document written with list fields has the
+        lists correctly serialized as JSONB, and reading the handoff returns
+        all fields intact. Spec 537-540: writing a handoff returns success
+        with a handoff_id and the document is persisted for future sessions.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.session-continuity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Handoff persisted with list fields intact (spec 1387-1388)}
+  /handoffs/read:
+    post:
+      operationId: readHandoff
+      summary: Read previous handoff documents
+      description: >-
+        Spec 1996 (HTTP-12): returns previous handoff documents for session
+        continuity. Spec 541-544: returns the most recent handoff documents
+        matching the criteria, ordered by creation time descending.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.session-continuity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                agent_name: {type: string}
+                limit: {type: integer}
+      responses:
+        "200": {description: Most recent matching handoffs, newest first (spec 542-544)}
+        "401": {description: Missing or invalid X-API-Key}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

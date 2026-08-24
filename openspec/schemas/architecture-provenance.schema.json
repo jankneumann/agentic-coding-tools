@@ -62,6 +62,10 @@
       },
       "uniqueItems": true
     },
+    "input_enumeration": {
+      "description": "How the relevant-input set was enumerated. 'git' honours .gitignore and is what every checkout and CI job uses; 'walk' is the degraded fallback for a source export with no .git. Compared as producer identity, since the two strategies see different file sets. Optional so provenance written before this field existed stays schema-valid — its absence is caught as a producer-identity mismatch, which names the remediation, rather than as an opaque schema error.",
+      "enum": ["git", "walk"]
+    },
     "input_fingerprint": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
@@ -129,6 +133,10 @@
             "minimum": 0
           },
           "required": {
+            "type": "boolean"
+          },
+          "carried_over": {
+            "description": "True when the recording run did not produce this artifact — promotion is a one-way merge, so a file an optional stage skipped survives in the output directory at the bytes an earlier revision wrote. The entry is still recorded (its digest keeps pinning the committed bytes); the flag is what stops the record from claiming this revision generated it. Optional so a document assembled outside a staged run, or written before this field existed, stays schema-valid — absent means 'unknown', never 'freshly generated'.",
             "type": "boolean"
           }
         }

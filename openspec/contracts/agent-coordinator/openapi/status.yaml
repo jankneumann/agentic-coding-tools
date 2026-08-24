@@ -1,0 +1,58 @@
+# agent-coordinator status contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Status reporting"
+  version: 1.0.0
+  description: >-
+    Phase status reports and agent status listing. Spec lines 1555, 2814-2831.
+paths:
+  /status/report:
+    post:
+      operationId: reportStatus
+      summary: Report an agent's phase status
+      description: >-
+        Spec 1555: emits coordinator_status events (phase transitions,
+        escalations, completion signals). Spec 2824-2827: a report with
+        agent_id, change_id, phase, and phase_archetype returns 200 and the
+        archetype is persisted. Spec 2814, 2831: phase_archetype is optional —
+        omitting it does not cause 400; older clients remain compatible.
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_id, phase]
+              properties:
+                agent_id: {type: string}
+                change_id: {type: string}
+                phase: {type: string}
+                phase_archetype:
+                  type: [string, "null"]
+                  description: Optional (spec 2814); persisted when non-null (spec 2826-2828)
+      responses:
+        "200": {description: Report accepted and persisted (spec 2826-2827)}
+  /status/agents:
+    get:
+      operationId: listAgentStatus
+      summary: List agents' current-phase summaries
+      description: >-
+        Spec 2816, 2828: exposes phase_archetype as part of each agent's
+        current-phase summary; after a report with an archetype, this listing
+        returns it for that agent.
+      responses:
+        "200": {description: Agent current-phase summaries with phase_archetype (spec 2816)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

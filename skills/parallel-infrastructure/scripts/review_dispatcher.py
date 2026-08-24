@@ -40,8 +40,88 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Canonical review-findings schema access (single source of truth). Imported
+# lazily so the dispatcher still imports in environments that vendor only this
+# file, and located by file path when the scripts dir is not on sys.path.
+# ---------------------------------------------------------------------------
+
+def _schema_mod() -> Any:
+    """Return the ``review_findings_schema`` module, or ``None`` if absent."""
+    try:
+        import review_findings_schema  # type: ignore[import-untyped]
+
+        return review_findings_schema
+    except ImportError:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "review_findings_schema",
+            Path(__file__).parent / "review_findings_schema.py",
+        )
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            try:
+                spec.loader.exec_module(mod)  # type: ignore[union-attr]
+                return mod
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("review_findings_schema load failed: %s", exc)
+                return None
+        return None
+
+
+def _validate_findings_or_error(
+    findings: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Validate parsed vendor findings against the canonical schema.
+
+    Returns ``(findings, None)`` when valid (or when validation is
+    unavailable), and ``(None, error)`` when the findings violate the schema —
+    so a drifted finding fails loudly here rather than flowing downstream into
+    the consensus synthesizer as if it conformed.
+    """
+    if findings is None:
+        return None, None
+    mod = _schema_mod()
+    if mod is None:
+        # The canonical schema module is what makes this check meaningful.
+        # Returning the payload as valid here would report success for findings
+        # nothing ever inspected — the false-consensus failure ri-14 exists to
+        # prevent — so an unloadable module fails the dispatch instead.
+        msg = (
+            "review-findings schema module could not be loaded; refusing to "
+            "accept unvalidated findings (expected review_findings_schema.py "
+            f"beside {Path(__file__).name})"
+        )
+        print(f"[ERROR] {msg}", file=sys.stderr)
+        return None, msg
+    try:
+        errors = mod.validate_findings_payload(findings)
+    except Exception as exc:  # noqa: BLE001 — surfaced, never swallowed
+        # Includes ValidationUnavailableError (jsonschema missing) and a
+        # missing/malformed canonical schema file. Every one of those means the
+        # contract could not be checked, which is not the same as it holding.
+        msg = f"review-findings validation could not run: {exc}"
+        print(f"[ERROR] {msg}", file=sys.stderr)
+        return None, msg
+    if errors:
+        detail = "; ".join(errors[:5])
+        msg = f"Findings failed review-findings schema validation: {detail}"
+        print(f"[WARN] {msg}", file=sys.stderr)
+        return None, msg
+    return findings, None
+
+
+# ---------------------------------------------------------------------------
 # Error classification
 # ---------------------------------------------------------------------------
+
+class SchemaInjectionError(RuntimeError):
+    """Raised when the canonical review-findings schema cannot be injected.
+
+    A configuration fault, not a vendor fault: agents.yaml asked for the
+    schema sentinel and the schema could not be resolved to fill it.
+    """
+
 
 class ErrorClass(str, Enum):
     """Classification of vendor subprocess errors."""
@@ -49,12 +129,23 @@ class ErrorClass(str, Enum):
     CAPACITY = "capacity_exhausted"
     AUTH = "auth_required"
     TRANSIENT = "transient"
+    UNAVAILABLE = "vendor_unavailable"
     UNKNOWN = "unknown"
 
 
 _CAPACITY_PATTERNS = ["429", "resource_exhausted", "capacity", "rate limit", "rate_limit"]
 _AUTH_PATTERNS = ["401", "unauthenticated", "token expired", "login required", "unauthorized"]
 _TRANSIENT_PATTERNS = ["500", "503", "unavailable", "internal server error"]
+_UNAVAILABLE_PATTERNS = [
+    "insufficient credits",
+    "insufficient_credits",
+    "payment required",
+    "payment_required",
+    "insufficient_quota",
+]
+# HTTP 402 as a standalone token — not part of a larger number ("8,402 items")
+# or an identifier ("v402").
+_UNAVAILABLE_402_RE = re.compile(r"(?<![\d,.\w])402(?![\d\w])")
 
 # Re-login command per CLI binary, keyed by ``cli.command`` (E4). Only harnesses
 # with a real ``<cmd> login`` subcommand appear here.
@@ -90,9 +181,41 @@ def _relogin_hint(command: str) -> str:
     return f"{command} login"
 
 
-def classify_error(stderr: str) -> ErrorClass:
-    """Classify a vendor error from stderr text."""
-    lower = stderr.lower()
+# ---------------------------------------------------------------------------
+# Degraded-gate reporting (OpenSpec introduce-fitness-function-gates, D6)
+# ---------------------------------------------------------------------------
+
+# Cross-vendor review needs at least two vendors. One vendor is a single
+# opinion, not a convergence. Falling below this is a documented fail-open
+# path, so it must announce itself rather than passing silently.
+MIN_REVIEW_VENDORS = 2
+
+DEGRADED_STATUS = "DEGRADED"
+
+
+def report_degraded(what_was_not_checked: str) -> str:
+    """Emit a DEGRADED line naming what was not checked and why.
+
+    Returns the emitted line so callers can also record it in a report. Written
+    to stderr so it survives callers that parse stdout as JSON.
+    """
+    line = f"{DEGRADED_STATUS}: {what_was_not_checked}"
+    print(line, file=sys.stderr, flush=True)
+    return line
+
+
+def classify_error(text: str) -> ErrorClass:
+    """Classify a vendor error from its output text.
+
+    Accepts stderr OR stdout — some CLIs (pi) exit 0 with the provider's
+    error body on stdout (issue #383), so classification cannot assume the
+    text arrived on stderr. UNAVAILABLE is checked first: a billing body
+    ("Insufficient credits … upgrade your limit") contains words that would
+    otherwise false-positive the capacity patterns.
+    """
+    lower = text.lower()
+    if any(p in lower for p in _UNAVAILABLE_PATTERNS) or _UNAVAILABLE_402_RE.search(lower):
+        return ErrorClass.UNAVAILABLE
     if any(p in lower for p in _AUTH_PATTERNS):
         return ErrorClass.AUTH
     if any(p in lower for p in _CAPACITY_PATTERNS):
@@ -145,6 +268,10 @@ class CliConfig:
     # antigravity ignores stdin and a trailing positional — the prompt must be
     # the value of ``--prompt``/``-p``.
     prompt_via_flag: str | None = None
+    # Env var the CLI resolves its provider credential from (pi:
+    # OPENROUTER_API_KEY). A present binary with this var unset cannot serve
+    # a request — can_dispatch() fails closed on it (issue #383).
+    api_key_env: str = ""
 
 
 @dataclass
@@ -210,10 +337,56 @@ class CliVendorAdapter:
         self.transport = transport
 
     def can_dispatch(self, mode: str) -> bool:
-        """Check if this adapter can dispatch the given mode."""
+        """Check if this adapter can dispatch the given mode.
+
+        A binary on PATH is not enough when the config declares a required
+        credential env var: pi with OPENROUTER_API_KEY unset cannot serve a
+        single request, so it must not count as available (issue #383).
+        """
         if mode not in self.cli_config.dispatch_modes:
             return False
-        return shutil.which(self.cli_config.command) is not None
+        if shutil.which(self.cli_config.command) is None:
+            return False
+        if self.cli_config.api_key_env and not os.environ.get(self.cli_config.api_key_env):
+            return False
+        return True
+
+    def _resolve_args(self, args: list[str]) -> list[str]:
+        """Expand config placeholders in a mode's args.
+
+        The grok schema sentinel (``@review-findings-schema``) is replaced with
+        the schema derived from the canonical ``review-findings.schema.json``.
+        This is what keeps agents.yaml from carrying a hand-copied — and
+        drift-prone — ``--json-schema`` blob: the schema is injected here from
+        the single canonical file at dispatch time.
+
+        Raises :class:`SchemaInjectionError` when the schema cannot be resolved.
+        Dropping ``--json-schema`` and dispatching anyway used to look like
+        graceful degradation, but grok only populates ``structuredOutput`` when
+        that flag is present (see the agents.yaml comment on the review mode) —
+        so the "degraded" path reliably produced output the dispatcher then
+        rejected as invalid JSON, while the real cause (an unresolvable
+        canonical schema) appeared only as a warning. Failing here names the
+        actual problem.
+        """
+        mod = _schema_mod()
+        sentinel = getattr(mod, "GROK_SCHEMA_SENTINEL", "@review-findings-schema")
+        if sentinel not in args:
+            return list(args)
+
+        if mod is None:
+            raise SchemaInjectionError(
+                "review_findings_schema module could not be loaded, so the "
+                f"{sentinel!r} placeholder in agents.yaml cannot be resolved"
+            )
+        try:
+            schema_arg = mod.grok_schema_arg()
+        except Exception as exc:  # noqa: BLE001 — re-raised with context
+            raise SchemaInjectionError(
+                f"could not derive the canonical review-findings schema: {exc}"
+            ) from exc
+
+        return [schema_arg if arg == sentinel else arg for arg in args]
 
     def build_command(
         self,
@@ -230,7 +403,7 @@ class CliVendorAdapter:
         trailing positional nor sent via stdin.
         """
         mode_config = self.cli_config.dispatch_modes[mode]
-        cmd = [self.cli_config.command, *mode_config.args]
+        cmd = [self.cli_config.command, *self._resolve_args(mode_config.args)]
         effective_model = model or self.cli_config.model
         if effective_model:
             cmd.extend([self.cli_config.model_flag, effective_model])
@@ -271,7 +444,21 @@ class CliVendorAdapter:
             model_name = model or "(default)"
             models_attempted.append(model_name)
 
-            cmd = self.build_command(mode, prompt, model)
+            try:
+                cmd = self.build_command(mode, prompt, model)
+            except SchemaInjectionError as exc:
+                # Fail this vendor, not the whole panel: the other vendors'
+                # dispatches are independent and a partial panel beats none.
+                # Retrying the fallback models would not help — schema
+                # resolution is model-independent.
+                return ReviewResult(
+                    vendor=self.vendor,
+                    success=False,
+                    models_attempted=models_attempted,
+                    elapsed_seconds=time.monotonic() - dispatch_start,
+                    error=f"Schema injection failed: {exc}",
+                    error_class=ErrorClass.UNKNOWN,
+                )
             stdin_text = prompt if self.cli_config.prompt_via_stdin else None
             start = time.monotonic()
 
@@ -287,28 +474,72 @@ class CliVendorAdapter:
                 elapsed = time.monotonic() - start
 
                 if result.returncode == 0:
-                    # Try to parse JSON from stdout
+                    # Try to parse JSON from stdout, then validate against the
+                    # canonical review-findings schema so a drifted finding
+                    # fails here instead of silently reaching consensus.
                     findings = self._parse_findings(result.stdout)
-                    return ReviewResult(
-                        vendor=self.vendor,
-                        success=findings is not None,
-                        findings=findings,
-                        model_used=model_name,
-                        models_attempted=models_attempted,
-                        elapsed_seconds=elapsed,
-                        error=None if findings else "Invalid JSON output",
+                    if findings is not None:
+                        findings, schema_error = _validate_findings_or_error(findings)
+                        return ReviewResult(
+                            vendor=self.vendor,
+                            success=findings is not None,
+                            findings=findings,
+                            model_used=model_name,
+                            models_attempted=models_attempted,
+                            elapsed_seconds=elapsed,
+                            error=schema_error,
+                        )
+                    # Exit 0 but no findings. Some CLIs (pi, issue #383) exit 0
+                    # when the provider refused the request, with the error body
+                    # on stdout — classify the raw output before treating this
+                    # as a format failure, and always carry an excerpt so the
+                    # raw output is never silently discarded.
+                    raw = "\n".join(
+                        part for part in (result.stdout.strip(), result.stderr.strip()) if part
                     )
+                    excerpt = raw[:500]
+                    zero_exit_class = classify_error(raw)
+                    if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE):
+                        last_error = excerpt
+                        last_error_class = zero_exit_class
+                    elif zero_exit_class == ErrorClass.CAPACITY:
+                        logger.info(
+                            "%s model %s reported capacity exhaustion on stdout, "
+                            "trying fallback",
+                            self.vendor, model_name,
+                        )
+                        last_error = excerpt
+                        last_error_class = zero_exit_class
+                        continue
+                    else:
+                        return ReviewResult(
+                            vendor=self.vendor,
+                            success=False,
+                            model_used=model_name,
+                            models_attempted=models_attempted,
+                            elapsed_seconds=elapsed,
+                            error=f"Invalid JSON output: {excerpt}" if excerpt
+                            else "Invalid JSON output (empty stdout)",
+                        )
+                else:
+                    # Non-zero exit — classify error
+                    last_error = result.stderr
+                    last_error_class = classify_error(result.stderr)
 
-                # Non-zero exit — classify error
-                last_error = result.stderr
-                last_error_class = classify_error(result.stderr)
-
-                if last_error_class == ErrorClass.AUTH:
-                    # Auth errors can't be fixed by model fallback
+                if last_error_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE):
+                    # Neither auth nor billing/entitlement errors can be fixed
+                    # by model fallback — they are account-scoped.
                     relogin = _relogin_hint(self.cli_config.command)
+                    if last_error_class == ErrorClass.AUTH:
+                        summary = f"Auth expired. Run: {relogin}"
+                    else:
+                        summary = (
+                            f"Vendor unavailable (billing/credits): "
+                            f"{last_error[:500] if last_error else 'no error output'}"
+                        )
                     msg = (
-                        f"[WARN] {self.vendor} review failed: auth expired.\n"
-                        f"       Run: {relogin}"
+                        f"[WARN] {self.vendor} review failed: "
+                        f"{last_error_class.value}.\n       {summary}"
                     )
                     print(msg, file=sys.stderr)
                     return ReviewResult(
@@ -316,8 +547,8 @@ class CliVendorAdapter:
                         success=False,
                         models_attempted=models_attempted,
                         elapsed_seconds=time.monotonic() - start,
-                        error=f"Auth expired. Run: {relogin}",
-                        error_class=ErrorClass.AUTH,
+                        error=summary,
+                        error_class=last_error_class,
                     )
 
                 if last_error_class == ErrorClass.CAPACITY:
@@ -513,7 +744,19 @@ class CliVendorAdapter:
             model_name = model or "(default)"
             models_attempted.append(model_name)
 
-            cmd = self.build_command(mode, prompt, model)
+            try:
+                cmd = self.build_command(mode, prompt, model)
+            except SchemaInjectionError as exc:
+                # Same posture as the sync path: fail this vendor loudly rather
+                # than submitting a schema-less async task whose result would
+                # be unparseable for a reason the logs never name.
+                return ReviewResult(
+                    vendor=self.vendor,
+                    success=False,
+                    models_attempted=models_attempted,
+                    error=f"Schema injection failed: {exc}",
+                    error_class=ErrorClass.UNKNOWN,
+                )
             stdin_text = prompt if self.cli_config.prompt_via_stdin else None
             start = time.monotonic()
 
@@ -667,14 +910,19 @@ class CliVendorAdapter:
                 )
 
             if success_re.search(combined):
-                # Task completed — try to extract findings from output
+                # Task completed — try to extract findings from output, then
+                # validate against the canonical review-findings schema.
                 findings = self._parse_findings(result.stdout)
+                parse_error = (
+                    None if findings else "Task completed but no findings JSON in output"
+                )
+                findings, schema_error = _validate_findings_or_error(findings)
                 return ReviewResult(
                     vendor=self.vendor,
                     success=findings is not None,
                     findings=findings,
                     elapsed_seconds=time.monotonic() - start,
-                    error=None if findings else "Task completed but no findings JSON in output",
+                    error=schema_error or parse_error,
                     task_id=task_id,
                 )
 
@@ -767,6 +1015,8 @@ class SdkVendorAdapter:
                     api_key=api_key,
                     timeout=timeout_seconds,
                 )
+                parse_error = None if findings else "Invalid JSON in SDK response"
+                findings, schema_error = _validate_findings_or_error(findings)
                 return ReviewResult(
                     vendor=self.vendor,
                     success=findings is not None,
@@ -774,7 +1024,7 @@ class SdkVendorAdapter:
                     model_used=model,
                     models_attempted=models_attempted,
                     elapsed_seconds=time.monotonic() - dispatch_start,
-                    error=None if findings else "Invalid JSON in SDK response",
+                    error=schema_error or parse_error,
                 )
             except _SdkCapacityError:
                 logger.info(
@@ -1215,6 +1465,7 @@ class ReviewOrchestrator:
                         model_fallbacks=cli.get("model_fallbacks", []),
                         prompt_via_stdin=cli.get("prompt_via_stdin", False),
                         prompt_via_flag=cli.get("prompt_via_flag"),
+                        api_key_env=cli.get("api_key_env") or "",
                     ),
                     transport=agent.get("transport", "mcp"),
                 )
@@ -1425,11 +1676,12 @@ class ReviewOrchestrator:
         reviewers: list[ReviewerInfo] = []
 
         for vendor in sorted(all_vendors):
-            # Tier 1: Local CLI
+            # Tier 1: Local CLI. can_dispatch() checks mode + PATH + declared
+            # credential env — a pi binary without OPENROUTER_API_KEY must not
+            # be reported available (issue #383).
             if vendor in cli_by_vendor:
                 agent_id, cli_adapter = cli_by_vendor[vendor]
-                cli_available = shutil.which(cli_adapter.cli_config.command) is not None
-                if cli_available:
+                if cli_adapter.can_dispatch(dispatch_mode):
                     logger.info("Tier 1 (CLI) selected for %s: %s", vendor, agent_id)
                     reviewers.append(ReviewerInfo(
                         vendor=vendor,
@@ -1497,7 +1749,20 @@ class ReviewOrchestrator:
 
         if not available:
             logger.warning("No vendors available for review dispatch")
+            report_degraded(
+                f"{review_type} review NOT CHECKED — no vendor is dispatchable "
+                f"(no CLI on PATH and no SDK key); zero reviews were run.",
+            )
             return []
+
+        if len({r.vendor for r in available}) < MIN_REVIEW_VENDORS:
+            report_degraded(
+                f"Cross-vendor {review_type} review NOT CHECKED — only "
+                f"{len({r.vendor for r in available})} of {MIN_REVIEW_VENDORS} "
+                f"required vendors dispatchable "
+                f"({', '.join(sorted({r.vendor for r in available}))}); findings "
+                f"are a single vendor's opinion with no consensus cross-check.",
+            )
 
         api_key_resolver = ApiKeyResolver()
         results: list[ReviewResult] = []
@@ -1673,6 +1938,10 @@ def _check_vendors(
             f"check-vendors: unable to resolve vendor roster ({exc})",
             file=sys.stderr,
         )
+        report_degraded(
+            f"Vendor availability NOT CHECKED — the roster could not be "
+            f"resolved ({exc}); multi-vendor review is unavailable.",
+        )
         return CHECK_VENDORS_BELOW_QUORUM
 
     names = sorted({r.vendor for r in reviewers})
@@ -1687,6 +1956,12 @@ def _check_vendors(
             f"check-vendors: below quorum ({len(names)} < {min_vendors}) — "
             f"multi-vendor review unavailable",
             file=sys.stderr,
+        )
+        report_degraded(
+            f"Cross-vendor review NOT CHECKED — only {len(names)} of "
+            f"{min_vendors} required vendors dispatchable "
+            f"({', '.join(names) or 'none'}); the review either does not run "
+            f"or produces a single vendor's unreviewed opinion.",
         )
         return CHECK_VENDORS_BELOW_QUORUM
     return 0
@@ -1898,6 +2173,14 @@ def main() -> int:
 
     succeeded = sum(1 for r in results if r.success)
     print(f"Results: {succeeded}/{len(results)} vendors succeeded")
+    if 0 < succeeded < MIN_REVIEW_VENDORS:
+        report_degraded(
+            f"Cross-vendor {args.review_type} review NOT CHECKED — only "
+            f"{succeeded} of {MIN_REVIEW_VENDORS} required vendors returned "
+            f"findings; consensus could not be computed, so these findings are "
+            f"a single vendor's opinion. Record this phase as {DEGRADED_STATUS} "
+            f"in validation-report.md.",
+        )
     return 0 if succeeded > 0 else 1
 
 

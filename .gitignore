@@ -137,6 +137,12 @@ celerybeat.pid
 # Environments
 .env
 .env.cloud
+# Per-host coordinator env files written by scripts/add_agent_keys.py
+# (.env.gx10, .env.<label>, ...) — these carry live API key material.
+.env.*
+!.env.example
+# Generated `railway variable set` scripts — also live key material.
+.railway-vars.*.sh
 .envrc
 .venv
 env/
@@ -275,3 +281,7 @@ skills/merge-pull-requests/scripts/docs/
 # the refresh operation (embeds operation id + created-at). Kept out of the
 # tracked tree so a repeat refresh at the same revision produces no repo diff.
 .git-context/
+
+# Scoped flow-validation output. The full-scope architecture.diagnostics.json is
+# committed; scoped runs (validate-feature) write here so they cannot clobber it.
+docs/architecture-analysis/architecture.diagnostics.scoped.json

@@ -20,6 +20,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -32,12 +33,25 @@ if str(_RUNTIME_DIR) not in sys.path:
 
 from models import (  # type: ignore[import-untyped]
     ROADMAP_SCHEMA,
+    ItemStatus,
     Roadmap,
+    is_valid_item_ref,
+    load_all_roadmaps_strict,
+    parse_item_ref,
     validate_against_schema,
 )
 
+# change_id safety is defined next to the derivation that produces it, so the
+# validator and the scaffolder can never disagree about what is a legal id.
+from scaffolder import validate_change_id  # noqa: E402
+
 # Heading pattern: captures level (number of #) and text
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
+
+#: Statuses in which an item has *ceded* its change_id rather than claiming it.
+#: `skipped` and `superseded` are how a roadmap hands a change to another
+#: roadmap's item, so the duplicate-change_id check must not count them.
+_CEDED_STATUSES = frozenset({ItemStatus.SKIPPED, ItemStatus.SUPERSEDED})
 
 
 # ---------------------------------------------------------------------------
@@ -78,9 +92,15 @@ def validate_roadmap(data: dict, repo_root: Path) -> list[str]:
 
     1. JSON-schema conformance (``roadmap.schema.json``).
     2. ``item_id`` uniqueness.
-    3. ``depends_on`` referential integrity (every referenced id exists; no
+    3. ``change_id`` uniqueness among items that declare one.
+    4. ``depends_on`` referential integrity (every referenced id exists; no
        self-dependency).
-    4. DAG acyclicity.
+    5. DAG acyclicity.
+
+    ``change_id`` presence is deliberately *not* required: several roadmaps
+    predate the field and would fail retroactively. ``plan-roadmap`` populates
+    it via ``scaffolder.populate_change_ids`` before saving; this check only
+    catches two items claiming the same change directory.
 
     Args:
         data: Parsed roadmap mapping (e.g. ``yaml.safe_load(...)``).
@@ -118,7 +138,28 @@ def validate_roadmap(data: dict, repo_root: Path) -> list[str]:
     for item_id in sorted(dupes):
         errors.append(f"Duplicate item_id {item_id!r} — every item_id must be unique.")
 
-    # 3. depends_on referential integrity
+    # 3. change_id safety and uniqueness (only among items that declare one —
+    #    presence is optional so pre-existing roadmaps without the field stay
+    #    valid). Safety is checked here so a malformed id is rejected at
+    #    validation time rather than when it reaches the filesystem.
+    change_seen: dict[str, str] = {}
+    for item in roadmap.items:
+        if not item.change_id:
+            continue
+        id_error = validate_change_id(item.change_id)
+        if id_error:
+            errors.append(f"Item {item.item_id!r}: {id_error}")
+            continue
+        if item.change_id in change_seen:
+            errors.append(
+                f"Item {item.item_id!r} and {change_seen[item.change_id]!r} both "
+                f"declare change_id {item.change_id!r} — two items cannot share a "
+                f"change directory."
+            )
+        else:
+            change_seen[item.change_id] = item.item_id
+
+    # 4. depends_on referential integrity
     id_set = set(ids)
     for item in roadmap.items:
         for dep in item.depends_on:
@@ -128,6 +169,25 @@ def validate_roadmap(data: dict, repo_root: Path) -> list[str]:
                 errors.append(
                     f"Item {item.item_id!r} depends on {dep!r}, which is not a "
                     f"declared item_id."
+                )
+
+    # 3b. Cross-roadmap edge grammar. Resolution across workspaces is a
+    #     repo-wide concern (see validate_cross_roadmap); here we only enforce
+    #     that each external_depends_on / superseded_by entry is a well-formed
+    #     '<roadmap-id>:<item-id>' item_ref, which is single-roadmap-local and
+    #     needs no filesystem scan.
+    for item in roadmap.items:
+        for ref in item.external_depends_on:
+            if not is_valid_item_ref(ref):
+                errors.append(
+                    f"Item {item.item_id!r} has malformed external_depends_on "
+                    f"ref {ref!r} — expected '<roadmap-id>:<item-id>'."
+                )
+        for ref in item.superseded_by:
+            if not is_valid_item_ref(ref):
+                errors.append(
+                    f"Item {item.item_id!r} has malformed superseded_by "
+                    f"ref {ref!r} — expected '<roadmap-id>:<item-id>'."
                 )
 
     # 4. DAG acyclicity (only meaningful once references resolve)
@@ -148,6 +208,199 @@ def validate_roadmap(data: dict, repo_root: Path) -> list[str]:
             )
 
     return errors
+
+
+# ---------------------------------------------------------------------------
+# Repo-wide cross-roadmap validation
+# ---------------------------------------------------------------------------
+def validate_cross_roadmap(repo_root: Path) -> list[str]:
+    """Validate cross-roadmap invariants over ALL roadmap workspaces.
+
+    Scans every ``openspec/roadmaps/*/roadmap.yaml`` under ``repo_root`` and
+    checks the things a single-roadmap validation cannot see:
+
+    1. ``external_depends_on`` / ``superseded_by`` item_refs resolve — the
+       referenced ``<roadmap-id>`` exists among the loaded roadmaps and the
+       ``<item-id>`` exists within it. Unresolvable refs fail.
+    2. No ``external_depends_on`` ref points at a ``superseded`` item.
+       ``superseded`` is terminal and is NOT ``completed``, so readiness
+       withholds the dependent forever — silently, since a non-ready item just
+       does not appear in ``ready_items()``. The edge has to be repointed at
+       the successor; this turns the permanent stall into a loud failure at the
+       moment the supersession is recorded.
+    3. Repo-wide acyclicity across the combined edge set: in-roadmap
+       ``depends_on`` edges plus fully-qualified ``external_depends_on`` edges,
+       treated as one global graph over ``<roadmap-id>:<item-id>`` nodes.
+    4. No ``change_id`` is claimed by two different roadmaps.
+
+    Read-only and side-effect-free. Returns a list of human-readable error
+    messages (empty = valid).
+    """
+    # Strict load: a roadmap that silently fails to parse, or a duplicated
+    # roadmap_id that silently overwrites another, would make every check below
+    # fail open — refs into the dropped workspace, cycles through it, and
+    # change_ids it claims all become invisible. Report those first.
+    roadmaps, errors = load_all_roadmaps_strict(repo_root)
+
+    # Global node set: every fully-qualified item_ref that exists, plus the
+    # item behind each ref (check 1b needs the target's status and its
+    # superseded_by edge, not just its existence).
+    items_by_ref: dict[str, Any] = {}
+    for roadmap_id, roadmap in roadmaps.items():
+        for item in roadmap.items:
+            items_by_ref[f"{roadmap_id}:{item.item_id}"] = item
+    node_ids: set[str] = set(items_by_ref)
+
+    # 1. External ref resolution (external_depends_on + superseded_by).
+    for roadmap_id, roadmap in sorted(roadmaps.items()):
+        for item in roadmap.items:
+            for field_name in ("external_depends_on", "superseded_by"):
+                for ref in getattr(item, field_name):
+                    if not is_valid_item_ref(ref):
+                        errors.append(
+                            f"{roadmap_id}:{item.item_id} has malformed "
+                            f"{field_name} ref {ref!r} — expected "
+                            f"'<roadmap-id>:<item-id>'."
+                        )
+                        continue
+                    target_roadmap, _ = parse_item_ref(ref)
+                    if target_roadmap not in roadmaps:
+                        errors.append(
+                            f"{roadmap_id}:{item.item_id} {field_name} ref "
+                            f"{ref!r} points at unknown roadmap "
+                            f"{target_roadmap!r}."
+                        )
+                    elif ref not in node_ids:
+                        errors.append(
+                            f"{roadmap_id}:{item.item_id} {field_name} ref "
+                            f"{ref!r} does not resolve to a declared item."
+                        )
+
+    # 1b. No external_depends_on may point at a superseded item.
+    #
+    #     `superseded` is terminal (ri-17) and is not `completed`, so
+    #     `completed_external_refs` never contains the target and
+    #     `Roadmap.ready_items` withholds the dependent on every run — forever,
+    #     and silently, because a non-ready item is simply absent from the
+    #     returned list. Blocking is the right semantics (the work moved), but
+    #     it has to be said out loud, with the successor named, so the operator
+    #     can repoint the edge instead of watching an item never come up.
+    for roadmap_id, roadmap in sorted(roadmaps.items()):
+        for item in roadmap.items:
+            for ref in item.external_depends_on:
+                target = items_by_ref.get(ref)
+                if target is None:
+                    continue  # unresolvable — already reported above
+                if target.status.value != ItemStatus.SUPERSEDED.value:
+                    continue
+                successors = list(target.superseded_by)
+                remedy = (
+                    f"repoint it at {', '.join(successors)}"
+                    if successors
+                    else (
+                        "record the successor in that item's superseded_by "
+                        "edge and repoint this dependency at it"
+                    )
+                )
+                errors.append(
+                    f"{roadmap_id}:{item.item_id} external_depends_on ref "
+                    f"{ref!r} points at a superseded item, which can never "
+                    f"become completed — {roadmap_id}:{item.item_id} would "
+                    f"stay non-ready forever. Fix: {remedy}."
+                )
+
+    # 2. Repo-wide acyclicity over depends_on + external_depends_on edges.
+    #    Only build edges to nodes that exist so an unresolved ref surfaces as a
+    #    resolution error above, not confusing cycle noise.
+    adjacency: dict[str, list[str]] = {}
+    for roadmap_id, roadmap in roadmaps.items():
+        for item in roadmap.items:
+            node = f"{roadmap_id}:{item.item_id}"
+            neighbors: list[str] = []
+            for dep in item.depends_on:
+                dep_ref = f"{roadmap_id}:{dep}"
+                if dep_ref in node_ids:
+                    neighbors.append(dep_ref)
+            for ref in item.external_depends_on:
+                if is_valid_item_ref(ref) and ref in node_ids:
+                    neighbors.append(ref)
+            adjacency[node] = neighbors
+
+    cycle = _find_global_cycle(adjacency)
+    if cycle:
+        errors.append(
+            "Cross-roadmap dependency cycle detected across combined "
+            "depends_on + external_depends_on edges: " + " -> ".join(cycle)
+        )
+
+    # 3. Duplicate change_id — both across roadmaps and within one.
+    #    A change_id names exactly one OpenSpec change directory, so two items
+    #    claiming it means one change's completion silently satisfies both. The
+    #    intra-roadmap case is checked here rather than in validate_roadmap
+    #    because both cases have the same cause and the same fix, and a
+    #    per-roadmap check would report the cross-roadmap case twice.
+    #
+    #    An item in a ceded state does NOT claim its change_id: `skipped` and
+    #    `superseded` are precisely how a roadmap hands ownership to another
+    #    roadmap's item, so counting them would make ceding impossible and leave
+    #    the duplicate permanently unresolvable. (Found in practice: the
+    #    repo-improvement roadmap skipped four router changes to cede them to
+    #    dispatch-governance, and this check still reported the collision.)
+    change_owners: dict[str, list[str]] = {}
+    for roadmap_id, roadmap in sorted(roadmaps.items()):
+        seen_here: dict[str, str] = {}
+        for item in roadmap.items:
+            if not item.change_id:
+                continue
+            if item.status in _CEDED_STATUSES:
+                continue
+            if item.change_id in seen_here:
+                errors.append(
+                    f"change_id {item.change_id!r} is claimed twice within "
+                    f"roadmap {roadmap_id!r}: by items "
+                    f"{seen_here[item.change_id]!r} and {item.item_id!r}."
+                )
+                continue
+            seen_here[item.change_id] = item.item_id
+            change_owners.setdefault(item.change_id, []).append(roadmap_id)
+    for change_id, owners in sorted(change_owners.items()):
+        if len(owners) > 1:
+            errors.append(
+                f"change_id {change_id!r} is claimed by multiple roadmaps: "
+                f"{', '.join(sorted(owners))}."
+            )
+
+    return errors
+
+
+def _find_global_cycle(adjacency: dict[str, list[str]]) -> list[str] | None:
+    """Return a node path forming a cycle, or None if the graph is acyclic."""
+    WHITE, GRAY, BLACK = 0, 1, 2
+    color: dict[str, int] = {n: WHITE for n in adjacency}
+    path: list[str] = []
+
+    def _dfs(node: str) -> list[str] | None:
+        color[node] = GRAY
+        path.append(node)
+        for nxt in adjacency.get(node, []):
+            if color.get(nxt, BLACK) == GRAY:
+                # Found back-edge: slice the path from the recurrence point.
+                idx = path.index(nxt)
+                return path[idx:] + [nxt]
+            if color.get(nxt, BLACK) == WHITE:
+                found = _dfs(nxt)
+                if found:
+                    return found
+        path.pop()
+        color[node] = BLACK
+        return None
+
+    for start in adjacency:
+        if color[start] == WHITE:
+            found = _dfs(start)
+            if found:
+                return found
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +484,23 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_validate_repo(args: argparse.Namespace) -> int:
+    repo_root = (
+        Path(args.repo_root).resolve() if args.repo_root else _find_repo_root(Path.cwd())
+    )
+    errors = validate_cross_roadmap(repo_root)
+    if errors:
+        print(
+            f"INVALID: cross-roadmap validation ({len(errors)} error(s))",
+            file=sys.stderr,
+        )
+        for err in errors:
+            print(f"  - {err}", file=sys.stderr)
+        return 1
+    print("OK: cross-roadmap edges resolve, graph is acyclic, no duplicate change_id.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="decomposer",
@@ -248,6 +518,17 @@ def main(argv: list[str] | None = None) -> int:
         help="Repository root for schema resolution (default: auto-detect).",
     )
     p_validate.set_defaults(func=_cmd_validate)
+
+    p_validate_repo = sub.add_parser(
+        "validate-repo",
+        help="Validate cross-roadmap edges across all openspec/roadmaps workspaces.",
+    )
+    p_validate_repo.add_argument(
+        "--repo-root",
+        default=None,
+        help="Repository root to scan (default: auto-detect from cwd).",
+    )
+    p_validate_repo.set_defaults(func=_cmd_validate_repo)
 
     args = parser.parse_args(argv)
     return int(args.func(args))

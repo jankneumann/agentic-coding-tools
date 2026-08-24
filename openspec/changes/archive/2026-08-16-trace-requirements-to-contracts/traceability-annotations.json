@@ -1,0 +1,283 @@
+{
+  "generated": "2026-08-08T13:29:58Z",
+  "models": [
+    {
+      "label": "haiku",
+      "vendor": "claude"
+    },
+    {
+      "label": "gpt-5.6-luna",
+      "vendor": "codex"
+    }
+  ],
+  "flags": {
+    "--print-contract-version": [
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.descriptor-reclamation-is-announced",
+        "note": "Prints the published JSON Schema contract version whose stability is governed by this requirement."
+      }
+    ],
+    "--descriptor": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.interface-descriptor",
+        "note": "Flag specifies path to interface descriptor YAML that framework accepts"
+      },
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.contract-as-descriptor-source-of-truth",
+        "note": "Descriptors are derived from contracts and supplied via this path"
+      },
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.service-and-tool-descriptor-archetypes",
+        "note": "Framework loads both service and tool descriptor archetypes via this path"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.interface-descriptor",
+        "note": "Supplies the interface descriptor the framework must accept and load."
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.scenario-generation",
+        "note": "Provides the descriptor read by CLI-augmented scenario generation."
+      }
+    ],
+    "--mode": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.scenario-generation",
+        "note": "Selects one of three generation modes: template-only, cli-augmented, sdk-only"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.scenario-generation",
+        "note": "Selects among the required template-only, CLI-augmented, and SDK-only generation modes."
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.budget-management",
+        "note": "Selects the execution mode whose time or USD budget semantics apply."
+      }
+    ],
+    "--cli-command": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.scenario-generation",
+        "note": "Configures CLI tool for cli-augmented mode scenario generation"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.scenario-generation",
+        "note": "Configures the CLI tool used for CLI-augmented scenario generation."
+      }
+    ],
+    "--time-budget": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.budget-management",
+        "note": "Enforces configurable time budget in minutes for CLI-augmented mode"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.budget-management",
+        "note": "Sets the configurable wall-clock budget for CLI-augmented mode."
+      }
+    ],
+    "--sdk-budget": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.budget-management",
+        "note": "Enforces configurable USD budget cap for SDK-only mode"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.budget-management",
+        "note": "Sets the configurable USD cap for SDK-based execution."
+      }
+    ],
+    "--max-iterations": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.feedback-loop",
+        "note": "Configures iterations with feedback flowing from evaluator to next generation"
+      },
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.orchestration",
+        "note": "Orchestrator manages lifecycle with configurable gen-eval iteration count"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.feedback-loop",
+        "note": "Configures the number of generator-evaluator feedback iterations."
+      }
+    ],
+    "--parallel": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.orchestration",
+        "note": "Configures asyncio.Semaphore concurrency limit for parallel scenario execution"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.orchestration",
+        "note": "Sets the concurrency limit for parallel scenario execution."
+      }
+    ],
+    "--changed-features-ref": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.scenario-generation",
+        "note": "Enables generator to produce targeted scenarios for changed features"
+      },
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.orchestration",
+        "note": "Orchestrator detects changed features via git diff against this ref"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.scenario-generation",
+        "note": "Provides the change reference used to target scenarios at changed features."
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.orchestration",
+        "note": "Provides the Git ref used for changed-feature detection and filtering."
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.budget-management",
+        "note": "Supports progressive scope allocation beginning with changed features."
+      }
+    ],
+    "--categories": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.scenario-model",
+        "note": "Scenarios support category tags for filtering and budget allocation"
+      },
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.scenario-generation",
+        "note": "Generator accepts focus areas including categories for targeted scenario production"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.scenario-generation",
+        "note": "Selects category focus areas for targeted scenario generation."
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.scenario-model",
+        "note": "Filters scenarios using their required category metadata."
+      }
+    ],
+    "--report-format": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.orchestration",
+        "note": "Orchestrator produces structured reports in markdown, JSON, or both formats"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.orchestration",
+        "note": "Selects the structured report representation produced by the orchestrator."
+      }
+    ],
+    "--output-dir": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.orchestration",
+        "note": "Orchestrator outputs reports to specified directory"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.orchestration",
+        "note": "Configures where the orchestrator writes its reports."
+      }
+    ],
+    "--verbose": [],
+    "--no-services": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.orchestration",
+        "note": "Skips service startup and teardown in orchestrator lifecycle"
+      },
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.interface-descriptor",
+        "note": "Service lifecycle configuration is optional; flag allows bypassing it"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.interface-descriptor",
+        "note": "Configures execution when service lifecycle management is skipped or services are already running."
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.orchestration",
+        "note": "Alters the service startup and teardown portions of the orchestrated lifecycle."
+      }
+    ],
+    "--fail-threshold": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.operation-and-surface-coverage-model",
+        "note": "Framework provides configurable pass-rate threshold to exit 0"
+      }
+    ],
+    "--min-coverage": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.operation-and-surface-coverage-model",
+        "note": "Framework provides configurable coverage threshold that fails run when interface coverage falls below it"
+      },
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.dogfood",
+        "note": "Enforces minimum 80%+ interface coverage for service dogfood descriptors"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.operation-and-surface-coverage-model",
+        "note": "Sets the independent interface-coverage threshold that can fail a run."
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.orchestration",
+        "note": "Uses the reported interface coverage percentage as a gating metric."
+      }
+    ],
+    "--openspec-change": [
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.scenario-generation",
+        "note": "Change-id augments cli-augmented prompt with Requirement+Scenario blocks"
+      },
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.the-active-change-s-spec-delta-shadows-the-archived-spec",
+        "note": "Active change's spec delta takes precedence in requirement resolution"
+      },
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.validation-time-evaluation-is-scoped-to-the-change",
+        "note": "Active change must be named explicitly to gate for scoped validation"
+      },
+      {
+        "model": "haiku",
+        "requirement": "gen-eval-framework.the-full-sweep-blocks-opted-in-surfaces-and-reports-the-rest",
+        "note": "Gate derives change-id from paths and invokes sweep with --change flag"
+      },
+      {
+        "model": "gpt-5.6-luna",
+        "requirement": "gen-eval-framework.multi-source-scenario-bootstrap",
+        "note": "Supplies an OpenSpec change whose requirement and scenario blocks constrain CLI-augmented scenario generation."
+      }
+    ]
+  }
+}

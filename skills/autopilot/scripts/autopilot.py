@@ -842,6 +842,30 @@ _GATEKEEPER_OUTCOMES: frozenset[str] = frozenset(
     {"proceed", "proceed_with_review", "escalate"}
 )
 
+# Gate status for "could not be checked" (OpenSpec introduce-fitness-function-gates,
+# design decision D6). A fail-open path must be distinguishable from a real pass,
+# so every permissive fallback records a DEGRADED entry naming what was not
+# checked and why. Mirrors the DEGRADED status parsed by
+# skills/validate-feature/scripts/gate_logic.py.
+DEGRADED_STATUS = "DEGRADED"
+
+
+def record_degraded(state: LoopState, phase: str, note: str) -> None:
+    """Append a DEGRADED entry for *phase* to the state's phase history.
+
+    The note MUST say, in one line, what was not checked and why. Also emitted
+    to stderr so the degradation is visible in headless runs whose state file
+    nobody reads.
+    """
+    entry = {
+        "phase": phase,
+        "outcome": DEGRADED_STATUS,
+        "at": _now_iso(),
+        "note": note,
+    }
+    state.phase_history.append(entry)
+    print(f"[{DEGRADED_STATUS}] {phase}: {note}", file=sys.stderr)
+
 
 def _default_gate_verdict(signals: dict[str, Any]) -> str:
     """Permissive verdict from signals alone — never escalates."""
@@ -867,8 +891,21 @@ def _phase_gatekeeper(
     if gatekeeper_fn is not None:
         outcome = gatekeeper_fn(state)
     if outcome not in _GATEKEEPER_OUTCOMES:
-        # No judge, or an unrecognized verdict — degrade permissively.
+        # No judge, or an unrecognized verdict — degrade permissively, but say
+        # so out loud (D6). Failing open silently made an unjudged run
+        # indistinguishable from one the judge actually cleared.
+        reason = (
+            "no dispatch adapter available"
+            if gatekeeper_fn is None
+            else f"judge returned an unrecognized verdict {outcome!r}"
+        )
         outcome = _default_gate_verdict(state.gate_signals)
+        record_degraded(
+            state,
+            "GATEKEEPER",
+            f"Risk/verifiability judgment NOT CHECKED — {reason}; fell back to "
+            f"the permissive signal-only verdict {outcome!r}.",
+        )
 
     state.gate_verdict = outcome
     if outcome == "proceed_with_review":

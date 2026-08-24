@@ -21,18 +21,16 @@ import pytest
 SEED_SQL_PATH = (
     Path(__file__).resolve().parents[4]
     / "agent-coordinator"
-    / "supabase"
+    / "database"
     / "seed.sql"
 )
 
-# The 7 cleanable tables that must be seeded (from conftest.py _TABLES).
+# The 5 cleanable tables that must be seeded (from conftest.py _TABLES).
 REQUIRED_TABLES = {
     "agent_sessions",
     "file_locks",
     "work_queue",
     "memory_episodic",
-    "memory_working",
-    "memory_procedural",
     "handoff_documents",
 }
 
@@ -42,8 +40,6 @@ MIN_ROWS: dict[str, int] = {
     "file_locks": 1,
     "work_queue": 2,
     "memory_episodic": 1,
-    "memory_working": 1,
-    "memory_procedural": 1,
     "handoff_documents": 1,
 }
 

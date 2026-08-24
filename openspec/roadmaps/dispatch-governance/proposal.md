@@ -194,6 +194,59 @@ speculative generality, given that both candidate runtimes are explicitly pre-1.
 - Missing runtime or unsupported platform degrades to unsandboxed dispatch with a warning and an audit event
 - Adding a second runtime backend requires only a new renderer function
 
+### Capability: Egress gateway and request-time secret boundary
+
+`srt` answers "may this process open this connection?" — it cannot inspect what flows through
+an allowed one, and it leaves real vendor keys sitting in the sandbox env, which is precisely
+what this epic's stated threat (a prompt-injected agent reading credentials) goes after. This
+capability adds an egress gateway tier on top of dg-07: `render_iron_proxy_config()` is a
+second renderer behind the same `render_*` seam, turning the coordinator's network policy into
+an [iron-proxy](https://github.com/paradigmxyz/iron-proxy) configuration — default-deny domain
+allowlist, header filtering, structured per-request audit — so policy remains authored once and
+only *rendered* for the runtime.
+
+The gateway also closes the credential loop with `principal-credential-architecture` Phase 4:
+in a gateway posture the dispatch adapter injects **proxy tokens** rather than real vendor
+keys, and iron-proxy swaps in the real secret at egress, fetched under its own service
+principal (seeded by pca-02, hence the `external_depends_on` edge). The sandbox never holds
+anything worth exfiltrating. Two boundaries on that swap keep it from recreating the authority
+it removes:
+
+- **Token-scope binding.** The gateway principal can read all of `secret/vendors/*`, so the
+  proxy token — not the principal — is the authorization: per-dispatch, short-TTL,
+  audience-bound to the gateway, encoding exactly pca-04's resolved `vendor_credentials`. A
+  swap request for any vendor outside that scope is rejected with an audit event; without
+  this, a compromised agent could ask the gateway to spend any credential the principal can
+  read, recreating cross-vendor authority at one hop's remove.
+- **Inference traffic is excluded.** `add-coordinator-llm-gateway` already makes LiteLLM the
+  provider-key boundary for metered LLM dispatch — virtual keys scoped to budget, model
+  allowlist, and TTL, with inline enforcement and spend callbacks. iron-proxy performs no
+  secret swap on that traffic: the virtual key *is* the credential and passes through
+  untouched, with the LLM gateway simply an allowlisted destination. A second credential
+  path for inference would bypass budget enforcement, which is that change's entire point.
+
+Deployment is posture-gated, which is why dg-03 is a dependency. The gateway deploys only
+where the network dimension reports real interception — self-managed containers, the Sentinel
+role fleet, an OpenShell-managed netns later. It is explicitly **not** deployed DNS-only on
+the local uid (a same-uid workload can bypass the resolver, and a bypassable gateway simulates
+containment, violating the loud-degradation constraint) and **not** inside the managed cloud
+harness, whose platform proxy already terminates TLS and owns the allowlist — chaining a second
+MITM there buys two disagreeing allowlists, not defense in depth. One deliberate non-goal:
+iron-proxy's LLM-inference rerouting and judge transforms stay off in the initial rendering —
+policy stays deterministic, matching the router's own no-model-call constraint.
+
+**Acceptance Outcomes:**
+- The coordinator's network policy renders to iron-proxy configuration through the same export path dg-07 uses; no allowlist is hand-authored in gateway config
+- In a gateway posture a dispatched agent's only reachable destination is the gateway; a denied domain is blocked with a structured audit event naming the matched policy
+- A swap request for a vendor outside the presenting token's per-dispatch scope is rejected with an audit event, despite the gateway principal's broader read access (rejection test)
+- Requests to the coordinator LLM gateway pass through with their LiteLLM virtual key untouched; no secret swap occurs on inference routes
+- Local-uid and managed-cloud postures skip gateway deployment with an audit event recording why
+
+The end-to-end outcome — a dispatched subprocess whose env holds proxy tokens and no real
+vendor secret — belongs to pca-04, which owns dispatch-side injection; dg-08 deliberately
+claims only the gateway side, so its acceptance contract is attainable without pca-04 having
+shipped.
+
 ## Constraints
 
 - **Enforcement must not re-author policy.** Network policy is authored once, in the
@@ -218,6 +271,11 @@ speculative generality, given that both candidate runtimes are explicitly pre-1.
   wrapper modify the same `CliVendorAdapter` methods and must not run concurrently.
 - **Existing callers keep working.** Widening `isolation_provided` to a posture must not break
   `worktree.py` or `merge_worktrees.py`.
+- **A bypassable gateway is worse than no gateway.** The egress gateway deploys only where the
+  dg-03 posture proves the workload cannot route around it. DNS-only interception on the local
+  uid, or a second MITM inside the managed cloud harness, are explicitly rejected deployments:
+  each would report containment that does not exist, which is the silent-degradation failure
+  mode this epic forbids.
 
 ## Phases
 
@@ -236,6 +294,11 @@ context.
 **Phase 4 — Enforcement.** The dispatch wrapper turns the delivered isolation field into an
 operating-system restriction. Depends on both the decision arriving (Phase 3) and the posture
 being expressible (Phase 1).
+
+**Phase 5 — Egress boundary.** The iron-proxy renderer and gateway posture extend Phase 4's
+seam into content-level egress policy and the request-time secret boundary, in the postures
+that can support it. Coordinated with `principal-credential-architecture` Phase 4, which
+supplies the credential-scope half of the posture.
 
 ## Out of Scope
 

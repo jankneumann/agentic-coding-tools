@@ -1,0 +1,80 @@
+# agent-coordinator ports contract (task 5.1, trace-requirements-to-contracts).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# commit 4a8fc9ab. UNTRACED (D6): no operation carries x-traceability yet;
+# forward enforcement begins only when this document opts in (task 5.2).
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Port allocator (HTTP)"
+  version: 1.0.0
+  description: >-
+    HTTP access to the port allocator for cloud agents. Spec lines 770-790.
+paths:
+  /ports/allocate:
+    post:
+      operationId: allocatePorts
+      summary: Allocate ports for a session
+      description: >-
+        Spec 773-774: POST with {"session_id": ...} and a valid API key returns
+        200 with port allocation details and an env snippet. Spec 785-786:
+        without a valid API key returns 401. Spec 789-790: empty or missing
+        session_id returns 422 with a validation error.
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session_id]
+              properties:
+                session_id: {type: string}
+      responses:
+        "200": {description: Allocation details and env snippet (spec 774)}
+        "401": {description: Missing or invalid API key (spec 785-786)}
+        "422": {description: Empty or missing session_id (spec 789-790)}
+  /ports/status:
+    get:
+      operationId: getPortsStatus
+      summary: List active port allocations
+      description: >-
+        Spec 777-778: returns a list of all active allocations with session
+        IDs, ports, and remaining TTL.
+      responses:
+        "200": {description: Active allocations with session IDs, ports, TTL (spec 778)}
+  /ports/release:
+    post:
+      operationId: releasePorts
+      summary: Release a session's port allocation
+      description: >-
+        Spec 781-782: POST with {"session_id": ...} and a valid API key returns
+        200 with {success: true}.
+      security:
+        - coordinatorApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session_id]
+              properties:
+                session_id: {type: string}
+      responses:
+        "200":
+          description: Released (spec 782)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: {type: boolean}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

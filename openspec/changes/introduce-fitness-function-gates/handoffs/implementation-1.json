@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-16T01:01:12.533064+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented all five work packages of the fitness-function feedback loop via coordinated-tier dispatch. Architectural qualities are now captured as measurable targets at planning time, NFR findings survive cross-vendor consensus, architecture findings are gate-wired behind an advisory ratchet, coverage has a no-decrease baseline, and every fail-open gate reports DEGRADED. One deviation from plan: the gate's severity thresholds were moved out of health.severity_thresholds after implementation revealed a vocabulary collision with the architecture report.",
+    "completed_work": [
+      "wp-contracts: verified the three axis-enum copy sites; caught that agents.yaml:285 is the type enum (already carrying NFR values) versus the axis enum at 289.",
+      "wp-schema: 8-value axis enum across all three copies with a copy-identity test; consensus_synthesizer now parses, retains and matches on axis (61 tests).",
+      "wp-templates: NFR table in proposal template, Fitness Functions mapping in design template, discovery category 7 in plan-feature (10 tests).",
+      "wp-coverage: no-decrease ratchet, baseline seeded from real runs (coordinator 76.20%, skills 87.42%), additive non-required CI job (24 tests).",
+      "wp-gates: linters emit schema-valid findings, architecture gate ratchet, DEGRADED status with --accept-degraded override, four fail-open producers now report degradation (124 tests)."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Gate thresholds live in their own namespace, not health.severity_thresholds",
+        "rationale": "health.severity_thresholds is read by architecture_report.py grading {error,warning,info}; the gate grades {critical,major,minor}. A category written in the wrong vocabulary resolves to min_level 0 and filters nothing -- a threshold that silently does nothing, which is the exact failure this change removes. Moved to gates.architecture.severity_thresholds with a fallback read and a test that fails if gate severities reappear under health.",
+        "capability": "fitness-functions",
+        "supersedes": null
+      },
+      {
+        "title": "Linter severity derives from the criticality already implied by exit codes",
+        "rationale": "run_architecture_linters.py already mapped criticality to an exit code; reusing that rule avoided inventing a second severity policy.",
+        "capability": "fitness-functions",
+        "supersedes": null
+      },
+      {
+        "title": "DEGRADED matched by a separate pattern, legacy regex left first and unchanged",
+        "rationale": "Guarantees no validation report that parsed one way before parses differently now.",
+        "capability": "fitness-functions",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Docker-dependent phases (Deploy, Smoke, Security, E2E) run at merge time via /cleanup-feature.",
+      "After 3 clean advisory runs, flip gates.architecture.mode to blocking in a one-line PR recording date and rationale."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/validate-feature/scripts/gate_logic.py",
+        "description": "architecture ratchet + DEGRADED status"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/consensus_synthesizer.py",
+        "description": "axis-keyed consensus matching"
+      },
+      {
+        "path": "architecture.config.yaml",
+        "description": "gates.architecture section; one-line flip to blocking"
+      },
+      {
+        "path": "coverage-baseline.json",
+        "description": "measured coverage baseline for the ratchet"
+      }
+    ]
+  }
+}

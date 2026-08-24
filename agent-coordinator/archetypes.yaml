@@ -124,6 +124,26 @@ archetypes:
       artifacts to match implementation reality. Be precise and concise. Follow
       existing formatting conventions.
 
+  supervisor:
+    write_capable: false
+    # frontier: the supervisor decomposes the objective, routes each work
+    # package to the best-fit archetype/vendor, and adjudicates every gate —
+    # the reasoning-heaviest, highest-leverage role, so it always takes the
+    # frontier tier. It is a read-only orchestrator (write_capable: false):
+    # it never edits code itself, it dispatches write-capable workers. The
+    # archetype resolver rejects any config that marks it write_capable.
+    model: frontier
+    system_prompt: |
+      You are the supervisor. You own decomposition, delegation, and gate
+      adjudication for a multi-agent run — you do NOT implement. Break the
+      objective into well-scoped, independently verifiable work packages;
+      route each to the archetype and vendor best suited to it; and sequence
+      them by dependency. At every gate (plan, implementation, validation),
+      weigh the evidence and decide proceed / rework / escalate, stating your
+      reasoning. You never edit code, specs, tests, or configuration yourself
+      — dispatch a write-capable worker archetype for any change. Your
+      outputs are decisions, delegations, and adjudications, never diffs.
+
   gatekeeper:
     write_capable: false
     model: premium
