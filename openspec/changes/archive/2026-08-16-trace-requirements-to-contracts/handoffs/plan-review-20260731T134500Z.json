@@ -1,0 +1,27 @@
+{
+  "agent_name": "autopilot-plan-review",
+  "handoff_id": "plan-review-20260731T134500Z",
+  "phase": "PLAN_REVIEW",
+  "round": 2,
+  "outcome": "not_converged",
+  "provenance": "PARTIAL — the dispatched reviewer sub-agent stalled on the harness stream watchdog (no progress for 600s) after writing its findings artifact but BEFORE emitting its (outcome, handoff_id) final message. This handoff was authored by the orchestrator, not by the reviewer. The outcome was not taken on the reviewer's word: the orchestrator independently re-verified all six blocking findings at the source before recording not_converged. The two nits and the four resolved-confirmations were accepted as written and not re-verified.",
+  "summary": "Round 2 was a verification round: round 1 returned not_converged with 10 blocking findings, all claimed fixed inline at 3891089b by the plan author, with no independent corroboration. Round 2's verdict is that 4 of the 10 (B1 exclusions fail-closed, B2 cross-capability exclusions, B4 opt-in widens the touched set, B9 testpaths) are genuinely closed on every surface. Six new blocking findings replace the rest, and they share one shape: the fixes landed on design.md and tasks.md but not on specs/gen-eval-framework/spec.md, which is the only artifact that survives archive. findings_trend 10 -> 6.",
+  "blocking_findings": [
+    {"id": "C1", "title": "B5 is not closed in the spec delta", "evidence": "specs/gen-eval-framework/spec.md:500 'on every push' and :512 'The sweep runs on push, not on a schedule' — the exact rationale D12 now calls refuted. pull_request appears only in design.md:397,400,406 / tasks.md:555 / work-packages.yaml:396."},
+    {"id": "C2", "title": "The misplaced-instance rule fails the gate unconditionally on the current tree", "evidence": "openspec/contracts/code-search/v2.yaml begins 'openapi: 3.1.0' and sits at a capability root. spec.md:535-537 makes that a gate failure with no opt-in gating; task 5.7c requires --scope capability to exit zero on the merge candidate. Both cannot hold."},
+    {"id": "C3", "title": "The full sweep's effective requirement set is undefined", "evidence": "All resolution is written against 'the active change's spec delta' (spec.md:360-377); D12 (design.md:432) makes --change <id> mandatory precisely because 34 change dirs exist. Capability scope has no active change and no artifact states what it resolves against."},
+    {"id": "C4", "title": "'instance-format' is undefined and collides with D13's exclusions file", "evidence": "The only capability-root files today are code-search/README.md (must not fail) and code-search/v2.yaml (must fail). D13 puts traceability-exclusions.yaml at the same root. Any discovery rule of 'YAML at root' turns D13's opt-in switch into a permanent gate failure."},
+    {"id": "C5", "title": "work-packages claims a preflight the machinery runs last", "evidence": "work-packages.yaml:412-420 asserts the precondition is 'ENFORCED, not merely stated' via verification.steps. skills/implement-feature/SKILL.md:332 injects those steps under 'After implementation, run:' and :383 orders Phase B as code-gen -> scope check -> verification."},
+    {"id": "C6", "title": "Task 5.7c is simultaneously human and engineering", "evidence": "tasks.md:483 'Tasks 5.4-5.9 are engineering (wp-matrix and wp-wiring)'; tasks.md:589 tags 5.7c [human] (and in trailing position, unlike every other human task); work-packages.yaml:493 enumerates carve-outs as 4.1, 4.2, 4.2b, 5.1, 5.2, 5.3 — 5.7c absent. D1 forbids dispatching [human] tasks; a scheduler resolves this ambiguity by dispatching."}
+  ],
+  "non_blocking": [
+    {"id": "N1", "title": "Task 2.0 prescribes 'make context-refresh' (all four producers) where wp-model's write_allow covers only contracts-inventory.md; the narrow producer command exists."},
+    {"id": "N2", "title": "Round 1's one non-blocking finding was not fixed: the skill-workflow requirement still has no detection/SKIP path for consumer repos lacking packages/gen-eval/."}
+  ],
+  "confirmed_closed": ["B1", "B2", "B4", "B9"],
+  "artifacts": {
+    "round_2_findings": "review-findings-plan.json",
+    "round_1_findings_archived": "reviews/review-findings-plan-r1.json",
+    "round_2_prompt": "reviews/review-prompt.md"
+  }
+}

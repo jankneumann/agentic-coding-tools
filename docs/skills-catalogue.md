@@ -16,7 +16,7 @@ A discoverable index of every skill in this repo, grouped by purpose. For *how* 
 | [Feature workflow lifecycle](#feature-workflow-lifecycle) | Single-feature plan → implement → validate → cleanup | 10 |
 | [Roadmap & multi-feature orchestration](#roadmap--multi-feature-orchestration) | Decomposing roadmaps and running them autonomously | 5 |
 | [Quality & maintenance](#quality--maintenance) | Audit, simplify, fix, refresh — keeping the codebase healthy | 11 |
-| [Engineering methodology](#engineering-methodology) | Per-topic disciplines: TDD, debugging, perf, frontend, API design, deprecation, ADRs | 7 |
+| [Engineering methodology](#engineering-methodology) | Per-topic disciplines: TDD, debugging, perf, frontend, API design, deprecation, ADRs, project vision | 8 |
 | [Orchestrator-loaded methodology](#orchestrator-loaded-methodology) | Knowledge skills loaded automatically by orchestrators | 3 |
 | [PR triage & ad-hoc tasks](#pr-triage--ad-hoc-tasks) | Cross-source PR merge + small one-off work | 7 |
 | [Content authoring (Obsidian)](#content-authoring-obsidian) | Notes, canvas, bases, and markdown authoring against Obsidian vaults | 4 |
@@ -24,7 +24,7 @@ A discoverable index of every skill in this repo, grouped by purpose. For *how* 
 | [Infrastructure](#infrastructure-orchestrator-loaded) | Internal machinery used by other skills (locks, worktrees, validation) | 12 |
 | [Frontends](#frontends) | Standalone web apps: observability surfaces for the coordinator | 1 |
 
-**65 skills total.** **55 user-invocable**, 10 orchestrator-only.
+**66 skills total.** **56 user-invocable**, 10 orchestrator-only.
 
 ---
 
@@ -40,7 +40,7 @@ The canonical single-feature flow. Operator drives each gate; orchestrators chai
 | ★ `parallel-review-plan` | Independent plan review producing structured findings per `review-findings.schema.json` | `/parallel-review-plan <change-id>` |
 | ★ `implement-feature` | Execute approved proposal: TDD-first, per-package work, content-invariant tests, scope discipline | `/implement-feature <change-id>` |
 | ★ `iterate-on-implementation` | Iteratively refine a feature after implementation, before merge | `/iterate-on-implementation <change-id>` |
-| ★ `parallel-review-implementation` | Per-package implementation review (5-axis: correctness/readability/architecture/security/performance; 5-severity prefixes) | `/parallel-review-implementation <change-id>` |
+| ★ `parallel-review-implementation` | Per-package implementation review (8-axis: correctness/readability/architecture/security/performance/observability/resilience/compatibility; 5-severity prefixes) | `/parallel-review-implementation <change-id>` |
 | ★ `validate-feature` | Deploy locally, run security scans + behavioral tests, check CI/CD, verify spec compliance | `/validate-feature <change-id>` |
 | ★ `prototype-feature` | Dispatch N parallel variant agents to produce competing working skeletons from an approved proposal, score them via cheap validation, pick a winner | `/prototype-feature <change-id>` |
 | ★ `cleanup-feature` | Merge approved PR, archive proposal, staged rollout (5%→25%→50%→100% with rollback triggers), pre-launch checklist. `--post-merge` for PRs already landed by `/merge-pull-requests`. | `/cleanup-feature <change-id>` |
@@ -84,6 +84,7 @@ Per-topic horizontal disciplines. Operator-triggerable; orchestrators may also a
 | ★ `api-and-interface-design` | Hyrum's Law + contract-first + One-Version Rule + discriminated unions + branded types. TS *and* Pydantic/FastAPI examples. | `/api-and-interface-design` |
 | ★ `deprecation-and-migration` | Churn Rule + Strangler/Adapter/FF migration patterns. Includes "Deprecating in OpenSpec" section. | `/deprecation-and-migration` |
 | ★ `documentation-and-adrs` | ADR template + lifecycle (PROPOSED→ACCEPTED→SUPERSEDED). Distinguishes ADRs (timeless) from OpenSpec (time-bounded). | `/documentation-and-adrs` |
+| ★ `vision` | Evidence-mined, stress-tested `VISION.md` as a testable acceptance policy. Mines OpenSpec proposals / ADR timelines / PRs, then puts 8-12 fault-line hypotheticals to the author on a review board. Adapted from [`kunchenguid/vision`](https://github.com/kunchenguid/vision) (MIT). | `/vision` |
 
 ## Orchestrator-loaded methodology
 

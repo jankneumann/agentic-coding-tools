@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "title": "Broken candidate missing provenance and rationale",
+  "description": "This stub is intentionally malformed to prove the validator rejects it.",
+  "effort": "HUGE",
+  "priority": 0,
+  "suggested_change_id": "Fix_Stuff"
+}

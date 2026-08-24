@@ -1,0 +1,75 @@
+{
+  "handoff_id": "plan-review-20260801T152600Z",
+  "phase": "PLAN_REVIEW",
+  "iteration": 5,
+  "change_id": "trace-requirements-to-contracts",
+  "commit_under_review": "14a6c839802fb9b07fca0c9b7a59147e0c5baa37",
+  "branch": "openspec/trace-requirements-to-contracts",
+  "reviewer": "claude_code/opus-5",
+  "outcome": "not_converged",
+  "findings_file": "openspec/changes/trace-requirements-to-contracts/review-findings-plan.json",
+  "previous_findings_preserved_at": "openspec/changes/trace-requirements-to-contracts/reviews/review-findings-plan-r4.json",
+  "counts": {
+    "critical": 4,
+    "nit": 2,
+    "fyi": 1,
+    "blocking": 4
+  },
+  "findings_trend": [10, 6, 3, 1, 4],
+  "summary": "Round 4's fix commit 14a6c839 was read and tested adversarially. Its central claim holds where it was tested: the SKIP/ERROR distinction genuinely shipped in the spec delta (A2 passes), the CI work has an owner with adequate write_allow (A3 passes on ownership), and the [human] carve-out is complete and correct. But the pattern the round existed to test recurred: the round-4 fix names the base per event without bounding WHICH events the blocking job runs on, and ci.yml has THREE triggers (push/pull_request/merge_group) with not a single event-guarded job in the file. Both plausible implementations are defective - a pull_request-only guard makes the entire round-4 fix unreachable code and reopens the merge-queue hole as an absent job, while no guard at all reds main on every push because the new SHALL makes an unresolvable base a hard failure. A second consequence of the same fix went unexamined: on merge_group the diff spans every PR in the group, so the 'two change directories = ambiguous, fail' rule fails the merge queue whenever two OpenSpec changes batch. The whole-plan coherence sweep then found what four rounds of surgical fixes predicted - proposal.md still describes the pre-round-3 model and states as an ACCEPTANCE CRITERION that the integration-branch sweep blocks, contradicting D12, the spec delta, and proposal.md's own risks table; and the skill-workflow delta's 'Contract Ref SHALL NOT be populated by hand' has no owner, because the file carrying the hand-fill instruction (plan-feature's change-context.md template, which install.sh ships downstream) is in no task and in no package's write_allow. Both validators are green on all of it, which is issue #324.",
+  "blocking_findings": [
+    {
+      "id": 1,
+      "severity": "critical",
+      "title": "Which events the blocking job runs on is unspecified; ci.yml has three triggers and no job in it is event-guarded",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "499-524",
+      "fix": "State normatively in the spec delta that the blocking job runs on pull_request and merge_group and not on push, that the base is selected on github.event_name, and that any event reaching the job with no base rule is the unresolvable-base ERROR. Correct design.md:412's trigger column, tasks.md:634, and work-packages.yaml:408, all of which say pull_request only."
+    },
+    {
+      "id": 2,
+      "severity": "critical",
+      "title": "merge_group diffs span every queued PR, so the ambiguity rule fails the merge queue on any batch of two OpenSpec changes",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "517-524, 614-620",
+      "fix": "Make the ambiguity rule event-aware: on pull_request two touched change directories is ambiguity and fails; on merge_group it is the expected shape of a batch and must be evaluated per touched change (fail if any fails). Give scenario ambiguous-change-fails an explicit pull_request precondition."
+    },
+    {
+      "id": 3,
+      "severity": "critical",
+      "title": "proposal.md still says the integration-branch sweep blocks, contradicting D12, the spec delta, and its own risks table",
+      "file": "openspec/changes/trace-requirements-to-contracts/proposal.md",
+      "line_range": "64-68, 229-230, 251",
+      "fix": "Rewrite lines 64-68 for three run contexts; rewrite the acceptance outcome at 229-230 so blocking attaches to the merge candidate and the integration-branch run is reporting-only; add an acceptance outcome for the unresolvable-base ERROR."
+    },
+    {
+      "id": 4,
+      "severity": "critical",
+      "title": "The Contract Ref hand-fill instruction lives in plan-feature's change-context.md template, which no task names and no package may write",
+      "file": "openspec/changes/trace-requirements-to-contracts/work-packages.yaml",
+      "line_range": "361-364",
+      "fix": "Add skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/change-context.md to wp-matrix's write_allow and to task 5.5's note; add skills/plan-feature/ to proposal.md's in-scope list; decide explicitly on docs/parallel-agentic-development.md:186; add Spec scenarios lines to tasks 5.4 and 5.5."
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": 5,
+      "severity": "nit",
+      "title": "Scenario unresolvable-base-fails-not-skips is in no task's Spec scenarios mapping line (one-line fix on tasks.md:594)"
+    },
+    {
+      "id": 6,
+      "severity": "nit",
+      "title": "test -f test_ci_sweep_wiring.py is satisfied by touch, and the companion pytest step passes on an empty file (verified: 5 passed on the unmodified tree)"
+    }
+  ],
+  "verified_closed": [
+    "A2 - the unresolvable-base/SKIP distinction is in specs/gen-eval-framework/spec.md (prose 526-535 plus two scenarios), not only design.md. It survives archive.",
+    "A3 ownership - wp-wiring's write_allow covers .github/workflows/ci.yml, skills/tests/validate-feature/**, and skills/pyproject.toml.",
+    "The [human] carve-out matches the tags exactly: seven tagged tasks (4.1, 4.2, 4.2b, 5.1, 5.2, 5.3, 5.7c), all seven named in the work-packages comment, plus 4.3 excluded with a stated reason. No task is unowned by accident.",
+    "The SKIP paths do not collide and none makes another unreachable.",
+    "Three of four wp-wiring verification steps fail on the unmodified tree (gates-must-fail-before-work satisfied for those three).",
+    "Task 5.7b's premise verified true: tests/validate-feature is absent from skills/pyproject.toml testpaths while tests/implement-feature and tests/plan-feature are present."
+  ],
+  "notes_for_next_phase": "Findings 3, 4, and 5 are edits to prose and one write_allow entry. Findings 1 and 2 are the substantive ones and they are related: both are consequences of extending the derivation to merge_group in round 4 without asking what else changes when the blocking job runs there. Fix them together in the spec delta first, then propagate to design.md D12's table, tasks.md 5.7, and work-packages.yaml wp-wiring - the propagation, not the spec edit, is what the last three rounds each got wrong. reviews/consensus-plan.json was not consulted and should continue to be ignored."
+}

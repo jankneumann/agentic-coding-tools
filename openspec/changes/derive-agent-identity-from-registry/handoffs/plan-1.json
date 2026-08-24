@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-14T13:51:46.625365+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned Phase 1 of the principal-credential-architecture roadmap: make agents.yaml canonical and derive all identity/trust projections (DB profiles, identity map, trust scale) from it, fail-loud for known agents. Roadmap (4 phases: registry canonical, per-agent OpenBao, session tokens, unified posture) created alongside the fully detailed pca-01 change. Approach 1 (startup sync, materialized-view DB) selected at Gate 1.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "agent_profiles is a materialized view synced at startup",
+        "rationale": "Explicit seeding was specced 2026-03 and never implemented across two shipped changes; operator-invoked consistency is the documented failure mode. Orphans disabled (never deleted) with audit events.",
+        "capability": "agent-identity",
+        "supersedes": null
+      },
+      {
+        "title": "Transport does not gate identity generation",
+        "rationale": "MCP agents reach the HTTP API via the proxy fallback, so every registry agent is an HTTP principal and gets an identity map entry.",
+        "capability": "agent-identity",
+        "supersedes": null
+      },
+      {
+        "title": "Fail-loud scoped to registry-declared agents",
+        "rationale": "Known agent with missing/disabled profile = hard error + audit event (projection machinery failed); unknown principals keep the low default (registry cannot be authoritative for principals it does not name).",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "One trust scale (0-4) in src/trust_levels.py",
+        "rationale": "Adopts the names agent-coordinator already documents (Untrusted/Limited/Standard/Elevated/Admin); YAML schema 1-5 range was a bug; validators derive from the module.",
+        "capability": "agent-identity",
+        "supersedes": null
+      },
+      {
+        "title": "AppRole retained; SPIFFE naming and authenticator seam adopted (roadmap-level)",
+        "rationale": "Trust-anchor analysis: on a single-uid dev machine attestation carries no signal, so provisioner trust via wrapped single-use secret_ids is honest; SPIFFE IDs and JWT-SVID-shaped tokens keep SPIRE/OIDC adoptable when OpenShell k3s makes attestation real.",
+        "capability": "agent-identity",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement wp-contracts then wp-trust-scale first (/implement-feature derive-agent-identity-from-registry)",
+      "Planning lock claims were skipped 'unauthorized' by the live coordinator - itself an instance of the identity gap; re-register claims once implement-feature runs with a properly registered agent"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/derive-agent-identity-from-registry/proposal.md",
+        "description": "approved proposal (Gate 1: Approach 1)"
+      },
+      {
+        "path": "openspec/roadmaps/principal-credential-architecture/proposal.md",
+        "description": "4-phase umbrella roadmap"
+      },
+      {
+        "path": "openspec/changes/derive-agent-identity-from-registry/design.md",
+        "description": "decisions D1-D10"
+      }
+    ]
+  }
+}

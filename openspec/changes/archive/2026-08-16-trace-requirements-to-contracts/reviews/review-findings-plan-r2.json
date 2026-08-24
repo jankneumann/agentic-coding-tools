@@ -1,0 +1,153 @@
+{
+  "review_type": "plan",
+  "target": "trace-requirements-to-contracts",
+  "reviewer_vendor": "claude_code/opus-5",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: B5 is NOT closed in the one artifact that survives archive. design.md D12 and tasks.md 5.7 were both moved to `pull_request`, but the normative requirement 'The full sweep blocks opted-in surfaces and reports the rest' (specs/gen-eval-framework/spec.md:499-513) still reads 'A full-capability evaluation SHALL run against the integration branch on every push' and still carries the refuted rationale verbatim: 'The sweep runs on push, not on a schedule — a scheduled run cannot block a merge.' That is exactly the sentence D12 now says 'was right and the conclusion did not follow'. Demonstrated: grep for push/pull_request across the change returns pull_request in design.md:397,400,406, tasks.md:555 and work-packages.yaml:396 — and 'on push' ONLY in specs/gen-eval-framework/spec.md:512. The spec delta is what archives into openspec/specs/gen-eval-framework/spec.md; design.md and tasks.md are deleted at cleanup. So the version of this decision that outlives the change is the wrong one, and a future reader implementing from the spec builds the post-merge sweep B5 rejected.",
+      "resolution": "Rewrite the requirement's first paragraph to mandate the blocking sweep on the merge candidate ('SHALL run on every pull request against the integration branch, and SHALL additionally run non-blocking on push to the integration branch for debt visibility'), and replace the trailing 'runs on push, not on a schedule' sentence with D12's corrected reasoning. Add a scenario asserting the non-blocking push job does not gate.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": { "start": 499, "end": 513 }
+    },
+    {
+      "id": 2,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: the B6/B7 fix moved the breakage rather than removing it. The new contract-document definition spares the three specless capabilities (verified: find over openspec/contracts shows phase-record/, project-context-refresh/ and prototyping/ hold only schemas/), but the same edit added an UNCONDITIONAL new failure: 'An instance-format document at the capability root SHALL fail the gate naming the file and the expected location' (spec.md:535-537). openspec/contracts/code-search/v2.yaml is exactly that — its first line is `openapi: 3.1.0` — and it sits at the capability root today. The rule is not gated on opt-in, so the full sweep exits non-zero on the current tree. Task 5.7 installs that sweep as a BLOCKING pull_request check and task 5.7c requires `check_traceability.py --scope capability` to exit ZERO on the merge candidate ('It MUST be zero'). Those two cannot both hold. Grepping the entire change for 'code-search' returns only design.md:168,178 and tasks.md:300 — all three rationale or test-fixture prose. No task moves the file, and wp-gate/wp-matrix/wp-wiring all carry `deny: openspec/contracts/**` while wp-model's write_allow covers only gen-eval-framework schemas, so no package may move it either.",
+      "resolution": "Add a task (before 5.7) relocating openspec/contracts/code-search/v2.yaml to openspec/contracts/code-search/openapi/v2.yaml, updating openspec/contracts/code-search/README.md and any consumer naming the old path, and grant the owning package write access to it. Alternatively scope the misplaced-instance rule to report-not-fail until a remediation change lands — but say so in the requirement, because 5.7c's exit-zero criterion is otherwise unmeetable.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": { "start": 532, "end": 537 }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: the full sweep's effective requirement set is undefined, and moving the blocking sweep to pull_request (the B5 fix) is what made that gap load-bearing. Every statement about resolution is written in terms of 'the active change': the requirement 'The active change's spec delta shadows the archived spec' (spec.md:360-377), and D12's 'the active change is an explicit --change <id> argument' (design.md:432). Capability scope has no active change — D12 says it 'reads everything', task 5.7 describes the CI job without a change id, and the push-on-main job runs where there are ~34 change directories and no single active one. Nothing anywhere states whether the sweep shadows deltas, which deltas, or what happens to a citation naming a requirement that exists only in one. That is fatal on the merge candidate for this very change: task 4.1 ([human]) adds flag-level requirements to the gen-eval spec DELTA, and task 4.2 adds citations in openspec/contracts/gen-eval-framework/cli/gen-eval.yaml naming them. Those requirements live only in openspec/changes/trace-requirements-to-contracts/specs/ until archive. Under archive-only resolution the blocking pull_request sweep sees unresolvable citations and reds the PR that installs it, and task 5.7c's 'It MUST be zero' cannot be satisfied. Under shadow-every-change resolution the sweep silently reintroduces exactly what D11 forbids — other in-flight changes' unarchived requirements entering the universe. The push-on-main variant never had to answer this, which is why round 1 could not have found it. The unresolvable-scope-errors scenario does not cover it either: it is scoped to 'a change-scoped run'. (Note: 'bare' in this plan means unpiped, not argument-free — work-packages.yaml:393 writes 'bare invocation, --scope change --change <id>' — so the gap is the absence of any statement, not a wrong one.) A related incoherence sits beside it: work-packages.yaml:396 justifies fetch-depth: 0 on the sweep 'since a merge base is computed', but capability scope computes no merge base.",
+      "resolution": "State the sweep's effective set normatively in 'The full sweep blocks opted-in surfaces and reports the rest'. The reading consistent with D11 is: capability scope SHALL accept an optional --change and CI's pull_request job SHALL pass the PR's active change id, while the push-on-main job runs archive-only; a citation resolving only under a change not named SHALL fail naming the change. Add a scenario for a citation to an unarchived requirement under capability scope, reconcile 5.7c's exit-zero criterion with it, and correct work-packages.yaml:396's fetch-depth rationale.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": { "start": 499, "end": 513 }
+    },
+    {
+      "id": 4,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: the new misplaced-instance rule and D13's exclusions file are both keyed on the capability ROOT, and 'instance-format' is never defined — a collision the fix created and no scenario resolves. D13 requires openspec/contracts/<capability>/traceability-exclusions.yaml to live at the capability root; the new rule says an 'instance-format document at the capability root SHALL fail'. Whether the exclusions file trips its own gate depends entirely on how the implementer decides 'instance-format', which nothing specifies. The real tree makes it concrete: the only files currently at any capability root are code-search/v2.yaml (must fail) and code-search/README.md (must not). A discovery rule of 'any file at the root' fails README.md; 'any YAML at the root' fails traceability-exclusions.yaml and turns D13's switch into a permanent gate failure; 'sniff for an openapi: key' happens to work today but is unstated and silently misses a CLI-contract instance misplaced at the root — which is exactly the shape task 4.2's artifact would have if dropped one directory too high. Scenario `misplaced-instance-fails` (spec.md:595-602) asserts the failure without saying how the file is recognised, and task 3.6's fixture note names only code-search/v2.yaml.",
+      "resolution": "Define recognition normatively in the same requirement: name the exempt root filenames (README.md, traceability-exclusions.yaml) and state the positive test for an instance (a top-level `openapi` key, or the CLI contract's root key set per cli-contract.schema.json). Add two scenarios and two task-3.6 fixtures: a capability root holding README.md + traceability-exclusions.yaml passes discovery; a misplaced CLI-contract instance at the root fails.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": { "start": 595, "end": 602 }
+    },
+    {
+      "id": 5,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: B3's fix relocated the prose rather than making it executable at the right time, and the plan now asserts something false. work-packages.yaml:412-420 claims 'This precondition is ENFORCED, not merely stated: the first verification step below fails when the human-authored artifacts are absent... Run `preflight: human citations have landed` FIRST, before any edit'. But verification.steps do not run before the work. skills/implement-feature/SKILL.md:336-338 injects them into the worker prompt under the literal heading 'After implementation, run:', and SKILL.md:395 orders Phase B as 'code generation within scope, deterministic scope check via git diff, verification steps'. The premise of the fix checks out — WorkPackage is additionalProperties:false (work-packages.schema.json:315-316) and depends_on items are PackageId refs (:345-349) — but the conclusion does not: the step converts a silent early dispatch into a loud POST-hoc failure after the agent has spun up, edited ci.yml and SKILL.md, and burned an attempt against retry_budget 2. Nothing tells the orchestrator to treat that failure as 'not ready, requeue' rather than 'package failed, retry', so the retry re-runs the same doomed work. Separately the enforced check is weaker than the stated one: the prose names 4.1, 4.2, 4.2b AND 5.2's opted-in coordinator document, but the command tests only gen-eval-framework's two artifacts — 5.2 is unchecked.",
+      "resolution": "Stop claiming DAG-level enforcement. Either (a) add the precondition to implement-feature's orchestrator preflight as a documented named gate that withholds dispatch and reference it from the package description, or (b) keep the verification step but reword the description to say what it is — a post-hoc guard that fails the package — and state the orchestrator's required response (report the precondition, do NOT consume retry budget). Either way extend the command to cover 5.2 or drop 5.2 from the prose.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/work-packages.yaml",
+      "line_range": { "start": 404, "end": 466 }
+    },
+    {
+      "id": 6,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: task 5.7c, added to close B10, is tagged [human] while two other artifacts say it is engineering work — a direct contradiction of D1's rule that [human] tasks 'MUST NOT be dispatched to implementer agents'. tasks.md:483-484 (the Phase 5 header, unedited by the fix) states 'Tasks 5.4-5.9 are engineering (wp-matrix and wp-wiring)'; 5.7c falls inside 5.4-5.9. work-packages.yaml:493-503 enumerates the human carve-outs as '4.1, 4.2, 4.2b, 5.1, 5.2, and 5.3' plus 4.3 and does not mention 5.7c. wp-wiring's description covers 'Tasks 5.6-5.9' and lists 5.6, 5.7's two jobs, 5.7b, the README and DOWNSTREAM — 5.7c appears nowhere. So 5.7c is simultaneously a human task no package owns and an engineering task inside wp-wiring's declared range, and a scheduler resolves that ambiguity by dispatching it. It is also tagged inconsistently: every other human task writes `[human]` immediately after the task number, while 5.7c appends it after the size tag ([M] [human]), so a grep keyed on the established position misses it entirely.",
+      "resolution": "Amend the Phase 5 header to exclude 5.7c, add 5.7c to the human carve-out comment in work-packages.yaml with its reason, add an explicit 'wp-wiring does NOT include 5.7c' line to wp-wiring's description, and move the [human] tag to the position every other human task uses.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/tasks.md",
+      "line_range": { "start": 482, "end": 607 }
+    },
+    {
+      "id": 7,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: B8's fix prescribes a command broader than the scope it was granted. Task 2.0 says 'Run `make context-refresh` and commit the regenerated inventory IN THIS TASK'S COMMIT', and make context-refresh is cli.py generate-all (Makefile:438-439), which runs all four registered producers — verified via cli.py list: api.contracts -> docs/architecture-analysis/contracts-inventory.md, documentation.inventory -> docs/architecture-analysis/skills-inventory.md, decisions.timeline -> docs/decisions/, openspec.projection -> openspec/specs/ (read-only by construction; producer_openspec.py:6 states neither generate nor check writes). wp-model's write_allow permits only contracts-inventory.md, so any concurrent drift in the documentation or decisions producers would be regenerated into a path the package may not write, tripping its own scope check. The narrow command exists and is exact.",
+      "resolution": "Replace `make context-refresh` in task 2.0's note with `python3 skills/project-context-refresh/scripts/cli.py generate api.contracts`, and keep `make context-drift-gate` as the verification step — that target is real (Makefile:470-472) and currently exits 0 with outcome 'fresh'.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/tasks.md",
+      "line_range": { "start": 142, "end": 150 }
+    },
+    {
+      "id": 8,
+      "axis": "architecture",
+      "severity": "nit",
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: round 1's one explicitly non-blocking finding, flagged 'fix in the same pass', was not fixed. The skill-workflow ADDED requirement still says '/validate-feature SHALL run the requirement-traceability gate (check_traceability.py) in change scope during its spec-compliance phase, and SHALL fail validation when the gate exits non-zero' with no detection or SKIP path. skills/validate-feature/SKILL.md ships via install.sh into consumer repositories that have no packages/gen-eval/ and no openspec/contracts/, where the gate cannot run at all. The skill's own gen-eval phase already solves this with detection plus an explicit printed SKIP, so the pattern is in the file being edited.",
+      "resolution": "Add a conditional clause to the requirement ('where packages/gen-eval and openspec/contracts are absent the skill SHALL print an explicit skip naming the reason and SHALL NOT fail validation') and a fourth scenario asserting the skip is printed rather than silent, mirroring the existing gen-eval phase.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/trace-requirements-to-contracts/specs/skill-workflow/spec.md",
+      "line_range": { "start": 33, "end": 40 }
+    },
+    {
+      "id": 9,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "B1 is genuinely closed, and it is the best-executed of the ten. The requirement names all four failure modes ('cannot be read, cannot be parsed, is empty, or violates the exclusions schema', spec.md:540-542), scenario malformed-exclusions-file-fails (spec.md:611-618) asserts the NEGATIVE explicitly ('SHALL NOT record the capability's reverse direction as not opted in'), task 3.4b enumerates all four cases including chmod 000 and instructs asserting the negative rather than only the non-zero exit, and the rationale paragraph (spec.md:558-565) states the asymmetry that motivates it. Prose, scenario, task and negative assertion all present.",
+      "resolution": "No action.",
+      "disposition": "accept"
+    },
+    {
+      "id": 10,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "B2 is genuinely closed on every surface, which is the standard the other fixes should have met: spec requirement (spec.md:125-135), scenario cross-capability-exclusion-fails asserting both halves — exit non-zero naming both capabilities AND the requirement still counting against B's reverse completeness (spec.md:175-182) — task 3.4's ownership-case note (tasks.md:246-253), D13's asymmetry paragraph (design.md:517-526), and the schema's `requirement` description rewritten to state the constraint and why JSON Schema cannot express it. The one-dot pattern makes the prefix parse unambiguous, and no capability under openspec/specs/ contains a dot, so the parse is safe on the real tree.",
+      "resolution": "No action.",
+      "disposition": "accept"
+    },
+    {
+      "id": 11,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "B4 is genuinely closed. The change-scope requirement gained the widening clause (spec.md:425-429), two scenarios (forward-opt-in-touches-document, reverse-opt-in-touches-capability, spec.md:464-481), D12 gained the matching paragraph (design.md:420-428), and task 3.15 gained both fixtures with the discriminating detail that the second operation must be UNMODIFIED in the diff (tasks.md:404-414). I tested the restriction-property claim rather than accepting it: for both switches the widened set is a subset of what the full sweep enforces once the switch lands, so 'change scope never enforces anything the full evaluation would not' still holds.",
+      "resolution": "No action.",
+      "disposition": "accept"
+    },
+    {
+      "id": 12,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "B9 is genuinely closed and I re-verified the underlying gap still exists rather than trusting round 1's claim. grep for validate-feature in skills/pyproject.toml exits 1 — testpaths lists tests/implement-feature and tests/plan-feature but not tests/validate-feature, while skills/tests/validate-feature/test_gen_eval_mode_selection.py exists and is therefore invisible to CI's bare sweep. Task 5.7b, the skills/pyproject.toml write_allow entry with its rationale comment, and the verification step are all present, and the verification command's quoting matches the file's real style (grep -q '\"tests/implement-feature\"' MATCHes, '\"tests/validate-feature\"' does not) — so the step fails before the fix and passes after, which is what a gate has to do. B8's verification step is likewise real: make context-drift-gate exists (Makefile:470-472) and returns outcome 'fresh', exit 0, on the current tree, so the drift task 2.0 introduces would be newly caused by this change.",
+      "resolution": "No action.",
+      "disposition": "accept"
+    },
+    {
+      "id": 13,
+      "axis": "correctness",
+      "severity": "fyi",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "FYI: the mechanical gates are green and stayed green through the fix commit — `openspec validate trace-requirements-to-contracts --strict` reports valid, and validate_work_packages.py reports VALID on schema, depends_on_refs, dag_cycles and lock_keys. Neither can see any of the six blocking findings above, which is the point worth recording: this round's defects are all cross-artifact contradictions (spec vs design, task vs work-package, rule vs the real tree) that no per-artifact validator is shaped to detect.",
+      "resolution": "No action.",
+      "disposition": "accept"
+    }
+  ]
+}

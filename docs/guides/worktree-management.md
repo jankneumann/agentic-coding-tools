@@ -22,6 +22,30 @@
 - **Execution-environment detection**: `skills/shared/environment_profile.py` exposes `detect() -> EnvironmentProfile` with `isolation_provided: bool`. When true (cloud harness, Codespaces, K8s pod), every `worktree.py` write command (`setup|teardown|pin|unpin|heartbeat|gc`) and `merge_worktrees.py` short-circuit to a silent success. Read-only commands (`list|status|resolve-branch`) are unchanged. Detection precedence: `AGENT_EXECUTION_ENV` (cloud|local) → coordinator `GET /agents/<id>` → `/.dockerenv`/`KUBERNETES_SERVICE_HOST`/`CODESPACES` heuristic → default false. Set `WORKTREE_DEBUG=1` to see the decision layer. Full operator guide: [docs/cloud-vs-local-execution.md](../cloud-vs-local-execution.md). `OPENSPEC_BRANCH_OVERRIDE` remains orthogonal — it controls branch naming, not whether worktrees are created.
 - **Mutation guard**: Mutating skills SHOULD call `skills/.venv/bin/python skills/shared/checkout_policy.py require-mutation` after `worktree.py setup` and before their first write. The guard allows isolated harnesses, managed local worktrees, and explicit sync-point operations; it rejects local shared-checkout mutation.
 
+## Ephemeral Validation Worktrees
+
+`/validate-feature <change-id> --ephemeral` creates a detached, uniquely named
+scratch checkout under `.git-worktrees/.validation/` at the feature checkout's
+current `HEAD`. It is nested inside the ordinary managed-feature-worktree safety
+boundary and is removed after validation on both success and failure.
+
+- A dirty source checkout fails closed because validating plain `HEAD` would be
+  stale. `--include-dirty` explicitly materializes staged, unstaged, and
+  untracked state in the scratch checkout without changing the source index or
+  working tree.
+- The run records both the source commit and the exact materialized Git tree.
+- Only `openspec/changes/<change-id>/validation-report.md` and
+  `validation-findings.json` are copied back before teardown. Logs, deploy
+  artifacts, scanner output, and other residue are discarded.
+- If `skills/shared/environment_profile.py` reports that a cloud harness already
+  provides isolation, ephemeral mode logs the downgrade and runs in place rather
+  than creating a nested worktree.
+
+The implementation and reusable API live in
+`skills/validate-feature/scripts/validation_worktree.py`. Later phase-lifecycle
+orchestration wraps this helper; it must not introduce a second scratch-worktree
+implementation.
+
 ## Sync-Point Skills
 
 Some skills operate directly on the shared checkout / main branch rather than in worktrees. These are **sync-point skills** — convergence operations that integrate work back into main.

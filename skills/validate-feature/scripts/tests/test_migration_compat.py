@@ -31,6 +31,18 @@ SEED_SQL_PATH = (
     / "seed.sql"
 )
 
+# The supabase/ tree is not part of this repository -- it is supplied by the
+# deployment that owns the migrations. Skip at module level when it is absent:
+# TestNoCreateExtensionWithoutGracefulHandling parametrizes over
+# _migration_files(), so the directory is read at import time and a missing tree
+# aborts collection for the whole file rather than failing one test.
+if not MIGRATIONS_DIR.exists():  # pragma: no cover - environment-dependent
+    pytest.skip(
+        f"migrations tree not present at {MIGRATIONS_DIR}; "
+        "these tests validate a deployment-supplied artifact",
+        allow_module_level=True,
+    )
+
 # Extensions that require graceful degradation on standard PostgreSQL.
 PARADEDB_EXTENSIONS = {"pg_search", "pg_analytics", "pg_lakehouse"}
 

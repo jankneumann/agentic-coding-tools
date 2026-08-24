@@ -502,35 +502,62 @@ class TreeSitterEnricher:
                 break
 
     def build_output(self) -> dict[str, Any]:
-        """Build the final enrichment JSON."""
+        """Build the final enrichment JSON.
+
+        Every occurrence list is ordered here rather than at its append site.
+        ``QueryCursor.captures()`` does not guarantee a stable order within a
+        capture, and the instability is *not* Python's hash randomisation — two
+        runs under one pinned ``PYTHONHASHSEED`` still disagree — so it cannot be
+        fixed by sorting the inputs of any single loop. Ordering at the one place
+        the artifact is serialised covers every category, including ones added
+        later.
+        """
         return {
             "generated_at": _generated_at_iso(),
             "treesitter_version": _get_treesitter_version(),
             "comments": {
                 "total": len(self.comments),
                 "with_markers": sum(1 for c in self.comments if c["markers"]),
-                "items": self.comments,
+                "items": _ordered_items(self.comments),
             },
             "python_patterns": {
                 category: {
                     "count": len(items),
-                    "items": items,
+                    "items": _ordered_items(items),
                 }
-                for category, items in self.python_patterns.items()
+                for category, items in sorted(self.python_patterns.items())
             },
             "typescript_patterns": {
                 category: {
                     "count": len(items),
-                    "items": items,
+                    "items": _ordered_items(items),
                 }
-                for category, items in self.typescript_patterns.items()
+                for category, items in sorted(self.typescript_patterns.items())
             },
             "security_patterns": {
                 "total": len(self.security_patterns),
                 "by_severity": _group_by_severity(self.security_patterns),
-                "items": self.security_patterns,
+                "items": _ordered_items(self.security_patterns),
             },
         }
+
+
+def _ordered_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return *items* in a total order derived from their content.
+
+    ``(file, line)`` reads naturally, but is not by itself total: several type
+    hints can share one line, which is exactly where the observed churn was. The
+    canonical JSON form breaks those remaining ties, so the order is a pure
+    function of the content and two runs of one revision agree byte for byte.
+    """
+    return sorted(
+        items,
+        key=lambda item: (
+            str(item.get("file", "")),
+            int(item.get("line") or 0),
+            json.dumps(item, sort_keys=True, default=str),
+        ),
+    )
 
 
 def _get_treesitter_version() -> str:

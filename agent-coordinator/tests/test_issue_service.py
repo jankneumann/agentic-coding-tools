@@ -342,6 +342,12 @@ class TestIssueClose:
         assert update_data["status"] == "completed"
         assert update_data["close_reason"] == "Done in PR #42"
         assert "closed_at" in update_data
+        # DatabaseClient contract is PostgREST JSON: ISO strings, not
+        # datetime objects. DirectPostgresClient coerces them on bind.
+        assert isinstance(update_data["closed_at"], str)
+        assert isinstance(update_data["completed_at"], str)
+        datetime.fromisoformat(update_data["closed_at"])
+        datetime.fromisoformat(update_data["completed_at"])
 
     @pytest.mark.asyncio
     async def test_batch_close(self, service, mock_db):

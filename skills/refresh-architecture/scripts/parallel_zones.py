@@ -167,8 +167,9 @@ def find_high_impact_modules(
                 "dependent_count": len(dependents),
                 "dependents": dependents,
             })
-    # Sort by dependent count descending for readability
-    results.sort(key=lambda r: -r["dependent_count"])
+    # Sort by dependent count descending for readability; module id breaks ties
+    # so equal-count modules cannot swap places between runs (issue #362).
+    results.sort(key=lambda r: (-r["dependent_count"], r["id"]))
     return results
 
 

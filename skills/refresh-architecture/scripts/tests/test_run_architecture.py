@@ -177,6 +177,44 @@ class TestStagedGeneration:
             tmp_path / "docs/architecture-analysis/architecture.graph.json"
         ).read_bytes() == graph_first
 
+    def test_staged_flags_artifacts_it_did_not_regenerate(self, tmp_path: Path, capsys) -> None:
+        """Issue #382: promotion copies but never deletes.
+
+        An artifact an optional stage failed to produce survives in the output
+        directory at its old bytes. Provenance is built by scanning that
+        directory, so it recorded the leftover as though this revision had
+        generated it — a stale artifact under a fresh ``source_revision``, which
+        no downstream digest check can detect.
+        """
+        _init_repo(tmp_path)
+        arch = tmp_path / "docs/architecture-analysis"
+        (arch / "views").mkdir(parents=True, exist_ok=True)
+        leftover = arch / "treesitter_enrichment.json"
+        leftover.write_text('{"from": "an older revision"}\n')
+        gitkeep = arch / "views" / ".gitkeep"
+        gitkeep.write_text("")
+
+        with patch.object(run_architecture, "_run_pipeline", _fake_pipeline()):
+            assert run_architecture.main(["--target-dir", str(tmp_path), "--staged"]) == 0
+
+        doc = json.loads((arch / "architecture.provenance.json").read_text())
+        flags = {a["path"]: a["carried_over"] for a in doc["artifacts"]}
+        assert flags["docs/architecture-analysis/architecture.graph.json"] is False
+        assert flags["docs/architecture-analysis/views/overview.md"] is False
+        assert flags["docs/architecture-analysis/treesitter_enrichment.json"] is True
+        assert flags["docs/architecture-analysis/views/.gitkeep"] is True
+
+        # Flagging, not deleting: an optional stage that skipped must not cost
+        # the repository its last good copy, and .gitkeep only ever lives here.
+        assert leftover.read_text() == '{"from": "an older revision"}\n'
+        assert gitkeep.is_file()
+
+        report = json.loads(capsys.readouterr().out)
+        assert report["carried_over"] == [
+            "docs/architecture-analysis/treesitter_enrichment.json",
+            "docs/architecture-analysis/views/.gitkeep",
+        ]
+
     def test_pipeline_failure_preserves_last_known_good(self, tmp_path: Path) -> None:
         # Scenario architecture-refresh.8
         _init_repo(tmp_path)

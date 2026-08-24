@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "trace-requirements-to-contracts",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 0,
+      "elapsed_seconds": 130.74004041589797,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 632.5123255830258,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 2,
+      "elapsed_seconds": 377.4438885829877,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 412.23818049998954,
+      "error": null
+    },
+    {
+      "vendor": "pi",
+      "agent_id": "pi",
+      "success": false,
+      "findings_count": 0,
+      "elapsed_seconds": 1.2916525001637638,
+      "error": "Invalid JSON output"
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 5,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "The sweep step's `set -uo pipefail` (.github/workflows/ci.yml:504) does not disable the `-e` that GitHub Actions applies by default: on Linux a `run:` block with no `shell:` key executes as `bash -e {0}` (and `shell: bash` would be `-eo pipefail`), and no `shell:` appears anywhere in ci.yml. `derive_change_ids` ends in `grep -v '^archive$'`, which exits 1 when it selects no lines; `CHANGE_IDS=\"$(derive_change_ids ...)\"` (lines 542 / 560) therefore carries status 1 and errexit aborts the step BEFORE the SKIP echo on lines 544 / 562. Demonstrated in a throwaway repo (/tmp/sweeprepro) with the step's `run:` block extracted verbatim via yaml.safe_load: `EVENT_NAME=pull_request PR_BASE_SHA=<base> bash -e sweep.sh` \u2192 exit 1, ZERO stdout; the same script under `bash` (no -e) \u2192 `SKIP: requirement-traceability sweep \u2014 no openspec/changes/<id>/ directory touched on feat/x`, exit 0. Same for merge_group. This violates two SHALL clauses of 'The full sweep blocks opted-in surfaces and reports the rest': 'Where the diff touches no change directory, it SHALL print an explicit SKIP naming the branch and SHALL NOT fail', and 'An unresolvable base and an absent change directory SHALL NOT share an exit path' \u2014 they now share it, and the absent-directory case is the quieter of the two (no `::error::`, no message at all). Blast radius: every pull request that does not touch `openspec/changes/<id>/` \u2014 dependabot bumps, doc fixes, chores \u2014 reds the check, and so does every archive PR (the SKIP that task 5.7's whole `--diff-filter=d` argument exists to produce). Secondary consequence of the same cause: in the merge_group loop (lines 566-575) errexit aborts at the first failing `run_gate`, so `OVERALL` is dead code and only the first batched change is ever evaluated/reported (verified: two-change batch with the first failing \u2192 exits 3 after one invocation; without -e \u2192 both evaluated, exit 1). Fix: add `set +e` after line 504 (or capture status explicitly, e.g. `CHANGE_IDS=$(derive_change_ids ...) || true`), then re-derive the intended exit codes."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Same root cause as finding 1, distinct normative clause: the spec says 'On `push` to the integration branch, the job ... SHALL NOT block \u2014 its exit status SHALL NOT depend on what it found.' Under GitHub's default `bash -e {0}`, the bare `run_gate \"\"` on ci.yml:581 aborts the step with the gate's own status, so lines 582-583 (`echo \"...never blocks; exiting 0 regardless...\"; exit 0`) are unreachable whenever the union run finds anything. Demonstrated: stub gate exiting 2, `EVENT_NAME=push bash -e sweep.sh` \u2192 exit 2 and the 'never blocks' line absent; under `bash` (no -e) \u2192 exit 0 with the line printed. This is not hypothetical on this branch: I ran the real union invocation from the worktree \u2014 `packages/gen-eval/.venv/bin/python packages/gen-eval/scripts/check_traceability.py --scope capability` \u2192 **exit 1**, with 10 reverse failures for gen-eval-framework requirements contributed by other in-flight changes' deltas (behavioral-findings-schema-conformance, distributable-python-package, optional-mcp-service-extra, \u2026). That is exactly the tolerated, report-only outcome task 5.7's own note predicts ('a blocking union run fails on those 11 and the batch's authors cannot fix it') \u2014 so the first `push` to `main` after this merges will red `requirement-traceability-sweep` on main, permanently, for a condition the spec says must never affect exit status. Fix: as in finding 1 (`set +e`), which restores the explicit `exit 0`."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "behavioral_failure",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The wiring test's harness is not the environment the job runs in, which is why findings 1 and 2 shipped green. `_run` invokes `subprocess.run([\"bash\", \"-c\", SWEEP_FRAGMENT], ...)` (skills/tests/validate-feature/test_ci_sweep_wiring.py:251) \u2014 no `-e` \u2014 while GitHub Actions executes the identical fragment as `bash -e {0}`. The file's own docstring claims to cover the spec scenarios 'A pull request that was not planned through OpenSpec skips', 'An archive pull request derives no change id' and 'The run on the integration branch cannot fail'; all three assert behaviour the real runner does not exhibit. Demonstrated: changing only that one list to `[\"bash\", \"-e\", \"-c\", SWEEP_FRAGMENT]` and re-running (with `__pycache__` cleared, file restored afterwards) \u2192 `3 failed, 17 passed`: test_non_openspec_pr_skips, test_archive_pull_request_derives_no_change_id, test_push_run_never_blocks. The drift guard `test_fragment_matches_ci_yml` does not help here \u2014 it pins the fragment's TEXT, not the interpreter's flags, so the tests can be byte-identical to ci.yml and still exercise a different shell. Fix: run the fragment under the runner's flags (`bash -e -c`, or `bash --noprofile --norc -eo pipefail -c` if the step later declares `shell: bash`), and land findings 1/2's fix so the three tests pass under it. The remaining 8 tests are sound \u2014 I mutation-checked the derivation by deleting `--diff-filter=d` from both ci.yml and the fragment, and test_archive_pull_request_derives_no_change_id correctly went red."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "behavioral_failure",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The tests for task 4.3/5.6 cannot fail on the absence of the thing they guard. `skills/tests/validate-feature/test_validate_feature_gate.py` hardcodes `TRACE_GATE_FRAGMENT` (line 30) as a private copy of SKILL.md section 7.0b and never opens `skills/validate-feature/SKILL.md` \u2014 the only mention of that file is a docstring comment at line 3. It has no analogue of its sibling's `test_fragment_matches_ci_yml`. Demonstrated: I deleted section 7.0b in full from skills/validate-feature/SKILL.md (the header through the line before `#### 7.1.`, 70 lines), cleared `__pycache__`, and ran `skills/.venv/bin/python -m pytest skills/tests/validate-feature/test_validate_feature_gate.py -q` \u2192 **4 passed**; file restored, tree verified clean. So the skill-workflow scenario 'Skill wiring is covered by skill tests' is satisfied by a suite that stays green with the wiring deleted, edited, or silently broken \u2014 the repo's own 'a gate that cannot fail is decoration' shape, and the recurring stale-consequence shape: the guard pattern was invented later for 5.7 (test_ci_sweep_wiring.py:161-171) and never back-ported to the sibling it was modelled on. Fix: add a drift guard that reads SKILL.md, locates section 7.0b, and asserts the extracted fragment equals TRACE_GATE_FRAGMENT."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The header comment of the one document task 5.2 opted into forward enforcement still asserts the opposite of the file's contents. openspec/contracts/agent-coordinator/openapi/locks.yaml:6-7 reads 'UNTRACED (D6): no operation carries x-traceability yet; forward enforcement begins only when this document opts in (task 5.2)', while commit b39cdb3d (task 5.2) added `x-traceability` blocks at lines 26-29 (acquireLock) and 47-50 (getLockStatus). The gate agrees with the content, not the comment: I verified enforcement is live by mutating each in turn (edit, run, restore) \u2014 replacing a cited id with `agent-coordinator.no-such-requirement` \u2192 exit 1, 'locks.yaml (acquireLock): ... is not in the effective requirement set'; deleting getLockStatus's block \u2192 exit 1, 'locks.yaml: getLockStatus cites no requirement and carries no exclusion'; the other 17 non-opted-in documents stay reported-not-failed (whole-capability run exit 0). This is the change's own recurring defect shape \u2014 the fix landed in the artifact the task named and the artifact carrying its consequence went stale \u2014 and it is actively misleading, since a future author reading line 6 would conclude these two citations are optional and removable. Fix: replace lines 6-7 with a statement that this document has opted in per task 5.2, and leave the other 17 headers as they are (still accurate)."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The skill's detection covers the gate's *presence* but not its *runnability*, so a missing venv is reported as a traceability failure rather than a SKIP. skills/validate-feature/SKILL.md:556-557 sets `TRACE_PYTHON=\"$PROJECT_ROOT/packages/gen-eval/.venv/bin/python\"` and falls back to bare `python3`; a system interpreter has none of the gate's dependencies. Demonstrated in this worktree: `/usr/bin/python3 packages/gen-eval/scripts/check_traceability.py --scope change --change trace-requirements-to-contracts` \u2192 `ModuleNotFoundError: No module named 'yaml'`, exit 1. The fragment reads that as `TRACE_EXIT=1` \u2192 `FAIL: requirement-traceability gate exited 1` \u2192 `TRACE_RESULT=fail`, and 7.0b is declared CRITICAL within the spec phase (SKILL.md:494), so validation fails on an environment gap with a traceback where the operator's report will say 'traceability gate failed'. This is reachable in normal use, not exotic: `/validate-feature` runs in a managed worktree under `.git-worktrees/<change-id>/`, `packages/gen-eval/.venv` is untracked (`git ls-files packages/gen-eval/.venv` \u2192 empty) and so absent in any freshly created worktree until someone runs `uv sync` there. The CI job is not affected \u2014 its preceding `uv sync --all-extras` step creates the venv. Fix: probe runnability before deciding (e.g. `\"$TRACE_PYTHON\" -c 'import yaml, pydantic'` or a `--version`-style no-op) and take the printed-SKIP path naming the unusable interpreter, so 'gate cannot run here' stays distinct from 'gate found violations' \u2014 the same two-opposite-conditions-must-not-share-an-exit-path rule task 5.7 applies to CI."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: the authored agent-coordinator OpenAPI contracts are not executable against the actual FastAPI route surface. A route-table comparison found declared paths absent or materially mismatched, and TestClient demonstrations confirmed contract-visible failures: `GET /status/agents` from `status.yaml` returns 404 while the contract declares 200, and `POST /policies/write-operations/rollback?version=3` returns 422 because the app expects the version in the request body on `/policies/{policy_name}/rollback`, while the contract declares a query parameter and 200. Correct the contract to the implemented surface or implement the spec-declared endpoints before treating these as shipped contracts."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The full-sweep job treats only an *empty* base SHA as unresolvable. A non-empty but unresolvable base (missing/unreachable object) takes the no-change-directory SKIP path and exits 0 \u2014 the unfalsifiable green the spec forbids. Spec scenario `unresolvable-base-fails-not-skips` (and prose at ~588\u2013599) requires: when a base is required and cannot be resolved, fail naming the event and the base, and SHALL NOT share an exit path with the no-change SKIP. Implementation only checks `[ -z \"${PR_BASE_SHA:-}\" ]` / merge_group equivalent, then runs `CHANGE_IDS=\"$(derive_change_ids ...)\"` under `set -uo pipefail` without `set -e` and without inspecting `git diff`'s status. Demonstrated on a throwaway repo with PR_BASE_SHA=deadbeef\u2026deadbeef: stdout=`SKIP: requirement-traceability sweep \u2014 no openspec/changes/<id>/ directory touched on feature/x`, rc=0, stderr=`fatal: bad object deadbeef\u2026`, no `::error::` line. `test_unresolvable_base_fails_pull_request` / `_merge_group` only assert the empty-string case, so this defect is green in CI. Fix: after non-empty base, `git rev-parse --verify <base>^{commit}` (or check `git diff` exit status) and fail with `::error::\u2026 unresolvable base for <event> (<sha>)` before derive/SKIP."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The load-bearing `pull_request` path (single derived change id \u2192 `run_gate` with `--change` \u2192 block on non-zero) has no behavioral test. Existing PR tests cover only SKIP (non-OpenSpec / archive), ambiguity (>1 id), and empty-base failure; merge_group and push *do* assert blocking/non-blocking. Demonstrated: control single-change PR with failing stub gate exits 1 and prints `argv: --scope capability --change one-change`. Mutating the PR arm from `exit $?` to `exit 0` makes the same failing gate exit 0 while every existing test in `test_ci_sweep_wiring.py` would still pass (ambiguity fails before `run_gate`; merge_group/push paths unchanged). That is a gate/test that cannot fail on the primary blocking event. Add a single-change PR test that asserts argv `--scope capability --change <id>` and non-zero propagation when the gate fails (mirror `test_merge_group_blocks_if_any_invocation_fails`)."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "behavioral_failure",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Section 7.0b captures the gate via `TRACE_OUTPUT=$(\u2026 check_traceability.py \u2026); TRACE_EXIT=$?; echo \"$TRACE_OUTPUT\"`. Under `set -e` / `set -euo pipefail` (common agent shells), a non-zero gate aborts the shell on the assignment and never reaches `echo`/`FAIL:`/`TRACE_RESULT=fail`. Demonstrated with the skill fragment: plain bash prints gate output + `FAIL: requirement-traceability gate exited 1` (rc=1); with `set -e` or `set -euo pipefail`, stdout is empty (rc=1) \u2014 gate violation text is lost. Spec scenario `Gate failure fails validation` requires the validation report to include the gate's output naming violations; CI-vs-local prose also depends on `$TRACE_OUTPUT`. Neighboring phases avoid this (direct `pytest \u2026; SMOKE_EXIT=$?`, not capture). Skill tests run the fragment without `set -e`, so they stay green on the defective harness. Fix: disable errexit around the capture (`set +e` / `if TRACE_OUTPUT=$(\u2026); then \u2026`) or run the gate without command substitution and tee output."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "`test_validate_feature_gate.py` hardcodes `TRACE_GATE_FRAGMENT` with a comment that it is kept byte-for-byte in sync with SKILL.md 7.0b, but unlike the CI sweep suite it has no `test_fragment_matches_skill` (or equivalent) that fails when the skill drifts. CI intentionally added `test_fragment_matches_ci_yml` for this reason (tasks.md 5.7 evidence: comment alone is weaker than a drift guard). Current fragments match when the test module is loaded, but any edit to SKILL.md that breaks bare invocation, scope flags, or SKIP wording leaves the skill tests green while agents execute the stale/wrong block \u2014 the recurring fix-one-artifact / consequence-stale shape. Add a parser assertion that the 7.0b ```bash``` block equals `TRACE_GATE_FRAGMENT` (same pattern as the CI test)."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "`locks.yaml` header still states `UNTRACED (D6): no operation carries x-traceability yet; forward enforcement begins only when this document opts in (task 5.2)` while both operations already carry `x-traceability` blocks (task 5.2 landed in b39cdb3d). Gate confirms the document is opted in: breaking a citation fails with `errors:` naming `locks.yaml` (rc=1); half-traced document fails with `forward failures: \u2026 acquireLock cites no requirement`. Stale header is the same consequence-stale shape and will mislead authors about enforcement. Update the header to state the document is forward-enforced via the existing `x-traceability` blocks."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 12,
+    "confirmed_count": 1,
+    "unconfirmed_count": 11,
+    "disagreement_count": 0,
+    "blocking_count": 1
+  }
+}

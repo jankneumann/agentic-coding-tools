@@ -22,7 +22,7 @@ import json
 import os
 import subprocess
 import sys
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -67,7 +67,19 @@ except Exception:  # pragma: no cover - fallback path
 PRODUCER_ID = "architecture"
 #: Bump when the producer's output-affecting logic changes. A recorded value
 #: that differs from this triggers a PRODUCER_IDENTITY_MISMATCH on check.
-PRODUCER_VERSION = "1.0.0"
+#:
+#: 1.1.0 — input enumeration asks git which files are version-controlled instead
+#: of walking the working tree with a name-only exclusion list. Provenance built
+#: by 1.0.0 fingerprinted whatever ignored files happened to sit under an input
+#: root on the generating machine, so it can never match a clean checkout.
+#:
+#: 1.2.0 — the tree-sitter enrichment pass orders its occurrence lists. Before
+#: this, `QueryCursor.captures()` returned them in an order that varied between
+#: runs of one revision, so treesitter_enrichment.json (and every digest over
+#: it) changed on every refresh. Artifacts built by 1.1.0 carry that arbitrary
+#: order and so cannot match a current rebuild; the identity mismatch says that
+#: plainly rather than surfacing as an unexplained fingerprint difference.
+PRODUCER_VERSION = "1.2.0"
 PROVENANCE_SCHEMA_VERSION = 1
 
 ARCH_DIR_DEFAULT = "docs/architecture-analysis"
@@ -93,7 +105,19 @@ _OWNED_TOP_LEVEL: tuple[tuple[str, bool], ...] = (
     ("pattern_insights.json", False),
 )
 
-#: Directory names never walked when fingerprinting relevant inputs.
+#: How the relevant-input set was enumerated. Recorded in provenance and compared
+#: as producer identity, because the two strategies see different file sets: only
+#: ``git`` honours ``.gitignore``, so a ``walk`` fingerprint carries whatever
+#: ignored files existed on the generating machine and a ``git`` fingerprint does
+#: not. Comparing them as raw fingerprints would report
+#: INPUT_FINGERPRINT_MISMATCH — "the inputs changed" — for what is really "these
+#: two numbers are not the same kind of number".
+INPUT_ENUMERATION_GIT = "git"
+INPUT_ENUMERATION_WALK = "walk"
+
+#: Directory names never walked when fingerprinting relevant inputs. Only
+#: consulted by the ``walk`` fallback; under ``git`` enumeration ``.gitignore``
+#: is the authority and this list is not applied.
 _EXCLUDED_DIR_NAMES = frozenset(
     {
         ".git",
@@ -160,13 +184,27 @@ class CheckResult:
             "status": self.status,
             "reasons": [r.to_dict() for r in self.reasons],
             "artifacts": [r.path for r in self.reasons if r.path],
+            # Recorded artifacts the generating run did not produce. Not drift —
+            # the optional stages skip soft by design — but a reader deciding
+            # how much to trust a `fresh` verdict needs to see which artifacts
+            # it does not cover. Empty for provenance predating the flag.
+            "carried_over": [
+                art["path"]
+                for art in (self.provenance or {}).get("artifacts", [])
+                if art.get("carried_over")
+            ],
         }
 
 
 # --------------------------------------------------------------------------- #
 # Git / repository identity
 # --------------------------------------------------------------------------- #
-def _git(repo_root: Path, *args: str) -> str | None:
+def _git_raw(repo_root: Path, *args: str) -> str | None:
+    """Run git and return stdout verbatim, or ``None`` if it could not run.
+
+    Unstripped, because ``-z`` output is NUL-delimited and trailing whitespace
+    is significant to a filename.
+    """
     try:
         out = subprocess.run(
             ["git", *args],
@@ -177,7 +215,12 @@ def _git(repo_root: Path, *args: str) -> str | None:
         )
     except (OSError, subprocess.CalledProcessError):
         return None
-    return out.stdout.strip()
+    return out.stdout
+
+
+def _git(repo_root: Path, *args: str) -> str | None:
+    out = _git_raw(repo_root, *args)
+    return None if out is None else out.strip()
 
 
 def repository_id(repo_root: Path | str) -> str:
@@ -267,6 +310,36 @@ def default_input_roots(env: Mapping[str, str] | None = None) -> list[str]:
     return ordered
 
 
+def input_enumeration_strategy(repo_root: Path | str) -> str:
+    """Which enumeration strategy is available here: ``git``, else ``walk``.
+
+    ``git`` is used whenever *repo_root* is inside a work tree and the binary
+    answers, which is the case for every developer checkout and every CI job.
+    ``walk`` exists for a source export with no ``.git`` — it is a degraded
+    strategy, and recording which one produced a fingerprint is what stops the
+    degradation from being silent.
+    """
+    inside = _git(Path(repo_root), "rev-parse", "--is-inside-work-tree")
+    return INPUT_ENUMERATION_GIT if inside == "true" else INPUT_ENUMERATION_WALK
+
+
+def _iter_root_files_git(repo_root: Path, root: str) -> list[Path] | None:
+    """Version-controlled files under *root*, or ``None`` if git cannot answer.
+
+    ``--cached --others --exclude-standard`` is the set "tracked, plus untracked
+    files that are not ignored" — precisely the files a clean clone of this
+    revision would also have. A new source file that has not been ``git add``-ed
+    still counts as an input; an ignored file never does.
+    """
+    out = _git_raw(repo_root, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", root)
+    if out is None:
+        return None
+    # ``--cached`` can list a path once per merge stage; de-duplicate so a
+    # conflicted index cannot double-count an input.
+    rels = sorted({rel for rel in out.split("\0") if rel})
+    return [repo_root / rel for rel in rels]
+
+
 def _iter_root_files(repo_root: Path, root: str) -> list[Path]:
     base = repo_root / root
     if base.is_file():
@@ -281,22 +354,35 @@ def _iter_root_files(repo_root: Path, root: str) -> list[Path]:
     return files
 
 
-def discover_relevant_inputs(
-    repo_root: Path | str, roots: list[str]
-) -> tuple[list[dict[str, Any]], list[str]]:
-    """Return ``(entries, missing_roots)`` describing relevant input bytes.
+def _discover(
+    repo_root: Path, roots: list[str], enumeration: str
+) -> tuple[list[dict[str, Any]], list[str], str]:
+    """``(entries, missing_roots, enumeration_used)`` for *roots*.
 
-    Each entry is ``{"path", "mode", "sha256"}`` for one working-tree file under
-    a declared root, sorted by repo-relative POSIX path. Reading working-tree
-    bytes (not the HEAD blob) is what makes a dirty relevant input change the
-    fingerprint (spec scenario architecture-refresh.2).
+    The returned strategy is the one that actually produced the entries, not the
+    one requested. If ``git`` is requested and any root cannot be enumerated
+    through it, the whole call degrades to ``walk`` and says so — enumerating
+    some roots one way and some the other would yield a fingerprint that belongs
+    to neither strategy, and labelling that ``git`` would reproduce the exact
+    silent divergence this enumeration exists to remove.
     """
-    repo_root = Path(repo_root).resolve()
+    per_root: dict[str, list[Path]] = {}
+    if enumeration == INPUT_ENUMERATION_GIT:
+        for root in sorted(set(roots)):
+            found = _iter_root_files_git(repo_root, root)
+            if found is None:
+                enumeration = INPUT_ENUMERATION_WALK
+                per_root.clear()
+                break
+            per_root[root] = found
+    if enumeration != INPUT_ENUMERATION_GIT:
+        per_root = {root: _iter_root_files(repo_root, root) for root in sorted(set(roots))}
+
     arch_dir = (repo_root / ARCH_DIR_DEFAULT).resolve()
     entries: list[dict[str, Any]] = []
     missing: list[str] = []
     for root in sorted(set(roots)):
-        found = _iter_root_files(repo_root, root)
+        found = per_root[root]
         if not found and not (repo_root / root).exists():
             missing.append(root)
             continue
@@ -310,43 +396,91 @@ def discover_relevant_inputs(
             except OSError:
                 continue
             rel = rf.relative_to(repo_root).as_posix()
-            mode = f"{rf.stat().st_mode & 0o777:o}"
-            entries.append({"path": rel, "mode": mode, "sha256": _sha256_hex(data)})
+            entries.append({"path": rel, "mode": _portable_mode(rf), "sha256": _sha256_hex(data)})
     entries.sort(key=lambda e: e["path"])
-    return entries, sorted(missing)
+    return entries, sorted(missing), enumeration
 
 
-def compute_input_fingerprint(repo_root: Path | str, roots: list[str]) -> str:
-    """Return the sha256 fingerprint of the relevant working-tree inputs."""
-    entries, missing = discover_relevant_inputs(repo_root, roots)
+def _portable_mode(path: Path) -> str:
+    """The git-visible mode of *path*: ``100755`` if executable, else ``100644``.
+
+    Full permission bits are a property of the checking-out machine's umask, not
+    of the repository — git records only the executable bit. Fingerprinting
+    ``st_mode & 0o777`` therefore makes the same commit hash differently under a
+    umask of 022 and 002, which is drift no refresh can resolve.
+    """
+    return "100755" if path.stat().st_mode & 0o111 else "100644"
+
+
+def discover_relevant_inputs(
+    repo_root: Path | str, roots: list[str], *, enumeration: str | None = None
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Return ``(entries, missing_roots)`` describing relevant input bytes.
+
+    Each entry is ``{"path", "mode", "sha256"}`` for one version-controlled file
+    under a declared root, sorted by repo-relative POSIX path. Reading
+    working-tree bytes (not the HEAD blob) is what makes a dirty relevant input
+    change the fingerprint (spec scenario architecture-refresh.2) — git decides
+    *which* files are inputs, the working tree decides what they contain.
+    """
+    repo_root = Path(repo_root).resolve()
+    if enumeration is None:
+        enumeration = input_enumeration_strategy(repo_root)
+    entries, missing, _used = _discover(repo_root, roots, enumeration)
+    return entries, missing
+
+
+def compute_input_fingerprint(
+    repo_root: Path | str, roots: list[str], *, enumeration: str | None = None
+) -> tuple[str, str]:
+    """Return ``(fingerprint, enumeration_used)`` for the relevant inputs.
+
+    The strategy is returned rather than assumed so callers record the one that
+    actually ran. The strategy is deliberately *not* mixed into the hashed
+    payload: it is compared as producer identity, which reports "these were
+    enumerated differently" instead of the misleading "the inputs changed".
+    """
+    repo_root = Path(repo_root).resolve()
+    if enumeration is None:
+        enumeration = input_enumeration_strategy(repo_root)
+    entries, missing, used = _discover(repo_root, roots, enumeration)
     payload = {
         "roots": sorted(set(roots)),
         "inputs": entries,
         "missing_roots": missing,
     }
-    return _sha256_hex(_canonical_bytes(payload))
+    return _sha256_hex(_canonical_bytes(payload)), used
 
 
 # --------------------------------------------------------------------------- #
 # Optional-tool identity (output-affecting)
 # --------------------------------------------------------------------------- #
 def detect_optional_tools() -> list[dict[str, Any]]:
-    """Identify output-affecting optional tools (tree-sitter SQL/enrichment)."""
-    available = False
-    version: str | None = None
-    try:
-        import tree_sitter  # type: ignore  # noqa: F401
-        from importlib.metadata import PackageNotFoundError, version as _v
+    """Identify output-affecting optional tools (tree-sitter SQL/enrichment).
 
-        available = True
-        try:
-            version = _v("tree-sitter")
-        except PackageNotFoundError:  # pragma: no cover - installed-without-metadata
-            version = None
-    except Exception:
-        available = False
-        version = None
-    return [{"name": "tree-sitter", "available": available, "version": version}]
+    Reports the interpreter the *pipeline* would use, not the one running this
+    function. Importing ``tree_sitter`` in-process answered a different question:
+    a refresh driven by an interpreter without the package skipped the
+    enrichment, comment-linker and pattern-reporter stages while provenance —
+    running under a Python that did have it — still recorded
+    ``available: true``. The record then vouched for artifacts that were never
+    regenerated (issue #378).
+    """
+    from arch_utils.interpreters import (
+        resolve_treesitter_python,
+        treesitter_version,
+    )
+
+    resolved = resolve_treesitter_python()
+    if resolved is None:
+        return [{"name": "tree-sitter", "available": False, "version": None}]
+    return [
+        {
+            "name": "tree-sitter",
+            "available": True,
+            "version": treesitter_version(resolved),
+        }
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -358,33 +492,54 @@ def hash_file(path: Path) -> tuple[str, int]:
 
 
 def owned_artifacts(
-    repo_root: Path | str, arch_dir: str = ARCH_DIR_DEFAULT
+    repo_root: Path | str,
+    arch_dir: str = ARCH_DIR_DEFAULT,
+    *,
+    generated: Collection[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Return sorted digests for the owned architecture artifacts that exist."""
+    """Return sorted digests for the owned architecture artifacts that exist.
+
+    *generated* is the set of paths, relative to *arch_dir* and POSIX-separated,
+    that the current run actually produced — what promotion wrote, not what the
+    output directory happens to contain. Promotion is a one-way merge (it copies
+    and never deletes, deliberately: the optional stages fail soft, and
+    ``views/.gitkeep`` is committed but never staged), so scanning the directory
+    cannot tell an artifact this revision generated from one an earlier revision
+    left behind. Every entry then gets an explicit ``carried_over`` flag.
+
+    Passing ``None`` means the caller does not know what the run produced, and
+    the flag is omitted rather than guessed — which is also the shape of every
+    document written before this field existed. Absent is "unknown"; present is
+    a claim. Nothing is dropped from the record either way, so a carried-over
+    artifact keeps its digest pinned and hand-edits to it still surface as
+    ARTIFACT_DIGEST_MISMATCH.
+    """
     repo_root = Path(repo_root)
     base = repo_root / arch_dir
+    known = None if generated is None else {Path(g).as_posix() for g in generated}
+
+    def _entry(path: Path, rel_to_arch: str, required: bool) -> dict[str, Any]:
+        digest, size = hash_file(path)
+        record: dict[str, Any] = {
+            "path": f"{arch_dir}/{rel_to_arch}",
+            "sha256": digest,
+            "size_bytes": size,
+            "required": required,
+        }
+        if known is not None:
+            record["carried_over"] = rel_to_arch not in known
+        return record
+
     out: list[dict[str, Any]] = []
     for name, required in _OWNED_TOP_LEVEL:
         p = base / name
         if p.is_file():
-            digest, size = hash_file(p)
-            out.append(
-                {
-                    "path": f"{arch_dir}/{name}",
-                    "sha256": digest,
-                    "size_bytes": size,
-                    "required": required,
-                }
-            )
+            out.append(_entry(p, name, required))
     views = base / "views"
     if views.is_dir():
         for p in sorted(views.rglob("*")):
             if p.is_file():
-                digest, size = hash_file(p)
-                rel = p.relative_to(repo_root).as_posix()
-                out.append(
-                    {"path": rel, "sha256": digest, "size_bytes": size, "required": False}
-                )
+                out.append(_entry(p, p.relative_to(base).as_posix(), False))
     out.sort(key=lambda a: a["path"])
     return out
 
@@ -440,8 +595,13 @@ def build_provenance(
     dirty: bool | None = None,
     warning_count: int = 0,
     generated_at: str | None = None,
+    generated: Collection[str] | None = None,
 ) -> dict[str, Any]:
-    """Assemble a schema-valid architecture provenance document from disk state."""
+    """Assemble a schema-valid architecture provenance document from disk state.
+
+    *generated* is forwarded to :func:`owned_artifacts` — see there for why a
+    caller that knows what the run produced must say so.
+    """
     repo_root = Path(repo_root)
     roots = roots if roots is not None else default_input_roots()
     tools = optional_tools if optional_tools is not None else detect_optional_tools()
@@ -450,6 +610,7 @@ def build_provenance(
         raise ValueError("cannot build provenance without a resolvable HEAD revision")
     is_dirty = dirty if dirty is not None else worktree_dirty(repo_root, roots)
     ts = generated_at if generated_at is not None else deterministic_timestamp(repo_root, rev)
+    fingerprint, enumeration = compute_input_fingerprint(repo_root, roots)
     doc: dict[str, Any] = {
         "schema_version": PROVENANCE_SCHEMA_VERSION,
         "producer": {"producer_id": PRODUCER_ID, "producer_version": PRODUCER_VERSION},
@@ -458,7 +619,8 @@ def build_provenance(
         "worktree_dirty": bool(is_dirty),
         "mode": mode,
         "input_roots": sorted(set(roots)),
-        "input_fingerprint": compute_input_fingerprint(repo_root, roots),
+        "input_enumeration": enumeration,
+        "input_fingerprint": fingerprint,
         "generated_at": ts,
         "optional_tools": tools,
         "validation": {
@@ -466,7 +628,7 @@ def build_provenance(
             "error_count": 0,
             "warning_count": warning_count,
         },
-        "artifacts": owned_artifacts(repo_root, arch_dir),
+        "artifacts": owned_artifacts(repo_root, arch_dir, generated=generated),
     }
     return doc
 
@@ -561,8 +723,20 @@ def check_freshness(
     # Relevant input fingerprint (uses the recorded roots so added/removed/renamed
     # files within them change the fingerprint).
     recorded_roots = list(prov.get("input_roots", []))
-    current_fp = compute_input_fingerprint(repo_root, recorded_roots)
-    if current_fp != prov.get("input_fingerprint"):
+    current_fp, current_enumeration = compute_input_fingerprint(repo_root, recorded_roots)
+    recorded_enumeration = prov.get("input_enumeration")
+    if recorded_enumeration != current_enumeration:
+        # Reported as identity, not as a fingerprint mismatch: two strategies see
+        # different file sets, so their fingerprints are not comparable and
+        # "the inputs changed" would be the wrong thing to tell a reader.
+        reasons.append(
+            DriftReason(
+                PRODUCER_IDENTITY_MISMATCH,
+                f"input enumeration {recorded_enumeration!r} != current "
+                f"{current_enumeration!r}",
+            )
+        )
+    elif current_fp != prov.get("input_fingerprint"):
         reasons.append(
             DriftReason(
                 INPUT_FINGERPRINT_MISMATCH,

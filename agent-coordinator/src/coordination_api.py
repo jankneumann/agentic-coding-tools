@@ -35,6 +35,16 @@ from .code_search_runtime import (
 from .config import get_config
 from .port_allocator import get_port_allocator
 
+# Trust resolution lives in src/trust_resolution.py so that the HTTP write
+# endpoints in this module and WorkQueueService's guardrail paths share ONE
+# implementation (they used to have two, and the other one failed open).
+# Re-exported under the historical names: callers import TrustResolutionError
+# from here, and tests patch ``src.coordination_api.resolve_trust_level``.
+from .trust_resolution import (  # noqa: F401
+    TrustResolutionError,
+    resolve_trust_level,
+)
+
 _CODE_SEARCH_PROBLEMS = {
     401: {
         "type": "urn:coordinator:authentication:required",
@@ -553,22 +563,6 @@ async def authorize_operation(
         raise HTTPException(status_code=403, detail=decision.reason or "Forbidden")
 
 
-async def resolve_trust_level(agent_id: str, agent_type: str) -> int:
-    """Resolve effective trust level for guardrail evaluation."""
-    from .profiles import get_profiles_service
-
-    try:
-        profile_result = await get_profiles_service().get_profile(
-            agent_id=agent_id,
-            agent_type=agent_type,
-        )
-        if profile_result.success and profile_result.profile is not None:
-            return profile_result.profile.trust_level
-    except Exception:
-        pass
-    return get_config().profiles.default_trust_level
-
-
 # =============================================================================
 # Application factory
 # =============================================================================
@@ -611,6 +605,20 @@ def create_coordination_api() -> FastAPI:
                 "Migration check failed — continuing with existing schema.",
                 exc_info=True,
             )
+
+        # Project agents.yaml onto agent_profiles (design D1). MUST run after
+        # ensure_schema() so the table it writes exists.
+        #
+        # DELIBERATELY NOT wrapped in try/except, unlike every other startup
+        # step in this lifespan. The agent-identity spec requires that sync
+        # failure fail coordinator boot loudly: a coordinator whose
+        # authorization state silently diverges from the registry is precisely
+        # the fail-open drift this change removes. Do not "fix" this into the
+        # warn-and-continue pattern used above. The rollback lever is
+        # PROFILE_SYNC_ENABLED=false (design D8), which sync_profiles() honors.
+        from .agents_config import sync_profiles
+
+        await sync_profiles()
 
         # Semantic search is optional and default-off. Its runtime owns the
         # pool/provider in this serving loop; initialization failure never
@@ -864,11 +872,12 @@ def create_coordination_api() -> FastAPI:
             "reason": result.reason,
         }
 
-    @app.get("/locks/status/{file_path:path}")
-    async def check_lock_status(file_path: str) -> dict[str, Any]:
+    @app.get("/locks/status/{path:path}")
+    async def check_lock_status(path: str) -> dict[str, Any]:
         """Check lock status for a file. Read-only, no API key required."""
         from .locks import get_lock_service
 
+        file_path = path
         locks = await get_lock_service().check(file_paths=[file_path])
         if not locks:
             return {"locked": False, "file_path": file_path}
@@ -3071,9 +3080,9 @@ def create_coordination_api() -> FastAPI:
 
         return updated.to_dict()
 
-    @app.delete("/locks/{file_path:path}")
+    @app.delete("/locks/{path:path}")
     async def force_release_lock(
-        file_path: str,
+        path: str,
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Force-release a lock regardless of holder (destructive-write).
@@ -3084,6 +3093,7 @@ def create_coordination_api() -> FastAPI:
         from .audit import get_audit_service
         from .locks import get_lock_service
 
+        file_path = path
         agent_id = principal.get("agent_id") or get_config().agent.agent_id
         result = await get_lock_service().force_release(file_path, agent_id=agent_id)
 

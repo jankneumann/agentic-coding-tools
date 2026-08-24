@@ -1,0 +1,241 @@
+# agent-coordinator kanban-viz contract (issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/coordinator-kanban-viz/spec.md — NOT generated
+# from the running application (D1; app.openapi() describing itself would
+# verify a copy against itself). These operations are served by the
+# coordinator but were specified by the kanban-viz capability, so every
+# citation here is cross-capability (permitted by D9). Operation descriptions
+# cite kanban-viz spec line provenance as of the issue #377 attribution
+# change. FORWARD-ENFORCED (D6): every operation carries an x-traceability
+# block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Kanban-viz projections and UI actions"
+  version: 1.0.0
+  description: >-
+    Coordinator endpoints introduced for the kanban board: read-only
+    projections (sync points, worktrees, PRs, proposals), the SSE event
+    stream with its token mint, and reversibility-classified UI writes.
+    coordinator-kanban-viz spec lines 215-363, 365-404, 964-1035, 1119-1175.
+paths:
+  /sync-points/status:
+    get:
+      operationId: getSyncPointsStatus
+      summary: Get blocker state of the sync-point skills
+      description: >-
+        kanban-viz spec 215-235: exposes GET /sync-points/status returning
+        the blocker state of the three sync-point skills, reusing the shared
+        active-agents check.
+      x-traceability:
+        requirements:
+          - coordinator-kanban-viz.new-coordinator-endpoint-sync-point-status
+      responses:
+        "200": {description: Sync-point blocker states (kanban-viz spec 225)}
+  /worktrees/active:
+    get:
+      operationId: getActiveWorktrees
+      summary: Get the active-worktree projection
+      description: >-
+        kanban-viz spec 237-255: projects active worktrees from the worktree
+        registry, omitting entries with stale heartbeats and always including
+        pinned entries.
+      x-traceability:
+        requirements:
+          - coordinator-kanban-viz.new-coordinator-endpoint-worktree-active-projection
+      responses:
+        "200": {description: Active worktrees (kanban-viz spec 239)}
+  /events/auth:
+    post:
+      operationId: mintEventsToken
+      summary: Mint a short-lived token for the SSE handshake
+      description: >-
+        kanban-viz spec 365-404: mints a short-lived JWT for the SSE
+        handshake; fails closed with 503 when the signing key is unset
+        (kanban-viz spec 565-597, compose surface for the SSE signing key).
+      x-traceability:
+        requirements:
+          - coordinator-kanban-viz.authentication-posture-for-kanban-ui
+          - coordinator-kanban-viz.coordinator-compose-surface-for-sse-signing-key
+      responses:
+        "200": {description: Short-lived SSE token (kanban-viz spec 375)}
+        "503": {description: SSE signing key unset — fail closed (kanban-viz spec 581-589)}
+  /events/work:
+    get:
+      operationId: streamWorkEvents
+      summary: SSE stream of work-queue and audit events
+      description: >-
+        kanban-viz spec 257-284: SSE stream of work-queue transitions and
+        audit events, authenticated via the minted token and scoped by a
+        required change_ids filter.
+      x-traceability:
+        requirements:
+          - coordinator-kanban-viz.new-coordinator-endpoint-work-event-stream-sse
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema: {type: string}
+        - name: change_ids
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        "200": {description: SSE event stream (kanban-viz spec 259)}
+        "400": {description: Empty change_ids filter}
+        "503": {description: SSE signing key unset — fail closed}
+  /issues/{issue_id}/labels:
+    patch:
+      operationId: patchIssueLabels
+      summary: Add or remove labels on an issue
+      description: >-
+        kanban-viz spec 285-318: reversible label write backing drag-to-Ready
+        on the board; wraps the issue service's labels-only update and emits
+        an audit entry.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - coordinator-kanban-viz.new-coordinator-write-endpoints-for-ui-actions
+      parameters:
+        - name: issue_id
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                add: {type: array, items: {type: string}}
+                remove: {type: array, items: {type: string}}
+      responses:
+        "200": {description: Updated issue (kanban-viz spec 287)}
+        "401": {description: Missing or invalid X-API-Key}
+  /agents/{agent_id}/kick:
+    post:
+      operationId: kickAgent
+      summary: Clear a stale agent's worktree-registry entry
+      description: >-
+        kanban-viz spec 285-318: destructive-classified UI write that clears
+        a stale agent's worktree-registry entry and marks its session
+        disconnected; the request body must include the change_id.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - coordinator-kanban-viz.new-coordinator-write-endpoints-for-ui-actions
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [change_id]
+              properties:
+                change_id: {type: string}
+      responses:
+        "200": {description: Registry entry cleared (kanban-viz spec 303-312)}
+        "401": {description: Missing or invalid X-API-Key}
+  /kanban-viz/saved-views/{slug}:
+    put:
+      operationId: putSavedView
+      summary: Write a saved-view file
+      description: >-
+        kanban-viz spec 320-363: coordinator-owned file write for saved
+        views — validates the slug, resolves the path inside the workdir
+        root, stamps the mandatory artifact header (kanban-viz spec 185-213),
+        and writes atomically.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - coordinator-kanban-viz.new-coordinator-file-write-endpoints-for-ui-persistence
+          - coordinator-kanban-viz.saved-views-with-mandatory-artifact-header
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Saved view written with artifact header (kanban-viz spec 334-336)}
+        "401": {description: Missing or invalid X-API-Key}
+  /kanban-viz/audit:
+    post:
+      operationId: postKanbanAudit
+      summary: Append a UI audit event
+      description: >-
+        kanban-viz spec 320-363: appends a UI audit event with the same
+        path-safety and atomic-write semantics as saved views; the date
+        subdirectory is derived server-side.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - coordinator-kanban-viz.new-coordinator-file-write-endpoints-for-ui-persistence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Audit event appended (kanban-viz spec 342-345)}
+        "401": {description: Missing or invalid X-API-Key}
+  /github/prs:
+    get:
+      operationId: getGithubPrs
+      summary: List open pull requests across configured repos
+      description: >-
+        kanban-viz spec 964-1035: lists open PRs across the repos configured
+        via GITHUB_REPOS (kanban-viz spec 1096-1118); returns 503 when no
+        GitHub credential is configured; responses are briefly cached with an
+        explicit refresh escape hatch.
+      x-traceability:
+        requirements:
+          - coordinator-kanban-viz.new-coordinator-endpoint-open-pull-requests
+          - coordinator-kanban-viz.github-repos-configuration
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          schema: {type: boolean}
+      responses:
+        "200": {description: Open PRs across configured repos (kanban-viz spec 964)}
+        "503": {description: GITHUB_PAT unset}
+  /openspec/proposals:
+    get:
+      operationId: getOpenspecProposals
+      summary: List non-archive OpenSpec proposals with implementation state
+      description: >-
+        kanban-viz spec 1119-1175: projects non-archive OpenSpec proposals
+        with implementation state; returns 503 when the runtime checkout has
+        no git directory; responses are briefly cached with an explicit
+        refresh escape hatch.
+      x-traceability:
+        requirements:
+          - coordinator-kanban-viz.new-coordinator-endpoint-openspec-proposals-projection
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          schema: {type: boolean}
+      responses:
+        "200": {description: Proposals with implementation state (kanban-viz spec 1119)}
+        "503": {description: No .git directory in the runtime checkout}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

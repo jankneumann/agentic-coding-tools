@@ -1,6 +1,6 @@
 flowchart TB
     __init__["__init__ (1 symbols)"]
-    agents_config["agents_config (41 symbols)"]
+    agents_config["agents_config (54 symbols)"]
     approval["approval (14 symbols)"]
     assurance["assurance (1 symbols)"]
     audit["audit (17 symbols)"]
@@ -11,11 +11,11 @@ flowchart TB
     code_search_authorization["code_search_authorization (40 symbols)"]
     code_search_runtime["code_search_runtime (45 symbols)"]
     config["config (45 symbols)"]
-    coordination_api["coordination_api (148 symbols)"]
+    coordination_api["coordination_api (147 symbols)"]
     coordination_cli["coordination_cli (34 symbols)"]
     coordination_mcp["coordination_mcp (80 symbols)"]
     db["db (23 symbols)"]
-    db_postgres["db_postgres (14 symbols)"]
+    db_postgres["db_postgres (15 symbols)"]
     discovery["discovery (20 symbols)"]
     docker_manager["docker_manager (8 symbols)"]
     event_bus["event_bus (22 symbols)"]
@@ -62,20 +62,26 @@ flowchart TB
     policy_sync["policy_sync (17 symbols)"]
     port_allocator["port_allocator (12 symbols)"]
     profile_loader["profile_loader (14 symbols)"]
-    profiles["profiles (14 symbols)"]
+    profiles["profiles (15 symbols)"]
     refresh_rpc_client["refresh_rpc_client (12 symbols)"]
     risk_scorer["risk_scorer (14 symbols)"]
     session_grants["session_grants (13 symbols)"]
     sse_log_redaction["sse_log_redaction (6 symbols)"]
     status["status (6 symbols)"]
     sync_points["sync_points (5 symbols)"]
-    teams["teams (10 symbols)"]
+    teams["teams (14 symbols)"]
     telemetry["telemetry (20 symbols)"]
     tests__test_architecture["tests.test_architecture (52 symbols)"]
+    trust_levels["trust_levels (2 symbols)"]
+    trust_resolution["trust_resolution (5 symbols)"]
     watchdog["watchdog (18 symbols)"]
     work_queue["work_queue (24 symbols)"]
     worktrees_view["worktrees_view (4 symbols)"]
+    agents_config -->|"call"| audit
+    agents_config -->|"call"| config
+    agents_config -->|"call"| db
     agents_config -->|"call"| profile_loader
+    agents_config -->|"call"| profiles
     agents_config -->|"call"| teams
     approval -->|"call, import"| db
     audit -->|"call, import"| audit_triage
@@ -126,6 +132,7 @@ flowchart TB
     coordination_api -->|"call, import"| sse_log_redaction
     coordination_api -->|"import"| sync_points
     coordination_api -->|"call, import"| telemetry
+    coordination_api -->|"call, import"| trust_resolution
     coordination_api -->|"call, import"| watchdog
     coordination_api -->|"call, import"| work_queue
     coordination_api -->|"import"| worktrees_view
@@ -244,6 +251,8 @@ flowchart TB
     policy_engine -->|"call, import"| network_policies
     policy_engine -->|"call, import"| profiles
     policy_engine -->|"call, import"| telemetry
+    policy_engine -->|"import"| trust_levels
+    policy_engine -->|"call, import"| trust_resolution
     port_allocator -->|"import"| config
     profiles -->|"call, import"| audit
     profiles -->|"call, import"| config
@@ -252,6 +261,11 @@ flowchart TB
     session_grants -->|"call"| approval
     session_grants -->|"call, import"| db
     sync_points -->|"call"| code_search_runtime
+    teams -->|"call"| agents_config
+    trust_resolution -->|"call, import"| agents_config
+    trust_resolution -->|"call, import"| audit
+    trust_resolution -->|"call, import"| config
+    trust_resolution -->|"call, import"| profiles
     watchdog -->|"call, import"| db
     watchdog -->|"call, import"| event_bus
     work_queue -->|"call, import"| agents_config
@@ -262,7 +276,7 @@ flowchart TB
     work_queue -->|"call, import"| guardrails
     work_queue -->|"call"| locks
     work_queue -->|"call, import"| policy_engine
-    work_queue -->|"call, import"| profiles
     work_queue -->|"call, import"| telemetry
+    work_queue -->|"call, import"| trust_resolution
     worktrees_view -->|"call"| approval
     worktrees_view -->|"call"| code_search_runtime

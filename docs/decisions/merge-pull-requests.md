@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-08-20 — add-merge-plan-orchestration
+
+### Phase: Implementation
+
+**Reuse canonical merge and review helpers** — The plan executor resolves the repository root, composes existing safety gates, and keeps one source of truth for merge policy without selecting generated mirrors.
+
+- Status: `active`
+- Source: [openspec/changes/add-merge-plan-orchestration/session-log.md](/openspec/changes/add-merge-plan-orchestration/session-log.md) (D2)
+
+---
+
+## 2026-08-20 — add-merge-plan-orchestration
+
+### Phase: Implementation
+
+**Treat the durable claim as the crash boundary** — Persisting `in_progress` before side effects and reconciling live terminal state prevents duplicate merges after a process crash or final-save failure.
+
+- Status: `active`
+- Source: [openspec/changes/add-merge-plan-orchestration/session-log.md](/openspec/changes/add-merge-plan-orchestration/session-log.md) (D3)
+
+---
+
 ## 2026-07-12 — add-merge-plan-orchestration
 
 ### Phase: Plan

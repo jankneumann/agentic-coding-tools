@@ -1,0 +1,57 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "architecture",
+      "severity": "fyi",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "FYI: openspec/changes/trace-requirements-to-contracts/design.md:427 - Assessment of Design Decision D13 (Directional Opt-in): D13's separation of forward (per contract document) and reverse (per capability) opt-in is architecturally sound and resolves staging deadlocks. Overloading traceability-exclusions.yaml as the reverse switch ensures reverse enforcement is only activated after full requirement triage, though it prevents incremental recording of requirement exclusions before complete capability triage.",
+      "resolution": "Accept D13 as designed. Note in developer docs that creating traceability-exclusions.yaml requires complete capability requirement triage.",
+      "disposition": "accept"
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "fyi",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "FYI: openspec/changes/trace-requirements-to-contracts/work-packages.yaml:120 - Evaluation of the wp-model write scope dispute: Empirical verification confirms the plan's refutation is correct. FlagSpec, PositionalSpec, ToolCommandSpec, and OperationSpec are archetype-only models unreachable from InterfaceDescriptor. Adding an optional traceability field with default None to these models does not alter interface-descriptor.schema.json (verified via generate_contract_schemas.py --check) and exclude_defaults=True preserves byte-identity of evaluation/descriptor.yaml (verified via generate_tool_descriptor.py --check). Expanding write_allow is unnecessary.",
+      "resolution": "Maintain wp-model write_allow as specified in the plan.",
+      "disposition": "accept"
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md:474 - Requirement 'The gate fails closed on malformed input' specifies fail-closed behavior for unparseable contract documents and schema-invalid blocks, but omits specifying behavior when openspec/contracts/<capability>/traceability-exclusions.yaml is malformed, unparseable, or present-but-unreadable.",
+      "resolution": "Add a scenario under Requirement 'The gate fails closed on malformed input' stating that a malformed or unparseable traceability-exclusions.yaml file SHALL fail the gate naming the file and SHALL NOT be recorded as absent/not-opted-in.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "axis": "architecture",
+      "severity": "nit",
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: openspec/changes/trace-requirements-to-contracts/work-packages.yaml:372 - Package wp-wiring specifies a DISPATCH PRECONDITION in prose requiring human tasks 4.1, 4.2, and 4.2b to land before dispatch, but its depends_on array lists only [wp-gate, wp-matrix]. Automated DAG orchestrators executing strictly by depends_on would dispatch wp-wiring prematurely.",
+      "resolution": "Document the human task gate in orchestrator execution instructions or enforce an explicit completion check for human tasks 4.1, 4.2, and 4.2b prior to dispatching wp-wiring.",
+      "disposition": "accept"
+    },
+    {
+      "id": 5,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md:1 - Spec quality verification: All 14 ADDED requirements in gen-eval-framework/spec.md and 2 MODIFIED/ADDED requirements in skill-workflow/spec.md contain SHALL on their very first line, passing strict validation via openspec validate --strict.",
+      "resolution": "No change needed.",
+      "disposition": "accept"
+    }
+  ]
+}

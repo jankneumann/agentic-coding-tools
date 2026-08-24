@@ -23,8 +23,6 @@ _API_KEY = "e2e-test-key"
 _TABLES = [
     "handoff_documents",
     "memory_episodic",
-    "memory_working",
-    "memory_procedural",
     "work_queue",
     "file_locks",
     "agent_sessions",

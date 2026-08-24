@@ -22,7 +22,6 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +35,9 @@ if str(_ARCHITECTURE_SCRIPTS) not in sys.path:
 from arch_utils.constants import (  # type: ignore[import-not-found]  # noqa: E402
     SIDE_EFFECT_EDGE_TYPES,
     EdgeType,
+)
+from arch_utils.determinism import (  # type: ignore[import-not-found]  # noqa: E402
+    generated_at_iso,
 )
 from arch_utils.traversal import (  # type: ignore[import-not-found]  # noqa: E402
     build_adjacency,
@@ -162,6 +164,31 @@ def _finding(
     return f
 
 
+def _ordered(findings: list[Finding]) -> list[Finding]:
+    """Return *findings* in a total order that does not depend on iteration luck.
+
+    ``architecture.diagnostics.json`` is a committed artifact whose digest the
+    architecture provenance system records, so its byte content has to be a
+    function of the graph alone. Several checks derive findings by walking sets
+    of node ids, whose order follows ``PYTHONHASHSEED`` rather than the graph;
+    ranking them here makes every check's output reproducible regardless of how
+    the check happened to collect them.
+
+    Sorting is applied per check rather than across the whole report so the
+    category grouping consumers already rely on is preserved.
+    """
+    return sorted(
+        findings,
+        key=lambda f: (
+            f.get("category", ""),
+            f.get("file") or "",
+            f.get("line") if f.get("line") is not None else -1,
+            f.get("node_id") or "",
+            f.get("message", ""),
+        ),
+    )
+
+
 def _in_scope(file_path: str | None, changed_files: list[str] | None) -> bool:
     """Return True if *file_path* is in scope (or scope is not restricted)."""
     if changed_files is None:
@@ -251,7 +278,7 @@ def check_reachability(
                 suggestion="Verify this is expected, or tag the entrypoint as 'pure'",
             ))
 
-    return findings, checked
+    return _ordered(findings), checked
 
 
 # ---------------------------------------------------------------------------
@@ -284,8 +311,11 @@ def check_disconnected_flows(
             api_call_targets.add(edge["to"])
             api_call_sources[edge["to"]].append(edge["from"])
 
-    # Backend routes with no frontend callers (no incoming api_call edge)
-    for node_id in route_node_ids:
+    # Backend routes with no frontend callers (no incoming api_call edge).
+    # Walked in sorted order: `route_node_ids` is a set, and its iteration order
+    # would otherwise decide the order of the findings written to the committed
+    # diagnostics artifact.
+    for node_id in sorted(route_node_ids):
         node = nodes.get(node_id)
         if node is None:
             continue
@@ -336,7 +366,7 @@ def check_disconnected_flows(
                 suggestion="Ensure the backend handler exists and is registered in the graph",
             ))
 
-    return findings
+    return _ordered(findings)
 
 
 # ---------------------------------------------------------------------------
@@ -447,7 +477,7 @@ def check_test_coverage(
                 ),
             ))
 
-    return findings, with_coverage, without_coverage
+    return _ordered(findings), with_coverage, without_coverage
 
 
 # ---------------------------------------------------------------------------
@@ -512,7 +542,7 @@ def check_orphaned_code(
                 suggestion="Remove the dead code or add an entrypoint/test that exercises it",
             ))
 
-    return findings
+    return _ordered(findings)
 
 
 # ---------------------------------------------------------------------------
@@ -600,8 +630,10 @@ def check_pattern_consistency(
 
         # Check decorator consistency
         if kind in dominant_decorators:
+            # Sorted: a set difference, so its iteration order would otherwise
+            # decide the order of one node's decorator findings.
             missing = dominant_decorators[kind] - decorators
-            for dec in missing:
+            for dec in sorted(missing):
                 findings.append(_finding(
                     "info",
                     "pattern_consistency",
@@ -633,7 +665,7 @@ def check_pattern_consistency(
                     suggestion=f"Rename to follow {expected_conv} convention",
                 ))
 
-    return findings
+    return _ordered(findings)
 
 
 # ---------------------------------------------------------------------------
@@ -688,7 +720,10 @@ def validate_flows(
     info = sum(1 for f in all_findings if f["severity"] == "info")
 
     report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        # The pipeline clock, not the wall clock: this artifact is committed and
+        # digested by architecture provenance, so a wall-clock stamp would make
+        # every refresh of an unchanged graph rewrite it (issue #362).
+        "generated_at": generated_at_iso(),
         "scope": "changed" if changed_files is not None else "full",
         "changed_files": changed_files or [],
         "findings": all_findings,
@@ -716,6 +751,44 @@ def validate_flows(
 # CLI
 # ---------------------------------------------------------------------------
 
+#: The committed, full-scope artifact. Architecture provenance records its
+#: content digest, and `refresh-architecture` regenerates it from a full run.
+CANONICAL_OUTPUT = Path("docs/architecture-analysis/architecture.diagnostics.json")
+
+#: Where a scoped run writes instead. A scoped report describes only the files
+#: in scope, so writing it to CANONICAL_OUTPUT replaces a full analysis with a
+#: narrow one -- the file still parses and still looks like diagnostics, which
+#: is what made the overwrite easy to miss. Gitignored.
+SCOPED_OUTPUT = Path("docs/architecture-analysis/architecture.diagnostics.scoped.json")
+
+
+def resolve_output_path(
+    explicit: Path | None,
+    changed_files: list[str] | None,
+) -> Path:
+    """Pick the diagnostics destination for this run.
+
+    An explicit --output always wins; callers that want a scoped report in a
+    specific place (CI, a skill writing to a change directory) keep control.
+    Otherwise the default follows the scope, so the committed full-scope
+    artifact is only ever written by a full run.
+    """
+    scoped = changed_files is not None
+    if explicit is not None:
+        if scoped and explicit.resolve() == CANONICAL_OUTPUT.resolve():
+            logger.warning(
+                "WARNING: writing a scoped report over %s. That file is the "
+                "committed full-scope artifact -- this replaces a full analysis "
+                "with one covering %d file(s). Omit --output to write to %s "
+                "instead.",
+                CANONICAL_OUTPUT,
+                len(changed_files or []),
+                SCOPED_OUTPUT,
+            )
+        return explicit
+    return SCOPED_OUTPUT if scoped else CANONICAL_OUTPUT
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Validate architecture flows: reachability, test coverage, orphans, and pattern consistency.",
@@ -729,8 +802,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("docs/architecture-analysis/architecture.diagnostics.json"),
-        help="Path to write the diagnostics JSON (default: docs/architecture-analysis/architecture.diagnostics.json)",
+        default=None,
+        help=(
+            "Path to write the diagnostics JSON. Defaults to "
+            f"{CANONICAL_OUTPUT} for a full run and {SCOPED_OUTPUT} for a scoped "
+            "one (--files/--diff/--glob), so a scoped run never overwrites the "
+            "committed full-scope artifact."
+        ),
     )
     parser.add_argument(
         "--files",
@@ -764,8 +842,9 @@ def main() -> int:
         return 1
 
     changed_files = _resolve_changed_files(args.files, args.diff, args.glob)
+    output_path = resolve_output_path(args.output, changed_files)
 
-    report = validate_flows(args.graph, args.output, changed_files)
+    report = validate_flows(args.graph, output_path, changed_files)
 
     summary = report["summary"]
     scope_label = f" (scope: {len(report['changed_files'])} files)" if report["scope"] == "changed" else ""
@@ -775,7 +854,7 @@ def main() -> int:
     logger.info("  Flows without test coverage: %d", summary['flows_without_coverage'])
     logger.info("  Findings: %d total (%d errors, %d warnings, %d info)",
                 summary['total_findings'], summary['errors'], summary['warnings'], summary['info'])
-    logger.info("  Output: %s", args.output)
+    logger.info("  Output: %s", output_path)
 
     if summary["errors"] > 0:
         return 1

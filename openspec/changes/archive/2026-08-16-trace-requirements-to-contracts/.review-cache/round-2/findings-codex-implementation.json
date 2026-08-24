@@ -1,0 +1,35 @@
+{
+  "review_type": "implementation",
+  "target": "trace-requirements-to-contracts",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Critical: the 7.0b runnability probe turns any `--help` failure into a passing SKIP, even when the gate and contracts are present and a `.venv/bin/python` exists. I executed the extracted fragment under `bash -e` in a temp project with `packages/gen-eval/scripts/check_traceability.py`, `openspec/contracts/`, and `.venv/bin/python`; with a syntax error in the gate, the fragment returned 0 and printed `SKIP ... dependencies not installed`. The spec only permits SKIP when the gate file or contracts directory is absent, and says a non-zero gate exit fails validation. Narrow the SKIP to the fresh-worktree missing-dependency case; a present configured interpreter that cannot run a present gate should fail and surface stderr.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "skills/validate-feature/SKILL.md",
+      "line_range": {
+        "start": 571,
+        "end": 573
+      }
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Critical: change-id derivation accepts files directly under `openspec/changes/` even though the spec says only paths under a directory matching `openspec/changes/<id>/` may yield an id. I drove the extracted CI fragment under `bash -e` against a temp repo whose PR only added `openspec/changes/README.md`; instead of the required no-change-directory SKIP, stdout showed `argv: --scope capability --change openspec/changes/README.md`. Running the real gate with that derived id exits 1 with stale effective-spec errors, so a non-change root note can falsely block a PR. Filter to paths matching `^openspec/changes/[^/]+/` before extracting the id, and add a regression test.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": ".github/workflows/ci.yml",
+      "line_range": {
+        "start": 536,
+        "end": 541
+      }
+    }
+  ]
+}

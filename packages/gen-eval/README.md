@@ -144,6 +144,64 @@ The MCP service reads scenario data from the directory set by:
 
 ---
 
+## Requirement traceability
+
+There is a fourth edge above the chain the rest of this document describes.
+Contract-derived descriptors (below) answer "does the descriptor match the
+contract, and does the implementation match the descriptor?" — **contract →
+descriptor → verify**. They never ask *why* an operation exists. The
+requirement-traceability gate is the edge that answers that: **requirement →
+contract**, added on top of the same three-edge chain, so the full path a
+change is accountable for reads requirement → contract → descriptor → verify.
+
+`scripts/check_traceability.py` checks two directions, both fail-closed:
+
+- **Forward** — a contracted operation (an OpenAPI operation, or a CLI flag,
+  positional, or command) cites the requirement(s) it serves via a
+  `traceability:` (CLI) or `x-traceability` (OpenAPI) block, or carries a
+  written `excluded.reason`. Opt-in is **per contract document**: the moment
+  one operation in a document declares a `traceability:` block, every other
+  operation in that same document is held to the same standard — there is no
+  half-traced document.
+- **Reverse** — a requirement in `openspec/specs/<capability>/spec.md` is
+  cited by at least one operation, or excused in that capability's
+  `openspec/contracts/<capability>/traceability-exclusions.yaml`. Opt-in is
+  **per capability**, and the file's mere *existence* is the switch — an
+  unparseable or unreadable exclusions file fails the gate rather than
+  silently reading as "not opted in."
+
+Citations are never inferred (design D1): a flag named almost exactly like a
+requirement heading still cites nothing until a human writes the citation.
+Nothing here is optional guessing, and nothing here is a correctness check —
+the gate's own report line states its limit explicitly, because a green gate
+is easy to misread as more than it is:
+
+> `<N> operations cite <M> requirements. This gate does not check that any
+> requirement is satisfied.`
+
+**Usage**, one script, one `--scope`:
+
+```bash
+# Blocking — the invocation /validate-feature makes. Shadows the archive with
+# this one change's own spec delta; pre-existing gaps the change did not
+# create are reported, never failed.
+python scripts/check_traceability.py --scope change --change <change-id>
+
+# Every capability, in full. --change <id> shadows the archive with that
+# change's delta (every BLOCKING CI invocation); omitted, it unions every
+# on-branch delta (the one non-blocking post-merge sweep).
+python scripts/check_traceability.py --scope capability [--change <change-id>]
+```
+
+The gate does not know or infer which CI job called it, or whether its exit
+code blocks anything — it always reports the same way; the caller (a skill,
+a CI job) decides what to do with the exit code. See
+`openspec/contracts/gen-eval-framework/schemas/traceability.schema.json` and
+`traceability-exclusions.schema.json` for the citation and exclusion shapes —
+every capability's contracts validate against the same two promoted schemas.
+
+---
+
 ## Contract-derived descriptors
 
 A descriptor names the interfaces gen-eval measures coverage against. Where

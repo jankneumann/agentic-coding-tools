@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: dispatcher-daemon
   title: Symphony-style dispatcher daemon
-  status: candidate
+  status: superseded
   priority: 1
   effort: M
   depends_on: []
@@ -21,9 +21,11 @@ items:
   - Daemon stays up >=24h unattended without leaking workspaces
   - Deterministically dispatches >=50 issues with no duplicate dispatch
   - Restart recovers running set from tracker + filesystem state
+  superseded_by:
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: workflow-md-contract
   title: WORKFLOW.md repo-owned policy contract
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on: []
@@ -36,7 +38,7 @@ items:
   - Reload applies within one poll tick without restarting the daemon
 - item_id: coordinator-tracker-adapter
   title: Coordinator-native issue tracker adapter (primary)
-  status: candidate
+  status: superseded
   priority: 3
   effort: M
   depends_on:
@@ -56,9 +58,11 @@ items:
   - Status transitions flow through issue_service and are captured in audit_log
   - Works in both online and coordinator-degraded modes per CAN_QUEUE_WORK capability
     flag
+  superseded_by:
+  - roadmap-always-on-agent-automation:ri-07
 - item_id: workspace-manager-hooks
   title: Issue-keyed workspace manager with lifecycle hooks
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -71,9 +75,11 @@ items:
   - Hook invocation order matches Symphony SPEC section 3
   - after_run failures do not block forward progress
   - Path containment violations fail closed before agent launch
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: retry-queue-backoff
   title: Centralized retry queue with exponential backoff
-  status: candidate
+  status: approved
   priority: 5
   effort: S
   depends_on:
@@ -84,9 +90,11 @@ items:
   acceptance_outcomes:
   - Backoff schedule is deterministic and bounded
   - Retry re-check prevents dispatch of now-ineligible issues
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: agent-runner-port
   title: Agent-runner port with vendor adapters
-  status: candidate
+  status: approved
   priority: 6
   effort: L
   depends_on:
@@ -101,9 +109,11 @@ items:
   - Same daemon drives all three vendors from the same WORKFLOW.md
   - Normalized event schema covers all Symphony SPEC agent events
   - user_input_requested terminates the session to prevent hangs
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: turn-based-continuation
   title: Turn-based session continuation with tracker re-check
-  status: candidate
+  status: approved
   priority: 7
   effort: M
   depends_on:
@@ -115,9 +125,11 @@ items:
   acceptance_outcomes:
   - Same thread/workspace survives across up to max_turns
   - Mid-run state transition preserves workspace and emits run_aborted
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: reconciliation-stall-detection
   title: Tracker-state reconciliation and stall detection
-  status: candidate
+  status: superseded
   priority: 8
   effort: M
   depends_on:
@@ -131,13 +143,15 @@ items:
   - Stalled runs killed within stall_timeout_ms
   - Terminal-state workspaces cleaned on next startup
   - Orphan worktrees reconciled against registry
+  superseded_by:
+  - roadmap-always-on-agent-automation:ri-08
+  - roadmap-always-on-agent-automation:ri-09
 - item_id: coordinator-issue-tool
   title: Scoped coordinator-issue tool for agents
-  status: candidate
+  status: approved
   priority: 9
   effort: S
-  depends_on:
-  - coordinator-tracker-adapter
+  depends_on: []
   description: Agent-callable tool that wraps issue_service operations (transition
     status, add comment, link PR URL, adjust labels) via the coordinator's MCP/HTTP
     surface. One scoped operation per call, each automatically captured in audit_log.
@@ -148,9 +162,11 @@ items:
   - Agent can transition issue state, post comment, link PR without external credentials
   - Every invocation writes one audit_log entry with issue_id and session_id
   - Operation surface is intersected with the agent's trust profile
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-07
 - item_id: token-ratelimit-accounting
   title: Token, rate-limit, and run accounting
-  status: candidate
+  status: superseded
   priority: 10
   effort: S
   depends_on:
@@ -162,9 +178,11 @@ items:
   acceptance_outcomes:
   - Dashboard can answer tokens-per-issue-per-day without log scraping
   - Rate-limit headroom queryable in real time
+  superseded_by:
+  - roadmap-always-on-agent-automation:ri-10
 - item_id: operator-http-status-surface
   title: Operator HTTP status surface
-  status: candidate
+  status: superseded
   priority: 11
   effort: S
   depends_on:
@@ -178,22 +196,28 @@ items:
   - Operator can query live state during long unattended runs
   - Issues view lists coordinator issues with label/status filters
   - Daemon survives sidecar crashes without state loss
+  superseded_by:
+  - roadmap-always-on-agent-automation:ri-18
 - item_id: trust-posture-binding
   title: Trust-posture artifact and deployment-profile binding
-  status: candidate
+  status: approved
   priority: 12
   effort: M
   depends_on:
   - workflow-md-contract
-  description: Require symphony/TRUST_POSTURE.md per deployment declaring approval
-    policy, sandbox mode, network allowlist, coordinator trust level, guardrail posture.
-    Bind to profiles.py and policy_engine.py so posture is enforceable, not just documented.
+  description: 'RESIDUAL SCOPE ONLY. The per-gate half shipped as always-on ri-04
+    (add-trust-posture-contract-file), whose proposal explicitly excludes deployment-level
+    posture and names this item as its owner. Remaining scope: declare sandbox mode,
+    network allowlist, coordinator trust level, and guardrail posture per deployment,
+    and bind them to agent-coordinator/src/profiles.py and policy_engine.py so the
+    posture is enforceable rather than declarative. Neither module references trust
+    posture today. Does NOT re-deliver TRUST_POSTURE.md gate dispositions or skills/shared/trust_posture.py.'
   acceptance_outcomes:
   - Daemon refuses to dispatch when posture fields missing or contradictory
   - Posture changes are audited
 - item_id: coordinator-integration
   title: Daemon and coordinator peer integration
-  status: candidate
+  status: approved
   priority: 13
   effort: M
   depends_on:
@@ -208,9 +232,11 @@ items:
   - Daemon runs collide-free with human-triggered /implement-feature
   - End-to-end audit traceability from dispatch to merge
   - Degrades gracefully when coordinator is unreachable
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-08
 - item_id: github-tracker-adapter
   title: GitHub Issues external projection (optional)
-  status: candidate
+  status: superseded
   priority: 14
   effort: S
   depends_on:
@@ -224,26 +250,28 @@ items:
   - Coordinator issue changes appear as GitHub issue updates within N seconds
   - No back-sync path; GitHub-side edits are ignored
   - Projection failures do not block the daemon or coordinator
+  superseded_by:
+  - roadmap-always-on-agent-automation:ri-21
 - item_id: linear-tracker-adapter
   title: Linear Issues external projection (optional)
-  status: candidate
+  status: approved
   priority: 15
   effort: S
-  depends_on:
-  - coordinator-tracker-adapter
+  depends_on: []
   description: 'Linear counterpart to the GitHub projection. Demonstrates the external-projection
     port holds across trackers. Same one-way semantics: coordinator is canonical.'
   acceptance_outcomes:
   - Swap projection targets via WORKFLOW.md config with no daemon code changes
   - Feature parity with GitHub projection for required fields
+  external_depends_on:
+  - roadmap-always-on-agent-automation:ri-07
 - item_id: harness-readiness-audit
   title: Harness-readiness audit for Symphony-compatibility
-  status: candidate
+  status: approved
   priority: 16
   effort: S
   depends_on:
   - workflow-md-contract
-  - trust-posture-binding
   description: 'A /harness-audit (or bug-scrub extension) that scores a target repo
     against Symphony''s implicit prerequisites: hermetic tests, machine-readable build/test/deploy
     docs, WORKFLOW.md valid, TRUST_POSTURE.md present, openspec initialized, side-effect
@@ -252,4 +280,4 @@ items:
   - Report flags at least the five prerequisite categories with actionable hints
   - Integrates with existing bug-scrub report format
 created_at: '2026-04-24T06:24:27.457690+00:00'
-updated_at: '2026-04-24T06:24:27.457690+00:00'
+updated_at: '2026-08-13T08:27:19.152627+00:00'

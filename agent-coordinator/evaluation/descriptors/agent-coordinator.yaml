@@ -53,16 +53,6 @@ services:
         auth_required: true
         description: Query episodic memories by tags, type, or text
         tags: [memory, read]
-      - path: /memory/working/update
-        method: POST
-        auth_required: true
-        description: Update working memory for the calling agent
-        tags: [memory, write]
-      - path: /memory/working/get
-        method: POST
-        auth_required: true
-        description: Get working memory for the calling agent
-        tags: [memory, read]
 
       # Work Queue (5)
       - path: /work/submit
@@ -258,12 +248,6 @@ services:
       - name: recall
         description: Query episodic memories by tags, type, or text
         tags: [memory, read]
-      - name: update_working_memory
-        description: Update working memory for the calling agent
-        tags: [memory, write]
-      - name: get_working_memory
-        description: Get working memory for the calling agent
-        tags: [memory, read]
       # Work Queue
       - name: submit_work
         description: Submit a new task to the work queue
@@ -366,9 +350,6 @@ services:
       - name: get_health
         description: Service health check
         tags: [health, read]
-      - name: learn_procedure
-        description: Store a procedural memory entry
-        tags: [memory, write]
 
   # ── CLI ─────────────────────────────────────────────────────────────
   - name: cli
@@ -398,12 +379,6 @@ services:
         tags: [memory, write]
       - name: memory query
         description: Query episodic memories
-        tags: [memory, read]
-      - name: memory working-update
-        description: Update working memory
-        tags: [memory, write]
-      - name: memory working-get
-        description: Get working memory
         tags: [memory, read]
       # Work Queue (5)
       - name: work submit
@@ -509,9 +484,9 @@ state_verifiers:
     tables:
       - file_locks
       - work_queue
+      # memory_working / memory_procedural were dropped by migration 031
+      # (ri-15 descope): only the episodic layer was ever wired to a reader.
       - memory_episodic
-      - memory_working
-      - memory_procedural
       - agent_profiles
       - audit_log
       - operation_guardrails
@@ -553,17 +528,10 @@ file_interface_map:
     interfaces:
       - "POST /memory/store"
       - "POST /memory/query"
-      - "POST /memory/working/update"
-      - "POST /memory/working/get"
       - "mcp:remember"
       - "mcp:recall"
-      - "mcp:update_working_memory"
-      - "mcp:get_working_memory"
-      - "mcp:learn_procedure"
       - "cli:memory store"
       - "cli:memory query"
-      - "cli:memory working-update"
-      - "cli:memory working-get"
 
   - file_pattern: src/work_queue.py
     interfaces:
@@ -622,8 +590,6 @@ file_interface_map:
       - "POST /locks/force-release"
       - "POST /memory/store"
       - "POST /memory/query"
-      - "POST /memory/working/update"
-      - "POST /memory/working/get"
       - "POST /work/submit"
       - "POST /work/claim"
       - "POST /work/complete"
@@ -662,8 +628,6 @@ file_interface_map:
       - "mcp:force_release_lock"
       - "mcp:remember"
       - "mcp:recall"
-      - "mcp:update_working_memory"
-      - "mcp:get_working_memory"
       - "mcp:submit_work"
       - "mcp:get_work"
       - "mcp:complete_work"
@@ -705,8 +669,6 @@ file_interface_map:
       - "cli:lock force-release"
       - "cli:memory store"
       - "cli:memory query"
-      - "cli:memory working-update"
-      - "cli:memory working-get"
       - "cli:work submit"
       - "cli:work claim"
       - "cli:work complete"
