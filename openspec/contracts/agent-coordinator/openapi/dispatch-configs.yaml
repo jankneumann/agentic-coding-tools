@@ -1,0 +1,31 @@
+# agent-coordinator dispatch-configs contract (issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md and
+# openspec/specs/configuration/spec.md — NOT generated from the running
+# application (D1; app.openapi() describing itself would verify a copy against
+# itself). Operation descriptions cite spec line provenance as of the issue
+# #377 attribution change. FORWARD-ENFORCED (D6): every operation carries an
+# x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Dispatch config discovery"
+  version: 1.0.0
+  description: >-
+    Provider dispatch configuration discovery for review orchestration.
+    Spec lines 2012-2015 (HTTP-15); configuration spec 214-240.
+paths:
+  /agents/dispatch-configs:
+    get:
+      operationId: getAgentDispatchConfigs
+      summary: Get CLI dispatch configurations
+      description: >-
+        Spec 2015 (HTTP-15): returns CLI dispatch configurations for agents
+        with cli sections, without requiring authentication. configuration
+        spec 218-224: this is discovery-order step 2 ("HTTP coordinator
+        dispatch-config endpoint") for provider dispatch configuration.
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - configuration.provider-dispatch-configuration-discovery
+      responses:
+        "200": {description: Agents with their CLI dispatch configs (spec 2015)}

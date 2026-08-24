@@ -47,13 +47,13 @@ The reviewer receives these artifacts as context but MUST NOT modify them:
 - `openspec/changes/<change-id>/contracts/` (if present)
 - `openspec/changes/<change-id>/work-packages.yaml` (if present)
 
-## Five-Axis Finding Schema
+## Eight-Axis Finding Schema
 
 Every finding produced by this skill MUST be classified into BOTH dimensions below. The JSON Schema at `openspec/schemas/review-findings.schema.json` enforces both fields as `required` — output that omits either is rejected by the validator in Step 4.
 
-### Five Axes (the `axis` field)
+### Eight Axes (the `axis` field)
 
-Adopted from the `code-review-and-quality` reference skill. Pick exactly one:
+Five axes adopted from the `code-review-and-quality` reference skill, plus three fitness-function axes. Pick exactly one:
 
 | Axis | What it covers |
 |---|---|
@@ -62,6 +62,9 @@ Adopted from the `code-review-and-quality` reference skill. Pick exactly one:
 | `architecture` | Does the design fit the system? Module boundaries, layering, coupling, dependency direction, contract shape. |
 | `security` | Does the plan introduce or fail to prevent security risk? Auth gaps, input-validation holes, secret handling, OWASP categories. |
 | `performance` | Will the implementation be fast and scalable enough? N+1, unbounded queries, missing pagination, hot-path allocations. |
+| `observability` | Can the running system be understood from the outside? Missing logs/metrics/traces, unactionable errors, no way to detect the failure mode the plan introduces. |
+| `resilience` | Does it degrade safely? Missing retries/timeouts/backoff, unbounded blast radius, no fallback, undefined partial-failure behavior. |
+| `compatibility` | Does it stay compatible with what already exists? Breaking API/schema/CLI changes, missing migration path, version or platform assumptions. |
 
 The legacy `type` enum (`spec_gap`, `contract_mismatch`, etc. — see Step 3) is preserved for backward compatibility; `axis` is the new mandatory categorization that all reviewers — human or vendor — must agree on.
 
@@ -316,6 +319,6 @@ When this skill is dispatched *to* another vendor by the orchestrator, only Step
 
 1. Run the JSON Schema validator from Step 4 and confirm `Valid` — this proves `axis` and `severity` are present on every finding.
 2. Spot-check 3 findings: confirm the `description` text begins with the prefix matching the `severity` enum value (e.g., `severity: critical` ↔ description starts with `Critical:`).
-3. Confirm at least two different `axis` values appear across the findings array (a single-axis review missed the other four dimensions of the schema).
+3. Confirm at least two different `axis` values appear across the findings array (a single-axis review missed the other seven dimensions of the schema).
 4. Confirm `disposition` is coherent with `severity`: `critical`/`nit` → `fix`; `optional`/`fyi` → `accept`; `none` → `accept`; mismatches must be `escalate` with a justification in `resolution`.
 5. Confirm `reviewer_vendor` is populated — anonymous findings cannot participate in consensus.

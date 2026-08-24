@@ -283,6 +283,8 @@ def validate_pr(pr_number: int) -> dict:
 
     return {
         "pr_number": pr_number,
+        "state": status.get("state", ""),
+        "merged": status.get("state") == "MERGED",
         "title": status.get("title", ""),
         "branch": status.get("headRefName", ""),
         "base_branch": base_branch,

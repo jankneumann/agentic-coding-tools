@@ -4,13 +4,24 @@
 Creates a .env.cloud file with local agent env vars and optionally
 pushes server-side env vars to Railway via the CLI.
 
+The agent roster, the per-agent ``--<agent-name>-key`` flags, the identity
+map, and the shell aliases are all derived from ``agents.yaml`` via
+:func:`src.agents_config.load_agents_config` (design decision D7). There is
+no roster in this file: adding a vendor harness to ``agents.yaml`` is the
+only edit needed for it to show up here.
+
+RETIREMENT: this script is scheduled for deletion in roadmap item **pca-03**
+(``replace-static-api-keys-with-session-tokens``), when static per-agent API
+keys are replaced by issued session tokens. Do not invest further in it —
+fix bugs, but route new capability through the session-token work instead.
+
 Usage:
     python3 scripts/setup_cloud.py --domain coord.yourdomain.com
     python3 scripts/setup_cloud.py --domain coord.yourdomain.com --railway
     python3 scripts/setup_cloud.py --domain coord.yourdomain.com \
         --railway-service agentic-coordinator
     python3 scripts/setup_cloud.py --domain coord.yourdomain.com \
-        --railway --claude-key <key> --verify
+        --railway --claude-local-key <key> --verify
 
 Then:
     source .env.cloud   # activate in current shell
@@ -25,6 +36,7 @@ import secrets
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import Request, urlopen
@@ -32,75 +44,142 @@ from urllib.request import Request, urlopen
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
 
-AGENTS = [
-    # Local CLI agents using HTTP instead of MCP
-    {
-        "id": "claude-local",
-        "type": "claude_code",
-        "key_flag": "claude_local_key",
-        "label": "Claude (local)",
-    },
-    {
-        "id": "codex-local",
-        "type": "codex",
-        "key_flag": "codex_local_key",
-        "label": "Codex (local)",
-    },
-    {
-        "id": "antigravity-local",
-        "type": "antigravity",
-        "key_flag": "antigravity_local_key",
-        "label": "Antigravity (local)",
-    },
-    {
-        "id": "grok-local",
-        "type": "grok",
-        "key_flag": "grok_local_key",
-        "label": "Grok (local)",
-    },
-    {
-        "id": "pi-local",
-        "type": "pi",
-        "key_flag": "pi_local_key",
-        "label": "pi (local)",
-    },
-    # Cloud/remote agents
-    {
-        "id": "claude-remote",
-        "type": "claude_code",
-        "key_flag": "claude_remote_key",
-        "label": "Claude (remote)",
-    },
-    {
-        "id": "codex-remote",
-        "type": "codex",
-        "key_flag": "codex_remote_key",
-        "label": "Codex (remote)",
-    },
-]
+# Importable both as `scripts/setup_cloud.py` (sys.path[0] is scripts/) and as
+# a loaded module from the test suite.
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+try:
+    from src.agents_config import load_agents_config  # noqa: E402
+except ImportError as exc:  # pragma: no cover - operator environment guard
+    raise SystemExit(
+        f"Cannot load the agent registry ({exc}). This script now derives its roster "
+        "from agents.yaml and needs the coordinator's dependencies. Run it as:\n"
+        "    cd agent-coordinator && uv run python scripts/setup_cloud.py --domain <domain>"
+    ) from exc
+
+
+@dataclass(frozen=True)
+class AgentSlot:
+    """One registry agent, projected onto this script's CLI surface."""
+
+    name: str
+    type: str
+    transport: str
+    command: str | None  # cli.command, or None for agents without a `cli` section
+
+    @property
+    def key_flag(self) -> str:
+        """argparse dest for this agent's key, e.g. ``claude_local_key``."""
+        return key_flag_for(self.name)
+
+    @property
+    def cli_flag(self) -> str:
+        """CLI flag for this agent's key, e.g. ``--claude-local-key``."""
+        return cli_flag_for(self.name)
+
+
+@dataclass(frozen=True)
+class AliasSpec:
+    """A shell alias wrapping one vendor CLI with an agent's coordinator key."""
+
+    name: str
+    slot: AgentSlot
+
+
+def key_flag_for(agent_name: str) -> str:
+    return f"{agent_name.replace('-', '_')}_key"
+
+
+def cli_flag_for(agent_name: str) -> str:
+    return f"--{key_flag_for(agent_name).replace('_', '-')}"
+
+
+def load_roster(
+    path: Path | None = None,
+    *,
+    secrets_path: Path | None = None,
+) -> list[AgentSlot]:
+    """Project ``agents.yaml`` onto the roster this script operates over."""
+    return [
+        AgentSlot(
+            name=agent.name,
+            type=agent.type,
+            transport=agent.transport,
+            command=agent.cli.command if agent.cli else None,
+        )
+        for agent in load_agents_config(path, secrets_path=secrets_path)
+    ]
+
+
+def default_key_slot(roster: list[AgentSlot]) -> AgentSlot | None:
+    """The agent whose key becomes ``COORDINATION_API_KEY`` in ``.env.cloud``.
+
+    Rule: the first local (``transport: mcp``) Claude Code agent — the shell
+    that sources this file is, by construction, a local Claude Code session.
+    Falls back to the first local agent, then to the first agent at all.
+    """
+    for slot in roster:
+        if slot.type == "claude_code" and slot.transport == "mcp":
+            return slot
+    for slot in roster:
+        if slot.transport == "mcp":
+            return slot
+    return roster[0] if roster else None
+
+
+def derive_aliases(roster: list[AgentSlot]) -> list[AliasSpec]:
+    """One alias per distinct vendor CLI command, named ``c<command>``.
+
+    Only CLI-bearing agents (those with a ``cli`` section) get an alias, and
+    only one per command: two agents sharing a command (``claude-local`` and
+    ``claude-remote`` both run ``claude``) would otherwise emit two aliases of
+    the same name, the second silently shadowing the first and handing the
+    wrong key to the local CLI. The local (``transport: mcp``) agent wins,
+    since an alias only ever runs in a local shell; registry order breaks any
+    remaining tie.
+    """
+    chosen: dict[str, AgentSlot] = {}
+    for slot in roster:
+        if not slot.command:
+            continue
+        current = chosen.get(slot.command)
+        if current is None or (current.transport != "mcp" and slot.transport == "mcp"):
+            chosen[slot.command] = slot
+    return [AliasSpec(name=f"c{command}", slot=slot) for command, slot in chosen.items()]
 
 
 def generate_key() -> str:
     return secrets.token_hex(32)
 
 
-def build_identities(keys: dict[str, str]) -> dict[str, dict[str, str]]:
+def build_identities(
+    roster: list[AgentSlot], keys: dict[str, str]
+) -> dict[str, dict[str, str]]:
+    """Build ``COORDINATION_API_KEY_IDENTITIES`` — ``{key: {agent_id, agent_type}}``."""
     identities: dict[str, dict[str, str]] = {}
-    for agent in AGENTS:
-        key = keys.get(agent["key_flag"])
+    for slot in roster:
+        key = keys.get(slot.key_flag)
         if key:
-            identities[key] = {"agent_id": agent["id"], "agent_type": agent["type"]}
+            identities[key] = {"agent_id": slot.name, "agent_type": slot.type}
     return identities
 
 
-def write_env_file(domain: str, keys: dict[str, str], output: Path) -> None:
+def write_env_file(
+    domain: str, keys: dict[str, str], output: Path, roster: list[AgentSlot]
+) -> None:
     url = f"https://{domain}"
+    aliases = derive_aliases(roster)
+    alias_names = ", ".join(alias.name for alias in aliases) or "(none)"
+    default_slot = default_key_slot(roster)
     lines = [
         "# Cloud coordinator configuration",
         f"# Generated for domain: {domain}",
         "#",
+        "# Roster derived from agents.yaml — do not hand-edit agent entries here.",
+        "#",
         "# Usage: source this file, or add to ~/.zshrc / ~/.bashrc",
-        "#   Then use: ccc, ccodex, cagy, cgrok, cpi aliases to launch with coordination",
+        f"#   Then use: {alias_names} aliases to launch with coordination",
         "",
         "# -- Shared coordinator settings --",
         f'export COORDINATION_API_URL="{url}"',
@@ -114,27 +193,22 @@ def write_env_file(domain: str, keys: dict[str, str], output: Path) -> None:
         '# export CF_ACCESS_CLIENT_ID="<client-id>.access"',
         '# export CF_ACCESS_CLIENT_SECRET="<client-secret>"',
         "",
-        "# -- Default key (Claude Code local) --",
     ]
-    local_claude_key = keys.get("claude_local_key", "")
-    if local_claude_key:
-        lines.append(f'export COORDINATION_API_KEY="{local_claude_key}"')
-    lines.append("")
 
-    # Per-agent aliases
-    alias_map = [
-        ("claude_local_key", "ccc", "claude", "Claude Code"),
-        ("codex_local_key", "ccodex", "codex", "Codex"),
-        ("antigravity_local_key", "cagy", "agy", "Antigravity"),
-        ("grok_local_key", "cgrok", "grok", "Grok"),
-        ("pi_local_key", "cpi", "pi", "pi"),
-    ]
+    default_key = keys.get(default_slot.key_flag, "") if default_slot else ""
+    if default_slot and default_key:
+        lines.append(f"# -- Default key ({default_slot.name}) --")
+        lines.append(f'export COORDINATION_API_KEY="{default_key}"')
+        lines.append("")
 
     lines.append("# -- CLI aliases (launch with per-agent coordinator key) --")
-    for key_flag, alias, cli, label in alias_map:
-        key = keys.get(key_flag, "")
+    for alias in aliases:
+        key = keys.get(alias.slot.key_flag, "")
         if key:
-            lines.append(f'alias {alias}=\'COORDINATION_API_KEY="{key}" {cli}\'  # {label}')
+            lines.append(
+                f"alias {alias.name}='COORDINATION_API_KEY=\"{key}\" "
+                f"{alias.slot.command}'  # {alias.slot.name}"
+            )
     lines.append("")
 
     output.write_text("\n".join(lines) + "\n")
@@ -282,43 +356,41 @@ def verify_connectivity(domain: str, api_key: str | None = None) -> bool:
 # -- Main --
 
 
-def main() -> None:
+def build_parser(roster: list[AgentSlot]) -> argparse.ArgumentParser:
+    """Build the CLI, with one ``--<agent-name>-key`` flag per registry agent."""
     parser = argparse.ArgumentParser(description="Cloud coordinator setup")
     parser.add_argument("--domain", required=True, help="Coordinator domain")
-    parser.add_argument("--claude-local-key", help="Claude local CLI key (generated if omitted)")
-    parser.add_argument("--codex-local-key", help="Codex local CLI key (generated if omitted)")
-    parser.add_argument(
-        "--antigravity-local-key", help="Antigravity (agy) local CLI key (generated if omitted)"
-    )
-    parser.add_argument("--grok-local-key", help="Grok local CLI key (generated if omitted)")
-    parser.add_argument("--pi-local-key", help="pi local CLI key (generated if omitted)")
-    parser.add_argument("--claude-remote-key", help="Claude remote/web key (generated if omitted)")
-    parser.add_argument("--codex-remote-key", help="Codex cloud key (generated if omitted)")
+    for slot in roster:
+        parser.add_argument(
+            slot.cli_flag,
+            dest=slot.key_flag,
+            help=f"{slot.name} ({slot.type}) key (generated if omitted)",
+        )
     parser.add_argument("--railway", action="store_true", help="Push env vars to Railway")
     parser.add_argument("--railway-service", help="Railway service name (auto-detected if omitted)")
     parser.add_argument("--verify", action="store_true", help="Test /health after setup")
     parser.add_argument("--output", default=str(PROJECT_DIR / ".env.cloud"))
+    return parser
+
+
+def main() -> None:
+    roster = load_roster()
+    parser = build_parser(roster)
     args = parser.parse_args()
 
     use_railway = args.railway or args.railway_service is not None
     domain = args.domain.removeprefix("https://").removeprefix("http://").rstrip("/")
 
     keys = {
-        "claude_local_key": args.claude_local_key or generate_key(),
-        "codex_local_key": args.codex_local_key or generate_key(),
-        "antigravity_local_key": args.antigravity_local_key or generate_key(),
-        "grok_local_key": args.grok_local_key or generate_key(),
-        "pi_local_key": args.pi_local_key or generate_key(),
-        "claude_remote_key": args.claude_remote_key or generate_key(),
-        "codex_remote_key": args.codex_remote_key or generate_key(),
+        slot.key_flag: getattr(args, slot.key_flag) or generate_key() for slot in roster
     }
 
-    identities = build_identities(keys)
-    all_keys = ",".join(keys[a["key_flag"]] for a in AGENTS if keys.get(a["key_flag"]))
+    identities = build_identities(roster, keys)
+    all_keys = ",".join(keys[s.key_flag] for s in roster if keys.get(s.key_flag))
     identities_json = json.dumps(identities, separators=(",", ":"))
 
     output_path = Path(args.output)
-    write_env_file(domain, keys, output_path)
+    write_env_file(domain, keys, output_path, roster)
 
     print("=" * 70)
     print("Cloud Coordinator Setup")
@@ -340,17 +412,18 @@ def main() -> None:
     print("\n3. Per-agent API keys:")
     print(f"   {'Agent':<20s} {'Key':>14s}  Source")
     print(f"   {'-'*20} {'-'*14}  {'-'*10}")
-    for agent in AGENTS:
-        key = keys.get(agent["key_flag"], "")
-        flag = agent["key_flag"].replace("_", "-")
-        src = "(provided)" if getattr(args, agent["key_flag"]) else "(generated)"
-        print(f"   {agent['label']:<20s} {key[:12]}...  {src}")
-        print(f"     --{flag} {key}")
+    for slot in roster:
+        key = keys.get(slot.key_flag, "")
+        src = "(provided)" if getattr(args, slot.key_flag) else "(generated)"
+        print(f"   {slot.name:<20s} {key[:12]}...  {src}")
+        print(f"     {slot.cli_flag} {key}")
 
     print("\n4. Install hooks: make hooks-setup")
 
     if args.verify:
-        ok = verify_connectivity(domain, keys["claude_local_key"])
+        default_slot = default_key_slot(roster)
+        verify_key = keys.get(default_slot.key_flag) if default_slot else None
+        ok = verify_connectivity(domain, verify_key)
         print("\n[ok] Healthy" if ok else "\n[fail] Unreachable")
         if not ok:
             sys.exit(1)

@@ -68,6 +68,49 @@ jobs:
       - name: Run infrastructure skill tests
         run: uv run pytest -v
 
+      # One process per directory, on purpose. Skills are standalone script
+      # directories that import siblings by flat module name, and twelve of
+      # those names are defined by more than one skill (`models` by five,
+      # `main` by four, `gate`, `cli`, `runner`, `orchestrator`, ... by two
+      # apiece). In a shared pytest session the first skill to import one wins
+      # sys.modules for every skill after it, so these directories were simply
+      # left out of testpaths -- taking the gate-logic, linter, GATEKEEPER,
+      # security-gate, consensus, merge-queue and transcript suites out of CI
+      # with them. A process boundary per skill is the isolation the
+      # architecture already implies.
+      #
+      # skills/tests/test_ci_test_coverage.py fails if a test directory is
+      # reached by neither this step nor testpaths, so the gap cannot silently
+      # reopen.
+      - name: Run in-skill test suites (isolated processes)
+        run: |
+          set -euo pipefail
+          status=0
+          for suite in \
+            validate-feature/scripts/tests \
+            autopilot/scripts/tests \
+            autopilot/tests \
+            security-review/tests \
+            parallel-infrastructure/tests \
+            parallel-infrastructure/scripts/tests \
+            agent-metrics/tests \
+            collect-transcripts/tests \
+            explore-feature/tests \
+            gen-eval-scenario/tests \
+            improve-harness/tests \
+            iterate-on-implementation/tests \
+            merge-pull-requests/scripts/tests \
+            quick-task/tests \
+            session-log/tests \
+            session-log/scripts \
+            tech-debt-analysis/tests
+          do
+            echo "::group::pytest $suite"
+            uv run pytest "$suite" -q || status=1
+            echo "::endgroup::"
+          done
+          exit $status
+
   test-skills:
     runs-on: ubuntu-latest
 
@@ -93,8 +136,27 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Pinned via `.openspec-version`, not `@latest` (issue #318). `--strict`
+      # semantics move between minor releases, so an unpinned install makes
+      # this gate's verdict a function of when the job ran rather than of the
+      # tree it validated — the same commit can flip green/red on an upstream
+      # publish. Bump the pin by editing that one file; every other install
+      # site (scripts/setup-cli.sh, the session-bootstrap scripts,
+      # skills/install.sh) reads it too, so local and CI cannot disagree.
       - name: Install openspec
-        run: npm install -g @fission-ai/openspec
+        run: npm install -g "@fission-ai/openspec@$(tr -d '[:space:]' < .openspec-version)"
+
+      # Makes the log self-describing after the fact, and stops a cached or
+      # pre-installed binary from silently substituting a different version.
+      - name: Verify openspec matches the pin
+        run: |
+          expected="$(tr -d '[:space:]' < .openspec-version)"
+          actual="$(openspec --version)"
+          echo "openspec pinned=${expected} running=${actual}"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::openspec version mismatch: pinned ${expected}, running ${actual}"
+            exit 1
+          fi
 
       - name: Validate specs
         run: openspec validate --strict --all
@@ -139,6 +201,64 @@ jobs:
           fi
           echo "::error::Deterministic context drift. The stale artifacts and their remediation commands are listed above. Reproduce locally with 'make context-drift-gate'."
           exit 1
+
+  # Coverage no-decrease ratchet (introduce-fitness-function-gates, design D5).
+  #
+  # Deliberately its own job rather than a `--cov` flag bolted onto `test` and
+  # `test-infra-skills`: those two are required contexts, and coupling a fresh
+  # ratchet to them would make the very first noisy measurement block merges.
+  # This job starts NON-REQUIRED — it runs on every PR and reports, but branch
+  # protection does not list it. The promotion command lives next to the
+  # context-drift-gate note in docs/guides/session-completion.md.
+  #
+  # A ratchet, not an absolute bar: an arbitrary threshold penalises legacy
+  # code, while a no-decrease check with a 0.5pp tolerance measures drift.
+  # Baseline percentages and their exact producing commands live in
+  # coverage-baseline.json at the repo root.
+  #
+  # pytest-cov is injected with `uv run --with` rather than added to either
+  # pyproject: coverage is a CI-only concern here, and neither package's
+  # dependency set should grow for it.
+  coverage-ratchet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install coordinator dependencies
+        working-directory: agent-coordinator
+        run: uv sync --all-extras
+
+      - name: Install skills dependencies
+        working-directory: skills
+        run: uv sync --all-extras
+
+      - name: Measure coordinator coverage
+        # Same marker exclusion as the `test` job above, so the measured tree is
+        # the tree CI actually exercises on a PR.
+        working-directory: agent-coordinator
+        run: |
+          uv run --with pytest-cov pytest -m "not e2e and not integration" -q \
+            --cov=src --cov-report=term --cov-report=xml:coverage.xml
+
+      - name: Measure skills coverage
+        working-directory: skills
+        run: |
+          uv run --with pytest-cov pytest -q \
+            --cov=. --cov-report=term --cov-report=xml:coverage.xml
+
+      - name: Coverage ratchet
+        run: |
+          agent-coordinator/.venv/bin/python scripts/coverage_ratchet.py \
+            --coverage-xml agent-coordinator=agent-coordinator/coverage.xml \
+            --coverage-xml skills=skills/coverage.xml
 
   # Static contract check: does every local package imported from src/
   # have a matching COPY statement in the Dockerfile runtime stage?
@@ -455,6 +575,197 @@ jobs:
           path: packages/gen-eval/evaluation/.reports/
           if-no-files-found: ignore
 
+  # Full-capability requirement-traceability sweep (task 5.7, design D12).
+  #
+  # ONE job on all three declared events (`push` to main, `pull_request`,
+  # `merge_group`) — deliberately NOT guarded by an `if:`, because a required
+  # check that does not run on `merge_group` is not a check on the merge
+  # candidate, and an unguarded job on an event with no rule below is the
+  # unfalsifiable green this gate exists to prevent. The event set is
+  # normative in the spec delta ("The full sweep blocks opted-in surfaces and
+  # reports the rest"), not a CI implementation detail.
+  #
+  # `pull_request` and `merge_group` derive a change id (or, on `merge_group`,
+  # a SET of change ids) from the diff against the event's own base commit and
+  # invoke the gate once per id with `--change <id>` — BLOCKING. `push` to
+  # main omits `--change` (union of every on-branch delta) and never blocks:
+  # a run that fires after the merge cannot stop it going red. Every blocking
+  # invocation supplies `--change`; union mode is used by exactly that one
+  # non-blocking run — see D12 for why this is an invariant, not a
+  # coincidence.
+  requirement-traceability-sweep:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Change-id derivation diffs against the PR/merge-group base
+          # commit; a shallow clone has no history to diff against.
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install gen-eval package
+        working-directory: packages/gen-eval
+        run: uv sync --all-extras
+
+      - name: Full-capability requirement traceability sweep
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_REF: ${{ github.head_ref }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          MERGE_GROUP_REF: ${{ github.event.merge_group.head_ref }}
+        run: |
+          set -uo pipefail
+          # GitHub Actions runs a `run:` step with no `shell:` key as `bash -e {0}`,
+          # so errexit is ON here by default. Every branch below deliberately
+          # inspects a command's status rather than dying on it: a diff that touches
+          # no change directory is a SKIP at exit 0, the post-merge run must never
+          # block whatever the gate returns, and the merge_group loop must visit
+          # every batched id instead of stopping at the first failure. Under errexit
+          # all three of those collapse into "abort with the gate's status", so turn
+          # it off explicitly and check each status by hand. The suite drives this
+          # fragment with `bash -e` for the same reason.
+          set +e
+
+          TRACE_GATE="packages/gen-eval/scripts/check_traceability.py"
+          TRACE_PYTHON="packages/gen-eval/.venv/bin/python"
+          if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
+
+          # Change-id derivation (task 5.7). Five conditions, each
+          # load-bearing: --no-renames so the derived set does not depend on
+          # git's similarity heuristic; --diff-filter=d (exclude deletions) so
+          # the source half of an archive `git mv` does not name the change
+          # being archived; grep -v archive so the destination half does not
+          # name the literal id `archive`. Dropping either of those two breaks a
+          # real archive pull request (see design D12's measured table).
+          #
+          # grep -E '^openspec/changes/[^/]+/' enforces the spec's "under a
+          # directory matching openspec/changes/<id>/" literally. Without it the
+          # sed leaves a path with no `/` after the changes/ segment untouched, so
+          # a file sitting directly under openspec/changes/ is emitted verbatim as
+          # though it were a change id, and alongside a real change it trips the
+          # ambiguity rule and hard-blocks a single-change pull request.
+          #
+          # -z (NUL-delimited) because git otherwise C-quotes the WHOLE path when
+          # it contains non-ASCII bytes, newlines, tabs, backslashes, or double
+          # quotes. The leading `"` then fails the anchor above and the change
+          # directory is dropped — a blocking gate silently not running, on an
+          # ordinary ASCII change id that merely touched a file with an accented
+          # (or quoted) name. core.quotePath=false alone is NOT enough: it only
+          # disables the non-ASCII escaping, while newline/tab/backslash/quote
+          # names stay C-quoted. -z emits every path verbatim. The tr to
+          # newlines is safe for id derivation: a control character inside a
+          # FILE name splits that path, but the id lives before the first `/`,
+          # so the fragment carrying `openspec/changes/<id>/` still derives the
+          # right id and the orphaned tail fails the anchor and is dropped.
+          derive_change_ids() {
+            # Returns 2 — distinct from "resolved the base and derived nothing" —
+            # when git cannot resolve the base commit. Run as a single pipeline the
+            # two are indistinguishable: `fatal: bad object` and "grep matched
+            # nothing" both arrive as a non-zero status with empty stdout, and the
+            # caller then takes the no-change SKIP path on a base it never read.
+            # The spec puts those on different exit paths, so the git status is
+            # captured on its own before anything is piped.
+            # NUL-delimited output cannot pass through "$(...)": bash strips
+            # NUL bytes from command substitution, which concatenates every
+            # path into one unseparated string and derives only the first id.
+            # A temp file keeps git's own exit status observable on the
+            # redirect while preserving the NULs for tr.
+            local tmp
+            tmp="$(mktemp)"
+            if ! git diff --no-renames --diff-filter=d --name-only -z "$1" HEAD \
+              -- openspec/changes/ > "$tmp"; then
+              rm -f "$tmp"
+              return 2
+            fi
+            tr '\0' '\n' < "$tmp" \
+              | grep -E '^openspec/changes/[^/]+/' \
+              | sed 's#^openspec/changes/\([^/]*\)/.*#\1#' \
+              | sort -u \
+              | grep -v '^archive$'
+            rm -f "$tmp"
+            return 0
+          }
+
+          run_gate() {
+            # $1: a change id, or empty string for union mode (--change
+            # omitted). Bare invocation, never piped — a pipeline's $? is the
+            # last stage's status.
+            if [ -n "$1" ]; then
+              "$TRACE_PYTHON" "$TRACE_GATE" --scope capability --change "$1"
+            else
+              "$TRACE_PYTHON" "$TRACE_GATE" --scope capability
+            fi
+          }
+
+          case "$EVENT_NAME" in
+            pull_request)
+              if [ -z "${PR_BASE_SHA:-}" ]; then
+                echo "::error::requirement-traceability sweep: unresolvable base for pull_request (github.event.pull_request.base.sha is empty)"
+                exit 1
+              fi
+              CHANGE_IDS="$(derive_change_ids "$PR_BASE_SHA")"
+              if [ $? -eq 2 ]; then
+                echo "::error::requirement-traceability sweep: unresolvable base for pull_request (github.event.pull_request.base.sha='$PR_BASE_SHA' could not be resolved against this checkout)"
+                exit 1
+              fi
+              if [ -z "$CHANGE_IDS" ]; then
+                echo "SKIP: requirement-traceability sweep — no openspec/changes/<id>/ directory touched on ${PR_HEAD_REF:-this branch}"
+                exit 0
+              fi
+              COUNT=$(printf '%s\n' "$CHANGE_IDS" | grep -c .)
+              if [ "$COUNT" -gt 1 ]; then
+                echo "::error::requirement-traceability sweep: ambiguous — pull request touches multiple change directories: $(printf '%s' "$CHANGE_IDS" | tr '\n' ' ')"
+                exit 1
+              fi
+              run_gate "$CHANGE_IDS"
+              exit $?
+              ;;
+            merge_group)
+              if [ -z "${MERGE_GROUP_BASE_SHA:-}" ]; then
+                echo "::error::requirement-traceability sweep: unresolvable base for merge_group (github.event.merge_group.base_sha is empty)"
+                exit 1
+              fi
+              CHANGE_IDS="$(derive_change_ids "$MERGE_GROUP_BASE_SHA")"
+              if [ $? -eq 2 ]; then
+                echo "::error::requirement-traceability sweep: unresolvable base for merge_group (github.event.merge_group.base_sha='$MERGE_GROUP_BASE_SHA' could not be resolved against this checkout)"
+                exit 1
+              fi
+              if [ -z "$CHANGE_IDS" ]; then
+                echo "SKIP: requirement-traceability sweep — no openspec/changes/<id>/ directory touched in merge group ${MERGE_GROUP_REF:-<unknown>}"
+                exit 0
+              fi
+              # No ambiguity rule here: a merge group's diff spans every
+              # batched pull request, so several change directories is the
+              # ordinary case. Iterate and block if any invocation fails.
+              OVERALL=0
+              while IFS= read -r id; do
+                [ -z "$id" ] && continue
+                echo "requirement-traceability sweep: evaluating batched change '$id'"
+                run_gate "$id"
+                [ $? -ne 0 ] && OVERALL=1
+              done <<< "$CHANGE_IDS"
+              exit "$OVERALL"
+              ;;
+            push)
+              # Union mode: every on-branch delta shadows the archive at once.
+              # Report-only — its exit status must not depend on what it found.
+              echo "requirement-traceability sweep: post-merge report (union of every on-branch delta, non-blocking)"
+              run_gate ""
+              echo "requirement-traceability sweep: post-merge run never blocks; exiting 0 regardless of the result above"
+              exit 0
+              ;;
+            *)
+              echo "::error::requirement-traceability sweep: unhandled event '$EVENT_NAME' — no rule for this trigger"
+              exit 1
+              ;;
+          esac
   context-eval:
     # The semantic-context evaluation harness (ri-13, packages/context-eval):
     # the corpus, the scorers, the fail-closed verdict composer, the report
@@ -483,11 +794,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          # Pinned, like every tool below. `ci.yml` already carries one unpinned
-          # installer (`npm install -g @fission-ai/openspec`, issue #318) whose
-          # drift let a local 1.1.1 and CI's 1.6.0 disagree about the same tree
-          # and nearly produced a phantom defect report. This job adds no second
-          # one.
+          # Pinned, like every tool below and like the openspec CLI in
+          # validate-specs. That one used to float on `@latest`, which let a
+          # local 1.1.1 and CI's 1.6.0 disagree about the same tree and nearly
+          # produced a phantom defect report (issue #318); it now reads
+          # `.openspec-version`. No unpinned installer remains in this file.
           version: "0.9.18"
 
       - name: Set up Python 3.12

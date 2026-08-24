@@ -11,16 +11,21 @@ the structured field — NO substring matching over ``system_prompt`` text.
 
 from __future__ import annotations
 
+import textwrap
 from pathlib import Path
 
 import pytest
 import yaml
 
 from src.agents_config import (
+    SUPERVISOR_ARCHETYPE,
     WRITE_CAPABLE_PHASES,
+    get_archetype,
     load_archetypes_config,
     reset_archetypes_config,
     resolve_archetype_for_phase,
+    resolve_model,
+    resolve_provider_model_spec,
 )
 
 _ARCHETYPES_YAML = Path(__file__).resolve().parent.parent / "archetypes.yaml"
@@ -153,3 +158,98 @@ def test_implement_resolves_to_standard_not_frontier(_load_real_config: None) ->
 
         assert resolved.archetype == "implementer"
         assert resolved.model == _alias_model(provider, "standard")
+
+
+# ---------------------------------------------------------------------------
+# Supervisor archetype (ri-01): frontier tier, read-only, resolver rejects a
+# write-capable supervisor. Expectations DERIVED from archetypes.yaml.
+# ---------------------------------------------------------------------------
+
+
+def test_supervisor_declared_frontier_and_read_only() -> None:
+    """The shipped supervisor archetype is frontier + write_capable: false."""
+    raw = _raw()
+    assert SUPERVISOR_ARCHETYPE in raw["archetypes"], "supervisor archetype missing"
+    supervisor = raw["archetypes"][SUPERVISOR_ARCHETYPE]
+    assert supervisor["model"] == "frontier"
+    assert supervisor["write_capable"] is False
+
+
+def test_supervisor_resolves_frontier_write_capable_false(
+    _load_real_config: None,
+) -> None:
+    """Resolving the supervisor archetype yields the frontier tier, read-only."""
+    supervisor = get_archetype(SUPERVISOR_ARCHETYPE)
+    assert supervisor is not None
+    assert supervisor.write_capable is False
+    # No provider: the logical tier passes through unchanged.
+    assert resolve_model(supervisor, {}) == "frontier"
+
+
+def test_supervisor_resolves_frontier_per_provider(_load_real_config: None) -> None:
+    """Per provider, supervisor resolves to the frontier tier model (premium
+    fallback for providers without a frontier alias)."""
+    aliases = _raw()["model_aliases"]
+    supervisor = get_archetype(SUPERVISOR_ARCHETYPE)
+    assert supervisor is not None
+
+    for provider in aliases:
+        tier = "frontier" if "frontier" in aliases[provider] else "premium"
+        spec = resolve_provider_model_spec(supervisor.model, provider=provider)
+        assert spec.model == _alias_model(provider, tier)
+        assert spec.thinking == _alias_thinking(provider, tier)
+
+
+def test_resolver_rejects_write_capable_supervisor(tmp_path: Path) -> None:
+    """The archetype resolver fails fast when supervisor is write_capable: true.
+
+    Mirrors the D3 structured-field enforcement — a config that marks the
+    supervisor write-capable is rejected at load time, not silently accepted.
+    """
+    content = textwrap.dedent(
+        """\
+        schema_version: 3
+        archetypes:
+          supervisor:
+            write_capable: true
+            model: frontier
+            system_prompt: "Bad — supervisor must never be write-capable."
+          implementer:
+            write_capable: true
+            model: standard
+            system_prompt: "You are a focused implementer."
+        """
+    )
+    p = tmp_path / "archetypes.yaml"
+    p.write_text(content)
+
+    reset_archetypes_config()
+    try:
+        with pytest.raises(ValueError, match="write_capable: false"):
+            load_archetypes_config(path=p)
+    finally:
+        reset_archetypes_config()
+
+
+def test_supervisor_not_write_capable_loads_clean(tmp_path: Path) -> None:
+    """A read-only supervisor (write_capable: false) loads without error."""
+    content = textwrap.dedent(
+        """\
+        schema_version: 3
+        archetypes:
+          supervisor:
+            write_capable: false
+            model: frontier
+            system_prompt: "You are the supervisor. You delegate, never implement."
+        """
+    )
+    p = tmp_path / "archetypes.yaml"
+    p.write_text(content)
+
+    reset_archetypes_config()
+    try:
+        archetypes = load_archetypes_config(path=p)
+        assert archetypes[SUPERVISOR_ARCHETYPE].write_capable is False
+        assert archetypes[SUPERVISOR_ARCHETYPE].model == "frontier"
+    finally:
+        reset_archetypes_config()

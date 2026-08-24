@@ -5,7 +5,7 @@
 This is a **multi-agent coordination system** that enables AI coding agents (Claude Code, Codex, Antigravity, Grok, Pi) to collaborate safely on shared codebases. It provides:
 
 - **File locking** - Prevent merge conflicts when multiple agents edit files
-- **Persistent memory** - Three-layer cognitive architecture (episodic, working, procedural)
+- **Persistent memory** - Episodic memory for cross-session learning
 - **Work queue** - Task assignment, tracking, and dependency management
 - **Guardrails** - Detect and block destructive operations
 - **Agent profiles** - Trust levels and operation restrictions
@@ -179,9 +179,7 @@ All write endpoints require `X-API-Key` header.
 - `notification_tokens` - Short-lived reply tokens for email/messaging
 
 **Memory:**
-- `memory_episodic` - Past experiences
-- `memory_working` - Current context
-- `memory_procedural` - Learned skills
+- `memory_episodic` - Past experiences (the only wired memory layer)
 
 **Security:**
 - `operation_guardrails` - Destructive patterns
@@ -216,8 +214,22 @@ COORDINATION_ALLOWED_HOSTS=coord.yourdomain.com  # SSRF allowlist for non-localh
 # HTTP API
 API_HOST=0.0.0.0
 API_PORT=8081
+# Both are OPTIONAL. When unset, the identity map and the accepted-key allowlist are
+# derived from agents.yaml — the registry is the single source of truth for agent
+# identity and trust (see "Registry-derived identity" below). Setting the vars
+# explicitly still overrides the registry, which is also the rollback lever.
 COORDINATION_API_KEYS=key1,key2
 COORDINATION_API_KEY_IDENTITIES={"key1": {"agent_id": "agent-1", "agent_type": "codex"}}
+
+# Registry-derived identity and profile sync (derive-agent-identity-from-registry)
+# On startup the coordinator projects agents.yaml into the agent_profiles table:
+# it upserts one row per registry agent (trust level and allowed operations derived
+# from the entry's capabilities and trust level) and DISABLES enabled rows that are
+# neither declared in the registry nor named in the unmanaged-profile allowlist
+# (role profiles such as `evaluator`, which are not harness identities). Every
+# mutation emits a `profile_sync` audit event. Sync failure fails boot loudly —
+# deliberately unlike the other startup steps, which warn and continue.
+PROFILE_SYNC_ENABLED=true   # default; set false to skip all sync writes (rollback lever)
 
 # Cloudflare Access origin verification (SERVER side; see docs/cloudflare-access-setup.md)
 # When both TEAM_DOMAIN and AUD are set (or CF_ACCESS_ENABLED=true), the API

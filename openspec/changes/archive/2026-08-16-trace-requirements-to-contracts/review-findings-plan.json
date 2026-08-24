@@ -1,0 +1,135 @@
+{
+  "review_type": "plan",
+  "target": "trace-requirements-to-contracts",
+  "reviewer_vendor": "claude_code/opus-5",
+  "round": 8,
+  "commit_under_review": "573a96be (PLAN_FIX round 7)",
+  "final_round": true,
+  "method": "LAST review before IMPLEMENT. Every finding below was demonstrated by executing the plan's stated rule against real repository data in the worktree at /Users/jankneumann/Coding/agentic-coding-tools/.git-worktrees/trace-requirements-to-contracts on branch openspec/trace-requirements-to-contracts. reviews/consensus-plan.json was ignored as instructed. Round 7's findings were copied to reviews/review-findings-plan-r7.json before this file was overwritten. Severity is triaged for the implementing agent, not for a gatekeeper: 'critical' means it produces plausible-looking wrong work that nobody notices; 'nit' means an agent trips over it in minutes and fixes it correctly.",
+
+  "verification_log": [
+    {
+      "brief": "A - hunt the eighth instance of the stale-consequence shape",
+      "verdict": "FOUND, and it is worse than the previous seven. Round 7's fix does not do what all four artifacts claim it does. See R8-F1. A ninth instance also found in union mode (R8-F2).",
+      "commands": [
+        "for c in 247bc201 600744a5 a17e33f7; do git diff --no-renames --name-only ${c}^ ${c} -- openspec/changes/ | sed -n 's#^openspec/changes/\\([^/]*\\)/.*#\\1#p' | sort -u | grep -v '^archive$'; done",
+        "git diff --no-renames --name-status 247bc201^ 247bc201 -- openspec/changes/ | awk '{print $1}' | sort | uniq -c   ->  59 A, 59 D",
+        "git ls-tree -r --name-only 247bc201 openspec/changes/derive-descriptors-from-contracts/ | wc -l  ->  0"
+      ],
+      "detail": "573a96be mandated `--no-renames` AND excluded `openspec/changes/archive/`. Those two halves defeat each other. `--no-renames` is precisely what makes the archive move's SOURCE paths (`openspec/changes/<id>/...`, 59 deletions) appear in the diff as ordinary change-directory paths; excluding the DESTINATION (`archive/`) does nothing about them. The derived set for an archive PR is therefore not empty - it is the id being archived."
+    },
+    {
+      "brief": "B - run the derivation rule against reality across every PR class",
+      "verdict": "Correct on normal openspec PRs, dependabot/docs/chore PRs, cloud-session branches, and merge_group batches. WRONG on archive PRs, and wrong on any PR whose base predates an archive commit.",
+      "commands": [
+        "derive(){ git diff --no-renames --name-only $1 $2 -- openspec/changes/ | sed -n 's#^openspec/changes/\\([^/]*\\)/.*#\\1#p' | sort -u | grep -v '^archive$'; }",
+        "for m in $(git log origin/main --merges --format=%H -12); do derive ${m}^1 $m; done",
+        "for c in <6 docs/chore/deps commits>; do derive ${c}^ $c; done  ->  each yields exactly one real id or empty",
+        "git ls-tree origin/main openspec/changes/ | grep -v '^040000'  ->  empty (no non-directory entries today, so the `<id>/` trailing-slash form is currently safe)",
+        "for n in 0 1 2 3 5; do derive origin/main~$n HEAD | wc -l; done  ->  1 2 2 2 2",
+        "git log --oneline -300 origin/main --format='%s' | grep -c '^chore(openspec): archive'  ->  7"
+      ],
+      "detail": "Normal PR classes are clean: a docs-only or dependabot commit derives zero or exactly one id, and cloud-session `claude/*` branches that authored a change dir derive that change's id correctly. Two failure classes, both demonstrated on real commits, both traced to the same root cause in R8-F1: (1) archive PRs, and (2) ANY pull request whose base commit or merge-base predates an archive commit on main - including this very change's own PR, which derives 2 ids at base=main~1."
+    },
+    {
+      "brief": "C - work-packages.yaml as the dispatch authority",
+      "verdict": "Task coverage and write_allow are complete and correct. wp-wiring's pointer to task 5.7 is sufficient in form. But wp-gate's description omits the archive exclusion (R8-F2) and wp-wiring's constraint (3) restates R8-F1's false claim.",
+      "commands": [
+        "yaml.safe_load(work-packages.yaml) -> 5 packages; ranges 1.1-1.5, 2.0-2.5, 3.1-3.16, 5.4-5.5, 5.6-5.9 EXCEPT 5.7c",
+        "grep -n '^- \\[ \\]' tasks.md  ->  every non-[human] task falls inside exactly one package range; 4.3 deliberately unpackaged with a stated reason",
+        "grep -rlE 'Fill .*Contract Ref' --include='*.md' .  ->  exactly the two files wp-matrix's verification step names",
+        "ls -d skills/.venv/bin/python  ->  exists (wp-wiring's verification commands are runnable)",
+        "grep -c 'tests/validate-feature' skills/pyproject.toml  ->  0;  grep -c 'tests/implement-feature|tests/plan-feature'  ->  2  (task 5.7b's factual claims verified)",
+        "wp-wiring PREFLIGHT run on today's unmodified tree  ->  exit 1 (it is a real gate, not decoration)"
+      ],
+      "detail": "write_allow covers every file its tasks must edit. wp-wiring: SKILL.md (5.6), skills/tests/validate-feature/** (5.6, 5.7), skills/pyproject.toml (5.7b), .github/workflows/ci.yml (5.7), README.md (5.8), DOWNSTREAM.md (5.9) - complete. wp-matrix: generate_contract_refs.py, its test, implement-feature/SKILL.md, and BOTH change-context.md source templates - complete, and its residue grep covers exactly the two files that exist, with the .agents/ and .claude/ runtime copies correctly out of scope (install.sh regenerates them). wp-gate and wp-model likewise complete. No task has an unwritable owner. wp-wiring's 'Task 5.7 carries the authoritative per-event table - do not reconstruct it from this summary' is a sufficient pointer, and its four listed constraints do NOT contradict task 5.7 - they agree with it. That is the problem: constraint (3) is wrong in exactly the same way 5.7 is."
+    },
+    {
+      "brief": "D - [human] carve-out integrity",
+      "verdict": "INTACT. All seven [human] tasks are excluded from every package.",
+      "commands": [
+        "grep -n '\\[human\\]' tasks.md  ->  4.1, 4.2, 4.2b, 5.1, 5.2, 5.3, 5.7c (seven)",
+        "cross-check against package description ranges  ->  no [human] task falls inside a claimed range except 5.7c, which carries an explicit EXCEPT in wp-wiring's description",
+        "sed -n '584,602p' work-packages.yaml  ->  carve-out names exactly those seven plus 4.3"
+      ],
+      "detail": "Correct in substance. One expression caveat recorded as R8-I1: the carve-out is a YAML COMMENT, which yaml.safe_load discards, so the only machine-visible statement is prose inside wp-wiring's description. A scheduler that dispatches by package is unaffected (the tasks belong to no package), so this is fyi and not blocking."
+    },
+    {
+      "brief": "E - mechanical hygiene",
+      "verdict": "Clean.",
+      "commands": [
+        "npx @fission-ai/openspec validate trace-requirements-to-contracts --strict  ->  Change 'trace-requirements-to-contracts' is valid",
+        "validate_work_packages.py  ->  VALID (schema, depends_on_refs, dag_cycles, lock_keys)",
+        "grep -c '^#### Scenario:' specs/gen-eval-framework/spec.md  ->  59;  specs/skill-workflow/spec.md  ->  7",
+        "len(wp-wiring description)  ->  3815 (under the 4000 limit)"
+      ],
+      "detail": "All mechanical validators pass. --strict does not cross-check scenario semantics, which is why the two contradicting scenarios in R8-N1/R8-N2 survive it."
+    }
+  ],
+
+  "findings": [
+    {
+      "id": "R8-F1",
+      "severity": "critical",
+      "title": "Round 7's archive fix does not work: `--no-renames` exposes the archive move's SOURCE paths, so every archive PR still derives a real change id - and so does every PR whose base predates an archive commit",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "533-546",
+      "also_stale_in": [
+        "design.md:499-509",
+        "tasks.md:663-676 (the DERIVATION bullet in task 5.7's per-event table)",
+        "work-packages.yaml:434-442 (wp-wiring constraint 3)",
+        "specs/gen-eval-framework/spec.md:673-682 (scenario archive-pull-requests-skip)"
+      ],
+      "description": "573a96be states, in all four load-bearing artifacts and in its own commit message, that excluding `archive` makes an archive pull request 'touch zero change dirs -> SKIP'. That is false, and it is false BECAUSE of the other half of the same fix.\n\nAn archive commit is a git move. With rename detection ON, `--name-only` reports only the destination, so the touched set is `{archive}` and excluding `archive` does yield a SKIP. But 573a96be also mandates `--no-renames` - 'so that the derived set does not depend on a similarity heuristic' - and `--no-renames` decomposes the move into deletions at the SOURCE plus additions at the destination. The source paths are `openspec/changes/<id>/...`, which match `openspec/changes/<id>/` with `<id>` != `archive`. Excluding the destination does nothing about them.\n\nDEMONSTRATED (not inferred), running the round-7 rule verbatim on three real archive commits:\n\n    $ derive(){ git diff --no-renames --name-only $1 $2 -- openspec/changes/ \\\n        | sed -n 's#^openspec/changes/\\([^/]*\\)/.*#\\1#p' | sort -u | grep -v '^archive$'; }\n    $ derive 247bc201^ 247bc201  ->  derive-descriptors-from-contracts\n    $ derive 600744a5^ 600744a5  ->  add-work-package-context-impact-declarations\n                                     expose-fail-closed-semantic-code-search\n    $ derive a17e33f7^ a17e33f7  ->  implement-project-context-refresh-orchestration\n\nNot one of them is empty. So:\n\n  - 247bc201 and a17e33f7 derive exactly ONE id. The SKIP does not fire and the ambiguity rule does not fire. The blocking gate is invoked with `--change derive-descriptors-from-contracts` against a branch where that directory no longer exists:\n        $ git ls-tree -r --name-only 247bc201 openspec/changes/derive-descriptors-from-contracts/ | wc -l  ->  0\n    Task 3.16 says 'Unresolvable inputs are errors, never empty scopes', so the blocking run ERRORS and the archive PR hard-reds. If instead the gate degrades to archive-only resolution, that is the silent degradation round 7 said it was eliminating.\n  - 600744a5 derives TWO ids. On `pull_request` the ambiguity rule fires -> hard red.\n\nSECOND, WIDER MANIFESTATION - same root cause, and it is not limited to archive PRs. `github.event.pull_request.base.sha` is the base-branch tip at the last synchronize, and the merge-base is no better. Any PR whose base or merge-base predates an archive commit sees that commit's deletions in its own diff. Demonstrated on THIS change's own branch:\n\n    $ derive origin/main   HEAD  ->  trace-requirements-to-contracts            (1 id, correct)\n    $ derive origin/main~1 HEAD  ->  derive-descriptors-from-contracts\n                                     trace-requirements-to-contracts            (2 ids -> AMBIGUOUS -> red)\n\n    (the three-dot merge-base form gives the same 2; this is not a two-dot artifact)\n\n`git log --oneline -300 origin/main | grep -c '^chore(openspec): archive'` -> 7. Archive commits land routinely, and every open PR that has not re-synced past one starts deriving a second id and hard-reds on a rule that has nothing to do with its own content.\n\nA CANDIDATE FIX, DEMONSTRATED. Excluding pure deletions from derivation closes both manifestations at once:\n\n    $ d3(){ git diff --no-renames --diff-filter=d --name-only $1 $2 -- openspec/changes/ | ... }\n    $ d3 247bc201^ 247bc201  ->  (empty)   -> SKIP, correct\n    $ d3 600744a5^ 600744a5  ->  (empty)   -> SKIP, correct\n    $ d3 a17e33f7^ a17e33f7  ->  (empty)   -> SKIP, correct\n    $ d3 origin/main~1 HEAD  ->  trace-requirements-to-contracts   (1 id, correct)\n    $ d3 origin/main   HEAD  ->  trace-requirements-to-contracts   (1 id, correct)\n\nAn equivalent formulation is to keep the derived set but drop any id whose `openspec/changes/<id>/` does not exist on the head commit. Either is a one-line change to the rule; the choice is the operator's, but the plan must state one, and must state it in all four artifacts plus the scenario - this is the eighth consecutive round where the fix landed in one artifact and the consequence went stale, and this time the fix itself was the stale part.",
+      "implementer_impact": "If this is not fixed before dispatch, wp-wiring's agent writes the ci.yml job exactly as tasks.md's DERIVATION bullet and wp-wiring's constraint (3) instruct - `--no-renames`, exclude `archive`, no deletion filter - and writes test_ci_sweep_wiring.py from scenario archive-pull-requests-skip, whose WHEN ('only touched paths ... are beneath archive/') is only reachable with a fixture that does NOT model a real git-mv. The test passes, CI is green, and the plan's own acceptance criterion (5.7c) is green because it never runs the derivation at all. Nothing in the change can detect it. The break surfaces on the day this lands, as a hard red on the next `chore(openspec): archive` PR and on every open PR that has not re-synced past it - i.e. exactly when the gate is newly required and least trusted. The agent CANNOT recover from this on its own: it will have followed four artifacts that all agree, and the only signal that they are wrong comes from running the rule against a real archive commit, which nothing asks it to do. Fix before dispatch, or at minimum carry to wp-wiring's agent as an explicit instruction to derive with `--diff-filter=d` (or an exists-on-HEAD filter) and to build the archive-PR test fixture with a real `git mv` of a change directory."
+    },
+    {
+      "id": "R8-F2",
+      "severity": "critical",
+      "title": "Union mode's `archive/` exclusion exists only in the spec prose and design.md; the scenario that pins it, both tasks.md notes, and wp-gate's package description all still say 'every delta under openspec/changes/'",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "650-656",
+      "also_stale_in": [
+        "tasks.md:454 (task 3.16's resolution note)",
+        "tasks.md:616 (task 5.7's per-event note)",
+        "work-packages.yaml:265 (wp-gate description - the dispatch authority for task 3.16)"
+      ],
+      "description": "R6-N1 (round 6) taught union mode to exclude `openspec/changes/archive/` and spec.md:512-517 states the reason at length: 'Archived deltas SHALL NOT be unioned: they have already been merged into openspec/specs/, so re-applying them shadows the archive with itself, and a delta that REMOVED or RENAMED a requirement would resurrect or re-move it.'\n\nThat exclusion reached the requirement prose and design.md:467-468. It reached NOTHING that the implementing agent for task 3.16 actually reads:\n\n    $ grep -n 'unions every|union of every|every spec delta present' \\\n        specs/gen-eval-framework/spec.md tasks.md work-packages.yaml design.md\n\n    spec.md:512   ... shadowed by every spec delta present directly under\n                  `openspec/changes/<id>/` ... excluding `openspec/changes/archive/`   [HAS IT]\n    spec.md:650   Scenario: Omitting the change flag unions every on-branch delta\n                    THEN it SHALL resolve against the archived specs shadowed by\n                    every spec delta present under `openspec/changes/`               [STALE]\n    tasks.md:454  'Omitted: the archive is shadowed by the union of every delta\n                   under `openspec/changes/`.'  (task 3.16's note)                    [STALE]\n    tasks.md:616  '... gets the union of every on-branch delta'  (task 5.7's note)    [STALE]\n    wp-yaml:265   'omitting it unions every delta under openspec/changes/'\n                   (wp-gate's description - the text handed to the agent)             [STALE]\n\nThree of the four implementer-facing artifacts - including the work package description that IS the dispatch payload and the scenario that task 3.16 names as its acceptance criterion - instruct the opposite of the requirement. `git ls-tree -r --name-only origin/main openspec/changes/archive/ | grep -c 'specs/.*/spec.md'` returned 128 in round 6; that is the size of the set that gets wrongly unioned.\n\nWHAT SHOULD CHANGE: propagate 'excluding `openspec/changes/archive/`' into the scenario's THEN clause (it is the only place a test author will look), into task 3.16's resolution note, into task 5.7's per-event note, and into wp-gate's description. This is the same shape as R8-F1 and as the previous seven rounds; the difference is that here the correct text already exists and simply needs mirroring.",
+      "implementer_impact": "If this is not fixed before dispatch, wp-gate's agent implements union mode by globbing `openspec/changes/*/specs/*/spec.md` including `archive/`, and writes test_resolution_modes.py from spec.md:650 asserting that behaviour - locking the wrong rule in behind a passing test. The consequence is not a red CI (the union run is non-blocking by construction), which is exactly what makes it dangerous: the post-merge report silently mis-resolves against 128 archived deltas, and the one archived delta carrying a REMOVED section resurrects requirements into the effective set. Task 5.7c's ungated union probe will print that polluted output and, per its own instruction, will not be gated on it, so nobody looks. The agent could in principle catch this by reading spec.md:512 fifteen lines above the scenario, but has three artifacts telling it otherwise and no reason to doubt them. Recoverable only if someone later notices the report is wrong."
+    },
+    {
+      "id": "R8-N1",
+      "severity": "nit",
+      "title": "Scenario `archive-pull-requests-skip` cannot be honestly tested: its WHEN is unreachable under the `--no-renames` the same commit mandates, and its final AND is demonstrably false",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "673-682",
+      "description": "The scenario reads:\n\n    WHEN the job runs on a pull request whose only touched paths under\n         `openspec/changes/` are beneath `openspec/changes/archive/`\n    THEN it SHALL derive no change id\n    AND  it SHALL print a SKIP rather than deriving the id `archive`\n    AND  it SHALL NOT fail as ambiguous, whether or not the diff is computed\n         with rename detection\n\nOn a real archive commit computed with `--no-renames` - the flag spec.md:533-535 mandates - the touched paths under `openspec/changes/` are NOT only beneath `archive/`: `git diff --no-renames --name-status 247bc201^ 247bc201 -- openspec/changes/` returns 59 additions under `archive/` and 59 deletions under `openspec/changes/derive-descriptors-from-contracts/`. The WHEN is therefore satisfiable only with rename detection ON, and the closing 'whether or not the diff is computed with rename detection' is false as demonstrated in R8-F1.\n\nRewrite the WHEN in terms of what an archive commit actually is - a pull request that moves a change directory into `openspec/changes/archive/` - and require the test fixture to be built with a real `git mv`, so the scenario pins the behaviour instead of describing a shape that only a synthetic fixture produces. Same fix as R8-F1; listed separately so the scenario is not forgotten when the rule is corrected.",
+      "implementer_impact": "An agent writing this test takes the WHEN literally, builds a fixture that only adds files under `archive/`, and gets a green test that proves nothing about real archive PRs. That is precisely the round-5 `touch`-satisfies-`test -f` shape this plan has already been burned by twice. The agent will not notice, because the scenario is internally coherent - it is only wrong relative to reality. Fix it in the same edit as R8-F1."
+    },
+    {
+      "id": "R8-N2",
+      "severity": "nit",
+      "title": "`ambiguous-change-fails` and `archive-pull-requests-skip` give opposite verdicts on the same real input; `non-openspec-pr-skips` is narrower than the rule it pins",
+      "file": "openspec/changes/trace-requirements-to-contracts/specs/gen-eval-framework/spec.md",
+      "line_range": "658-682",
+      "description": "`ambiguous-change-fails` says: 'WHEN the job runs on a `pull_request` event whose diff touches more than one directory under `openspec/changes/` THEN it SHALL fail naming each candidate change id.' Unqualified - `archive/` is a directory under `openspec/changes/`. An archive PR computed with `--no-renames` touches `archive/` plus the archived id: two directories. This scenario says FAIL AMBIGUOUS; `archive-pull-requests-skip` twelve lines later says SKIP. Both are normative, both pass `openspec validate --strict` (which does not cross-check scenario semantics), and an implementer can satisfy either.\n\nSimilarly `non-openspec-pr-skips` says 'whose diff touches no directory under `openspec/changes/`', which is now narrower than the rule - after the archive exclusion the SKIP must also fire when the diff touches `archive/` and nothing else.\n\nFix both by phrasing the scenarios over DERIVED CHANGE IDS rather than over touched directories: zero derived ids -> SKIP; two or more derived ids on `pull_request` -> ambiguous. That phrasing is event-correct, archive-correct, and survives whatever derivation mechanics R8-F1 settles on.",
+      "implementer_impact": "Low risk in isolation - an agent hitting the contradiction will notice it and ask, or will follow tasks.md's per-event table which is unambiguous. But if R8-F1 is fixed by changing the derivation mechanics without re-phrasing these two scenarios, the contradiction survives the fix and the next reader inherits it. Cheap to fold into the R8-F1 edit; an agent that trips over it recovers in minutes."
+    },
+    {
+      "id": "R8-I1",
+      "severity": "fyi",
+      "title": "The [human] carve-out is a YAML comment, so it is invisible to anything that parses work-packages.yaml",
+      "file": "openspec/changes/trace-requirements-to-contracts/work-packages.yaml",
+      "line_range": "584-602",
+      "description": "All seven [human] tasks (4.1, 4.2, 4.2b, 5.1, 5.2, 5.3, 5.7c) plus 4.3 are correctly excluded from every package - verified by cross-checking `grep -n '\\[human\\]' tasks.md` against each package's declared task range. D1's prohibition is therefore satisfied in substance.\n\nThe expression is a comment block, which `yaml.safe_load` discards. The only machine-readable trace is prose inside wp-wiring's `description` ('Tasks 5.6-5.9, EXCEPT 5.7c which is `[human]` and owned by no package'). A scheduler that dispatches by package cannot go wrong here, because the tasks belong to no package - the carve-out is enforced by omission, which is the strongest possible form. Recorded only so a future editor does not assume a parser is reading it: if the carve-out ever needs to be enforced positively (e.g. a validator asserting no package claims a [human] task), it will need a real field.",
+      "implementer_impact": "None. No wrong artifact follows. Noted for the record."
+    },
+    {
+      "id": "R8-A1",
+      "severity": "none",
+      "title": "Cleared: task coverage, write_allow completeness, verification-step honesty, and mechanical validators",
+      "description": "Checked and clean, recorded so the implementer does not re-verify:\n\n  - Every non-[human] task falls inside exactly one package range (1.1-1.5 wp-resolver, 2.0-2.5 wp-model, 3.1-3.16 incl. 3.4b wp-gate, 5.4-5.5 wp-matrix, 5.6-5.9 minus 5.7c wp-wiring). 4.3 is deliberately unpackaged with a stated reason. No task lacks a writable owner.\n  - Every package's write_allow covers the files its tasks must edit; checked file-by-file against each task's notes.\n  - wp-matrix's residue grep matches exactly the two `change-context.md` files that exist under version control (`grep -rlE 'Fill .*Contract Ref' --include='*.md' .`), and correctly leaves the install.sh-generated `.agents/` and `.claude/` copies out of scope.\n  - wp-wiring's PREFLIGHT command exits 1 on today's unmodified tree, so it is a real gate rather than decoration. Its two placements (first instruction + verification step) both survive.\n  - `skills/.venv/bin/python` exists, so wp-wiring's three pytest verification steps are runnable as written.\n  - Task 5.7b's factual claims re-verified: `skills/pyproject.toml` testpaths lists `tests/implement-feature` and `tests/plan-feature` but NOT `tests/validate-feature`, and `skills/tests/validate-feature/` exists on disk.\n  - `openspec validate trace-requirements-to-contracts --strict` -> valid. `validate_work_packages.py` -> VALID (schema, depends_on_refs, dag_cycles, lock_keys). 59 + 7 scenarios. wp-wiring description 3815 chars, under the 4000 limit.\n  - Derivation is correct on normal openspec PRs, dependabot/docs/chore commits, `claude/*` cloud-session branches, and multi-change merge_group batches; and no non-directory entries exist directly under `openspec/changes/` on main, so the `<id>/` trailing-slash form is currently safe.",
+      "implementer_impact": "None - these are clearances, not defects."
+    }
+  ]
+}

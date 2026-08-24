@@ -1,0 +1,57 @@
+{
+  "review_type": "implementation",
+  "target": "trace-requirements-to-contracts",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The full-sweep job treats only an *empty* base SHA as unresolvable. A non-empty but unresolvable base (missing/unreachable object) takes the no-change-directory SKIP path and exits 0 \u2014 the unfalsifiable green the spec forbids. Spec scenario `unresolvable-base-fails-not-skips` (and prose at ~588\u2013599) requires: when a base is required and cannot be resolved, fail naming the event and the base, and SHALL NOT share an exit path with the no-change SKIP. Implementation only checks `[ -z \"${PR_BASE_SHA:-}\" ]` / merge_group equivalent, then runs `CHANGE_IDS=\"$(derive_change_ids ...)\"` under `set -uo pipefail` without `set -e` and without inspecting `git diff`'s status. Demonstrated on a throwaway repo with PR_BASE_SHA=deadbeef\u2026deadbeef: stdout=`SKIP: requirement-traceability sweep \u2014 no openspec/changes/<id>/ directory touched on feature/x`, rc=0, stderr=`fatal: bad object deadbeef\u2026`, no `::error::` line. `test_unresolvable_base_fails_pull_request` / `_merge_group` only assert the empty-string case, so this defect is green in CI. Fix: after non-empty base, `git rev-parse --verify <base>^{commit}` (or check `git diff` exit status) and fail with `::error::\u2026 unresolvable base for <event> (<sha>)` before derive/SKIP.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": ".github/workflows/ci.yml"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "The load-bearing `pull_request` path (single derived change id \u2192 `run_gate` with `--change` \u2192 block on non-zero) has no behavioral test. Existing PR tests cover only SKIP (non-OpenSpec / archive), ambiguity (>1 id), and empty-base failure; merge_group and push *do* assert blocking/non-blocking. Demonstrated: control single-change PR with failing stub gate exits 1 and prints `argv: --scope capability --change one-change`. Mutating the PR arm from `exit $?` to `exit 0` makes the same failing gate exit 0 while every existing test in `test_ci_sweep_wiring.py` would still pass (ambiguity fails before `run_gate`; merge_group/push paths unchanged). That is a gate/test that cannot fail on the primary blocking event. Add a single-change PR test that asserts argv `--scope capability --change <id>` and non-zero propagation when the gate fails (mirror `test_merge_group_blocks_if_any_invocation_fails`).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "skills/tests/validate-feature/test_ci_sweep_wiring.py"
+    },
+    {
+      "id": 3,
+      "type": "behavioral_failure",
+      "criticality": "medium",
+      "description": "Section 7.0b captures the gate via `TRACE_OUTPUT=$(\u2026 check_traceability.py \u2026); TRACE_EXIT=$?; echo \"$TRACE_OUTPUT\"`. Under `set -e` / `set -euo pipefail` (common agent shells), a non-zero gate aborts the shell on the assignment and never reaches `echo`/`FAIL:`/`TRACE_RESULT=fail`. Demonstrated with the skill fragment: plain bash prints gate output + `FAIL: requirement-traceability gate exited 1` (rc=1); with `set -e` or `set -euo pipefail`, stdout is empty (rc=1) \u2014 gate violation text is lost. Spec scenario `Gate failure fails validation` requires the validation report to include the gate's output naming violations; CI-vs-local prose also depends on `$TRACE_OUTPUT`. Neighboring phases avoid this (direct `pytest \u2026; SMOKE_EXIT=$?`, not capture). Skill tests run the fragment without `set -e`, so they stay green on the defective harness. Fix: disable errexit around the capture (`set +e` / `if TRACE_OUTPUT=$(\u2026); then \u2026`) or run the gate without command substitution and tee output.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "file_path": "skills/validate-feature/SKILL.md"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "`test_validate_feature_gate.py` hardcodes `TRACE_GATE_FRAGMENT` with a comment that it is kept byte-for-byte in sync with SKILL.md 7.0b, but unlike the CI sweep suite it has no `test_fragment_matches_skill` (or equivalent) that fails when the skill drifts. CI intentionally added `test_fragment_matches_ci_yml` for this reason (tasks.md 5.7 evidence: comment alone is weaker than a drift guard). Current fragments match when the test module is loaded, but any edit to SKILL.md that breaks bare invocation, scope flags, or SKIP wording leaves the skill tests green while agents execute the stale/wrong block \u2014 the recurring fix-one-artifact / consequence-stale shape. Add a parser assertion that the 7.0b ```bash``` block equals `TRACE_GATE_FRAGMENT` (same pattern as the CI test).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "skills/tests/validate-feature/test_validate_feature_gate.py"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "description": "`locks.yaml` header still states `UNTRACED (D6): no operation carries x-traceability yet; forward enforcement begins only when this document opts in (task 5.2)` while both operations already carry `x-traceability` blocks (task 5.2 landed in b39cdb3d). Gate confirms the document is opted in: breaking a citation fails with `errors:` naming `locks.yaml` (rc=1); half-traced document fails with `forward failures: \u2026 acquireLock cites no requirement`. Stale header is the same consequence-stale shape and will mislead authors about enforcement. Update the header to state the document is forward-enforced via the existing `x-traceability` blocks.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/locks.yaml"
+    }
+  ]
+}

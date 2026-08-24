@@ -37,18 +37,43 @@ items:
     /validate-feature.
   - A re-run of the failure scenario documented in the proposal no longer reproduces.
 - item_id: ri-03
-  title: Archive the implemented-not-archived change backlog
+  title: Sweep the implemented-not-archived change backlog
   status: candidate
   priority: 1
-  effort: S
+  effort: M
   depends_on: []
-  description: Finish and archive factory-missions-architecture-alignment (51/53)
-    and extract-gen-eval-package (38/43).
-  rationale: The dispatcher daemon will consume openspec/changes/ as a work source,
-    so the directory must reflect only genuinely open work before automation starts.
+  description: "Sweep every implemented-not-archived change out of openspec/changes/,\
+    \ driven by a deterministic detector rather than a hand-maintained list. As of\
+    \ the 2026-08 audit the backlog is about twelve, not two: eight changes have every\
+    \ task checked (rename-descriptor-model-levels, integrate-main-context-convergence,\
+    \ inject-scoped-semantic-context-into-coding-jobs, extract-gen-eval-package, add-skills-lint-ci-gate,\
+    \ add-deterministic-context-producer-checks, add-deterministic-context-drift-gates,\
+    \ add-branch-local-context-checkpoints); two have only review/merge steps left\
+    \ (add-trust-posture-contract-file, build-approval-gate-service-interviewer-abstraction);\
+    \ two have only commit/push or explicitly out-of-scope entries left (fix-compact-hook-phase-boundary-detection,\
+    \ fix-autopilot-archetype-and-apply-outcome). factory-missions-architecture-alignment\
+    \ is the one exception that must be finished rather than archived \u2014 two real\
+    \ tasks remain (an end-to-end validate-feature run and a rebase verification)."
+  rationale: "The dispatcher daemon will consume openspec/changes/ as a work source,\
+    \ so the directory must reflect only genuinely open work before automation starts.\
+    \ The original two-item list was itself already stale \u2014 extract-gen-eval-package\
+    \ had reached 43/43 and eight further changes had completed \u2014 which is why\
+    \ this item must ship a detector and a recurrence guard instead of another hand-maintained\
+    \ list. Trigger for the rescope: the symphony supersession audit found add-trust-posture-contract-file\
+    \ implemented but unarchived while its roadmap item read completed."
   acceptance_outcomes:
-  - Both changes are archived under openspec/changes/archive/.
-  - openspec/changes/ contains only genuinely open work.
+  - A deterministic detector, runnable as a single command, reports every change under
+    openspec/changes/ whose tasks are all complete or whose only remaining entries
+    are process steps (review, merge, commit, push, archive) or explicitly out-of-scope
+    notes.
+  - Every change the detector reports is either archived under openspec/changes/archive/
+    or carries a named open blocker in its tasks.md.
+  - factory-missions-architecture-alignment completes its two remaining implementation
+    tasks before being archived.
+  - Re-running the detector after the sweep reports zero implemented-not-archived
+    changes.
+  - A recurrence guard (CI check or bug-scrub extension) fails or reports when a change
+    sits fully implemented and unarchived.
 - item_id: ri-04
   title: Add trust posture contract file
   status: completed
@@ -92,7 +117,7 @@ items:
     with the posture that authorized it.
 - item_id: ri-06
   title: Encode autopilot gates and goal gate in code
-  status: candidate
+  status: approved
   priority: 1
   effort: L
   depends_on:
@@ -140,10 +165,18 @@ items:
   depends_on:
   - ri-06
   - ri-07
-  description: A long-running systemd service on the GX10 polling the tracker adapter
+  description: 'A long-running systemd service on the GX10 polling the tracker adapter
     on a fixed cadence, spawning headless vendor-CLI sessions running /autopilot or
     /autopilot-roadmap under a global concurrency cap, each with a distinct AGENT_ID,
     recovering after restart purely from tracker, worktree, and loop-state.json state.
+    The daemon is also the trigger owner for the supervisor discovery cycle (supervisor
+    roadmap ri-02 CYCLE verb): on a weekday cadence it wakes a fresh supervisor session
+    that rehydrates from handoff, runs sense and rank, and delivers a ranked digest
+    to the operator, stopping at the batch approval gate. Operator decision 2026-08-16:
+    the cadence is deliberately NOT scheduled from the cloud harness. It belongs on
+    the GX10, which holds the vendor CLIs multi-vendor discovery needs and the subscriptions
+    that make a recurring sweep tier-1 cheap under the ri-18 routing ladder. The daemon
+    reasons about nothing; it only wakes sessions.'
   rationale: Nothing in the repo starts sessions today; this is the symphony dispatcher-daemon
     item and the core of the non-interactive software-factory runner.
   change_id: build-dispatcher-daemon-on-the-always-on-host
@@ -154,6 +187,9 @@ items:
     checkpoint without re-dispatch.
   - Spawned sessions have unique agent identities visible in discover_agents, and
     handoff reads use explicit agent names.
+  - A scheduled supervisor discovery cycle fires on the configured weekday cadence,
+    delivers a ranked digest through the notification channel, and stops at the approval
+    gate without creating roadmaps, dispatching implementers, or pushing.
 - item_id: ri-09
   title: Harden heartbeats and worktree registry for daemon operation
   status: candidate
@@ -478,4 +514,4 @@ items:
     a 7-day soak.
   - When no ready work exists, an explore-feature run proposes candidates as draft
     issues.
-updated_at: '2026-07-08T10:58:57.526611+00:00'
+updated_at: '2026-08-16T20:16:35.837788+00:00'

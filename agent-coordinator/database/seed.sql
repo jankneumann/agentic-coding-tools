@@ -2,10 +2,9 @@
 -- Idempotent: all INSERTs use ON CONFLICT DO NOTHING
 -- Run after migrations to populate representative test fixtures.
 --
--- Tables seeded (7 cleanable tables from conftest.py):
+-- Tables seeded (5 cleanable tables from conftest.py):
 --   agent_sessions, file_locks, work_queue,
---   memory_episodic, memory_working, memory_procedural,
---   handoff_documents
+--   memory_episodic, handoff_documents
 
 -- =============================================================================
 -- AGENT SESSIONS (2 minimum)
@@ -49,24 +48,6 @@ WHERE id = 'a0000000-0000-0000-0000-000000000002'
 INSERT INTO memory_episodic (id, agent_id, session_id, event_type, summary, details, outcome, tags)
 VALUES
     ('b0000000-0000-0000-0000-000000000001', 'seed-agent-1', 'seed-session-1', 'discovery', 'Seed episodic memory for live service testing', '{"seed": true}', 'positive', ARRAY['seed', 'test'])
-ON CONFLICT (id) DO NOTHING;
-
--- =============================================================================
--- MEMORY — WORKING (1 minimum)
--- =============================================================================
-
-INSERT INTO memory_working (id, agent_id, session_id, key, value)
-VALUES
-    ('c0000000-0000-0000-0000-000000000001', 'seed-agent-1', 'seed-session-1', 'seed-context', '{"description": "Seed working memory for live service testing", "seed": true}')
-ON CONFLICT (id) DO NOTHING;
-
--- =============================================================================
--- MEMORY — PROCEDURAL (1 minimum)
--- =============================================================================
-
-INSERT INTO memory_procedural (id, skill_name, description, steps)
-VALUES
-    ('d0000000-0000-0000-0000-000000000001', 'seed-test-skill', 'Seed procedural memory for live service testing', '["step-1: observe", "step-2: act"]')
 ON CONFLICT (id) DO NOTHING;
 
 -- =============================================================================

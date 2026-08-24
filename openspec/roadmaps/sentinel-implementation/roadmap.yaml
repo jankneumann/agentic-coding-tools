@@ -8,7 +8,7 @@ policy:
 items:
 - item_id: sentinel-substrate-binding
   title: Coordination Substrate Binding
-  status: candidate
+  status: approved
   priority: 1
   effort: S
   depends_on: []
@@ -20,7 +20,7 @@ items:
   - Heartbeat never blocked by primary work
 - item_id: sentinel-finding-store
   title: Finding Store with Fingerprint and Provenance
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on:
@@ -34,19 +34,22 @@ items:
   - Crash mid-write leaves complete prior state
 - item_id: sentinel-sandbox-scope
   title: Sandbox and Scope Enforcement
-  status: candidate
+  status: approved
   priority: 1
   effort: M
   depends_on: []
   description: Sandbox-by-infrastructure (ephemeral containers + E2B), read-only mounts,
-    hard-rule injection.
+    hard-rule injection. Candidate egress backend for the container lane is a per-fleet
+    iron-proxy rendered from coordinator network policy via dispatch-governance dg-08,
+    which adds per-request audit and keeps vendor keys out of role sandboxes; E2B-native
+    egress controls remain the alternative where the E2B lane is used.
   acceptance_outcomes:
   - Elevated agent cannot reach hosts outside allowlist
   - Writes to target/config/sandbox fail (read-only)
   - Every agent prompt carries operator hard-rules + non-testbed prohibitions
 - item_id: sentinel-indexer
   title: Indexer
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on:
@@ -59,7 +62,7 @@ items:
   - Unparseable files recorded without aborting
 - item_id: sentinel-cartographer
   title: Cartographer
-  status: candidate
+  status: approved
   priority: 2
   effort: M
   depends_on:
@@ -71,7 +74,7 @@ items:
   - Roles run on the Indexer alone when map absent
 - item_id: sentinel-detector
   title: Detector
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on:
@@ -85,7 +88,7 @@ items:
   - No verdict/severity/exploited assigned
 - item_id: sentinel-triager
   title: Triager
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on:
@@ -100,7 +103,7 @@ items:
   - Non-true-positive verdicts stay internal
 - item_id: sentinel-severity-classification
   title: Severity, Classification, and Label Taxonomy
-  status: candidate
+  status: approved
   priority: 3
   effort: M
   depends_on:
@@ -112,7 +115,7 @@ items:
   - needs-review surfaced via triaged/needs-review label
 - item_id: sentinel-verdict-consensus
   title: Multi-Vendor Verdict Consensus and Calibration
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -133,7 +136,7 @@ items:
     provenance
 - item_id: sentinel-validator
   title: Validator
-  status: candidate
+  status: approved
   priority: 4
   effort: L
   depends_on:
@@ -147,7 +150,7 @@ items:
   - No testbed -> never sets exploited
 - item_id: sentinel-reporter
   title: Reporter
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -158,7 +161,7 @@ items:
   - Fingerprint match updates existing entry, no duplicate
 - item_id: sentinel-coverage-guide
   title: Coverage-Guide
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -172,7 +175,7 @@ items:
   - Empty goals refused
 - item_id: sentinel-governance-gates
   title: Governance Gates
-  status: candidate
+  status: approved
   priority: 4
   effort: M
   depends_on:
@@ -186,7 +189,7 @@ items:
   - Task released N times -> blocked, re-openable
 - item_id: sentinel-orchestrator
   title: Orchestrator
-  status: candidate
+  status: approved
   priority: 5
   effort: M
   depends_on:
@@ -200,7 +203,7 @@ items:
   - Conversational request never stalls lifecycle lane
 - item_id: sentinel-observability
   title: Observability Dashboard and Session Logs
-  status: candidate
+  status: approved
   priority: 5
   effort: M
   depends_on:
@@ -268,4 +271,4 @@ items:
   - Activation requires a measured rule-gap corpus with examples
   blocked_by:
   - rule corpus has measured gaps with examples
-updated_at: '2026-05-26T12:09:33.203384+00:00'
+updated_at: '2026-08-04T17:14:33.296178+00:00'

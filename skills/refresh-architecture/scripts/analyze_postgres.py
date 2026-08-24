@@ -2,8 +2,20 @@
 """Postgres schema analyzer.
 
 Extracts table definitions, FK relationships, indexes, stored functions,
-and triggers from SQL migration files.  Constructs a cumulative schema by
-parsing numbered migration files in order.
+and triggers from SQL migration files.  Replays numbered migration files in
+order, applying both creations and removals, so the result describes the
+schema as it stands after the last migration — not the union of everything
+that was ever created.
+
+Removals matter as much as creations: a migration directory read as an
+append-only set of ``CREATE`` statements keeps describing tables that were
+dropped (issue #386).  ``DROP TABLE`` / ``DROP INDEX`` / ``DROP TRIGGER`` /
+``DROP FUNCTION`` and the ``ALTER TABLE ... DROP COLUMN`` / ``DROP
+CONSTRAINT`` actions are therefore applied as deletions, including the
+cascade Postgres itself performs (dropping a table takes its indexes,
+triggers, and the FKs on either side of it with it).  Those semantics live in
+``arch_utils.sql_drops``, shared with the tree-sitter analyzer that overwrites
+this module's output, so the two cannot disagree about what still exists.
 
 Usage:
     python scripts/analyze_postgres.py <migrations_directory> \
@@ -22,6 +34,10 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from arch_utils import sql_drops  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -306,6 +322,11 @@ class SchemaParser:
         upper = stripped.upper()
 
         try:
+            # Removals first: a statement that only removes needs no further
+            # parsing, and an ALTER TABLE that both drops and adds has its
+            # drops applied here before the ADD paths below see it.
+            if sql_drops.apply_drop_statement(self, stripped):
+                return
             if re.match(r"(?i)^CREATE\s+(TABLE|TABLE\s+IF\s+NOT\s+EXISTS)\b", stripped):
                 self._parse_create_table(stripped, filename, line)
             elif re.match(r"(?i)^ALTER\s+TABLE\b", stripped):
@@ -316,9 +337,7 @@ class SchemaParser:
                 self._parse_create_function(stripped, filename, line)
             elif re.match(r"(?i)^CREATE\s+TRIGGER\b", stripped):
                 self._parse_create_trigger(stripped, filename, line)
-            elif re.match(r"(?i)^DROP\s+TRIGGER\b", stripped):
-                pass  # informational, nothing to extract
-            elif re.match(r"(?i)^(DO\s*\$|CREATE\s+SCHEMA|CREATE\s+ROLE|GRANT|ALTER\s+DEFAULT|CREATE\s+POLICY|CREATE\s+PUBLICATION|ALTER\s+PUBLICATION|CREATE\s+TYPE|CREATE\s+OR\s+REPLACE\s+VIEW)\b", stripped):
+            elif re.match(r"(?i)^(DO\s*\$|CREATE\s+SCHEMA|CREATE\s+ROLE|GRANT|ALTER\s+DEFAULT|CREATE\s+POLICY|DROP\s+POLICY|CREATE\s+PUBLICATION|ALTER\s+PUBLICATION|CREATE\s+TYPE|DROP\s+TYPE|CREATE\s+OR\s+REPLACE\s+VIEW|DROP\s+VIEW)\b", stripped):
                 pass  # intentionally skipped, not part of required output
             else:
                 # Unknown statement type - skip silently for common SQL
@@ -564,6 +583,10 @@ class SchemaParser:
         # ALTER TABLE ... DISABLE TRIGGER  (skip)
         if re.match(r"(?i)(ENABLE|DISABLE)\s+TRIGGER", actions):
             return
+
+        # DROP COLUMN / DROP CONSTRAINT were already applied by
+        # sql_drops.apply_drop_statement in _parse_statement; only a statement
+        # that *also* adds something reaches here, so the ADD paths follow.
 
         # Handle ADD COLUMN (possibly multiple in one statement)
         # Pattern: ADD COLUMN col_name type ..., ADD COLUMN col_name type ...
@@ -820,8 +843,9 @@ class SchemaParser:
         ]
         widest = sorted(
             [{"table": t.name, "column_count": len(t.columns)} for t in self.tables.values()],
-            key=lambda x: x["column_count"],
-            reverse=True,
+            # Table name breaks column-count ties so the cut at 10 selects the
+            # same tables on every run (issue #362).
+            key=lambda x: (-x["column_count"], x["table"]),
         )[:10]
 
         summary = {
@@ -1056,8 +1080,9 @@ def _query_live_db(dsn: str | None = None) -> dict[str, Any]:
         ]
         widest = sorted(
             [{"table": t["name"], "column_count": len(t["columns"])} for t in tables_out],
-            key=lambda x: x["column_count"],
-            reverse=True,
+            # Table name breaks column-count ties so the cut at 10 selects the
+            # same tables on every run (issue #362).
+            key=lambda x: (-x["column_count"], x["table"]),
         )[:10]
 
         return {

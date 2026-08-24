@@ -1,0 +1,127 @@
+openapi: 3.1.0
+info:
+  title: Coordinator Dispatch Governance Additions
+  version: "1.0.0"
+  description: >
+    Coordinator surface added by change add-sandboxed-harness-execution: an export of
+    the authored network policy in renderer-consumable shape (single-source
+    constraint), and per-dispatch API identities for remote execution backends.
+    Inference key issuance is NOT here — see add-coordinator-llm-gateway.
+
+paths:
+  /policies/network/export:
+    get:
+      operationId: exportNetworkPolicy
+      summary: Export the active network policy as a rendering input (read-only)
+      description: >
+        Serializes the authored network policy for execution-backend renderers
+        (srt settings, cloud sandbox egress rules). Enforced allowlists MUST be
+        renderings of this export; renderers falling back on unreachability MUST
+        narrow, never widen (spec: agent-coordinator, "export unavailable narrows").
+      parameters:
+        - name: agent_type
+          in: query
+          required: false
+          schema: { type: string }
+          description: Narrow the export to one agent profile's policy.
+      responses:
+        "200":
+          description: Active policy in renderer shape
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NetworkPolicyExport" }
+        "401": { description: Missing or invalid coordinator identity }
+
+  /dispatch/identities:
+    post:
+      operationId: issueDispatchIdentity
+      summary: Issue a per-dispatch coordinator identity (reversible-write)
+      description: >
+        Mints a short-lived API identity bound to one dispatch, so revocation and
+        audit are per-dispatch. Only the dispatcher's own identity may mint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IssueDispatchIdentityRequest" }
+      responses:
+        "200":
+          description: Issued identity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DispatchIdentity" }
+        "403": { description: Caller is not authorized to mint dispatch identities }
+
+  /dispatch/identities/revoke:
+    post:
+      operationId: revokeDispatchIdentity
+      summary: Revoke a per-dispatch identity (reversible-write)
+      description: >
+        Rejects the identity for all subsequent requests and marks the associated
+        dispatch failed in the completion ledger if still in flight. Other
+        identities are unaffected (spec: agent-coordinator, "revocation isolates
+        one dispatch").
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identity_id]
+              properties:
+                identity_id: { type: string }
+                reason: { type: string }
+      responses:
+        "200": { description: Revoked (idempotent) }
+        "404": { description: Unknown identity }
+
+components:
+  schemas:
+    NetworkPolicyExport:
+      type: object
+      required: [policy_version, default_policy, allowed_domains]
+      properties:
+        policy_version:
+          type: string
+          description: Monotonic version for narrower-never-wider fallback checks.
+        default_policy:
+          type: string
+          enum: [allow, deny]
+        allowed_domains:
+          type: array
+          items: { type: string }
+        denied_domains:
+          type: array
+          items: { type: string }
+        exported_at:
+          type: string
+          format: date-time
+
+    IssueDispatchIdentityRequest:
+      type: object
+      required: [dispatch_id, agent_type, ttl_seconds]
+      properties:
+        dispatch_id: { type: string }
+        agent_type: { type: string }
+        ttl_seconds:
+          type: integer
+          minimum: 60
+          maximum: 86400
+        scopes:
+          type: array
+          items:
+            type: string
+            enum: [ledger_write, heartbeat, handoff_read]
+          description: Coordinator capabilities granted; default is ledger_write + heartbeat.
+
+    DispatchIdentity:
+      type: object
+      required: [identity_id, api_key, expires_at]
+      properties:
+        identity_id: { type: string }
+        api_key:
+          type: string
+          description: Leaf credential; injected into the workspace by the broker, never logged.
+        expires_at:
+          type: string
+          format: date-time

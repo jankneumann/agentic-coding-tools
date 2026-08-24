@@ -1,0 +1,135 @@
+# agent-coordinator work-queue contract (issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Work queue"
+  version: 1.0.0
+  description: >-
+    Task claiming, completion, submission, and unclaimed reads. Spec lines
+    114-145, 941-963, 1950-1956 (HTTP-7).
+paths:
+  /work/claim:
+    post:
+      operationId: claimWork
+      summary: Atomically claim the highest-priority eligible task
+      description: >-
+        Spec 1953 (HTTP-7): atomically claims the highest-priority eligible
+        task. Spec 123-126: returns task_id, task_type, task_description, and
+        input_data on success. Spec 128-130: with no eligible tasks returns
+        success false with reason no_tasks_available. Spec 142-144: tasks with
+        unmet dependencies are never returned.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.work-queue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                task_types: {type: array, items: {type: string}}
+      responses:
+        "200": {description: Claimed task or no_tasks_available (spec 123-130)}
+        "401": {description: Missing or invalid X-API-Key}
+  /work/complete:
+    post:
+      operationId: completeWork
+      summary: Mark a claimed task completed or failed
+      description: >-
+        Spec 1954 (HTTP-7): marks a claimed task completed or failed.
+        Spec 132-135: returns success with status completed, and dependent
+        tasks become unblocked if applicable.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.work-queue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task_id, success]
+              properties:
+                task_id: {type: string}
+                success: {type: boolean}
+                result: {type: object}
+                error_message: {type: string}
+      responses:
+        "200": {description: Completion recorded, dependents unblocked (spec 133-135)}
+        "401": {description: Missing or invalid X-API-Key}
+  /work/submit:
+    post:
+      operationId: submitWork
+      summary: Create a new task in the queue
+      description: >-
+        Spec 1955 (HTTP-7): creates a new task in the queue. Spec 137-139:
+        returns success with the new task_id.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.work-queue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task_type, task_description]
+              properties:
+                task_type: {type: string}
+                task_description: {type: string}
+                input_data: {type: object}
+                priority: {type: integer}
+                depends_on: {type: array, items: {type: string}}
+      responses:
+        "200": {description: Task created with its task_id (spec 138-139)}
+        "401": {description: Missing or invalid X-API-Key}
+  /work/get:
+    post:
+      operationId: getWork
+      summary: Read a task's current state without claiming it
+      description: >-
+        Spec 1956 (HTTP-7): returns a task's current state by task_id without
+        claiming it. Spec 943-947 (Task Read API): the response includes
+        task_id, task_type, status, input_data, result, error_message,
+        priority, created_at, and completed_at, and reading never changes
+        status or ownership.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.task-read-api
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task_id]
+              properties:
+                task_id: {type: string}
+      responses:
+        "200": {description: Task state without claiming (spec 943-947)}
+        "401": {description: Missing or invalid X-API-Key}
+        "404": {description: Unknown task_id (spec 955-957)}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

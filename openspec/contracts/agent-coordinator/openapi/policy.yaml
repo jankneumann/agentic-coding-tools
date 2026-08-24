@@ -1,0 +1,64 @@
+# agent-coordinator policy-engine contract (issue #377 attribution change).
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1; app.openapi() describing itself would verify a
+# copy against itself). Operation descriptions cite spec line provenance as of
+# the issue #377 attribution change. FORWARD-ENFORCED (D6): every operation
+# carries an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Policy engine checks"
+  version: 1.0.0
+  description: >-
+    Cedar policy authorization checks and policy-text validation. Spec lines
+    1998-2004 (HTTP-13).
+paths:
+  /policy/check:
+    post:
+      operationId: checkPolicy
+      summary: Check whether an operation is authorized
+      description: >-
+        Spec 2001 (HTTP-13): reports whether an operation is authorized by
+        the policy engine.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Authorization decision (spec 2001)}
+        "401": {description: Missing or invalid X-API-Key}
+  /policy/validate:
+    post:
+      operationId: validatePolicy
+      summary: Validate Cedar policy text
+      description: >-
+        Spec 2002 (HTTP-13): validates Cedar policy text against the schema.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [policy_text]
+              properties:
+                policy_text: {type: string}
+      responses:
+        "200": {description: Validation result (spec 2002)}
+        "401": {description: Missing or invalid X-API-Key}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key

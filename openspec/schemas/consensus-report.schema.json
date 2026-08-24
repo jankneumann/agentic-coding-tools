@@ -105,6 +105,11 @@
             "type": "string",
             "enum": ["low", "medium", "high", "critical"]
           },
+          "agreed_axis": {
+            "type": "string",
+            "enum": ["correctness", "readability", "architecture", "security", "performance", "observability", "resilience", "compatibility"],
+            "description": "Review axis agreed across vendors. Matches the axis enum in review-findings.schema.json; cross-vendor matching keys on axis, so findings at the same location but on different axes stay separate."
+          },
           "recommended_disposition": {
             "type": "string",
             "enum": ["fix", "regenerate", "accept", "escalate"]

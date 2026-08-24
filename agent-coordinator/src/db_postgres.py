@@ -9,6 +9,7 @@ executed via asyncpg's connection pool.
 
 import json
 import re
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -20,13 +21,35 @@ _UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
 )
 _IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# datetime.now(UTC).isoformat() and common Zulu variants. Requires a
+# timezone so we don't swallow date-only or naive strings that belong
+# on TEXT columns.
+_ISO_DT_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$"
+)
+
+
+def _parse_iso_datetime(val: str) -> datetime | None:
+    """Parse an ISO-8601 timestamp if `val` looks like one.
+
+    DatabaseClient callers write TIMESTAMPTZ values as ISO strings so
+    the PostgREST JSON backend can serialize them. asyncpg rejects those
+    strings (`DataError: invalid input for query argument $N`) and
+    requires a datetime instance instead.
+    """
+    if not _ISO_DT_RE.match(val):
+        return None
+    try:
+        return datetime.fromisoformat(val.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 def _coerce_filter_value(val: str) -> Any:
     """Coerce a PostgREST filter string value to the appropriate Python type.
 
-    asyncpg requires typed parameters — passing a string for a UUID or int
-    column causes a type mismatch error.
+    asyncpg requires typed parameters — passing a string for a UUID, int,
+    or timestamptz column causes a type mismatch error.
     """
     if val.lower() in ("true", "false"):
         return val.lower() == "true"
@@ -40,6 +63,9 @@ def _coerce_filter_value(val: str) -> Any:
         return float(val)
     except ValueError:
         pass
+    parsed = _parse_iso_datetime(val)
+    if parsed is not None:
+        return parsed
     return val
 
 
@@ -64,14 +90,22 @@ def _validate_select_clause(select: str) -> str:
 
 
 def _serialize_for_asyncpg(value: Any) -> Any:
-    """Serialize dict values to JSON strings for asyncpg jsonb columns.
+    """Adapt Python values to asyncpg parameter types.
 
-    asyncpg requires JSON strings (not Python dicts) when binding
-    parameters to jsonb columns. Lists are left as-is because asyncpg
-    handles PostgreSQL array types (TEXT[], etc.) natively.
+    - dicts become JSON strings for jsonb columns
+    - ISO-8601 timestamp strings become datetime for timestamptz columns
+    - lists are left as-is (asyncpg handles PostgreSQL arrays natively)
+
+    Services emit ISO strings to satisfy the PostgREST JSON contract;
+    this adapter converts them so asyncpg does not raise DataError on
+    TIMESTAMPTZ binds (the issue_close completed_at/closed_at path).
     """
     if isinstance(value, dict):
         return json.dumps(value)
+    if isinstance(value, str):
+        parsed = _parse_iso_datetime(value)
+        if parsed is not None:
+            return parsed
     return value
 
 
