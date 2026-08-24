@@ -69,6 +69,14 @@ The orchestrator queries `roadmap.ready_items()` to find items whose dependencie
 
 ### 3. Execute via /implement-feature
 
+**Refine the item's plan before implementing it.** `/plan-roadmap` already scaffolded every item into `openspec/changes/<change-id>/` with a proposal, tasks, and a spec delta sketched from its acceptance outcomes. That sketch validates, but its `WHEN` clauses are generic — the roadmap could not know each item's trigger at decomposition time.
+
+So the first dispatch for a ready item is refinement, not implementation: run `/plan-feature` (and `/iterate-on-plan` where the item warrants it) against the existing change, seeded with what the item's completed dependencies taught. This is where the roadmap's central advantage is realised — an item planned after its dependencies land is planned against reality rather than against a forecast. Then dispatch `/implement-feature`.
+
+**Pass the item's `change_id` explicitly — never let the planner choose its own slug.** `roadmap.yaml` records a `change_id` per item, and resume detection, dependency tracking and the learning log all key off it. If `/plan-feature` derives a different slug, it creates a second directory alongside the scaffolded one and the roadmap cannot find the work.
+
+Roadmaps generated before `change_id` was persisted may omit it. In that case call `populate_change_ids(roadmap)` from `<skill-base-dir>/../plan-roadmap/scripts/scaffolder.py` on load and save the roadmap back, so the ids are fixed once rather than re-derived differently by each consumer.
+
 For each ready item, the SKILL.md prompt layer invokes the existing skill workflow. The orchestrator provides a `dispatch_fn` callback interface:
 
 ```python

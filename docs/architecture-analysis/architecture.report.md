@@ -2,26 +2,27 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-08-18T22:23:29+00:00  
-Git SHA: `26ab704c4010da3a2118b5e2fdb53844ce83e362`
+Generated: 2026-08-22T01:03:57+00:00  
+Git SHA: `f86ee022b4a664afbcf77283748ce569591c015a`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **27 Postgres tables**. The codebase contains 1079 functions (435 async) and 248 classes.
+This is a **Python MCP server** with 104 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **27 Postgres tables**. The codebase contains 1121 functions (435 async) and 248 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1892 |
-| Total edges | 1188 |
-| Python modules | 77 |
-| Functions | 1079 (435 async) |
+| Total nodes | 1983 |
+| Total edges | 1190 |
+| Python modules | 104 |
+| Functions | 1121 (435 async) |
 | Classes | 248 |
 | Mcp Endpoints | 96 |
 | DB tables | 27 |
-| Python nodes | 1456 |
+| Python nodes | 1457 |
 | Sql nodes | 436 |
+| Typescript nodes | 90 |
 
 ## Module Responsibility Map
 
@@ -44,7 +45,7 @@ This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (8
 | `coordination_cli` | Service | Bridge async service calls to synchronous CLI. | 0 / 41 |
 | `coordination_mcp` | Entry | Own direct-search resources in the same loop that serves MCP calls. | 0 / 165 |
 | `db` | Foundation | Factory: returns the appropriate DatabaseClient based on config. | 47 / 4 |
-| `db_postgres` | Service | Coerce a PostgREST filter string value to the appropriate Python type. | 1 / 1 |
+| `db_postgres` | Service | Parse an ISO-8601 timestamp if `val` looks like one. | 1 / 1 |
 | `discovery` | Service | Get the global discovery service instance. | 16 / 8 |
 | `docker_manager` | Service | Return ``True`` if the ``colima`` binary is on PATH. | 0 / 0 |
 | `event_bus` | Foundation | Classify event urgency based on type. | 15 / 0 |
@@ -278,18 +279,29 @@ This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (8
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2726 findings** across 4 categories:
+**2918 findings** across 5 categories:
 
-### Orphan — 1207
+### Orphan — 1296
 
-1207 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+1296 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'PollConfig' is unreachable from any entrypoint or test
 - 'ModeConfig' is unreachable from any entrypoint or test
 - 'CliConfig' is unreachable from any entrypoint or test
-- ... and 1202 more
+- ... and 1291 more
+
+### Pattern Consistency — 39
+
+39 unclassified findings.
+
+- 'relativeTime' uses camelCase but most functions use snake_case
+- 'emitHighlight' uses camelCase but most functions use snake_case
+- 'useHighlightState' uses camelCase but most functions use snake_case
+- 'shortForm' uses camelCase but most functions use snake_case
+- 'loadFromStorage' uses camelCase but most functions use snake_case
+- ... and 34 more
 
 ### Reachability — 96
 
@@ -304,16 +316,16 @@ Breakdown: 88 info, 8 warning.
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
 - ... and 91 more
 
-### Test Coverage — 1327
+### Test Coverage — 1391
 
-1327 functions lack test references — consider adding tests for critical paths.
+1391 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 1322 more
+- ... and 1386 more
 
 ### Disconnected Flow (expected) — 96
 
@@ -330,7 +342,7 @@ Breakdown: 88 info, 8 warning.
 
 *Data sources: [high_impact_nodes.json](high_impact_nodes.json), [parallel_zones.json](parallel_zones.json)*
 
-113 nodes with >= 5 transitive dependents. Changes to these ripple through the codebase — test thoroughly.
+114 nodes with >= 5 transitive dependents. Changes to these ripple through the codebase — test thoroughly.
 
 | Node | Dependents | Risk |
 |------|------------|------|
@@ -364,7 +376,7 @@ Breakdown: 88 info, 8 warning.
 | `feature_registry.get_feature_registry_service` | 19 | High — test `feature_registry` changes thoroughly (5 modules affected) |
 | `issue_service.get_issue_service` | 19 | High — test `issue_service` changes thoroughly (modules: coordination_api, coordination_mcp) |
 | `audit` | 17 | High — test `audit` changes thoroughly (16 modules affected) |
-| ... | | 83 more |
+| ... | | 84 more |
 
 ## Code Health Indicators
 
@@ -374,8 +386,8 @@ Breakdown: 88 info, 8 warning.
 
 | Indicator | Value |
 |-----------|-------|
-| Async ratio | 435/1079 (40%) |
-| Docstring coverage | 770/1079 (71%) |
+| Async ratio | 435/1080 (40%) |
+| Docstring coverage | 771/1080 (71%) |
 | Dead code candidates | 502 |
 
 ### Hot Functions
@@ -460,7 +472,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1187 independent groups** identified. The largest interconnected group has 538 modules; 1491 modules are leaf nodes (safe to modify in isolation).
+**1277 independent groups** identified. The largest interconnected group has 538 modules; 1581 modules are leaf nodes (safe to modify in isolation).
 
 **39 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -478,9 +490,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 4** (14 members spanning 1 modules): `notifications`
 
-**Group 5** (9 members spanning 1 modules): `code_search_runtime`
+**Group 5** (10 members spanning 1 modules): `db_postgres`
 
-**Group 6** (9 members spanning 1 modules): `db_postgres`
+**Group 6** (9 members spanning 1 modules): `code_search_runtime`
 
 **Group 7** (6 members spanning 1 modules): `docker_manager`
 
@@ -488,9 +500,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1491)
+### Leaf Modules (1581)
 
-1491 modules have no dependents — changes are fully isolated. 1165 of the 1187 groups are singletons.
+1581 modules have no dependents — changes are fully isolated. 1255 of the 1277 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -500,8 +512,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1456 nodes)"]
+    Backend["Backend (1457 nodes)"]
     Database["Database (436 nodes)"]
+    Frontend["Frontend (90 nodes)"]
 ```
 
 ### Backend Components
@@ -524,7 +537,7 @@ flowchart TB
     coordination_cli["coordination_cli (34 symbols)"]
     coordination_mcp["coordination_mcp (80 symbols)"]
     db["db (23 symbols)"]
-    db_postgres["db_postgres (14 symbols)"]
+    db_postgres["db_postgres (15 symbols)"]
     discovery["discovery (20 symbols)"]
     docker_manager["docker_manager (8 symbols)"]
     event_bus["event_bus (22 symbols)"]
@@ -795,7 +808,8 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    empty["No TypeScript nodes found"]
+    kanban_h_viz_s_src["kanban-viz/src (89 symbols)"]
+    kanban_h_viz_s_vite__config__ts["kanban-viz/vite.config.ts (1 symbols)"]
 ```
 
 ### Database ERD

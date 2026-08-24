@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-20T03:30:25.723595+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implementation validation passed except for the mandatory dependency-security hard gate; merge is blocked by reproduced baseline high/critical findings.",
+    "completed_work": [
+      "Passed 34 focused lifecycle/security tests and 341 scoped regression tests with 1 skip.",
+      "Passed 2586 full source-worktree tests, 11 live smoke tests, and 19 live E2E tests.",
+      "Completed ZAP and OWASP Dependency-Check scans and recorded truthful FAIL evidence."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Fail the security hard gate",
+        "rationale": "OWASP Dependency-Check completed with one critical and five high findings; baseline status does not exempt configured high-threshold findings.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Keep validation isolated",
+        "rationale": "Used a disposable worktree and persisted only the three allowlisted changed artifacts after service teardown.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Remediate the high/critical dependency findings, rerun validation, and merge PR 401 only after the security gate passes or the user explicitly authorizes a recorded override."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/validate-feature-findings-gate/validation-report.md",
+        "description": "Stamped validation result and hard-gate decision"
+      },
+      {
+        "path": "openspec/changes/validate-feature-findings-gate/validation-findings.json",
+        "description": "Structured security and architecture findings"
+      }
+    ]
+  }
+}

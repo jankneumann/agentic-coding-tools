@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-18T22:23:29+00:00",
+  "generated_at": "2026-08-22T01:03:57+00:00",
   "python_patterns": {
     "assertions": {
       "count": 2,
@@ -63,7 +63,7 @@
       }
     },
     "type_hints": {
-      "count": 2002,
+      "count": 2004,
       "files": {
         "coordination_api.py": 179,
         "coordination_mcp.py": 133,
@@ -84,7 +84,7 @@
         "work_queue.py": 31,
         "github_openspec_fetcher.py": 30,
         "notifications/gmail.py": 28,
-        "profile_loader.py": 27
+        "db_postgres.py": 27
       }
     }
   },
@@ -121,8 +121,8 @@
     }
   },
   "type_hint_coverage": {
-    "functions_with_return_type": 987,
-    "typed_parameters": 942
+    "functions_with_return_type": 988,
+    "typed_parameters": 943
   },
   "exception_handling": {
     "bare_except": 0,

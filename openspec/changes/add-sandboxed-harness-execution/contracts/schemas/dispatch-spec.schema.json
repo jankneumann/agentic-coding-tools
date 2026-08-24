@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openspec/changes/add-sandboxed-harness-execution/contracts/schemas/dispatch-spec.schema.json",
+  "title": "DispatchSpec",
+  "description": "The single argument to ExecutionBackend.run(). Backend selection is a pure function of routing_decision.location x routing_decision.isolation. Enum values mirror the vocabulary pinned by pin-isolation-contract (dg-05), which remains authoritative.",
+  "type": "object",
+  "required": ["dispatch_id", "routing_decision", "workspace", "command", "env_allowlist"],
+  "additionalProperties": false,
+  "properties": {
+    "dispatch_id": { "type": "string" },
+    "routing_decision": {
+      "type": "object",
+      "required": ["vendor", "location", "isolation", "dispatch_mode"],
+      "properties": {
+        "vendor": { "type": "string" },
+        "location": { "type": "string", "enum": ["local", "cloud"] },
+        "isolation": { "type": "string", "enum": ["none", "worktree", "sandbox", "container"] },
+        "model": { "type": "string" },
+        "dispatch_mode": { "type": "string" },
+        "rationale": { "type": "string" }
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "required": ["repo", "branch"],
+      "properties": {
+        "repo": { "type": "string" },
+        "branch": { "type": "string", "description": "Convention: openspec/<change-id>--<agent-id>" },
+        "change_id": { "type": "string" },
+        "worktree_root": { "type": "string", "description": "Local lanes only; write scope for the sandbox renderer." }
+      }
+    },
+    "command": {
+      "type": "object",
+      "required": ["argv"],
+      "properties": {
+        "argv": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "prompt_via_stdin": { "type": "boolean", "default": false },
+        "timeout_seconds": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "env_allowlist": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Names of variables permitted in the child environment. Values are resolved backend-side; inheritance is never implicit (spec: vendor-dispatch, explicit allowlist)."
+    },
+    "credential_grants": {
+      "type": "array",
+      "description": "Leaf credentials the broker injects. MUST NOT reference the secret store itself (spec: credential-brokering, leaf-credential invariant).",
+      "items": {
+        "type": "object",
+        "required": ["kind", "env_var"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["gateway_virtual_key", "vendor_api_key_capped", "github_installation_token", "coordinator_dispatch_identity"]
+          },
+          "env_var": { "type": "string" },
+          "expires_at": { "type": "string", "format": "date-time" },
+          "scope": { "type": "string", "description": "e.g. repo full name, spend cap, ledger scopes." }
+        }
+      }
+    },
+    "egress_policy_version": {
+      "type": "string",
+      "description": "policy_version of the NetworkPolicyExport this dispatch's egress was rendered from."
+    },
+    "wall_clock_bound_seconds": {
+      "type": "integer",
+      "minimum": 60,
+      "description": "Remote backends: provider auto-stop bound (spec: cloud-sandbox-execution, bounded lifecycle)."
+    }
+  }
+}

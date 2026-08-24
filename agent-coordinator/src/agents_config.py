@@ -1078,14 +1078,20 @@ def _is_unique_violation(exc: BaseException) -> bool:
     return _UNIQUE_VIOLATION_TEXT in str(exc)
 
 
-def _registry_sync_timestamp() -> str:
+def _registry_sync_timestamp() -> datetime:
     """Value for ``agent_profiles.synced_from_registry_at`` on this write.
 
     Migration 032 added the column so operators can tell registry-projected
     rows from hand-maintained ones; it stays NULL unless the projection
     actually stamps it.
+
+    Returns a ``datetime``, never an ISO string: asyncpg binds TIMESTAMPTZ
+    parameters from datetime objects only, and a str here fails every boot
+    whose sync needs a profile write (DataError at bind time) — which the
+    mocked-DB tests cannot see because ``FakeDb`` accepts any payload. This
+    took production down on 2026-08-22; the type is load-bearing.
     """
-    return datetime.now(UTC).isoformat()
+    return datetime.now(UTC)
 
 
 def _desired_profile_row(agent: AgentEntry) -> dict[str, Any]:
@@ -1308,6 +1314,23 @@ async def _sync_assignments(
 
     for agent_id, row in existing.items():
         if agent_id in declared:
+            continue
+        # The sync garbage-collects only rows it wrote. `assigned_by` exists
+        # precisely to tell a projected assignment from everything else:
+        # migration 018's hand-written rows carry NULL, and per-host enrollment
+        # (scripts/add_agent_keys.py) stamps its own name. Those agent_ids are
+        # *instances* — deliberately not registry entries, because the registry
+        # declares vendor types, not machines — so treating "absent from
+        # agents.yaml" as "stale" would delete every enrolled host's assignment
+        # at each startup and drop resolution back to the oldest-row-of-type
+        # tiebreak that migration 018 was written to eliminate.
+        if row.get("assigned_by") != ASSIGNMENT_ASSIGNED_BY:
+            logger.debug(
+                "Retaining assignment for undeclared agent '%s' "
+                "(assigned_by=%r is not the registry projection's)",
+                agent_id,
+                row.get("assigned_by"),
+            )
             continue
         # Stale pointers are DELETEd, deliberately unlike D2's
         # disable-don't-delete rule for profiles: this table has no `enabled`
