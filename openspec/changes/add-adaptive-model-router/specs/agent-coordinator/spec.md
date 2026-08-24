@@ -7,17 +7,21 @@
 The coordinator SHALL expose the model-routing operations over both transports — HTTP
 (`POST /routing/select_model`, `GET /routing/catalog`, `GET /routing/decisions/{id}`,
 `GET /routing/usage`, `POST /routing/feedback`) and MCP tools for local agents — with Bearer
-authentication consistent with existing endpoints.
+authentication consistent with existing endpoints. Selection requests SHALL identify `agent_id`
+and `dispatch_kind`; responses SHALL return the selected candidate (including optional thinking),
+ranked adaptive alternatives, ordered static `capacity_fallbacks`, and decision provenance.
 
 #### Scenario: Cloud agent selects a model over HTTP
 
-- **WHEN** a cloud agent POSTs task signals to `/routing/select_model` with a valid Bearer token
-- **THEN** the response SHALL contain the selected candidate, ranked alternatives, and a decision ID
+- **WHEN** a cloud agent POSTs task signals, `agent_id`, and `dispatch_kind` to
+  `/routing/select_model` with a valid Bearer token
+- **THEN** the response SHALL contain the selected candidate, ranked alternatives, ordered static
+  `capacity_fallbacks`, and a decision ID
 
 #### Scenario: Local agent uses the MCP tool
 
 - **WHEN** a local agent invokes the `select_model_for_task` MCP tool
-- **THEN** the same resolver SHALL serve the request as the HTTP path
+- **THEN** the same resolver and request/response semantics SHALL serve the request as the HTTP path
 
 ### Requirement: Model Routing Storage Migrations
 

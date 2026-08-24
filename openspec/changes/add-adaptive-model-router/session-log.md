@@ -114,3 +114,77 @@ Plan revision 2 (approved by operator): incorporated Databricks multi-million-li
 ### Context
 Implemented the four compute-only packages of the adaptive model router in a cloud session (no test Postgres / Node): wp-contracts, wp-resolver core, wp-feedback core, wp-dispatch. 22/56 tasks, 64 new tests green (mypy --strict + ruff clean), 142 existing skills tests still passing. Remaining packages are DB/Cedar/Node-gated and should run in a local environment.
 
+---
+
+## Phase: Plan Iteration 1 (2026-08-24)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Separate harness mechanics from static model policy** `architectural: agent-archetypes` — Concrete model IDs and fallbacks change independently from invocation syntax; `archetypes.yaml` now owns task-tier policy while `agents.yaml` retains `model_flag` and transport mechanics
+2. **Key static routes by exact agent harness and dispatch kind** `architectural: agent-archetypes` — Local CLI aliases and remote SDK identifiers can differ even under one provider, so provider-only mappings cannot prove every dispatch path resolves
+3. **Sequence a dedicated ownership package after resolver and dispatch** `architectural: model-routing` — The migration spans files locked by both existing packages; a dependent package avoids parallel write conflicts and keeps the transition testable
+
+### Alternatives Considered
+- Delete model fields from `agents.yaml` without consumer migration: rejected because SDK validation and sync, async, discovery, retry, and health paths currently depend on those fields
+- Keep provider-keyed aliases only: rejected because one provider can expose different CLI and SDK model identifiers across local and remote harnesses
+
+### Trade-offs
+- Accepted one additional sequential work package over folding changes into existing parallel resolver or dispatch packages because serialization removes overlapping file locks and makes ownership migration explicit
+
+### Completed Work
+- Added D14 and updated proposal impact and rollback semantics
+- Added agent-archetypes and skill-workflow requirement deltas
+- Added TDD tasks 4.7–4.9 and `wp-model-config-ownership`
+- Updated traceability and plan findings
+- Passed strict OpenSpec and YAML DAG validation
+- Completed local independent review; external vendor dispatch was skipped at the disclosure boundary
+
+### Next Steps
+- Implement `wp-model-config-ownership` after `wp-resolver` and `wp-dispatch` complete
+
+### Relevant Files
+- `openspec/changes/add-adaptive-model-router/tasks.md` — Tasks 4.7–4.9
+- `openspec/changes/add-adaptive-model-router/design.md` — D14 ownership decision
+- `openspec/changes/add-adaptive-model-router/work-packages.yaml` — Serialized implementation package
+
+### Context
+Centralized the planned static model-policy authority in `archetypes.yaml` while keeping
+`agents.yaml` focused on harness mechanics. Added traceable requirements, three migration tasks,
+and a serialized cross-layer work package; strict OpenSpec validation passes.
+
+---
+
+## Phase: Plan Iteration 2 (2026-08-24)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Version static routes as exact harness-aware chains** `architectural: agent-archetypes` — Provider-only v2 entries cannot represent distinct CLI and SDK model identifiers or ordered capacity fallbacks; v3 uses routes[agent_id][dispatch_kind][tier] ModelSpec arrays and rejects mixed documents.
+2. **Compose adaptive selection as primary-only replacement** `architectural: model-routing` — The selected candidate carries thinking while capacity retries preserve the archetypes-owned static order with selected-model deduplication; ranked alternatives require a new routing decision.
+3. **Gate removal of legacy model fields on seeded-chain parity** `architectural: skill-workflow` — Every existing CLI and SDK primary/fallback is characterized and seeded before all consumers switch atomically, preserving flag-off behavior and retry order.
+
+### Alternatives Considered
+- Use ranked adaptive alternatives directly for capacity retries: rejected because That would silently change route policy without a new constrained routing decision.
+- Delete legacy agents.yaml model fields before seeding v3 routes: rejected because Intermediate flag-off and capacity retry behavior would be undefined.
+
+### Trade-offs
+- Accepted a versioned v2-to-v3 migration over keeping the simpler provider-only schema because exact harness and dispatch-kind coverage is mechanically testable and supports different CLI/SDK identifiers
+
+### Completed Work
+- Added seven vendor-review remediations spanning schema, migration, fallback composition, transport contracts, projections, and quota verification.
+- Recorded Antigravity and Grok review artifacts plus 3/3 consensus with the primary review; Claude Code timed out and Pi was unavailable.
+- Passed strict OpenSpec validation, work-package schema/DAG/overlap checks, 15-pair parallel-zone validation, YAML/JSON parsing, and diff hygiene.
+
+### Next Steps
+- Implement wp-model-config-ownership after wp-resolver and wp-dispatch, beginning with task 4.7 characterization tests.
+
+### Relevant Files
+- `openspec/changes/add-adaptive-model-router/design.md` — D14 ownership, v3 route shape, migration, and fallback composition.
+- `openspec/changes/add-adaptive-model-router/tasks.md` — Parity-gated tasks 4.7-4.9.
+- `openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json` — Multi-vendor review synthesis.
+- `openspec/changes/add-adaptive-model-router/plan-findings.md` — Fourteen addressed plan findings.
+
+### Context
+Completed policy-authorized multi-vendor review and remediated every medium/high finding. The plan now defines a versioned harness-aware route schema, parity-gated migration, and exact adaptive/static fallback composition; all strict and package validators pass.
+

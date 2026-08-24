@@ -1,7 +1,7 @@
 # Design: add-adaptive-model-router
 
 Selected approach: **A — coordinator-native selection service**. This document records the
-load-bearing decisions; task and spec artifacts reference decisions by ID (D1…D12).
+load-bearing decisions; task and spec artifacts reference decisions by ID (D1…D14).
 
 ## D1 — Placement: coordinator owns decision + data; skills own execution
 
@@ -15,9 +15,10 @@ proposal Approach B).
 ## D2 — Fallback: static tiers remain the degraded path (feature flag)
 
 `ROUTING_ADAPTIVE` (env/config, default `off` until validated) gates the new resolver. When off,
-or when the resolver errors/times out (>2s), callers use today's
-`resolve_archetype_for_phase()`/`resolve_model()` static tier path unchanged. Migrations are
-additive-only. This is the rollback plan for the BREAKING change.
+or when the resolver errors/times out (>2s), callers use the same effective static tier behavior
+through the model chains owned by `archetypes.yaml` (D14), never an ambient harness default or a
+model copied from `agents.yaml`. Migrations are additive-only. This is the rollback plan for the
+BREAKING change.
 
 ## D3 — Scoring: transparent linear utility, not a bandit policy (yet)
 
@@ -148,11 +149,47 @@ worker-side and reports into the coordinator via the existing signal path, not a
 Adopted as a pinned subprocess dependency, not vendored; if the dependency proves unstable the
 fallback is to read the same first-party endpoints directly in Python for our vendor set.
 
+## D14 — Harness mechanics and static model policy have separate authorities
+
+`agents.yaml` owns agent identity, eligibility, transport, credentials, endpoint metadata, and
+harness invocation mechanics. Invocation mechanics include `cli.command`, dispatch-mode flags,
+prompt delivery, polling, SDK package/method/token limits, and the name of `model_flag`; they do
+not include a model value. The schema rejects concrete CLI/SDK primary or fallback models.
+
+`archetypes.yaml` is the sole curated static model-policy source. The canonical
+`provider-model-map.schema.json` contract is versioned to v3 with the exact route shape
+`routes[agent_id][dispatch_kind][tier]: ModelSpec[]`; v2 `providers` data is read only during
+migration, the v3 writer emits only `routes`, and mixed v2/v3 documents are rejected. It maps
+each dispatchable agent harness and dispatch kind (`cli` or `sdk`) to an ordered `ModelSpec`
+chain per logical tier;
+each chain item carries a concrete model and optional thinking level. A task/phase selects an
+archetype, the archetype selects a tier, and the agent harness plus dispatch kind resolves that
+tier to its chain. Dispatchable agents declare a non-empty archetype list, and cross-file
+validation fails before dispatch when any eligible combination lacks a chain or an orphan harness
+mapping exists. Python defaults contain structure only, never model IDs.
+
+Migration is parity-gated. Task 4.7 characterizes every current CLI/SDK primary and fallback;
+task 4.8 seeds those values into the new routes without changing effective selection or retry
+order; task 4.9 switches all consumers only after parity passes, then removes the legacy
+concrete model fields. Task 3.10 retains the legacy static path until that atomic cutover.
+
+Adaptive resolution is scoped by `agent_id` and `dispatch_kind`. A dynamic candidate may
+replace only the primary `ModelSpec`; the response carries its thinking level plus a
+`capacity_fallbacks` chain formed from the same route's static `archetypes.yaml` chain with the
+selected model removed to prevent a duplicate attempt.
+
+Capacity errors consume only `capacity_fallbacks`; ranked adaptive alternatives remain
+provenance and require a separate routing decision. When adaptive routing is disabled or
+unavailable, the whole static chain is returned. CLI ambient defaults and implicit SDK defaults
+are not valid fallback paths.
+
 ## Task-sizing notes
 
-The only L-sized work is the coordinator catalog+ledger package (`wp-db-catalog`); it decomposes
-internally as migrations → catalog service → refresher → probes and is flagged rather than split
-further because the pieces share one schema review. Everything else is M or below.
+The two flagged L packages are coordinator catalog+ledger (`wp-db-catalog`) and the cross-layer
+static model-policy migration (`wp-model-config-ownership`). Both decompose into M-or-smaller
+tasks. The catalog package decomposes internally as migrations → catalog service → refresher →
+probes and is flagged rather than split further because the pieces share one schema review.
+Everything else is M or below.
 
 ## Absorption mechanics
 

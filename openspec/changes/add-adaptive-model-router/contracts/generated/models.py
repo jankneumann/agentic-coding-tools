@@ -17,6 +17,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 EndpointKind = Literal["vendor-cli", "vendor-sdk", "openrouter", "local"]
+DispatchKind = Literal["cli", "sdk"]
 ObjectiveProfile = Literal["quality-first", "balanced", "cost-first", "resilience"]
 FeedbackSource = Literal[
     "gen-eval", "validation", "vendor-switch", "procedural-memory", "transcript-triage"
@@ -39,7 +40,16 @@ class TaskSignals(BaseModel):
     model_config = {"extra": "allow"}  # additionalProperties: true in the contract
 
 
+class ModelSpec(BaseModel):
+    model: str
+    thinking: str | None = None
+
+    model_config = {"extra": "forbid"}
+
+
 class SelectModelRequest(BaseModel):
+    agent_id: str
+    dispatch_kind: DispatchKind
     task_signals: TaskSignals
     objective_profile: ObjectiveProfile | None = None
     weight_overrides: WeightOverrides | None = None
@@ -49,6 +59,7 @@ class SelectModelRequest(BaseModel):
 class Candidate(BaseModel):
     vendor: str
     model: str
+    thinking: str | None = None
     endpoint_kind: EndpointKind
     score: float
     quality: float | None = None
@@ -72,6 +83,7 @@ class SelectModelResponse(BaseModel):
     decision_id: str
     selected: Candidate
     alternatives: list[Candidate] = Field(default_factory=list)
+    capacity_fallbacks: list[ModelSpec] = Field(default_factory=list)
     exploration: bool = False
     fallback: bool = False
     excluded: list[ExcludedCandidate] = Field(default_factory=list)
@@ -109,6 +121,7 @@ class RoutingDecision(BaseModel):
     request: SelectModelRequest
     selected: Candidate
     alternatives: list[Candidate] = Field(default_factory=list)
+    capacity_fallbacks: list[ModelSpec] = Field(default_factory=list)
     exploration: bool = False
     fallback: bool = False
     policy_version: str

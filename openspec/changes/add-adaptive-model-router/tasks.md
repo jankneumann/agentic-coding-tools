@@ -93,7 +93,10 @@ design.md "Task-sizing notes"). Scenario IDs are `<capability>.<requirement-ordi
   **Spec scenarios**: agent-archetypes.1, model-routing.14
   **Design decisions**: D2
   **Dependencies**: 3.8
-- [ ] 3.10 Implement `ROUTING_ADAPTIVE` delegation in `agents_config.resolve_archetype_for_phase` [S]
+- [ ] 3.10 Implement the `ROUTING_ADAPTIVE` call path in
+  `agents_config.resolve_archetype_for_phase` behind the default-off flag; preserve the
+  characterized legacy static path during this intermediate package, and defer the atomic
+  switch to archetypes-owned static chains to task 4.9 [S]
   **Dependencies**: 3.9
 - [ ] Checkpoint: run tests, review diff, verify scope
 - [ ] 3.11 Add `endpoint_kind`/`base_url` fields to agents.yaml schema with validation [S]
@@ -121,6 +124,42 @@ design.md "Task-sizing notes"). Scenario IDs are `<capability>.<requirement-ordi
 - [ ] 4.6 Enforce exploration gating in roadmap dispatch path [S]
   **Dependencies**: 4.5
 - [ ] Checkpoint: run tests, review diff, verify scope
+
+## Phase 4A — Static model-policy ownership (wp-model-config-ownership) [flagged L, decomposed]
+
+- [ ] 4.7 Write contract and characterization tests for single model-policy ownership — capture
+  every existing CLI/SDK primary plus `model_fallbacks` value and its effective retry order;
+  reject concrete CLI/SDK model fields in `agents.yaml` while retaining `model_flag`; require
+  complete `archetypes.yaml` routes for every eligible `(agent_id, dispatch_kind, archetype)`
+  composition and its selected tier;
+  cover missing-route failure, distinct CLI/SDK identifiers, static-router fallback, and
+  sync/async/SDK ordered retry parity [M]
+  **Spec scenarios**: agent-archetypes.3, agent-archetypes.4, skill-workflow.1, skill-workflow.2,
+  skill-workflow.3, skill-workflow.4
+  **Design decisions**: D2, D14
+  **Dependencies**: 3.11, 4.2
+- [ ] 4.8 Version the model-map contract and implement harness-aware static route resolution —
+  require non-empty ordered `ModelSpec[]` routes keyed by exact agent harness, dispatch kind,
+  and tier; seed each route from the characterized `agents.yaml` primary/fallback values before
+  removal; cross-validate both YAML files; extend local, HTTP, and MCP resolution with
+  `agent_id`, `dispatch_kind`, selected thinking, and the resolved capacity-fallback chain;
+  define adaptive selection as primary-only replacement with de-duplicated static fallbacks; fail
+  before dispatch on missing or orphan mappings [M]
+  **Spec scenarios**: agent-archetypes.3, agent-archetypes.4, skill-workflow.1, skill-workflow.3,
+  skill-workflow.5
+  **Contracts**: contracts/openapi/v1.yaml, openspec/schemas/provider-model-map.schema.json
+  **Design decisions**: D2, D14
+  **Dependencies**: 4.7
+- [ ] 4.9 Prove seeded-chain behavioral parity, then atomically switch static fallback plus sync
+  CLI, async CLI, SDK, discovery/bridge, and health reporting to the resolved chain; only after
+  parity passes, remove `model`/`model_fallbacks` from `agents.yaml`, AGENTS_SCHEMA/config
+  projections, and concrete Python defaults; add a structural sole-source guard and eliminate
+  ambient harness defaults [M]
+  **Spec scenarios**: agent-archetypes.3, agent-archetypes.4, skill-workflow.2, skill-workflow.4,
+  skill-workflow.5
+  **Design decisions**: D2, D14
+  **Dependencies**: 4.8
+- [ ] Checkpoint: run coordinator config tests plus dispatcher, bridge, discovery, and health tests
 
 ## Phase 5 — Feedback aggregation (wp-feedback)
 
@@ -161,14 +200,14 @@ design.md "Task-sizing notes"). Scenario IDs are `<capability>.<requirement-ordi
 - [ ] 6.5 Write tests for tripwire evaluation — economic kill, posture-flip signals [M]
   **Spec scenarios**: model-routing.13
   **Dependencies**: 6.2, 6.4
+- [ ] 6.6 Implement tripwire evaluator with posture flips as signals [M]
+  **Dependencies**: 6.5
 - [ ] 6.7 Write tests for quota probe — quota-axi JSON normalized to signal, resilience down-rank, graceful degrade [S]
   **Spec scenarios**: model-routing.15
   **Design decisions**: D13
   **Dependencies**: 2.11
 - [ ] 6.8 Implement optional quota probe (quota-axi subprocess adapter, off by default) [S]
   **Dependencies**: 6.7
-- [ ] 6.6 Implement tripwire evaluator with posture flips as signals [M]
-  **Dependencies**: 6.5
 - [ ] Checkpoint: run tests, review diff, verify scope, verify quota probe degrades cleanly
 
 ## Phase 7 — Dashboard (wp-dashboard)
@@ -193,7 +232,7 @@ design.md "Task-sizing notes"). Scenario IDs are `<capability>.<requirement-ordi
 - [ ] 8.1 Run full test suite across coordinator plus skills venvs [S]
   **Dependencies**: all prior phases
 - [ ] 8.2 E2E: flag-on routed quick-task to local endpoint; flag-off parity check [M]
-  **Spec scenarios**: model-routing.14, agent-archetypes.1
+  **Spec scenarios**: model-routing.14, agent-archetypes.1, agent-archetypes.3, skill-workflow.2
   **Dependencies**: 8.1
 - [ ] 8.3 Archive absorbed changes with superseded-by pointers (`cross-vendor-arbitrage-instrument`, `usage-stats-multi-model`) [XS]
   **Design decisions**: Absorption mechanics

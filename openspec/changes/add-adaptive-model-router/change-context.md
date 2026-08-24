@@ -27,6 +27,13 @@ Traceability skeleton generated at implementation start (Phase 1). Requirement I
 | agent-coordinator.3 | Routing Watchdog Jobs | --- | D4,D11 | test_watchdog | --- | pending |
 | agent-archetypes.1 | Archetype Resolution Delegates to Router | --- | D2 | test_delegation | --- | pending |
 | agent-archetypes.2 | Endpoint Kind in Agent Registry | --- | D5 | test_agents_config | --- | pending |
+| agent-archetypes.3 | Static Model Policy Has One Authority | openspec/schemas/provider-model-map.schema.json#/$defs/agentRoute | D14 | test_agents_config, test_archetypes_yaml | --- | pending |
+| agent-archetypes.4 | Fallback Chain Integration | openspec/schemas/provider-model-map.schema.json#/$defs/agentRoute | D14 | test_archetype_routing, dispatcher tests | --- | pending |
+| skill-workflow.1 | CLI Configuration Schema | --- | D14 | test_agents_config, test_config_discovery | --- | pending |
+| skill-workflow.2 | Model Fallback on Capacity Errors | --- | D14 | test_review_dispatcher | --- | pending |
+| skill-workflow.3 | Configurable Model Fallback Chains | openspec/schemas/provider-model-map.schema.json#/$defs/agentRoute | D14 | test_model_resolution | --- | pending |
+| skill-workflow.4 | SDK Configuration in agents.yaml | --- | D14 | test_agents_config, test_review_dispatcher | --- | pending |
+| skill-workflow.5 | Resolved Route Projection | contracts/openapi/v1.yaml#SelectModelResponse | D14 | test_config_discovery, bridge/API parity, test_vendor_health | --- | pending |
 | roadmap-orchestration.1 | Policy Engine Uses Catalog Pricing | --- | D7 | test_routing_policy | skills/autopilot-roadmap/scripts/policy.py | verified |
 | roadmap-orchestration.2 | Exploration Budget Enforcement in Roadmap | --- | D6 | test_routing_policy | skills/autopilot-roadmap/scripts/policy.py | gate done (orchestrator wiring pending) |
 | observability.1 | Usage and Routing Dashboard | contracts/openapi/v1.yaml#/routing/usage | D12 | usage-viz tests | --- | pending |
@@ -37,10 +44,11 @@ Traceability skeleton generated at implementation start (Phase 1). Requirement I
 D1 placement · D2 fallback flag · D3 scoring (cost-per-completed-task posterior, rev2) ·
 D4 refresher standing-key · D5 local endpoints · D6 exploration dual-ceiling · D7 spend ceiling ·
 D8 signal placement · D9 feedback weights (deterministic > LLM-judged, rev2) · D10 dispatch adapter ·
-D11 probes/tripwires · D12 dashboard (cost-per-completed-task headline, rev2).
+D11 probes/tripwires · D12 dashboard (cost-per-completed-task headline, rev2) ·
+D13 proactive quota headroom · D14 static model-policy ownership.
 
 ## Coverage Summary
 
-- Requirements: 23 total, 1 verified (exploration), 3 core-complete (resolver/feasibility), 19 pending
+- Requirements: 31 total, 2 verified, 3 core-complete, 26 pending
 - Contracts: OpenAPI (5 paths), DB (4 tables), events (1 schema) — all present, parse-validated
-- Package status: wp-contracts in progress; wp-db-catalog … wp-integration pending
+- Package status: wp-contracts in progress; wp-db-catalog … wp-model-config-ownership … wp-integration pending
