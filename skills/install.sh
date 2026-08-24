@@ -827,7 +827,7 @@ for agent in "${agent_list[@]}"; do
     else
       mkdir -p "$dest_path"
       mirror_tree "$skill_path" "$dest_path" --delete \
-        --exclude 'tests/' --exclude '__pycache__/'
+        --exclude 'tests/' --exclude '__pycache__/' --exclude 'node_modules/'
       echo "  $sync_label  $skill_name -> $dest_path"
     fi
     total_installed=$((total_installed + 1))
@@ -879,7 +879,7 @@ for agent in "${agent_list[@]}"; do
     else
       mkdir -p "$lib_dest"
       mirror_tree "$lib_src" "$lib_dest" --delete \
-        --exclude 'tests/' --exclude '__pycache__/'
+        --exclude 'tests/' --exclude '__pycache__/' --exclude 'node_modules/'
       echo "  $sync_label  $lib_name (shared) -> $lib_dest"
     fi
     total_installed=$((total_installed + 1))

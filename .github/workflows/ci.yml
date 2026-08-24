@@ -103,7 +103,9 @@ jobs:
             quick-task/tests \
             session-log/tests \
             session-log/scripts \
-            tech-debt-analysis/tests
+            tech-debt-analysis/tests \
+            tests/merge-pull-requests \
+            tests/shared
           do
             echo "::group::pytest $suite"
             uv run pytest "$suite" -q || status=1
