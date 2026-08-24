@@ -66,3 +66,54 @@ Implemented the residual ephemeral validation-worktree prerequisite after confir
 
 ### Context
 Implementation validation passed except for the mandatory dependency-security hard gate; merge is blocked by reproduced baseline high/critical findings.
+
+---
+
+## Phase: Cleanup (2026-08-24)
+
+**Agent**: claude-opus-5 | **Session**: merge-pull-requests sync point
+
+### Decisions
+1. **Merged despite a FAIL validation report, on explicit operator override** — the change's own
+   `validation-report.md` records `Result: FAIL — merge blocked by the security hard gate`, and the
+   PR description carried the scope guard "do not merge until the final validation evidence commit
+   and CI are green". That evidence commit never landed; the last commit on the branch
+   (2026-08-20) records the *blocked* gate. The operator was shown this and directed the merge.
+2. **Rebase-merged as an OpenSpec PR** — origin `openspec` selects rebase; no `wip:` commits on
+   the head branch, so granular history was preserved safely.
+3. **Archived under `--defer-commit`** — phase 1 of Step 11.6 (Main Context Convergence). Output
+   staged, not committed; the sync point produces the single convergence commit.
+
+### Alternatives Considered
+- Honoring the author hold and deferring to a later pass: presented to the operator as the
+  recommended option; overridden by explicit decision.
+- Requesting a `gate_logic.py --force` override artifact: not applicable — post-merge mode skips
+  Step 2.5a, and the merge had already landed by the time cleanup ran.
+
+### Trade-offs
+- Accepted merging over a failed security hard gate. The mitigating fact, recorded in the
+  validation report itself: "The dependency findings independently reproduce the repository
+  baseline, but the configured high-severity security gate does not exempt baseline findings."
+  The nine findings (1 low, 2 moderate, 5 high, 1 critical; max CVSS 9.8, affecting nanoid
+  3.3.12, postcss 8.5.14, vite 6.4.2, vitest 3.2.4, ws 8.20.1) pre-exist on `main` and were not
+  introduced by this change. Merging did not lower main's security posture; it did land code
+  while a repo-wide gate was red.
+- Accepted single-vendor review coverage: 3 of 4 vendors failed (antigravity and codex on
+  review-findings schema validation, pi on billing/credits), so grok's 6 findings are
+  unconfirmed with no cross-vendor agreement.
+
+### Open Questions
+- [ ] The baseline dependency vulnerabilities (max CVSS 9.8) remain unaddressed on `main`. They
+      are independent of this change and warrant their own remediation change.
+- [ ] Should the high-severity security gate exempt reproduced-baseline findings, so that a gate
+      failure signals *new* risk rather than inherited risk? As configured it blocks every change
+      equally until the baseline is cleared.
+- [ ] Vendor review (grok, unconfirmed): Step 12.5 calls `finalize_ephemeral_validation` and then
+      unconditionally continues into Steps 13-14 after the helper clears EXIT/INT traps.
+
+### Context
+Post-merge cleanup for PR #401, merged 2026-08-24T16:54:09Z via rebase. Archives the change,
+merges the spec delta into `openspec/specs/`, and regenerates `docs/decisions/` as one staged
+unit. Ran in the sync-point checkout on `main` at the merged revision with no cleanup worktree,
+per `--defer-commit` semantics. Validation evidence at archive time: deploy pass, smoke 11/11,
+E2E 19/19, architecture advisory-pass, security FAIL.

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-22T01:03:57+00:00",
+  "generated_at": "2026-08-24T16:54:08+00:00",
   "treesitter_version": "unknown",
   "comments": {
     "total": 2443,
@@ -9323,7 +9323,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9332,7 +9332,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9341,7 +9341,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9350,7 +9350,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9359,7 +9359,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9368,7 +9368,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9377,7 +9377,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9386,7 +9386,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9395,7 +9395,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9404,7 +9404,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9413,7 +9413,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9422,7 +9422,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9431,7 +9431,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9440,7 +9440,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9449,7 +9449,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9458,7 +9458,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9467,7 +9467,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9476,7 +9476,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9485,7 +9485,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/App.tsx",
@@ -9494,7 +9494,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:App"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/__tests__/App.test.tsx",
@@ -12112,7 +12112,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Board"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12121,7 +12121,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Board"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12130,7 +12130,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Board"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12139,7 +12139,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Board"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12148,7 +12148,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Board"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12157,7 +12157,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Board"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12166,7 +12166,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Board"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12175,7 +12175,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Board"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Board.tsx",
@@ -12184,7 +12184,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Board"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Card.tsx",
@@ -12238,7 +12238,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Card"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Card.tsx",
@@ -12247,7 +12247,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Card"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Card.tsx",
@@ -12256,7 +12256,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Card"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Card.tsx",
@@ -12265,7 +12265,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:Card"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Card.tsx",
@@ -12274,7 +12274,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:Card"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/Card.tsx",
@@ -12283,7 +12283,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:Card"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/ClusterBadge.tsx",
@@ -12292,7 +12292,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/components/ClusterBadge"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/ClusterBadge.tsx",
@@ -12346,7 +12346,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:ClusterBadge"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/ClusterBadge.tsx",
@@ -12409,7 +12409,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/components/ConsentPrompt"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
@@ -12418,7 +12418,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/components/HiddenReposToggle"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
@@ -12465,7 +12465,7 @@
         "markers": [
           "WARNING"
         ],
-        "enclosing_node": "ts:kanban-viz/src/components/PRCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12501,7 +12501,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:PRCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12510,7 +12510,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:PRCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12519,7 +12519,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:PRCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12528,7 +12528,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:PRCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12537,7 +12537,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:PRCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12546,7 +12546,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:PRCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PRCardView.tsx",
@@ -12555,7 +12555,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:PRCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PROriginFilter.tsx",
@@ -12564,7 +12564,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/components/PROriginFilter"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PROriginFilter.tsx",
@@ -12573,7 +12573,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:loadFromStorage"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PROriginFilter.tsx",
@@ -12582,7 +12582,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:saveToStorage"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PROriginFilter.tsx",
@@ -12609,7 +12609,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:PROriginFilter"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PROriginFilter.tsx",
@@ -12618,7 +12618,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:PROriginFilter"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/PROriginFilter.tsx",
@@ -12636,7 +12636,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/components/ProposalCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/ProposalCardView.tsx",
@@ -12645,7 +12645,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:ProposalCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/ProposalCardView.tsx",
@@ -12654,7 +12654,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:ProposalCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/ProposalCardView.tsx",
@@ -12663,7 +12663,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:ProposalCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/ProposalCardView.tsx",
@@ -12672,7 +12672,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:ProposalCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/ProposalCardView.tsx",
@@ -12681,7 +12681,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:ProposalCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/ProposalCardView.tsx",
@@ -12690,7 +12690,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:ProposalCardView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/RefreshButton.tsx",
@@ -12699,7 +12699,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/components/RefreshButton"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/RefreshButton.tsx",
@@ -12726,7 +12726,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:RefreshButton"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/RepoBadge.tsx",
@@ -12735,7 +12735,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/components/RepoBadge"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/RepoBadge.tsx",
@@ -12753,7 +12753,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:hashString"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/RepoBadge.tsx",
@@ -12762,7 +12762,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:hashString"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/RepoBadge.tsx",
@@ -12780,7 +12780,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:repoToColor"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/RepoBadge.tsx",
@@ -12807,7 +12807,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/components/SaveViewButton"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12852,7 +12852,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:slugify"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12861,7 +12861,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:slugify"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12870,7 +12870,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SaveViewButton"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12879,7 +12879,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SaveViewButton"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12888,7 +12888,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SaveViewButton"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12897,7 +12897,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SaveViewButton"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12906,7 +12906,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SaveViewButton"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SaveViewButton.tsx",
@@ -12915,7 +12915,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SaveViewButton"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
@@ -12924,7 +12924,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/components/SourceSwimlanes"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
@@ -13059,7 +13059,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:PRSourceRow"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
@@ -13113,7 +13113,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SourceSwimlanes"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
@@ -13122,7 +13122,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SourceSwimlanes"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
@@ -13131,7 +13131,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SourceSwimlanes"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13140,7 +13140,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/components/SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13158,7 +13158,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13167,7 +13167,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13178,7 +13178,7 @@
         "markers": [
           "BUG"
         ],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13187,7 +13187,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13196,7 +13196,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13205,7 +13205,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13214,7 +13214,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13223,7 +13223,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13232,7 +13232,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13241,7 +13241,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13250,7 +13250,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13259,7 +13259,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13268,7 +13268,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13277,7 +13277,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13286,7 +13286,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13295,7 +13295,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13304,7 +13304,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13313,7 +13313,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13322,7 +13322,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13331,7 +13331,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13340,7 +13340,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13349,7 +13349,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13358,7 +13358,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13367,7 +13367,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13376,7 +13376,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13385,7 +13385,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13394,7 +13394,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13403,7 +13403,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/SyncPointBanner.tsx",
@@ -13412,7 +13412,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:SyncPointBanner"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
@@ -13421,7 +13421,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/components/VendorSwimlanes"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
@@ -13493,7 +13493,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:VendorSwimlanes"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/components/__tests__/ClusterBadge.test.tsx",
@@ -14242,7 +14242,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/hooks/useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14287,7 +14287,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14296,7 +14296,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14305,7 +14305,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14314,7 +14314,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14323,7 +14323,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14332,7 +14332,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14341,7 +14341,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14350,7 +14350,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14359,7 +14359,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14368,7 +14368,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14377,7 +14377,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14386,7 +14386,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14395,7 +14395,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14404,7 +14404,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14413,7 +14413,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14422,7 +14422,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14431,7 +14431,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14440,7 +14440,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14449,7 +14449,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14458,7 +14458,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:clusterBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14548,7 +14548,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:fetchProposals"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14557,7 +14557,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:fetchProposals"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14566,7 +14566,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:fetchProposals"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14575,7 +14575,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14584,7 +14584,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14593,7 +14593,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14602,7 +14602,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14611,7 +14611,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14620,7 +14620,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14629,7 +14629,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14638,7 +14638,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14647,7 +14647,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14656,7 +14656,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14665,7 +14665,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14674,7 +14674,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useBoardCards.ts",
@@ -14683,7 +14683,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useBoardCards"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14692,7 +14692,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/hooks/useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14782,7 +14782,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14791,7 +14791,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14800,7 +14800,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14809,7 +14809,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14818,7 +14818,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14827,7 +14827,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14836,7 +14836,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14845,7 +14845,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14854,7 +14854,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14863,7 +14863,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14872,7 +14872,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14881,7 +14881,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14890,7 +14890,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14899,7 +14899,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14908,7 +14908,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14917,7 +14917,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14926,7 +14926,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14935,7 +14935,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14944,7 +14944,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14953,7 +14953,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14962,7 +14962,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14971,7 +14971,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14980,7 +14980,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/hooks/useCoordinator.ts",
@@ -14989,7 +14989,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:useCoordinator"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/lib/__tests__/cluster-key.test.ts",
@@ -15315,7 +15315,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/lib/coordinator-types"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/lib/coordinator-types.ts",
@@ -15618,7 +15618,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:deriveIssueRepo"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/lib/coordinator-types.ts",
@@ -15636,7 +15636,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:getClusterKey"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/lib/coordinator-types.ts",
@@ -15645,7 +15645,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:getClusterKey"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/lib/reversibility.ts",
@@ -15654,7 +15654,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/lib/reversibility"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/lib/reversibility.ts",
@@ -15699,7 +15699,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/lib/runtime"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/lib/runtime.ts",
@@ -15717,7 +15717,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/lib/saveView"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/lib/saveView.ts",
@@ -15735,7 +15735,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:saveTauri"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/lib/saveView.ts",
@@ -15744,7 +15744,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:saveTauri"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/lib/saveView.ts",
@@ -15753,7 +15753,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:saveTauri"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/lib/saveView.ts",
@@ -15762,7 +15762,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:saveTauri"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/lib/saveView.ts",
@@ -15771,7 +15771,7 @@
         "language": "typescript",
         "type": "block",
         "markers": [],
-        "enclosing_node": "ts:saveTauri"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/src/vite-env.d.ts",
@@ -15780,7 +15780,7 @@
         "language": "typescript",
         "type": "inline",
         "markers": [],
-        "enclosing_node": "ts:kanban-viz/src/vite-env.d"
+        "enclosing_node": null
       },
       {
         "file": "kanban-viz/vite.config.ts",
@@ -37015,73 +37015,73 @@
           "file": "kanban-viz/src/components/Card.tsx",
           "line": 87,
           "is_empty": false,
-          "enclosing_node": "ts:Card"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/components/PROriginFilter.tsx",
           "line": 39,
           "is_empty": true,
-          "enclosing_node": "ts:loadFromStorage"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/components/PROriginFilter.tsx",
           "line": 48,
           "is_empty": true,
-          "enclosing_node": "ts:saveToStorage"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/components/RefreshButton.tsx",
           "line": 40,
           "is_empty": false,
-          "enclosing_node": "ts:RefreshButton"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/components/SaveViewButton.tsx",
           "line": 109,
           "is_empty": false,
-          "enclosing_node": "ts:SaveViewButton"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/components/SyncPointBanner.tsx",
           "line": 64,
           "is_empty": false,
-          "enclosing_node": "ts:SyncPointBanner"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/components/SyncPointBanner.tsx",
           "line": 139,
           "is_empty": false,
-          "enclosing_node": "ts:SyncPointBanner"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 208,
           "is_empty": false,
-          "enclosing_node": "ts:useCoordinator"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 236,
           "is_empty": true,
-          "enclosing_node": "ts:useCoordinator"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 256,
           "is_empty": true,
-          "enclosing_node": "ts:useCoordinator"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 272,
           "is_empty": true,
-          "enclosing_node": "ts:useCoordinator"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 295,
           "is_empty": false,
-          "enclosing_node": "ts:useCoordinator"
+          "enclosing_node": null
         }
       ]
     },
@@ -37126,7 +37126,7 @@
         {
           "file": "kanban-viz/src/lib/saveView.ts",
           "line": 77,
-          "enclosing_node": "ts:saveTauri"
+          "enclosing_node": null
         }
       ]
     },
@@ -37155,31 +37155,31 @@
           "file": "kanban-viz/src/components/PROriginFilter.tsx",
           "line": 39,
           "is_empty": true,
-          "enclosing_node": "ts:loadFromStorage"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/components/PROriginFilter.tsx",
           "line": 48,
           "is_empty": true,
-          "enclosing_node": "ts:saveToStorage"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 236,
           "is_empty": true,
-          "enclosing_node": "ts:useCoordinator"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 256,
           "is_empty": true,
-          "enclosing_node": "ts:useCoordinator"
+          "enclosing_node": null
         },
         {
           "file": "kanban-viz/src/hooks/useCoordinator.ts",
           "line": 272,
           "is_empty": true,
-          "enclosing_node": "ts:useCoordinator"
+          "enclosing_node": null
         }
       ]
     }
