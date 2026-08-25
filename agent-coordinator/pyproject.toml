@@ -74,7 +74,7 @@ test = [
     "PyJWT[crypto]>=2.13.0",
     "ruff>=0.15.21",
     "mypy>=2.1.0",
-    "hypothesis>=6.152.7",
+    "hypothesis>=6.165.2",
 ]
 dev = [
     "pytest>=9.1.1",
