@@ -12,6 +12,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 
+#: Relative on purpose -- the skill runs from a worktree root and writes the
+#: log into that worktree's docs/. Because it is relative it resolves against
+#: the CWD, so anything invoked from elsewhere writes wherever it happens to
+#: be standing. The functions below read this at CALL time rather than binding
+#: it as a default argument at import time, which makes it a single
+#: monkeypatchable seam; the suite's conftest.py redirects it to tmp_path so a
+#: test exercising auto_rebase / auto_rollback / merge_watcher cannot append to
+#: the repo's own tracked metrics.jsonl (it did, until 2026-08-25).
 DEFAULT_LOG_PATH = Path("docs/merge-logs/metrics.jsonl")
 
 
@@ -40,8 +48,9 @@ class MergeEvent:
 def emit_event(
     event: MergeEvent,
     *,
-    log_path: Path = DEFAULT_LOG_PATH,
+    log_path: Path | None = None,
 ) -> None:
+    log_path = DEFAULT_LOG_PATH if log_path is None else log_path
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "a") as f:
         f.write(event.to_json() + "\n")
@@ -49,9 +58,10 @@ def emit_event(
 
 def load_events(
     *,
-    log_path: Path = DEFAULT_LOG_PATH,
+    log_path: Path | None = None,
     event_type: str | None = None,
 ) -> list[dict]:
+    log_path = DEFAULT_LOG_PATH if log_path is None else log_path
     if not log_path.exists():
         return []
     events = []
