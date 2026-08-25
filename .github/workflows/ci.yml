@@ -79,9 +79,13 @@ jobs:
       # with them. A process boundary per skill is the isolation the
       # architecture already implies.
       #
-      # skills/tests/test_ci_test_coverage.py fails if a test directory is
-      # reached by neither this step nor testpaths, so the gap cannot silently
-      # reopen.
+      # skills/tests/ci_coverage/test_ci_test_coverage.py fails if a test
+      # directory is reached by neither this step nor testpaths, so the gap
+      # cannot silently reopen. That guard resolves each pytest argument below
+      # against its step's working-directory; until 2026-08-24 it resolved every
+      # token against skills/, so the context-eval job's `pytest tests` (run from
+      # packages/context-eval) credited skills/tests and hid the 24 directories
+      # this list now names.
       - name: Run in-skill test suites (isolated processes)
         run: |
           set -euo pipefail
@@ -105,7 +109,31 @@ jobs:
             session-log/scripts \
             tech-debt-analysis/tests \
             tests/merge-pull-requests \
-            tests/shared
+            tests/shared \
+            tests/agent-coordinator \
+            tests/archive-roadmap \
+            tests/autopilot \
+            tests/autopilot-roadmap \
+            tests/coordinator-task-status-renderer \
+            tests/docs \
+            tests/githooks \
+            tests/integration \
+            tests/iterate-on-plan \
+            tests/langfuse \
+            tests/phase-record-compaction \
+            tests/plan-roadmap \
+            tests/playwright-validator \
+            tests/prioritize-proposals \
+            tests/prototype-feature \
+            tests/quick-task \
+            tests/refresh-architecture-contracts \
+            tests/review-artifacts \
+            tests/roadmap-runtime \
+            tests/session-bootstrap \
+            tests/session-log \
+            tests/supervise \
+            tests/vendor-neutral-autopilot \
+            tests/worktree
           do
             echo "::group::pytest $suite"
             uv run pytest "$suite" -q || status=1

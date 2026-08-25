@@ -744,7 +744,16 @@ def test_post_kanban_audit_writes_and_returns_appended(
             "/kanban-viz/audit",
             json={
                 "run_id": "run-001",
-                "event": {"action": "card-moved", "class": "ui-action", "outcome": "success"},
+                # Must satisfy schemas/kanban_viz/audit-event.json. The
+                # placeholder this test shipped with ("card-moved"/"ui-action"/
+                # "success") matched none of the three enums -- "ui-action" is
+                # the event_kind suffix, not a class -- and no CI run ever
+                # collected the suite to say so.
+                "event": {
+                    "action": "drag-to-ready",
+                    "class": "reversible-write",
+                    "outcome": "confirmed",
+                },
             },
             headers=_auth_headers(),
         )
@@ -1075,7 +1084,13 @@ def test_all_kanban_viz_routes_registered(_base_config: None) -> None:
         "/agents/{agent_id}/kick",
         "/kanban-viz/saved-views/{slug}",
         "/kanban-viz/audit",
-        "/audit/v2",
+        # NOT "/audit/v2": IMPL_REVIEW claude_code#9 (high contract_mismatch)
+        # deleted that fork and folded its since/change_id filters into the
+        # existing "/audit" route, because design.md specifies
+        # "GET /audit?since=<iso>&change_id=<id>&limit=<n>" and a parallel v2
+        # route contradicted it. Asserting the deleted route here would
+        # re-litigate that decision from a test.
+        "/audit",
     }
     missing = expected_paths - paths
     assert not missing, f"Missing Kanban-viz routes: {missing}"
