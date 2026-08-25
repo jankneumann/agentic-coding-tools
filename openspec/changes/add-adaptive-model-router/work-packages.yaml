@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: add-adaptive-model-router
   title: "Adaptive model router — catalog, resolver, dispatch adapter, feedback loop, dashboard"
-  plan_revision: 3
+  plan_revision: 4
   created_by: claude-code
 
 contracts:
@@ -264,6 +264,99 @@ packages:
       result_keys:
         - "dispatch_tests_passed"
 
+  # ── wp-model-config-ownership — one static model authority (tasks 4.7–4.9)
+  - package_id: wp-model-config-ownership
+    title: "Static model-policy ownership — harness mechanics separate from model chains"
+    task_type: backend
+    description: |
+      Tasks 4.7–4.9 (flagged L, internally decomposed): characterize the existing CLI/SDK
+      primary and fallback values plus dispatch paths; version the model-map contract to exact
+      agent harness + dispatch-kind ordered ModelSpec chains; seed those chains before removing
+      legacy fields; cross-validate agents.yaml and archetypes.yaml; inject route context,
+      selected thinking, and de-duplicated static capacity fallbacks through local/HTTP/MCP
+      resolution; migrate sync CLI, async CLI, SDK, discovery/bridge, and health consumers;
+      prove behavioral parity; then remove concrete model policy from agents.yaml and Python
+      defaults (D2, D14).
+    role: backend-implementer
+    archetype: implementer
+    priority: 4
+    depends_on: [wp-resolver, wp-dispatch]
+    locks:
+      files:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/vendor_health.py"
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/archetypes.yaml"
+        - "openspec/schemas/provider-model-map.schema.json"
+      keys:
+        - "feature:add-adaptive-model-router:models"
+        - "api:POST /archetypes/resolve_for_phase"
+      ttl_minutes: 180
+      reason: "Cross-layer migration of static model-policy authority"
+    scope:
+      write_allow:
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/get_dispatch_configs.py"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/tests/test_agents_config.py"
+        - "agent-coordinator/tests/test_archetypes_config.py"
+        - "agent-coordinator/tests/test_archetypes_yaml.py"
+        - "agent-coordinator/tests/test_archetype_routing.py"
+        - "agent-coordinator/tests/test_phase_archetype_resolution.py"
+        - "openspec/schemas/provider-model-map.schema.json"
+        - "skills/autopilot/install_assets/openspec/schemas/archetypes.schema.json"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/coordination-bridge/scripts/tests/test_coordination_bridge.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/vendor_health.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
+        - "skills/parallel-infrastructure/tests/test_vendor_health.py"
+        - "skills/tests/parallel-infrastructure/test_review_dispatcher_migration.py"
+        - "skills/tests/vendor-neutral-autopilot/test_config_discovery.py"
+        - "skills/tests/vendor-neutral-autopilot/test_model_resolution.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: adaptive-router-wp-model-config-ownership
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Coordinator configuration ownership tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_archetypes_config.py agent-coordinator/tests/test_archetypes_yaml.py agent-coordinator/tests/test_archetype_routing.py agent-coordinator/tests/test_phase_archetype_resolution.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_model_config_tests_passed"
+        - name: "Dispatch discovery, retry, bridge, and health tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py skills/parallel-infrastructure/tests/test_vendor_health.py skills/tests/parallel-infrastructure/test_review_dispatcher_migration.py skills/tests/vendor-neutral-autopilot/test_config_discovery.py skills/tests/vendor-neutral-autopilot/test_model_resolution.py skills/coordination-bridge/scripts/tests/test_coordination_bridge.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "dispatch_model_config_tests_passed"
+    metadata:
+      loc_estimate: 900
+      complexity: high
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "coordinator_model_config_tests_passed"
+        - "dispatch_model_config_tests_passed"
+
   # ── wp-feedback — posterior aggregation + learning-log wiring (tasks 5.1–5.6)
   - package_id: wp-feedback
     title: "Feedback aggregation — posteriors, learning-log wiring, gen-eval calibration"
@@ -322,15 +415,15 @@ packages:
       result_keys:
         - "feedback_tests_passed"
 
-  # ── wp-probes — ToS monitor, canary, tripwires (tasks 6.1–6.6)
+  # ── wp-probes — ToS monitor, canary, tripwires, quota (tasks 6.1–6.8)
   - package_id: wp-probes
-    title: "Probes and tripwires — ToS monitor, model canary, posture flips"
+    title: "Probes and tripwires — ToS monitor, model canary, posture flips, quota"
     task_type: backend
     description: |
-      Tasks 6.1–6.6: ToS-diff monitor with vendor freeze pending ack; model canary with
+      Tasks 6.1–6.8: ToS-diff monitor with vendor freeze pending ack; model canary with
       posterior invalidation on drift; tripwire evaluator emitting posture-flip signals
-      (economic kill recommendation) (D11). Sequential after wp-db-catalog because both
-      touch watchdog wiring.
+      (economic kill recommendation); optional quota probe with graceful degradation
+      (D11, D13). Sequential after wp-db-catalog because both touch watchdog wiring.
     role: backend-implementer
     archetype: implementer
     priority: 4
@@ -365,7 +458,7 @@ packages:
       steps:
         - name: "Probe and tripwire tests pass"
           kind: command
-          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing -q -k 'probes or tripwires'"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/model_routing -q -k 'probes or tripwires or quota'"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -446,7 +539,7 @@ packages:
     role: integrator
     archetype: integrator
     priority: 9
-    depends_on: [wp-db-catalog, wp-resolver, wp-dispatch, wp-feedback, wp-probes, wp-dashboard]
+    depends_on: [wp-db-catalog, wp-resolver, wp-dispatch, wp-model-config-ownership, wp-feedback, wp-probes, wp-dashboard]
     locks:
       files:
         - ".mcp.json"

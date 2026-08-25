@@ -1,0 +1,29 @@
+{
+  "review_type": "plan",
+  "target": "add-adaptive-model-router",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The amended plan establishes a coherent composition boundary from task and archetype tier to exact harness and dispatch-kind model chains, while keeping dynamic catalog selection separate.",
+      "resolution": "Retain D14 and the dedicated serialized ownership package during implementation.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "file_path": "openspec/changes/add-adaptive-model-router/design.md"
+    },
+    {
+      "id": 2,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The three-step test-first migration covers the existing sync CLI, async CLI, SDK, local discovery, API bridge, retry, and health consumers before removing legacy model fields.",
+      "resolution": "Preserve the 4.7 to 4.9 dependency order and the integration dependency on wp-model-config-ownership.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "file_path": "openspec/changes/add-adaptive-model-router/tasks.md"
+    }
+  ]
+}

@@ -58,10 +58,16 @@ calibration suite rather than public benchmarks.
 
 ### Requirement: Adaptive Selection Resolver
 
-The system SHALL expose a `select_model_for_task` operation that ranks feasible candidates by a
+The system SHALL expose a `select_model_for_task` operation scoped by `agent_id` and
+`dispatch_kind` that ranks feasible candidates by a
 transparent linear utility — quality (benchmark prior blended with task-type posterior by
 sample-size confidence) minus weighted normalized cost and latency — and returns the selected
-candidate, ranked alternatives, and a decision-provenance record. The cost term SHALL use the
+candidate (including its model and optional thinking level), ranked alternatives, the resolved
+ordered `capacity_fallbacks` from the same static archetype route, and a decision-provenance
+record. The adaptive candidate SHALL replace only the static primary; the effective capacity
+chain SHALL remove any duplicate occurrence of the selected model. Ranked adaptive alternatives
+SHALL NOT be consumed as capacity retries without a separate routing decision. The cost term
+SHALL use the
 success-adjusted observed cost-per-completed-task posterior for the `(model, task_type)` pair
 when its sample size clears the confidence threshold, falling back to catalog per-Mtok pricing
 as the prior for unsampled pairs. Objective weights SHALL come
@@ -86,6 +92,14 @@ archetype/phase and overridable per call.
   success-adjusted cost-per-completed-task for the task type with sufficient samples
 - **THEN** the cost term SHALL rank model B as cheaper for that task type
 - **AND** provenance SHALL record `cost_source: posterior` for both candidates
+
+#### Scenario: Adaptive primary composes with static capacity fallbacks
+
+- **WHEN** the static route for an agent and dispatch kind is `[A, B, C]` and adaptive selection
+  chooses model `X`
+- **THEN** the response SHALL select `X` and return `[A, B, C]` as `capacity_fallbacks`
+- **AND** if `X` already occurs in the static route, its duplicate SHALL be removed while preserving
+  the remaining static order
 
 ### Requirement: Hard Feasibility Constraints as Mutable Policy
 
@@ -215,8 +229,10 @@ recorded as a signal with its triggering evidence.
 ### Requirement: Static-Tier Fallback and Kill Switch
 
 The system SHALL gate adaptive routing behind a single feature flag; when the flag is off, or the
-resolver errors or exceeds its timeout, callers SHALL receive the existing static archetype-tier
-resolution. Disabling the flag MUST restore pre-change behavior without data loss.
+resolver errors or exceeds its timeout, callers SHALL receive the whole static `ModelSpec` chain
+resolved from `archetypes.yaml` for the requested `agent_id`, `dispatch_kind`, and tier. Disabling
+the flag MUST restore behaviorally equivalent pre-change model selection and capacity-retry order
+without relying on legacy storage fields or ambient harness defaults.
 
 #### Scenario: Resolver timeout falls back
 

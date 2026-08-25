@@ -1,0 +1,91 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Static model-policy ownership is cleanly separated between agents.yaml (harness identity, eligibility, transport, credentials, endpoint metadata, and invocation mechanics such as model_flag) and archetypes.yaml (sole curated authority for exact agent-harness + dispatch-kind ordered ModelSpec chains), delegating dynamic candidate selection to the coordinator catalog.",
+      "resolution": "Retain D14 and the dedicated wp-model-config-ownership package in the implementation plan.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "wp-model-config-ownership",
+      "file_path": "openspec/changes/add-adaptive-model-router/design.md"
+    },
+    {
+      "id": 2,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Tasks 4.7-4.9 and wp-model-config-ownership establish a safe migration sequence (characterization, versioned route resolution, and consumer migration) covering sync CLI, async CLI, SDK, discovery, bridge/API, and health consumers without reliance on ambient defaults.",
+      "resolution": "Preserve task execution order 4.7 -> 4.8 -> 4.9 and package dependencies.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "package_id": "wp-model-config-ownership",
+      "file_path": "openspec/changes/add-adaptive-model-router/tasks.md"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Work-package DAG dependencies, file/key locks, write scopes, and verification steps across all 8 packages are fully specified, acyclic, and parallel-safe.",
+      "resolution": "Execute work packages according to the work-packages.yaml DAG.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-adaptive-model-router/work-packages.yaml"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "low",
+      "description": "Cedar policy rules enforce hard feasibility constraints\u2014such as subscription EULA programmatic-ineligibility and data residency floors\u2014prior to scoring, ensuring non-compliant models are excluded before candidate ranking.",
+      "resolution": "Verify Cedar constraint evaluation runs pre-scoring in wp-resolver.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "package_id": "wp-resolver",
+      "file_path": "openspec/changes/add-adaptive-model-router/specs/model-routing/spec.md"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The 2-second resolver timeout and ROUTING_ADAPTIVE feature flag guarantee deterministic fallback to static archetypes.yaml model chains without ambient harness defaults or central coordinator single-point-of-failure lock-in.",
+      "resolution": "Enforce timeout fallback logging and static route resolution in agents_config.py.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "package_id": "wp-resolver",
+      "file_path": "openspec/changes/add-adaptive-model-router/design.md"
+    },
+    {
+      "id": 6,
+      "type": "observability",
+      "criticality": "low",
+      "description": "The usage dashboard (apps/usage-viz) and telemetry correctly surface success-adjusted cost-per-completed-task per model x task-type as the primary comparison metric, supported by OpenTelemetry coordinator signals and estimate labelling.",
+      "resolution": "Render cost-per-completed-task as headline metric with estimated-spend visual indicators.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "package_id": "wp-dashboard",
+      "file_path": "openspec/changes/add-adaptive-model-router/specs/observability/spec.md"
+    },
+    {
+      "id": 7,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: Phase 6 task numbering in tasks.md places task 6.6 after tasks 6.7 and 6.8, resulting in a minor non-sequential task label ordering.",
+      "resolution": "Optionally re-order task 6.6 to appear before task 6.7 in Phase 6 of tasks.md.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "nit",
+      "package_id": "wp-probes",
+      "file_path": "openspec/changes/add-adaptive-model-router/tasks.md"
+    }
+  ]
+}

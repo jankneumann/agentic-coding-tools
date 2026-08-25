@@ -7,8 +7,9 @@
 
 ## Why
 
-Model/vendor selection today is static config (`agents.yaml` + `archetypes.yaml` tiers) with a
-hardcoded cost stub (`skills/autopilot-roadmap/scripts/policy.py::_estimate_cost_delta`), so every
+Model/vendor selection today is duplicated between harness configuration in `agents.yaml`, tier
+policy in `archetypes.yaml`, and Python defaults, with a hardcoded cost stub
+(`skills/autopilot-roadmap/scripts/policy.py::_estimate_cost_delta`), so every
 run either overpays a premium model for easy work or requires the operator to hand-pick vendors —
 and nothing the fleet learns about model×task performance is retained. The OpenRouter MCP server
 (live `models-list`, `benchmarks`, `rankings-daily`, `model-endpoints` pricing/latency) plus the
@@ -26,6 +27,12 @@ no manual model picks, (b) local models absorb a meaningful share of economy-tie
 ## What Changes
 
 - **New capability `model-routing`** owning the model catalog, scoring, and selection contract.
+- **One static model-policy authority**: `agents.yaml` describes agent identity, eligibility,
+  transport, credentials, and harness invocation mechanics only; `archetypes.yaml` owns every
+  curated primary model and ordered capacity-fallback chain, resolved as
+  task/phase -> archetype -> tier -> agent harness + dispatch kind. Concrete model IDs are removed
+  from `agents.yaml` and Python defaults. The adaptive catalog remains the authority for dynamic
+  candidates, while router failure falls back to the static `archetypes.yaml` chain.
 - **Model catalog + signal ledger in coordinator Postgres** (new migrations): per
   `(vendor, model, endpoint_kind, archetype/task-type)` rows carrying benchmark priors
   (Artificial Analysis scores, rankings), per-Mtok pricing, observed latency, and feedback
@@ -58,8 +65,10 @@ no manual model picks, (b) local models absorb a meaningful share of economy-tie
   router's ledger instead of a separate SQLite store.
 - **BREAKING**: `resolve_model()` callers (autopilot phase dispatch) route through the new
   resolver when the routing feature flag is on; `agents.yaml` gains `endpoint_kind`/`base_url`
-  fields. *Rollback plan*: feature flag `ROUTING_ADAPTIVE=off` reverts to static archetype tier
-  resolution (existing behavior preserved as the fallback path); migrations are additive-only.
+  fields and rejects `cli.model`, `cli.model_fallbacks`, `sdk.model`, and
+  `sdk.model_fallbacks`. *Rollback plan*: feature flag `ROUTING_ADAPTIVE=off` reverts to the
+  static model chains in `archetypes.yaml` (the effective fallback behavior is preserved, but its
+  storage is centralized); migrations are additive-only.
 - **Archive the two absorbed draft changes** with pointers to this change.
 
 ## Approaches Considered
@@ -120,7 +129,8 @@ designed in the absorbed proposals.
 |---|---|
 | `model-routing` (**new**) | Catalog, resolver contract, exploration budget, tripwires, probes |
 | `agent-coordinator` | New endpoints (`/routing/select_model`, catalog CRUD), migrations, watchdog jobs |
-| `agent-archetypes` | Tier resolution delegates to router when flag on; `endpoint_kind` in aliases |
+| `agent-archetypes` | Tier resolution delegates to router; curated model chains live only in `archetypes.yaml` |
+| `skill-workflow` | CLI/SDK dispatch receives resolved model chains instead of reading models from `agents.yaml` |
 | `roadmap-orchestration` | `policy.py` cost model reads catalog; exploration budget enforcement |
 | `observability` | Usage/cost dashboard (absorbed from `usage-stats-multi-model`) |
 
@@ -129,7 +139,7 @@ designed in the absorbed proposals.
 `skills/parallel-infrastructure/scripts/review_dispatcher.py`,
 `skills/autopilot-roadmap/scripts/policy.py`, `skills/roadmap-runtime/scripts/learning.py`,
 `apps/usage-viz/` (new, patterned on `apps/kanban-viz`), `.mcp.json` (OpenRouter MCP, dev-time),
-`agents.yaml` / `archetypes.yaml` schema extensions.
+`agents.yaml` / `archetypes.yaml` schema migration and the versioned provider-model-map contract.
 
 **Architecture layers**: Execution (dispatch adapter), Coordination (catalog/resolver/ledger),
 Trust (per-model reliability posteriors), Governance (Cedar hard constraints, spend ceilings,

@@ -1,0 +1,192 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: `openspec/schemas/provider-model-map.schema.json` remains v2 provider\u2192single `tierEntry` and is cited as the contract for agent-archetypes.3/4, but D14 plus skill-workflow.3 require exact agent-harness + dispatch-kind ordered ModelSpec chains (arrays), which today's schema cannot express\u2014and live configs already need distinct CLI vs SDK chains (e.g. claude-remote, codex-remote).",
+      "resolution": "Version the provider-model-map (or archetypes model-policy) schema to require per-(agent_id|harness, dispatch_kind, tier) non-empty ordered ModelSpec arrays; update change-context contract refs and task 4.8 acceptance to validate the new shape, including distinct CLI/SDK identifiers.",
+      "disposition": "fix",
+      "package_id": "wp-model-config-ownership",
+      "file_path": "openspec/schemas/provider-model-map.schema.json",
+      "axis": "compatibility",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Tasks 4.7\u20134.9 characterize, re-resolve, and delete `agents.yaml` model/`model_fallbacks` fields, but no requirement or task SHALL migrate/seed those existing primary+fallback values into the new `archetypes.yaml` per-(agent, dispatch_kind) chains before removal\u2014so flag-off / pre-change parity (agent-archetypes.1, model-routing.14) has no data-migration owner.",
+      "resolution": "Add an explicit migration step (and scenario) that copies each agent's current CLI/SDK model + model_fallbacks into ordered archetypes chains, asserts behavioral parity, then allows field removal in 4.9.",
+      "disposition": "fix",
+      "package_id": "wp-model-config-ownership",
+      "file_path": "openspec/changes/add-adaptive-model-router/tasks.md",
+      "line_range": {
+        "start": 125,
+        "end": 149
+      },
+      "axis": "compatibility",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: When `ROUTING_ADAPTIVE` is on, OpenAPI `select_model` returns a single `Candidate` plus scored `alternatives` (no thinking, no ordered capacity chain), while agent-archetypes.4 / skill-workflow.2 require capacity retries to advance only within the harness+dispatch-kind `ModelSpec` chain from `archetypes.yaml`\u2014the plan never defines how adaptive primary selection composes with that static capacity chain.",
+      "resolution": "Specify composition: e.g. adaptive may replace only the primary ModelSpec while retaining the route's static ordered fallbacks; or return a full ModelSpec chain; or re-resolve on capacity. Reflect the chosen rule in OpenAPI (thinking + chain) and in agent-archetypes/model-routing scenarios.",
+      "disposition": "fix",
+      "package_id": "wp-resolver",
+      "file_path": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+      "axis": "architecture",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Task 3.10 implements `ROUTING_ADAPTIVE` delegation with D2's archetypes-owned static fallback before tasks 4.7\u20134.9 create harness-aware chains and remove agents.yaml models (4.7 even depends on 3.11\u21923.10). Until ownership lands, 3.10 either contradicts D14/D2 by still reading agents.yaml/ambient defaults, or depends on chains that do not yet exist.",
+      "resolution": "Reorder or split: land harness-aware archetypes chain loading + data migration before enabling D2 fallback semantics in 3.10, or amend 3.9\u20133.10 to preserve current dual-source static behavior until 4.9 flips the sole-source invariant.",
+      "disposition": "fix",
+      "package_id": "wp-resolver",
+      "file_path": "openspec/changes/add-adaptive-model-router/tasks.md",
+      "line_range": {
+        "start": 92,
+        "end": 149
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: `SelectModelRequest` omits `agent_id` / `dispatch_kind` (and `Candidate` omits thinking), yet D14 static fallback and discovery injection are harness- and dispatch-kind-specific; without these fields the HTTP/MCP select path cannot return a correctly scoped archetypes chain or preserve thinking levels.",
+      "resolution": "Extend SelectModelRequest with required or conditionally required agent/dispatch context and extend Candidate (or add ModelSpec/chain fields) to carry thinking and ordered fallbacks used on capacity errors.",
+      "disposition": "fix",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-adaptive-model-router/contracts/openapi/v1.yaml",
+      "axis": "compatibility",
+      "severity": "nit"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Tasks 4.8\u20134.9 and wp-model-config-ownership require migrating discovery, coordination-bridge, and vendor_health off agents.yaml models, but skill-workflow/agent-archetypes only state negative constraints (no models in agents.yaml)\u2014there is no SHALL that discovery/bridge responses expose the resolved archetypes chain or that health reporting must not invent ambient models.",
+      "resolution": "Add MODIFIED/ADDED scenarios for get_dispatch_configs / HTTP / MCP / bridge payloads including the resolved ordered chain, and for vendor_health reading that chain (or omitting models) without ambient defaults.",
+      "disposition": "fix",
+      "package_id": "wp-model-config-ownership",
+      "file_path": "openspec/changes/add-adaptive-model-router/specs/skill-workflow/spec.md",
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: `wp-probes` description/title still say tasks 6.1\u20136.6 while write_allow and tasks include 6.7\u20136.8 quota probe, and verification `-k 'probes or tripwires'` will not match `test_quota*`.",
+      "resolution": "Update package description to tasks 6.1\u20136.8 and extend the pytest -k expression to include quota (or run the quota test path explicitly).",
+      "disposition": "fix",
+      "package_id": "wp-probes",
+      "file_path": "openspec/changes/add-adaptive-model-router/work-packages.yaml",
+      "line_range": {
+        "start": 415,
+        "end": 464
+      },
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: agent-archetypes.1 and model-routing.14 say flag-off must equal/restore \u201cpre-change\u201d static behavior, which conflicts with the intentional BREAKING storage move unless read as behavioral equivalence after migrating chains into archetypes.yaml.",
+      "resolution": "Reword scenarios to require equivalent selected ModelSpec chains (and capacity order) to the pre-migration agents.yaml+aliases composition, not identical storage or code paths.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-adaptive-model-router/specs/agent-archetypes/spec.md",
+      "line_range": {
+        "start": 13,
+        "end": 16
+      },
+      "axis": "readability",
+      "severity": "nit"
+    },
+    {
+      "id": 9,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Optional: Cross-file missing-route / orphan-harness validation failures are required to fail before dispatch, but no requirement emits a structured signal/metric for those configuration errors (unlike resolver timeout fallback).",
+      "resolution": "Optionally require an audit/OTel signal when config validation rejects missing or orphan model routes so operators can detect misconfigured archetypes.yaml in fleet logs.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-adaptive-model-router/specs/agent-archetypes/spec.md",
+      "axis": "observability",
+      "severity": "optional"
+    },
+    {
+      "id": 10,
+      "type": "security",
+      "criticality": "low",
+      "description": "FYI: D13\u2019s optional quota-axi path shells out via `npx -y quota-axi` against local provider credentials; the plan correctly marks it read-only and off-by-default, but implementers should pin/verify the package and keep credentials out of argv/logs.",
+      "resolution": "During wp-probes implementation, pin the quota-axi version, document the trust boundary, and ensure subprocess output redaction in tests.",
+      "disposition": "accept",
+      "package_id": "wp-probes",
+      "file_path": "openspec/changes/add-adaptive-model-router/design.md",
+      "line_range": {
+        "start": 129,
+        "end": 150
+      },
+      "axis": "security",
+      "severity": "fyi"
+    },
+    {
+      "id": 11,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The D14 split is coherent: agents.yaml keeps harness mechanics including model_flag, archetypes.yaml owns curated ModelSpec chains, adaptive catalog stays dynamic-only, and wp-model-config-ownership is correctly serialized behind wp-resolver and wp-dispatch with non-overlapping parallel lanes elsewhere.",
+      "resolution": "Retain the ownership boundary and package sequencing while fixing the schema, data-migration, and adaptive/capacity composition gaps above.",
+      "disposition": "accept",
+      "package_id": "wp-model-config-ownership",
+      "file_path": "openspec/changes/add-adaptive-model-router/design.md",
+      "line_range": {
+        "start": 152,
+        "end": 169
+      },
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 12,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The 4.7\u21924.8\u21924.9 test-first sequence (characterize sync/async/SDK/discovery/health, then versioned resolution, then remove legacy fields and ambient defaults) is the right migration shape for eliminating dual model authorities without a big-bang cutover.",
+      "resolution": "Keep the three-step order; insert the explicit agents.yaml\u2192archetypes.yaml data-migration assertion between 4.8 and 4.9.",
+      "disposition": "accept",
+      "package_id": "wp-model-config-ownership",
+      "file_path": "openspec/changes/add-adaptive-model-router/tasks.md",
+      "line_range": {
+        "start": 125,
+        "end": 149
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 13,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Fallback resilience is well specified at the control-plane layer: ROUTING_ADAPTIVE default off, >2s/error fallback, additive migrations, metered ceiling fallback to subscription/local, and quota probe degrade-to-reactive.",
+      "resolution": "Keep these degrade paths; ensure the static fallback target after D14 is always a validated archetypes chain rather than ambient harness defaults.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-adaptive-model-router/design.md",
+      "line_range": {
+        "start": 15,
+        "end": 21
+      },
+      "axis": "resilience",
+      "severity": "none"
+    }
+  ]
+}

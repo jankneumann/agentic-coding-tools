@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-24T19:41:16.352412+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Completed policy-authorized multi-vendor review and remediated every medium/high finding. The plan now defines a versioned harness-aware route schema, parity-gated migration, and exact adaptive/static fallback composition; all strict and package validators pass.",
+    "completed_work": [
+      "Added seven vendor-review remediations spanning schema, migration, fallback composition, transport contracts, projections, and quota verification.",
+      "Recorded Antigravity and Grok review artifacts plus 3/3 consensus with the primary review; Claude Code timed out and Pi was unavailable.",
+      "Passed strict OpenSpec validation, work-package schema/DAG/overlap checks, 15-pair parallel-zone validation, YAML/JSON parsing, and diff hygiene."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Version static routes as exact harness-aware chains",
+        "rationale": "Provider-only v2 entries cannot represent distinct CLI and SDK model identifiers or ordered capacity fallbacks; v3 uses routes[agent_id][dispatch_kind][tier] ModelSpec arrays and rejects mixed documents.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Compose adaptive selection as primary-only replacement",
+        "rationale": "The selected candidate carries thinking while capacity retries preserve the archetypes-owned static order with selected-model deduplication; ranked alternatives require a new routing decision.",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Gate removal of legacy model fields on seeded-chain parity",
+        "rationale": "Every existing CLI and SDK primary/fallback is characterized and seeded before all consumers switch atomically, preserving flag-off behavior and retry order.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement wp-model-config-ownership after wp-resolver and wp-dispatch, beginning with task 4.7 characterization tests."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-adaptive-model-router/design.md",
+        "description": "D14 ownership, v3 route shape, migration, and fallback composition."
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/tasks.md",
+        "description": "Parity-gated tasks 4.7-4.9."
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/reviews/consensus-plan.json",
+        "description": "Multi-vendor review synthesis."
+      },
+      {
+        "path": "openspec/changes/add-adaptive-model-router/plan-findings.md",
+        "description": "Fourteen addressed plan findings."
+      }
+    ]
+  }
+}
