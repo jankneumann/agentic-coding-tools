@@ -46,6 +46,12 @@ def discover_skills(skills_root: Path) -> set[str]:
     }
 
 
+#: Directory components install.sh's mirror_tree excludes from the payload.
+#: Keep in lockstep with the --exclude flags in skills/install.sh; the pairing
+#: is pinned by tests/shared/test_validate_install_manifest_excludes.py.
+_EXCLUDED_PAYLOAD_DIRS = frozenset({"tests", "__pycache__", "node_modules"})
+
+
 def _iter_payload_files(skills_root: Path, skill_names: Iterable[str], libraries: Iterable[str]) -> Iterable[Path]:
     for name in [*skill_names, *libraries]:
         base = skills_root / name
@@ -54,7 +60,17 @@ def _iter_payload_files(skills_root: Path, skill_names: Iterable[str], libraries
         for path in base.rglob("*"):
             if not path.is_file() or path.suffix.lower() not in _SCANNED_SUFFIXES:
                 continue
-            if "tests" in path.relative_to(base).parts or "__pycache__" in path.parts:
+            rel_parts = path.relative_to(base).parts
+            # Must exclude exactly what install.sh's mirror_tree excludes: this
+            # validates the payload that actually ships, so scanning a directory
+            # the installer skips reports failures about files no consumer ever
+            # receives. node_modules is on-demand runtime output (refresh-
+            # architecture npm-installs ts-morph itself and degrades when it is
+            # absent), never a committed dependency — its vendored READMEs carry
+            # upstream-relative links that can never resolve inside the payload.
+            if any(part in _EXCLUDED_PAYLOAD_DIRS for part in rel_parts):
+                continue
+            if "__pycache__" in path.parts:
                 continue
             if path.name == "validate_install_manifest.py":
                 continue

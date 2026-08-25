@@ -181,9 +181,97 @@ def check_review_eligibility(
 # Review prompt construction
 # ---------------------------------------------------------------------------
 
+#: Fallback finding shape, used only when the canonical schema cannot be read.
+#: Kept in sync by ``tests/merge-pull-requests/test_vendor_review_prompt.py``,
+#: which fails when these drift from ``review-findings.schema.json``.
+_FALLBACK_REQUIRED = (
+    "id", "type", "criticality", "description", "disposition", "axis", "severity",
+)
+_FALLBACK_ENUMS = {
+    "type": (
+        "spec_gap", "contract_mismatch", "architecture", "security", "performance",
+        "style", "correctness", "observability", "compatibility", "resilience",
+        "behavioral_failure",
+    ),
+    "criticality": ("low", "medium", "high", "critical"),
+    "disposition": ("fix", "regenerate", "accept", "escalate"),
+    "axis": (
+        "correctness", "readability", "architecture", "security", "performance",
+        "observability", "resilience", "compatibility",
+    ),
+    "severity": ("critical", "nit", "optional", "fyi", "none"),
+}
+
+
+def _finding_contract() -> tuple[tuple[str, ...], dict[str, tuple[str, ...]]]:
+    """Return ``(required_fields, enums)`` for one finding, from the canonical schema.
+
+    The prompt is the ONLY contract most vendors ever see. Only ``grok-local``
+    passes ``--json-schema @review-findings-schema``; codex, antigravity and pi
+    are dispatched with the prompt alone, so a field the prompt omits is a field
+    those vendors cannot know about — and their output is then rejected by a
+    validator enforcing a contract they were never shown.
+
+    Deriving both lists from ``openspec/schemas/review-findings.schema.json``
+    keeps this prompt from becoming yet another hand-maintained copy of a schema
+    that already has three.
+    """
+    try:
+        dispatcher_dir = (
+            Path(__file__).resolve().parent.parent.parent
+            / "parallel-infrastructure" / "scripts"
+        )
+        if str(dispatcher_dir) not in sys.path:
+            sys.path.insert(0, str(dispatcher_dir))
+        from review_findings_schema import finding_item_schema
+
+        item = finding_item_schema()
+        required = tuple(item.get("required") or ())
+        enums = {
+            name: tuple(spec["enum"])
+            for name, spec in (item.get("properties") or {}).items()
+            if isinstance(spec, dict) and spec.get("enum")
+        }
+        if required and enums:
+            return required, enums
+    except Exception:  # noqa: BLE001 - prompt must build even if the schema moves
+        pass
+    return _FALLBACK_REQUIRED, dict(_FALLBACK_ENUMS)
+
+
+def _enum_hint(enums: dict[str, tuple[str, ...]], field: str) -> str:
+    """Render one field's allowed values for the example block."""
+    values = enums.get(field)
+    return "|".join(values) if values else f"<{field}>"
+
+
 def build_review_prompt(pr_number: int, pr_size: dict) -> str:
     """Build a review prompt for vendor dispatch."""
     files_list = "\n".join(f"  - {f}" for f in pr_size.get("files", []))
+    required, enums = _finding_contract()
+    required_list = ", ".join(required)
+
+    # criticality and severity are separate vocabularies with an overlapping
+    # member ("critical"). Naming them side by side is what stops a vendor from
+    # reusing one value for both fields and failing validation on a technicality.
+    vocab_lines = []
+    if "criticality" in enums:
+        vocab_lines.append(
+            f"  criticality: {_enum_hint(enums, 'criticality')}"
+            "   — how much the finding matters"
+        )
+    if "severity" in enums:
+        vocab_lines.append(
+            f"  severity:    {_enum_hint(enums, 'severity')}"
+            "   — review-gate grading (NOT the same scale as criticality)"
+        )
+    if "axis" in enums:
+        vocab_lines.append(
+            f"  axis:        {_enum_hint(enums, 'axis')}"
+            "   — which review dimension the finding belongs to"
+        )
+    vocab_block = "\n".join(vocab_lines)
+
     return f"""Review pull request #{pr_number}.
 
 This PR modifies {pr_size['changed_files']} files with {pr_size['additions']} additions and {pr_size['deletions']} deletions.
@@ -206,17 +294,29 @@ For each finding, output JSON conforming to this structure:
   "findings": [
     {{
       "id": 1,
-      "type": "correctness|security|architecture|performance|style|spec_gap|contract_mismatch|observability|compatibility|resilience",
-      "criticality": "low|medium|high|critical",
+      "type": "{_enum_hint(enums, 'type')}",
+      "criticality": "{_enum_hint(enums, 'criticality')}",
+      "axis": "{_enum_hint(enums, 'axis')}",
+      "severity": "{_enum_hint(enums, 'severity')}",
       "description": "What the issue is",
       "resolution": "How to fix it",
-      "disposition": "fix|accept",
+      "disposition": "{_enum_hint(enums, 'disposition')}",
       "file_path": "path/to/file",
       "line_range": {{"start": 10, "end": 20}}
     }}
   ]
 }}
 
+REQUIRED on every finding — output is REJECTED if any is missing:
+  {required_list}
+
+These fields use DIFFERENT vocabularies. Do not reuse one value for another:
+{vocab_block}
+
+Use exactly one value from the listed set for each enum field; do not invent
+values and do not emit the "a|b|c" alternation itself.
+
+If you find no issues, return {{"findings": []}} rather than prose.
 Output ONLY the JSON object, no additional text.
 Use `gh pr diff {pr_number}` to read the actual diff before reviewing.
 """
