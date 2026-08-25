@@ -39,7 +39,7 @@ api = [
     # short-lived SSE auth token. Both were transitively present in uv.lock
     # but absent from [api] — any environment installed via `pip install
     # .[api]` would fail at runtime.
-    "sse-starlette>=2.1.0",
+    "sse-starlette>=3.4.8",
     # [crypto] pulls in `cryptography` for RS256 — required by both the SSE
     # token flow (HS256) and Cloudflare Access origin verification (RS256,
     # src/cloudflare_access.py), which validates Cloudflare's RSA-signed JWKS.
