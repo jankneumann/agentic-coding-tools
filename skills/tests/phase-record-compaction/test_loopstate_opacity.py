@@ -71,9 +71,18 @@ class TestBoundedStateDelta:
 
         assert outcome == "continue"
 
-        # Compute the delta — only last_handoff_id and handoff_ids changed.
+        # Compute the delta. The point of this assertion is that it is an
+        # equality, not a subset: the callback may write these fields and no
+        # others, so a phase that starts splatting sub-agent state into
+        # LoopState fails here.
+        #
+        # `phase_archetype` joined the set in `a4eca530 feat(autopilot):
+        # per-phase archetype resolution + LoopState v3` — resolve_options()
+        # records the resolved archetype in state_dict["_resolved_archetype"]
+        # and the callback propagates it. That is a deliberate, bounded
+        # addition; it was invisible until this directory first ran in CI.
         diff_keys = {k for k in before if before[k] != after[k]}
-        assert diff_keys == {"last_handoff_id", "handoff_ids"}
+        assert diff_keys == {"last_handoff_id", "handoff_ids", "phase_archetype"}
 
         # last_handoff_id is the new id
         assert after["last_handoff_id"] == "h-NEW"
