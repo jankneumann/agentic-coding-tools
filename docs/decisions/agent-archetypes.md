@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-08-24 — add-adaptive-model-router
+
+### Phase: Plan Iteration 1
+
+**Separate harness mechanics from static model policy** — Concrete model IDs and fallbacks change independently from invocation syntax; `archetypes.yaml` now owns task-tier policy while `agents.yaml` retains `model_flag` and transport mechanics
+
+- Status: `active`
+- Source: [openspec/changes/add-adaptive-model-router/session-log.md](/openspec/changes/add-adaptive-model-router/session-log.md) (D1)
+
+---
+
+## 2026-08-24 — add-adaptive-model-router
+
+### Phase: Plan Iteration 2
+
+**Version static routes as exact harness-aware chains** — Provider-only v2 entries cannot represent distinct CLI and SDK model identifiers or ordered capacity fallbacks; v3 uses routes[agent_id][dispatch_kind][tier] ModelSpec arrays and rejects mixed documents.
+
+- Status: `active`
+- Source: [openspec/changes/add-adaptive-model-router/session-log.md](/openspec/changes/add-adaptive-model-router/session-log.md) (D1)
+
+---
+
+## 2026-08-24 — add-adaptive-model-router
+
+### Phase: Plan Iteration 1
+
+**Key static routes by exact agent harness and dispatch kind** — Local CLI aliases and remote SDK identifiers can differ even under one provider, so provider-only mappings cannot prove every dispatch path resolves
+
+- Status: `active`
+- Source: [openspec/changes/add-adaptive-model-router/session-log.md](/openspec/changes/add-adaptive-model-router/session-log.md) (D2)
+
+---
+
 ## 2026-05-16 — 2026-05-16-vendor-neutral-autopilot
 
 ### Phase: Implementation

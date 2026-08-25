@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-08-24 — add-adaptive-model-router
+
+### Phase: Plan Iteration 2
+
+**Gate removal of legacy model fields on seeded-chain parity** — Every existing CLI and SDK primary/fallback is characterized and seeded before all consumers switch atomically, preserving flag-off behavior and retry order.
+
+- Status: `active`
+- Source: [openspec/changes/add-adaptive-model-router/session-log.md](/openspec/changes/add-adaptive-model-router/session-log.md) (D3)
+
+---
+
 ## 2026-08-01 — 2026-08-04-gate-semantic-context-default-enablement
 
 ### Phase: Implementation
