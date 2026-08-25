@@ -584,10 +584,20 @@ def _record_merge_event(
     ``_try_merge_queue`` and the coordinator API, and emit their own event
     types), so anything reaching here merged directly.
 
+    Only a confirmed ``status == "merged"`` is recorded. ``success: True`` alone
+    is not enough: when the repository has a merge queue, ``_try_merge`` returns
+    ``_try_merge_queue``'s ``{"success": True, "status": "enqueued"}``, and an
+    enqueued PR can still fail required checks and never merge. Counting that as
+    a merge would inflate merge_count, deflate revert_rate, pollute the duration
+    percentiles with a queue-admission time, and label a queued PR
+    ``backend="direct"``. Under-recording a queued merge is the right trade: the
+    queue completes it asynchronously and this process cannot observe that, so
+    the alternative is not a better number but a wrong one.
+
     Never raises. A metrics write must not turn a successful merge into a
     failed command, matching how the pipeline hooks isolate their failures.
     """
-    if not result.get("success") or result.get("dry_run"):
+    if result.get("status") != "merged" or result.get("dry_run"):
         return
     try:
         from merge_events import MergeEvent, emit_event
