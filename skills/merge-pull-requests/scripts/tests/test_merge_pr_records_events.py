@@ -51,8 +51,9 @@ def _merge_succeeds():
         patch.object(
             merge_pr_module, "_try_merge",
             return_value={
-                "action": "merge", "success": True, "pr_number": 7,
-                "strategy": "rebase", "merge_commit_sha": "b" * 40,
+                "action": "merge", "success": True, "status": "merged",
+                "pr_number": 7, "strategy": "rebase",
+                "merge_commit_sha": "b" * 40,
             },
         ),
     ):
@@ -121,3 +122,47 @@ def test_metrics_failure_never_fails_the_merge(
     assert result["success"] is True
     assert result["event_emitted"] is False
     assert "disk full" in result["event_error"]
+
+
+def test_enqueued_pr_is_not_counted_as_a_merge(
+    _redirect_default_merge_log: Path,
+) -> None:
+    """A queued PR is not a merged one.
+
+    Raised as a P2 on PR #418 by chatgpt-codex-connector. When the repository
+    has a merge queue, ``_try_merge`` returns ``_try_merge_queue``'s
+    ``{"success": True, "status": "enqueued"}`` -- the PR is admitted to the
+    queue, not merged, and can still fail required checks and be ejected.
+    Guarding on ``success`` alone recorded it as a completed merge, inflating
+    merge_count, deflating revert_rate, polluting duration percentiles with a
+    queue-admission time, and labelling it ``backend="direct"``.
+    """
+    validation = {
+        "can_merge": True, "checks_pending": False, "checks_failed": False,
+        "approval_required": False, "approved": True,
+        "approval_may_be_stale": False, "mergeable": True, "is_draft": False,
+        "has_conflicts": False, "is_fork": False, "branch": "feature",
+        "pending_reviewers": [],
+    }
+    with (
+        patch.object(
+            merge_pr_module, "capture_head",
+            return_value={"branch": "main", "sha": "a" * 40},
+        ),
+        patch.object(merge_pr_module, "validate_pr", return_value=validation),
+        patch.object(
+            merge_pr_module, "_try_merge",
+            return_value={
+                "action": "merge", "success": True, "status": "enqueued",
+                "pr_number": 7, "strategy": "rebase",
+            },
+        ),
+    ):
+        result = merge_pr_module.merge_pr(7, "rebase")
+
+    # The command still reports success -- the PR really was enqueued.
+    assert result["success"] is True
+    assert result["status"] == "enqueued"
+    # But nothing is recorded: the merge has not happened yet.
+    assert "event_emitted" not in result
+    assert load_events(log_path=_redirect_default_merge_log) == []
