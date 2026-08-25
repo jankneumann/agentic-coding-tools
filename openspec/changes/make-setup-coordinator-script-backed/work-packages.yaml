@@ -251,6 +251,7 @@ packages:
     context_impact:
       surfaces:
         - "documentation"
+        - "semantic_code"
     worktree:
       name: setup-coordinator-integration
       mode: isolated
