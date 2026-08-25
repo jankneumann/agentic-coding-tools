@@ -1,9 +1,18 @@
 """Post-merge pipeline: composable hooks that run after each successful merge.
 
 Hooks run independently — a failure in one doesn't block the others:
-  1. emit_merge_event() — metrics
-  2. auto_cascade_rebase() — refresh overlapping PRs
-  3. monitor_ci_for_rollback() — revert if CI breaks
+  1. auto_cascade_rebase() — refresh overlapping PRs
+  2. monitor_ci_for_rollback() — revert if CI breaks
+
+Both reach outside this repository — one updates other people's PRs, the other
+can open and auto-merge a revert — so this pipeline is rightly opt-in behind
+``--pipeline``.
+
+Metrics emission used to be hook 1 here and is now in ``merge_pr()``. Recording
+a merge is a local file append with none of that blast radius, and gating it
+behind the same flag as these two meant it never ran: as of 2026-08-25 the
+metrics log held zero ``merge`` events. An always-on record and an opt-in
+mutation do not belong behind one switch.
 
 Design decisions: D2 (composable post-merge hooks)
 """
@@ -15,22 +24,14 @@ from typing import Any
 
 from auto_rebase import auto_cascade_rebase
 from auto_rollback import monitor_ci_for_rollback
-from merge_events import MergeEvent, emit_event
 
 
 def post_merge_pipeline(
     *,
     pr_number: int,
-    strategy: str,
-    backend: str,
     merge_sha: str | None = None,
     pr_title: str = "",
     merged_files: list[str] | None = None,
-    origin: str | None = None,
-    duration_seconds: float | None = None,
-    queue_depth: int | None = None,
-    partition_count: int | None = None,
-    train_id: str | None = None,
     enable_rebase: bool = True,
     enable_rollback: bool = True,
     rollback_poll_interval: int = 60,
@@ -38,28 +39,7 @@ def post_merge_pipeline(
 ) -> dict[str, Any]:
     result: dict[str, Any] = {"pr_number": pr_number}
 
-    # Hook 1: Emit merge event
-    try:
-        event = MergeEvent(
-            event_type="merge",
-            pr_number=pr_number,
-            origin=origin,
-            strategy=strategy,
-            backend=backend,
-            duration_seconds=duration_seconds,
-            queue_depth=queue_depth,
-            partition_count=partition_count,
-            train_id=train_id,
-            success=True,
-        )
-        emit_event(event)
-        result["event_emitted"] = True
-    except Exception as exc:
-        result["event_emitted"] = False
-        result["event_error"] = str(exc)
-        print(f"Warning: merge event emission failed: {exc}", file=sys.stderr)
-
-    # Hook 2: Auto cascading rebase
+    # Hook 1: Auto cascading rebase
     if enable_rebase and merged_files:
         try:
             rebase_result = auto_cascade_rebase(
@@ -73,7 +53,7 @@ def post_merge_pipeline(
     else:
         result["rebase"] = {"skipped": True}
 
-    # Hook 3: CI monitoring for rollback
+    # Hook 2: CI monitoring for rollback
     if enable_rollback and merge_sha and merged_files:
         try:
             rollback_result = monitor_ci_for_rollback(

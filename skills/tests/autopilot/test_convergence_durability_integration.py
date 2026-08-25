@@ -52,8 +52,17 @@ class _StringLineRangeVendorOrchestrator:
                     "target": "test-feature",
                     "findings": [{
                         "id": 1,
-                        "type": "logic-error",
+                        # "logic-error" predates the type enum; "correctness"
+                        # is its current spelling.
+                        "type": "correctness",
                         "criticality": "high",
+                        # axis + severity became required properties of
+                        # review-findings.schema.json after this fixture was
+                        # written; consensus_synthesizer validates vendor
+                        # documents against it and rejects the document without
+                        # them.
+                        "axis": "correctness",
+                        "severity": "critical",
                         "description": "Off-by-one in pagination",
                         "disposition": "fix",
                         "file_path": "src/paginate.py",
@@ -73,8 +82,17 @@ class _StringLineRangeVendorOrchestrator:
                     "target": "test-feature",
                     "findings": [{
                         "id": 100,
-                        "type": "logic-error",
+                        # "logic-error" predates the type enum; "correctness"
+                        # is its current spelling.
+                        "type": "correctness",
                         "criticality": "high",
+                        # axis + severity became required properties of
+                        # review-findings.schema.json after this fixture was
+                        # written; consensus_synthesizer validates vendor
+                        # documents against it and rejects the document without
+                        # them.
+                        "axis": "correctness",
+                        "severity": "critical",
                         "description": "Off-by-one in pagination",
                         "disposition": "fix",
                         "file_path": "src/paginate.py",

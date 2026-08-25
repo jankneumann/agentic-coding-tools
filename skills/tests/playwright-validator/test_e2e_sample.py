@@ -21,8 +21,9 @@ from cli import main as cli_main
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DESCRIPTOR = REPO_ROOT / "evaluation" / "gen_eval" / "descriptors" / "sample-frontend.yaml"
-SPECS_DIR = REPO_ROOT / "evaluation" / "gen_eval" / "fixtures" / "sample-frontend" / "specs"
+_FIXTURES = REPO_ROOT / "packages" / "gen-eval" / "tests" / "fixtures"
+DESCRIPTOR = _FIXTURES / "sample-descriptor.yaml"
+SPECS_DIR = _FIXTURES / "sample-frontend" / "specs"
 
 
 def test_dry_run_emits_test_script(tmp_path: Path):

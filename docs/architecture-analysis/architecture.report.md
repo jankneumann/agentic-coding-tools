@@ -2,27 +2,26 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-08-22T01:03:57+00:00  
-Git SHA: `f86ee022b4a664afbcf77283748ce569591c015a`
+Generated: 2026-08-24T16:54:08+00:00  
+Git SHA: `d1115e635c38264cd270791851108b412976fd9b`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 104 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **27 Postgres tables**. The codebase contains 1121 functions (435 async) and 248 classes.
+This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **27 Postgres tables**. The codebase contains 1080 functions (435 async) and 248 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1983 |
+| Total nodes | 1893 |
 | Total edges | 1190 |
-| Python modules | 104 |
-| Functions | 1121 (435 async) |
+| Python modules | 77 |
+| Functions | 1080 (435 async) |
 | Classes | 248 |
 | Mcp Endpoints | 96 |
 | DB tables | 27 |
 | Python nodes | 1457 |
 | Sql nodes | 436 |
-| Typescript nodes | 90 |
 
 ## Module Responsibility Map
 
@@ -279,29 +278,18 @@ This is a **Python MCP server** with 104 modules exposing **96 MCP endpoints** (
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2918 findings** across 5 categories:
+**2728 findings** across 4 categories:
 
-### Orphan — 1296
+### Orphan — 1208
 
-1296 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+1208 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'PollConfig' is unreachable from any entrypoint or test
 - 'ModeConfig' is unreachable from any entrypoint or test
 - 'CliConfig' is unreachable from any entrypoint or test
-- ... and 1291 more
-
-### Pattern Consistency — 39
-
-39 unclassified findings.
-
-- 'relativeTime' uses camelCase but most functions use snake_case
-- 'emitHighlight' uses camelCase but most functions use snake_case
-- 'useHighlightState' uses camelCase but most functions use snake_case
-- 'shortForm' uses camelCase but most functions use snake_case
-- 'loadFromStorage' uses camelCase but most functions use snake_case
-- ... and 34 more
+- ... and 1203 more
 
 ### Reachability — 96
 
@@ -316,16 +304,16 @@ Breakdown: 88 info, 8 warning.
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
 - ... and 91 more
 
-### Test Coverage — 1391
+### Test Coverage — 1328
 
-1391 functions lack test references — consider adding tests for critical paths.
+1328 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 1386 more
+- ... and 1323 more
 
 ### Disconnected Flow (expected) — 96
 
@@ -472,7 +460,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1277 independent groups** identified. The largest interconnected group has 538 modules; 1581 modules are leaf nodes (safe to modify in isolation).
+**1187 independent groups** identified. The largest interconnected group has 538 modules; 1491 modules are leaf nodes (safe to modify in isolation).
 
 **39 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -500,9 +488,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1581)
+### Leaf Modules (1491)
 
-1581 modules have no dependents — changes are fully isolated. 1255 of the 1277 groups are singletons.
+1491 modules have no dependents — changes are fully isolated. 1165 of the 1187 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -514,7 +502,6 @@ Functions called by the most other functions — changes here have wide blast ra
 flowchart TB
     Backend["Backend (1457 nodes)"]
     Database["Database (436 nodes)"]
-    Frontend["Frontend (90 nodes)"]
 ```
 
 ### Backend Components
@@ -808,8 +795,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    kanban_h_viz_s_src["kanban-viz/src (89 symbols)"]
-    kanban_h_viz_s_vite__config__ts["kanban-viz/vite.config.ts (1 symbols)"]
+    empty["No TypeScript nodes found"]
 ```
 
 ### Database ERD
