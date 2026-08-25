@@ -89,6 +89,13 @@ Phase 3 → `wp-skills`, Phase 4 → `wp-frontend`, Phases 5–6 → `wp-docs-fi
 - [ ] 3.10 Extend `skills/autopilot/scripts/smoke_provider_dispatch.py` (and `provider_dispatch.py` experimental passthrough) per the modified Manual Provider Smoke Path requirement (S)
   **Spec scenarios**: skill-workflow.10, skill-workflow.11
   **Dependencies**: 3.9
+- [ ] 3.11 Write tests for quorum exclusion in the two *counting* consumers — assert an experimental vendor's successful result is still surfaced in the synthesized findings but excluded from `convergence_loop.py`'s `quorum_received` and its `min_quorum` gate, and from `ConsensusSynthesizer.quorum_met`; cover the D1e case where Atomic succeeds alongside exactly one first-class vendor and quorum must still be reported short (M)
+  **Spec scenarios**: configuration.2
+  **Dependencies**: 3.2
+- [ ] 3.12 Propagate `counts_toward_quorum` through every counter — `skills/autopilot/scripts/convergence_loop.py` (`quorum_received=sum(1 for r in results if r.success)` and the `len(successful) < min_quorum` gate) and `skills/parallel-infrastructure/scripts/consensus_synthesizer.py` (`successful = [vr for vr in vendor_results if vr.success]` feeding `quorum_met`). Both currently count every successful result, so excluding Atomic in `review_dispatcher.py` alone cannot enforce D1e: findings would surface *and* satisfy quorum, producing exactly the false consensus D1 exists to prevent (M)
+  **Spec scenarios**: configuration.2
+  **Design decisions**: D1
+  **Dependencies**: 3.11
 - [ ] Checkpoint: run tests, review diff, verify scope
 
 ## Phase 4 — Frontend: experimental badge (wp-frontend)
