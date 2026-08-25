@@ -24,6 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "skills/session-log/scripts"))
 sys.path.insert(0, str(REPO_ROOT / "skills/autopilot/scripts"))
 
+import phase_agent  # noqa: E402
 from phase_agent import make_phase_callback  # noqa: E402
 from phase_record import PhaseRecord  # noqa: E402
 
@@ -58,9 +59,32 @@ def state() -> LoopState:
 class TestBoundedStateDelta:
     """The driver state delta after callback return is bounded."""
 
-    def test_delta_is_only_last_handoff_id_and_one_new_id(
-        self, state: LoopState,
+    @staticmethod
+    def _pin_archetype(
+        monkeypatch: pytest.MonkeyPatch, resolved: dict[str, Any] | None,
     ) -> None:
+        """Pin the coordinator archetype lookup.
+
+        `_build_options` reaches a live coordinator through
+        `coordination_bridge.try_resolve_archetype_for_phase`. Left unpinned,
+        the delta these tests assert depends on the environment rather than on
+        the code: resolution succeeds on a developer machine with a
+        coordinator configured and writes `phase_archetype`, and fails with
+        ECONNREFUSED on a CI runner and does not. `phase_agent` imports the
+        bridge as a module specifically so this call can be patched, so pin it
+        and cover both branches explicitly.
+        """
+        monkeypatch.setattr(
+            phase_agent.coordination_bridge,
+            "try_resolve_archetype_for_phase",
+            lambda *args, **kwargs: resolved,
+        )
+
+    def test_delta_is_only_last_handoff_id_and_one_new_id(
+        self, state: LoopState, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        self._pin_archetype(monkeypatch, None)
+
         before = asdict(deepcopy(state))
         callback = make_phase_callback(
             phase="IMPLEMENT",
@@ -71,23 +95,51 @@ class TestBoundedStateDelta:
 
         assert outcome == "continue"
 
-        # Compute the delta. The point of this assertion is that it is an
-        # equality, not a subset: the callback may write these fields and no
-        # others, so a phase that starts splatting sub-agent state into
-        # LoopState fails here.
-        #
-        # `phase_archetype` joined the set in `a4eca530 feat(autopilot):
-        # per-phase archetype resolution + LoopState v3` — resolve_options()
-        # records the resolved archetype in state_dict["_resolved_archetype"]
-        # and the callback propagates it. That is a deliberate, bounded
-        # addition; it was invisible until this directory first ran in CI.
+        # The point of this assertion is that it is an equality, not a subset:
+        # the callback may write these fields and no others, so a phase that
+        # starts splatting sub-agent state into LoopState fails here.
         diff_keys = {k for k in before if before[k] != after[k]}
-        assert diff_keys == {"last_handoff_id", "handoff_ids", "phase_archetype"}
+        assert diff_keys == {"last_handoff_id", "handoff_ids"}
 
         # last_handoff_id is the new id
         assert after["last_handoff_id"] == "h-NEW"
         # handoff_ids gained exactly one entry, at the end
         assert after["handoff_ids"] == before["handoff_ids"] + ["h-NEW"]
+
+    def test_resolved_archetype_widens_the_delta_by_exactly_one_field(
+        self, state: LoopState, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A successful archetype resolution adds `phase_archetype` and
+        nothing else.
+
+        `phase_archetype` joined the writable set in `a4eca530
+        feat(autopilot): per-phase archetype resolution + LoopState v3` --
+        `_build_options` records the resolved name in
+        `state_dict["_resolved_archetype"]` and the callback propagates it.
+        That is a deliberate, bounded addition; this asserts it stays bounded
+        instead of becoming general-purpose scratch space.
+        """
+        self._pin_archetype(
+            monkeypatch,
+            {
+                "archetype": "implementer-heavy",
+                "model": "test-model",
+                "system_prompt": "test-prompt",
+            },
+        )
+
+        before = asdict(deepcopy(state))
+        callback = make_phase_callback(
+            phase="IMPLEMENT",
+            subagent_runner=_runner_returning("h-NEW"),
+        )
+        outcome = callback(state)
+        after = asdict(state)
+
+        assert outcome == "continue"
+        diff_keys = {k for k in before if before[k] != after[k]}
+        assert diff_keys == {"last_handoff_id", "handoff_ids", "phase_archetype"}
+        assert after["phase_archetype"] == "implementer-heavy"
 
     def test_no_transcript_field_appears(self, state: LoopState) -> None:
         """LoopState should not gain a transcript-like field after the call."""
