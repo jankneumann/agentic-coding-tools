@@ -67,7 +67,9 @@ only `COORDINATION_API_URL` and works with no checkout at all.
 `check` reports, per precondition, whether it is satisfied and — when it is not
 — the exact operator command that satisfies it. Preconditions whose truth
 cannot be established without starting a process are reported as `UNKNOWN` with
-that command rather than guessed.
+that command rather than guessed. Likewise `COORDINATOR_CONFIGURED` means wired
+up, while `COORDINATOR_AVAILABLE` and `CAN_*` mean verified — they fail closed
+here, and `unverified_preconditions` names what `coordination-bridge` probes.
 
 `detect-harnesses` reports **presence only**. A vendor shown as `ready` has its
 CLI on PATH and its configuration artifact on disk; neither proves a valid or
@@ -144,5 +146,5 @@ then continue standalone with `COORDINATOR_AVAILABLE=false`, transport `none`.
 1. `check` exits zero, or every unsatisfied precondition names a command.
 2. `detect-harnesses --json` has `degraded: false`, or its `warnings` explain why.
 3. `configure` run twice leaves the settings file byte-identical the second time.
-4. `report` shows the transport you expect and `CAN_*` flags consistent with it.
+4. `report` shows the transport you expect and `CAN_*` false with `unverified_preconditions` naming why.
 5. Coordination tools no longer raise permission prompts during a workflow run.

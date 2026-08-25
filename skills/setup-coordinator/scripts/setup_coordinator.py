@@ -137,6 +137,21 @@ CAPABILITY_FLAGS = (
     "CAN_GUARDRAILS",
 )
 
+#: Steps that prove a coordinator is actually usable, per transport. Presence of
+#: an MCP registration or a resolved URL says the host is *configured*; only
+#: these say it *works*. Every one of them is reported ``satisfied is None`` by
+#: this entrypoint, which probes nothing on purpose -- which is exactly why the
+#: capability flags derived from them fail closed.
+VERIFYING_STEPS: dict[str, tuple[str, ...]] = {
+    # Local: the coordinator runs against ParadeDB, so a container that is not
+    # up is as disqualifying as tools that cannot be discovered. `bridge_detect`
+    # is deliberately absent -- `collect_preconditions` only emits it on the
+    # remote branch, and naming a step that is never emitted would pin the
+    # flags to false forever instead of gating them.
+    "local": ("database_container", "mcp_tools_discoverable"),
+    "remote": ("api_health", "api_key_accepted", "bridge_detect"),
+}
+
 #: Home-relative configuration artifact per vendor. Data, not code: adding a
 #: vendor is an edit here. ``None`` means the vendor declares no detectable
 #: configuration location, which is reported as ``unknown`` — never as
@@ -722,22 +737,70 @@ def collect_preconditions(
 def capability_flags(profile: str, steps: list[dict]) -> dict:
     """Capability summary derived from the reported preconditions.
 
-    Flags reflect the transport this host is configured for, not a live probe —
-    a probe would mean executing something, which the entrypoint does not do.
+    Two different questions are answered separately, because conflating them is
+    a safety bug rather than a cosmetic one.
+
+    ``COORDINATOR_CONFIGURED`` -- this host has the transport wired up: an MCP
+    registration for the local profile, a resolved API URL otherwise. That is
+    what `configure` can establish without running anything.
+
+    ``COORDINATOR_AVAILABLE`` and the ``CAN_*`` flags -- the coordinator has
+    been *verified* to work. Integrated skills auto-select coordinated
+    execution from these, so they fail closed: a precondition this entrypoint
+    cannot verify counts against availability, never for it. Because the
+    entrypoint deliberately probes nothing, the verifying steps are always
+    UNKNOWN here and the flags stay false until something that does probe --
+    the coordination-bridge skill -- reports otherwise. That is the intended
+    outcome: an unreachable or half-configured coordinator must trigger
+    standalone fallback rather than be advertised as fully capable.
+
+    Previously every ``CAN_*`` was set to the *configured* value, so an empty
+    ``mcpServers.coordination`` entry, or merely exporting
+    ``COORDINATION_API_URL``, advertised all five capabilities while health,
+    authentication, discovery and bridge detection were all still UNKNOWN.
     """
     by_id = {step["id"]: step for step in steps}
     if profile == "local":
-        available = by_id.get("mcp_registered", {}).get("satisfied") is True
-        transport = "mcp" if available else "none"
+        configured = by_id.get("mcp_registered", {}).get("satisfied") is True
+        transport = "mcp" if configured else "none"
+        verifiers = VERIFYING_STEPS["local"]
     else:
-        available = by_id.get("api_url", {}).get("satisfied") is True
-        transport = "http" if available else "none"
+        configured = by_id.get("api_url", {}).get("satisfied") is True
+        transport = "http" if configured else "none"
+        verifiers = VERIFYING_STEPS["remote"]
+
+    # A verifier that is not among the emitted steps would silently make every
+    # capability false forever -- indistinguishable from a genuinely
+    # unverified host. Fail loudly instead; this is a wiring error, not a
+    # host condition.
+    missing = [step_id for step_id in verifiers if step_id not in by_id]
+    if missing:
+        raise KeyError(
+            f"VERIFYING_STEPS[{profile!r}] names steps that collect_preconditions "
+            f"never emits: {missing}"
+        )
+
+    # Kept per step rather than as a bare boolean so the caller can see which
+    # check is missing and the command that would settle it.
+    unverified = [
+        {
+            "id": step_id,
+            "label": by_id.get(step_id, {}).get("label", step_id),
+            "command": by_id.get(step_id, {}).get("command"),
+        }
+        for step_id in verifiers
+        if by_id.get(step_id, {}).get("satisfied") is not True
+    ]
+
+    available = configured and not unverified
     flags = {name: available for name in CAPABILITY_FLAGS}
     return {
         "profile": profile,
         "COORDINATION_TRANSPORT": transport,
+        "COORDINATOR_CONFIGURED": configured,
         "COORDINATOR_AVAILABLE": available,
         "capabilities": flags,
+        "unverified_preconditions": unverified,
         "hook_activation_rule": "A hook runs only when its CAN_* flag is true.",
     }
 
@@ -827,6 +890,7 @@ def cmd_report(args: argparse.Namespace) -> int:
     lines = [
         f"Profile: {payload['profile']}",
         f"COORDINATION_TRANSPORT={payload['COORDINATION_TRANSPORT']}",
+        f"COORDINATOR_CONFIGURED={str(payload['COORDINATOR_CONFIGURED']).lower()}",
         f"COORDINATOR_AVAILABLE={str(payload['COORDINATOR_AVAILABLE']).lower()}",
         "",
     ]
@@ -835,11 +899,25 @@ def cmd_report(args: argparse.Namespace) -> int:
     )
     lines.append("")
     lines.append(payload["hook_activation_rule"])
+    if payload["unverified_preconditions"]:
+        lines.append("")
+        lines.append(
+            "Capabilities are false because these preconditions are unverified "
+            "(this entrypoint probes nothing):"
+        )
+        lines.extend(
+            f"  - {item['label']}" + (f" -> {item['command']}" if item["command"] else "")
+            for item in payload["unverified_preconditions"]
+        )
     if warnings:
         lines.extend(f"warning: {warning}" for warning in warnings)
 
     _emit(payload, "\n".join(lines), as_json=args.json_output)
-    return 0 if payload["COORDINATOR_AVAILABLE"] else 1
+    # Keyed to CONFIGURED, not AVAILABLE: this command reports whether setup
+    # succeeded, and setup is configuration. Verification is delegated to the
+    # coordination-bridge skill, so keying the exit code to AVAILABLE would make
+    # `report` fail on every correctly configured host.
+    return 0 if payload["COORDINATOR_CONFIGURED"] else 1
 
 
 def cmd_configure(args: argparse.Namespace) -> int:

@@ -396,7 +396,49 @@ def test_report_marks_mcp_transport_when_the_server_is_registered(
 
     assert exit_code == 0
     assert payload["COORDINATION_TRANSPORT"] == "mcp"
+    # Registered is configured, not verified. A bare `{"coordination": {}}`
+    # entry proves the MCP server is wired into the vendor config and nothing
+    # more -- tool discovery and bridge detection are still UNKNOWN because
+    # this entrypoint probes nothing. Integrated skills auto-select coordinated
+    # execution from these flags, so they must fail closed and let an
+    # unreachable coordinator fall back to standalone.
+    assert payload["COORDINATOR_CONFIGURED"] is True
+    assert payload["COORDINATOR_AVAILABLE"] is False
+    assert not any(payload["capabilities"].values())
+    assert {item["id"] for item in payload["unverified_preconditions"]} == {
+        "database_container",
+        "mcp_tools_discoverable",
+    }
+
+
+def test_report_capabilities_go_true_once_the_verifying_steps_pass(
+    isolated_root, fake_home, no_subprocess, capsys, monkeypatch
+):
+    """The flags are gated on verification, not hardwired off.
+
+    Nothing in this entrypoint can satisfy the verifying steps -- that is the
+    point of delegating them -- so drive them directly to prove the gate opens.
+    """
+    real = sc.collect_preconditions
+
+    def verified(profile, *, root, env):
+        steps, warnings = real(profile, root=root, env=env)
+        for step in steps:
+            if step["id"] in sc.VERIFYING_STEPS["local"]:
+                step["satisfied"] = True
+                step["command"] = None
+        return steps, warnings
+
+    (fake_home / ".claude.json").write_text(
+        json.dumps({"mcpServers": {"coordination": {}}}), encoding="utf-8"
+    )
+    monkeypatch.setattr(sc, "collect_preconditions", verified)
+    sc.main(["report", "--root", str(isolated_root), "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["COORDINATOR_AVAILABLE"] is True
     assert all(payload["capabilities"].values())
+    assert payload["unverified_preconditions"] == []
 
 
 def test_report_marks_http_transport_for_railway(
