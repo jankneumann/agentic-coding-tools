@@ -1,0 +1,7 @@
+{
+  "change_id": "add-local-model-provider-tier",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

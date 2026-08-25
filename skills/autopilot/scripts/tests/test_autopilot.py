@@ -5,7 +5,11 @@ All tests use mocks — no real file I/O or external dependencies.
 
 from __future__ import annotations
 
+import json
+import os
+import subprocess
 import sys
+import time
 from dataclasses import asdict
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -636,3 +640,149 @@ def test_complexity_gate_enables_val_review(tmp_path: Path) -> None:
 
     assert result.val_review_enabled is True
     assert result.current_phase == "DONE"
+
+
+# ---------------------------------------------------------------------------
+# Provider smoke path (skills/autopilot/scripts/smoke_provider_dispatch.py)
+# ---------------------------------------------------------------------------
+
+_SMOKE = Path(__file__).resolve().parent.parent / "smoke_provider_dispatch.py"
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+
+
+def _run_smoke(*args: str, env: dict[str, str] | None = None):
+    """Run the operator smoke script in a subprocess with a hard timeout."""
+    child_env = dict(os.environ)
+    for name in (
+        "LOCAL_INFERENCE_BASE_URL",
+        "LOCAL_INFERENCE_API_KEY",
+        "LOCAL_INFERENCE_MAX_CONCURRENCY",
+    ):
+        child_env.pop(name, None)
+    child_env.update(env or {})
+    return subprocess.run(
+        [sys.executable, str(_SMOKE), *args],
+        cwd=str(_REPO_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=child_env,
+    )
+
+
+def test_smoke_accepts_local_selector_in_dry_run() -> None:
+    """`local` dry-run needs no environment and never touches the network."""
+    proc = _run_smoke("--provider", "local", "--dry-run", "--json")
+
+    assert proc.returncode == 0, proc.stderr
+    body = json.loads(proc.stdout)
+    assert body["provider"] == "local"
+    assert body["payload"]["provider"] == "local"
+    assert body["result"]["outcome"] == "complete"
+    assert body["result"]["dispatch_tier"] == "dry_run"
+    model = body["payload"]["model"]
+    assert model
+    assert model not in {"opus", "sonnet", "haiku", "fable"}
+
+
+def test_smoke_local_rejects_claude_alias_override() -> None:
+    """`local` is a non-Claude provider; Claude aliases stay invalid."""
+    proc = _run_smoke(
+        "--provider", "local", "--dry-run", "--model", "sonnet", "--json"
+    )
+
+    assert proc.returncode != 0
+    assert "Claude alias" in proc.stderr
+
+
+def test_smoke_local_uses_a_trust_boundary_permitted_phase() -> None:
+    """`local` drives INIT/runner, not IMPLEMENT/implementer (trust boundary D3)."""
+    proc = _run_smoke("--provider", "local", "--dry-run", "--json")
+
+    assert proc.returncode == 0, proc.stderr
+    body = json.loads(proc.stdout)
+    assert body["payload"]["phase"] == "INIT"
+    assert body["payload"]["archetype"] in {
+        "runner",
+        "analyst",
+        "documenter",
+        "validator",
+    }
+
+
+def test_smoke_local_real_mode_refuses_an_unresolved_archetype() -> None:
+    """A resolver refusal is a hard smoke failure — never a dispatch anyway."""
+    started = time.monotonic()
+    proc = _run_smoke("--provider", "local", "--json")
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 60
+    assert proc.returncode != 0
+    assert proc.stdout.strip() == "", "no dispatch result may be produced"
+    assert "trust boundary" in proc.stderr
+    assert "No dispatch attempted" in proc.stderr
+
+
+def test_smoke_local_real_mode_unreachable_endpoint_refuses_before_dispatch() -> None:
+    """Even with an endpoint configured, an unconfirmed archetype stops the run."""
+    started = time.monotonic()
+    proc = _run_smoke(
+        "--provider",
+        "local",
+        "--json",
+        env={"LOCAL_INFERENCE_BASE_URL": "http://127.0.0.1:9/v1"},
+    )
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 60
+    assert proc.returncode != 0
+    assert "trust boundary" in proc.stderr
+    assert "No dispatch attempted" in proc.stderr
+
+
+def test_smoke_local_real_mode_reports_fallback_for_a_dead_endpoint(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """With the resolver confirming a permitted archetype, a dead endpoint
+    degrades to the structured fallback instead of hanging (spec: local smoke)."""
+    sys.path.insert(0, str(_REPO_ROOT / "skills" / "session-log" / "scripts"))
+    import phase_agent
+    import provider_dispatch
+    import smoke_provider_dispatch
+
+    monkeypatch.setenv("LOCAL_INFERENCE_BASE_URL", "http://127.0.0.1:9/v1")
+    monkeypatch.setattr(
+        phase_agent.coordination_bridge,
+        "try_resolve_archetype_for_phase",
+        lambda *a, **k: {
+            "archetype": "runner",
+            "model": "qwen3-coder-30b-a3b",
+            "system_prompt": "You are a focused runner.",
+        },
+    )
+    provider_dispatch.reset_local_adapter_state()
+
+    started = time.monotonic()
+    exit_code = smoke_provider_dispatch.main(["--provider", "local", "--json"])
+    elapsed = time.monotonic() - started
+    provider_dispatch.reset_local_adapter_state()
+
+    assert elapsed < 60
+    assert exit_code == 1
+    body = json.loads(capsys.readouterr().out)
+    assert body["payload"]["phase"] == "INIT"
+    assert body["payload"]["archetype"] == "runner"
+    assert body["payload"]["model"] == "qwen3-coder-30b-a3b"
+    assert body["result"]["dispatch_tier"] == "fallback"
+    assert body["result"]["outcome"] == "failed"
+    assert any("local" in w for w in body["result"]["warnings"])
+
+
+def test_smoke_rejects_gemini_naming_the_supported_roster() -> None:
+    proc = _run_smoke("--provider", "gemini", "--dry-run", "--json")
+
+    assert proc.returncode != 0
+    combined = proc.stderr + proc.stdout
+    assert "gemini" in combined
+    for supported in ("claude_code", "codex", "antigravity", "grok", "pi", "local"):
+        assert supported in combined

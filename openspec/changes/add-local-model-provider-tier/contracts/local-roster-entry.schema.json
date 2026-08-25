@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/local-roster-entry.schema.json",
+  "title": "Local provider roster entry and host-class configuration",
+  "description": "Contract for the extended roster entry form used by the `local` provider in agent-coordinator/archetypes.yaml (design D4). Validation is enforced at coordinator startup: entries whose active_params_b exceeds the host-class ceiling, or dense entries (active_params_b == total_params_b) with total_params_b >= 30, are rejected with a structured configuration error.",
+  "type": "object",
+  "$defs": {
+    "LocalRosterEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "total_params_b", "active_params_b", "reviewed"],
+      "properties": {
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Model identifier as served by the OpenAI-compatible endpoint (e.g. served model name/alias)."
+        },
+        "total_params_b": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Total parameter count in billions."
+        },
+        "active_params_b": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Active parameters per token in billions. MUST be <= total_params_b and <= the host-class active-parameter ceiling."
+        },
+        "reviewed": {
+          "type": "string",
+          "format": "date",
+          "description": "Operator sign-off date for this roster entry (roster entries rotate; the rule does not)."
+        }
+      }
+    },
+    "LocalHostClass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "active_params_ceiling_b"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Host class identifier (e.g. gb10)."
+        },
+        "active_params_ceiling_b": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Maximum active parameters (billions) a roster entry may declare on this bandwidth-bound host class. GB10 default: 12."
+        },
+        "dense_params_limit_b": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 30,
+          "description": "Dense entries (active == total) at or above this total size are rejected regardless of the active ceiling."
+        }
+      }
+    }
+  },
+  "properties": {
+    "local_host_class": { "$ref": "#/$defs/LocalHostClass" },
+    "local_roster": {
+      "type": "object",
+      "description": "Tier name -> roster entry. `standard` and `economy` are required for the local provider; omitted tiers resolve via graceful degradation.",
+      "required": ["standard", "economy"],
+      "properties": {
+        "frontier": { "$ref": "#/$defs/LocalRosterEntry" },
+        "premium": { "$ref": "#/$defs/LocalRosterEntry" },
+        "standard": { "$ref": "#/$defs/LocalRosterEntry" },
+        "economy": { "$ref": "#/$defs/LocalRosterEntry" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["local_host_class", "local_roster"],
+  "additionalProperties": false
+}

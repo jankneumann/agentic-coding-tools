@@ -2256,10 +2256,35 @@ def create_coordination_api() -> FastAPI:
         - contracts/openapi/v1.yaml#/paths/~1archetypes~1resolve_for_phase
 
         Audit: emits a coordination operation `resolve_archetype_for_phase`
-        with phase + resolved {archetype, model} on every successful call.
+        with phase + resolved {archetype, model} on every successful call, and
+        the same operation with ``success=False`` when the `local` provider
+        trust boundary refuses the pairing (add-local-model-provider-tier D3).
         """
+        from .agents_config import LocalProviderTrustBoundaryError
         from .agents_config import resolve_archetype_for_phase as _resolve
         from .audit import get_audit_service
+
+        async def _audit(result: dict[str, Any], *, success: bool) -> None:
+            """Best-effort audit. Failures here MUST NOT block the response."""
+            try:
+                await get_audit_service().log_operation(
+                    agent_id=principal.get("agent_id"),
+                    agent_type=principal.get("agent_type"),
+                    operation="resolve_archetype_for_phase",
+                    parameters={
+                        "phase": request.phase,
+                        "signals": request.signals,
+                        "provider": request.provider,
+                    },
+                    result=result,
+                    success=success,
+                )
+            except Exception:  # noqa: BLE001
+                import logging as _logging
+                _logging.getLogger(__name__).debug(
+                    "Audit logging failed for resolve_archetype_for_phase",
+                    exc_info=True,
+                )
 
         try:
             resolved = _resolve(
@@ -2272,6 +2297,27 @@ def create_coordination_api() -> FastAPI:
                 status_code=404,
                 detail={"error": str(exc), "phase": request.phase},
             ) from exc
+        except LocalProviderTrustBoundaryError as exc:
+            # Refused before any dispatch is attempted; recorded on the same
+            # audit path successful resolutions use so unattended loops leave
+            # a trail of what was denied and why.
+            detail = {
+                "error": str(exc),
+                "phase": request.phase,
+                "provider": exc.provider,
+                "archetype": exc.archetype,
+                "permitted_archetypes": list(exc.permitted),
+            }
+            await _audit(
+                {
+                    "archetype": exc.archetype,
+                    "provider": exc.provider,
+                    "refusal": "local_provider_trust_boundary",
+                    "permitted_archetypes": list(exc.permitted),
+                },
+                success=False,
+            )
+            raise HTTPException(status_code=403, detail=detail) from exc
         except RuntimeError as exc:
             # Cache mutation / undefined archetype reference at lookup time.
             raise HTTPException(
@@ -2279,30 +2325,14 @@ def create_coordination_api() -> FastAPI:
                 detail={"error": str(exc), "phase": request.phase},
             ) from exc
 
-        # Best-effort audit. Failures here MUST NOT block the resolution.
-        try:
-            await get_audit_service().log_operation(
-                agent_id=principal.get("agent_id"),
-                agent_type=principal.get("agent_type"),
-                operation="resolve_archetype_for_phase",
-                parameters={
-                    "phase": request.phase,
-                    "signals": request.signals,
-                    "provider": request.provider,
-                },
-                result={
-                    "archetype": resolved.archetype,
-                    "model": resolved.model,
-                    "provider": resolved.provider,
-                },
-                success=True,
-            )
-        except Exception:  # noqa: BLE001
-            import logging as _logging
-            _logging.getLogger(__name__).debug(
-                "Audit logging failed for resolve_archetype_for_phase",
-                exc_info=True,
-            )
+        await _audit(
+            {
+                "archetype": resolved.archetype,
+                "model": resolved.model,
+                "provider": resolved.provider,
+            },
+            success=True,
+        )
 
         return {
             "model": resolved.model,

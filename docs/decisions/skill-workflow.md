@@ -5,6 +5,61 @@
 
 ---
 
+## 2026-08-19 — add-local-model-provider-tier
+
+### Phase: GitHub Review Remediation
+
+**Use Pi as the local execution boundary** — A raw chat-completions response cannot inspect files, run commands, edit, or write a real handoff. The adapter now launches the existing Pi coding-agent harness with a one-shot custom-provider extension.
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D1)
+
+---
+
+## 2026-08-16 — add-local-model-provider-tier
+
+### Phase: Implementation
+
+**Defense-in-depth trust boundary in the adapter** — Review F-02: resolver-only enforcement is defeated when the coordinator is unreachable; the local dispatch path now refuses absent/non-permitted archetypes itself
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D1)
+
+---
+
+## 2026-08-16 — add-local-model-provider-tier
+
+### Phase: Implementation
+
+**Probe cache TTL 30s + connection-error invalidation** — Review F-03: a permanent verdict cannot express liveness; policy engine re-consults each evaluation
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D2)
+
+---
+
+## 2026-08-16 — add-local-model-provider-tier
+
+### Phase: Implementation
+
+**Smoke path uses INIT/runner for local** — Review F-01 (critical): the IMPLEMENT payload violated the trust boundary the change itself introduces; refusals are now hard smoke failures
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D4)
+
+---
+
+## 2026-08-15 — add-local-model-provider-tier
+
+### Phase: Plan
+
+**Health probe + concurrency cap in adapter (D5)** — Structured fallback, never a hang; policy engine must not switch to a dead endpoint
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D4)
+
+---
+
 ## 2026-08-13 — add-atomic-harness
 
 ### Phase: Plan
