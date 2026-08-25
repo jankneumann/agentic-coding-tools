@@ -1,13 +1,20 @@
 # Merge strategies for auto-generated files
 # Reduces false conflicts in parallel development
 
-# uv lock files — union merge (combine both sides)
-uv.lock merge=union
+# uv lock files — binary merge (pick one side, flag conflict).
+#
+# NOT merge=union. Union merge is line-oriented and knows nothing about TOML
+# table semantics: when two branches bump the same package it concatenates both
+# `version = "..."` lines into one [[package]] table, producing a duplicate key.
+# git reports a CLEAN merge (exit 0) and the resulting uv.lock no longer parses,
+# so the breakage surfaces later at `uv sync` rather than at the merge.
+#
+# A lockfile is a resolver output, not a mergeable source file. The correct
+# resolution is always to take one side and re-run `uv lock`; binary merge
+# forces exactly that by leaving the path conflicted.
+uv.lock merge=binary
 
 # Package lock files — binary merge (pick one side, flag conflict)
 package-lock.json merge=binary
 yarn.lock merge=binary
 pnpm-lock.yaml merge=binary
-
-# Use bd merge for beads JSONL files
-.beads/issues.jsonl merge=beads
