@@ -212,3 +212,37 @@ class TestLoadEvents:
 
         events = load_events(log_path=log_path, event_type="merge")
         assert len(events) == 2
+
+
+class TestDefaultLogPathIsRedirectedInTests:
+    """The conftest redirect must stay in place.
+
+    Without it, any test touching a production path that calls ``emit_event()``
+    without an explicit ``log_path`` appends to the repo's own tracked
+    ``skills/docs/merge-logs/metrics.jsonl``. That is silent -- the suite still
+    passes -- so it needs an assertion of its own rather than a comment.
+    """
+
+    def test_default_points_outside_the_repository(self) -> None:
+        import merge_events
+
+        default = Path(merge_events.DEFAULT_LOG_PATH).resolve()
+        repo_root = Path(__file__).resolve().parents[4]
+        assert not default.is_relative_to(repo_root), (
+            f"merge_events.DEFAULT_LOG_PATH resolves to {default}, inside the "
+            f"repository. The autouse redirect in conftest.py is missing or "
+            f"broken, and this suite will write into tracked files."
+        )
+
+    def test_emit_without_log_path_lands_in_the_redirect(
+        self, _redirect_default_merge_log: Path,
+    ) -> None:
+        emit_event(
+            MergeEvent(
+                event_type="merge", pr_number=1, backend="direct", success=True,
+            ),
+        )
+        assert _redirect_default_merge_log.exists(), (
+            "an emit_event() call with no log_path must land in the redirected "
+            "default, not wherever the CWD happens to be"
+        )
