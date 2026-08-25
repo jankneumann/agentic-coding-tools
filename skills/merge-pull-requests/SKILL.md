@@ -68,15 +68,33 @@ The skill automatically selects a merge backend based on environment capabilitie
 
 Detection is automatic via `detect_merge_backend()` in `merge_backend.py`. Solo-dev repos without coordinator or GitHub queue use Direct Merge — all existing behavior is preserved.
 
+## Merge Metrics (always on)
+
+Every successful merge appends a structured event to
+`docs/merge-logs/metrics.jsonl` — `merge_pr()` does this itself, so a plain
+`merge` is recorded exactly like a `--pipeline` one. `merge_metrics.py` reduces
+that log to merge/revert/rebase counts, revert rate, backend breakdown and
+duration percentiles.
+
+Recording is best-effort and never fails a merge: if the append raises, the
+result carries `event_emitted: false` and `event_error`, and the merge still
+reports success. The merge already happened on GitHub by that point, so
+reporting it as failed over a local write would be strictly worse than losing
+the row.
+
+This used to be hook 1 of the post-merge pipeline below, which meant it was
+gated behind `--pipeline` alongside two hooks that mutate other people's PRs.
+Nobody passes that flag just to get a metrics row, so nothing was ever
+recorded — the log held zero `merge` events until 2026-08-25.
+
 ## Post-Merge Pipeline
 
-After each successful merge (when `--pipeline` flag is used), three composable hooks run independently:
+After each successful merge (when the `--pipeline` flag is used), two composable hooks run independently:
 
-1. **Metrics**: Emit a structured merge event to `docs/merge-logs/metrics.jsonl`
-2. **Auto Cascading Rebase**: Refresh up to 5 queued PRs with file overlap via GitHub Update Branch API (configurable via `MERGE_AUTO_REBASE_LIMIT`)
-3. **Auto Rollback**: Monitor main CI for 15 minutes; if failure overlaps with merged files, create and auto-merge a revert PR (configurable via `ROLLBACK_MONITOR_MINUTES`)
+1. **Auto Cascading Rebase**: Refresh up to 5 queued PRs with file overlap via GitHub Update Branch API (configurable via `MERGE_AUTO_REBASE_LIMIT`)
+2. **Auto Rollback**: Monitor main CI for 15 minutes; if failure overlaps with merged files, create and auto-merge a revert PR (configurable via `ROLLBACK_MONITOR_MINUTES`)
 
-A failure in one hook does not block the others.
+Both reach outside this repository, which is why they stay opt-in. A failure in one hook does not block the others.
 
 ## Background Merge Watcher
 

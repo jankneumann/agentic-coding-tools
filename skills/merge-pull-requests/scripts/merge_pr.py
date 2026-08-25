@@ -29,6 +29,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from _helpers import (
@@ -559,11 +560,60 @@ def _check_pre_merge_gate(
         }
 
 
+def _record_merge_event(
+    result: dict,
+    *,
+    pr_number: int,
+    strategy: str,
+    origin: str | None,
+    duration_seconds: float | None,
+) -> None:
+    """Record a completed merge to the merge-metrics log.
+
+    This lives in ``merge_pr`` rather than in ``post_merge_pipeline`` because
+    the pipeline runs only behind ``--pipeline``, which also switches on
+    auto-cascading-rebase and a 15-minute CI rollback monitor. Those two are
+    outward-facing and rightly opt-in; a local append to a JSONL file is not,
+    and bundling it with them meant no merge was ever recorded. As of
+    2026-08-25 the metrics log held 28 rows, all of them test fixtures, and
+    zero ``merge`` events -- ``revert_rate`` was computing 2 reverts against 0
+    merges.
+
+    ``backend="direct"`` is accurate for every caller: the GitHub-queue and
+    coordinator-train backends do not route through ``merge_pr`` (they use
+    ``_try_merge_queue`` and the coordinator API, and emit their own event
+    types), so anything reaching here merged directly.
+
+    Never raises. A metrics write must not turn a successful merge into a
+    failed command, matching how the pipeline hooks isolate their failures.
+    """
+    if not result.get("success") or result.get("dry_run"):
+        return
+    try:
+        from merge_events import MergeEvent, emit_event
+
+        emit_event(MergeEvent(
+            event_type="merge",
+            pr_number=pr_number,
+            origin=origin,
+            strategy=result.get("strategy", strategy),
+            backend="direct",
+            duration_seconds=round(duration_seconds, 3) if duration_seconds else None,
+            success=True,
+        ))
+        result["event_emitted"] = True
+    except Exception as exc:  # noqa: BLE001 - metrics must never fail a merge
+        result["event_emitted"] = False
+        result["event_error"] = str(exc)
+        print(f"Warning: merge event emission failed: {exc}", file=sys.stderr)
+
+
 def merge_pr(pr_number: int, strategy: str = "squash",
              dry_run: bool = False,
              validation_report: str | None = None,
              force: bool = False,
-             force_approval: bool = False) -> dict:
+             force_approval: bool = False,
+             origin: str | None = None) -> dict:
     # Sync-point guard (issue #349): vendor CLIs have detached the shared
     # checkout's HEAD during review dispatch. Merging while detached means
     # every local verification ran against the wrong tree — refuse rather
@@ -691,10 +741,12 @@ def merge_pr(pr_number: int, strategy: str = "squash",
             "validation": validation,
         }
 
+    merge_started = time.perf_counter()
     result = _try_merge(
         pr_number, strategy, validation.get("is_fork", False),
         branch=validation.get("branch") or "",
     )
+    merge_duration = time.perf_counter() - merge_started
 
     # Include stale approval warning on successful merges
     if result.get("success") and validation.get("approval_may_be_stale"):
@@ -713,6 +765,14 @@ def merge_pr(pr_number: int, strategy: str = "squash",
     # Include gate result if present
     if gate_result:
         result["gate"] = gate_result
+
+    _record_merge_event(
+        result,
+        pr_number=pr_number,
+        strategy=strategy,
+        origin=origin,
+        duration_seconds=merge_duration,
+    )
 
     return result
 
@@ -987,13 +1047,14 @@ def merge_with_pipeline(
     enable_rebase: bool = True,
     enable_rollback: bool = True,
 ) -> dict:
-    """Merge a PR and run the post-merge pipeline (rebase, rollback, metrics).
+    """Merge a PR and run the opt-in post-merge pipeline (rebase, rollback).
 
     This is the high-level entry point that combines validation, merge
-    execution via the detected backend, and the composable post-merge hooks.
+    execution, and the composable post-merge hooks. Metrics are NOT part of the
+    pipeline: ``merge_pr`` records every successful merge on its own, so a
+    plain ``merge`` is recorded exactly like a ``--pipeline`` one.
     """
     from check_staleness import get_pr_changed_files
-    from merge_backend import detect_merge_backend
     from post_merge_pipeline import post_merge_pipeline
 
     result = merge_pr(
@@ -1001,6 +1062,7 @@ def merge_with_pipeline(
         validation_report=validation_report,
         force=force,
         force_approval=force_approval,
+        origin=origin,
     )
 
     if dry_run or not result.get("success"):
@@ -1015,16 +1077,11 @@ def merge_with_pipeline(
     merge_sha = result.get("merge_commit_sha", "")
     pr_title = result.get("title", "")
 
-    backend = detect_merge_backend()
-
     pipeline_result = post_merge_pipeline(
         pr_number=pr_number,
-        strategy=strategy,
-        backend=backend.name,
         merge_sha=merge_sha,
         pr_title=pr_title,
         merged_files=merged_files,
-        origin=origin,
         enable_rebase=enable_rebase,
         enable_rollback=enable_rollback,
     )
@@ -1133,6 +1190,7 @@ def main():
                 validation_report=args.validation_report,
                 force=args.force,
                 force_approval=args.force_approval,
+                origin=args.origin,
             )
     elif args.action == "close":
         result = close_pr(args.pr_number, args.reason, args.dry_run)
