@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-08-13 — add-atomic-harness
+
+### Phase: Plan
+
+**Pilot the workflow engine through one opt-in seam (fix-scrub --executor atomic-workflow)** — Headless dispatch emits machine-parseable workflow.run.end events (probe A14), giving a clean adapter contract; bounding the pilot to one skill keeps a promote-or-retire decision falsifiable without touching autopilot phases.
+
+- Status: `active`
+- Source: [openspec/changes/add-atomic-harness/session-log.md](/openspec/changes/add-atomic-harness/session-log.md) (D2)
+
+---
+
 ## 2026-08-01 — 2026-08-04-gate-semantic-context-default-enablement
 
 ### Phase: Implementation
