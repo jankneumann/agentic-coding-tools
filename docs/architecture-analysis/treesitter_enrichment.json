@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-08-24T16:54:08+00:00",
+  "generated_at": "2026-08-24T22:25:50+00:00",
   "treesitter_version": "unknown",
   "comments": {
-    "total": 2443,
+    "total": 2503,
     "with_markers": 20,
     "items": [
       {
         "file": "agents_config.py",
-        "line": 23,
+        "line": 24,
         "text": "# pragma: no cover - typing only",
         "language": "python",
         "type": "inline",
@@ -16,7 +16,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 29,
+        "line": 30,
         "text": "# Provider-specific model map. Archetypes can continue to use legacy Claude",
         "language": "python",
         "type": "inline",
@@ -25,7 +25,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 30,
+        "line": 31,
         "text": "# aliases or logical tiers; dispatch resolves them against this map only when a",
         "language": "python",
         "type": "inline",
@@ -34,7 +34,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 31,
+        "line": 32,
         "text": "# provider is selected.",
         "language": "python",
         "type": "inline",
@@ -43,7 +43,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 33,
+        "line": 34,
         "text": "# Optional tiers a provider MAY define. Resolution falls back to \"premium\"",
         "language": "python",
         "type": "inline",
@@ -52,7 +52,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 34,
+        "line": 35,
         "text": "# when a provider has no mapping for an optional tier, so archetypes can",
         "language": "python",
         "type": "inline",
@@ -61,7 +61,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 35,
+        "line": 36,
         "text": "# request frontier-class reasoning without every provider carrying one.",
         "language": "python",
         "type": "inline",
@@ -70,26 +70,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 43,
-        "text": "# Tier entries are either a bare model-id string or {\"model\": ..., \"thinking\": ...}.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 44,
-        "text": "# Thinking level is part of the model definition, not a dispatch afterthought:",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
         "line": 45,
-        "text": "# it shifts both cost and capability enough that a standard model at xhigh",
+        "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -98,7 +80,7 @@
       {
         "file": "agents_config.py",
         "line": 46,
-        "text": "# thinking can out-cost a premium model at medium. Cost-per-successful-task",
+        "text": "# `local` provider (OpenSpec change add-local-model-provider-tier)",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -107,7 +89,7 @@
       {
         "file": "agents_config.py",
         "line": 47,
-        "text": "# tuning happens by editing these entries \u2014 never by editing tests, which must",
+        "text": "#",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -116,7 +98,7 @@
       {
         "file": "agents_config.py",
         "line": 48,
-        "text": "# derive expectations from this map / archetypes.yaml rather than literals.",
+        "text": "# The always-on host is bandwidth-bound, not capacity-bound, so its roster is",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -124,8 +106,80 @@
       },
       {
         "file": "agents_config.py",
-        "line": 65,
-        "text": "# Roster per contracts/roster.md; tier slugs resolved empirically in",
+        "line": 49,
+        "text": "# selected by ARCHITECTURE (small-active-parameter MoE) rather than by what",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 50,
+        "text": "# fits in memory. Roster entries rotate; the two rules below do not, which is",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 51,
+        "text": "# why they live in code and are enforced at startup instead of in comments.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 52,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 54,
+        "text": "# Tiers the local roster MUST define. Everything else degrades to the best",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 55,
+        "text": "# tier it does define (agent-archetypes: \"Local roster omits a tier\").",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 57,
+        "text": "# Archetypes whose output is cheap to discard or verified downstream. This is",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 58,
+        "text": "# an allowlist, not a denylist: an archetype absent from it (architect,",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 59,
+        "text": "# reviewer, gatekeeper, implementer, ...) MUST NOT resolve to `local` (D3).",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -134,7 +188,7 @@
       {
         "file": "agents_config.py",
         "line": 66,
-        "text": "# Phase 1 (design.md \u00a7 Empirical CLI findings, E1/E5/E8) and signed off",
+        "text": "# Host-class defaults used when archetypes.yaml omits `local_host_class`.",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -143,7 +197,7 @@
       {
         "file": "agents_config.py",
         "line": 67,
-        "text": "# by the operator at checkpoint 1.4 (2026-07-23).",
+        "text": "# GB10 (128 GB unified LPDDR5x @ ~273 GB/s): decode throughput tracks ACTIVE",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -151,8 +205,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 69,
-        "text": "# agy `models` catalog (E1); one model across three effort levels.",
+        "line": 68,
+        "text": "# parameters, so a 30B-total/3B-active MoE runs ~9x faster than a dense 32B.",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -160,17 +214,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 70,
-        "text": "# Effort is baked into the slug suffix, not a separate flag.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 71,
-        "text": "# `frontier` omitted \u2014 falls back to premium (operator, 2026-07-23).",
+        "line": 76,
+        "text": "# Tier entries are either a bare model-id string or {\"model\": ..., \"thinking\": ...}.",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -179,7 +224,7 @@
       {
         "file": "agents_config.py",
         "line": 77,
-        "text": "# Single model `grok-4.5` (E5); tiers differ only by thinking budget,",
+        "text": "# Thinking level is part of the model definition, not a dispatch afterthought:",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -188,7 +233,7 @@
       {
         "file": "agents_config.py",
         "line": 78,
-        "text": "# translated to `--reasoning-effort` by the dispatching adapter.",
+        "text": "# it shifts both cost and capability enough that a standard model at xhigh",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -196,8 +241,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 84,
-        "text": "# OpenRouter `<publisher>/<model>` slugs (spec configuration.2).",
+        "line": 79,
+        "text": "# thinking can out-cost a premium model at medium. Cost-per-successful-task",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -205,8 +250,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 85,
-        "text": "# `standard` fixed to qwen/qwen3-coder by roadmap ri-01; frontier is",
+        "line": 80,
+        "text": "# tuning happens by editing these entries \u2014 never by editing tests, which must",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -214,8 +259,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 86,
-        "text": "# Kimi 3 (E8). premium/economy stay in the qwen3-coder family.",
+        "line": 81,
+        "text": "# derive expectations from this map / archetypes.yaml rather than literals.",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -223,26 +268,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 95,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 96,
-        "text": "# Archetype name pattern (shared between schema and runtime validation)",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 97,
-        "text": "# ---------------------------------------------------------------------------",
+        "line": 98,
+        "text": "# Roster per contracts/roster.md; tier slugs resolved empirically in",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -251,7 +278,7 @@
       {
         "file": "agents_config.py",
         "line": 99,
-        "text": "# The supervisor archetype is a read-only orchestrator: it decomposes work,",
+        "text": "# Phase 1 (design.md \u00a7 Empirical CLI findings, E1/E5/E8) and signed off",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -260,16 +287,7 @@
       {
         "file": "agents_config.py",
         "line": 100,
-        "text": "# delegates it to write-capable worker archetypes, and adjudicates gates. It",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 101,
-        "text": "# MUST NOT be write-capable \u2014 every code change is dispatched, never made by",
+        "text": "# by the operator at checkpoint 1.4 (2026-07-23).",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -278,7 +296,7 @@
       {
         "file": "agents_config.py",
         "line": 102,
-        "text": "# the supervisor itself. The archetype resolver enforces this invariant at",
+        "text": "# agy `models` catalog (E1); one model across three effort levels.",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -287,7 +305,7 @@
       {
         "file": "agents_config.py",
         "line": 103,
-        "text": "# config-load time (fail-loud), mirroring the D3 structured-field enforcement",
+        "text": "# Effort is baked into the slug suffix, not a separate flag.",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -296,16 +314,7 @@
       {
         "file": "agents_config.py",
         "line": 104,
-        "text": "# that a write-capable phase must resolve to a write_capable archetype.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 109,
-        "text": "# A tier entry: bare model-id string, or model paired with a thinking level.",
+        "text": "# `frontier` omitted \u2014 falls back to premium (operator, 2026-07-23).",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -314,7 +323,7 @@
       {
         "file": "agents_config.py",
         "line": 110,
-        "text": "# Thinking vocabularies are vendor-specific (Claude effort tiers, Codex",
+        "text": "# Single model `grok-4.5` (E5); tiers differ only by thinking budget,",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -323,7 +332,7 @@
       {
         "file": "agents_config.py",
         "line": 111,
-        "text": "# model_reasoning_effort, grok thinking budgets), so the value is a free",
+        "text": "# translated to `--reasoning-effort` by the dispatching adapter.",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -331,8 +340,53 @@
       },
       {
         "file": "agents_config.py",
-        "line": 112,
-        "text": "# string \u2014 the dispatching adapter owns translation to CLI flags.",
+        "line": 117,
+        "text": "# OpenRouter `<publisher>/<model>` slugs (spec configuration.2).",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 118,
+        "text": "# `standard` fixed to qwen/qwen3-coder by roadmap ri-01; frontier is",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 119,
+        "text": "# Kimi 3 (E8). premium/economy stay in the qwen3-coder family.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 125,
+        "text": "# Always-on local host (GB10 class). This is the tier -> model-id view",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 126,
+        "text": "# of `model_aliases.local` in archetypes.yaml; the parameter metadata",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 127,
+        "text": "# and operator review date live there, where startup validation",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -341,7 +395,7 @@
       {
         "file": "agents_config.py",
         "line": 128,
-        "text": "# Autopilot phases that produce files, artifacts, or handoffs and therefore",
+        "text": "# enforces the MoE-first hardware rule (D4). `frontier`/`premium` are",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -350,7 +404,7 @@
       {
         "file": "agents_config.py",
         "line": 129,
-        "text": "# MUST resolve to a `write_capable: true` archetype (design D7 canonical list).",
+        "text": "# deliberately omitted \u2014 they degrade to the best defined tier. Keep",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -359,7 +413,7 @@
       {
         "file": "agents_config.py",
         "line": 130,
-        "text": "# State-only phases (INIT, SUBMIT_PR) and read-only judge phases (GATEKEEPER)",
+        "text": "# both in sync; a test asserts the two rosters agree.",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -367,8 +421,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 131,
-        "text": "# are intentionally excluded. Keep this list in sync with the write-capable",
+        "line": 138,
+        "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -376,8 +430,62 @@
       },
       {
         "file": "agents_config.py",
-        "line": 132,
-        "text": "# phase enumerations in skills/autopilot and design D7 when phases change.",
+        "line": 139,
+        "text": "# Archetype name pattern (shared between schema and runtime validation)",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 140,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 142,
+        "text": "# The supervisor archetype is a read-only orchestrator: it decomposes work,",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 143,
+        "text": "# delegates it to write-capable worker archetypes, and adjudicates gates. It",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 144,
+        "text": "# MUST NOT be write-capable \u2014 every code change is dispatched, never made by",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 145,
+        "text": "# the supervisor itself. The archetype resolver enforces this invariant at",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 146,
+        "text": "# config-load time (fail-loud), mirroring the D3 structured-field enforcement",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -386,7 +494,7 @@
       {
         "file": "agents_config.py",
         "line": 147,
-        "text": "# Non-terminal autopilot phases that may be mapped to archetypes (per design D11).",
+        "text": "# that a write-capable phase must resolve to a write_capable archetype.",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -394,8 +502,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 148,
-        "text": "# Terminal phases (DONE, ESCALATE, ERROR) are not mapped.",
+        "line": 152,
+        "text": "# A tier entry: bare model-id string, or model paired with a thinking level.",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -403,8 +511,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 166,
-        "text": "# ---------------------------------------------------------------------------",
+        "line": 153,
+        "text": "# Thinking vocabularies are vendor-specific (Claude effort tiers, Codex",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -412,8 +520,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 167,
-        "text": "# JSON Schema for archetypes.yaml validation",
+        "line": 154,
+        "text": "# model_reasoning_effort, grok thinking budgets), so the value is a free",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -421,8 +529,35 @@
       },
       {
         "file": "agents_config.py",
-        "line": 168,
-        "text": "# ---------------------------------------------------------------------------",
+        "line": 155,
+        "text": "# string \u2014 the dispatching adapter owns translation to CLI flags.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 171,
+        "text": "# The `local` roster uses an extended entry form so the hardware-matching rule",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 172,
+        "text": "# is machine-checkable (contracts/local-roster-entry.schema.json). Only `model`",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 173,
+        "text": "# is required *here*; the remaining fields are checked by",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -431,7 +566,7 @@
       {
         "file": "agents_config.py",
         "line": 174,
-        "text": "# schema_version selects optional structure: v2 enables phase_mapping (OpenSpec",
+        "text": "# :func:`_validate_local_roster` so every violation surfaces as one structured",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -440,6 +575,123 @@
       {
         "file": "agents_config.py",
         "line": 175,
+        "text": "# LocalRosterConfigError naming the rule it broke, rather than a raw",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 176,
+        "text": "# jsonschema error for some rules and a config error for others.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 207,
+        "text": "# Autopilot phases that produce files, artifacts, or handoffs and therefore",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 208,
+        "text": "# MUST resolve to a `write_capable: true` archetype (design D7 canonical list).",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 209,
+        "text": "# State-only phases (INIT, SUBMIT_PR) and read-only judge phases (GATEKEEPER)",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 210,
+        "text": "# are intentionally excluded. Keep this list in sync with the write-capable",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 211,
+        "text": "# phase enumerations in skills/autopilot and design D7 when phases change.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 226,
+        "text": "# Non-terminal autopilot phases that may be mapped to archetypes (per design D11).",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 227,
+        "text": "# Terminal phases (DONE, ESCALATE, ERROR) are not mapped.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 245,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 246,
+        "text": "# JSON Schema for archetypes.yaml validation",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 247,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 253,
+        "text": "# schema_version selects optional structure: v2 enables phase_mapping (OpenSpec",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 254,
         "text": "# add-per-phase-archetype-resolution), v3 adds model_aliases / tier models. Note:",
         "language": "python",
         "type": "inline",
@@ -450,7 +702,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 176,
+        "line": 255,
         "text": "# `write_capable` is REQUIRED on every archetype regardless of version (fail-loud,",
         "language": "python",
         "type": "inline",
@@ -459,7 +711,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 177,
+        "line": 256,
         "text": "# design D3 \u2014 no implicit default). A pre-existing v1 file that omits it must add",
         "language": "python",
         "type": "inline",
@@ -468,7 +720,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 178,
+        "line": 257,
         "text": "# `write_capable` on migration; the version does NOT grandfather the field away.",
         "language": "python",
         "type": "inline",
@@ -477,7 +729,52 @@
       },
       {
         "file": "agents_config.py",
-        "line": 184,
+        "line": 259,
+        "text": "# Host class of the machine serving the `local` provider. Optional:",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 260,
+        "text": "# absent means the GB10 defaults apply (DEFAULT_LOCAL_HOST_CLASS).",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 264,
+        "text": "# `local` carries parameter metadata and may omit frontier/premium",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 265,
+        "text": "# (they degrade to its best defined tier); every other provider",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 266,
+        "text": "# keeps the bare-slug form with all base tiers required.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 270,
         "text": "# Base tiers stay required; optional tiers (frontier) may be",
         "language": "python",
         "type": "inline",
@@ -486,7 +783,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 185,
+        "line": 271,
         "text": "# omitted per provider \u2014 resolution falls back to premium.",
         "language": "python",
         "type": "inline",
@@ -495,7 +792,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 215,
+        "line": 301,
         "text": "# Whether the archetype may write files / artifacts. Required",
         "language": "python",
         "type": "inline",
@@ -504,7 +801,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 216,
+        "line": 302,
         "text": "# on every archetype (design D3 / D3.1 \u2014 no implicit default;",
         "language": "python",
         "type": "inline",
@@ -513,7 +810,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 217,
+        "line": 303,
         "text": "# a missing field fails schema validation, i.e. fail-loud).",
         "language": "python",
         "type": "inline",
@@ -522,7 +819,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 273,
+        "line": 359,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -531,7 +828,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 274,
+        "line": 360,
         "text": "# JSON Schema for agents.yaml validation",
         "language": "python",
         "type": "inline",
@@ -540,7 +837,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 275,
+        "line": 361,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -549,7 +846,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 315,
+        "line": 401,
         "text": "# Bounds derive from the Unified Trust Scale (src/trust_levels.py,",
         "language": "python",
         "type": "inline",
@@ -558,7 +855,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 316,
+        "line": 402,
         "text": "# design D4) rather than repeating integer literals. The former",
         "language": "python",
         "type": "inline",
@@ -567,7 +864,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 317,
+        "line": 403,
         "text": "# 1\u20135 range was a bug: the agent_profiles CHECK constraint has",
         "language": "python",
         "type": "inline",
@@ -578,7 +875,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 318,
+        "line": 404,
         "text": "# always been 0\u20134.",
         "language": "python",
         "type": "inline",
@@ -587,7 +884,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 412,
+        "line": 498,
         "text": "# Attach the prompt as the value of this flag, e.g.",
         "language": "python",
         "type": "inline",
@@ -596,7 +893,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 413,
+        "line": 499,
         "text": "# `agy --prompt \"<text>\"`. Mutually exclusive with",
         "language": "python",
         "type": "inline",
@@ -605,7 +902,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 414,
+        "line": 500,
         "text": "# prompt_via_stdin (antigravity: prompt is a flag",
         "language": "python",
         "type": "inline",
@@ -614,7 +911,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 415,
+        "line": 501,
         "text": "# value, never stdin \u2014 design.md E7). The dispatching",
         "language": "python",
         "type": "inline",
@@ -623,7 +920,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 416,
+        "line": 502,
         "text": "# adapter appends [prompt_via_flag, prompt].",
         "language": "python",
         "type": "inline",
@@ -632,7 +929,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 418,
+        "line": 504,
         "text": "# Env var the CLI needs to serve a request (e.g. pi",
         "language": "python",
         "type": "inline",
@@ -641,7 +938,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 419,
+        "line": 505,
         "text": "# resolves OPENROUTER_API_KEY from the subprocess",
         "language": "python",
         "type": "inline",
@@ -650,7 +947,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 420,
+        "line": 506,
         "text": "# env). Availability checks treat the binary as",
         "language": "python",
         "type": "inline",
@@ -659,7 +956,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 421,
+        "line": 507,
         "text": "# unavailable when the var is unset (issue #383).",
         "language": "python",
         "type": "inline",
@@ -668,7 +965,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 435,
+        "line": 521,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -677,7 +974,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 436,
+        "line": 522,
         "text": "# Data classes",
         "language": "python",
         "type": "inline",
@@ -686,7 +983,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 437,
+        "line": 523,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -695,7 +992,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 479,
+        "line": 565,
         "text": "# When set, the dispatching adapter attaches the prompt as this flag's",
         "language": "python",
         "type": "inline",
@@ -704,7 +1001,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 480,
+        "line": 566,
         "text": "# value (``[prompt_via_flag, prompt]``) instead of via stdin or a trailing",
         "language": "python",
         "type": "inline",
@@ -713,7 +1010,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 481,
+        "line": 567,
         "text": "# positional. Antigravity needs this: its prompt is the value of",
         "language": "python",
         "type": "inline",
@@ -722,7 +1019,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 482,
+        "line": 568,
         "text": "# ``--prompt``/``--print`` and stdin is ignored (design.md E7).",
         "language": "python",
         "type": "inline",
@@ -731,7 +1028,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 484,
+        "line": 570,
         "text": "# Env var the CLI resolves its provider credential from (pi:",
         "language": "python",
         "type": "inline",
@@ -740,7 +1037,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 485,
+        "line": 571,
         "text": "# OPENROUTER_API_KEY). A present binary with this var unset cannot serve",
         "language": "python",
         "type": "inline",
@@ -749,7 +1046,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 486,
+        "line": 572,
         "text": "# a request, so availability checks fail closed on it (issue #383).",
         "language": "python",
         "type": "inline",
@@ -758,7 +1055,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 526,
+        "line": 612,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -767,7 +1064,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 527,
+        "line": 613,
         "text": "# Archetype data classes",
         "language": "python",
         "type": "inline",
@@ -776,7 +1073,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 528,
+        "line": 614,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -785,7 +1082,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 624,
+        "line": 752,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -794,7 +1091,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 625,
+        "line": 753,
         "text": "# Loading + validation",
         "language": "python",
         "type": "inline",
@@ -803,7 +1100,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 626,
+        "line": 754,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -812,7 +1109,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 672,
+        "line": 800,
         "text": "#: profile name -> the agent that claimed it, so the second claimant can be",
         "language": "python",
         "type": "inline",
@@ -821,7 +1118,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 673,
+        "line": 801,
         "text": "#: named in the error.",
         "language": "python",
         "type": "inline",
@@ -830,7 +1127,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 681,
+        "line": 809,
         "text": "# Two agents sharing one `profile` is not a harmless alias: sync_profiles()",
         "language": "python",
         "type": "inline",
@@ -839,7 +1136,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 682,
+        "line": 810,
         "text": "# upserts by profile name in file order, so the last entry silently",
         "language": "python",
         "type": "inline",
@@ -848,7 +1145,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 683,
+        "line": 811,
         "text": "# overwrites the first one's trust level and operations. An agent could",
         "language": "python",
         "type": "inline",
@@ -857,7 +1154,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 684,
+        "line": 812,
         "text": "# then be promoted to admin without its own trust_level line changing,",
         "language": "python",
         "type": "inline",
@@ -866,7 +1163,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 685,
+        "line": 813,
         "text": "# and neither orphan disabling nor the registry invariant check would",
         "language": "python",
         "type": "inline",
@@ -875,7 +1172,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 686,
+        "line": 814,
         "text": "# notice. One agent, one profile row.",
         "language": "python",
         "type": "inline",
@@ -884,7 +1181,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 701,
+        "line": 829,
         "text": "# Keep unresolved ${VAR} placeholders so that",
         "language": "python",
         "type": "inline",
@@ -893,7 +1190,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 702,
+        "line": 830,
         "text": "# _resolve_api_key_from_openbao() can extract the variable",
         "language": "python",
         "type": "inline",
@@ -902,7 +1199,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 703,
+        "line": 831,
         "text": "# name and fetch the secret from OpenBao at runtime.",
         "language": "python",
         "type": "inline",
@@ -911,152 +1208,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 779,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 780,
-        "text": "# API key identity generation",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 781,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 797,
-        "text": "# Use shared coordinator secrets \u2014 api_key already resolved from shared pool",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
-      },
-      {
-        "file": "agents_config.py",
-        "line": 803,
-        "text": "# Authenticate with the agent's own AppRole, not the global coordinator token.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
-      },
-      {
-        "file": "agents_config.py",
-        "line": 804,
-        "text": "# The agent's secret_id is expected in BAO_SECRET_ID (shared bootstrap secret)",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
-      },
-      {
-        "file": "agents_config.py",
-        "line": 805,
-        "text": "# while the role_id comes from the per-agent openbao_role_id field.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
-      },
-      {
-        "file": "agents_config.py",
-        "line": 816,
-        "text": "# Look for agent-specific key pattern or the interpolation source",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
-      },
-      {
-        "file": "agents_config.py",
-        "line": 819,
-        "text": "# type: ignore[union-attr]",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
-      },
-      {
-        "file": "agents_config.py",
-        "line": 824,
-        "text": "# noqa: BLE001",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
-      },
-      {
-        "file": "agents_config.py",
-        "line": 875,
-        "text": "# Check if OpenBao is available for key resolution",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:agents_config.get_api_key_identities"
-      },
-      {
-        "file": "agents_config.py",
-        "line": 889,
-        "text": "# Skip unresolved ${VAR} placeholders \u2014 they're not usable as",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:agents_config.get_api_key_identities"
-      },
-      {
-        "file": "agents_config.py",
-        "line": 890,
-        "text": "# identity keys unless resolved via OpenBao above.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:agents_config.get_api_key_identities"
-      },
-      {
-        "file": "agents_config.py",
-        "line": 903,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 904,
-        "text": "# Registry \u2192 agent_profiles projection (design D1 / D2)",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 905,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
         "line": 907,
-        "text": "#: Operations every projected profile receives. Migration 007 granted",
+        "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -1065,7 +1218,7 @@
       {
         "file": "agents_config.py",
         "line": 908,
-        "text": "#: ``get_my_profile`` to every seeded profile without exception: reading one's",
+        "text": "# API key identity generation",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -1074,6 +1227,150 @@
       {
         "file": "agents_config.py",
         "line": 909,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 925,
+        "text": "# Use shared coordinator secrets \u2014 api_key already resolved from shared pool",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 931,
+        "text": "# Authenticate with the agent's own AppRole, not the global coordinator token.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 932,
+        "text": "# The agent's secret_id is expected in BAO_SECRET_ID (shared bootstrap secret)",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 933,
+        "text": "# while the role_id comes from the per-agent openbao_role_id field.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 944,
+        "text": "# Look for agent-specific key pattern or the interpolation source",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 947,
+        "text": "# type: ignore[union-attr]",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 952,
+        "text": "# noqa: BLE001",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1003,
+        "text": "# Check if OpenBao is available for key resolution",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.get_api_key_identities"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1017,
+        "text": "# Skip unresolved ${VAR} placeholders \u2014 they're not usable as",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.get_api_key_identities"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1018,
+        "text": "# identity keys unless resolved via OpenBao above.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.get_api_key_identities"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1031,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1032,
+        "text": "# Registry \u2192 agent_profiles projection (design D1 / D2)",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1033,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1035,
+        "text": "#: Operations every projected profile receives. Migration 007 granted",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1036,
+        "text": "#: ``get_my_profile`` to every seeded profile without exception: reading one's",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1037,
         "text": "#: own profile is not a privilege, it is how an agent discovers its own limits.",
         "language": "python",
         "type": "inline",
@@ -1082,7 +1379,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 912,
+        "line": 1040,
         "text": "#: ``agents.yaml`` capability \u2192 the coordination operations it authorizes.",
         "language": "python",
         "type": "inline",
@@ -1091,7 +1388,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 913,
+        "line": 1041,
         "text": "#: Derived from the operation lists the hand-written seeds granted (migrations",
         "language": "python",
         "type": "inline",
@@ -1100,7 +1397,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 914,
+        "line": 1042,
         "text": "#: 007 / 019 / 022 / 026); ``tests/test_profile_sync.py`` pins the mapping",
         "language": "python",
         "type": "inline",
@@ -1109,7 +1406,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 915,
+        "line": 1043,
         "text": "#: against the grants ``claude_code_local`` carries today.",
         "language": "python",
         "type": "inline",
@@ -1118,7 +1415,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 927,
+        "line": 1055,
         "text": "#: Operations granted by *trust level* rather than by capability, as",
         "language": "python",
         "type": "inline",
@@ -1127,7 +1424,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 928,
+        "line": 1056,
         "text": "#: ``(minimum trust level, operations)`` pairs. Migration 022 granted the merge",
         "language": "python",
         "type": "inline",
@@ -1136,7 +1433,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 929,
+        "line": 1057,
         "text": "#: queue operations with ``WHERE trust_level >= 3`` \u2014 no capability in",
         "language": "python",
         "type": "inline",
@@ -1145,7 +1442,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 930,
+        "line": 1058,
         "text": "#: ``agents.yaml`` covers them, so the projection needs this second dimension",
         "language": "python",
         "type": "inline",
@@ -1154,7 +1451,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 931,
+        "line": 1059,
         "text": "#: to reproduce the grants the migrations made.",
         "language": "python",
         "type": "inline",
@@ -1163,7 +1460,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 946,
+        "line": 1074,
         "text": "#: Profile rows the registry deliberately does NOT own (design D2 amendment).",
         "language": "python",
         "type": "inline",
@@ -1172,7 +1469,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 947,
+        "line": 1075,
         "text": "#:",
         "language": "python",
         "type": "inline",
@@ -1181,7 +1478,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 948,
+        "line": 1076,
         "text": "#: ``agents.yaml`` describes *harness identities*: things that can be",
         "language": "python",
         "type": "inline",
@@ -1190,7 +1487,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 949,
+        "line": 1077,
         "text": "#: dispatched, that speak a transport, and that authenticate. Some profile rows",
         "language": "python",
         "type": "inline",
@@ -1199,7 +1496,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 950,
+        "line": 1078,
         "text": "#: describe a *role* instead \u2014 ``evaluator`` (migration 026_evaluator_profile)",
         "language": "python",
         "type": "inline",
@@ -1208,7 +1505,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 951,
+        "line": 1079,
         "text": "#: is the generator/evaluator split's read-only reviewer role, has no CLI and no",
         "language": "python",
         "type": "inline",
@@ -1217,7 +1514,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 952,
+        "line": 1080,
         "text": "#: transport, and could never be given an ``agents.yaml`` entry without the",
         "language": "python",
         "type": "inline",
@@ -1226,7 +1523,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 953,
+        "line": 1081,
         "text": "#: registry claiming to describe an agent it cannot dispatch. Orphan disabling",
         "language": "python",
         "type": "inline",
@@ -1235,7 +1532,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 954,
+        "line": 1082,
         "text": "#: skips these names, so a role profile is not collateral damage of enforcing",
         "language": "python",
         "type": "inline",
@@ -1244,7 +1541,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 955,
+        "line": 1083,
         "text": "#: the registry projection. Adding a name here is an explicit statement that",
         "language": "python",
         "type": "inline",
@@ -1253,7 +1550,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 956,
+        "line": 1084,
         "text": "#: some other mechanism owns that row.",
         "language": "python",
         "type": "inline",
@@ -1262,7 +1559,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 959,
+        "line": 1087,
         "text": "#: Fields the sync reconciles (and reports in ``changed_fields`` per the",
         "language": "python",
         "type": "inline",
@@ -1271,7 +1568,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 960,
+        "line": 1088,
         "text": "#: profile-sync audit contract). Everything else on the row \u2014 descriptions,",
         "language": "python",
         "type": "inline",
@@ -1280,7 +1577,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 961,
+        "line": 1089,
         "text": "#: resource limits, network policy \u2014 stays operator-owned.",
         "language": "python",
         "type": "inline",
@@ -1289,7 +1586,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 969,
+        "line": 1097,
         "text": "#: ``source`` value carried by every profile_sync audit event.",
         "language": "python",
         "type": "inline",
@@ -1298,7 +1595,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 972,
+        "line": 1100,
         "text": "#: Audit ``operation`` name for registry projection mutations.",
         "language": "python",
         "type": "inline",
@@ -1307,7 +1604,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 975,
+        "line": 1103,
         "text": "#: ``assigned_by`` stamped on every ``agent_profile_assignments`` row the",
         "language": "python",
         "type": "inline",
@@ -1316,7 +1613,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 976,
+        "line": 1104,
         "text": "#: registry projection writes, so an operator can tell a projected assignment",
         "language": "python",
         "type": "inline",
@@ -1325,7 +1622,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 977,
+        "line": 1105,
         "text": "#: from a hand-written one (migration 018 wrote its rows with ``assigned_by``",
         "language": "python",
         "type": "inline",
@@ -1334,7 +1631,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 978,
+        "line": 1106,
         "text": "#: NULL).",
         "language": "python",
         "type": "inline",
@@ -1343,7 +1640,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 999,
+        "line": 1127,
         "text": "#: ``agent_profile_assignments`` outcomes (design D11), keyed by agent id",
         "language": "python",
         "type": "inline",
@@ -1352,7 +1649,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1000,
+        "line": 1128,
         "text": "#: rather than profile name \u2014 an assignment is a per-agent pointer.",
         "language": "python",
         "type": "inline",
@@ -1361,7 +1658,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1005,
+        "line": 1133,
         "text": "#: ``None`` when the sync ran; otherwise why it performed no writes.",
         "language": "python",
         "type": "inline",
@@ -1370,7 +1667,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1053,
+        "line": 1181,
         "text": "#: Substring PostgreSQL puts in the message of every UNIQUE-constraint failure.",
         "language": "python",
         "type": "inline",
@@ -1379,7 +1676,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1054,
+        "line": 1182,
         "text": "#: The PostgREST/httpx backend surfaces the violation as text, so the string is",
         "language": "python",
         "type": "inline",
@@ -1388,7 +1685,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1055,
+        "line": 1183,
         "text": "#: the only signal available there.",
         "language": "python",
         "type": "inline",
@@ -1397,7 +1694,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1058,
+        "line": 1186,
         "text": "#: SQLSTATE for unique_violation. asyncpg exposes it as ``sqlstate``.",
         "language": "python",
         "type": "inline",
@@ -1406,7 +1703,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1074,
+        "line": 1202,
         "text": "# asyncpg",
         "language": "python",
         "type": "inline",
@@ -1415,7 +1712,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1162,
+        "line": 1290,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -1424,7 +1721,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1163,
+        "line": 1291,
         "text": "# The projection itself succeeded; losing its audit event degrades",
         "language": "python",
         "type": "inline",
@@ -1433,7 +1730,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1164,
+        "line": 1292,
         "text": "# observability but must not roll back or block boot.",
         "language": "python",
         "type": "inline",
@@ -1442,7 +1739,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1194,
+        "line": 1322,
         "text": "# Profile ids are not returned by the upsert path above, so re-query. This",
         "language": "python",
         "type": "inline",
@@ -1451,7 +1748,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1195,
+        "line": 1323,
         "text": "# also picks up rows a concurrent worker inserted between our phases.",
         "language": "python",
         "type": "inline",
@@ -1460,7 +1757,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1253,
+        "line": 1381,
         "text": "# A concurrent worker may have inserted the same agent_id",
         "language": "python",
         "type": "inline",
@@ -1469,7 +1766,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1254,
+        "line": 1382,
         "text": "# between our read and our write (UNIQUE (agent_id)). Converge",
         "language": "python",
         "type": "inline",
@@ -1478,7 +1775,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1255,
+        "line": 1383,
         "text": "# via update rather than failing the slower worker's boot; both",
         "language": "python",
         "type": "inline",
@@ -1487,7 +1784,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1256,
+        "line": 1384,
         "text": "# workers project identical content. Narrowed to real",
         "language": "python",
         "type": "inline",
@@ -1496,7 +1793,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1257,
+        "line": 1385,
         "text": "# uniqueness collisions: an RLS denial or FK violation means no",
         "language": "python",
         "type": "inline",
@@ -1505,7 +1802,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1258,
+        "line": 1386,
         "text": "# row exists, so the retried UPDATE would match nothing, raise",
         "language": "python",
         "type": "inline",
@@ -1514,7 +1811,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1259,
+        "line": 1387,
         "text": "# nothing, and leave the agent with no assignment while this",
         "language": "python",
         "type": "inline",
@@ -1523,7 +1820,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1260,
+        "line": 1388,
         "text": "# run reported `assign`.",
         "language": "python",
         "type": "inline",
@@ -1532,7 +1829,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1318,
+        "line": 1446,
         "text": "# The sync garbage-collects only rows it wrote. `assigned_by` exists",
         "language": "python",
         "type": "inline",
@@ -1541,7 +1838,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1319,
+        "line": 1447,
         "text": "# precisely to tell a projected assignment from everything else:",
         "language": "python",
         "type": "inline",
@@ -1550,7 +1847,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1320,
+        "line": 1448,
         "text": "# migration 018's hand-written rows carry NULL, and per-host enrollment",
         "language": "python",
         "type": "inline",
@@ -1559,7 +1856,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1321,
+        "line": 1449,
         "text": "# (scripts/add_agent_keys.py) stamps its own name. Those agent_ids are",
         "language": "python",
         "type": "inline",
@@ -1568,7 +1865,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1322,
+        "line": 1450,
         "text": "# *instances* \u2014 deliberately not registry entries, because the registry",
         "language": "python",
         "type": "inline",
@@ -1577,7 +1874,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1323,
+        "line": 1451,
         "text": "# declares vendor types, not machines \u2014 so treating \"absent from",
         "language": "python",
         "type": "inline",
@@ -1586,7 +1883,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1324,
+        "line": 1452,
         "text": "# agents.yaml\" as \"stale\" would delete every enrolled host's assignment",
         "language": "python",
         "type": "inline",
@@ -1595,7 +1892,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1325,
+        "line": 1453,
         "text": "# at each startup and drop resolution back to the oldest-row-of-type",
         "language": "python",
         "type": "inline",
@@ -1604,7 +1901,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1326,
+        "line": 1454,
         "text": "# tiebreak that migration 018 was written to eliminate.",
         "language": "python",
         "type": "inline",
@@ -1613,7 +1910,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1335,
+        "line": 1463,
         "text": "# Stale pointers are DELETEd, deliberately unlike D2's",
         "language": "python",
         "type": "inline",
@@ -1622,7 +1919,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1336,
+        "line": 1464,
         "text": "# disable-don't-delete rule for profiles: this table has no `enabled`",
         "language": "python",
         "type": "inline",
@@ -1631,7 +1928,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1337,
+        "line": 1465,
         "text": "# column, and an assignment is a *pointer*, not authorization state. The",
         "language": "python",
         "type": "inline",
@@ -1640,7 +1937,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1338,
+        "line": 1466,
         "text": "# profile it referenced is retained (and disabled by the profile phase),",
         "language": "python",
         "type": "inline",
@@ -1649,7 +1946,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1339,
+        "line": 1467,
         "text": "# and the audit event below records the name it pointed at, so the",
         "language": "python",
         "type": "inline",
@@ -1658,7 +1955,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1340,
+        "line": 1468,
         "text": "# removal stays reconstructible from the audit trail alone.",
         "language": "python",
         "type": "inline",
@@ -1667,7 +1964,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1415,
+        "line": 1543,
         "text": "# Refusing to run on an empty registry is a safety property, not a",
         "language": "python",
         "type": "inline",
@@ -1676,7 +1973,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1416,
+        "line": 1544,
         "text": "# convenience: orphan disabling against an empty roster would disable",
         "language": "python",
         "type": "inline",
@@ -1685,7 +1982,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1417,
+        "line": 1545,
         "text": "# every profile in the table.",
         "language": "python",
         "type": "inline",
@@ -1694,7 +1991,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1456,
+        "line": 1584,
         "text": "# Stamp every projected write so migration 032.s",
         "language": "python",
         "type": "inline",
@@ -1703,7 +2000,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1457,
+        "line": 1585,
         "text": "# synced_from_registry_at column means what its comment claims.",
         "language": "python",
         "type": "inline",
@@ -1712,7 +2009,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1465,
+        "line": 1593,
         "text": "# A concurrent worker may have inserted the same name between",
         "language": "python",
         "type": "inline",
@@ -1721,7 +2018,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1466,
+        "line": 1594,
         "text": "# our read and our write (UNIQUE (name)). Converge via update",
         "language": "python",
         "type": "inline",
@@ -1730,7 +2027,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1467,
+        "line": 1595,
         "text": "# rather than failing the boot of the slower worker. ONLY for a",
         "language": "python",
         "type": "inline",
@@ -1739,7 +2036,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1468,
+        "line": 1596,
         "text": "# real uniqueness collision: any other failure means the row was",
         "language": "python",
         "type": "inline",
@@ -1748,7 +2045,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1469,
+        "line": 1597,
         "text": "# never written, and retrying it as an UPDATE would match zero",
         "language": "python",
         "type": "inline",
@@ -1757,7 +2054,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1470,
+        "line": 1598,
         "text": "# rows, raise nothing, and be reported as a successful insert.",
         "language": "python",
         "type": "inline",
@@ -1766,7 +2063,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1565,
+        "line": 1693,
         "text": "# The profiles service caches lookups by agent_id:agent_type with a",
         "language": "python",
         "type": "inline",
@@ -1775,7 +2072,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1566,
+        "line": 1694,
         "text": "# TTL. At boot the cache is empty and this is a no-op; on a re-sync in",
         "language": "python",
         "type": "inline",
@@ -1784,7 +2081,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1567,
+        "line": 1695,
         "text": "# a live process it stops pre-sync trust levels from being served until",
         "language": "python",
         "type": "inline",
@@ -1793,7 +2090,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1568,
+        "line": 1696,
         "text": "# the TTL expires.",
         "language": "python",
         "type": "inline",
@@ -1802,7 +2099,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1588,
+        "line": 1716,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1811,7 +2108,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1589,
+        "line": 1717,
         "text": "# MCP environment generation",
         "language": "python",
         "type": "inline",
@@ -1820,7 +2117,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1590,
+        "line": 1718,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1829,7 +2126,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1614,
+        "line": 1742,
         "text": "# Include database connection settings from the current environment.",
         "language": "python",
         "type": "inline",
@@ -1838,7 +2135,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1623,
+        "line": 1751,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1847,7 +2144,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1624,
+        "line": 1752,
         "text": "# Global config singleton (lazy)",
         "language": "python",
         "type": "inline",
@@ -1856,7 +2153,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1625,
+        "line": 1753,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1865,7 +2162,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1660,
+        "line": 1788,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1874,7 +2171,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1661,
+        "line": 1789,
         "text": "# Dispatch config helpers",
         "language": "python",
         "type": "inline",
@@ -1883,7 +2180,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1662,
+        "line": 1790,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1892,7 +2189,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1728,
+        "line": 1856,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1901,7 +2198,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1729,
+        "line": 1857,
         "text": "# Isolation helpers",
         "language": "python",
         "type": "inline",
@@ -1910,7 +2207,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1730,
+        "line": 1858,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1919,7 +2216,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1744,
+        "line": 1872,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1928,7 +2225,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1745,
+        "line": 1873,
         "text": "# Archetype loading + helpers",
         "language": "python",
         "type": "inline",
@@ -1937,7 +2234,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1746,
+        "line": 1874,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1946,7 +2243,97 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1803,
+        "line": 1916,
+        "text": "# Defence in depth: on the load path jsonschema's `required` on",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._validate_local_roster"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1917,
+        "text": "# _LOCAL_ROSTER_SCHEMA fires first, so this never triggers there. It guards",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._validate_local_roster"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1918,
+        "text": "# direct callers of this function (tests, future programmatic loaders) that",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._validate_local_roster"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1919,
+        "text": "# hand over a roster which never went through ARCHETYPES_SCHEMA.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._validate_local_roster"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1947,
+        "text": "# Two checks, because neither alone is sufficient: the regex pins the",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._validate_local_roster"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1948,
+        "text": "# dashed YYYY-MM-DD shape (``date.fromisoformat`` also accepts the ISO",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._validate_local_roster"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1949,
+        "text": "# basic form \"20260816\"), and parsing rejects date-shaped strings that",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._validate_local_roster"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1950,
+        "text": "# are not real dates (\"2026-13-45\", \"2026-02-30\").",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._validate_local_roster"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1986,
+        "text": "# Dense first: a dense model violates both rules, and the dense rule is",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._validate_local_roster"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1987,
+        "text": "# the one that explains *why* it can never be a roster entry here.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config._validate_local_roster"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2061,
         "text": "# D3 structured-field enforcement (supervisor invariant): the",
         "language": "python",
         "type": "inline",
@@ -1955,7 +2342,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1804,
+        "line": 2062,
         "text": "# supervisor archetype is a read-only adjudicator that delegates every",
         "language": "python",
         "type": "inline",
@@ -1964,7 +2351,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1805,
+        "line": 2063,
         "text": "# change to a write-capable worker. Reject any config that marks it",
         "language": "python",
         "type": "inline",
@@ -1973,7 +2360,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1806,
+        "line": 2064,
         "text": "# write_capable at load time \u2014 fail loud, same posture as the",
         "language": "python",
         "type": "inline",
@@ -1982,7 +2369,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1807,
+        "line": 2065,
         "text": "# write-capable-phase gate in resolve_archetype_for_phase.",
         "language": "python",
         "type": "inline",
@@ -1991,7 +2378,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1823,
+        "line": 2081,
         "text": "# Phase mapping (optional, schema_version=2). Validate archetype refs after",
         "language": "python",
         "type": "inline",
@@ -2000,7 +2387,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1824,
+        "line": 2082,
         "text": "# all archetypes are constructed so cross-references resolve.",
         "language": "python",
         "type": "inline",
@@ -2009,7 +2396,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1966,
+        "line": 2283,
         "text": "# Optional tiers degrade gracefully: a provider without a",
         "language": "python",
         "type": "inline",
@@ -2018,7 +2405,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1967,
+        "line": 2284,
         "text": "# frontier model serves its premium model instead of failing.",
         "language": "python",
         "type": "inline",
@@ -2027,7 +2414,88 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2001,
+        "line": 2285,
+        "text": "# `local` is excluded on purpose: this path returns silently, and",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_provider_model_spec"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2286,
+        "text": "# every local degradation must reach the caller's reasons. A local",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_provider_model_spec"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2287,
+        "text": "# roster that defines premium but not frontier falls through to the",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_provider_model_spec"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2288,
+        "text": "# best-defined-tier branch below, which resolves to the same",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_provider_model_spec"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2289,
+        "text": "# premium entry *and* records why.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_provider_model_spec"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2297,
+        "text": "# The `local` roster may omit base tiers (frontier/premium): those",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_provider_model_spec"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2298,
+        "text": "# requests degrade to the best tier it does define. Scoped to `local`",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_provider_model_spec"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2299,
+        "text": "# on purpose \u2014 for every other provider a missing base tier stays a",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_provider_model_spec"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2300,
+        "text": "# structured mapping error, so their behavior is unchanged.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_provider_model_spec"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2342,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2036,7 +2504,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2002,
+        "line": 2343,
         "text": "# Prompt composition (D2: composition, not replacement)",
         "language": "python",
         "type": "inline",
@@ -2045,7 +2513,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2003,
+        "line": 2344,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2054,7 +2522,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2017,
+        "line": 2358,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2063,7 +2531,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2018,
+        "line": 2359,
         "text": "# Complexity-based escalation (D3: at dispatch time)",
         "language": "python",
         "type": "inline",
@@ -2072,7 +2540,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2019,
+        "line": 2360,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2081,7 +2549,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2031,
+        "line": 2372,
         "text": "# Strip trailing wildcards and filename patterns",
         "language": "python",
         "type": "inline",
@@ -2090,7 +2558,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2033,
+        "line": 2374,
         "text": "# Keep only directory-like components (no wildcards)",
         "language": "python",
         "type": "inline",
@@ -2099,7 +2567,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2140,
+        "line": 2485,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2108,7 +2576,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2141,
+        "line": 2486,
         "text": "# Phase-aware archetype resolution (D2: coordinator-owned phase mapping)",
         "language": "python",
         "type": "inline",
@@ -2117,7 +2585,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2142,
+        "line": 2487,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2126,7 +2594,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2185,
+        "line": 2533,
         "text": "# Validated at load time; this branch only fires if the cache is mutated.",
         "language": "python",
         "type": "inline",
@@ -2135,7 +2603,43 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2192,
+        "line": 2540,
+        "text": "# Enforce the `local` provider trust boundary (design D3) before anything",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2541,
+        "text": "# is resolved or dispatched: local models are permitted only where their",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2542,
+        "text": "# output is cheap to discard or verified downstream. The coordinator is the",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2543,
+        "text": "# single decision point, so no client can route around this check.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2554,
         "text": "# Enforce the write-capability contract at resolution time (design D3 /",
         "language": "python",
         "type": "inline",
@@ -2144,7 +2648,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2193,
+        "line": 2555,
         "text": "# Task 2.5): a write-capable phase MUST resolve to a write_capable archetype.",
         "language": "python",
         "type": "inline",
@@ -2153,7 +2657,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2194,
+        "line": 2556,
         "text": "# This is the structured-field gate \u2014 no substring matching over prompts.",
         "language": "python",
         "type": "inline",
@@ -2162,7 +2666,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2203,
+        "line": 2565,
         "text": "# Filter signals to keys listed in the phase entry \u2014 security-style",
         "language": "python",
         "type": "inline",
@@ -2171,8 +2675,26 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2204,
+        "line": 2566,
         "text": "# whitelist that mirrors the spec's \"unknown keys silently dropped\" rule.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2580,
+        "text": "# Empty for every provider except `local`, so existing providers keep",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
+      },
+      {
+        "file": "agents_config.py",
+        "line": 2581,
+        "text": "# byte-identical reasons.",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -4193,7 +4715,43 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2276,
+        "line": 2282,
+        "text": "# noqa: BLE001",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2301,
+        "text": "# Refused before any dispatch is attempted; recorded on the same",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2302,
+        "text": "# audit path successful resolutions use so unattended loops leave",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2303,
+        "text": "# a trail of what was denied and why.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2322,
         "text": "# Cache mutation / undefined archetype reference at lookup time.",
         "language": "python",
         "type": "inline",
@@ -4202,25 +4760,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2282,
-        "text": "# Best-effort audit. Failures here MUST NOT block the resolution.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2300,
-        "text": "# noqa: BLE001",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2314,
+        "line": 2344,
         "text": "# Optional thinking/reasoning level from the tier entry. Additive:",
         "language": "python",
         "type": "inline",
@@ -4229,7 +4769,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2315,
+        "line": 2345,
         "text": "# older clients ignore it; adapters translate it to CLI flags.",
         "language": "python",
         "type": "inline",
@@ -4238,7 +4778,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2319,
+        "line": 2349,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4247,7 +4787,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2320,
+        "line": 2350,
         "text": "# STATUS REPORTING",
         "language": "python",
         "type": "inline",
@@ -4256,7 +4796,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2321,
+        "line": 2351,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4265,7 +4805,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2349,
+        "line": 2379,
         "text": "# Update heartbeat for the reporting agent (not the coordinator itself).",
         "language": "python",
         "type": "inline",
@@ -4274,7 +4814,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2350,
+        "line": 2380,
         "text": "# wire-autopilot-phase-subagents (task 3.8): forward phase_archetype",
         "language": "python",
         "type": "inline",
@@ -4283,7 +4823,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2351,
+        "line": 2381,
         "text": "# so the value lands in agent_sessions.phase_archetype via the",
         "language": "python",
         "type": "inline",
@@ -4292,7 +4832,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2352,
+        "line": 2382,
         "text": "# agent_heartbeat RPC (and surfaces in /discovery/agents). The",
         "language": "python",
         "type": "inline",
@@ -4301,7 +4841,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2353,
+        "line": 2383,
         "text": "# archived per-phase-archetype-resolution change added the field to",
         "language": "python",
         "type": "inline",
@@ -4310,7 +4850,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2354,
+        "line": 2384,
         "text": "# the request body and the event-bus context, but stopped short of",
         "language": "python",
         "type": "inline",
@@ -4319,7 +4859,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2355,
+        "line": 2385,
         "text": "# the discovery persistence path \u2014 closing that gap inline here.",
         "language": "python",
         "type": "inline",
@@ -4328,7 +4868,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2362,
+        "line": 2392,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -4337,7 +4877,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2365,
+        "line": 2395,
         "text": "# Determine urgency",
         "language": "python",
         "type": "inline",
@@ -4346,7 +4886,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2370,
+        "line": 2400,
         "text": "# Emit coordinator_status NOTIFY via event bus.",
         "language": "python",
         "type": "inline",
@@ -4355,7 +4895,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2371,
+        "line": 2401,
         "text": "# phase_archetype (when present) flows into the event context so",
         "language": "python",
         "type": "inline",
@@ -4364,7 +4904,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2372,
+        "line": 2402,
         "text": "# downstream observers can correlate phase \u2194 archetype without a",
         "language": "python",
         "type": "inline",
@@ -4373,7 +4913,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2373,
+        "line": 2403,
         "text": "# separate query (per agent-coordinator.3).",
         "language": "python",
         "type": "inline",
@@ -4382,7 +4922,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2397,
+        "line": 2427,
         "text": "# noqa: SLF001",
         "language": "python",
         "type": "inline",
@@ -4391,7 +4931,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2407,
+        "line": 2437,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -4400,7 +4940,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2412,
+        "line": 2442,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4409,7 +4949,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2413,
+        "line": 2443,
         "text": "# NOTIFICATIONS (status/diagnostics)",
         "language": "python",
         "type": "inline",
@@ -4418,44 +4958,8 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2414,
+        "line": 2444,
         "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2438,
-        "text": "# noqa: SLF001",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api.test_notification"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2448,
-        "text": "# noqa: BLE001",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api.test_notification"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2466,
-        "text": "# --------------------------------------------------------------------- #",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": "py:coordination_api.create_coordination_api"
-      },
-      {
-        "file": "coordination_api.py",
-        "line": 2467,
-        "text": "# DISCOVERY",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -4464,6 +4968,24 @@
       {
         "file": "coordination_api.py",
         "line": 2468,
+        "text": "# noqa: SLF001",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api.test_notification"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2478,
+        "text": "# noqa: BLE001",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api.test_notification"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2496,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4472,7 +4994,25 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2526,
+        "line": 2497,
+        "text": "# DISCOVERY",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2498,
+        "text": "# --------------------------------------------------------------------- #",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": "py:coordination_api.create_coordination_api"
+      },
+      {
+        "file": "coordination_api.py",
+        "line": 2556,
         "text": "# wire-autopilot-phase-subagents (D-1): surface the resolved",
         "language": "python",
         "type": "inline",
@@ -4481,7 +5021,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2527,
+        "line": 2557,
         "text": "# archetype for the agent's current phase. None for legacy",
         "language": "python",
         "type": "inline",
@@ -4490,7 +5030,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2528,
+        "line": 2558,
         "text": "# rows that pre-date the migration.",
         "language": "python",
         "type": "inline",
@@ -4499,7 +5039,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2595,
+        "line": 2625,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4508,7 +5048,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2596,
+        "line": 2626,
         "text": "# GEN-EVAL",
         "language": "python",
         "type": "inline",
@@ -4517,7 +5057,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2597,
+        "line": 2627,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4526,7 +5066,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2702,
+        "line": 2732,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4535,7 +5075,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2703,
+        "line": 2733,
         "text": "# ISSUE SEARCH / READY / BLOCKED",
         "language": "python",
         "type": "inline",
@@ -4544,7 +5084,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2704,
+        "line": 2734,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4553,7 +5093,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2741,
+        "line": 2771,
         "text": "# NOTE: GET /issues/blocked is registered earlier (before /issues/{issue_id})",
         "language": "python",
         "type": "inline",
@@ -4564,7 +5104,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2742,
+        "line": 2772,
         "text": "# to prevent FastAPI from matching \"blocked\" as an issue_id parameter.",
         "language": "python",
         "type": "inline",
@@ -4573,7 +5113,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2744,
+        "line": 2774,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4582,7 +5122,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2745,
+        "line": 2775,
         "text": "# SESSION GRANTS",
         "language": "python",
         "type": "inline",
@@ -4591,7 +5131,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2746,
+        "line": 2776,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4600,7 +5140,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2783,
+        "line": 2813,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4609,7 +5149,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2784,
+        "line": 2814,
         "text": "# APPROVALS (request + check)",
         "language": "python",
         "type": "inline",
@@ -4618,7 +5158,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2785,
+        "line": 2815,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4627,7 +5167,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2854,
+        "line": 2884,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4636,7 +5176,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2855,
+        "line": 2885,
         "text": "# HEALTH",
         "language": "python",
         "type": "inline",
@@ -4645,7 +5185,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2856,
+        "line": 2886,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4654,7 +5194,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2881,
+        "line": 2911,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4663,7 +5203,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2882,
+        "line": 2912,
         "text": "# HELP \u2014 Progressive Discovery",
         "language": "python",
         "type": "inline",
@@ -4672,7 +5212,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2883,
+        "line": 2913,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4681,7 +5221,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2918,
+        "line": 2948,
         "text": "# -------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4690,7 +5230,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2919,
+        "line": 2949,
         "text": "# KANBAN-VIZ \u2014 sync-point status, worktrees, SSE, write/file-write    #",
         "language": "python",
         "type": "inline",
@@ -4699,7 +5239,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 2920,
+        "line": 2950,
         "text": "# -------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4708,7 +5248,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3147,
+        "line": 3177,
         "text": "# 1. Clear registry via worktree.py teardown --force",
         "language": "python",
         "type": "inline",
@@ -4717,7 +5257,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3148,
+        "line": 3178,
         "text": "#",
         "language": "python",
         "type": "inline",
@@ -4726,7 +5266,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3149,
+        "line": 3179,
         "text": "# IMPL_REVIEW (high architecture): in Docker/cloud",
         "language": "python",
         "type": "inline",
@@ -4735,7 +5275,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3150,
+        "line": 3180,
         "text": "# environments, skills/worktree/scripts/worktree.py is NOT copied",
         "language": "python",
         "type": "inline",
@@ -4744,7 +5284,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3151,
+        "line": 3181,
         "text": "# into the deployed image (skills/ is local-only tooling). Worktree",
         "language": "python",
         "type": "inline",
@@ -4753,7 +5293,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3152,
+        "line": 3182,
         "text": "# registry isolation is also not needed there \u2014 each agent runs in",
         "language": "python",
         "type": "inline",
@@ -4762,7 +5302,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3153,
+        "line": 3183,
         "text": "# its own container, so there's no registry to clear. Detect the",
         "language": "python",
         "type": "inline",
@@ -4771,7 +5311,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3154,
+        "line": 3184,
         "text": "# script's existence and skip gracefully when absent.",
         "language": "python",
         "type": "inline",
@@ -4780,7 +5320,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3158,
+        "line": 3188,
         "text": "# Docker/cloud path: registry isolation is provided by the",
         "language": "python",
         "type": "inline",
@@ -4789,7 +5329,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3159,
+        "line": 3189,
         "text": "# container, so registry teardown is vacuously complete.",
         "language": "python",
         "type": "inline",
@@ -4798,7 +5338,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3191,
+        "line": 3221,
         "text": "# 2. Update agent_sessions",
         "language": "python",
         "type": "inline",
@@ -4807,7 +5347,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3205,
+        "line": 3235,
         "text": "# 3. Collect held locks",
         "language": "python",
         "type": "inline",
@@ -4816,7 +5356,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3214,
+        "line": 3244,
         "text": "# 4. Audit",
         "language": "python",
         "type": "inline",
@@ -4825,7 +5365,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3338,
+        "line": 3368,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4834,7 +5374,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3339,
+        "line": 3369,
         "text": "# KANBAN-VIZ EXTENSIONS \u2014 open PRs + OpenSpec proposals",
         "language": "python",
         "type": "inline",
@@ -4843,7 +5383,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3340,
+        "line": 3370,
         "text": "# --------------------------------------------------------------------- #",
         "language": "python",
         "type": "inline",
@@ -4852,7 +5392,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3413,
+        "line": 3443,
         "text": "# openspec_sources_invalid: raised when OPENSPEC_SOURCES has bad entries",
         "language": "python",
         "type": "inline",
@@ -4861,7 +5401,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3427,
+        "line": 3457,
         "text": "# --- fail-closed semantic code search (v2) ----------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -4870,7 +5410,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3441,
+        "line": 3471,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -4879,7 +5419,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3492,
+        "line": 3522,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -4888,7 +5428,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3499,
+        "line": 3529,
         "text": "# =============================================================================",
         "language": "python",
         "type": "inline",
@@ -4897,7 +5437,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3500,
+        "line": 3530,
         "text": "# MAIN",
         "language": "python",
         "type": "inline",
@@ -4906,7 +5446,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3501,
+        "line": 3531,
         "text": "# =============================================================================",
         "language": "python",
         "type": "inline",
@@ -4915,7 +5455,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3508,
+        "line": 3538,
         "text": "# IMPL_REVIEW R2-id=13 (security): mask token= in uvicorn access log",
         "language": "python",
         "type": "inline",
@@ -4924,7 +5464,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3509,
+        "line": 3539,
         "text": "# BEFORE uvicorn writes its first line. The filter is idempotent.",
         "language": "python",
         "type": "inline",
@@ -4933,7 +5473,7 @@
       },
       {
         "file": "coordination_api.py",
-        "line": 3518,
+        "line": 3548,
         "text": "# Allow CLI overrides",
         "language": "python",
         "type": "inline",
@@ -22059,12 +22599,12 @@
       "items": [
         {
           "file": "agents_config.py",
-          "line": 824,
+          "line": 952,
           "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
         },
         {
           "file": "agents_config.py",
-          "line": 1162,
+          "line": 1290,
           "enclosing_node": "py:agents_config._emit_sync_audit"
         },
         {
@@ -22219,72 +22759,72 @@
         },
         {
           "file": "coordination_api.py",
-          "line": 2300,
-          "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
+          "line": 2282,
+          "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit"
         },
         {
           "file": "coordination_api.py",
-          "line": 2362,
+          "line": 2392,
           "enclosing_node": "py:coordination_api.create_coordination_api.report_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 2407,
+          "line": 2437,
           "enclosing_node": "py:coordination_api.create_coordination_api.report_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 2448,
+          "line": 2478,
           "enclosing_node": "py:coordination_api.create_coordination_api.test_notification"
         },
         {
           "file": "coordination_api.py",
-          "line": 2876,
+          "line": 2906,
           "enclosing_node": "py:coordination_api.create_coordination_api._database_health"
         },
         {
           "file": "coordination_api.py",
-          "line": 3050,
+          "line": 3080,
           "enclosing_node": "py:coordination_api.create_coordination_api.patch_issue_labels"
         },
         {
           "file": "coordination_api.py",
-          "line": 3078,
+          "line": 3108,
           "enclosing_node": "py:coordination_api.create_coordination_api.patch_issue_labels"
         },
         {
           "file": "coordination_api.py",
-          "line": 3110,
+          "line": 3140,
           "enclosing_node": "py:coordination_api.create_coordination_api.force_release_lock"
         },
         {
           "file": "coordination_api.py",
-          "line": 3211,
+          "line": 3241,
           "enclosing_node": "py:coordination_api.create_coordination_api.kick_agent"
         },
         {
           "file": "coordination_api.py",
-          "line": 3228,
+          "line": 3258,
           "enclosing_node": "py:coordination_api.create_coordination_api.kick_agent"
         },
         {
           "file": "coordination_api.py",
-          "line": 3273,
+          "line": 3303,
           "enclosing_node": "py:coordination_api.create_coordination_api.put_saved_view"
         },
         {
           "file": "coordination_api.py",
-          "line": 3309,
+          "line": 3339,
           "enclosing_node": "py:coordination_api.create_coordination_api.post_kanban_audit"
         },
         {
           "file": "coordination_api.py",
-          "line": 3441,
+          "line": 3471,
           "enclosing_node": "py:coordination_api.create_coordination_api.code_search_status_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 3492,
+          "line": 3522,
           "enclosing_node": "py:coordination_api.create_coordination_api.search_code_endpoint"
         },
         {
@@ -22719,12 +23259,12 @@
       "items": [
         {
           "file": "agents_config.py",
-          "line": 661,
+          "line": 789,
           "enclosing_node": "py:agents_config.load_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1782,
+          "line": 2039,
           "enclosing_node": "py:agents_config.load_archetypes_config"
         },
         {
@@ -22950,557 +23490,669 @@
       ]
     },
     "type_hints": {
-      "count": 2004,
+      "count": 2023,
       "items": [
         {
           "file": "agents_config.py",
-          "line": 607,
+          "line": 693,
           "function": "__init__",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.ProviderModelMappingError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 607,
+          "line": 693,
           "parameter": "model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.ProviderModelMappingError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 607,
+          "line": 693,
           "parameter": "provider",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.ProviderModelMappingError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 628,
+          "line": 719,
+          "function": "__init__",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config.LocalRosterConfigError.__init__"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 719,
+          "parameter": "detail",
+          "kind": "param_type",
+          "enclosing_node": "py:agents_config.LocalRosterConfigError.__init__"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 719,
+          "parameter": "rule",
+          "kind": "param_type",
+          "enclosing_node": "py:agents_config.LocalRosterConfigError.__init__"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 739,
+          "function": "__init__",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config.LocalProviderTrustBoundaryError.__init__"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 739,
+          "parameter": "archetype",
+          "kind": "param_type",
+          "enclosing_node": "py:agents_config.LocalProviderTrustBoundaryError.__init__"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 756,
           "function": "_default_agents_path",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._default_agents_path"
         },
         {
           "file": "agents_config.py",
-          "line": 632,
+          "line": 760,
           "function": "_default_secrets_path",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._default_secrets_path"
         },
         {
           "file": "agents_config.py",
-          "line": 636,
+          "line": 764,
           "function": "load_agents_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.load_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 708,
+          "line": 836,
           "function": "_parse_mode",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.load_agents_config._parse_mode"
         },
         {
           "file": "agents_config.py",
-          "line": 708,
+          "line": 836,
           "parameter": "mode_data",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.load_agents_config._parse_mode"
         },
         {
           "file": "agents_config.py",
-          "line": 783,
+          "line": 911,
           "function": "_resolve_api_key_from_openbao",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
         },
         {
           "file": "agents_config.py",
-          "line": 783,
+          "line": 911,
           "parameter": "agent",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
         },
         {
           "file": "agents_config.py",
-          "line": 842,
+          "line": 970,
           "function": "__init__",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.DuplicateApiKeyError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 842,
+          "line": 970,
           "parameter": "first_agent",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.DuplicateApiKeyError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 842,
+          "line": 970,
           "parameter": "second_agent",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.DuplicateApiKeyError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 852,
+          "line": 980,
           "function": "get_api_key_identities",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_api_key_identities"
         },
         {
           "file": "agents_config.py",
-          "line": 1009,
+          "line": 1137,
           "function": "mutations",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.ProfileSyncResult.mutations"
         },
         {
           "file": "agents_config.py",
-          "line": 1021,
+          "line": 1149,
           "function": "derive_allowed_operations",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.derive_allowed_operations"
         },
         {
           "file": "agents_config.py",
-          "line": 1022,
+          "line": 1150,
           "parameter": "capabilities",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.derive_allowed_operations"
         },
         {
           "file": "agents_config.py",
-          "line": 1023,
+          "line": 1151,
           "parameter": "trust_level",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.derive_allowed_operations"
         },
         {
           "file": "agents_config.py",
-          "line": 1062,
+          "line": 1190,
           "function": "_is_unique_violation",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._is_unique_violation"
         },
         {
           "file": "agents_config.py",
-          "line": 1062,
+          "line": 1190,
           "parameter": "exc",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._is_unique_violation"
         },
         {
           "file": "agents_config.py",
-          "line": 1081,
+          "line": 1209,
           "function": "_registry_sync_timestamp",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._registry_sync_timestamp"
         },
         {
           "file": "agents_config.py",
-          "line": 1097,
+          "line": 1225,
           "function": "_desired_profile_row",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._desired_profile_row"
         },
         {
           "file": "agents_config.py",
-          "line": 1097,
+          "line": 1225,
           "parameter": "agent",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._desired_profile_row"
         },
         {
           "file": "agents_config.py",
-          "line": 1110,
+          "line": 1238,
           "function": "_profile_drift",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._profile_drift"
         },
         {
           "file": "agents_config.py",
-          "line": 1111,
+          "line": 1239,
           "parameter": "desired",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._profile_drift"
         },
         {
           "file": "agents_config.py",
-          "line": 1112,
+          "line": 1240,
           "parameter": "existing",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._profile_drift"
         },
         {
           "file": "agents_config.py",
-          "line": 1128,
+          "line": 1256,
           "function": "_emit_sync_audit",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._emit_sync_audit"
         },
         {
           "file": "agents_config.py",
-          "line": 1129,
+          "line": 1257,
           "parameter": "audit",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._emit_sync_audit"
         },
         {
           "file": "agents_config.py",
-          "line": 1131,
+          "line": 1259,
           "parameter": "action",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._emit_sync_audit"
         },
         {
           "file": "agents_config.py",
-          "line": 1132,
+          "line": 1260,
           "parameter": "profile_name",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._emit_sync_audit"
         },
         {
           "file": "agents_config.py",
-          "line": 1133,
+          "line": 1261,
           "parameter": "agent_type",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._emit_sync_audit"
         },
         {
           "file": "agents_config.py",
-          "line": 1173,
+          "line": 1301,
           "function": "_sync_assignments",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._sync_assignments"
         },
         {
           "file": "agents_config.py",
-          "line": 1174,
+          "line": 1302,
           "parameter": "agents",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._sync_assignments"
         },
         {
           "file": "agents_config.py",
-          "line": 1176,
+          "line": 1304,
           "parameter": "db",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._sync_assignments"
         },
         {
           "file": "agents_config.py",
-          "line": 1177,
+          "line": 1305,
           "parameter": "audit",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._sync_assignments"
         },
         {
           "file": "agents_config.py",
-          "line": 1178,
+          "line": 1306,
           "parameter": "result",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._sync_assignments"
         },
         {
           "file": "agents_config.py",
-          "line": 1359,
+          "line": 1487,
           "function": "sync_profiles",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.sync_profiles"
         },
         {
           "file": "agents_config.py",
-          "line": 1592,
+          "line": 1720,
           "function": "get_mcp_env",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_mcp_env"
         },
         {
           "file": "agents_config.py",
-          "line": 1593,
+          "line": 1721,
           "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_mcp_env"
         },
         {
           "file": "agents_config.py",
-          "line": 1630,
+          "line": 1758,
           "function": "get_agents_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1646,
+          "line": 1774,
           "function": "get_agent_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_agent_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1646,
+          "line": 1774,
           "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_agent_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1654,
+          "line": 1782,
           "function": "reset_agents_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.reset_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1664,
+          "line": 1792,
           "function": "get_dispatch_configs",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_dispatch_configs"
         },
         {
           "file": "agents_config.py",
-          "line": 1732,
+          "line": 1860,
           "function": "get_agent_isolation",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_agent_isolation"
         },
         {
           "file": "agents_config.py",
-          "line": 1732,
+          "line": 1860,
           "parameter": "agent_type",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_agent_isolation"
         },
         {
           "file": "agents_config.py",
-          "line": 1748,
+          "line": 1876,
           "function": "_default_archetypes_path",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._default_archetypes_path"
         },
         {
           "file": "agents_config.py",
-          "line": 1752,
+          "line": 1880,
+          "function": "_as_positive_number",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config._as_positive_number"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 1880,
+          "parameter": "value",
+          "kind": "param_type",
+          "enclosing_node": "py:agents_config._as_positive_number"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 1887,
+          "function": "_validate_local_roster",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config._validate_local_roster"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 1888,
+          "parameter": "raw_aliases",
+          "kind": "param_type",
+          "enclosing_node": "py:agents_config._validate_local_roster"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 1889,
+          "parameter": "raw_host_class",
+          "kind": "param_type",
+          "enclosing_node": "py:agents_config._validate_local_roster"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 2009,
           "function": "load_archetypes_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.load_archetypes_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1849,
+          "line": 2107,
           "function": "get_archetype",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_archetype"
         },
         {
           "file": "agents_config.py",
-          "line": 1849,
+          "line": 2107,
           "parameter": "name",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_archetype"
         },
         {
           "file": "agents_config.py",
-          "line": 1863,
+          "line": 2121,
           "function": "get_phase_mapping",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_phase_mapping"
         },
         {
           "file": "agents_config.py",
-          "line": 1875,
+          "line": 2133,
           "function": "reset_archetypes_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.reset_archetypes_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1883,
+          "line": 2141,
+          "function": "_served_local_roster",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config._served_local_roster"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 2141,
+          "parameter": "roster",
+          "kind": "param_type",
+          "enclosing_node": "py:agents_config._served_local_roster"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 2170,
+          "function": "_with_served_local_roster",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config._with_served_local_roster"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 2170,
+          "parameter": "providers",
+          "kind": "param_type",
+          "enclosing_node": "py:agents_config._with_served_local_roster"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 2184,
           "function": "_normalize_provider_model_map",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._normalize_provider_model_map"
         },
         {
           "file": "agents_config.py",
-          "line": 1883,
+          "line": 2184,
           "parameter": "raw_map",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._normalize_provider_model_map"
         },
         {
           "file": "agents_config.py",
-          "line": 1910,
+          "line": 2214,
           "function": "get_provider_model_map",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_provider_model_map"
         },
         {
           "file": "agents_config.py",
-          "line": 1917,
+          "line": 2221,
           "function": "_tier_entry_to_spec",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._tier_entry_to_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1917,
+          "line": 2221,
           "parameter": "entry",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._tier_entry_to_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1932,
+          "line": 2236,
+          "function": "_best_defined_tier",
+          "kind": "return_type",
+          "enclosing_node": "py:agents_config._best_defined_tier"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 2236,
+          "parameter": "provider_map",
+          "kind": "param_type",
+          "enclosing_node": "py:agents_config._best_defined_tier"
+        },
+        {
+          "file": "agents_config.py",
+          "line": 2245,
           "function": "resolve_provider_model_spec",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_provider_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1933,
+          "line": 2246,
           "parameter": "model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1935,
+          "line": 2248,
           "parameter": "provider",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 1985,
+          "line": 2326,
           "function": "resolve_provider_model",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_provider_model"
         },
         {
           "file": "agents_config.py",
-          "line": 1986,
+          "line": 2327,
           "parameter": "model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model"
         },
         {
           "file": "agents_config.py",
-          "line": 1988,
+          "line": 2329,
           "parameter": "provider",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2005,
+          "line": 2346,
           "function": "compose_prompt",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.compose_prompt"
         },
         {
           "file": "agents_config.py",
-          "line": 2005,
+          "line": 2346,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.compose_prompt"
         },
         {
           "file": "agents_config.py",
-          "line": 2005,
+          "line": 2346,
           "parameter": "task_prompt",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.compose_prompt"
         },
         {
           "file": "agents_config.py",
-          "line": 2021,
+          "line": 2362,
           "function": "_unique_dir_prefixes",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._unique_dir_prefixes"
         },
         {
           "file": "agents_config.py",
-          "line": 2021,
+          "line": 2362,
           "parameter": "write_allow",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._unique_dir_prefixes"
         },
         {
           "file": "agents_config.py",
-          "line": 2040,
+          "line": 2381,
           "function": "resolve_model",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2041,
+          "line": 2382,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2042,
+          "line": 2383,
           "parameter": "package_metadata",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2079,
+          "line": 2420,
           "function": "_resolve_model_spec",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._resolve_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2080,
+          "line": 2421,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2081,
+          "line": 2422,
           "parameter": "package_metadata",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2088,
+          "line": 2429,
           "function": "_finalize",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._resolve_model_spec._finalize"
         },
         {
           "file": "agents_config.py",
-          "line": 2088,
+          "line": 2429,
           "parameter": "reasons",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec._finalize"
         },
         {
           "file": "agents_config.py",
-          "line": 2088,
+          "line": 2429,
           "parameter": "source_model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec._finalize"
         },
         {
           "file": "agents_config.py",
-          "line": 2145,
+          "line": 2490,
           "function": "resolve_archetype_for_phase",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
         },
         {
           "file": "agents_config.py",
-          "line": 2146,
+          "line": 2491,
           "parameter": "phase",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
@@ -26349,427 +27001,448 @@
         },
         {
           "file": "coordination_api.py",
-          "line": 2324,
+          "line": 2267,
+          "function": "_audit",
+          "kind": "return_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 2267,
+          "parameter": "result",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 2267,
+          "parameter": "success",
+          "kind": "param_type",
+          "enclosing_node": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit"
+        },
+        {
+          "file": "coordination_api.py",
+          "line": 2354,
           "function": "report_status",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.report_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 2325,
+          "line": 2355,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.report_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 2417,
+          "line": 2447,
           "function": "test_notification",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.test_notification"
         },
         {
           "file": "coordination_api.py",
-          "line": 2454,
+          "line": 2484,
           "function": "notifications_status",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.notifications_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 2471,
+          "line": 2501,
           "function": "discovery_register",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_register"
         },
         {
           "file": "coordination_api.py",
-          "line": 2472,
+          "line": 2502,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_register"
         },
         {
           "file": "coordination_api.py",
-          "line": 2502,
+          "line": 2532,
           "function": "discovery_agents",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_agents"
         },
         {
           "file": "coordination_api.py",
-          "line": 2536,
+          "line": 2566,
           "function": "discovery_heartbeat",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_heartbeat"
         },
         {
           "file": "coordination_api.py",
-          "line": 2537,
+          "line": 2567,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_heartbeat"
         },
         {
           "file": "coordination_api.py",
-          "line": 2563,
+          "line": 2593,
           "function": "discovery_cleanup",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_cleanup"
         },
         {
           "file": "coordination_api.py",
-          "line": 2564,
+          "line": 2594,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.discovery_cleanup"
         },
         {
           "file": "coordination_api.py",
-          "line": 2600,
+          "line": 2630,
           "function": "gen_eval_list_scenarios",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_list_scenarios"
         },
         {
           "file": "coordination_api.py",
-          "line": 2628,
+          "line": 2658,
           "function": "gen_eval_validate",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_validate"
         },
         {
           "file": "coordination_api.py",
-          "line": 2629,
+          "line": 2659,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_validate"
         },
         {
           "file": "coordination_api.py",
-          "line": 2652,
+          "line": 2682,
           "function": "gen_eval_create",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_create"
         },
         {
           "file": "coordination_api.py",
-          "line": 2653,
+          "line": 2683,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_create"
         },
         {
           "file": "coordination_api.py",
-          "line": 2677,
+          "line": 2707,
           "function": "gen_eval_run",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_run"
         },
         {
           "file": "coordination_api.py",
-          "line": 2678,
+          "line": 2708,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.gen_eval_run"
         },
         {
           "file": "coordination_api.py",
-          "line": 2707,
+          "line": 2737,
           "function": "search_issues",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.search_issues"
         },
         {
           "file": "coordination_api.py",
-          "line": 2708,
+          "line": 2738,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.search_issues"
         },
         {
           "file": "coordination_api.py",
-          "line": 2723,
+          "line": 2753,
           "function": "ready_issues",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.ready_issues"
         },
         {
           "file": "coordination_api.py",
-          "line": 2724,
+          "line": 2754,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.ready_issues"
         },
         {
           "file": "coordination_api.py",
-          "line": 2749,
+          "line": 2779,
           "function": "request_permission_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.request_permission_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2750,
+          "line": 2780,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.request_permission_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2788,
+          "line": 2818,
           "function": "request_approval_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.request_approval_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2789,
+          "line": 2819,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.request_approval_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2827,
+          "line": 2857,
           "function": "check_approval_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.check_approval_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2828,
+          "line": 2858,
           "parameter": "request_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.check_approval_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 2858,
+          "line": 2888,
           "function": "_database_health",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api._database_health"
         },
         {
           "file": "coordination_api.py",
-          "line": 2886,
+          "line": 2916,
           "function": "help_overview",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.help_overview"
         },
         {
           "file": "coordination_api.py",
-          "line": 2896,
+          "line": 2926,
           "function": "help_topic",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.help_topic"
         },
         {
           "file": "coordination_api.py",
-          "line": 2896,
+          "line": 2926,
           "parameter": "topic",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.help_topic"
         },
         {
           "file": "coordination_api.py",
-          "line": 2923,
+          "line": 2953,
           "function": "get_sync_points_status",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_sync_points_status"
         },
         {
           "file": "coordination_api.py",
-          "line": 2936,
+          "line": 2966,
           "function": "get_active_worktrees",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.get_active_worktrees"
         },
         {
           "file": "coordination_api.py",
-          "line": 2948,
+          "line": 2978,
           "function": "mint_events_token",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.mint_events_token"
         },
         {
           "file": "coordination_api.py",
-          "line": 2949,
+          "line": 2979,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.mint_events_token"
         },
         {
           "file": "coordination_api.py",
-          "line": 2981,
+          "line": 3011,
           "function": "stream_work_events",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.stream_work_events"
         },
         {
           "file": "coordination_api.py",
-          "line": 3032,
+          "line": 3062,
           "function": "patch_issue_labels",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.patch_issue_labels"
         },
         {
           "file": "coordination_api.py",
-          "line": 3033,
+          "line": 3063,
           "parameter": "issue_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.patch_issue_labels"
         },
         {
           "file": "coordination_api.py",
-          "line": 3034,
+          "line": 3064,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.patch_issue_labels"
         },
         {
           "file": "coordination_api.py",
-          "line": 3084,
+          "line": 3114,
           "function": "force_release_lock",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.force_release_lock"
         },
         {
           "file": "coordination_api.py",
-          "line": 3085,
+          "line": 3115,
           "parameter": "path",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.force_release_lock"
         },
         {
           "file": "coordination_api.py",
-          "line": 3121,
+          "line": 3151,
           "function": "kick_agent",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.kick_agent"
         },
         {
           "file": "coordination_api.py",
-          "line": 3122,
+          "line": 3152,
           "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.kick_agent"
         },
         {
           "file": "coordination_api.py",
-          "line": 3123,
+          "line": 3153,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.kick_agent"
         },
         {
           "file": "coordination_api.py",
-          "line": 3242,
+          "line": 3272,
           "function": "put_saved_view",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.put_saved_view"
         },
         {
           "file": "coordination_api.py",
-          "line": 3243,
+          "line": 3273,
           "parameter": "slug",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.put_saved_view"
         },
         {
           "file": "coordination_api.py",
-          "line": 3244,
+          "line": 3274,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.put_saved_view"
         },
         {
           "file": "coordination_api.py",
-          "line": 3279,
+          "line": 3309,
           "function": "post_kanban_audit",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.post_kanban_audit"
         },
         {
           "file": "coordination_api.py",
-          "line": 3280,
+          "line": 3310,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.post_kanban_audit"
         },
         {
           "file": "coordination_api.py",
-          "line": 3315,
+          "line": 3345,
           "function": "live",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.live"
         },
         {
           "file": "coordination_api.py",
-          "line": 3320,
+          "line": 3350,
           "function": "ready",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.ready"
         },
         {
           "file": "coordination_api.py",
-          "line": 3332,
+          "line": 3362,
           "function": "health",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.health"
         },
         {
           "file": "coordination_api.py",
-          "line": 3343,
+          "line": 3373,
           "function": "github_prs",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.github_prs"
         },
         {
           "file": "coordination_api.py",
-          "line": 3383,
+          "line": 3413,
           "function": "openspec_proposals",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.openspec_proposals"
         },
         {
           "file": "coordination_api.py",
-          "line": 3429,
+          "line": 3459,
           "function": "code_search_status_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.code_search_status_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 3449,
+          "line": 3479,
           "function": "verify_code_search_principal",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.verify_code_search_principal"
         },
         {
           "file": "coordination_api.py",
-          "line": 3449,
+          "line": 3479,
           "parameter": "http_request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.verify_code_search_principal"
         },
         {
           "file": "coordination_api.py",
-          "line": 3466,
+          "line": 3496,
           "function": "search_code_endpoint",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.search_code_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 3467,
+          "line": 3497,
           "parameter": "request",
           "kind": "param_type",
           "enclosing_node": "py:coordination_api.create_coordination_api.search_code_endpoint"
         },
         {
           "file": "coordination_api.py",
-          "line": 3504,
+          "line": 3534,
           "function": "main",
           "kind": "return_type",
           "enclosing_node": "py:coordination_api.main"
@@ -37193,7 +37866,7 @@
     "items": [
       {
         "file": "agents_config.py",
-        "line": 487,
+        "line": 573,
         "category": "hardcoded_secret",
         "severity": "medium",
         "detail": "Potential hardcoded secret in 'api_key_env'",
@@ -37201,7 +37874,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 503,
+        "line": 589,
         "category": "hardcoded_secret",
         "severity": "medium",
         "detail": "Potential hardcoded secret in 'api_key_env'",
@@ -37209,7 +37882,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1012,
+        "line": 1140,
         "category": "sql_concatenation",
         "severity": "high",
         "detail": "SQL built via string concatenation",
@@ -37217,7 +37890,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1012,
+        "line": 1140,
         "category": "sql_concatenation",
         "severity": "high",
         "detail": "SQL built via string concatenation",
@@ -37225,7 +37898,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1012,
+        "line": 1140,
         "category": "sql_concatenation",
         "severity": "high",
         "detail": "SQL built via string concatenation",
@@ -37233,7 +37906,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1012,
+        "line": 1140,
         "category": "sql_concatenation",
         "severity": "high",
         "detail": "SQL built via string concatenation",
@@ -37241,7 +37914,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1012,
+        "line": 1140,
         "category": "sql_concatenation",
         "severity": "high",
         "detail": "SQL built via string concatenation",

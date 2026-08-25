@@ -1,9 +1,11 @@
 {
-  "generated_at": "2026-08-24T16:54:08+00:00",
+  "generated_at": "2026-08-24T22:25:50+00:00",
   "independent_groups": [
     {
       "id": 0,
       "modules": [
+        "py:agents_config._as_positive_number",
+        "py:agents_config._best_defined_tier",
         "py:agents_config._default_agents_path",
         "py:agents_config._default_archetypes_path",
         "py:agents_config._default_secrets_path",
@@ -16,9 +18,12 @@
         "py:agents_config._resolve_api_key_from_openbao",
         "py:agents_config._resolve_model_spec",
         "py:agents_config._resolve_model_spec._finalize",
+        "py:agents_config._served_local_roster",
         "py:agents_config._sync_assignments",
         "py:agents_config._tier_entry_to_spec",
         "py:agents_config._unique_dir_prefixes",
+        "py:agents_config._validate_local_roster",
+        "py:agents_config._with_served_local_roster",
         "py:agents_config.derive_allowed_operations",
         "py:agents_config.get_agent_config",
         "py:agents_config.get_agent_isolation",
@@ -141,6 +146,7 @@
         "py:coordination_api.create_coordination_api.request_approval_endpoint",
         "py:coordination_api.create_coordination_api.request_permission_endpoint",
         "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint",
+        "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit",
         "py:coordination_api.create_coordination_api.rollback_policy_endpoint",
         "py:coordination_api.create_coordination_api.run_pre_merge_checks_endpoint",
         "py:coordination_api.create_coordination_api.search_code_endpoint",
@@ -546,7 +552,7 @@
       "language_mix": [
         "python"
       ],
-      "size": 538
+      "size": 544
     },
     {
       "id": 1,
@@ -5360,7 +5366,7 @@
     {
       "id": 465,
       "modules": [
-        "py:agents_config.ModeConfig"
+        "py:agents_config.LocalProviderTrustBoundaryError"
       ],
       "language_mix": [
         "python"
@@ -5370,7 +5376,7 @@
     {
       "id": 466,
       "modules": [
-        "py:agents_config.ModelSpec"
+        "py:agents_config.LocalProviderTrustBoundaryError.__init__"
       ],
       "language_mix": [
         "python"
@@ -5380,7 +5386,7 @@
     {
       "id": 467,
       "modules": [
-        "py:agents_config.PhaseMappingEntry"
+        "py:agents_config.LocalRosterConfigError"
       ],
       "language_mix": [
         "python"
@@ -5390,7 +5396,7 @@
     {
       "id": 468,
       "modules": [
-        "py:agents_config.PollConfig"
+        "py:agents_config.LocalRosterConfigError.__init__"
       ],
       "language_mix": [
         "python"
@@ -5400,7 +5406,7 @@
     {
       "id": 469,
       "modules": [
-        "py:agents_config.ProfileSyncError"
+        "py:agents_config.ModeConfig"
       ],
       "language_mix": [
         "python"
@@ -5410,7 +5416,7 @@
     {
       "id": 470,
       "modules": [
-        "py:agents_config.ProfileSyncResult"
+        "py:agents_config.ModelSpec"
       ],
       "language_mix": [
         "python"
@@ -5420,7 +5426,7 @@
     {
       "id": 471,
       "modules": [
-        "py:agents_config.ProfileSyncResult.mutations"
+        "py:agents_config.PhaseMappingEntry"
       ],
       "language_mix": [
         "python"
@@ -5430,7 +5436,7 @@
     {
       "id": 472,
       "modules": [
-        "py:agents_config.ProviderModelMappingError"
+        "py:agents_config.PollConfig"
       ],
       "language_mix": [
         "python"
@@ -5440,7 +5446,7 @@
     {
       "id": 473,
       "modules": [
-        "py:agents_config.ProviderModelMappingError.__init__"
+        "py:agents_config.ProfileSyncError"
       ],
       "language_mix": [
         "python"
@@ -5450,7 +5456,7 @@
     {
       "id": 474,
       "modules": [
-        "py:agents_config.ResolvedArchetype"
+        "py:agents_config.ProfileSyncResult"
       ],
       "language_mix": [
         "python"
@@ -5460,7 +5466,7 @@
     {
       "id": 475,
       "modules": [
-        "py:agents_config.SdkConfig"
+        "py:agents_config.ProfileSyncResult.mutations"
       ],
       "language_mix": [
         "python"
@@ -5470,7 +5476,7 @@
     {
       "id": 476,
       "modules": [
-        "py:agents_config.compose_prompt"
+        "py:agents_config.ProviderModelMappingError"
       ],
       "language_mix": [
         "python"
@@ -5480,7 +5486,7 @@
     {
       "id": 477,
       "modules": [
-        "py:agents_config.reset_agents_config"
+        "py:agents_config.ProviderModelMappingError.__init__"
       ],
       "language_mix": [
         "python"
@@ -5490,7 +5496,7 @@
     {
       "id": 478,
       "modules": [
-        "py:agents_config.reset_archetypes_config"
+        "py:agents_config.ResolvedArchetype"
       ],
       "language_mix": [
         "python"
@@ -5500,7 +5506,7 @@
     {
       "id": 479,
       "modules": [
-        "py:approval.ApprovalRequest"
+        "py:agents_config.SdkConfig"
       ],
       "language_mix": [
         "python"
@@ -5510,7 +5516,7 @@
     {
       "id": 480,
       "modules": [
-        "py:approval.ApprovalService"
+        "py:agents_config.compose_prompt"
       ],
       "language_mix": [
         "python"
@@ -5520,7 +5526,7 @@
     {
       "id": 481,
       "modules": [
-        "py:approval.ApprovalService.__init__"
+        "py:agents_config.reset_agents_config"
       ],
       "language_mix": [
         "python"
@@ -5530,7 +5536,7 @@
     {
       "id": 482,
       "modules": [
-        "py:approval.ApprovalService.check_request"
+        "py:agents_config.reset_archetypes_config"
       ],
       "language_mix": [
         "python"
@@ -5540,7 +5546,7 @@
     {
       "id": 483,
       "modules": [
-        "py:approval.ApprovalService.decide_request"
+        "py:approval.ApprovalRequest"
       ],
       "language_mix": [
         "python"
@@ -5550,7 +5556,7 @@
     {
       "id": 484,
       "modules": [
-        "py:approval.ApprovalService.expire_stale_requests"
+        "py:approval.ApprovalService"
       ],
       "language_mix": [
         "python"
@@ -5560,7 +5566,7 @@
     {
       "id": 485,
       "modules": [
-        "py:approval.ApprovalService.list_pending"
+        "py:approval.ApprovalService.__init__"
       ],
       "language_mix": [
         "python"
@@ -5570,7 +5576,7 @@
     {
       "id": 486,
       "modules": [
-        "py:approval.ApprovalService.submit_request"
+        "py:approval.ApprovalService.check_request"
       ],
       "language_mix": [
         "python"
@@ -5580,7 +5586,7 @@
     {
       "id": 487,
       "modules": [
-        "py:approval.reset_approval_service"
+        "py:approval.ApprovalService.decide_request"
       ],
       "language_mix": [
         "python"
@@ -5590,7 +5596,7 @@
     {
       "id": 488,
       "modules": [
-        "py:assurance"
+        "py:approval.ApprovalService.expire_stale_requests"
       ],
       "language_mix": [
         "python"
@@ -5600,7 +5606,7 @@
     {
       "id": 489,
       "modules": [
-        "py:audit.AuditEntry"
+        "py:approval.ApprovalService.list_pending"
       ],
       "language_mix": [
         "python"
@@ -5610,7 +5616,7 @@
     {
       "id": 490,
       "modules": [
-        "py:audit.AuditEntry.from_dict"
+        "py:approval.ApprovalService.submit_request"
       ],
       "language_mix": [
         "python"
@@ -5620,7 +5626,7 @@
     {
       "id": 491,
       "modules": [
-        "py:audit.AuditResult"
+        "py:approval.reset_approval_service"
       ],
       "language_mix": [
         "python"
@@ -5630,7 +5636,7 @@
     {
       "id": 492,
       "modules": [
-        "py:audit.AuditResult.from_dict"
+        "py:assurance"
       ],
       "language_mix": [
         "python"
@@ -5640,7 +5646,7 @@
     {
       "id": 493,
       "modules": [
-        "py:audit.AuditService"
+        "py:audit.AuditEntry"
       ],
       "language_mix": [
         "python"
@@ -5650,7 +5656,7 @@
     {
       "id": 494,
       "modules": [
-        "py:audit.AuditService.__init__"
+        "py:audit.AuditEntry.from_dict"
       ],
       "language_mix": [
         "python"
@@ -5660,7 +5666,7 @@
     {
       "id": 495,
       "modules": [
-        "py:audit.AuditService._insert_audit_entry"
+        "py:audit.AuditResult"
       ],
       "language_mix": [
         "python"
@@ -5670,7 +5676,7 @@
     {
       "id": 496,
       "modules": [
-        "py:audit.AuditService.query"
+        "py:audit.AuditResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -5680,7 +5686,7 @@
     {
       "id": 497,
       "modules": [
-        "py:audit.AuditService.timed"
+        "py:audit.AuditService"
       ],
       "language_mix": [
         "python"
@@ -5690,7 +5696,7 @@
     {
       "id": 498,
       "modules": [
-        "py:audit.AuditTimer"
+        "py:audit.AuditService.__init__"
       ],
       "language_mix": [
         "python"
@@ -5700,7 +5706,7 @@
     {
       "id": 499,
       "modules": [
-        "py:audit.AuditTimer.__aenter__"
+        "py:audit.AuditService._insert_audit_entry"
       ],
       "language_mix": [
         "python"
@@ -5710,7 +5716,7 @@
     {
       "id": 500,
       "modules": [
-        "py:audit.AuditTimer.__aexit__"
+        "py:audit.AuditService.query"
       ],
       "language_mix": [
         "python"
@@ -5720,7 +5726,7 @@
     {
       "id": 501,
       "modules": [
-        "py:audit.AuditTimer.__init__"
+        "py:audit.AuditService.timed"
       ],
       "language_mix": [
         "python"
@@ -5730,7 +5736,7 @@
     {
       "id": 502,
       "modules": [
-        "py:audit_triage.AuditTriageBuffer"
+        "py:audit.AuditTimer"
       ],
       "language_mix": [
         "python"
@@ -5740,7 +5746,7 @@
     {
       "id": 503,
       "modules": [
-        "py:audit_triage.AuditTriageBuffer.__init__"
+        "py:audit.AuditTimer.__aenter__"
       ],
       "language_mix": [
         "python"
@@ -5750,7 +5756,7 @@
     {
       "id": 504,
       "modules": [
-        "py:audit_triage.AuditTriageBuffer.drain_all"
+        "py:audit.AuditTimer.__aexit__"
       ],
       "language_mix": [
         "python"
@@ -5760,7 +5766,7 @@
     {
       "id": 505,
       "modules": [
-        "py:audit_triage.AuditTriageBuffer.push"
+        "py:audit.AuditTimer.__init__"
       ],
       "language_mix": [
         "python"
@@ -5770,7 +5776,7 @@
     {
       "id": 506,
       "modules": [
-        "py:audit_triage.AuditTriageConfig"
+        "py:audit_triage.AuditTriageBuffer"
       ],
       "language_mix": [
         "python"
@@ -5780,7 +5786,7 @@
     {
       "id": 507,
       "modules": [
-        "py:audit_triage.load_prompt"
+        "py:audit_triage.AuditTriageBuffer.__init__"
       ],
       "language_mix": [
         "python"
@@ -5790,7 +5796,7 @@
     {
       "id": 508,
       "modules": [
-        "py:audit_triage.reset_triage_buffer"
+        "py:audit_triage.AuditTriageBuffer.drain_all"
       ],
       "language_mix": [
         "python"
@@ -5800,7 +5806,7 @@
     {
       "id": 509,
       "modules": [
-        "py:cloudflare_access.CloudflareAccessError"
+        "py:audit_triage.AuditTriageBuffer.push"
       ],
       "language_mix": [
         "python"
@@ -5810,7 +5816,7 @@
     {
       "id": 510,
       "modules": [
-        "py:cloudflare_access.CloudflareAccessMiddleware"
+        "py:audit_triage.AuditTriageConfig"
       ],
       "language_mix": [
         "python"
@@ -5820,7 +5826,7 @@
     {
       "id": 511,
       "modules": [
-        "py:cloudflare_access.CloudflareAccessMiddleware.__call__"
+        "py:audit_triage.load_prompt"
       ],
       "language_mix": [
         "python"
@@ -5830,7 +5836,7 @@
     {
       "id": 512,
       "modules": [
-        "py:cloudflare_access.CloudflareAccessMiddleware.__init__"
+        "py:audit_triage.reset_triage_buffer"
       ],
       "language_mix": [
         "python"
@@ -5840,7 +5846,7 @@
     {
       "id": 513,
       "modules": [
-        "py:cloudflare_access.CloudflareAccessMiddleware._deny"
+        "py:cloudflare_access.CloudflareAccessError"
       ],
       "language_mix": [
         "python"
@@ -5850,7 +5856,7 @@
     {
       "id": 514,
       "modules": [
-        "py:cloudflare_access.CloudflareAccessMiddleware._is_exempt"
+        "py:cloudflare_access.CloudflareAccessMiddleware"
       ],
       "language_mix": [
         "python"
@@ -5860,7 +5866,7 @@
     {
       "id": 515,
       "modules": [
-        "py:cloudflare_access.CloudflareAccessVerifier"
+        "py:cloudflare_access.CloudflareAccessMiddleware.__call__"
       ],
       "language_mix": [
         "python"
@@ -5870,7 +5876,7 @@
     {
       "id": 516,
       "modules": [
-        "py:cloudflare_access.CloudflareAccessVerifier.__init__"
+        "py:cloudflare_access.CloudflareAccessMiddleware.__init__"
       ],
       "language_mix": [
         "python"
@@ -5880,7 +5886,7 @@
     {
       "id": 517,
       "modules": [
-        "py:cloudflare_access.CloudflareAccessVerifier._signing_key"
+        "py:cloudflare_access.CloudflareAccessMiddleware._deny"
       ],
       "language_mix": [
         "python"
@@ -5890,7 +5896,7 @@
     {
       "id": 518,
       "modules": [
-        "py:cloudflare_access.CloudflareAccessVerifier.verify"
+        "py:cloudflare_access.CloudflareAccessMiddleware._is_exempt"
       ],
       "language_mix": [
         "python"
@@ -5900,7 +5906,7 @@
     {
       "id": 519,
       "modules": [
-        "py:code_search.CodeSearchError"
+        "py:cloudflare_access.CloudflareAccessVerifier"
       ],
       "language_mix": [
         "python"
@@ -5910,7 +5916,7 @@
     {
       "id": 520,
       "modules": [
-        "py:code_search.CodeSearchForbiddenError"
+        "py:cloudflare_access.CloudflareAccessVerifier.__init__"
       ],
       "language_mix": [
         "python"
@@ -5920,7 +5926,7 @@
     {
       "id": 521,
       "modules": [
-        "py:code_search.CodeSearchHit"
+        "py:cloudflare_access.CloudflareAccessVerifier._signing_key"
       ],
       "language_mix": [
         "python"
@@ -5930,7 +5936,7 @@
     {
       "id": 522,
       "modules": [
-        "py:code_search.CodeSearchRequest"
+        "py:cloudflare_access.CloudflareAccessVerifier.verify"
       ],
       "language_mix": [
         "python"
@@ -5940,7 +5946,7 @@
     {
       "id": 523,
       "modules": [
-        "py:code_search.CodeSearchRequest.require_non_main_index"
+        "py:code_search.CodeSearchError"
       ],
       "language_mix": [
         "python"
@@ -5950,7 +5956,7 @@
     {
       "id": 524,
       "modules": [
-        "py:code_search.CodeSearchRequest.validate_languages"
+        "py:code_search.CodeSearchForbiddenError"
       ],
       "language_mix": [
         "python"
@@ -5960,7 +5966,7 @@
     {
       "id": 525,
       "modules": [
-        "py:code_search.CodeSearchResponse"
+        "py:code_search.CodeSearchHit"
       ],
       "language_mix": [
         "python"
@@ -5970,7 +5976,7 @@
     {
       "id": 526,
       "modules": [
-        "py:code_search.CodeSearchResponse.validate_state_invariants"
+        "py:code_search.CodeSearchRequest"
       ],
       "language_mix": [
         "python"
@@ -5980,7 +5986,7 @@
     {
       "id": 527,
       "modules": [
-        "py:code_search.CodeSearchService"
+        "py:code_search.CodeSearchRequest.require_non_main_index"
       ],
       "language_mix": [
         "python"
@@ -5990,7 +5996,7 @@
     {
       "id": 528,
       "modules": [
-        "py:code_search.CodeSearchService.__init__"
+        "py:code_search.CodeSearchRequest.validate_languages"
       ],
       "language_mix": [
         "python"
@@ -6000,7 +6006,7 @@
     {
       "id": 529,
       "modules": [
-        "py:code_search.CodeSearchService._observe"
+        "py:code_search.CodeSearchResponse"
       ],
       "language_mix": [
         "python"
@@ -6010,7 +6016,7 @@
     {
       "id": 530,
       "modules": [
-        "py:code_search.CodeSearchService._observe_response"
+        "py:code_search.CodeSearchResponse.validate_state_invariants"
       ],
       "language_mix": [
         "python"
@@ -6020,7 +6026,7 @@
     {
       "id": 531,
       "modules": [
-        "py:code_search.CodeSearchService._select_index"
+        "py:code_search.CodeSearchService"
       ],
       "language_mix": [
         "python"
@@ -6030,7 +6036,7 @@
     {
       "id": 532,
       "modules": [
-        "py:code_search.CodeSearchService.metrics_snapshot"
+        "py:code_search.CodeSearchService.__init__"
       ],
       "language_mix": [
         "python"
@@ -6040,7 +6046,7 @@
     {
       "id": 533,
       "modules": [
-        "py:code_search.CodeSearchState"
+        "py:code_search.CodeSearchService._observe"
       ],
       "language_mix": [
         "python"
@@ -6050,7 +6056,7 @@
     {
       "id": 534,
       "modules": [
-        "py:code_search.ExplicitScope"
+        "py:code_search.CodeSearchService._observe_response"
       ],
       "language_mix": [
         "python"
@@ -6060,7 +6066,7 @@
     {
       "id": 535,
       "modules": [
-        "py:code_search.Fallback"
+        "py:code_search.CodeSearchService._select_index"
       ],
       "language_mix": [
         "python"
@@ -6070,7 +6076,7 @@
     {
       "id": 536,
       "modules": [
-        "py:code_search.IndexProvenance"
+        "py:code_search.CodeSearchService.metrics_snapshot"
       ],
       "language_mix": [
         "python"
@@ -6080,7 +6086,7 @@
     {
       "id": 537,
       "modules": [
-        "py:code_search.RequestedIdentity"
+        "py:code_search.CodeSearchState"
       ],
       "language_mix": [
         "python"
@@ -6090,7 +6096,7 @@
     {
       "id": 538,
       "modules": [
-        "py:code_search.ScopeDisposition"
+        "py:code_search.ExplicitScope"
       ],
       "language_mix": [
         "python"
@@ -6100,7 +6106,7 @@
     {
       "id": 539,
       "modules": [
-        "py:code_search.SearchNamespace"
+        "py:code_search.Fallback"
       ],
       "language_mix": [
         "python"
@@ -6110,7 +6116,7 @@
     {
       "id": 540,
       "modules": [
-        "py:code_search.SearchNamespace.validate_main_key"
+        "py:code_search.IndexProvenance"
       ],
       "language_mix": [
         "python"
@@ -6120,7 +6126,7 @@
     {
       "id": 541,
       "modules": [
-        "py:code_search.WorkPackageScope"
+        "py:code_search.RequestedIdentity"
       ],
       "language_mix": [
         "python"
@@ -6130,7 +6136,7 @@
     {
       "id": 542,
       "modules": [
-        "py:code_search.WorkPackageScope.validate_reference"
+        "py:code_search.ScopeDisposition"
       ],
       "language_mix": [
         "python"
@@ -6140,7 +6146,7 @@
     {
       "id": 543,
       "modules": [
-        "py:code_search._ClosedModel"
+        "py:code_search.SearchNamespace"
       ],
       "language_mix": [
         "python"
@@ -6150,7 +6156,7 @@
     {
       "id": 544,
       "modules": [
-        "py:code_search.get_code_search_service"
+        "py:code_search.SearchNamespace.validate_main_key"
       ],
       "language_mix": [
         "python"
@@ -6160,7 +6166,7 @@
     {
       "id": 545,
       "modules": [
-        "py:code_search.init_code_search_service"
+        "py:code_search.WorkPackageScope"
       ],
       "language_mix": [
         "python"
@@ -6170,7 +6176,7 @@
     {
       "id": 546,
       "modules": [
-        "py:code_search_authorization.EffectiveCodeSearchScope"
+        "py:code_search.WorkPackageScope.validate_reference"
       ],
       "language_mix": [
         "python"
@@ -6180,7 +6186,7 @@
     {
       "id": 547,
       "modules": [
-        "py:code_search_authorization.ExplicitScopeRequest"
+        "py:code_search._ClosedModel"
       ],
       "language_mix": [
         "python"
@@ -6190,7 +6196,7 @@
     {
       "id": 548,
       "modules": [
-        "py:code_search_authorization.PrincipalCodeSearchGrant"
+        "py:code_search.get_code_search_service"
       ],
       "language_mix": [
         "python"
@@ -6200,7 +6206,7 @@
     {
       "id": 549,
       "modules": [
-        "py:code_search_authorization.ScopeAuthorizationError"
+        "py:code_search.init_code_search_service"
       ],
       "language_mix": [
         "python"
@@ -6210,7 +6216,7 @@
     {
       "id": 550,
       "modules": [
-        "py:code_search_authorization.ScopeForbiddenError"
+        "py:code_search_authorization.EffectiveCodeSearchScope"
       ],
       "language_mix": [
         "python"
@@ -6220,7 +6226,7 @@
     {
       "id": 551,
       "modules": [
-        "py:code_search_authorization.ScopeRejectedError"
+        "py:code_search_authorization.ExplicitScopeRequest"
       ],
       "language_mix": [
         "python"
@@ -6230,7 +6236,7 @@
     {
       "id": 552,
       "modules": [
-        "py:code_search_authorization.WorkPackageScopeRecord"
+        "py:code_search_authorization.PrincipalCodeSearchGrant"
       ],
       "language_mix": [
         "python"
@@ -6240,7 +6246,7 @@
     {
       "id": 553,
       "modules": [
-        "py:code_search_authorization.WorkPackageScopeRequest"
+        "py:code_search_authorization.ScopeAuthorizationError"
       ],
       "language_mix": [
         "python"
@@ -6250,7 +6256,7 @@
     {
       "id": 554,
       "modules": [
-        "py:code_search_authorization.WorkPackageScopeResolver"
+        "py:code_search_authorization.ScopeForbiddenError"
       ],
       "language_mix": [
         "python"
@@ -6260,7 +6266,7 @@
     {
       "id": 555,
       "modules": [
-        "py:code_search_authorization.WorkPackageScopeResolver.__call__"
+        "py:code_search_authorization.ScopeRejectedError"
       ],
       "language_mix": [
         "python"
@@ -6270,7 +6276,7 @@
     {
       "id": 556,
       "modules": [
-        "py:code_search_authorization._GlobToken"
+        "py:code_search_authorization.WorkPackageScopeRecord"
       ],
       "language_mix": [
         "python"
@@ -6280,7 +6286,7 @@
     {
       "id": 557,
       "modules": [
-        "py:code_search_runtime.CodeSearchOverloadedError"
+        "py:code_search_authorization.WorkPackageScopeRequest"
       ],
       "language_mix": [
         "python"
@@ -6290,7 +6296,7 @@
     {
       "id": 558,
       "modules": [
-        "py:code_search_runtime.CodeSearchOverloadedError.__init__"
+        "py:code_search_authorization.WorkPackageScopeResolver"
       ],
       "language_mix": [
         "python"
@@ -6300,7 +6306,7 @@
     {
       "id": 559,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntime"
+        "py:code_search_authorization.WorkPackageScopeResolver.__call__"
       ],
       "language_mix": [
         "python"
@@ -6310,7 +6316,7 @@
     {
       "id": 560,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntime._assert_owner"
+        "py:code_search_authorization._GlobToken"
       ],
       "language_mix": [
         "python"
@@ -6320,7 +6326,7 @@
     {
       "id": 561,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntime._cache_failure"
+        "py:code_search_runtime.CodeSearchOverloadedError"
       ],
       "language_mix": [
         "python"
@@ -6330,7 +6336,7 @@
     {
       "id": 562,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntime._close_pool"
+        "py:code_search_runtime.CodeSearchOverloadedError.__init__"
       ],
       "language_mix": [
         "python"
@@ -6340,7 +6346,7 @@
     {
       "id": 563,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntime._close_provider"
+        "py:code_search_runtime.CodeSearchRuntime"
       ],
       "language_mix": [
         "python"
@@ -6350,7 +6356,7 @@
     {
       "id": 564,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntime._finish_initialization"
+        "py:code_search_runtime.CodeSearchRuntime._assert_owner"
       ],
       "language_mix": [
         "python"
@@ -6360,7 +6366,7 @@
     {
       "id": 565,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntime._provider_ready"
+        "py:code_search_runtime.CodeSearchRuntime._cache_failure"
       ],
       "language_mix": [
         "python"
@@ -6370,7 +6376,7 @@
     {
       "id": 566,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntime.create.embed_one"
+        "py:code_search_runtime.CodeSearchRuntime._close_pool"
       ],
       "language_mix": [
         "python"
@@ -6380,7 +6386,7 @@
     {
       "id": 567,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntime.invalidate"
+        "py:code_search_runtime.CodeSearchRuntime._close_provider"
       ],
       "language_mix": [
         "python"
@@ -6390,7 +6396,7 @@
     {
       "id": 568,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntime.state_counts"
+        "py:code_search_runtime.CodeSearchRuntime._finish_initialization"
       ],
       "language_mix": [
         "python"
@@ -6400,7 +6406,7 @@
     {
       "id": 569,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntime.status"
+        "py:code_search_runtime.CodeSearchRuntime._provider_ready"
       ],
       "language_mix": [
         "python"
@@ -6410,7 +6416,7 @@
     {
       "id": 570,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntime.status_snapshot"
+        "py:code_search_runtime.CodeSearchRuntime.create.embed_one"
       ],
       "language_mix": [
         "python"
@@ -6420,7 +6426,7 @@
     {
       "id": 571,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntimeConfig"
+        "py:code_search_runtime.CodeSearchRuntime.invalidate"
       ],
       "language_mix": [
         "python"
@@ -6430,7 +6436,7 @@
     {
       "id": 572,
       "modules": [
-        "py:code_search_runtime.CodeSearchRuntimeConfig.__post_init__"
+        "py:code_search_runtime.CodeSearchRuntime.state_counts"
       ],
       "language_mix": [
         "python"
@@ -6440,7 +6446,7 @@
     {
       "id": 573,
       "modules": [
-        "py:code_search_runtime.CodeSearchStatus"
+        "py:code_search_runtime.CodeSearchRuntime.status"
       ],
       "language_mix": [
         "python"
@@ -6450,7 +6456,7 @@
     {
       "id": 574,
       "modules": [
-        "py:code_search_runtime.CodeSearchStatus.to_dict"
+        "py:code_search_runtime.CodeSearchRuntime.status_snapshot"
       ],
       "language_mix": [
         "python"
@@ -6460,7 +6466,7 @@
     {
       "id": 575,
       "modules": [
-        "py:code_search_runtime.CodeSearchStatus.validate_truth_table"
+        "py:code_search_runtime.CodeSearchRuntimeConfig"
       ],
       "language_mix": [
         "python"
@@ -6470,7 +6476,7 @@
     {
       "id": 576,
       "modules": [
-        "py:code_search_runtime._Cache"
+        "py:code_search_runtime.CodeSearchRuntimeConfig.__post_init__"
       ],
       "language_mix": [
         "python"
@@ -6480,7 +6486,7 @@
     {
       "id": 577,
       "modules": [
-        "py:code_search_runtime._Cache.clear"
+        "py:code_search_runtime.CodeSearchStatus"
       ],
       "language_mix": [
         "python"
@@ -6490,7 +6496,7 @@
     {
       "id": 578,
       "modules": [
-        "py:code_search_runtime.code_search_enabled"
+        "py:code_search_runtime.CodeSearchStatus.to_dict"
       ],
       "language_mix": [
         "python"
@@ -6500,7 +6506,7 @@
     {
       "id": 579,
       "modules": [
-        "py:code_search_runtime.set_code_search_runtime"
+        "py:code_search_runtime.CodeSearchStatus.validate_truth_table"
       ],
       "language_mix": [
         "python"
@@ -6510,7 +6516,7 @@
     {
       "id": 580,
       "modules": [
-        "py:config.AgentConfig"
+        "py:code_search_runtime._Cache"
       ],
       "language_mix": [
         "python"
@@ -6520,7 +6526,7 @@
     {
       "id": 581,
       "modules": [
-        "py:config.AgentConfig.from_env"
+        "py:code_search_runtime._Cache.clear"
       ],
       "language_mix": [
         "python"
@@ -6530,7 +6536,7 @@
     {
       "id": 582,
       "modules": [
-        "py:config.ApiConfig"
+        "py:code_search_runtime.code_search_enabled"
       ],
       "language_mix": [
         "python"
@@ -6540,7 +6546,7 @@
     {
       "id": 583,
       "modules": [
-        "py:config.ApprovalConfig"
+        "py:code_search_runtime.set_code_search_runtime"
       ],
       "language_mix": [
         "python"
@@ -6550,7 +6556,7 @@
     {
       "id": 584,
       "modules": [
-        "py:config.AuditConfig"
+        "py:config.AgentConfig"
       ],
       "language_mix": [
         "python"
@@ -6560,7 +6566,7 @@
     {
       "id": 585,
       "modules": [
-        "py:config.AuditConfig.from_env"
+        "py:config.AgentConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6570,7 +6576,7 @@
     {
       "id": 586,
       "modules": [
-        "py:config.CloudflareAccessConfig"
+        "py:config.ApiConfig"
       ],
       "language_mix": [
         "python"
@@ -6580,7 +6586,7 @@
     {
       "id": 587,
       "modules": [
-        "py:config.CloudflareAccessConfig.from_env"
+        "py:config.ApprovalConfig"
       ],
       "language_mix": [
         "python"
@@ -6590,7 +6596,7 @@
     {
       "id": 588,
       "modules": [
-        "py:config.Config"
+        "py:config.AuditConfig"
       ],
       "language_mix": [
         "python"
@@ -6600,7 +6606,7 @@
     {
       "id": 589,
       "modules": [
-        "py:config.DatabaseConfig"
+        "py:config.AuditConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6610,7 +6616,7 @@
     {
       "id": 590,
       "modules": [
-        "py:config.DatabaseConfig.from_env"
+        "py:config.CloudflareAccessConfig"
       ],
       "language_mix": [
         "python"
@@ -6620,7 +6626,7 @@
     {
       "id": 591,
       "modules": [
-        "py:config.GuardrailsConfig"
+        "py:config.CloudflareAccessConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6630,7 +6636,7 @@
     {
       "id": 592,
       "modules": [
-        "py:config.GuardrailsConfig.from_env"
+        "py:config.Config"
       ],
       "language_mix": [
         "python"
@@ -6640,7 +6646,7 @@
     {
       "id": 593,
       "modules": [
-        "py:config.LangfuseConfig"
+        "py:config.DatabaseConfig"
       ],
       "language_mix": [
         "python"
@@ -6650,7 +6656,7 @@
     {
       "id": 594,
       "modules": [
-        "py:config.LangfuseConfig.from_env"
+        "py:config.DatabaseConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6660,7 +6666,7 @@
     {
       "id": 595,
       "modules": [
-        "py:config.LockConfig"
+        "py:config.GuardrailsConfig"
       ],
       "language_mix": [
         "python"
@@ -6670,7 +6676,7 @@
     {
       "id": 596,
       "modules": [
-        "py:config.LockConfig.from_env"
+        "py:config.GuardrailsConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6680,7 +6686,7 @@
     {
       "id": 597,
       "modules": [
-        "py:config.NetworkPolicyConfig"
+        "py:config.LangfuseConfig"
       ],
       "language_mix": [
         "python"
@@ -6690,7 +6696,7 @@
     {
       "id": 598,
       "modules": [
-        "py:config.NetworkPolicyConfig.from_env"
+        "py:config.LangfuseConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6700,7 +6706,7 @@
     {
       "id": 599,
       "modules": [
-        "py:config.ObservabilityConfig"
+        "py:config.LockConfig"
       ],
       "language_mix": [
         "python"
@@ -6710,7 +6716,7 @@
     {
       "id": 600,
       "modules": [
-        "py:config.ObservabilityConfig.from_env"
+        "py:config.LockConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6720,7 +6726,7 @@
     {
       "id": 601,
       "modules": [
-        "py:config.OpenBaoConfig"
+        "py:config.NetworkPolicyConfig"
       ],
       "language_mix": [
         "python"
@@ -6730,7 +6736,7 @@
     {
       "id": 602,
       "modules": [
-        "py:config.OpenBaoConfig.create_client"
+        "py:config.NetworkPolicyConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6740,7 +6746,7 @@
     {
       "id": 603,
       "modules": [
-        "py:config.OpenBaoConfig.from_env"
+        "py:config.ObservabilityConfig"
       ],
       "language_mix": [
         "python"
@@ -6750,7 +6756,7 @@
     {
       "id": 604,
       "modules": [
-        "py:config.OpenBaoConfig.is_enabled"
+        "py:config.ObservabilityConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6760,7 +6766,7 @@
     {
       "id": 605,
       "modules": [
-        "py:config.PolicyEngineConfig"
+        "py:config.OpenBaoConfig"
       ],
       "language_mix": [
         "python"
@@ -6770,7 +6776,7 @@
     {
       "id": 606,
       "modules": [
-        "py:config.PolicyEngineConfig.from_env"
+        "py:config.OpenBaoConfig.create_client"
       ],
       "language_mix": [
         "python"
@@ -6780,7 +6786,7 @@
     {
       "id": 607,
       "modules": [
-        "py:config.PolicySyncConfig"
+        "py:config.OpenBaoConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6790,7 +6796,7 @@
     {
       "id": 608,
       "modules": [
-        "py:config.PortAllocatorConfig"
+        "py:config.OpenBaoConfig.is_enabled"
       ],
       "language_mix": [
         "python"
@@ -6800,7 +6806,7 @@
     {
       "id": 609,
       "modules": [
-        "py:config.PortAllocatorConfig.from_env"
+        "py:config.PolicyEngineConfig"
       ],
       "language_mix": [
         "python"
@@ -6810,7 +6816,7 @@
     {
       "id": 610,
       "modules": [
-        "py:config.PostgresConfig"
+        "py:config.PolicyEngineConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6820,7 +6826,7 @@
     {
       "id": 611,
       "modules": [
-        "py:config.PostgresConfig.from_env"
+        "py:config.PolicySyncConfig"
       ],
       "language_mix": [
         "python"
@@ -6830,7 +6836,7 @@
     {
       "id": 612,
       "modules": [
-        "py:config.ProfilesConfig"
+        "py:config.PortAllocatorConfig"
       ],
       "language_mix": [
         "python"
@@ -6840,7 +6846,7 @@
     {
       "id": 613,
       "modules": [
-        "py:config.ProfilesConfig.from_env"
+        "py:config.PortAllocatorConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6850,7 +6856,7 @@
     {
       "id": 614,
       "modules": [
-        "py:config.RiskScoringConfig"
+        "py:config.PostgresConfig"
       ],
       "language_mix": [
         "python"
@@ -6860,7 +6866,7 @@
     {
       "id": 615,
       "modules": [
-        "py:config.SessionGrantsConfig"
+        "py:config.PostgresConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6870,7 +6876,7 @@
     {
       "id": 616,
       "modules": [
-        "py:config.SupabaseConfig"
+        "py:config.ProfilesConfig"
       ],
       "language_mix": [
         "python"
@@ -6880,7 +6886,7 @@
     {
       "id": 617,
       "modules": [
-        "py:config.SupabaseConfig.from_env"
+        "py:config.ProfilesConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6890,7 +6896,7 @@
     {
       "id": 618,
       "modules": [
-        "py:config.reset_config"
+        "py:config.RiskScoringConfig"
       ],
       "language_mix": [
         "python"
@@ -6900,7 +6906,7 @@
     {
       "id": 619,
       "modules": [
-        "py:coordination_api.AffectedTestsRequest"
+        "py:config.SessionGrantsConfig"
       ],
       "language_mix": [
         "python"
@@ -6910,7 +6916,7 @@
     {
       "id": 620,
       "modules": [
-        "py:coordination_api.ApprovalDecisionRequest"
+        "py:config.SupabaseConfig"
       ],
       "language_mix": [
         "python"
@@ -6920,7 +6926,7 @@
     {
       "id": 621,
       "modules": [
-        "py:coordination_api.ApprovalSubmitRequest"
+        "py:config.SupabaseConfig.from_env"
       ],
       "language_mix": [
         "python"
@@ -6930,7 +6936,7 @@
     {
       "id": 622,
       "modules": [
-        "py:coordination_api.AuditQueryParams"
+        "py:config.reset_config"
       ],
       "language_mix": [
         "python"
@@ -6940,7 +6946,7 @@
     {
       "id": 623,
       "modules": [
-        "py:coordination_api.DiscoveryCleanupRequest"
+        "py:coordination_api.AffectedTestsRequest"
       ],
       "language_mix": [
         "python"
@@ -6950,7 +6956,7 @@
     {
       "id": 624,
       "modules": [
-        "py:coordination_api.DiscoveryHeartbeatRequest"
+        "py:coordination_api.ApprovalDecisionRequest"
       ],
       "language_mix": [
         "python"
@@ -6960,7 +6966,7 @@
     {
       "id": 625,
       "modules": [
-        "py:coordination_api.DiscoveryRegisterRequest"
+        "py:coordination_api.ApprovalSubmitRequest"
       ],
       "language_mix": [
         "python"
@@ -6970,7 +6976,7 @@
     {
       "id": 626,
       "modules": [
-        "py:coordination_api.EventsAuthRequest"
+        "py:coordination_api.AuditQueryParams"
       ],
       "language_mix": [
         "python"
@@ -6980,7 +6986,7 @@
     {
       "id": 627,
       "modules": [
-        "py:coordination_api.FeatureConflictsRequest"
+        "py:coordination_api.DiscoveryCleanupRequest"
       ],
       "language_mix": [
         "python"
@@ -6990,7 +6996,7 @@
     {
       "id": 628,
       "modules": [
-        "py:coordination_api.FeatureDeregisterRequest"
+        "py:coordination_api.DiscoveryHeartbeatRequest"
       ],
       "language_mix": [
         "python"
@@ -7000,7 +7006,7 @@
     {
       "id": 629,
       "modules": [
-        "py:coordination_api.FeatureRegisterRequest"
+        "py:coordination_api.DiscoveryRegisterRequest"
       ],
       "language_mix": [
         "python"
@@ -7010,7 +7016,7 @@
     {
       "id": 630,
       "modules": [
-        "py:coordination_api.GenEvalCreateRequest"
+        "py:coordination_api.EventsAuthRequest"
       ],
       "language_mix": [
         "python"
@@ -7020,7 +7026,7 @@
     {
       "id": 631,
       "modules": [
-        "py:coordination_api.GenEvalRunRequest"
+        "py:coordination_api.FeatureConflictsRequest"
       ],
       "language_mix": [
         "python"
@@ -7030,7 +7036,7 @@
     {
       "id": 632,
       "modules": [
-        "py:coordination_api.GenEvalValidateRequest"
+        "py:coordination_api.FeatureDeregisterRequest"
       ],
       "language_mix": [
         "python"
@@ -7040,7 +7046,7 @@
     {
       "id": 633,
       "modules": [
-        "py:coordination_api.GuardrailsCheckRequest"
+        "py:coordination_api.FeatureRegisterRequest"
       ],
       "language_mix": [
         "python"
@@ -7050,7 +7056,7 @@
     {
       "id": 634,
       "modules": [
-        "py:coordination_api.HandoffReadRequest"
+        "py:coordination_api.GenEvalCreateRequest"
       ],
       "language_mix": [
         "python"
@@ -7060,7 +7066,7 @@
     {
       "id": 635,
       "modules": [
-        "py:coordination_api.HandoffWriteRequest"
+        "py:coordination_api.GenEvalRunRequest"
       ],
       "language_mix": [
         "python"
@@ -7070,7 +7076,7 @@
     {
       "id": 636,
       "modules": [
-        "py:coordination_api.IssueCloseRequest"
+        "py:coordination_api.GenEvalValidateRequest"
       ],
       "language_mix": [
         "python"
@@ -7080,7 +7086,7 @@
     {
       "id": 637,
       "modules": [
-        "py:coordination_api.IssueCommentRequest"
+        "py:coordination_api.GuardrailsCheckRequest"
       ],
       "language_mix": [
         "python"
@@ -7090,7 +7096,7 @@
     {
       "id": 638,
       "modules": [
-        "py:coordination_api.IssueCreateRequest"
+        "py:coordination_api.HandoffReadRequest"
       ],
       "language_mix": [
         "python"
@@ -7100,7 +7106,7 @@
     {
       "id": 639,
       "modules": [
-        "py:coordination_api.IssueListRequest"
+        "py:coordination_api.HandoffWriteRequest"
       ],
       "language_mix": [
         "python"
@@ -7110,7 +7116,7 @@
     {
       "id": 640,
       "modules": [
-        "py:coordination_api.IssueReadyRequest"
+        "py:coordination_api.IssueCloseRequest"
       ],
       "language_mix": [
         "python"
@@ -7120,7 +7126,7 @@
     {
       "id": 641,
       "modules": [
-        "py:coordination_api.IssueSearchRequest"
+        "py:coordination_api.IssueCommentRequest"
       ],
       "language_mix": [
         "python"
@@ -7130,7 +7136,7 @@
     {
       "id": 642,
       "modules": [
-        "py:coordination_api.IssueUpdateRequest"
+        "py:coordination_api.IssueCreateRequest"
       ],
       "language_mix": [
         "python"
@@ -7140,7 +7146,7 @@
     {
       "id": 643,
       "modules": [
-        "py:coordination_api.KanbanAuditRequest"
+        "py:coordination_api.IssueListRequest"
       ],
       "language_mix": [
         "python"
@@ -7150,7 +7156,7 @@
     {
       "id": 644,
       "modules": [
-        "py:coordination_api.KickAgentRequest"
+        "py:coordination_api.IssueReadyRequest"
       ],
       "language_mix": [
         "python"
@@ -7160,7 +7166,7 @@
     {
       "id": 645,
       "modules": [
-        "py:coordination_api.LockAcquireRequest"
+        "py:coordination_api.IssueSearchRequest"
       ],
       "language_mix": [
         "python"
@@ -7170,7 +7176,7 @@
     {
       "id": 646,
       "modules": [
-        "py:coordination_api.LockReleaseRequest"
+        "py:coordination_api.IssueUpdateRequest"
       ],
       "language_mix": [
         "python"
@@ -7180,7 +7186,7 @@
     {
       "id": 647,
       "modules": [
-        "py:coordination_api.MemoryQueryRequest"
+        "py:coordination_api.KanbanAuditRequest"
       ],
       "language_mix": [
         "python"
@@ -7190,7 +7196,7 @@
     {
       "id": 648,
       "modules": [
-        "py:coordination_api.MemoryStoreRequest"
+        "py:coordination_api.KickAgentRequest"
       ],
       "language_mix": [
         "python"
@@ -7200,7 +7206,7 @@
     {
       "id": 649,
       "modules": [
-        "py:coordination_api.MergeQueueEnqueueRequest"
+        "py:coordination_api.LockAcquireRequest"
       ],
       "language_mix": [
         "python"
@@ -7210,7 +7216,7 @@
     {
       "id": 650,
       "modules": [
-        "py:coordination_api.MergeTrainEjectRequest"
+        "py:coordination_api.LockReleaseRequest"
       ],
       "language_mix": [
         "python"
@@ -7220,7 +7226,7 @@
     {
       "id": 651,
       "modules": [
-        "py:coordination_api.MergeTrainReportResultRequest"
+        "py:coordination_api.MemoryQueryRequest"
       ],
       "language_mix": [
         "python"
@@ -7230,7 +7236,7 @@
     {
       "id": 652,
       "modules": [
-        "py:coordination_api.PatchLabelsRequest"
+        "py:coordination_api.MemoryStoreRequest"
       ],
       "language_mix": [
         "python"
@@ -7240,7 +7246,7 @@
     {
       "id": 653,
       "modules": [
-        "py:coordination_api.PermissionRequestRequest"
+        "py:coordination_api.MergeQueueEnqueueRequest"
       ],
       "language_mix": [
         "python"
@@ -7250,7 +7256,7 @@
     {
       "id": 654,
       "modules": [
-        "py:coordination_api.PolicyCheckRequest"
+        "py:coordination_api.MergeTrainEjectRequest"
       ],
       "language_mix": [
         "python"
@@ -7260,7 +7266,7 @@
     {
       "id": 655,
       "modules": [
-        "py:coordination_api.PolicyRollbackRequest"
+        "py:coordination_api.MergeTrainReportResultRequest"
       ],
       "language_mix": [
         "python"
@@ -7270,7 +7276,7 @@
     {
       "id": 656,
       "modules": [
-        "py:coordination_api.PolicyValidateRequest"
+        "py:coordination_api.PatchLabelsRequest"
       ],
       "language_mix": [
         "python"
@@ -7280,7 +7286,7 @@
     {
       "id": 657,
       "modules": [
-        "py:coordination_api.PortAllocateRequest"
+        "py:coordination_api.PermissionRequestRequest"
       ],
       "language_mix": [
         "python"
@@ -7290,7 +7296,7 @@
     {
       "id": 658,
       "modules": [
-        "py:coordination_api.PortReleaseRequest"
+        "py:coordination_api.PolicyCheckRequest"
       ],
       "language_mix": [
         "python"
@@ -7300,7 +7306,7 @@
     {
       "id": 659,
       "modules": [
-        "py:coordination_api.ResolveForPhaseRequest"
+        "py:coordination_api.PolicyRollbackRequest"
       ],
       "language_mix": [
         "python"
@@ -7310,7 +7316,7 @@
     {
       "id": 660,
       "modules": [
-        "py:coordination_api.SavedViewRequest"
+        "py:coordination_api.PolicyValidateRequest"
       ],
       "language_mix": [
         "python"
@@ -7320,7 +7326,7 @@
     {
       "id": 661,
       "modules": [
-        "py:coordination_api.StatusReportRequest"
+        "py:coordination_api.PortAllocateRequest"
       ],
       "language_mix": [
         "python"
@@ -7330,7 +7336,7 @@
     {
       "id": 662,
       "modules": [
-        "py:coordination_api.WorkClaimRequest"
+        "py:coordination_api.PortReleaseRequest"
       ],
       "language_mix": [
         "python"
@@ -7340,7 +7346,7 @@
     {
       "id": 663,
       "modules": [
-        "py:coordination_api.WorkCompleteRequest"
+        "py:coordination_api.ResolveForPhaseRequest"
       ],
       "language_mix": [
         "python"
@@ -7350,7 +7356,7 @@
     {
       "id": 664,
       "modules": [
-        "py:coordination_api.WorkGetTaskRequest"
+        "py:coordination_api.SavedViewRequest"
       ],
       "language_mix": [
         "python"
@@ -7360,7 +7366,7 @@
     {
       "id": 665,
       "modules": [
-        "py:coordination_api.WorkSubmitRequest"
+        "py:coordination_api.StatusReportRequest"
       ],
       "language_mix": [
         "python"
@@ -7370,7 +7376,7 @@
     {
       "id": 666,
       "modules": [
-        "py:coordination_api._CodeSearchProblemError"
+        "py:coordination_api.WorkClaimRequest"
       ],
       "language_mix": [
         "python"
@@ -7380,7 +7386,7 @@
     {
       "id": 667,
       "modules": [
-        "py:coordination_api._CodeSearchProblemError.__init__"
+        "py:coordination_api.WorkCompleteRequest"
       ],
       "language_mix": [
         "python"
@@ -7390,7 +7396,7 @@
     {
       "id": 668,
       "modules": [
-        "py:coordination_api.create_coordination_api.code_search_problem_handler"
+        "py:coordination_api.WorkGetTaskRequest"
       ],
       "language_mix": [
         "python"
@@ -7400,7 +7406,7 @@
     {
       "id": 669,
       "modules": [
-        "py:coordination_api.create_coordination_api.gen_eval_list_scenarios"
+        "py:coordination_api.WorkSubmitRequest"
       ],
       "language_mix": [
         "python"
@@ -7410,7 +7416,7 @@
     {
       "id": 670,
       "modules": [
-        "py:coordination_api.create_coordination_api.get_sync_points_status"
+        "py:coordination_api._CodeSearchProblemError"
       ],
       "language_mix": [
         "python"
@@ -7420,7 +7426,7 @@
     {
       "id": 671,
       "modules": [
-        "py:coordination_api.create_coordination_api.live"
+        "py:coordination_api._CodeSearchProblemError.__init__"
       ],
       "language_mix": [
         "python"
@@ -7430,7 +7436,7 @@
     {
       "id": 672,
       "modules": [
-        "py:coordination_api.create_coordination_api.request_validation_handler"
+        "py:coordination_api.create_coordination_api.code_search_problem_handler"
       ],
       "language_mix": [
         "python"
@@ -7440,7 +7446,7 @@
     {
       "id": 673,
       "modules": [
-        "py:coordination_mcp._code_search_enabled"
+        "py:coordination_api.create_coordination_api.gen_eval_list_scenarios"
       ],
       "language_mix": [
         "python"
@@ -7450,7 +7456,7 @@
     {
       "id": 674,
       "modules": [
-        "py:coordination_mcp.coordinate_file_edit"
+        "py:coordination_api.create_coordination_api.get_sync_points_status"
       ],
       "language_mix": [
         "python"
@@ -7460,7 +7466,7 @@
     {
       "id": 675,
       "modules": [
-        "py:coordination_mcp.get_gen_eval_coverage"
+        "py:coordination_api.create_coordination_api.live"
       ],
       "language_mix": [
         "python"
@@ -7470,7 +7476,7 @@
     {
       "id": 676,
       "modules": [
-        "py:coordination_mcp.get_gen_eval_report"
+        "py:coordination_api.create_coordination_api.request_validation_handler"
       ],
       "language_mix": [
         "python"
@@ -7480,7 +7486,7 @@
     {
       "id": 677,
       "modules": [
-        "py:coordination_mcp.start_work_session"
+        "py:coordination_mcp._code_search_enabled"
       ],
       "language_mix": [
         "python"
@@ -7490,7 +7496,7 @@
     {
       "id": 678,
       "modules": [
-        "py:db.DatabaseClient"
+        "py:coordination_mcp.coordinate_file_edit"
       ],
       "language_mix": [
         "python"
@@ -7500,7 +7506,7 @@
     {
       "id": 679,
       "modules": [
-        "py:db.DatabaseClient.close"
+        "py:coordination_mcp.get_gen_eval_coverage"
       ],
       "language_mix": [
         "python"
@@ -7510,7 +7516,7 @@
     {
       "id": 680,
       "modules": [
-        "py:db.DatabaseClient.delete"
+        "py:coordination_mcp.get_gen_eval_report"
       ],
       "language_mix": [
         "python"
@@ -7520,7 +7526,7 @@
     {
       "id": 681,
       "modules": [
-        "py:db.DatabaseClient.insert"
+        "py:coordination_mcp.start_work_session"
       ],
       "language_mix": [
         "python"
@@ -7530,7 +7536,7 @@
     {
       "id": 682,
       "modules": [
-        "py:db.DatabaseClient.query"
+        "py:db.DatabaseClient"
       ],
       "language_mix": [
         "python"
@@ -7540,7 +7546,7 @@
     {
       "id": 683,
       "modules": [
-        "py:db.DatabaseClient.rpc"
+        "py:db.DatabaseClient.close"
       ],
       "language_mix": [
         "python"
@@ -7550,7 +7556,7 @@
     {
       "id": 684,
       "modules": [
-        "py:db.DatabaseClient.update"
+        "py:db.DatabaseClient.delete"
       ],
       "language_mix": [
         "python"
@@ -7560,7 +7566,7 @@
     {
       "id": 685,
       "modules": [
-        "py:db.SupabaseClient"
+        "py:db.DatabaseClient.insert"
       ],
       "language_mix": [
         "python"
@@ -7570,7 +7576,7 @@
     {
       "id": 686,
       "modules": [
-        "py:db.SupabaseClient.__init__"
+        "py:db.DatabaseClient.query"
       ],
       "language_mix": [
         "python"
@@ -7580,7 +7586,7 @@
     {
       "id": 687,
       "modules": [
-        "py:db.SupabaseClient._headers"
+        "py:db.DatabaseClient.rpc"
       ],
       "language_mix": [
         "python"
@@ -7590,7 +7596,7 @@
     {
       "id": 688,
       "modules": [
-        "py:db.SupabaseClient.client"
+        "py:db.DatabaseClient.update"
       ],
       "language_mix": [
         "python"
@@ -7600,7 +7606,7 @@
     {
       "id": 689,
       "modules": [
-        "py:db.SupabaseClient.close"
+        "py:db.SupabaseClient"
       ],
       "language_mix": [
         "python"
@@ -7610,7 +7616,7 @@
     {
       "id": 690,
       "modules": [
-        "py:db.SupabaseClient.delete"
+        "py:db.SupabaseClient.__init__"
       ],
       "language_mix": [
         "python"
@@ -7620,7 +7626,7 @@
     {
       "id": 691,
       "modules": [
-        "py:db.SupabaseClient.insert"
+        "py:db.SupabaseClient._headers"
       ],
       "language_mix": [
         "python"
@@ -7630,7 +7636,7 @@
     {
       "id": 692,
       "modules": [
-        "py:db.SupabaseClient.query"
+        "py:db.SupabaseClient.client"
       ],
       "language_mix": [
         "python"
@@ -7640,7 +7646,7 @@
     {
       "id": 693,
       "modules": [
-        "py:db.SupabaseClient.rpc"
+        "py:db.SupabaseClient.close"
       ],
       "language_mix": [
         "python"
@@ -7650,7 +7656,7 @@
     {
       "id": 694,
       "modules": [
-        "py:db.SupabaseClient.update"
+        "py:db.SupabaseClient.delete"
       ],
       "language_mix": [
         "python"
@@ -7660,7 +7666,7 @@
     {
       "id": 695,
       "modules": [
-        "py:db.close_db"
+        "py:db.SupabaseClient.insert"
       ],
       "language_mix": [
         "python"
@@ -7670,7 +7676,7 @@
     {
       "id": 696,
       "modules": [
-        "py:db.reset_db"
+        "py:db.SupabaseClient.query"
       ],
       "language_mix": [
         "python"
@@ -7680,7 +7686,7 @@
     {
       "id": 697,
       "modules": [
-        "py:db_postgres.DirectPostgresClient"
+        "py:db.SupabaseClient.rpc"
       ],
       "language_mix": [
         "python"
@@ -7690,7 +7696,7 @@
     {
       "id": 698,
       "modules": [
-        "py:db_postgres.DirectPostgresClient.__init__"
+        "py:db.SupabaseClient.update"
       ],
       "language_mix": [
         "python"
@@ -7700,7 +7706,7 @@
     {
       "id": 699,
       "modules": [
-        "py:db_postgres.DirectPostgresClient._get_pool"
+        "py:db.close_db"
       ],
       "language_mix": [
         "python"
@@ -7710,7 +7716,7 @@
     {
       "id": 700,
       "modules": [
-        "py:db_postgres.DirectPostgresClient.close"
+        "py:db.reset_db"
       ],
       "language_mix": [
         "python"
@@ -7720,7 +7726,7 @@
     {
       "id": 701,
       "modules": [
-        "py:discovery.AgentInfo"
+        "py:db_postgres.DirectPostgresClient"
       ],
       "language_mix": [
         "python"
@@ -7730,7 +7736,7 @@
     {
       "id": 702,
       "modules": [
-        "py:discovery.CleanupResult"
+        "py:db_postgres.DirectPostgresClient.__init__"
       ],
       "language_mix": [
         "python"
@@ -7740,7 +7746,7 @@
     {
       "id": 703,
       "modules": [
-        "py:discovery.CleanupResult.from_dict"
+        "py:db_postgres.DirectPostgresClient._get_pool"
       ],
       "language_mix": [
         "python"
@@ -7750,7 +7756,7 @@
     {
       "id": 704,
       "modules": [
-        "py:discovery.DiscoverResult"
+        "py:db_postgres.DirectPostgresClient.close"
       ],
       "language_mix": [
         "python"
@@ -7760,7 +7766,7 @@
     {
       "id": 705,
       "modules": [
-        "py:discovery.DiscoverResult.from_dict"
+        "py:discovery.AgentInfo"
       ],
       "language_mix": [
         "python"
@@ -7770,7 +7776,7 @@
     {
       "id": 706,
       "modules": [
-        "py:discovery.DiscoveryService"
+        "py:discovery.CleanupResult"
       ],
       "language_mix": [
         "python"
@@ -7780,7 +7786,7 @@
     {
       "id": 707,
       "modules": [
-        "py:discovery.DiscoveryService.__init__"
+        "py:discovery.CleanupResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -7790,7 +7796,7 @@
     {
       "id": 708,
       "modules": [
-        "py:discovery.DiscoveryService.discover"
+        "py:discovery.DiscoverResult"
       ],
       "language_mix": [
         "python"
@@ -7800,7 +7806,7 @@
     {
       "id": 709,
       "modules": [
-        "py:discovery.HeartbeatResult"
+        "py:discovery.DiscoverResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -7810,7 +7816,7 @@
     {
       "id": 710,
       "modules": [
-        "py:discovery.HeartbeatResult.from_dict"
+        "py:discovery.DiscoveryService"
       ],
       "language_mix": [
         "python"
@@ -7820,7 +7826,7 @@
     {
       "id": 711,
       "modules": [
-        "py:discovery.RegisterResult"
+        "py:discovery.DiscoveryService.__init__"
       ],
       "language_mix": [
         "python"
@@ -7830,7 +7836,7 @@
     {
       "id": 712,
       "modules": [
-        "py:discovery.RegisterResult.from_dict"
+        "py:discovery.DiscoveryService.discover"
       ],
       "language_mix": [
         "python"
@@ -7840,7 +7846,7 @@
     {
       "id": 713,
       "modules": [
-        "py:docker_manager"
+        "py:discovery.HeartbeatResult"
       ],
       "language_mix": [
         "python"
@@ -7850,7 +7856,7 @@
     {
       "id": 714,
       "modules": [
-        "py:docker_manager.wait_for_healthy"
+        "py:discovery.HeartbeatResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -7860,7 +7866,7 @@
     {
       "id": 715,
       "modules": [
-        "py:event_bus.CoordinatorEvent"
+        "py:discovery.RegisterResult"
       ],
       "language_mix": [
         "python"
@@ -7870,7 +7876,7 @@
     {
       "id": 716,
       "modules": [
-        "py:event_bus.CoordinatorEvent.__post_init__"
+        "py:discovery.RegisterResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -7880,7 +7886,7 @@
     {
       "id": 717,
       "modules": [
-        "py:event_bus.CoordinatorEvent.from_json"
+        "py:docker_manager"
       ],
       "language_mix": [
         "python"
@@ -7890,7 +7896,7 @@
     {
       "id": 718,
       "modules": [
-        "py:event_bus.CoordinatorEvent.to_json"
+        "py:docker_manager.wait_for_healthy"
       ],
       "language_mix": [
         "python"
@@ -7900,7 +7906,7 @@
     {
       "id": 719,
       "modules": [
-        "py:event_bus.EventBusService"
+        "py:event_bus.CoordinatorEvent"
       ],
       "language_mix": [
         "python"
@@ -7910,7 +7916,7 @@
     {
       "id": 720,
       "modules": [
-        "py:event_bus.EventBusService.__init__"
+        "py:event_bus.CoordinatorEvent.__post_init__"
       ],
       "language_mix": [
         "python"
@@ -7920,7 +7926,7 @@
     {
       "id": 721,
       "modules": [
-        "py:event_bus.EventBusService._connect_and_listen"
+        "py:event_bus.CoordinatorEvent.from_json"
       ],
       "language_mix": [
         "python"
@@ -7930,7 +7936,7 @@
     {
       "id": 722,
       "modules": [
-        "py:event_bus.EventBusService._connect_and_listen._notification_handler"
+        "py:event_bus.CoordinatorEvent.to_json"
       ],
       "language_mix": [
         "python"
@@ -7940,7 +7946,7 @@
     {
       "id": 723,
       "modules": [
-        "py:event_bus.EventBusService._dispatch"
+        "py:event_bus.EventBusService"
       ],
       "language_mix": [
         "python"
@@ -7950,7 +7956,7 @@
     {
       "id": 724,
       "modules": [
-        "py:event_bus.EventBusService._listen_loop"
+        "py:event_bus.EventBusService.__init__"
       ],
       "language_mix": [
         "python"
@@ -7960,7 +7966,7 @@
     {
       "id": 725,
       "modules": [
-        "py:event_bus.EventBusService._safe_callback"
+        "py:event_bus.EventBusService._connect_and_listen"
       ],
       "language_mix": [
         "python"
@@ -7970,7 +7976,7 @@
     {
       "id": 726,
       "modules": [
-        "py:event_bus.EventBusService.failed"
+        "py:event_bus.EventBusService._connect_and_listen._notification_handler"
       ],
       "language_mix": [
         "python"
@@ -7980,7 +7986,7 @@
     {
       "id": 727,
       "modules": [
-        "py:event_bus.EventBusService.off_event"
+        "py:event_bus.EventBusService._dispatch"
       ],
       "language_mix": [
         "python"
@@ -7990,7 +7996,7 @@
     {
       "id": 728,
       "modules": [
-        "py:event_bus.EventBusService.on_event"
+        "py:event_bus.EventBusService._listen_loop"
       ],
       "language_mix": [
         "python"
@@ -8000,7 +8006,7 @@
     {
       "id": 729,
       "modules": [
-        "py:event_bus.EventBusService.restart"
+        "py:event_bus.EventBusService._safe_callback"
       ],
       "language_mix": [
         "python"
@@ -8010,7 +8016,7 @@
     {
       "id": 730,
       "modules": [
-        "py:event_bus.EventBusService.running"
+        "py:event_bus.EventBusService.failed"
       ],
       "language_mix": [
         "python"
@@ -8020,7 +8026,7 @@
     {
       "id": 731,
       "modules": [
-        "py:event_bus.EventBusService.start"
+        "py:event_bus.EventBusService.off_event"
       ],
       "language_mix": [
         "python"
@@ -8030,7 +8036,7 @@
     {
       "id": 732,
       "modules": [
-        "py:event_bus.EventBusService.stop"
+        "py:event_bus.EventBusService.on_event"
       ],
       "language_mix": [
         "python"
@@ -8040,7 +8046,7 @@
     {
       "id": 733,
       "modules": [
-        "py:event_bus.reset_event_bus"
+        "py:event_bus.EventBusService.restart"
       ],
       "language_mix": [
         "python"
@@ -8050,7 +8056,7 @@
     {
       "id": 734,
       "modules": [
-        "py:feature_flags"
+        "py:event_bus.EventBusService.running"
       ],
       "language_mix": [
         "python"
@@ -8060,7 +8066,7 @@
     {
       "id": 735,
       "modules": [
-        "py:feature_flags.FeatureFlagService"
+        "py:event_bus.EventBusService.start"
       ],
       "language_mix": [
         "python"
@@ -8070,7 +8076,7 @@
     {
       "id": 736,
       "modules": [
-        "py:feature_flags.FeatureFlagService.__init__"
+        "py:event_bus.EventBusService.stop"
       ],
       "language_mix": [
         "python"
@@ -8080,7 +8086,7 @@
     {
       "id": 737,
       "modules": [
-        "py:feature_flags.FeatureFlagService._get_registry"
+        "py:event_bus.reset_event_bus"
       ],
       "language_mix": [
         "python"
@@ -8090,7 +8096,7 @@
     {
       "id": 738,
       "modules": [
-        "py:feature_flags.FeatureFlagService._load_unlocked"
+        "py:feature_flags"
       ],
       "language_mix": [
         "python"
@@ -8100,7 +8106,7 @@
     {
       "id": 739,
       "modules": [
-        "py:feature_flags.FeatureFlagService._write_registry"
+        "py:feature_flags.FeatureFlagService"
       ],
       "language_mix": [
         "python"
@@ -8110,7 +8116,7 @@
     {
       "id": 740,
       "modules": [
-        "py:feature_flags.FeatureFlagService.check_undeclared_env_vars"
+        "py:feature_flags.FeatureFlagService.__init__"
       ],
       "language_mix": [
         "python"
@@ -8120,7 +8126,7 @@
     {
       "id": 741,
       "modules": [
-        "py:feature_flags.FeatureFlagService.enable_flag"
+        "py:feature_flags.FeatureFlagService._get_registry"
       ],
       "language_mix": [
         "python"
@@ -8130,7 +8136,7 @@
     {
       "id": 742,
       "modules": [
-        "py:feature_flags.FeatureFlagService.is_enabled"
+        "py:feature_flags.FeatureFlagService._load_unlocked"
       ],
       "language_mix": [
         "python"
@@ -8140,7 +8146,7 @@
     {
       "id": 743,
       "modules": [
-        "py:feature_flags.FeatureFlagService.load"
+        "py:feature_flags.FeatureFlagService._write_registry"
       ],
       "language_mix": [
         "python"
@@ -8150,7 +8156,7 @@
     {
       "id": 744,
       "modules": [
-        "py:feature_flags.FeatureFlagService.resolve_flag"
+        "py:feature_flags.FeatureFlagService.check_undeclared_env_vars"
       ],
       "language_mix": [
         "python"
@@ -8160,7 +8166,7 @@
     {
       "id": 745,
       "modules": [
-        "py:feature_flags.Flag"
+        "py:feature_flags.FeatureFlagService.enable_flag"
       ],
       "language_mix": [
         "python"
@@ -8170,7 +8176,7 @@
     {
       "id": 746,
       "modules": [
-        "py:feature_flags.Flag.is_enabled"
+        "py:feature_flags.FeatureFlagService.is_enabled"
       ],
       "language_mix": [
         "python"
@@ -8180,7 +8186,7 @@
     {
       "id": 747,
       "modules": [
-        "py:feature_flags.Flag.to_yaml_dict"
+        "py:feature_flags.FeatureFlagService.load"
       ],
       "language_mix": [
         "python"
@@ -8190,7 +8196,7 @@
     {
       "id": 748,
       "modules": [
-        "py:feature_flags.FlagsConfigError"
+        "py:feature_flags.FeatureFlagService.resolve_flag"
       ],
       "language_mix": [
         "python"
@@ -8200,7 +8206,7 @@
     {
       "id": 749,
       "modules": [
-        "py:feature_flags.InvalidFlagNameError"
+        "py:feature_flags.Flag"
       ],
       "language_mix": [
         "python"
@@ -8210,7 +8216,7 @@
     {
       "id": 750,
       "modules": [
-        "py:feature_flags.reset_feature_flag_service"
+        "py:feature_flags.Flag.is_enabled"
       ],
       "language_mix": [
         "python"
@@ -8220,7 +8226,7 @@
     {
       "id": 751,
       "modules": [
-        "py:feature_registry.ConflictReport"
+        "py:feature_flags.Flag.to_yaml_dict"
       ],
       "language_mix": [
         "python"
@@ -8230,7 +8236,7 @@
     {
       "id": 752,
       "modules": [
-        "py:feature_registry.DeregisterResult"
+        "py:feature_flags.FlagsConfigError"
       ],
       "language_mix": [
         "python"
@@ -8240,7 +8246,7 @@
     {
       "id": 753,
       "modules": [
-        "py:feature_registry.DeregisterResult.from_dict"
+        "py:feature_flags.InvalidFlagNameError"
       ],
       "language_mix": [
         "python"
@@ -8250,7 +8256,7 @@
     {
       "id": 754,
       "modules": [
-        "py:feature_registry.Feasibility"
+        "py:feature_flags.reset_feature_flag_service"
       ],
       "language_mix": [
         "python"
@@ -8260,7 +8266,7 @@
     {
       "id": 755,
       "modules": [
-        "py:feature_registry.Feature"
+        "py:feature_registry.ConflictReport"
       ],
       "language_mix": [
         "python"
@@ -8270,7 +8276,7 @@
     {
       "id": 756,
       "modules": [
-        "py:feature_registry.Feature.from_dict.parse_dt"
+        "py:feature_registry.DeregisterResult"
       ],
       "language_mix": [
         "python"
@@ -8280,7 +8286,7 @@
     {
       "id": 757,
       "modules": [
-        "py:feature_registry.FeatureRegistryService"
+        "py:feature_registry.DeregisterResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -8290,7 +8296,7 @@
     {
       "id": 758,
       "modules": [
-        "py:feature_registry.FeatureRegistryService.__init__"
+        "py:feature_registry.Feasibility"
       ],
       "language_mix": [
         "python"
@@ -8300,7 +8306,7 @@
     {
       "id": 759,
       "modules": [
-        "py:feature_registry.FeatureRegistryService.analyze_conflicts"
+        "py:feature_registry.Feature"
       ],
       "language_mix": [
         "python"
@@ -8310,7 +8316,7 @@
     {
       "id": 760,
       "modules": [
-        "py:feature_registry.FeatureRegistryService.get_active_features"
+        "py:feature_registry.Feature.from_dict.parse_dt"
       ],
       "language_mix": [
         "python"
@@ -8320,7 +8326,7 @@
     {
       "id": 761,
       "modules": [
-        "py:feature_registry.FeatureRegistryService.get_feature"
+        "py:feature_registry.FeatureRegistryService"
       ],
       "language_mix": [
         "python"
@@ -8330,7 +8336,7 @@
     {
       "id": 762,
       "modules": [
-        "py:feature_registry.RegisterResult"
+        "py:feature_registry.FeatureRegistryService.__init__"
       ],
       "language_mix": [
         "python"
@@ -8340,7 +8346,7 @@
     {
       "id": 763,
       "modules": [
-        "py:feature_registry.RegisterResult.from_dict"
+        "py:feature_registry.FeatureRegistryService.analyze_conflicts"
       ],
       "language_mix": [
         "python"
@@ -8350,7 +8356,7 @@
     {
       "id": 764,
       "modules": [
-        "py:git_adapter.ChangedFiles"
+        "py:feature_registry.FeatureRegistryService.get_active_features"
       ],
       "language_mix": [
         "python"
@@ -8360,7 +8366,7 @@
     {
       "id": 765,
       "modules": [
-        "py:git_adapter.FastForwardResult"
+        "py:feature_registry.FeatureRegistryService.get_feature"
       ],
       "language_mix": [
         "python"
@@ -8370,7 +8376,7 @@
     {
       "id": 766,
       "modules": [
-        "py:git_adapter.GitAdapter"
+        "py:feature_registry.RegisterResult"
       ],
       "language_mix": [
         "python"
@@ -8380,7 +8386,7 @@
     {
       "id": 767,
       "modules": [
-        "py:git_adapter.GitAdapter.create_speculative_ref"
+        "py:feature_registry.RegisterResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -8390,7 +8396,7 @@
     {
       "id": 768,
       "modules": [
-        "py:git_adapter.GitAdapter.delete_speculative_refs"
+        "py:git_adapter.ChangedFiles"
       ],
       "language_mix": [
         "python"
@@ -8400,7 +8406,7 @@
     {
       "id": 769,
       "modules": [
-        "py:git_adapter.GitAdapter.fast_forward_main"
+        "py:git_adapter.FastForwardResult"
       ],
       "language_mix": [
         "python"
@@ -8410,7 +8416,7 @@
     {
       "id": 770,
       "modules": [
-        "py:git_adapter.GitAdapter.get_changed_files"
+        "py:git_adapter.GitAdapter"
       ],
       "language_mix": [
         "python"
@@ -8420,7 +8426,7 @@
     {
       "id": 771,
       "modules": [
-        "py:git_adapter.GitAdapter.list_speculative_refs"
+        "py:git_adapter.GitAdapter.create_speculative_ref"
       ],
       "language_mix": [
         "python"
@@ -8430,7 +8436,7 @@
     {
       "id": 772,
       "modules": [
-        "py:git_adapter.GitVersionError"
+        "py:git_adapter.GitAdapter.delete_speculative_refs"
       ],
       "language_mix": [
         "python"
@@ -8440,7 +8446,7 @@
     {
       "id": 773,
       "modules": [
-        "py:git_adapter.InvalidRefNameError"
+        "py:git_adapter.GitAdapter.fast_forward_main"
       ],
       "language_mix": [
         "python"
@@ -8450,7 +8456,7 @@
     {
       "id": 774,
       "modules": [
-        "py:git_adapter.MergeTreeResult"
+        "py:git_adapter.GitAdapter.get_changed_files"
       ],
       "language_mix": [
         "python"
@@ -8460,7 +8466,7 @@
     {
       "id": 775,
       "modules": [
-        "py:git_adapter.SubprocessGitAdapter"
+        "py:git_adapter.GitAdapter.list_speculative_refs"
       ],
       "language_mix": [
         "python"
@@ -8470,7 +8476,7 @@
     {
       "id": 776,
       "modules": [
-        "py:git_adapter.SubprocessGitAdapter.__init__"
+        "py:git_adapter.GitVersionError"
       ],
       "language_mix": [
         "python"
@@ -8480,7 +8486,7 @@
     {
       "id": 777,
       "modules": [
-        "py:git_adapter.SubprocessGitAdapter._run"
+        "py:git_adapter.InvalidRefNameError"
       ],
       "language_mix": [
         "python"
@@ -8490,7 +8496,7 @@
     {
       "id": 778,
       "modules": [
-        "py:git_adapter.SubprocessGitAdapter.get_changed_files"
+        "py:git_adapter.MergeTreeResult"
       ],
       "language_mix": [
         "python"
@@ -8500,7 +8506,7 @@
     {
       "id": 779,
       "modules": [
-        "py:git_adapter.SubprocessGitAdapter.list_speculative_refs"
+        "py:git_adapter.SubprocessGitAdapter"
       ],
       "language_mix": [
         "python"
@@ -8510,7 +8516,7 @@
     {
       "id": 780,
       "modules": [
-        "py:github_classifier._load_classifier"
+        "py:git_adapter.SubprocessGitAdapter.__init__"
       ],
       "language_mix": [
         "python"
@@ -8520,7 +8526,7 @@
     {
       "id": 781,
       "modules": [
-        "py:github_coordination.BranchInfo"
+        "py:git_adapter.SubprocessGitAdapter._run"
       ],
       "language_mix": [
         "python"
@@ -8530,7 +8536,7 @@
     {
       "id": 782,
       "modules": [
-        "py:github_coordination.BranchInfo.parse"
+        "py:git_adapter.SubprocessGitAdapter.get_changed_files"
       ],
       "language_mix": [
         "python"
@@ -8540,7 +8546,7 @@
     {
       "id": 783,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService"
+        "py:git_adapter.SubprocessGitAdapter.list_speculative_refs"
       ],
       "language_mix": [
         "python"
@@ -8550,7 +8556,7 @@
     {
       "id": 784,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.__init__"
+        "py:github_classifier._load_classifier"
       ],
       "language_mix": [
         "python"
@@ -8560,7 +8566,7 @@
     {
       "id": 785,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.handle_issues_webhook"
+        "py:github_coordination.BranchInfo"
       ],
       "language_mix": [
         "python"
@@ -8570,7 +8576,7 @@
     {
       "id": 786,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.handle_push_webhook"
+        "py:github_coordination.BranchInfo.parse"
       ],
       "language_mix": [
         "python"
@@ -8580,7 +8586,7 @@
     {
       "id": 787,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.parse_branch"
+        "py:github_coordination.GitHubCoordinationService"
       ],
       "language_mix": [
         "python"
@@ -8590,7 +8596,7 @@
     {
       "id": 788,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.parse_lock_labels"
+        "py:github_coordination.GitHubCoordinationService.__init__"
       ],
       "language_mix": [
         "python"
@@ -8600,7 +8606,7 @@
     {
       "id": 789,
       "modules": [
-        "py:github_coordination.GitHubCoordinationService.sync_branch_tracking"
+        "py:github_coordination.GitHubCoordinationService.handle_issues_webhook"
       ],
       "language_mix": [
         "python"
@@ -8610,7 +8616,7 @@
     {
       "id": 790,
       "modules": [
-        "py:github_coordination.LabelLock"
+        "py:github_coordination.GitHubCoordinationService.handle_push_webhook"
       ],
       "language_mix": [
         "python"
@@ -8620,7 +8626,7 @@
     {
       "id": 791,
       "modules": [
-        "py:github_coordination.WebhookSyncResult"
+        "py:github_coordination.GitHubCoordinationService.parse_branch"
       ],
       "language_mix": [
         "python"
@@ -8630,7 +8636,7 @@
     {
       "id": 792,
       "modules": [
-        "py:github_coordination.WebhookSyncResult.from_dict"
+        "py:github_coordination.GitHubCoordinationService.parse_lock_labels"
       ],
       "language_mix": [
         "python"
@@ -8640,7 +8646,7 @@
     {
       "id": 793,
       "modules": [
-        "py:github_coordination.get_github_coordination_service"
+        "py:github_coordination.GitHubCoordinationService.sync_branch_tracking"
       ],
       "language_mix": [
         "python"
@@ -8650,7 +8656,7 @@
     {
       "id": 794,
       "modules": [
-        "py:github_openspec_fetcher"
+        "py:github_coordination.LabelLock"
       ],
       "language_mix": [
         "python"
@@ -8660,7 +8666,7 @@
     {
       "id": 795,
       "modules": [
-        "py:guardrails.GuardrailPattern"
+        "py:github_coordination.WebhookSyncResult"
       ],
       "language_mix": [
         "python"
@@ -8670,7 +8676,7 @@
     {
       "id": 796,
       "modules": [
-        "py:guardrails.GuardrailPattern.from_dict"
+        "py:github_coordination.WebhookSyncResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -8680,7 +8686,7 @@
     {
       "id": 797,
       "modules": [
-        "py:guardrails.GuardrailResult"
+        "py:github_coordination.get_github_coordination_service"
       ],
       "language_mix": [
         "python"
@@ -8690,7 +8696,7 @@
     {
       "id": 798,
       "modules": [
-        "py:guardrails.GuardrailResult.from_dict"
+        "py:github_openspec_fetcher"
       ],
       "language_mix": [
         "python"
@@ -8700,7 +8706,7 @@
     {
       "id": 799,
       "modules": [
-        "py:guardrails.GuardrailViolation"
+        "py:guardrails.GuardrailPattern"
       ],
       "language_mix": [
         "python"
@@ -8710,7 +8716,7 @@
     {
       "id": 800,
       "modules": [
-        "py:guardrails.GuardrailViolation.from_dict"
+        "py:guardrails.GuardrailPattern.from_dict"
       ],
       "language_mix": [
         "python"
@@ -8720,7 +8726,7 @@
     {
       "id": 801,
       "modules": [
-        "py:guardrails.GuardrailsService"
+        "py:guardrails.GuardrailResult"
       ],
       "language_mix": [
         "python"
@@ -8730,7 +8736,7 @@
     {
       "id": 802,
       "modules": [
-        "py:guardrails.GuardrailsService.__init__"
+        "py:guardrails.GuardrailResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -8740,7 +8746,7 @@
     {
       "id": 803,
       "modules": [
-        "py:guardrails.reset_guardrail_instruments"
+        "py:guardrails.GuardrailViolation"
       ],
       "language_mix": [
         "python"
@@ -8750,7 +8756,7 @@
     {
       "id": 804,
       "modules": [
-        "py:handoffs.HandoffDocument"
+        "py:guardrails.GuardrailViolation.from_dict"
       ],
       "language_mix": [
         "python"
@@ -8760,7 +8766,7 @@
     {
       "id": 805,
       "modules": [
-        "py:handoffs.HandoffDocument.from_dict"
+        "py:guardrails.GuardrailsService"
       ],
       "language_mix": [
         "python"
@@ -8770,7 +8776,7 @@
     {
       "id": 806,
       "modules": [
-        "py:handoffs.HandoffService"
+        "py:guardrails.GuardrailsService.__init__"
       ],
       "language_mix": [
         "python"
@@ -8780,7 +8786,7 @@
     {
       "id": 807,
       "modules": [
-        "py:handoffs.HandoffService.__init__"
+        "py:guardrails.reset_guardrail_instruments"
       ],
       "language_mix": [
         "python"
@@ -8790,7 +8796,7 @@
     {
       "id": 808,
       "modules": [
-        "py:handoffs.HandoffService.get_recent"
+        "py:handoffs.HandoffDocument"
       ],
       "language_mix": [
         "python"
@@ -8800,7 +8806,7 @@
     {
       "id": 809,
       "modules": [
-        "py:handoffs.ReadHandoffResult"
+        "py:handoffs.HandoffDocument.from_dict"
       ],
       "language_mix": [
         "python"
@@ -8810,7 +8816,7 @@
     {
       "id": 810,
       "modules": [
-        "py:handoffs.ReadHandoffResult.from_dict"
+        "py:handoffs.HandoffService"
       ],
       "language_mix": [
         "python"
@@ -8820,7 +8826,7 @@
     {
       "id": 811,
       "modules": [
-        "py:handoffs.WriteHandoffResult"
+        "py:handoffs.HandoffService.__init__"
       ],
       "language_mix": [
         "python"
@@ -8830,7 +8836,7 @@
     {
       "id": 812,
       "modules": [
-        "py:handoffs.WriteHandoffResult.from_dict"
+        "py:handoffs.HandoffService.get_recent"
       ],
       "language_mix": [
         "python"
@@ -8840,7 +8846,7 @@
     {
       "id": 813,
       "modules": [
-        "py:help_service.HelpTopic"
+        "py:handoffs.ReadHandoffResult"
       ],
       "language_mix": [
         "python"
@@ -8850,7 +8856,7 @@
     {
       "id": 814,
       "modules": [
-        "py:help_service._register"
+        "py:handoffs.ReadHandoffResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -8860,7 +8866,7 @@
     {
       "id": 815,
       "modules": [
-        "py:http_proxy.HttpProxyConfig"
+        "py:handoffs.WriteHandoffResult"
       ],
       "language_mix": [
         "python"
@@ -8870,7 +8876,7 @@
     {
       "id": 816,
       "modules": [
-        "py:http_proxy.get_config"
+        "py:handoffs.WriteHandoffResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -8880,7 +8886,7 @@
     {
       "id": 817,
       "modules": [
-        "py:issue_service.Comment"
+        "py:help_service.HelpTopic"
       ],
       "language_mix": [
         "python"
@@ -8890,7 +8896,7 @@
     {
       "id": 818,
       "modules": [
-        "py:issue_service.Comment.from_row"
+        "py:help_service._register"
       ],
       "language_mix": [
         "python"
@@ -8900,7 +8906,7 @@
     {
       "id": 819,
       "modules": [
-        "py:issue_service.Comment.to_dict"
+        "py:http_proxy.HttpProxyConfig"
       ],
       "language_mix": [
         "python"
@@ -8910,7 +8916,7 @@
     {
       "id": 820,
       "modules": [
-        "py:issue_service.Issue"
+        "py:http_proxy.get_config"
       ],
       "language_mix": [
         "python"
@@ -8920,7 +8926,7 @@
     {
       "id": 821,
       "modules": [
-        "py:issue_service.Issue.from_row.parse_dt"
+        "py:issue_service.Comment"
       ],
       "language_mix": [
         "python"
@@ -8930,7 +8936,7 @@
     {
       "id": 822,
       "modules": [
-        "py:issue_service.Issue.to_dict"
+        "py:issue_service.Comment.from_row"
       ],
       "language_mix": [
         "python"
@@ -8940,7 +8946,7 @@
     {
       "id": 823,
       "modules": [
-        "py:issue_service.IssueService"
+        "py:issue_service.Comment.to_dict"
       ],
       "language_mix": [
         "python"
@@ -8950,7 +8956,7 @@
     {
       "id": 824,
       "modules": [
-        "py:issue_service.IssueService.__init__"
+        "py:issue_service.Issue"
       ],
       "language_mix": [
         "python"
@@ -8960,7 +8966,7 @@
     {
       "id": 825,
       "modules": [
-        "py:issue_service.IssueService.blocked"
+        "py:issue_service.Issue.from_row.parse_dt"
       ],
       "language_mix": [
         "python"
@@ -8970,7 +8976,7 @@
     {
       "id": 826,
       "modules": [
-        "py:issue_service.IssueService.close"
+        "py:issue_service.Issue.to_dict"
       ],
       "language_mix": [
         "python"
@@ -8980,7 +8986,7 @@
     {
       "id": 827,
       "modules": [
-        "py:issue_service.IssueService.create"
+        "py:issue_service.IssueService"
       ],
       "language_mix": [
         "python"
@@ -8990,7 +8996,7 @@
     {
       "id": 828,
       "modules": [
-        "py:issue_service.IssueService.list_issues"
+        "py:issue_service.IssueService.__init__"
       ],
       "language_mix": [
         "python"
@@ -9000,7 +9006,7 @@
     {
       "id": 829,
       "modules": [
-        "py:issue_service.IssueService.ready"
+        "py:issue_service.IssueService.blocked"
       ],
       "language_mix": [
         "python"
@@ -9010,7 +9016,7 @@
     {
       "id": 830,
       "modules": [
-        "py:issue_service.IssueService.search"
+        "py:issue_service.IssueService.close"
       ],
       "language_mix": [
         "python"
@@ -9020,7 +9026,7 @@
     {
       "id": 831,
       "modules": [
-        "py:issue_service.IssueService.show"
+        "py:issue_service.IssueService.create"
       ],
       "language_mix": [
         "python"
@@ -9030,7 +9036,7 @@
     {
       "id": 832,
       "modules": [
-        "py:issue_service.IssueService.update"
+        "py:issue_service.IssueService.list_issues"
       ],
       "language_mix": [
         "python"
@@ -9040,7 +9046,7 @@
     {
       "id": 833,
       "modules": [
-        "py:kanban_viz_files.SchemaValidationError"
+        "py:issue_service.IssueService.ready"
       ],
       "language_mix": [
         "python"
@@ -9050,7 +9056,7 @@
     {
       "id": 834,
       "modules": [
-        "py:kanban_viz_files.SchemaValidationError.__init__"
+        "py:issue_service.IssueService.search"
       ],
       "language_mix": [
         "python"
@@ -9060,7 +9066,7 @@
     {
       "id": 835,
       "modules": [
-        "py:kanban_viz_files._load_schema"
+        "py:issue_service.IssueService.show"
       ],
       "language_mix": [
         "python"
@@ -9070,7 +9076,7 @@
     {
       "id": 836,
       "modules": [
-        "py:langfuse_middleware.LangfuseTracingMiddleware"
+        "py:issue_service.IssueService.update"
       ],
       "language_mix": [
         "python"
@@ -9080,7 +9086,7 @@
     {
       "id": 837,
       "modules": [
-        "py:langfuse_tracing.create_span"
+        "py:kanban_viz_files.SchemaValidationError"
       ],
       "language_mix": [
         "python"
@@ -9090,7 +9096,7 @@
     {
       "id": 838,
       "modules": [
-        "py:langfuse_tracing.end_span"
+        "py:kanban_viz_files.SchemaValidationError.__init__"
       ],
       "language_mix": [
         "python"
@@ -9100,7 +9106,7 @@
     {
       "id": 839,
       "modules": [
-        "py:langfuse_tracing.reset_langfuse"
+        "py:kanban_viz_files._load_schema"
       ],
       "language_mix": [
         "python"
@@ -9110,7 +9116,7 @@
     {
       "id": 840,
       "modules": [
-        "py:locks.Lock"
+        "py:langfuse_middleware.LangfuseTracingMiddleware"
       ],
       "language_mix": [
         "python"
@@ -9120,7 +9126,7 @@
     {
       "id": 841,
       "modules": [
-        "py:locks.Lock.from_dict._parse_dt"
+        "py:langfuse_tracing.create_span"
       ],
       "language_mix": [
         "python"
@@ -9130,7 +9136,7 @@
     {
       "id": 842,
       "modules": [
-        "py:locks.LockResult"
+        "py:langfuse_tracing.end_span"
       ],
       "language_mix": [
         "python"
@@ -9140,7 +9146,7 @@
     {
       "id": 843,
       "modules": [
-        "py:locks.LockResult.from_dict"
+        "py:langfuse_tracing.reset_langfuse"
       ],
       "language_mix": [
         "python"
@@ -9150,7 +9156,7 @@
     {
       "id": 844,
       "modules": [
-        "py:locks.LockService"
+        "py:locks.Lock"
       ],
       "language_mix": [
         "python"
@@ -9160,7 +9166,7 @@
     {
       "id": 845,
       "modules": [
-        "py:locks.LockService.__init__"
+        "py:locks.Lock.from_dict._parse_dt"
       ],
       "language_mix": [
         "python"
@@ -9170,7 +9176,7 @@
     {
       "id": 846,
       "modules": [
-        "py:locks.LockService.check"
+        "py:locks.LockResult"
       ],
       "language_mix": [
         "python"
@@ -9180,7 +9186,7 @@
     {
       "id": 847,
       "modules": [
-        "py:locks.LockService.extend"
+        "py:locks.LockResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -9190,7 +9196,7 @@
     {
       "id": 848,
       "modules": [
-        "py:locks.LockService.is_locked"
+        "py:locks.LockService"
       ],
       "language_mix": [
         "python"
@@ -9200,7 +9206,7 @@
     {
       "id": 849,
       "modules": [
-        "py:locks.is_valid_lock_key"
+        "py:locks.LockService.__init__"
       ],
       "language_mix": [
         "python"
@@ -9210,7 +9216,7 @@
     {
       "id": 850,
       "modules": [
-        "py:memory.EpisodicMemory"
+        "py:locks.LockService.check"
       ],
       "language_mix": [
         "python"
@@ -9220,7 +9226,7 @@
     {
       "id": 851,
       "modules": [
-        "py:memory.EpisodicMemory.from_dict"
+        "py:locks.LockService.extend"
       ],
       "language_mix": [
         "python"
@@ -9230,7 +9236,7 @@
     {
       "id": 852,
       "modules": [
-        "py:memory.MemoryResult"
+        "py:locks.LockService.is_locked"
       ],
       "language_mix": [
         "python"
@@ -9240,7 +9246,7 @@
     {
       "id": 853,
       "modules": [
-        "py:memory.MemoryResult.from_dict"
+        "py:locks.is_valid_lock_key"
       ],
       "language_mix": [
         "python"
@@ -9250,7 +9256,7 @@
     {
       "id": 854,
       "modules": [
-        "py:memory.MemoryService"
+        "py:memory.EpisodicMemory"
       ],
       "language_mix": [
         "python"
@@ -9260,7 +9266,7 @@
     {
       "id": 855,
       "modules": [
-        "py:memory.MemoryService.__init__"
+        "py:memory.EpisodicMemory.from_dict"
       ],
       "language_mix": [
         "python"
@@ -9270,7 +9276,7 @@
     {
       "id": 856,
       "modules": [
-        "py:memory.MemoryService.recall"
+        "py:memory.MemoryResult"
       ],
       "language_mix": [
         "python"
@@ -9280,7 +9286,7 @@
     {
       "id": 857,
       "modules": [
-        "py:memory.RecallResult"
+        "py:memory.MemoryResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -9290,7 +9296,7 @@
     {
       "id": 858,
       "modules": [
-        "py:memory.RecallResult.from_dict"
+        "py:memory.MemoryService"
       ],
       "language_mix": [
         "python"
@@ -9300,7 +9306,7 @@
     {
       "id": 859,
       "modules": [
-        "py:merge_queue.MergeQueueEntry"
+        "py:memory.MemoryService.__init__"
       ],
       "language_mix": [
         "python"
@@ -9310,7 +9316,7 @@
     {
       "id": 860,
       "modules": [
-        "py:merge_queue.MergeQueueEntry.from_feature"
+        "py:memory.MemoryService.recall"
       ],
       "language_mix": [
         "python"
@@ -9320,7 +9326,7 @@
     {
       "id": 861,
       "modules": [
-        "py:merge_queue.MergeQueueService"
+        "py:memory.RecallResult"
       ],
       "language_mix": [
         "python"
@@ -9330,7 +9336,7 @@
     {
       "id": 862,
       "modules": [
-        "py:merge_queue.MergeQueueService.__init__"
+        "py:memory.RecallResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -9340,7 +9346,7 @@
     {
       "id": 863,
       "modules": [
-        "py:merge_queue.MergeQueueService.get_next_to_merge"
+        "py:merge_queue.MergeQueueEntry"
       ],
       "language_mix": [
         "python"
@@ -9350,7 +9356,7 @@
     {
       "id": 864,
       "modules": [
-        "py:merge_queue.MergeQueueService.remove_from_queue"
+        "py:merge_queue.MergeQueueEntry.from_feature"
       ],
       "language_mix": [
         "python"
@@ -9360,7 +9366,7 @@
     {
       "id": 865,
       "modules": [
-        "py:merge_queue.MergeStatus"
+        "py:merge_queue.MergeQueueService"
       ],
       "language_mix": [
         "python"
@@ -9370,7 +9376,7 @@
     {
       "id": 866,
       "modules": [
-        "py:merge_queue.PreMergeCheckResult"
+        "py:merge_queue.MergeQueueService.__init__"
       ],
       "language_mix": [
         "python"
@@ -9380,7 +9386,7 @@
     {
       "id": 867,
       "modules": [
-        "py:merge_queue._parse_dt"
+        "py:merge_queue.MergeQueueService.get_next_to_merge"
       ],
       "language_mix": [
         "python"
@@ -9390,7 +9396,7 @@
     {
       "id": 868,
       "modules": [
-        "py:merge_train.CrashRecoveryResult"
+        "py:merge_queue.MergeQueueService.remove_from_queue"
       ],
       "language_mix": [
         "python"
@@ -9400,7 +9406,7 @@
     {
       "id": 869,
       "modules": [
-        "py:merge_train.EjectResult"
+        "py:merge_queue.MergeStatus"
       ],
       "language_mix": [
         "python"
@@ -9410,7 +9416,7 @@
     {
       "id": 870,
       "modules": [
-        "py:merge_train.PartitionResult"
+        "py:merge_queue.PreMergeCheckResult"
       ],
       "language_mix": [
         "python"
@@ -9420,7 +9426,7 @@
     {
       "id": 871,
       "modules": [
-        "py:merge_train.TrainAuthorizationError"
+        "py:merge_queue._parse_dt"
       ],
       "language_mix": [
         "python"
@@ -9430,7 +9436,7 @@
     {
       "id": 872,
       "modules": [
-        "py:merge_train.TrainDeadlockError"
+        "py:merge_train.CrashRecoveryResult"
       ],
       "language_mix": [
         "python"
@@ -9440,7 +9446,7 @@
     {
       "id": 873,
       "modules": [
-        "py:merge_train.WaveMergeResult"
+        "py:merge_train.EjectResult"
       ],
       "language_mix": [
         "python"
@@ -9450,7 +9456,7 @@
     {
       "id": 874,
       "modules": [
-        "py:merge_train._MergeNode"
+        "py:merge_train.PartitionResult"
       ],
       "language_mix": [
         "python"
@@ -9460,7 +9466,7 @@
     {
       "id": 875,
       "modules": [
-        "py:merge_train.reset_abandoned_entry"
+        "py:merge_train.TrainAuthorizationError"
       ],
       "language_mix": [
         "python"
@@ -9470,7 +9476,7 @@
     {
       "id": 876,
       "modules": [
-        "py:merge_train.reset_blocked_entry"
+        "py:merge_train.TrainDeadlockError"
       ],
       "language_mix": [
         "python"
@@ -9480,7 +9486,7 @@
     {
       "id": 877,
       "modules": [
-        "py:merge_train_service.MergeTrainService"
+        "py:merge_train.WaveMergeResult"
       ],
       "language_mix": [
         "python"
@@ -9490,7 +9496,7 @@
     {
       "id": 878,
       "modules": [
-        "py:merge_train_service.MergeTrainService.__init__"
+        "py:merge_train._MergeNode"
       ],
       "language_mix": [
         "python"
@@ -9500,7 +9506,7 @@
     {
       "id": 879,
       "modules": [
-        "py:merge_train_service.MergeTrainService._persist_entries"
+        "py:merge_train.reset_abandoned_entry"
       ],
       "language_mix": [
         "python"
@@ -9510,7 +9516,7 @@
     {
       "id": 880,
       "modules": [
-        "py:merge_train_service.MergeTrainService._probe_and_maybe_refresh"
+        "py:merge_train.reset_blocked_entry"
       ],
       "language_mix": [
         "python"
@@ -9520,7 +9526,7 @@
     {
       "id": 881,
       "modules": [
-        "py:merge_train_service.MergeTrainService._save_entry"
+        "py:merge_train_service.MergeTrainService"
       ],
       "language_mix": [
         "python"
@@ -9530,7 +9536,7 @@
     {
       "id": 882,
       "modules": [
-        "py:merge_train_service.MergeTrainService.get_train_status"
+        "py:merge_train_service.MergeTrainService.__init__"
       ],
       "language_mix": [
         "python"
@@ -9540,7 +9546,7 @@
     {
       "id": 883,
       "modules": [
-        "py:merge_train_service.MergeTrainService.git_adapter"
+        "py:merge_train_service.MergeTrainService._persist_entries"
       ],
       "language_mix": [
         "python"
@@ -9550,7 +9556,7 @@
     {
       "id": 884,
       "modules": [
-        "py:merge_train_service.MergeTrainService.refresh_client"
+        "py:merge_train_service.MergeTrainService._probe_and_maybe_refresh"
       ],
       "language_mix": [
         "python"
@@ -9560,7 +9566,7 @@
     {
       "id": 885,
       "modules": [
-        "py:merge_train_service.MergeTrainService.report_spec_result"
+        "py:merge_train_service.MergeTrainService._save_entry"
       ],
       "language_mix": [
         "python"
@@ -9570,7 +9576,7 @@
     {
       "id": 886,
       "modules": [
-        "py:merge_train_service.MergeTrainSweeper"
+        "py:merge_train_service.MergeTrainService.get_train_status"
       ],
       "language_mix": [
         "python"
@@ -9580,7 +9586,7 @@
     {
       "id": 887,
       "modules": [
-        "py:merge_train_service.MergeTrainSweeper.__init__"
+        "py:merge_train_service.MergeTrainService.git_adapter"
       ],
       "language_mix": [
         "python"
@@ -9590,7 +9596,7 @@
     {
       "id": 888,
       "modules": [
-        "py:merge_train_service.MergeTrainSweeper._loop"
+        "py:merge_train_service.MergeTrainService.refresh_client"
       ],
       "language_mix": [
         "python"
@@ -9600,7 +9606,7 @@
     {
       "id": 889,
       "modules": [
-        "py:merge_train_service.MergeTrainSweeper.run_once"
+        "py:merge_train_service.MergeTrainService.report_spec_result"
       ],
       "language_mix": [
         "python"
@@ -9610,7 +9616,7 @@
     {
       "id": 890,
       "modules": [
-        "py:merge_train_service.MergeTrainSweeper.running"
+        "py:merge_train_service.MergeTrainSweeper"
       ],
       "language_mix": [
         "python"
@@ -9620,7 +9626,7 @@
     {
       "id": 891,
       "modules": [
-        "py:merge_train_service.MergeTrainSweeper.start"
+        "py:merge_train_service.MergeTrainSweeper.__init__"
       ],
       "language_mix": [
         "python"
@@ -9630,7 +9636,7 @@
     {
       "id": 892,
       "modules": [
-        "py:merge_train_service.MergeTrainSweeper.stop"
+        "py:merge_train_service.MergeTrainSweeper._loop"
       ],
       "language_mix": [
         "python"
@@ -9640,7 +9646,7 @@
     {
       "id": 893,
       "modules": [
-        "py:merge_train_service._parse_dt"
+        "py:merge_train_service.MergeTrainSweeper.run_once"
       ],
       "language_mix": [
         "python"
@@ -9650,7 +9656,7 @@
     {
       "id": 894,
       "modules": [
-        "py:merge_train_service.reset_merge_train_service"
+        "py:merge_train_service.MergeTrainSweeper.running"
       ],
       "language_mix": [
         "python"
@@ -9660,7 +9666,7 @@
     {
       "id": 895,
       "modules": [
-        "py:merge_train_service.reset_merge_train_sweeper"
+        "py:merge_train_service.MergeTrainSweeper.start"
       ],
       "language_mix": [
         "python"
@@ -9670,7 +9676,7 @@
     {
       "id": 896,
       "modules": [
-        "py:merge_train_types.CrossPartitionEntry"
+        "py:merge_train_service.MergeTrainSweeper.stop"
       ],
       "language_mix": [
         "python"
@@ -9680,7 +9686,7 @@
     {
       "id": 897,
       "modules": [
-        "py:merge_train_types.MergeTrainStatus"
+        "py:merge_train_service._parse_dt"
       ],
       "language_mix": [
         "python"
@@ -9690,7 +9696,7 @@
     {
       "id": 898,
       "modules": [
-        "py:merge_train_types.TrainComposition"
+        "py:merge_train_service.reset_merge_train_service"
       ],
       "language_mix": [
         "python"
@@ -9700,7 +9706,7 @@
     {
       "id": 899,
       "modules": [
-        "py:merge_train_types.TrainComposition.all_entries"
+        "py:merge_train_service.reset_merge_train_sweeper"
       ],
       "language_mix": [
         "python"
@@ -9710,7 +9716,7 @@
     {
       "id": 900,
       "modules": [
-        "py:merge_train_types.TrainComposition.new_train_id"
+        "py:merge_train_types.CrossPartitionEntry"
       ],
       "language_mix": [
         "python"
@@ -9720,7 +9726,7 @@
     {
       "id": 901,
       "modules": [
-        "py:merge_train_types.TrainComposition.total_entry_count"
+        "py:merge_train_types.MergeTrainStatus"
       ],
       "language_mix": [
         "python"
@@ -9730,7 +9736,7 @@
     {
       "id": 902,
       "modules": [
-        "py:merge_train_types.TrainEntry"
+        "py:merge_train_types.TrainComposition"
       ],
       "language_mix": [
         "python"
@@ -9740,7 +9746,7 @@
     {
       "id": 903,
       "modules": [
-        "py:merge_train_types.TrainEntry.is_terminal"
+        "py:merge_train_types.TrainComposition.all_entries"
       ],
       "language_mix": [
         "python"
@@ -9750,7 +9756,7 @@
     {
       "id": 904,
       "modules": [
-        "py:merge_train_types.TrainEntry.to_metadata_dict"
+        "py:merge_train_types.TrainComposition.new_train_id"
       ],
       "language_mix": [
         "python"
@@ -9760,7 +9766,7 @@
     {
       "id": 905,
       "modules": [
-        "py:merge_train_types.TrainPartition"
+        "py:merge_train_types.TrainComposition.total_entry_count"
       ],
       "language_mix": [
         "python"
@@ -9770,7 +9776,7 @@
     {
       "id": 906,
       "modules": [
-        "py:merge_train_types.TrainPartition.all_passed"
+        "py:merge_train_types.TrainEntry"
       ],
       "language_mix": [
         "python"
@@ -9780,7 +9786,7 @@
     {
       "id": 907,
       "modules": [
-        "py:merge_watcher.MergeWatcher"
+        "py:merge_train_types.TrainEntry.is_terminal"
       ],
       "language_mix": [
         "python"
@@ -9790,7 +9796,7 @@
     {
       "id": 908,
       "modules": [
-        "py:merge_watcher.MergeWatcher.__init__"
+        "py:merge_train_types.TrainEntry.to_metadata_dict"
       ],
       "language_mix": [
         "python"
@@ -9800,7 +9806,7 @@
     {
       "id": 909,
       "modules": [
-        "py:merge_watcher.MergeWatcher._loop"
+        "py:merge_train_types.TrainPartition"
       ],
       "language_mix": [
         "python"
@@ -9810,7 +9816,7 @@
     {
       "id": 910,
       "modules": [
-        "py:merge_watcher.MergeWatcher._tick"
+        "py:merge_train_types.TrainPartition.all_passed"
       ],
       "language_mix": [
         "python"
@@ -9820,7 +9826,7 @@
     {
       "id": 911,
       "modules": [
-        "py:merge_watcher.MergeWatcher.start"
+        "py:merge_watcher.MergeWatcher"
       ],
       "language_mix": [
         "python"
@@ -9830,7 +9836,7 @@
     {
       "id": 912,
       "modules": [
-        "py:merge_watcher.MergeWatcher.stop"
+        "py:merge_watcher.MergeWatcher.__init__"
       ],
       "language_mix": [
         "python"
@@ -9840,7 +9846,7 @@
     {
       "id": 913,
       "modules": [
-        "py:model_routing"
+        "py:merge_watcher.MergeWatcher._loop"
       ],
       "language_mix": [
         "python"
@@ -9850,7 +9856,7 @@
     {
       "id": 914,
       "modules": [
-        "py:model_routing.exploration"
+        "py:merge_watcher.MergeWatcher._tick"
       ],
       "language_mix": [
         "python"
@@ -9860,7 +9866,7 @@
     {
       "id": 915,
       "modules": [
-        "py:model_routing.exploration.ExplorationBudget"
+        "py:merge_watcher.MergeWatcher.start"
       ],
       "language_mix": [
         "python"
@@ -9870,7 +9876,7 @@
     {
       "id": 916,
       "modules": [
-        "py:model_routing.exploration.ExplorationBudget.exhausted"
+        "py:merge_watcher.MergeWatcher.stop"
       ],
       "language_mix": [
         "python"
@@ -9880,7 +9886,7 @@
     {
       "id": 917,
       "modules": [
-        "py:model_routing.exploration.Selection"
+        "py:model_routing"
       ],
       "language_mix": [
         "python"
@@ -9890,7 +9896,7 @@
     {
       "id": 918,
       "modules": [
-        "py:model_routing.exploration.choose"
+        "py:model_routing.exploration"
       ],
       "language_mix": [
         "python"
@@ -9900,7 +9906,7 @@
     {
       "id": 919,
       "modules": [
-        "py:model_routing.feedback"
+        "py:model_routing.exploration.ExplorationBudget"
       ],
       "language_mix": [
         "python"
@@ -9910,7 +9916,7 @@
     {
       "id": 920,
       "modules": [
-        "py:model_routing.feedback.FeedbackObservation"
+        "py:model_routing.exploration.ExplorationBudget.exhausted"
       ],
       "language_mix": [
         "python"
@@ -9920,7 +9926,7 @@
     {
       "id": 921,
       "modules": [
-        "py:model_routing.feedback.PosteriorEstimate"
+        "py:model_routing.exploration.Selection"
       ],
       "language_mix": [
         "python"
@@ -9930,7 +9936,7 @@
     {
       "id": 922,
       "modules": [
-        "py:model_routing.feedback.normalize_vendor_notes"
+        "py:model_routing.exploration.choose"
       ],
       "language_mix": [
         "python"
@@ -9940,7 +9946,7 @@
     {
       "id": 923,
       "modules": [
-        "py:model_routing.feedback.normalize_vendor_switch"
+        "py:model_routing.feedback"
       ],
       "language_mix": [
         "python"
@@ -9950,7 +9956,7 @@
     {
       "id": 924,
       "modules": [
-        "py:model_routing.resolver"
+        "py:model_routing.feedback.FeedbackObservation"
       ],
       "language_mix": [
         "python"
@@ -9960,7 +9966,7 @@
     {
       "id": 925,
       "modules": [
-        "py:model_routing.resolver.CandidateInput"
+        "py:model_routing.feedback.PosteriorEstimate"
       ],
       "language_mix": [
         "python"
@@ -9970,7 +9976,7 @@
     {
       "id": 926,
       "modules": [
-        "py:model_routing.resolver.Posterior"
+        "py:model_routing.feedback.normalize_vendor_notes"
       ],
       "language_mix": [
         "python"
@@ -9980,7 +9986,7 @@
     {
       "id": 927,
       "modules": [
-        "py:model_routing.resolver.ScoredCandidate"
+        "py:model_routing.feedback.normalize_vendor_switch"
       ],
       "language_mix": [
         "python"
@@ -9990,7 +9996,7 @@
     {
       "id": 928,
       "modules": [
-        "py:model_routing.resolver.Weights"
+        "py:model_routing.resolver"
       ],
       "language_mix": [
         "python"
@@ -10000,7 +10006,7 @@
     {
       "id": 929,
       "modules": [
-        "py:network_policies.AccessDecision"
+        "py:model_routing.resolver.CandidateInput"
       ],
       "language_mix": [
         "python"
@@ -10010,7 +10016,7 @@
     {
       "id": 930,
       "modules": [
-        "py:network_policies.AccessDecision.from_dict"
+        "py:model_routing.resolver.Posterior"
       ],
       "language_mix": [
         "python"
@@ -10020,7 +10026,7 @@
     {
       "id": 931,
       "modules": [
-        "py:network_policies.NetworkPolicyService"
+        "py:model_routing.resolver.ScoredCandidate"
       ],
       "language_mix": [
         "python"
@@ -10030,7 +10036,7 @@
     {
       "id": 932,
       "modules": [
-        "py:network_policies.NetworkPolicyService.__init__"
+        "py:model_routing.resolver.Weights"
       ],
       "language_mix": [
         "python"
@@ -10040,7 +10046,7 @@
     {
       "id": 933,
       "modules": [
-        "py:notifications"
+        "py:network_policies.AccessDecision"
       ],
       "language_mix": [
         "python"
@@ -10050,7 +10056,7 @@
     {
       "id": 934,
       "modules": [
-        "py:notifications.base"
+        "py:network_policies.AccessDecision.from_dict"
       ],
       "language_mix": [
         "python"
@@ -10060,7 +10066,7 @@
     {
       "id": 935,
       "modules": [
-        "py:notifications.base.GmailChannelFake"
+        "py:network_policies.NetworkPolicyService"
       ],
       "language_mix": [
         "python"
@@ -10070,7 +10076,7 @@
     {
       "id": 936,
       "modules": [
-        "py:notifications.base.GmailChannelFake.__init__"
+        "py:network_policies.NetworkPolicyService.__init__"
       ],
       "language_mix": [
         "python"
@@ -10080,7 +10086,7 @@
     {
       "id": 937,
       "modules": [
-        "py:notifications.base.GmailChannelFake.send"
+        "py:notifications"
       ],
       "language_mix": [
         "python"
@@ -10090,7 +10096,7 @@
     {
       "id": 938,
       "modules": [
-        "py:notifications.base.GmailChannelFake.supports_reply"
+        "py:notifications.base"
       ],
       "language_mix": [
         "python"
@@ -10100,7 +10106,7 @@
     {
       "id": 939,
       "modules": [
-        "py:notifications.base.GmailChannelFake.test"
+        "py:notifications.base.GmailChannelFake"
       ],
       "language_mix": [
         "python"
@@ -10110,7 +10116,7 @@
     {
       "id": 940,
       "modules": [
-        "py:notifications.base.NotificationChannel"
+        "py:notifications.base.GmailChannelFake.__init__"
       ],
       "language_mix": [
         "python"
@@ -10120,7 +10126,7 @@
     {
       "id": 941,
       "modules": [
-        "py:notifications.base.NotificationChannel.send"
+        "py:notifications.base.GmailChannelFake.send"
       ],
       "language_mix": [
         "python"
@@ -10130,7 +10136,7 @@
     {
       "id": 942,
       "modules": [
-        "py:notifications.base.NotificationChannel.supports_reply"
+        "py:notifications.base.GmailChannelFake.supports_reply"
       ],
       "language_mix": [
         "python"
@@ -10140,7 +10146,7 @@
     {
       "id": 943,
       "modules": [
-        "py:notifications.base.NotificationChannel.test"
+        "py:notifications.base.GmailChannelFake.test"
       ],
       "language_mix": [
         "python"
@@ -10150,7 +10156,7 @@
     {
       "id": 944,
       "modules": [
-        "py:notifications.gmail"
+        "py:notifications.base.NotificationChannel"
       ],
       "language_mix": [
         "python"
@@ -10160,7 +10166,7 @@
     {
       "id": 945,
       "modules": [
-        "py:notifications.gmail.GmailChannel"
+        "py:notifications.base.NotificationChannel.send"
       ],
       "language_mix": [
         "python"
@@ -10170,7 +10176,7 @@
     {
       "id": 946,
       "modules": [
-        "py:notifications.gmail.GmailChannel.__init__"
+        "py:notifications.base.NotificationChannel.supports_reply"
       ],
       "language_mix": [
         "python"
@@ -10180,7 +10186,7 @@
     {
       "id": 947,
       "modules": [
-        "py:notifications.gmail.GmailChannel._send_reply_email"
+        "py:notifications.base.NotificationChannel.test"
       ],
       "language_mix": [
         "python"
@@ -10190,7 +10196,7 @@
     {
       "id": 948,
       "modules": [
-        "py:notifications.gmail.GmailChannel.start_imap_listener"
+        "py:notifications.gmail"
       ],
       "language_mix": [
         "python"
@@ -10200,7 +10206,7 @@
     {
       "id": 949,
       "modules": [
-        "py:notifications.gmail.GmailChannel.stop_imap_listener"
+        "py:notifications.gmail.GmailChannel"
       ],
       "language_mix": [
         "python"
@@ -10210,7 +10216,7 @@
     {
       "id": 950,
       "modules": [
-        "py:notifications.gmail.GmailChannel.supports_reply"
+        "py:notifications.gmail.GmailChannel.__init__"
       ],
       "language_mix": [
         "python"
@@ -10220,7 +10226,7 @@
     {
       "id": 951,
       "modules": [
-        "py:notifications.gmail.GmailChannel.test"
+        "py:notifications.gmail.GmailChannel._send_reply_email"
       ],
       "language_mix": [
         "python"
@@ -10230,7 +10236,7 @@
     {
       "id": 952,
       "modules": [
-        "py:notifications.gmail.get_gmail_channel"
+        "py:notifications.gmail.GmailChannel.start_imap_listener"
       ],
       "language_mix": [
         "python"
@@ -10240,7 +10246,7 @@
     {
       "id": 953,
       "modules": [
-        "py:notifications.notifier.NotifierService"
+        "py:notifications.gmail.GmailChannel.stop_imap_listener"
       ],
       "language_mix": [
         "python"
@@ -10250,7 +10256,7 @@
     {
       "id": 954,
       "modules": [
-        "py:notifications.notifier.NotifierService.__init__"
+        "py:notifications.gmail.GmailChannel.supports_reply"
       ],
       "language_mix": [
         "python"
@@ -10260,7 +10266,7 @@
     {
       "id": 955,
       "modules": [
-        "py:notifications.notifier.NotifierService._digest_loop"
+        "py:notifications.gmail.GmailChannel.test"
       ],
       "language_mix": [
         "python"
@@ -10270,7 +10276,7 @@
     {
       "id": 956,
       "modules": [
-        "py:notifications.notifier.NotifierService._send_with_retry"
+        "py:notifications.gmail.get_gmail_channel"
       ],
       "language_mix": [
         "python"
@@ -10280,7 +10286,7 @@
     {
       "id": 957,
       "modules": [
-        "py:notifications.notifier.NotifierService.enabled"
+        "py:notifications.notifier.NotifierService"
       ],
       "language_mix": [
         "python"
@@ -10290,7 +10296,7 @@
     {
       "id": 958,
       "modules": [
-        "py:notifications.notifier.NotifierService.register_channel"
+        "py:notifications.notifier.NotifierService.__init__"
       ],
       "language_mix": [
         "python"
@@ -10300,7 +10306,7 @@
     {
       "id": 959,
       "modules": [
-        "py:notifications.notifier.NotifierService.start_digest_loop"
+        "py:notifications.notifier.NotifierService._digest_loop"
       ],
       "language_mix": [
         "python"
@@ -10310,7 +10316,7 @@
     {
       "id": 960,
       "modules": [
-        "py:notifications.notifier.NotifierService.stop_digest_loop"
+        "py:notifications.notifier.NotifierService._send_with_retry"
       ],
       "language_mix": [
         "python"
@@ -10320,7 +10326,7 @@
     {
       "id": 961,
       "modules": [
-        "py:notifications.notifier.reset_notifier"
+        "py:notifications.notifier.NotifierService.enabled"
       ],
       "language_mix": [
         "python"
@@ -10330,7 +10336,7 @@
     {
       "id": 962,
       "modules": [
-        "py:notifications.relay"
+        "py:notifications.notifier.NotifierService.register_channel"
       ],
       "language_mix": [
         "python"
@@ -10340,7 +10346,7 @@
     {
       "id": 963,
       "modules": [
-        "py:notifications.telegram"
+        "py:notifications.notifier.NotifierService.start_digest_loop"
       ],
       "language_mix": [
         "python"
@@ -10350,7 +10356,7 @@
     {
       "id": 964,
       "modules": [
-        "py:notifications.telegram.TelegramChannel"
+        "py:notifications.notifier.NotifierService.stop_digest_loop"
       ],
       "language_mix": [
         "python"
@@ -10360,7 +10366,7 @@
     {
       "id": 965,
       "modules": [
-        "py:notifications.telegram.TelegramChannel.__init__"
+        "py:notifications.notifier.reset_notifier"
       ],
       "language_mix": [
         "python"
@@ -10370,7 +10376,7 @@
     {
       "id": 966,
       "modules": [
-        "py:notifications.telegram.TelegramChannel._api_url"
+        "py:notifications.relay"
       ],
       "language_mix": [
         "python"
@@ -10380,7 +10386,7 @@
     {
       "id": 967,
       "modules": [
-        "py:notifications.telegram.TelegramChannel._escape_markdown"
+        "py:notifications.telegram"
       ],
       "language_mix": [
         "python"
@@ -10390,7 +10396,7 @@
     {
       "id": 968,
       "modules": [
-        "py:notifications.telegram.TelegramChannel._format_message"
+        "py:notifications.telegram.TelegramChannel"
       ],
       "language_mix": [
         "python"
@@ -10400,7 +10406,7 @@
     {
       "id": 969,
       "modules": [
-        "py:notifications.telegram.TelegramChannel.client"
+        "py:notifications.telegram.TelegramChannel.__init__"
       ],
       "language_mix": [
         "python"
@@ -10410,7 +10416,7 @@
     {
       "id": 970,
       "modules": [
-        "py:notifications.telegram.TelegramChannel.send"
+        "py:notifications.telegram.TelegramChannel._api_url"
       ],
       "language_mix": [
         "python"
@@ -10420,7 +10426,7 @@
     {
       "id": 971,
       "modules": [
-        "py:notifications.telegram.TelegramChannel.supports_reply"
+        "py:notifications.telegram.TelegramChannel._escape_markdown"
       ],
       "language_mix": [
         "python"
@@ -10430,7 +10436,7 @@
     {
       "id": 972,
       "modules": [
-        "py:notifications.telegram.TelegramChannel.test"
+        "py:notifications.telegram.TelegramChannel._format_message"
       ],
       "language_mix": [
         "python"
@@ -10440,7 +10446,7 @@
     {
       "id": 973,
       "modules": [
-        "py:notifications.telegram.get_telegram_channel"
+        "py:notifications.telegram.TelegramChannel.client"
       ],
       "language_mix": [
         "python"
@@ -10450,7 +10456,7 @@
     {
       "id": 974,
       "modules": [
-        "py:notifications.templates"
+        "py:notifications.telegram.TelegramChannel.send"
       ],
       "language_mix": [
         "python"
@@ -10460,7 +10466,7 @@
     {
       "id": 975,
       "modules": [
-        "py:notifications.webhook"
+        "py:notifications.telegram.TelegramChannel.supports_reply"
       ],
       "language_mix": [
         "python"
@@ -10470,7 +10476,7 @@
     {
       "id": 976,
       "modules": [
-        "py:notifications.webhook.WebhookChannel"
+        "py:notifications.telegram.TelegramChannel.test"
       ],
       "language_mix": [
         "python"
@@ -10480,7 +10486,7 @@
     {
       "id": 977,
       "modules": [
-        "py:notifications.webhook.WebhookChannel.__init__"
+        "py:notifications.telegram.get_telegram_channel"
       ],
       "language_mix": [
         "python"
@@ -10490,7 +10496,7 @@
     {
       "id": 978,
       "modules": [
-        "py:notifications.webhook.WebhookChannel.client"
+        "py:notifications.templates"
       ],
       "language_mix": [
         "python"
@@ -10500,7 +10506,7 @@
     {
       "id": 979,
       "modules": [
-        "py:notifications.webhook.WebhookChannel.send"
+        "py:notifications.webhook"
       ],
       "language_mix": [
         "python"
@@ -10510,7 +10516,7 @@
     {
       "id": 980,
       "modules": [
-        "py:notifications.webhook.WebhookChannel.supports_reply"
+        "py:notifications.webhook.WebhookChannel"
       ],
       "language_mix": [
         "python"
@@ -10520,7 +10526,7 @@
     {
       "id": 981,
       "modules": [
-        "py:notifications.webhook.WebhookChannel.test"
+        "py:notifications.webhook.WebhookChannel.__init__"
       ],
       "language_mix": [
         "python"
@@ -10530,7 +10536,7 @@
     {
       "id": 982,
       "modules": [
-        "py:notifications.webhook.get_webhook_channel"
+        "py:notifications.webhook.WebhookChannel.client"
       ],
       "language_mix": [
         "python"
@@ -10540,7 +10546,7 @@
     {
       "id": 983,
       "modules": [
-        "py:openspec_proposals_api._parse_h1_title"
+        "py:notifications.webhook.WebhookChannel.send"
       ],
       "language_mix": [
         "python"
@@ -10550,7 +10556,7 @@
     {
       "id": 984,
       "modules": [
-        "py:openspec_sources"
+        "py:notifications.webhook.WebhookChannel.supports_reply"
       ],
       "language_mix": [
         "python"
@@ -10560,7 +10566,7 @@
     {
       "id": 985,
       "modules": [
-        "py:openspec_sources.LocalSourceCache"
+        "py:notifications.webhook.WebhookChannel.test"
       ],
       "language_mix": [
         "python"
@@ -10570,7 +10576,7 @@
     {
       "id": 986,
       "modules": [
-        "py:openspec_sources.ParseWarning"
+        "py:notifications.webhook.get_webhook_channel"
       ],
       "language_mix": [
         "python"
@@ -10580,7 +10586,7 @@
     {
       "id": 987,
       "modules": [
-        "py:openspec_sources.SourceDescriptor"
+        "py:openspec_proposals_api._parse_h1_title"
       ],
       "language_mix": [
         "python"
@@ -10590,7 +10596,7 @@
     {
       "id": 988,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine"
+        "py:openspec_sources"
       ],
       "language_mix": [
         "python"
@@ -10600,7 +10606,7 @@
     {
       "id": 989,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.__init__"
+        "py:openspec_sources.LocalSourceCache"
       ],
       "language_mix": [
         "python"
@@ -10610,7 +10616,7 @@
     {
       "id": 990,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._build_entity"
+        "py:openspec_sources.ParseWarning"
       ],
       "language_mix": [
         "python"
@@ -10620,7 +10626,7 @@
     {
       "id": 991,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._build_resource_entity"
+        "py:openspec_sources.SourceDescriptor"
       ],
       "language_mix": [
         "python"
@@ -10630,7 +10636,7 @@
     {
       "id": 992,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._determine_resource_type"
+        "py:policy_engine.CedarPolicyEngine"
       ],
       "language_mix": [
         "python"
@@ -10640,7 +10646,7 @@
     {
       "id": 993,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._do_check_operation"
+        "py:policy_engine.CedarPolicyEngine.__init__"
       ],
       "language_mix": [
         "python"
@@ -10650,7 +10656,7 @@
     {
       "id": 994,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine._load_default_policies"
+        "py:policy_engine.CedarPolicyEngine._build_entity"
       ],
       "language_mix": [
         "python"
@@ -10660,7 +10666,7 @@
     {
       "id": 995,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.check_network_access"
+        "py:policy_engine.CedarPolicyEngine._build_resource_entity"
       ],
       "language_mix": [
         "python"
@@ -10670,7 +10676,7 @@
     {
       "id": 996,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.invalidate_cache"
+        "py:policy_engine.CedarPolicyEngine._determine_resource_type"
       ],
       "language_mix": [
         "python"
@@ -10680,7 +10686,7 @@
     {
       "id": 997,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.list_policies"
+        "py:policy_engine.CedarPolicyEngine._do_check_operation"
       ],
       "language_mix": [
         "python"
@@ -10690,7 +10696,7 @@
     {
       "id": 998,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.list_policy_versions"
+        "py:policy_engine.CedarPolicyEngine._load_default_policies"
       ],
       "language_mix": [
         "python"
@@ -10700,7 +10706,7 @@
     {
       "id": 999,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.rollback_policy"
+        "py:policy_engine.CedarPolicyEngine.check_network_access"
       ],
       "language_mix": [
         "python"
@@ -10710,7 +10716,7 @@
     {
       "id": 1000,
       "modules": [
-        "py:policy_engine.CedarPolicyEngine.validate_policy"
+        "py:policy_engine.CedarPolicyEngine.invalidate_cache"
       ],
       "language_mix": [
         "python"
@@ -10720,7 +10726,7 @@
     {
       "id": 1001,
       "modules": [
-        "py:policy_engine.NativePolicyEngine"
+        "py:policy_engine.CedarPolicyEngine.list_policies"
       ],
       "language_mix": [
         "python"
@@ -10730,7 +10736,7 @@
     {
       "id": 1002,
       "modules": [
-        "py:policy_engine.NativePolicyEngine.__init__"
+        "py:policy_engine.CedarPolicyEngine.list_policy_versions"
       ],
       "language_mix": [
         "python"
@@ -10740,7 +10746,7 @@
     {
       "id": 1003,
       "modules": [
-        "py:policy_engine.NativePolicyEngine.list_policy_versions"
+        "py:policy_engine.CedarPolicyEngine.rollback_policy"
       ],
       "language_mix": [
         "python"
@@ -10750,7 +10756,7 @@
     {
       "id": 1004,
       "modules": [
-        "py:policy_engine.NativePolicyEngine.rollback_policy"
+        "py:policy_engine.CedarPolicyEngine.validate_policy"
       ],
       "language_mix": [
         "python"
@@ -10760,7 +10766,7 @@
     {
       "id": 1005,
       "modules": [
-        "py:policy_engine.PolicyDecision"
+        "py:policy_engine.NativePolicyEngine"
       ],
       "language_mix": [
         "python"
@@ -10770,7 +10776,7 @@
     {
       "id": 1006,
       "modules": [
-        "py:policy_engine.PolicyDecision.allow"
+        "py:policy_engine.NativePolicyEngine.__init__"
       ],
       "language_mix": [
         "python"
@@ -10780,7 +10786,7 @@
     {
       "id": 1007,
       "modules": [
-        "py:policy_engine.PolicyDecision.deny"
+        "py:policy_engine.NativePolicyEngine.list_policy_versions"
       ],
       "language_mix": [
         "python"
@@ -10790,7 +10796,7 @@
     {
       "id": 1008,
       "modules": [
-        "py:policy_engine.ValidationResult"
+        "py:policy_engine.NativePolicyEngine.rollback_policy"
       ],
       "language_mix": [
         "python"
@@ -10800,7 +10806,7 @@
     {
       "id": 1009,
       "modules": [
-        "py:policy_engine.reset_policy_engine"
+        "py:policy_engine.PolicyDecision"
       ],
       "language_mix": [
         "python"
@@ -10810,7 +10816,7 @@
     {
       "id": 1010,
       "modules": [
-        "py:policy_engine.reset_policy_instruments"
+        "py:policy_engine.PolicyDecision.allow"
       ],
       "language_mix": [
         "python"
@@ -10820,7 +10826,7 @@
     {
       "id": 1011,
       "modules": [
-        "py:policy_sync"
+        "py:policy_engine.PolicyDecision.deny"
       ],
       "language_mix": [
         "python"
@@ -10830,7 +10836,7 @@
     {
       "id": 1012,
       "modules": [
-        "py:policy_sync.PgListenNotifyPolicySyncService"
+        "py:policy_engine.ValidationResult"
       ],
       "language_mix": [
         "python"
@@ -10840,7 +10846,7 @@
     {
       "id": 1013,
       "modules": [
-        "py:policy_sync.PgListenNotifyPolicySyncService.__init__"
+        "py:policy_engine.reset_policy_engine"
       ],
       "language_mix": [
         "python"
@@ -10850,7 +10856,7 @@
     {
       "id": 1014,
       "modules": [
-        "py:policy_sync.PgListenNotifyPolicySyncService._connect_and_listen"
+        "py:policy_engine.reset_policy_instruments"
       ],
       "language_mix": [
         "python"
@@ -10860,7 +10866,7 @@
     {
       "id": 1015,
       "modules": [
-        "py:policy_sync.PgListenNotifyPolicySyncService._connect_and_listen._notification_handler"
+        "py:policy_sync"
       ],
       "language_mix": [
         "python"
@@ -10870,7 +10876,7 @@
     {
       "id": 1016,
       "modules": [
-        "py:policy_sync.PgListenNotifyPolicySyncService._listen_loop"
+        "py:policy_sync.PgListenNotifyPolicySyncService"
       ],
       "language_mix": [
         "python"
@@ -10880,7 +10886,7 @@
     {
       "id": 1017,
       "modules": [
-        "py:policy_sync.PgListenNotifyPolicySyncService._safe_callback"
+        "py:policy_sync.PgListenNotifyPolicySyncService.__init__"
       ],
       "language_mix": [
         "python"
@@ -10890,7 +10896,7 @@
     {
       "id": 1018,
       "modules": [
-        "py:policy_sync.PgListenNotifyPolicySyncService.on_policy_change"
+        "py:policy_sync.PgListenNotifyPolicySyncService._connect_and_listen"
       ],
       "language_mix": [
         "python"
@@ -10900,7 +10906,7 @@
     {
       "id": 1019,
       "modules": [
-        "py:policy_sync.PgListenNotifyPolicySyncService.running"
+        "py:policy_sync.PgListenNotifyPolicySyncService._connect_and_listen._notification_handler"
       ],
       "language_mix": [
         "python"
@@ -10910,7 +10916,7 @@
     {
       "id": 1020,
       "modules": [
-        "py:policy_sync.PgListenNotifyPolicySyncService.start"
+        "py:policy_sync.PgListenNotifyPolicySyncService._listen_loop"
       ],
       "language_mix": [
         "python"
@@ -10920,7 +10926,7 @@
     {
       "id": 1021,
       "modules": [
-        "py:policy_sync.PgListenNotifyPolicySyncService.stop"
+        "py:policy_sync.PgListenNotifyPolicySyncService._safe_callback"
       ],
       "language_mix": [
         "python"
@@ -10930,7 +10936,7 @@
     {
       "id": 1022,
       "modules": [
-        "py:policy_sync.PolicySyncService"
+        "py:policy_sync.PgListenNotifyPolicySyncService.on_policy_change"
       ],
       "language_mix": [
         "python"
@@ -10940,7 +10946,7 @@
     {
       "id": 1023,
       "modules": [
-        "py:policy_sync.PolicySyncService.on_policy_change"
+        "py:policy_sync.PgListenNotifyPolicySyncService.running"
       ],
       "language_mix": [
         "python"
@@ -10950,7 +10956,7 @@
     {
       "id": 1024,
       "modules": [
-        "py:policy_sync.PolicySyncService.start"
+        "py:policy_sync.PgListenNotifyPolicySyncService.start"
       ],
       "language_mix": [
         "python"
@@ -10960,7 +10966,7 @@
     {
       "id": 1025,
       "modules": [
-        "py:policy_sync.PolicySyncService.stop"
+        "py:policy_sync.PgListenNotifyPolicySyncService.stop"
       ],
       "language_mix": [
         "python"
@@ -10970,7 +10976,7 @@
     {
       "id": 1026,
       "modules": [
-        "py:policy_sync.get_policy_sync_service"
+        "py:policy_sync.PolicySyncService"
       ],
       "language_mix": [
         "python"
@@ -10980,7 +10986,7 @@
     {
       "id": 1027,
       "modules": [
-        "py:policy_sync.reset_policy_sync_service"
+        "py:policy_sync.PolicySyncService.on_policy_change"
       ],
       "language_mix": [
         "python"
@@ -10990,7 +10996,7 @@
     {
       "id": 1028,
       "modules": [
-        "py:port_allocator.PortAllocation"
+        "py:policy_sync.PolicySyncService.start"
       ],
       "language_mix": [
         "python"
@@ -11000,7 +11006,7 @@
     {
       "id": 1029,
       "modules": [
-        "py:port_allocator.PortAllocation.env_snippet"
+        "py:policy_sync.PolicySyncService.stop"
       ],
       "language_mix": [
         "python"
@@ -11010,7 +11016,7 @@
     {
       "id": 1030,
       "modules": [
-        "py:port_allocator.PortAllocatorService"
+        "py:policy_sync.get_policy_sync_service"
       ],
       "language_mix": [
         "python"
@@ -11020,7 +11026,7 @@
     {
       "id": 1031,
       "modules": [
-        "py:port_allocator.PortAllocatorService.__init__"
+        "py:policy_sync.reset_policy_sync_service"
       ],
       "language_mix": [
         "python"
@@ -11030,7 +11036,7 @@
     {
       "id": 1032,
       "modules": [
-        "py:port_allocator.PortAllocatorService._cleanup_expired"
+        "py:port_allocator.PortAllocation"
       ],
       "language_mix": [
         "python"
@@ -11040,7 +11046,7 @@
     {
       "id": 1033,
       "modules": [
-        "py:port_allocator.PortAllocatorService.release"
+        "py:port_allocator.PortAllocation.env_snippet"
       ],
       "language_mix": [
         "python"
@@ -11050,7 +11056,7 @@
     {
       "id": 1034,
       "modules": [
-        "py:port_allocator.PortAllocatorService.status"
+        "py:port_allocator.PortAllocatorService"
       ],
       "language_mix": [
         "python"
@@ -11060,7 +11066,7 @@
     {
       "id": 1035,
       "modules": [
-        "py:port_allocator.reset_port_allocator"
+        "py:port_allocator.PortAllocatorService.__init__"
       ],
       "language_mix": [
         "python"
@@ -11070,7 +11076,7 @@
     {
       "id": 1036,
       "modules": [
-        "py:profile_loader"
+        "py:port_allocator.PortAllocatorService._cleanup_expired"
       ],
       "language_mix": [
         "python"
@@ -11080,7 +11086,7 @@
     {
       "id": 1037,
       "modules": [
-        "py:profile_loader.interpolate._replace"
+        "py:port_allocator.PortAllocatorService.release"
       ],
       "language_mix": [
         "python"
@@ -11090,7 +11096,7 @@
     {
       "id": 1038,
       "modules": [
-        "py:profile_loader.resolve_dynamic_dsn"
+        "py:port_allocator.PortAllocatorService.status"
       ],
       "language_mix": [
         "python"
@@ -11100,7 +11106,7 @@
     {
       "id": 1039,
       "modules": [
-        "py:profiles.AgentProfile"
+        "py:port_allocator.reset_port_allocator"
       ],
       "language_mix": [
         "python"
@@ -11110,7 +11116,7 @@
     {
       "id": 1040,
       "modules": [
-        "py:profiles.AgentProfile.from_dict"
+        "py:profile_loader"
       ],
       "language_mix": [
         "python"
@@ -11120,7 +11126,7 @@
     {
       "id": 1041,
       "modules": [
-        "py:profiles.OperationCheck"
+        "py:profile_loader.interpolate._replace"
       ],
       "language_mix": [
         "python"
@@ -11130,7 +11136,7 @@
     {
       "id": 1042,
       "modules": [
-        "py:profiles.OperationCheck.from_dict"
+        "py:profile_loader.resolve_dynamic_dsn"
       ],
       "language_mix": [
         "python"
@@ -11140,7 +11146,7 @@
     {
       "id": 1043,
       "modules": [
-        "py:profiles.ProfileResult"
+        "py:profiles.AgentProfile"
       ],
       "language_mix": [
         "python"
@@ -11150,7 +11156,7 @@
     {
       "id": 1044,
       "modules": [
-        "py:profiles.ProfileResult.from_dict"
+        "py:profiles.AgentProfile.from_dict"
       ],
       "language_mix": [
         "python"
@@ -11160,7 +11166,7 @@
     {
       "id": 1045,
       "modules": [
-        "py:profiles.ProfilesService"
+        "py:profiles.OperationCheck"
       ],
       "language_mix": [
         "python"
@@ -11170,7 +11176,7 @@
     {
       "id": 1046,
       "modules": [
-        "py:profiles.ProfilesService.__init__"
+        "py:profiles.OperationCheck.from_dict"
       ],
       "language_mix": [
         "python"
@@ -11180,7 +11186,7 @@
     {
       "id": 1047,
       "modules": [
-        "py:profiles.ProfilesService.invalidate_cache"
+        "py:profiles.ProfileResult"
       ],
       "language_mix": [
         "python"
@@ -11190,7 +11196,7 @@
     {
       "id": 1048,
       "modules": [
-        "py:refresh_rpc_client.RefreshClientUnavailable"
+        "py:profiles.ProfileResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -11200,7 +11206,7 @@
     {
       "id": 1049,
       "modules": [
-        "py:refresh_rpc_client.RefreshClientUnavailable.__repr__"
+        "py:profiles.ProfilesService"
       ],
       "language_mix": [
         "python"
@@ -11210,7 +11216,7 @@
     {
       "id": 1050,
       "modules": [
-        "py:refresh_rpc_client.RefreshRpcClient"
+        "py:profiles.ProfilesService.__init__"
       ],
       "language_mix": [
         "python"
@@ -11220,7 +11226,7 @@
     {
       "id": 1051,
       "modules": [
-        "py:refresh_rpc_client.RefreshRpcClient.__init__"
+        "py:profiles.ProfilesService.invalidate_cache"
       ],
       "language_mix": [
         "python"
@@ -11230,7 +11236,7 @@
     {
       "id": 1052,
       "modules": [
-        "py:refresh_rpc_client.RefreshRpcClient._invoke"
+        "py:refresh_rpc_client.RefreshClientUnavailable"
       ],
       "language_mix": [
         "python"
@@ -11240,7 +11246,7 @@
     {
       "id": 1053,
       "modules": [
-        "py:refresh_rpc_client.RefreshRpcClient.get_refresh_status"
+        "py:refresh_rpc_client.RefreshClientUnavailable.__repr__"
       ],
       "language_mix": [
         "python"
@@ -11250,7 +11256,7 @@
     {
       "id": 1054,
       "modules": [
-        "py:refresh_rpc_client.RefreshRpcClient.is_graph_stale"
+        "py:refresh_rpc_client.RefreshRpcClient"
       ],
       "language_mix": [
         "python"
@@ -11260,7 +11266,7 @@
     {
       "id": 1055,
       "modules": [
-        "py:refresh_rpc_client.RefreshRpcClient.trigger_refresh"
+        "py:refresh_rpc_client.RefreshRpcClient.__init__"
       ],
       "language_mix": [
         "python"
@@ -11270,7 +11276,7 @@
     {
       "id": 1056,
       "modules": [
-        "py:refresh_rpc_client._Runner"
+        "py:refresh_rpc_client.RefreshRpcClient._invoke"
       ],
       "language_mix": [
         "python"
@@ -11280,7 +11286,7 @@
     {
       "id": 1057,
       "modules": [
-        "py:refresh_rpc_client._Runner.__call__"
+        "py:refresh_rpc_client.RefreshRpcClient.get_refresh_status"
       ],
       "language_mix": [
         "python"
@@ -11290,7 +11296,7 @@
     {
       "id": 1058,
       "modules": [
-        "py:risk_scorer.RiskScore"
+        "py:refresh_rpc_client.RefreshRpcClient.is_graph_stale"
       ],
       "language_mix": [
         "python"
@@ -11300,7 +11306,7 @@
     {
       "id": 1059,
       "modules": [
-        "py:risk_scorer.RiskScorer"
+        "py:refresh_rpc_client.RefreshRpcClient.trigger_refresh"
       ],
       "language_mix": [
         "python"
@@ -11310,7 +11316,7 @@
     {
       "id": 1060,
       "modules": [
-        "py:risk_scorer.RiskScorer.__init__"
+        "py:refresh_rpc_client._Runner"
       ],
       "language_mix": [
         "python"
@@ -11320,7 +11326,7 @@
     {
       "id": 1061,
       "modules": [
-        "py:risk_scorer.RiskScorer._operation_factor"
+        "py:refresh_rpc_client._Runner.__call__"
       ],
       "language_mix": [
         "python"
@@ -11330,7 +11336,7 @@
     {
       "id": 1062,
       "modules": [
-        "py:risk_scorer.RiskScorer._resource_factor"
+        "py:risk_scorer.RiskScore"
       ],
       "language_mix": [
         "python"
@@ -11340,7 +11346,7 @@
     {
       "id": 1063,
       "modules": [
-        "py:risk_scorer.RiskScorer._session_age_factor"
+        "py:risk_scorer.RiskScorer"
       ],
       "language_mix": [
         "python"
@@ -11350,7 +11356,7 @@
     {
       "id": 1064,
       "modules": [
-        "py:risk_scorer.RiskScorer._trust_factor"
+        "py:risk_scorer.RiskScorer.__init__"
       ],
       "language_mix": [
         "python"
@@ -11360,7 +11366,7 @@
     {
       "id": 1065,
       "modules": [
-        "py:risk_scorer.RiskScorer._violation_factor"
+        "py:risk_scorer.RiskScorer._operation_factor"
       ],
       "language_mix": [
         "python"
@@ -11370,7 +11376,7 @@
     {
       "id": 1066,
       "modules": [
-        "py:risk_scorer.RiskScorer.compute_score"
+        "py:risk_scorer.RiskScorer._resource_factor"
       ],
       "language_mix": [
         "python"
@@ -11380,7 +11386,7 @@
     {
       "id": 1067,
       "modules": [
-        "py:risk_scorer.RiskScorer.get_violation_count"
+        "py:risk_scorer.RiskScorer._session_age_factor"
       ],
       "language_mix": [
         "python"
@@ -11390,7 +11396,7 @@
     {
       "id": 1068,
       "modules": [
-        "py:risk_scorer.get_risk_scorer"
+        "py:risk_scorer.RiskScorer._trust_factor"
       ],
       "language_mix": [
         "python"
@@ -11400,7 +11406,7 @@
     {
       "id": 1069,
       "modules": [
-        "py:risk_scorer.reset_risk_scorer"
+        "py:risk_scorer.RiskScorer._violation_factor"
       ],
       "language_mix": [
         "python"
@@ -11410,7 +11416,7 @@
     {
       "id": 1070,
       "modules": [
-        "py:session_grants.PermissionGrant"
+        "py:risk_scorer.RiskScorer.compute_score"
       ],
       "language_mix": [
         "python"
@@ -11420,7 +11426,7 @@
     {
       "id": 1071,
       "modules": [
-        "py:session_grants.SessionGrantService"
+        "py:risk_scorer.RiskScorer.get_violation_count"
       ],
       "language_mix": [
         "python"
@@ -11430,7 +11436,7 @@
     {
       "id": 1072,
       "modules": [
-        "py:session_grants.SessionGrantService.__init__"
+        "py:risk_scorer.get_risk_scorer"
       ],
       "language_mix": [
         "python"
@@ -11440,7 +11446,7 @@
     {
       "id": 1073,
       "modules": [
-        "py:session_grants.SessionGrantService.get_active_grants"
+        "py:risk_scorer.reset_risk_scorer"
       ],
       "language_mix": [
         "python"
@@ -11450,7 +11456,7 @@
     {
       "id": 1074,
       "modules": [
-        "py:session_grants.SessionGrantService.has_grant"
+        "py:session_grants.PermissionGrant"
       ],
       "language_mix": [
         "python"
@@ -11460,7 +11466,7 @@
     {
       "id": 1075,
       "modules": [
-        "py:session_grants.SessionGrantService.request_grant"
+        "py:session_grants.SessionGrantService"
       ],
       "language_mix": [
         "python"
@@ -11470,7 +11476,7 @@
     {
       "id": 1076,
       "modules": [
-        "py:session_grants.SessionGrantService.revoke_grants"
+        "py:session_grants.SessionGrantService.__init__"
       ],
       "language_mix": [
         "python"
@@ -11480,7 +11486,7 @@
     {
       "id": 1077,
       "modules": [
-        "py:session_grants._parse_dt"
+        "py:session_grants.SessionGrantService.get_active_grants"
       ],
       "language_mix": [
         "python"
@@ -11490,7 +11496,7 @@
     {
       "id": 1078,
       "modules": [
-        "py:session_grants.reset_session_grant_service"
+        "py:session_grants.SessionGrantService.has_grant"
       ],
       "language_mix": [
         "python"
@@ -11500,7 +11506,7 @@
     {
       "id": 1079,
       "modules": [
-        "py:sse_log_redaction._TokenRedactionFilter"
+        "py:session_grants.SessionGrantService.request_grant"
       ],
       "language_mix": [
         "python"
@@ -11510,7 +11516,7 @@
     {
       "id": 1080,
       "modules": [
-        "py:sse_log_redaction._TokenRedactionFilter._scrub"
+        "py:session_grants.SessionGrantService.revoke_grants"
       ],
       "language_mix": [
         "python"
@@ -11520,7 +11526,7 @@
     {
       "id": 1081,
       "modules": [
-        "py:sse_log_redaction._TokenRedactionFilter.filter"
+        "py:session_grants._parse_dt"
       ],
       "language_mix": [
         "python"
@@ -11530,7 +11536,7 @@
     {
       "id": 1082,
       "modules": [
-        "py:sse_log_redaction.redact_token"
+        "py:session_grants.reset_session_grant_service"
       ],
       "language_mix": [
         "python"
@@ -11540,7 +11546,7 @@
     {
       "id": 1083,
       "modules": [
-        "py:status"
+        "py:sse_log_redaction._TokenRedactionFilter"
       ],
       "language_mix": [
         "python"
@@ -11550,7 +11556,7 @@
     {
       "id": 1084,
       "modules": [
-        "py:status.cleanup_expired_tokens"
+        "py:sse_log_redaction._TokenRedactionFilter._scrub"
       ],
       "language_mix": [
         "python"
@@ -11560,7 +11566,7 @@
     {
       "id": 1085,
       "modules": [
-        "py:teams"
+        "py:sse_log_redaction._TokenRedactionFilter.filter"
       ],
       "language_mix": [
         "python"
@@ -11570,7 +11576,7 @@
     {
       "id": 1086,
       "modules": [
-        "py:teams.AgentClaimant"
+        "py:sse_log_redaction.redact_token"
       ],
       "language_mix": [
         "python"
@@ -11580,7 +11586,7 @@
     {
       "id": 1087,
       "modules": [
-        "py:teams.AgentClaimant.can_claim"
+        "py:status"
       ],
       "language_mix": [
         "python"
@@ -11590,7 +11596,7 @@
     {
       "id": 1088,
       "modules": [
-        "py:teams.CrewManifest"
+        "py:status.cleanup_expired_tokens"
       ],
       "language_mix": [
         "python"
@@ -11600,7 +11606,7 @@
     {
       "id": 1089,
       "modules": [
-        "py:teams.CrewManifest._claimability_errors"
+        "py:teams"
       ],
       "language_mix": [
         "python"
@@ -11610,7 +11616,7 @@
     {
       "id": 1090,
       "modules": [
-        "py:teams.CrewManifest.from_file"
+        "py:teams.AgentClaimant"
       ],
       "language_mix": [
         "python"
@@ -11620,7 +11626,7 @@
     {
       "id": 1091,
       "modules": [
-        "py:teams.CrewManifest.get_role"
+        "py:teams.AgentClaimant.can_claim"
       ],
       "language_mix": [
         "python"
@@ -11630,7 +11636,7 @@
     {
       "id": 1092,
       "modules": [
-        "py:teams.CrewManifest.validate_against"
+        "py:teams.CrewManifest"
       ],
       "language_mix": [
         "python"
@@ -11640,7 +11646,7 @@
     {
       "id": 1093,
       "modules": [
-        "py:teams.CrewManifest.vendors_for"
+        "py:teams.CrewManifest._claimability_errors"
       ],
       "language_mix": [
         "python"
@@ -11650,7 +11656,7 @@
     {
       "id": 1094,
       "modules": [
-        "py:teams.RoleAssignment"
+        "py:teams.CrewManifest.from_file"
       ],
       "language_mix": [
         "python"
@@ -11660,7 +11666,7 @@
     {
       "id": 1095,
       "modules": [
-        "py:teams.reset_crew_manifest"
+        "py:teams.CrewManifest.get_role"
       ],
       "language_mix": [
         "python"
@@ -11670,7 +11676,7 @@
     {
       "id": 1096,
       "modules": [
-        "py:telemetry._NoOpSpan"
+        "py:teams.CrewManifest.validate_against"
       ],
       "language_mix": [
         "python"
@@ -11680,7 +11686,7 @@
     {
       "id": 1097,
       "modules": [
-        "py:telemetry._NoOpSpan.__enter__"
+        "py:teams.CrewManifest.vendors_for"
       ],
       "language_mix": [
         "python"
@@ -11690,7 +11696,7 @@
     {
       "id": 1098,
       "modules": [
-        "py:telemetry._NoOpSpan.__exit__"
+        "py:teams.RoleAssignment"
       ],
       "language_mix": [
         "python"
@@ -11700,7 +11706,7 @@
     {
       "id": 1099,
       "modules": [
-        "py:telemetry._NoOpSpan.record_exception"
+        "py:teams.reset_crew_manifest"
       ],
       "language_mix": [
         "python"
@@ -11710,7 +11716,7 @@
     {
       "id": 1100,
       "modules": [
-        "py:telemetry._NoOpSpan.set_attribute"
+        "py:telemetry._NoOpSpan"
       ],
       "language_mix": [
         "python"
@@ -11720,7 +11726,7 @@
     {
       "id": 1101,
       "modules": [
-        "py:telemetry._NoOpSpan.set_status"
+        "py:telemetry._NoOpSpan.__enter__"
       ],
       "language_mix": [
         "python"
@@ -11730,7 +11736,7 @@
     {
       "id": 1102,
       "modules": [
-        "py:telemetry.reset_telemetry"
+        "py:telemetry._NoOpSpan.__exit__"
       ],
       "language_mix": [
         "python"
@@ -11740,7 +11746,7 @@
     {
       "id": 1103,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestFlowValidator"
+        "py:telemetry._NoOpSpan.record_exception"
       ],
       "language_mix": [
         "python"
@@ -11750,7 +11756,7 @@
     {
       "id": 1104,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_diagnostics_output_format"
+        "py:telemetry._NoOpSpan.set_attribute"
       ],
       "language_mix": [
         "python"
@@ -11760,7 +11766,7 @@
     {
       "id": 1105,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_disconnected_flow_detection"
+        "py:telemetry._NoOpSpan.set_status"
       ],
       "language_mix": [
         "python"
@@ -11770,7 +11776,7 @@
     {
       "id": 1106,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_entrypoint_no_downstream"
+        "py:telemetry.reset_telemetry"
       ],
       "language_mix": [
         "python"
@@ -11780,7 +11786,7 @@
     {
       "id": 1107,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_orphan_detection"
+        "py:trust_levels.TrustLevel"
       ],
       "language_mix": [
         "python"
@@ -11790,7 +11796,7 @@
     {
       "id": 1108,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_reachability_check"
+        "py:trust_resolution.TrustResolutionError"
       ],
       "language_mix": [
         "python"
@@ -11800,7 +11806,7 @@
     {
       "id": 1109,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler"
+        "py:trust_resolution.TrustResolutionError.__init__"
       ],
       "language_mix": [
         "python"
@@ -11810,7 +11816,7 @@
     {
       "id": 1110,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_compile_graph_produces_output"
+        "py:watchdog.WatchdogService"
       ],
       "language_mix": [
         "python"
@@ -11820,7 +11826,7 @@
     {
       "id": 1111,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_cross_language_backend_db_edges"
+        "py:watchdog.WatchdogService.__init__"
       ],
       "language_mix": [
         "python"
@@ -11830,7 +11836,7 @@
     {
       "id": 1112,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_deduplication_helpers"
+        "py:watchdog.WatchdogService._check_aging_approvals"
       ],
       "language_mix": [
         "python"
@@ -11840,7 +11846,7 @@
     {
       "id": 1113,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_full_compilation_with_backend_db_linking"
+        "py:watchdog.WatchdogService._check_expiring_locks"
       ],
       "language_mix": [
         "python"
@@ -11850,7 +11856,7 @@
     {
       "id": 1114,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_node_id_normalization"
+        "py:watchdog.WatchdogService._check_stale_agents"
       ],
       "language_mix": [
         "python"
@@ -11860,7 +11866,7 @@
     {
       "id": 1115,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_python_ingestion_creates_nodes_and_edges"
+        "py:watchdog.WatchdogService._check_vendor_health"
       ],
       "language_mix": [
         "python"
@@ -11870,7 +11876,7 @@
     {
       "id": 1116,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_summary_generation_adaptive_threshold"
+        "py:watchdog.WatchdogService._cleanup_expired_tokens"
       ],
       "language_mix": [
         "python"
@@ -11880,7 +11886,7 @@
     {
       "id": 1117,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_validate_edges_drops_invalid"
+        "py:watchdog.WatchdogService._emit_event"
       ],
       "language_mix": [
         "python"
@@ -11890,7 +11896,7 @@
     {
       "id": 1118,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones"
+        "py:watchdog.WatchdogService._loop"
       ],
       "language_mix": [
         "python"
@@ -11900,7 +11906,7 @@
     {
       "id": 1119,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_build_output_structure"
+        "py:watchdog.WatchdogService.run_once"
       ],
       "language_mix": [
         "python"
@@ -11910,7 +11916,7 @@
     {
       "id": 1120,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_connected_component_detection"
+        "py:watchdog.WatchdogService.running"
       ],
       "language_mix": [
         "python"
@@ -11920,7 +11926,7 @@
     {
       "id": 1121,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_high_impact_module_detection"
+        "py:watchdog.WatchdogService.start"
       ],
       "language_mix": [
         "python"
@@ -11930,7 +11936,7 @@
     {
       "id": 1122,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_impact_radius"
+        "py:watchdog.WatchdogService.stop"
       ],
       "language_mix": [
         "python"
@@ -11940,7 +11946,7 @@
     {
       "id": 1123,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_leaf_module_identification"
+        "py:watchdog.reset_watchdog"
       ],
       "language_mix": [
         "python"
@@ -11950,7 +11956,7 @@
     {
       "id": 1124,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_main_cli"
+        "py:work_queue.ClaimResult"
       ],
       "language_mix": [
         "python"
@@ -11960,7 +11966,7 @@
     {
       "id": 1125,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_union_find_components"
+        "py:work_queue.ClaimResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -11970,7 +11976,7 @@
     {
       "id": 1126,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer"
+        "py:work_queue.CompleteResult"
       ],
       "language_mix": [
         "python"
@@ -11980,7 +11986,7 @@
     {
       "id": 1127,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_fk_relationship_extraction"
+        "py:work_queue.CompleteResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -11990,7 +11996,7 @@
     {
       "id": 1128,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_index_extraction"
+        "py:work_queue.SubmitResult"
       ],
       "language_mix": [
         "python"
@@ -12000,7 +12006,7 @@
     {
       "id": 1129,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_summary_statistics"
+        "py:work_queue.SubmitResult.from_dict"
       ],
       "language_mix": [
         "python"
@@ -12010,7 +12016,7 @@
     {
       "id": 1130,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_table_extraction"
+        "py:work_queue.Task"
       ],
       "language_mix": [
         "python"
@@ -12020,7 +12026,7 @@
     {
       "id": 1131,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_unparseable_sql_handling"
+        "py:work_queue.Task.from_dict.parse_dt"
       ],
       "language_mix": [
         "python"
@@ -12030,7 +12036,7 @@
     {
       "id": 1132,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer"
+        "py:work_queue.WorkQueueService"
       ],
       "language_mix": [
         "python"
@@ -12040,7 +12046,7 @@
     {
       "id": 1133,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_analyze_directory_output_structure"
+        "py:work_queue.WorkQueueService.__init__"
       ],
       "language_mix": [
         "python"
@@ -12050,7 +12056,7 @@
     {
       "id": 1134,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_async_function_detection"
+        "py:work_queue.WorkQueueService.cancel_task_convention"
       ],
       "language_mix": [
         "python"
@@ -12060,7 +12066,7 @@
     {
       "id": 1135,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_call_graph_extraction"
+        "py:work_queue.WorkQueueService.get_pending"
       ],
       "language_mix": [
         "python"
@@ -12070,7 +12076,7 @@
     {
       "id": 1136,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_class_extraction"
+        "py:work_queue.WorkQueueService.get_task"
       ],
       "language_mix": [
         "python"
@@ -12080,486 +12086,6 @@
     {
       "id": 1137,
       "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_db_access_pattern_detection"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1138,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_dead_code_candidate_detection"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1139,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_entry_point_detection"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1140,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_include_exclude_filtering"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1141,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_syntax_error_handling"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1142,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1143,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_edges_referencing_nonexistent_nodes"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1144,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_entrypoint_referencing_nonexistent_node"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1145,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_invalid_node_id_pattern_fails"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1146,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_missing_confidence_on_edges_fails"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1147,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_well_formed_graph_passes"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1148,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1149,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_backend_component_view"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1150,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_container_view_contents"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1151,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_db_erd_contains_table_nodes"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1152,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_feature_slice_generation"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1153,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_frontend_component_view"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1154,
-      "modules": [
-        "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_view_files_are_generated"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1155,
-      "modules": [
-        "py:trust_levels.TrustLevel"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1156,
-      "modules": [
-        "py:trust_resolution.TrustResolutionError"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1157,
-      "modules": [
-        "py:trust_resolution.TrustResolutionError.__init__"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1158,
-      "modules": [
-        "py:watchdog.WatchdogService"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1159,
-      "modules": [
-        "py:watchdog.WatchdogService.__init__"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1160,
-      "modules": [
-        "py:watchdog.WatchdogService._check_aging_approvals"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1161,
-      "modules": [
-        "py:watchdog.WatchdogService._check_expiring_locks"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1162,
-      "modules": [
-        "py:watchdog.WatchdogService._check_stale_agents"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1163,
-      "modules": [
-        "py:watchdog.WatchdogService._check_vendor_health"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1164,
-      "modules": [
-        "py:watchdog.WatchdogService._cleanup_expired_tokens"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1165,
-      "modules": [
-        "py:watchdog.WatchdogService._emit_event"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1166,
-      "modules": [
-        "py:watchdog.WatchdogService._loop"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1167,
-      "modules": [
-        "py:watchdog.WatchdogService.run_once"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1168,
-      "modules": [
-        "py:watchdog.WatchdogService.running"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1169,
-      "modules": [
-        "py:watchdog.WatchdogService.start"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1170,
-      "modules": [
-        "py:watchdog.WatchdogService.stop"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1171,
-      "modules": [
-        "py:watchdog.reset_watchdog"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1172,
-      "modules": [
-        "py:work_queue.ClaimResult"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1173,
-      "modules": [
-        "py:work_queue.ClaimResult.from_dict"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1174,
-      "modules": [
-        "py:work_queue.CompleteResult"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1175,
-      "modules": [
-        "py:work_queue.CompleteResult.from_dict"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1176,
-      "modules": [
-        "py:work_queue.SubmitResult"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1177,
-      "modules": [
-        "py:work_queue.SubmitResult.from_dict"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1178,
-      "modules": [
-        "py:work_queue.Task"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1179,
-      "modules": [
-        "py:work_queue.Task.from_dict.parse_dt"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1180,
-      "modules": [
-        "py:work_queue.WorkQueueService"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1181,
-      "modules": [
-        "py:work_queue.WorkQueueService.__init__"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1182,
-      "modules": [
-        "py:work_queue.WorkQueueService.cancel_task_convention"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1183,
-      "modules": [
-        "py:work_queue.WorkQueueService.get_pending"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1184,
-      "modules": [
-        "py:work_queue.WorkQueueService.get_task"
-      ],
-      "language_mix": [
-        "python"
-      ],
-      "size": 1
-    },
-    {
-      "id": 1185,
-      "modules": [
         "py:work_queue.reset_instruments"
       ],
       "language_mix": [
@@ -12568,7 +12094,7 @@
       "size": 1
     },
     {
-      "id": 1186,
+      "id": 1138,
       "modules": [
         "py:worktrees_view._parse_dt"
       ],
@@ -14791,6 +14317,26 @@
     },
     {
       "id": "py:agents_config.EscalationConfig",
+      "language": "python",
+      "file": "agents_config.py"
+    },
+    {
+      "id": "py:agents_config.LocalProviderTrustBoundaryError",
+      "language": "python",
+      "file": "agents_config.py"
+    },
+    {
+      "id": "py:agents_config.LocalProviderTrustBoundaryError.__init__",
+      "language": "python",
+      "file": "agents_config.py"
+    },
+    {
+      "id": "py:agents_config.LocalRosterConfigError",
+      "language": "python",
+      "file": "agents_config.py"
+    },
+    {
+      "id": "py:agents_config.LocalRosterConfigError.__init__",
       "language": "python",
       "file": "agents_config.py"
     },
@@ -19560,266 +19106,6 @@
       "file": "telemetry.py"
     },
     {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_diagnostics_output_format",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_disconnected_flow_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_entrypoint_no_downstream",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_orphan_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_reachability_check",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_compile_graph_produces_output",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_cross_language_backend_db_edges",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_deduplication_helpers",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_full_compilation_with_backend_db_linking",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_node_id_normalization",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_python_ingestion_creates_nodes_and_edges",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_summary_generation_adaptive_threshold",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_validate_edges_drops_invalid",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_build_output_structure",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_connected_component_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_high_impact_module_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_impact_radius",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_leaf_module_identification",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_main_cli",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_union_find_components",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_fk_relationship_extraction",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_index_extraction",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_summary_statistics",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_table_extraction",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_unparseable_sql_handling",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_analyze_directory_output_structure",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_async_function_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_call_graph_extraction",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_class_extraction",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_db_access_pattern_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_dead_code_candidate_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_entry_point_detection",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_include_exclude_filtering",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_syntax_error_handling",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_edges_referencing_nonexistent_nodes",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_entrypoint_referencing_nonexistent_node",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_invalid_node_id_pattern_fails",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_missing_confidence_on_edges_fails",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_well_formed_graph_passes",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_backend_component_view",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_container_view_contents",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_db_erd_contains_table_nodes",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_feature_slice_generation",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_frontend_component_view",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
-      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_view_files_are_generated",
-      "language": "python",
-      "file": "tests/test_architecture/test_analysis.py"
-    },
-    {
       "id": "py:trust_levels.TrustLevel",
       "language": "python",
       "file": "trust_levels.py"
@@ -20697,7 +19983,7 @@
     },
     {
       "id": "py:audit.get_audit_service",
-      "dependent_count": 41,
+      "dependent_count": 42,
       "dependents": [
         "py:agents_config.sync_profiles",
         "py:coordination_api.create_coordination_api",
@@ -20713,6 +19999,7 @@
         "py:coordination_api.create_coordination_api.put_saved_view",
         "py:coordination_api.create_coordination_api.query_audit",
         "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint",
+        "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit",
         "py:coordination_cli.cmd_audit_query",
         "py:coordination_mcp.get_recent_audit",
         "py:coordination_mcp.query_audit",
@@ -21553,6 +20840,24 @@
       ]
     },
     {
+      "id": "py:agents_config._served_local_roster",
+      "dependent_count": 12,
+      "dependents": [
+        "py:agents_config._normalize_provider_model_map",
+        "py:agents_config._resolve_model_spec",
+        "py:agents_config._resolve_model_spec._finalize",
+        "py:agents_config._with_served_local_roster",
+        "py:agents_config.get_phase_mapping",
+        "py:agents_config.get_provider_model_map",
+        "py:agents_config.load_archetypes_config",
+        "py:agents_config.resolve_archetype_for_phase",
+        "py:agents_config.resolve_model",
+        "py:agents_config.resolve_provider_model",
+        "py:agents_config.resolve_provider_model_spec",
+        "py:teams.get_crew_manifest"
+      ]
+    },
+    {
       "id": "py:code_search_authorization.glob_to_postgres_regex",
       "dependent_count": 12,
       "dependents": [
@@ -21568,6 +20873,23 @@
         "py:code_search_authorization._require_compilable_scope_patterns",
         "py:code_search_authorization._require_nonempty_effective_scope",
         "py:code_search_authorization.authorize_code_search_scope"
+      ]
+    },
+    {
+      "id": "py:agents_config._with_served_local_roster",
+      "dependent_count": 11,
+      "dependents": [
+        "py:agents_config._normalize_provider_model_map",
+        "py:agents_config._resolve_model_spec",
+        "py:agents_config._resolve_model_spec._finalize",
+        "py:agents_config.get_phase_mapping",
+        "py:agents_config.get_provider_model_map",
+        "py:agents_config.load_archetypes_config",
+        "py:agents_config.resolve_archetype_for_phase",
+        "py:agents_config.resolve_model",
+        "py:agents_config.resolve_provider_model",
+        "py:agents_config.resolve_provider_model_spec",
+        "py:teams.get_crew_manifest"
       ]
     },
     {
@@ -21606,10 +20928,10 @@
     }
   ],
   "summary": {
-    "total_modules": 1893,
-    "total_groups": 1187,
-    "largest_group_size": 538,
-    "leaf_count": 1491,
-    "high_impact_count": 39
+    "total_modules": 1851,
+    "total_groups": 1139,
+    "largest_group_size": 544,
+    "leaf_count": 1443,
+    "high_impact_count": 41
   }
 }

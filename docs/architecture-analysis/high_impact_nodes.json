@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-24T16:54:08+00:00",
+  "generated_at": "2026-08-24T22:25:50+00:00",
   "threshold": 5,
-  "total_high_impact": 114,
+  "total_high_impact": 118,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
@@ -29,7 +29,7 @@
     },
     {
       "id": "py:audit.get_audit_service",
-      "dependent_count": 41
+      "dependent_count": 42
     },
     {
       "id": "py:config",
@@ -148,8 +148,16 @@
       "dependent_count": 13
     },
     {
+      "id": "py:agents_config._served_local_roster",
+      "dependent_count": 12
+    },
+    {
       "id": "py:code_search_authorization.glob_to_postgres_regex",
       "dependent_count": 12
+    },
+    {
+      "id": "py:agents_config._with_served_local_roster",
+      "dependent_count": 11
     },
     {
       "id": "py:discovery.get_discovery_service",
@@ -260,6 +268,10 @@
       "dependent_count": 8
     },
     {
+      "id": "py:agents_config._tier_entry_to_spec",
+      "dependent_count": 7
+    },
+    {
       "id": "py:agents_config.get_provider_model_map",
       "dependent_count": 7
     },
@@ -316,7 +328,7 @@
       "dependent_count": 7
     },
     {
-      "id": "py:agents_config._tier_entry_to_spec",
+      "id": "py:agents_config._best_defined_tier",
       "dependent_count": 6
     },
     {
@@ -370,6 +382,10 @@
     {
       "id": "py:trust_resolution.resolve_trust_level",
       "dependent_count": 6
+    },
+    {
+      "id": "py:agents_config._as_positive_number",
+      "dependent_count": 5
     },
     {
       "id": "py:agents_config.resolve_provider_model_spec",
