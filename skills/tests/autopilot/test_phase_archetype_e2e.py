@@ -62,20 +62,27 @@ def coordinator_with_v2_archetypes(
 
     archetypes_yaml = textwrap.dedent("""
         schema_version: 2
+        # `write_capable` is REQUIRED on every archetype (design D3 -- fail-loud,
+        # no implicit default). Values mirror agent-coordinator/archetypes.yaml.
         archetypes:
+
           architect:
+            write_capable: true
             model: opus
             system_prompt: "You are an architect."
           implementer:
+            write_capable: true
             model: sonnet
             system_prompt: "You are an implementer."
             escalation:
               escalate_to: opus
               loc_threshold: 100
           reviewer:
+            write_capable: true
             model: opus
             system_prompt: "You are a reviewer."
           runner:
+            write_capable: false
             model: haiku
             system_prompt: "Execute and report."
         phase_mapping:

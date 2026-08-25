@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-21T00:00:00+00:00",
+  "coordinator_error": {
+    "error_type": "not_attempted",
+    "message": "validate phase sub-agent recorded the handoff locally",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "VALIDATE = FAIL. One blocking spec violation: roster resolution keeps a cwd-relative last resort (`Path('agent-coordinator')/agents.yaml`) that the spec forbids by name and that design.md D1a says the entrypoint exists to eliminate. Gates, security and portability all verified sound by mutation; the failure is confined to spec compliance.",
+    "completed_work": [
+      "spec compliance: 28/28 scenarios mapped to evidence; 26 satisfied, 2 deviating",
+      "evidence: 13 mutations applied to the priority gates, all killed; testpaths registration confirmed to gate (2633 -> 2536)",
+      "security: symlink, TOCTOU, truncation, temp-leak and mode probes on the one mutating operation",
+      "portability: verified under /usr/bin/python3 -S -E with no siblings and no coordinator checkout"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "BLOCKING: cwd-relative agents.yaml fallback violates 'SHALL NOT fall back to a roster relative to the current working directory'",
+        "rationale": "setup_coordinator.py:220 `fallback = (base or Path(COORDINATOR_DIRNAME)) / AGENTS_FILENAME`. With COORDINATOR_DIR unset this is $CWD/agent-coordinator/agents.yaml -- the exact chain design.md D1a rejects. Demonstrated: identical env, `detect-harnesses` exits 0 with 5 vendors from the repo root and exits 1 from any other directory. Also breaks 'SHALL report both locations it tried' (only one path is listed, and it is relative). Removing the fallback leaves all 97 tests green, so the suite cannot distinguish the defect from the fix.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "MINOR: 'Idempotent re-run' is violated when the wildcard is present but not last in the allow-list",
+        "rationale": "add_coordination_permission returns early only when `desired == list(allow)`, i.e. only when the wildcard is the final element. allow=[WILDCARD, 'Bash(ls:*)'] is rewritten with the wildcard moved to the end, reason 'allow-list-collapsed' and collapsed=[] though nothing was collapsed. Spec: 'Applying the change to a file that already carries the wildcard in its allow-list SHALL make no modification to the file.' test_idempotent_rerun_does_not_modify_the_file only covers the wildcard-last case.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "MINOR: Railway scenario items 2-4 are reported, not performed, and no clause exempts them",
+        "rationale": "The requirement exempts only container lifecycle, MCP registration and hook installation; D3 covers only those. curl health, API-key acceptance and coordination_bridge detect are emitted as satisfied:null plus a command. Coherent with the entrypoint's execute-nothing model and honest in output, but the spec text as written obliges performance. Resolve in update-specs rather than by adding execution.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Gates verified as gates, not decoration",
+        "rationale": "13 mutations, each applied to a pristine tree with __pycache__ purged and restored byte-identically: fallback atomicity -> in-place write, already-present -> textual scan, roster -> unverified path, --root -> cwd default, detect exit code, degradation flag, roster filtering, unknown-state collapse, canonical serialization, --json dest shadowing, and three dependency-direction imports. All killed except a sys.path-split coordinator import, which the shared linter's single-line co-occurrence matcher cannot see (pre-existing, repo-wide, not introduced here).",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Fix the cwd-relative roster fallback and add a test that fails without the fix (COORDINATOR_DIR and AGENTS_YAML both unset, cwd containing agent-coordinator/agents.yaml)",
+      "Fix the wildcard-not-last idempotency case, or amend the scenario",
+      "Decide Railway items 2-4: perform them, or narrow the scenario in update-specs",
+      "Rebase: the branch is 55 commits behind main, which has moved skills/pyproject.toml and skills/install-manifest.json and added skills/tests/test_ci_test_coverage.py"
+    ],
+    "relevant_files": [
+      "skills/setup-coordinator/scripts/setup_coordinator.py",
+      "skills/tests/setup-coordinator/test_detection.py",
+      "skills/tests/setup-coordinator/test_settings_writer.py",
+      "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
+      "openspec/changes/make-setup-coordinator-script-backed/design.md"
+    ]
+  }
+}

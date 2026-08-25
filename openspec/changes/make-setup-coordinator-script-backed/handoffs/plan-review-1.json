@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-20T03:05:00.000000+00:00",
+  "coordinator_error": {
+    "error_type": "http_403",
+    "message": "API key is not permitted to act as requested agent_id (known local-profile key gap); handoff persisted to disk instead",
+    "http_status": 403
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "phase": "PLAN_REVIEW",
+    "iteration": 0,
+    "outcome": "not_converged",
+    "handoff_id": "plan-review-1",
+    "summary": "Multi-vendor PLAN_REVIEW of make-setup-coordinator-script-backed at branch tip c3d92dfb (post-PLAN_ITERATE). Four reviewers participated: claude_code (primary, 10 findings), codex/gpt-5.5 (7), grok/grok-4.5 (9), antigravity/gemini-3.6-flash-medium (3). pi was unavailable (no OPENROUTER_API_KEY) and is recorded as unavailable, not as a non-participating reviewer; no vendor returned vendor_unavailable or auth_required, so no vendor was dropped. Quorum 4/4. Consensus: 20 unique findings, 5 blocking. Every blocking finding was independently re-verified by executing against the repository rather than by reading the reviewer's prose, and two vendor claims were refuted on that basis. Outcome is not_converged: five blocking defects remain, all in the plan artifacts, none requiring a gate decision to be reopened.",
+    "completed_work": [
+      "Pulled the feature branch to tip c3d92dfb and re-confirmed the known-good baseline: openspec validate --strict valid; validate_work_packages 4/4 (schema, depends_on_refs, dag_cycles, lock_keys); harness-report.schema.json a valid Draft 2020-12 schema whose tightened conditionals bite (unknown omitting nullables = 3 errors, unknown carrying a remediation = 1 error); validate_context_impact VALID for both packages",
+      "Dispatched provider-neutral review to codex, antigravity, and grok via review_dispatcher.py (claude_code excluded as the primary reviewer); all three succeeded on first model attempt",
+      "Produced 10 primary findings and synthesized consensus across all four reviewers",
+      "Verified five blocking findings by execution, not by inspection (see decisions)",
+      "Refuted two vendor findings with contrary evidence from the repository"
+    ],
+    "in_progress": [],
+    "blocking_findings": [
+      {
+        "id": "B1",
+        "title": "Retained Profile-Aware Setup scenarios contradict D3, name a forbidden API, and are scheduled by no task",
+        "reported_by": ["claude_code#1", "grok#1", "codex#3", "grok#6"],
+        "consensus": "confirmed",
+        "criticality": "critical",
+        "evidence": "The MODIFIED requirement adds the binding sentence at spec.md:7 that profile resolution, precondition checking, and capability reporting SHALL be performed by the script entrypoint, while carrying three clauses/scenarios verbatim from openspec/specs/setup-coordinator/spec.md: the .secrets.yaml bullet (spec.md:11), Scenario 'Local profile setup' (spec.md:14-22: container-runtime detection, ParadeDB auto-start, health wait, MCP registration), and Scenario 'Secrets file missing' (spec.md:33-36: copy .secrets.yaml.example to .secrets.yaml). Design D3 (design.md:139-147) excludes all of it: 'This keeps exactly one mutating operation in the script.' A grep of tasks.md for secret/docker/paradedb/container/mcp returns exactly one hit, task 3.8, which prints `make mcp-setup` rather than performing it. Grok additionally caught that spec.md:20 names get_mcp_env(), which I confirmed is defined at agent-coordinator/src/agents_config.py:858, while spec.md:12 and spec.md:157 both forbid importing agent-coordinator source modules -- so the scenario is not merely unscheduled, it is unsatisfiable without violating a sibling clause of the same requirement. This reproduces the exact defect proposal.md:20-23 opens by naming."
+      },
+      {
+        "id": "B2",
+        "title": "Degraded detection has no representation in the --json contract, reintroducing a silent fail-open",
+        "reported_by": ["claude_code#2", "codex#2"],
+        "consensus": "confirmed",
+        "criticality": "high",
+        "evidence": "harness-report.schema.json:7 sets additionalProperties:false at the top level, :38 sets vendors.minItems:0, and the required set has no degradation member, while spec.md:160 and spec.md:165 require a degraded capability to be reported with a warning and design.md:292 names the trigger (pyyaml absent). I validated the resulting document -- {schema_version:1, checked_validity:false, host:{...}, vendors:[], summary:{...total:0}} -- against the committed schema: 0 errors. I then confirmed the escape is closed: adding degraded/warnings yields a validation error. So a degraded run is byte-indistinguishable from an honest 'no harnesses installed', which is the fail-open shape D1a removed from roster resolution, reintroduced one layer up in the contract."
+      },
+      {
+        "id": "B3",
+        "title": "The inline atomic-write fallback the design mandates copying is not atomic",
+        "reported_by": ["grok#2"],
+        "consensus": "unconfirmed but independently verified",
+        "criticality": "high",
+        "evidence": "design.md:120-124 names skills/refresh-architecture/scripts/arch_utils/provenance.py:43-55 as the precedent and states 'This change follows it exactly.' I read that precedent: its except-branch _atomic_write_bytes (provenance.py:55-61) is a plain target.write_bytes(payload) with no temp file, no fsync, and no os.replace. Following it exactly therefore reintroduces defect #3 (non-atomic write, proposal.md:31) on precisely the path spec.md:162-165 declares a supported production path, and spec.md:116 plus the 'Concurrent reader safety' scenario (spec.md:142-145) grant no carve-out for the unbundled case. Single-vendor, but verified by reading the cited source, so it is treated as blocking."
+      },
+      {
+        "id": "B4",
+        "title": "Two schema conditionals admit states the spec forbids",
+        "reported_by": ["antigravity#1", "grok#3", "codex#1"],
+        "consensus": "confirmed (ready branch) plus a single-vendor unknown branch, both verified",
+        "criticality": "high",
+        "evidence": "Verified by validation, not by reading: a VendorReport with state=ready and config_artifact=null yields 0 errors, though spec.md:81 defines ready as 'CLI present and config artifact present' and D5 treats a null artifact as the definition of unknown. Separately a VendorReport with state=unknown and cli_on_path=false yields 0 errors, though spec.md:94-97 requires an absent CLI to be reported as cli_missing and D5 (design.md:181-183) fixes precedence as cli_missing before unknown. The config_missing branch already pins its artifact constraint, so the ready and unknown branches are simply under-specified relative to their sibling. The wp-core contract gate can therefore green-light reports the spec forbids."
+      },
+      {
+        "id": "B5",
+        "title": "The legacy-shim red-phase gate cannot fail",
+        "reported_by": ["claude_code#3", "codex#5", "grok#4", "antigravity (via consensus match)"],
+        "consensus": "unanimous in substance; graded critical by claude_code and nit by codex/grok",
+        "criticality": "high",
+        "evidence": "D7 (design.md:233-235) and task 2.1 (tasks.md:91-92) specify xfail-on-legacy / pass-on-new, and work-packages.yaml:155-160 enforces it with `pytest ... -k legacy` under the name 'Legacy shim still exhibits all four defects'. xfail_strict is absent from both skills/pyproject.toml and the root pyproject.toml, so it defaults to false. I reproduced the consequence with the project's own interpreter: a pytest.param marked xfail that passes reports '1 xpassed' and exits 0. D7's stated guarantee -- 'the shim keeps failing forever, so a future refactor that reintroduces any of them is caught' -- does not hold. Note this step was added by commit 99e746c8 while that pass was fixing four other gates that 'could not fail for the reason they existed'; it is the fifth instance of the same class."
+      }
+    ],
+    "non_blocking_findings": [
+      "claude_code#4: five contract fields (schema_version, checked_validity, host, summary, credential_env_var/set) appear in no spec clause and no task; contracts/README.md:52-57 promises the summary cardinality relation is asserted in the test suite, but no task schedules it and V.8 only validates against the schema, which by that README's own argument cannot catch it",
+      "claude_code#5: the 'explicit root argument' that spec.md:113 and the 'Working directory independence' scenario depend on is never named in the Script-Backed Entrypoint requirement or in tasks 3.2/3.8, and the behavior when it is omitted is unfixed -- so a cwd-derived default would survive the rewrite untested",
+      "claude_code#6: only detect-harnesses is schematized; check, configure, and report each accept --json per spec.md:58 with no schema, scenario, or task pinning their shape -- configure most consequentially, since idempotency is observed through its report",
+      "claude_code#7: the deny-list fix leaves the operator's explicit deny signal silently overridden, with no requirement to report the allow/deny conflict",
+      "claude_code#8: the wp-integration dependency-direction gate runs --skills-root . , which rglobs the repository and sweeps the untracked runtime mirrors .claude/skills/ and .agents/skills/ (both present, zero git ls-files entries) plus any .git-worktrees/*/skills/; the sibling gate in the same package already uses the narrower --skills-root skills, which I verified passes identically",
+      "grok#5: spec.md:59 requires binary exit codes but never defines the satisfied state for detect-harnesses -- a report where every vendor is cli_missing is not pinned to 0 or non-zero, so two conforming implementations diverge",
+      "grok#7: task 3.7 implements report with no preceding failing-test task, unlike every other implementation task in the plan"
+    ],
+    "refuted_findings": [
+      {
+        "claim": "codex#4: wp-core's scope.deny of agent-coordinator/** forbids reading agent-coordinator/agents.yaml, so a scoped worker cannot both obey the package scope and run the planned JSON gate",
+        "refutation": "scope_checker.check_scope_compliance (skills/parallel-infrastructure/scripts/scope_checker.py:24-58) applies deny only to files_modified -- its module docstring states it 'Validates that files modified by a package are within its declared scope ... Uses git diff for deterministic post-hoc checking.' Reads are governed by read_allow, which wp-core sets to ['**']. The deny entry expresses exactly the intent proposal.md:189 states ('Not affected: agent-coordinator/**') and does not impede any read. No change warranted."
+      },
+      {
+        "claim": "codex#6: the artifacts cite a live .claude/settings.local.json with a disabledMcpjsonServers sibling key, but no such file exists; the ground-truth claim is false",
+        "refutation": "The file does exist at the repository root. I read it: its top-level key order is exactly ['permissions', 'disabledMcpjsonServers'], indentation is two spaces, there is no deny key, and the coordination wildcard is absent from allow -- matching every claim D2 (design.md:99-101), D6 (design.md:197-200), and D7 (design.md:218-221) make about it, including that the deny-list defect is latent against the real file. It is gitignored, so it is absent from any git worktree; codex reviewed from the dispatch cwd, an isolated worktree that does not carry untracked files. This is an artifact of the review environment, not a plan defect. Grok#9 independently confirms the real shape."
+      }
+    ],
+    "decisions": [
+      {
+        "title": "Outcome is not_converged at iteration 0 of 3",
+        "rationale": "Five blocking findings survive verification. Three (B1, B2, B4) are contract-or-spec inconsistencies that would let a conforming implementation ship behavior the spec forbids; one (B3) would reintroduce an original defect on a declared-supported path; one (B5) is a gate that cannot fail. None requires reopening a Gate 1 decision -- every fix is an edit to spec.md, design.md, tasks.md, the contract schema, or work-packages.yaml.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Blocking findings were verified by execution rather than accepted from reviewer prose",
+        "rationale": "Per the repo's verify-inherited-known-issues convention, each blocking claim was re-run: the degraded report and the two incoherent VendorReport documents were validated against the committed schema; the XPASS exit code was reproduced with the project interpreter; provenance.py's fallback body, scope_checker's deny semantics, get_mcp_env's location, and the live settings file were all read directly. Two vendor findings did not survive that check and are recorded as refuted rather than forwarded, so PLAN_ITERATE does not spend effort on them.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "The synthesizer's two 'disagreement' labels are grading artifacts, not substantive splits",
+        "rationale": "The xfail finding is unanimous in substance across all four reviewers and was labelled a disagreement only because claude_code graded it critical while codex and grok graded it nit. The second labelled disagreement is a false lexical match: claude_code#10 is a positive observation about D2's canonicalizer analysis, grok#2 is the separate critical claim about the fallback body being non-atomic (B3). Neither should be escalated to a human as a vendor conflict.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "PLAN_ITERATE should fix B1-B5. Suggested order, cheapest verification first: B4 and B2 are single-file edits to contracts/harness-report.schema.json (add config_artifact non-empty-string to the ready branch, cli_on_path:true to the unknown branch, and a required degraded/warnings pair at the top level) plus the matching spec bullets.",
+      "B5: prefer positive assertions of the legacy defective behavior over xfail, or mark the legacy parametrization xfail(strict=True). Do not fix it by setting xfail_strict globally in skills/pyproject.toml without checking the other 2536 collected tests.",
+      "B3: keep the guarded import of atomic_write_bytes but define the inline fallback with tmp file + flush + fsync + os.replace + parent fsync, and correct design.md:120-124 so it states the precedent is the import wiring, not the fallback body. Add a test that forces the import to fail and still asserts an atomic replace.",
+      "B1 is the largest edit and the only one touching the MODIFIED requirement. OpenSpec rejects dropping scenarios from a MODIFIED requirement, so rewrite the Local/Railway/Secrets scenario bodies in place: split script-backed THEN clauses from narrated operator steps, and remove the get_mcp_env() reference in favour of the public make target. Re-run openspec validate --strict after, since the requirement is the one the change already modifies.",
+      "Re-check the known-good baseline after any fix commit: openspec validate --strict, validate_work_packages 4/4, and the schema conditional behaviour (which will change once B4 lands -- update the expected error counts in the baseline note rather than treating the change as a regression).",
+      "pi remains unavailable (no OPENROUTER_API_KEY). Do not re-dispatch it. All three dispatched vendors succeeded, so none should be dropped from the next round under issue #383."
+    ],
+    "relevant_files": [
+      "openspec/changes/make-setup-coordinator-script-backed/review-findings-plan.json",
+      "openspec/changes/make-setup-coordinator-script-backed/reviews/consensus-plan.json",
+      "openspec/changes/make-setup-coordinator-script-backed/reviews/review-manifest.json",
+      "openspec/changes/make-setup-coordinator-script-backed/reviews/findings-codex-plan.json",
+      "openspec/changes/make-setup-coordinator-script-backed/reviews/findings-grok-plan.json",
+      "openspec/changes/make-setup-coordinator-script-backed/reviews/findings-antigravity-plan.json",
+      "openspec/changes/make-setup-coordinator-script-backed/reviews/review-prompt.md"
+    ]
+  }
+}

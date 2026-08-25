@@ -19,8 +19,12 @@ from descriptor import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+#: Relocated from evaluation/gen_eval/descriptors/sample-frontend.yaml when the
+#: gen-eval fixtures moved under packages/gen-eval; content is byte-identical to
+#: the file e087fd70 added. The constants here were left behind by that move and
+#: nothing caught it, because no CI invocation reached this directory.
 SAMPLE_DESCRIPTOR = (
-    REPO_ROOT / "evaluation" / "gen_eval" / "descriptors" / "sample-frontend.yaml"
+    REPO_ROOT / "packages" / "gen-eval" / "tests" / "fixtures" / "sample-descriptor.yaml"
 )
 SCHEMA_PATH = (
     REPO_ROOT

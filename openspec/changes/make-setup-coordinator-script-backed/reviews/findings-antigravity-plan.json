@@ -1,0 +1,52 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Round-1 spec scenarios for 'Profile-Aware Setup' ('Local profile setup', 'Railway profile setup', 'Secrets file missing') are not mapped to any task in tasks.md, and Phase 3 lacks test tasks to verify precondition and environment check reporting.",
+      "resolution": "Add explicit TDD test tasks to Phase 3 in tasks.md for 'Local profile setup', 'Railway profile setup', and 'Secrets file missing', and annotate Task 3.6 and Task 3.7 with these spec scenario mappings.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/tasks.md",
+      "line_range": {
+        "start": 126,
+        "end": 174
+      }
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Tasks 1.3, 1.4, and 2.3 in tasks.md omit spec scenario annotations for round-1 added scenarios ('Degraded run is distinguishable from an empty one', 'Complete run asserts completeness', 'Fallback write is atomic').",
+      "resolution": "Update the 'Spec scenarios:' annotations in tasks.md for Task 1.3/1.4 to include 'Degraded run is distinguishable from an empty one' and 'Complete run asserts completeness', and Task 2.3 to include 'Fallback write is atomic'.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/tasks.md",
+      "line_range": {
+        "start": 26,
+        "end": 124
+      }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "none",
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Verification commands in work-packages.yaml are fully executable, testpaths registration checks correctly avoid false positives, and harness-report.schema.json strictly bounds valid output states.",
+      "resolution": "Retain current work-packages.yaml verification step definitions and contract schema.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/work-packages.yaml",
+      "line_range": {
+        "start": 124,
+        "end": 320
+      }
+    }
+  ]
+}

@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-08-13 — add-atomic-harness
+
+### Phase: Plan
+
+**Introduce an experimental provider class instead of a sixth first-class roster key** — The roster is closed at exactly five providers in four normative places; a trial vendor should not reopen them. The class is reusable for future harness trials, keeps unknown non-experimental providers failing loudly, and excludes experimental findings from review quorum (pi --no-tools false-consensus lesson applied preemptively).
+
+- Status: `active`
+- Source: [openspec/changes/add-atomic-harness/session-log.md](/openspec/changes/add-atomic-harness/session-log.md) (D1)
+
+---
+
+## 2026-08-13 — add-atomic-harness
+
+### Phase: Plan
+
+**Pin atomic to OpenRouter with model slugs distinct from pi; always pass --provider/--model** — Probe A10 showed ambient credential auto-detection (an unpinned run silently picked Bedrock); A20 makes Anthropic-subscription use cost-hostile. Distinct slugs add reviewer diversity instead of duplicating pi's qwen3-coder lineup. Final slugs gate on the A18 live re-probe.
+
+- Status: `active`
+- Source: [openspec/changes/add-atomic-harness/session-log.md](/openspec/changes/add-atomic-harness/session-log.md) (D3)
+
+---
+
 ## 2026-05-16 — 2026-05-16-vendor-neutral-autopilot
 
 ### Phase: Implementation
