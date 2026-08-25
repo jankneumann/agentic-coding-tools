@@ -184,7 +184,10 @@ packages:
       dispatch adapter parsing workflow.run.end events per the result-envelope
       contract, wires the fix-scrub --executor atomic-workflow opt-in, ships
       the atomic_cli transcript adapter with fixtures, and extends the manual
-      provider smoke path for experimental selectors. Implements tasks 3.1-3.10.
+      provider smoke path for experimental selectors, and propagates
+      counts_toward_quorum through convergence_loop.py and
+      consensus_synthesizer.py so experimental findings surface without
+      satisfying quorum. Implements tasks 3.1-3.12.
     role: implementer
     priority: 2
     depends_on: [wp-empirical]
@@ -233,7 +236,7 @@ packages:
             artifacts: ["openspec/changes/add-atomic-harness/contracts/workflow-dispatch/result.schema.json"]
             result_keys: ["envelope_contract_asserted"]
     metadata:
-      loc_estimate: 640
+      loc_estimate: 700
       complexity: high
       package_kind: integration
     inputs: {}
