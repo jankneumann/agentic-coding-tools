@@ -57,19 +57,30 @@ deliberate loosening, not an oversight.
 - **Affected specs**: `configuration`
 - **Affected code**: `agent-coordinator/{src/agents_config.py,archetypes.yaml,agents.yaml}`,
   `agent-coordinator/tests/test_agents_config.py`
-- **Risk — prompt logging**: stealth models on OpenRouter typically log prompts
-  back to the underlying provider for evaluation. `pi-local` dispatches with
-  repository context, so this route now sends repo content to an undisclosed
-  provider under evaluation terms. Recorded here so the choice is visible in the
-  decision record; the operator has accepted it.
+- **Risk — prompt retention by an anonymous provider**: verified against the
+  model's OpenRouter page rather than assumed. Its stated policy:
+
+  > "Prompts and completions for this model are retained by the provider and are
+  > not used for training; all other use is governed by the Stealth Model Terms."
+
+  > "It is developed and operated by a third-party provider who has chosen to
+  > remain anonymous during this preview. OpenRouter routes requests to it and is
+  > not its developer, owner, or provider."
+
+  So retention is confirmed and training is explicitly excluded. `pi-local`
+  dispatches with repository context, which means this route sends repo content
+  to a provider whose identity is undisclosed, retained for an unstated period,
+  under terms OpenRouter does not own. The $0 pricing is the consideration for
+  that arrangement. Recorded here so the trade is visible in the decision record;
+  the operator has accepted it.
 - **Risk — abrupt retirement**: when the cloak lifts, `stealth/ox-alpha` stops
   resolving. `pi-local` retains `model_fallbacks: ["qwen/qwen3-coder-flash"]`,
   which is deliberately left on a stable published slug so the fallback survives
   the primary's retirement. `premium` and `economy` staying in the qwen3-coder
   family serves the same purpose at the tier level.
-- **Unverified at authoring time**: `stealth/ox-alpha` was not confirmed against
-  the live OpenRouter model list — the authoring environment has no egress to
-  `openrouter.ai`. Task 4.3 gates merge on the operator running that check.
+- **Verified**: `stealth/ox-alpha` confirmed present on OpenRouter (2026-08-26),
+  1,048,576-token context, $0/$0 pricing, with `tools` and `tool_choice` in
+  `supported_parameters`. See task 4.3 for the full evidence.
 - **Not affected**: `add-adaptive-model-router` (active) proposes replacing
   static tier config with a learned resolver. That change supersedes this one by
   design; this proposal deliberately does not anticipate it, because leaving a

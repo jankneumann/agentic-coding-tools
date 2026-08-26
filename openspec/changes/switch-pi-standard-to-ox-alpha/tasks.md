@@ -39,7 +39,14 @@
       and the regenerated artifacts are committed alongside. Verified the drift was
       caused by this change and not pre-existing: a clean worktree at origin/main
       reports `fresh` / exit 0.
-- [ ] 4.3 Confirm `stealth/ox-alpha` resolves against the live OpenRouter model
-      list before merge. **Blocked in-sandbox** (no egress to `openrouter.ai`);
-      must be run by the operator:
-      `curl -s https://openrouter.ai/api/v1/models | jq -r '.data[].id' | grep -x 'stealth/ox-alpha'`
+- [x] 4.3 Confirm `stealth/ox-alpha` resolves against the live OpenRouter model
+      list before merge. **VERIFIED 2026-08-26** against `/api/v1/models` and
+      `/api/v1/models/stealth/ox-alpha/endpoints`:
+      - id `stealth/ox-alpha` present; sole match for `ox-alpha`, sole `stealth/`
+        publisher. Name "Ox Alpha".
+      - context_length 1,048,576; pricing $0 prompt / $0 completion.
+      - `supported_parameters` includes `tools` and `tool_choice`. This is a
+        requirement, not a nicety: `agents.yaml` records that a tool-less pi
+        returned `{"findings": []}` in ~2s having read nothing and still counted
+        toward review quorum. Tool support is what keeps that from recurring.
+      - also supports `reasoning` / `reasoning_effort`.
