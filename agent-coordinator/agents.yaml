@@ -368,7 +368,10 @@ agents:
         quick:
           args: ["-p", "--provider", "openrouter", "--approve"]
       model_flag: "--model"
-      model: "qwen/qwen3-coder"
+      model: "stealth/ox-alpha"
+      # Fallback deliberately stays on a stable published slug: the primary is a
+      # stealth model that stops resolving without notice when the cloak lifts,
+      # and a fallback sharing that fate is not a fallback.
       model_fallbacks: ["qwen/qwen3-coder-flash"]
       # pi cannot serve a single request without this key; availability
       # checks fail closed on it instead of reporting the bare binary as

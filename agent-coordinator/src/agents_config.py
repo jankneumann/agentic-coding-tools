@@ -115,11 +115,18 @@ DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
         },
         "pi": {
             # OpenRouter `<publisher>/<model>` slugs (spec configuration.2).
-            # `standard` fixed to qwen/qwen3-coder by roadmap ri-01; frontier is
-            # Kimi 3 (E8). premium/economy stay in the qwen3-coder family.
+            # The spec constrains slug *form*, not which model — the concrete
+            # default lives here so it can move without a spec amendment
+            # (switch-pi-standard-to-ox-alpha, superseding roadmap ri-01's
+            # qwen/qwen3-coder pin). frontier is Kimi 3 (E8).
+            #
+            # `standard` is a STEALTH slug and is temporary by construction: it
+            # stops resolving without notice when the cloak lifts. premium and
+            # economy deliberately stay on stable published qwen3-coder slugs so
+            # the tier ladder survives that retirement.
             "frontier": "moonshotai/kimi-k3",
             "premium": "qwen/qwen3-coder-plus",
-            "standard": "qwen/qwen3-coder",
+            "standard": "stealth/ox-alpha",
             "economy": "qwen/qwen3-coder-flash",
         },
         # Always-on local host (GB10 class). This is the tier -> model-id view

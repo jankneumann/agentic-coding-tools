@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-24T22:25:50+00:00",
+  "generated_at": "2026-08-25T21:28:19+00:00",
   "summary": {
-    "total_comments": 2503,
+    "total_comments": 2510,
     "total_with_markers": 20,
     "marker_totals": {
       "NOTE": 4,
@@ -150,7 +150,7 @@
   "file_summaries": [
     {
       "file": "agents_config.py",
-      "total_comments": 299,
+      "total_comments": 306,
       "with_markers": 2,
       "languages": [
         "python"

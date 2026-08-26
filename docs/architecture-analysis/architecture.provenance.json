@@ -4,49 +4,49 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.diagnostics.json",
       "required": false,
-      "sha256": "660847a5c567bf2186039cae7ab2599afc4a848eed58fde2fe74aa3797feb3ce",
+      "sha256": "86a79be35601fa6fabb00cd70116b0fdcda46e1210d0a65b443ae0ada7d51fd2",
       "size_bytes": 1029567
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.graph.json",
       "required": true,
-      "sha256": "0b52d7ee74ea2745fbc45577e3c33fcd43ab16726ecc1bffa94673313b44abb6",
+      "sha256": "97c4506cb42c30c83878b14397caecafbd82e0436927958be0467417949c6f12",
       "size_bytes": 867213
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.report.md",
       "required": false,
-      "sha256": "ea14620c237fe54856b85ef3fa42d64df07db398547eb34d1207690797fc8a8f",
+      "sha256": "159f104dd3e13d9a1f76a9462b38f72ec99171cca1e8b71de093104ac38485b6",
       "size_bytes": 55058
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.summary.json",
       "required": true,
-      "sha256": "6eba9d2a45e293a0b31c388b38c67ef376d2743e7b6bebaaadc5396044fba020",
+      "sha256": "0d593a818e29ef9123ce98afd7d8267df482ee8fe4f0085b7b486adb092d8f9f",
       "size_bytes": 23364
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/comment_insights.json",
       "required": false,
-      "sha256": "3240a49cce3a0c9ac98d0aadf7e6ca08f0e482f0c5bab078016d484b26678109",
+      "sha256": "87147bf60d47933eb9ddcecb6ab0a0ba7a1f4287093dab9cf1c62dc9af4f4c7f",
       "size_bytes": 20415
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/parallel_zones.json",
       "required": false,
-      "sha256": "fb1d022372e79e30a38a48fbff9be1e46d538448409d8431ed20ee54454ab5e2",
+      "sha256": "e8dd742bf619f89d90bb6623e9d25c7f90921c2510e1824c26d64af794e26d6c",
       "size_bytes": 498086
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/pattern_insights.json",
       "required": false,
-      "sha256": "6a5fea1355234fc301016defab0f55a0e077287ca62cc9df3d1a87fcd1240fc9",
+      "sha256": "036cc7ca8a82052e8cce01b94879c733db383e028bad86e38047c3de5b9afb27",
       "size_bytes": 4166
     },
     {
@@ -60,15 +60,15 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/python_analysis.json",
       "required": false,
-      "sha256": "176d850525b5bc3e06f6c24830b00b19172a50d241ed3ecc1fd9a329015b97db",
+      "sha256": "04210a31c7a1c663f82d39301d1522e3f18734d09c0feb4cec5feb33aca314da",
       "size_bytes": 991039
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/treesitter_enrichment.json",
       "required": false,
-      "sha256": "af8974353a7ceb5ba45c63ef9f0a8585cec4ab7f86837f1996a7070474c79acf",
-      "size_bytes": 1250920
+      "sha256": "dbc420521fb9843c524f4c91911427d1707b86e73177508744f8a497fc42ff13",
+      "size_bytes": 1252704
     },
     {
       "carried_over": true,
@@ -113,9 +113,9 @@
       "size_bytes": 52
     }
   ],
-  "generated_at": "2026-08-24T22:25:50+00:00",
+  "generated_at": "2026-08-25T21:28:19+00:00",
   "input_enumeration": "git",
-  "input_fingerprint": "17531ca95271942d85fe068d27d24596fdd712bf2099cc4b6409cfc36767910c",
+  "input_fingerprint": "03b7f8f94cd5dedad1fd36232ae9b4d9ac99bf5cb0d2f26c4712fc157ac4da54",
   "input_roots": [
     "agent-coordinator/database/migrations",
     "agent-coordinator/src",
@@ -133,13 +133,13 @@
     "producer_id": "architecture",
     "producer_version": "1.2.0"
   },
-  "repository_id": "pr-374-local-model",
+  "repository_id": "switch-pi-standard-to-ox-alpha",
   "schema_version": 1,
-  "source_revision": "5694e757482a97b99eed628ea8cb1794d60351c6",
+  "source_revision": "2c31a75e7db147d54560dc5fa451c07383a3e529",
   "validation": {
     "error_count": 0,
     "status": "passed",
     "warning_count": 0
   },
-  "worktree_dirty": false
+  "worktree_dirty": true
 }

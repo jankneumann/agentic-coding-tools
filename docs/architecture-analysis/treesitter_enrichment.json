@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-08-24T22:25:50+00:00",
+  "generated_at": "2026-08-25T21:28:19+00:00",
   "treesitter_version": "unknown",
   "comments": {
-    "total": 2503,
+    "total": 2510,
     "with_markers": 20,
     "items": [
       {
@@ -350,7 +350,7 @@
       {
         "file": "agents_config.py",
         "line": 118,
-        "text": "# `standard` fixed to qwen/qwen3-coder by roadmap ri-01; frontier is",
+        "text": "# The spec constrains slug *form*, not which model \u2014 the concrete",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -359,7 +359,52 @@
       {
         "file": "agents_config.py",
         "line": 119,
-        "text": "# Kimi 3 (E8). premium/economy stay in the qwen3-coder family.",
+        "text": "# default lives here so it can move without a spec amendment",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 120,
+        "text": "# (switch-pi-standard-to-ox-alpha, superseding roadmap ri-01's",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 121,
+        "text": "# qwen/qwen3-coder pin). frontier is Kimi 3 (E8).",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 122,
+        "text": "#",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 123,
+        "text": "# `standard` is a STEALTH slug and is temporary by construction: it",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 124,
+        "text": "# stops resolving without notice when the cloak lifts. premium and",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -368,7 +413,7 @@
       {
         "file": "agents_config.py",
         "line": 125,
-        "text": "# Always-on local host (GB10 class). This is the tier -> model-id view",
+        "text": "# economy deliberately stay on stable published qwen3-coder slugs so",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -377,6 +422,24 @@
       {
         "file": "agents_config.py",
         "line": 126,
+        "text": "# the tier ladder survives that retirement.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 132,
+        "text": "# Always-on local host (GB10 class). This is the tier -> model-id view",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 133,
         "text": "# of `model_aliases.local` in archetypes.yaml; the parameter metadata",
         "language": "python",
         "type": "inline",
@@ -385,7 +448,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 127,
+        "line": 134,
         "text": "# and operator review date live there, where startup validation",
         "language": "python",
         "type": "inline",
@@ -394,7 +457,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 128,
+        "line": 135,
         "text": "# enforces the MoE-first hardware rule (D4). `frontier`/`premium` are",
         "language": "python",
         "type": "inline",
@@ -403,7 +466,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 129,
+        "line": 136,
         "text": "# deliberately omitted \u2014 they degrade to the best defined tier. Keep",
         "language": "python",
         "type": "inline",
@@ -412,7 +475,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 130,
+        "line": 137,
         "text": "# both in sync; a test asserts the two rosters agree.",
         "language": "python",
         "type": "inline",
@@ -421,62 +484,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 138,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 139,
-        "text": "# Archetype name pattern (shared between schema and runtime validation)",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 140,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 142,
-        "text": "# The supervisor archetype is a read-only orchestrator: it decomposes work,",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 143,
-        "text": "# delegates it to write-capable worker archetypes, and adjudicates gates. It",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 144,
-        "text": "# MUST NOT be write-capable \u2014 every code change is dispatched, never made by",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
         "line": 145,
-        "text": "# the supervisor itself. The archetype resolver enforces this invariant at",
+        "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -485,7 +494,7 @@
       {
         "file": "agents_config.py",
         "line": 146,
-        "text": "# config-load time (fail-loud), mirroring the D3 structured-field enforcement",
+        "text": "# Archetype name pattern (shared between schema and runtime validation)",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -494,168 +503,6 @@
       {
         "file": "agents_config.py",
         "line": 147,
-        "text": "# that a write-capable phase must resolve to a write_capable archetype.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 152,
-        "text": "# A tier entry: bare model-id string, or model paired with a thinking level.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 153,
-        "text": "# Thinking vocabularies are vendor-specific (Claude effort tiers, Codex",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 154,
-        "text": "# model_reasoning_effort, grok thinking budgets), so the value is a free",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 155,
-        "text": "# string \u2014 the dispatching adapter owns translation to CLI flags.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 171,
-        "text": "# The `local` roster uses an extended entry form so the hardware-matching rule",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 172,
-        "text": "# is machine-checkable (contracts/local-roster-entry.schema.json). Only `model`",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 173,
-        "text": "# is required *here*; the remaining fields are checked by",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 174,
-        "text": "# :func:`_validate_local_roster` so every violation surfaces as one structured",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 175,
-        "text": "# LocalRosterConfigError naming the rule it broke, rather than a raw",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 176,
-        "text": "# jsonschema error for some rules and a config error for others.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 207,
-        "text": "# Autopilot phases that produce files, artifacts, or handoffs and therefore",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 208,
-        "text": "# MUST resolve to a `write_capable: true` archetype (design D7 canonical list).",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 209,
-        "text": "# State-only phases (INIT, SUBMIT_PR) and read-only judge phases (GATEKEEPER)",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 210,
-        "text": "# are intentionally excluded. Keep this list in sync with the write-capable",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 211,
-        "text": "# phase enumerations in skills/autopilot and design D7 when phases change.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 226,
-        "text": "# Non-terminal autopilot phases that may be mapped to archetypes (per design D11).",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 227,
-        "text": "# Terminal phases (DONE, ESCALATE, ERROR) are not mapped.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 245,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -664,8 +511,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 246,
-        "text": "# JSON Schema for archetypes.yaml validation",
+        "line": 149,
+        "text": "# The supervisor archetype is a read-only orchestrator: it decomposes work,",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -673,7 +520,205 @@
       },
       {
         "file": "agents_config.py",
-        "line": 247,
+        "line": 150,
+        "text": "# delegates it to write-capable worker archetypes, and adjudicates gates. It",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 151,
+        "text": "# MUST NOT be write-capable \u2014 every code change is dispatched, never made by",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 152,
+        "text": "# the supervisor itself. The archetype resolver enforces this invariant at",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 153,
+        "text": "# config-load time (fail-loud), mirroring the D3 structured-field enforcement",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 154,
+        "text": "# that a write-capable phase must resolve to a write_capable archetype.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 159,
+        "text": "# A tier entry: bare model-id string, or model paired with a thinking level.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 160,
+        "text": "# Thinking vocabularies are vendor-specific (Claude effort tiers, Codex",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 161,
+        "text": "# model_reasoning_effort, grok thinking budgets), so the value is a free",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 162,
+        "text": "# string \u2014 the dispatching adapter owns translation to CLI flags.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 178,
+        "text": "# The `local` roster uses an extended entry form so the hardware-matching rule",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 179,
+        "text": "# is machine-checkable (contracts/local-roster-entry.schema.json). Only `model`",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 180,
+        "text": "# is required *here*; the remaining fields are checked by",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 181,
+        "text": "# :func:`_validate_local_roster` so every violation surfaces as one structured",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 182,
+        "text": "# LocalRosterConfigError naming the rule it broke, rather than a raw",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 183,
+        "text": "# jsonschema error for some rules and a config error for others.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 214,
+        "text": "# Autopilot phases that produce files, artifacts, or handoffs and therefore",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 215,
+        "text": "# MUST resolve to a `write_capable: true` archetype (design D7 canonical list).",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 216,
+        "text": "# State-only phases (INIT, SUBMIT_PR) and read-only judge phases (GATEKEEPER)",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 217,
+        "text": "# are intentionally excluded. Keep this list in sync with the write-capable",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 218,
+        "text": "# phase enumerations in skills/autopilot and design D7 when phases change.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 233,
+        "text": "# Non-terminal autopilot phases that may be mapped to archetypes (per design D11).",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 234,
+        "text": "# Terminal phases (DONE, ESCALATE, ERROR) are not mapped.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 252,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -683,7 +728,7 @@
       {
         "file": "agents_config.py",
         "line": 253,
-        "text": "# schema_version selects optional structure: v2 enables phase_mapping (OpenSpec",
+        "text": "# JSON Schema for archetypes.yaml validation",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -692,6 +737,24 @@
       {
         "file": "agents_config.py",
         "line": 254,
+        "text": "# ---------------------------------------------------------------------------",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 260,
+        "text": "# schema_version selects optional structure: v2 enables phase_mapping (OpenSpec",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 261,
         "text": "# add-per-phase-archetype-resolution), v3 adds model_aliases / tier models. Note:",
         "language": "python",
         "type": "inline",
@@ -702,7 +765,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 255,
+        "line": 262,
         "text": "# `write_capable` is REQUIRED on every archetype regardless of version (fail-loud,",
         "language": "python",
         "type": "inline",
@@ -711,7 +774,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 256,
+        "line": 263,
         "text": "# design D3 \u2014 no implicit default). A pre-existing v1 file that omits it must add",
         "language": "python",
         "type": "inline",
@@ -720,7 +783,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 257,
+        "line": 264,
         "text": "# `write_capable` on migration; the version does NOT grandfather the field away.",
         "language": "python",
         "type": "inline",
@@ -729,7 +792,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 259,
+        "line": 266,
         "text": "# Host class of the machine serving the `local` provider. Optional:",
         "language": "python",
         "type": "inline",
@@ -738,7 +801,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 260,
+        "line": 267,
         "text": "# absent means the GB10 defaults apply (DEFAULT_LOCAL_HOST_CLASS).",
         "language": "python",
         "type": "inline",
@@ -747,7 +810,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 264,
+        "line": 271,
         "text": "# `local` carries parameter metadata and may omit frontier/premium",
         "language": "python",
         "type": "inline",
@@ -756,7 +819,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 265,
+        "line": 272,
         "text": "# (they degrade to its best defined tier); every other provider",
         "language": "python",
         "type": "inline",
@@ -765,7 +828,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 266,
+        "line": 273,
         "text": "# keeps the bare-slug form with all base tiers required.",
         "language": "python",
         "type": "inline",
@@ -774,7 +837,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 270,
+        "line": 277,
         "text": "# Base tiers stay required; optional tiers (frontier) may be",
         "language": "python",
         "type": "inline",
@@ -783,7 +846,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 271,
+        "line": 278,
         "text": "# omitted per provider \u2014 resolution falls back to premium.",
         "language": "python",
         "type": "inline",
@@ -792,7 +855,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 301,
+        "line": 308,
         "text": "# Whether the archetype may write files / artifacts. Required",
         "language": "python",
         "type": "inline",
@@ -801,7 +864,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 302,
+        "line": 309,
         "text": "# on every archetype (design D3 / D3.1 \u2014 no implicit default;",
         "language": "python",
         "type": "inline",
@@ -810,7 +873,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 303,
+        "line": 310,
         "text": "# a missing field fails schema validation, i.e. fail-loud).",
         "language": "python",
         "type": "inline",
@@ -819,7 +882,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 359,
+        "line": 366,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -828,7 +891,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 360,
+        "line": 367,
         "text": "# JSON Schema for agents.yaml validation",
         "language": "python",
         "type": "inline",
@@ -837,7 +900,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 361,
+        "line": 368,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -846,7 +909,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 401,
+        "line": 408,
         "text": "# Bounds derive from the Unified Trust Scale (src/trust_levels.py,",
         "language": "python",
         "type": "inline",
@@ -855,7 +918,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 402,
+        "line": 409,
         "text": "# design D4) rather than repeating integer literals. The former",
         "language": "python",
         "type": "inline",
@@ -864,7 +927,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 403,
+        "line": 410,
         "text": "# 1\u20135 range was a bug: the agent_profiles CHECK constraint has",
         "language": "python",
         "type": "inline",
@@ -875,7 +938,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 404,
+        "line": 411,
         "text": "# always been 0\u20134.",
         "language": "python",
         "type": "inline",
@@ -884,7 +947,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 498,
+        "line": 505,
         "text": "# Attach the prompt as the value of this flag, e.g.",
         "language": "python",
         "type": "inline",
@@ -893,7 +956,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 499,
+        "line": 506,
         "text": "# `agy --prompt \"<text>\"`. Mutually exclusive with",
         "language": "python",
         "type": "inline",
@@ -902,7 +965,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 500,
+        "line": 507,
         "text": "# prompt_via_stdin (antigravity: prompt is a flag",
         "language": "python",
         "type": "inline",
@@ -911,7 +974,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 501,
+        "line": 508,
         "text": "# value, never stdin \u2014 design.md E7). The dispatching",
         "language": "python",
         "type": "inline",
@@ -920,7 +983,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 502,
+        "line": 509,
         "text": "# adapter appends [prompt_via_flag, prompt].",
         "language": "python",
         "type": "inline",
@@ -929,7 +992,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 504,
+        "line": 511,
         "text": "# Env var the CLI needs to serve a request (e.g. pi",
         "language": "python",
         "type": "inline",
@@ -938,7 +1001,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 505,
+        "line": 512,
         "text": "# resolves OPENROUTER_API_KEY from the subprocess",
         "language": "python",
         "type": "inline",
@@ -947,7 +1010,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 506,
+        "line": 513,
         "text": "# env). Availability checks treat the binary as",
         "language": "python",
         "type": "inline",
@@ -956,7 +1019,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 507,
+        "line": 514,
         "text": "# unavailable when the var is unset (issue #383).",
         "language": "python",
         "type": "inline",
@@ -965,7 +1028,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 521,
+        "line": 528,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -974,7 +1037,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 522,
+        "line": 529,
         "text": "# Data classes",
         "language": "python",
         "type": "inline",
@@ -983,7 +1046,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 523,
+        "line": 530,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -992,7 +1055,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 565,
+        "line": 572,
         "text": "# When set, the dispatching adapter attaches the prompt as this flag's",
         "language": "python",
         "type": "inline",
@@ -1001,7 +1064,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 566,
+        "line": 573,
         "text": "# value (``[prompt_via_flag, prompt]``) instead of via stdin or a trailing",
         "language": "python",
         "type": "inline",
@@ -1010,7 +1073,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 567,
+        "line": 574,
         "text": "# positional. Antigravity needs this: its prompt is the value of",
         "language": "python",
         "type": "inline",
@@ -1019,7 +1082,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 568,
+        "line": 575,
         "text": "# ``--prompt``/``--print`` and stdin is ignored (design.md E7).",
         "language": "python",
         "type": "inline",
@@ -1028,7 +1091,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 570,
+        "line": 577,
         "text": "# Env var the CLI resolves its provider credential from (pi:",
         "language": "python",
         "type": "inline",
@@ -1037,7 +1100,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 571,
+        "line": 578,
         "text": "# OPENROUTER_API_KEY). A present binary with this var unset cannot serve",
         "language": "python",
         "type": "inline",
@@ -1046,7 +1109,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 572,
+        "line": 579,
         "text": "# a request, so availability checks fail closed on it (issue #383).",
         "language": "python",
         "type": "inline",
@@ -1055,7 +1118,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 612,
+        "line": 619,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1064,7 +1127,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 613,
+        "line": 620,
         "text": "# Archetype data classes",
         "language": "python",
         "type": "inline",
@@ -1073,7 +1136,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 614,
+        "line": 621,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1082,7 +1145,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 752,
+        "line": 759,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1091,7 +1154,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 753,
+        "line": 760,
         "text": "# Loading + validation",
         "language": "python",
         "type": "inline",
@@ -1100,7 +1163,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 754,
+        "line": 761,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1109,7 +1172,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 800,
+        "line": 807,
         "text": "#: profile name -> the agent that claimed it, so the second claimant can be",
         "language": "python",
         "type": "inline",
@@ -1118,7 +1181,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 801,
+        "line": 808,
         "text": "#: named in the error.",
         "language": "python",
         "type": "inline",
@@ -1127,7 +1190,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 809,
+        "line": 816,
         "text": "# Two agents sharing one `profile` is not a harmless alias: sync_profiles()",
         "language": "python",
         "type": "inline",
@@ -1136,7 +1199,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 810,
+        "line": 817,
         "text": "# upserts by profile name in file order, so the last entry silently",
         "language": "python",
         "type": "inline",
@@ -1145,7 +1208,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 811,
+        "line": 818,
         "text": "# overwrites the first one's trust level and operations. An agent could",
         "language": "python",
         "type": "inline",
@@ -1154,7 +1217,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 812,
+        "line": 819,
         "text": "# then be promoted to admin without its own trust_level line changing,",
         "language": "python",
         "type": "inline",
@@ -1163,7 +1226,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 813,
+        "line": 820,
         "text": "# and neither orphan disabling nor the registry invariant check would",
         "language": "python",
         "type": "inline",
@@ -1172,7 +1235,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 814,
+        "line": 821,
         "text": "# notice. One agent, one profile row.",
         "language": "python",
         "type": "inline",
@@ -1181,7 +1244,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 829,
+        "line": 836,
         "text": "# Keep unresolved ${VAR} placeholders so that",
         "language": "python",
         "type": "inline",
@@ -1190,7 +1253,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 830,
+        "line": 837,
         "text": "# _resolve_api_key_from_openbao() can extract the variable",
         "language": "python",
         "type": "inline",
@@ -1199,7 +1262,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 831,
+        "line": 838,
         "text": "# name and fetch the secret from OpenBao at runtime.",
         "language": "python",
         "type": "inline",
@@ -1208,7 +1271,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 907,
+        "line": 914,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1217,7 +1280,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 908,
+        "line": 915,
         "text": "# API key identity generation",
         "language": "python",
         "type": "inline",
@@ -1226,7 +1289,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 909,
+        "line": 916,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1235,7 +1298,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 925,
+        "line": 932,
         "text": "# Use shared coordinator secrets \u2014 api_key already resolved from shared pool",
         "language": "python",
         "type": "inline",
@@ -1244,7 +1307,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 931,
+        "line": 938,
         "text": "# Authenticate with the agent's own AppRole, not the global coordinator token.",
         "language": "python",
         "type": "inline",
@@ -1253,7 +1316,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 932,
+        "line": 939,
         "text": "# The agent's secret_id is expected in BAO_SECRET_ID (shared bootstrap secret)",
         "language": "python",
         "type": "inline",
@@ -1262,7 +1325,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 933,
+        "line": 940,
         "text": "# while the role_id comes from the per-agent openbao_role_id field.",
         "language": "python",
         "type": "inline",
@@ -1271,7 +1334,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 944,
+        "line": 951,
         "text": "# Look for agent-specific key pattern or the interpolation source",
         "language": "python",
         "type": "inline",
@@ -1280,7 +1343,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 947,
+        "line": 954,
         "text": "# type: ignore[union-attr]",
         "language": "python",
         "type": "inline",
@@ -1289,7 +1352,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 952,
+        "line": 959,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -1298,7 +1361,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1003,
+        "line": 1010,
         "text": "# Check if OpenBao is available for key resolution",
         "language": "python",
         "type": "inline",
@@ -1307,7 +1370,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1017,
+        "line": 1024,
         "text": "# Skip unresolved ${VAR} placeholders \u2014 they're not usable as",
         "language": "python",
         "type": "inline",
@@ -1316,7 +1379,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1018,
+        "line": 1025,
         "text": "# identity keys unless resolved via OpenBao above.",
         "language": "python",
         "type": "inline",
@@ -1325,7 +1388,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1031,
+        "line": 1038,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -1334,7 +1397,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1032,
+        "line": 1039,
         "text": "# Registry \u2192 agent_profiles projection (design D1 / D2)",
         "language": "python",
         "type": "inline",
@@ -1343,53 +1406,8 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1033,
-        "text": "# ---------------------------------------------------------------------------",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 1035,
-        "text": "#: Operations every projected profile receives. Migration 007 granted",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 1036,
-        "text": "#: ``get_my_profile`` to every seeded profile without exception: reading one's",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 1037,
-        "text": "#: own profile is not a privilege, it is how an agent discovers its own limits.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
         "line": 1040,
-        "text": "#: ``agents.yaml`` capability \u2192 the coordination operations it authorizes.",
-        "language": "python",
-        "type": "inline",
-        "markers": [],
-        "enclosing_node": null
-      },
-      {
-        "file": "agents_config.py",
-        "line": 1041,
-        "text": "#: Derived from the operation lists the hand-written seeds granted (migrations",
+        "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -1398,7 +1416,7 @@
       {
         "file": "agents_config.py",
         "line": 1042,
-        "text": "#: 007 / 019 / 022 / 026); ``tests/test_profile_sync.py`` pins the mapping",
+        "text": "#: Operations every projected profile receives. Migration 007 granted",
         "language": "python",
         "type": "inline",
         "markers": [],
@@ -1407,6 +1425,51 @@
       {
         "file": "agents_config.py",
         "line": 1043,
+        "text": "#: ``get_my_profile`` to every seeded profile without exception: reading one's",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1044,
+        "text": "#: own profile is not a privilege, it is how an agent discovers its own limits.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1047,
+        "text": "#: ``agents.yaml`` capability \u2192 the coordination operations it authorizes.",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1048,
+        "text": "#: Derived from the operation lists the hand-written seeds granted (migrations",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1049,
+        "text": "#: 007 / 019 / 022 / 026); ``tests/test_profile_sync.py`` pins the mapping",
+        "language": "python",
+        "type": "inline",
+        "markers": [],
+        "enclosing_node": null
+      },
+      {
+        "file": "agents_config.py",
+        "line": 1050,
         "text": "#: against the grants ``claude_code_local`` carries today.",
         "language": "python",
         "type": "inline",
@@ -1415,7 +1478,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1055,
+        "line": 1062,
         "text": "#: Operations granted by *trust level* rather than by capability, as",
         "language": "python",
         "type": "inline",
@@ -1424,7 +1487,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1056,
+        "line": 1063,
         "text": "#: ``(minimum trust level, operations)`` pairs. Migration 022 granted the merge",
         "language": "python",
         "type": "inline",
@@ -1433,7 +1496,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1057,
+        "line": 1064,
         "text": "#: queue operations with ``WHERE trust_level >= 3`` \u2014 no capability in",
         "language": "python",
         "type": "inline",
@@ -1442,7 +1505,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1058,
+        "line": 1065,
         "text": "#: ``agents.yaml`` covers them, so the projection needs this second dimension",
         "language": "python",
         "type": "inline",
@@ -1451,7 +1514,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1059,
+        "line": 1066,
         "text": "#: to reproduce the grants the migrations made.",
         "language": "python",
         "type": "inline",
@@ -1460,7 +1523,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1074,
+        "line": 1081,
         "text": "#: Profile rows the registry deliberately does NOT own (design D2 amendment).",
         "language": "python",
         "type": "inline",
@@ -1469,7 +1532,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1075,
+        "line": 1082,
         "text": "#:",
         "language": "python",
         "type": "inline",
@@ -1478,7 +1541,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1076,
+        "line": 1083,
         "text": "#: ``agents.yaml`` describes *harness identities*: things that can be",
         "language": "python",
         "type": "inline",
@@ -1487,7 +1550,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1077,
+        "line": 1084,
         "text": "#: dispatched, that speak a transport, and that authenticate. Some profile rows",
         "language": "python",
         "type": "inline",
@@ -1496,7 +1559,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1078,
+        "line": 1085,
         "text": "#: describe a *role* instead \u2014 ``evaluator`` (migration 026_evaluator_profile)",
         "language": "python",
         "type": "inline",
@@ -1505,7 +1568,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1079,
+        "line": 1086,
         "text": "#: is the generator/evaluator split's read-only reviewer role, has no CLI and no",
         "language": "python",
         "type": "inline",
@@ -1514,7 +1577,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1080,
+        "line": 1087,
         "text": "#: transport, and could never be given an ``agents.yaml`` entry without the",
         "language": "python",
         "type": "inline",
@@ -1523,7 +1586,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1081,
+        "line": 1088,
         "text": "#: registry claiming to describe an agent it cannot dispatch. Orphan disabling",
         "language": "python",
         "type": "inline",
@@ -1532,7 +1595,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1082,
+        "line": 1089,
         "text": "#: skips these names, so a role profile is not collateral damage of enforcing",
         "language": "python",
         "type": "inline",
@@ -1541,7 +1604,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1083,
+        "line": 1090,
         "text": "#: the registry projection. Adding a name here is an explicit statement that",
         "language": "python",
         "type": "inline",
@@ -1550,7 +1613,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1084,
+        "line": 1091,
         "text": "#: some other mechanism owns that row.",
         "language": "python",
         "type": "inline",
@@ -1559,7 +1622,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1087,
+        "line": 1094,
         "text": "#: Fields the sync reconciles (and reports in ``changed_fields`` per the",
         "language": "python",
         "type": "inline",
@@ -1568,7 +1631,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1088,
+        "line": 1095,
         "text": "#: profile-sync audit contract). Everything else on the row \u2014 descriptions,",
         "language": "python",
         "type": "inline",
@@ -1577,7 +1640,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1089,
+        "line": 1096,
         "text": "#: resource limits, network policy \u2014 stays operator-owned.",
         "language": "python",
         "type": "inline",
@@ -1586,7 +1649,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1097,
+        "line": 1104,
         "text": "#: ``source`` value carried by every profile_sync audit event.",
         "language": "python",
         "type": "inline",
@@ -1595,7 +1658,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1100,
+        "line": 1107,
         "text": "#: Audit ``operation`` name for registry projection mutations.",
         "language": "python",
         "type": "inline",
@@ -1604,7 +1667,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1103,
+        "line": 1110,
         "text": "#: ``assigned_by`` stamped on every ``agent_profile_assignments`` row the",
         "language": "python",
         "type": "inline",
@@ -1613,7 +1676,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1104,
+        "line": 1111,
         "text": "#: registry projection writes, so an operator can tell a projected assignment",
         "language": "python",
         "type": "inline",
@@ -1622,7 +1685,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1105,
+        "line": 1112,
         "text": "#: from a hand-written one (migration 018 wrote its rows with ``assigned_by``",
         "language": "python",
         "type": "inline",
@@ -1631,7 +1694,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1106,
+        "line": 1113,
         "text": "#: NULL).",
         "language": "python",
         "type": "inline",
@@ -1640,7 +1703,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1127,
+        "line": 1134,
         "text": "#: ``agent_profile_assignments`` outcomes (design D11), keyed by agent id",
         "language": "python",
         "type": "inline",
@@ -1649,7 +1712,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1128,
+        "line": 1135,
         "text": "#: rather than profile name \u2014 an assignment is a per-agent pointer.",
         "language": "python",
         "type": "inline",
@@ -1658,7 +1721,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1133,
+        "line": 1140,
         "text": "#: ``None`` when the sync ran; otherwise why it performed no writes.",
         "language": "python",
         "type": "inline",
@@ -1667,7 +1730,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1181,
+        "line": 1188,
         "text": "#: Substring PostgreSQL puts in the message of every UNIQUE-constraint failure.",
         "language": "python",
         "type": "inline",
@@ -1676,7 +1739,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1182,
+        "line": 1189,
         "text": "#: The PostgREST/httpx backend surfaces the violation as text, so the string is",
         "language": "python",
         "type": "inline",
@@ -1685,7 +1748,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1183,
+        "line": 1190,
         "text": "#: the only signal available there.",
         "language": "python",
         "type": "inline",
@@ -1694,7 +1757,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1186,
+        "line": 1193,
         "text": "#: SQLSTATE for unique_violation. asyncpg exposes it as ``sqlstate``.",
         "language": "python",
         "type": "inline",
@@ -1703,7 +1766,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1202,
+        "line": 1209,
         "text": "# asyncpg",
         "language": "python",
         "type": "inline",
@@ -1712,7 +1775,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1290,
+        "line": 1297,
         "text": "# noqa: BLE001",
         "language": "python",
         "type": "inline",
@@ -1721,7 +1784,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1291,
+        "line": 1298,
         "text": "# The projection itself succeeded; losing its audit event degrades",
         "language": "python",
         "type": "inline",
@@ -1730,7 +1793,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1292,
+        "line": 1299,
         "text": "# observability but must not roll back or block boot.",
         "language": "python",
         "type": "inline",
@@ -1739,7 +1802,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1322,
+        "line": 1329,
         "text": "# Profile ids are not returned by the upsert path above, so re-query. This",
         "language": "python",
         "type": "inline",
@@ -1748,7 +1811,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1323,
+        "line": 1330,
         "text": "# also picks up rows a concurrent worker inserted between our phases.",
         "language": "python",
         "type": "inline",
@@ -1757,7 +1820,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1381,
+        "line": 1388,
         "text": "# A concurrent worker may have inserted the same agent_id",
         "language": "python",
         "type": "inline",
@@ -1766,7 +1829,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1382,
+        "line": 1389,
         "text": "# between our read and our write (UNIQUE (agent_id)). Converge",
         "language": "python",
         "type": "inline",
@@ -1775,7 +1838,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1383,
+        "line": 1390,
         "text": "# via update rather than failing the slower worker's boot; both",
         "language": "python",
         "type": "inline",
@@ -1784,7 +1847,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1384,
+        "line": 1391,
         "text": "# workers project identical content. Narrowed to real",
         "language": "python",
         "type": "inline",
@@ -1793,7 +1856,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1385,
+        "line": 1392,
         "text": "# uniqueness collisions: an RLS denial or FK violation means no",
         "language": "python",
         "type": "inline",
@@ -1802,7 +1865,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1386,
+        "line": 1393,
         "text": "# row exists, so the retried UPDATE would match nothing, raise",
         "language": "python",
         "type": "inline",
@@ -1811,7 +1874,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1387,
+        "line": 1394,
         "text": "# nothing, and leave the agent with no assignment while this",
         "language": "python",
         "type": "inline",
@@ -1820,7 +1883,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1388,
+        "line": 1395,
         "text": "# run reported `assign`.",
         "language": "python",
         "type": "inline",
@@ -1829,7 +1892,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1446,
+        "line": 1453,
         "text": "# The sync garbage-collects only rows it wrote. `assigned_by` exists",
         "language": "python",
         "type": "inline",
@@ -1838,7 +1901,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1447,
+        "line": 1454,
         "text": "# precisely to tell a projected assignment from everything else:",
         "language": "python",
         "type": "inline",
@@ -1847,7 +1910,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1448,
+        "line": 1455,
         "text": "# migration 018's hand-written rows carry NULL, and per-host enrollment",
         "language": "python",
         "type": "inline",
@@ -1856,7 +1919,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1449,
+        "line": 1456,
         "text": "# (scripts/add_agent_keys.py) stamps its own name. Those agent_ids are",
         "language": "python",
         "type": "inline",
@@ -1865,7 +1928,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1450,
+        "line": 1457,
         "text": "# *instances* \u2014 deliberately not registry entries, because the registry",
         "language": "python",
         "type": "inline",
@@ -1874,7 +1937,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1451,
+        "line": 1458,
         "text": "# declares vendor types, not machines \u2014 so treating \"absent from",
         "language": "python",
         "type": "inline",
@@ -1883,7 +1946,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1452,
+        "line": 1459,
         "text": "# agents.yaml\" as \"stale\" would delete every enrolled host's assignment",
         "language": "python",
         "type": "inline",
@@ -1892,7 +1955,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1453,
+        "line": 1460,
         "text": "# at each startup and drop resolution back to the oldest-row-of-type",
         "language": "python",
         "type": "inline",
@@ -1901,7 +1964,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1454,
+        "line": 1461,
         "text": "# tiebreak that migration 018 was written to eliminate.",
         "language": "python",
         "type": "inline",
@@ -1910,7 +1973,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1463,
+        "line": 1470,
         "text": "# Stale pointers are DELETEd, deliberately unlike D2's",
         "language": "python",
         "type": "inline",
@@ -1919,7 +1982,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1464,
+        "line": 1471,
         "text": "# disable-don't-delete rule for profiles: this table has no `enabled`",
         "language": "python",
         "type": "inline",
@@ -1928,7 +1991,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1465,
+        "line": 1472,
         "text": "# column, and an assignment is a *pointer*, not authorization state. The",
         "language": "python",
         "type": "inline",
@@ -1937,7 +2000,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1466,
+        "line": 1473,
         "text": "# profile it referenced is retained (and disabled by the profile phase),",
         "language": "python",
         "type": "inline",
@@ -1946,7 +2009,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1467,
+        "line": 1474,
         "text": "# and the audit event below records the name it pointed at, so the",
         "language": "python",
         "type": "inline",
@@ -1955,7 +2018,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1468,
+        "line": 1475,
         "text": "# removal stays reconstructible from the audit trail alone.",
         "language": "python",
         "type": "inline",
@@ -1964,7 +2027,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1543,
+        "line": 1550,
         "text": "# Refusing to run on an empty registry is a safety property, not a",
         "language": "python",
         "type": "inline",
@@ -1973,7 +2036,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1544,
+        "line": 1551,
         "text": "# convenience: orphan disabling against an empty roster would disable",
         "language": "python",
         "type": "inline",
@@ -1982,7 +2045,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1545,
+        "line": 1552,
         "text": "# every profile in the table.",
         "language": "python",
         "type": "inline",
@@ -1991,7 +2054,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1584,
+        "line": 1591,
         "text": "# Stamp every projected write so migration 032.s",
         "language": "python",
         "type": "inline",
@@ -2000,7 +2063,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1585,
+        "line": 1592,
         "text": "# synced_from_registry_at column means what its comment claims.",
         "language": "python",
         "type": "inline",
@@ -2009,7 +2072,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1593,
+        "line": 1600,
         "text": "# A concurrent worker may have inserted the same name between",
         "language": "python",
         "type": "inline",
@@ -2018,7 +2081,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1594,
+        "line": 1601,
         "text": "# our read and our write (UNIQUE (name)). Converge via update",
         "language": "python",
         "type": "inline",
@@ -2027,7 +2090,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1595,
+        "line": 1602,
         "text": "# rather than failing the boot of the slower worker. ONLY for a",
         "language": "python",
         "type": "inline",
@@ -2036,7 +2099,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1596,
+        "line": 1603,
         "text": "# real uniqueness collision: any other failure means the row was",
         "language": "python",
         "type": "inline",
@@ -2045,7 +2108,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1597,
+        "line": 1604,
         "text": "# never written, and retrying it as an UPDATE would match zero",
         "language": "python",
         "type": "inline",
@@ -2054,7 +2117,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1598,
+        "line": 1605,
         "text": "# rows, raise nothing, and be reported as a successful insert.",
         "language": "python",
         "type": "inline",
@@ -2063,7 +2126,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1693,
+        "line": 1700,
         "text": "# The profiles service caches lookups by agent_id:agent_type with a",
         "language": "python",
         "type": "inline",
@@ -2072,7 +2135,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1694,
+        "line": 1701,
         "text": "# TTL. At boot the cache is empty and this is a no-op; on a re-sync in",
         "language": "python",
         "type": "inline",
@@ -2081,7 +2144,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1695,
+        "line": 1702,
         "text": "# a live process it stops pre-sync trust levels from being served until",
         "language": "python",
         "type": "inline",
@@ -2090,7 +2153,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1696,
+        "line": 1703,
         "text": "# the TTL expires.",
         "language": "python",
         "type": "inline",
@@ -2099,7 +2162,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1716,
+        "line": 1723,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2108,7 +2171,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1717,
+        "line": 1724,
         "text": "# MCP environment generation",
         "language": "python",
         "type": "inline",
@@ -2117,7 +2180,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1718,
+        "line": 1725,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2126,7 +2189,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1742,
+        "line": 1749,
         "text": "# Include database connection settings from the current environment.",
         "language": "python",
         "type": "inline",
@@ -2135,7 +2198,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1751,
+        "line": 1758,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2144,7 +2207,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1752,
+        "line": 1759,
         "text": "# Global config singleton (lazy)",
         "language": "python",
         "type": "inline",
@@ -2153,7 +2216,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1753,
+        "line": 1760,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2162,7 +2225,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1788,
+        "line": 1795,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2171,7 +2234,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1789,
+        "line": 1796,
         "text": "# Dispatch config helpers",
         "language": "python",
         "type": "inline",
@@ -2180,7 +2243,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1790,
+        "line": 1797,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2189,7 +2252,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1856,
+        "line": 1863,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2198,7 +2261,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1857,
+        "line": 1864,
         "text": "# Isolation helpers",
         "language": "python",
         "type": "inline",
@@ -2207,7 +2270,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1858,
+        "line": 1865,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2216,7 +2279,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1872,
+        "line": 1879,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2225,7 +2288,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1873,
+        "line": 1880,
         "text": "# Archetype loading + helpers",
         "language": "python",
         "type": "inline",
@@ -2234,7 +2297,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1874,
+        "line": 1881,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2243,7 +2306,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1916,
+        "line": 1923,
         "text": "# Defence in depth: on the load path jsonschema's `required` on",
         "language": "python",
         "type": "inline",
@@ -2252,7 +2315,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1917,
+        "line": 1924,
         "text": "# _LOCAL_ROSTER_SCHEMA fires first, so this never triggers there. It guards",
         "language": "python",
         "type": "inline",
@@ -2261,7 +2324,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1918,
+        "line": 1925,
         "text": "# direct callers of this function (tests, future programmatic loaders) that",
         "language": "python",
         "type": "inline",
@@ -2270,7 +2333,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1919,
+        "line": 1926,
         "text": "# hand over a roster which never went through ARCHETYPES_SCHEMA.",
         "language": "python",
         "type": "inline",
@@ -2279,7 +2342,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1947,
+        "line": 1954,
         "text": "# Two checks, because neither alone is sufficient: the regex pins the",
         "language": "python",
         "type": "inline",
@@ -2288,7 +2351,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1948,
+        "line": 1955,
         "text": "# dashed YYYY-MM-DD shape (``date.fromisoformat`` also accepts the ISO",
         "language": "python",
         "type": "inline",
@@ -2297,7 +2360,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1949,
+        "line": 1956,
         "text": "# basic form \"20260816\"), and parsing rejects date-shaped strings that",
         "language": "python",
         "type": "inline",
@@ -2306,7 +2369,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1950,
+        "line": 1957,
         "text": "# are not real dates (\"2026-13-45\", \"2026-02-30\").",
         "language": "python",
         "type": "inline",
@@ -2315,7 +2378,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1986,
+        "line": 1993,
         "text": "# Dense first: a dense model violates both rules, and the dense rule is",
         "language": "python",
         "type": "inline",
@@ -2324,7 +2387,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1987,
+        "line": 1994,
         "text": "# the one that explains *why* it can never be a roster entry here.",
         "language": "python",
         "type": "inline",
@@ -2333,7 +2396,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2061,
+        "line": 2068,
         "text": "# D3 structured-field enforcement (supervisor invariant): the",
         "language": "python",
         "type": "inline",
@@ -2342,7 +2405,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2062,
+        "line": 2069,
         "text": "# supervisor archetype is a read-only adjudicator that delegates every",
         "language": "python",
         "type": "inline",
@@ -2351,7 +2414,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2063,
+        "line": 2070,
         "text": "# change to a write-capable worker. Reject any config that marks it",
         "language": "python",
         "type": "inline",
@@ -2360,7 +2423,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2064,
+        "line": 2071,
         "text": "# write_capable at load time \u2014 fail loud, same posture as the",
         "language": "python",
         "type": "inline",
@@ -2369,7 +2432,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2065,
+        "line": 2072,
         "text": "# write-capable-phase gate in resolve_archetype_for_phase.",
         "language": "python",
         "type": "inline",
@@ -2378,7 +2441,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2081,
+        "line": 2088,
         "text": "# Phase mapping (optional, schema_version=2). Validate archetype refs after",
         "language": "python",
         "type": "inline",
@@ -2387,7 +2450,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2082,
+        "line": 2089,
         "text": "# all archetypes are constructed so cross-references resolve.",
         "language": "python",
         "type": "inline",
@@ -2396,7 +2459,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2283,
+        "line": 2290,
         "text": "# Optional tiers degrade gracefully: a provider without a",
         "language": "python",
         "type": "inline",
@@ -2405,7 +2468,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2284,
+        "line": 2291,
         "text": "# frontier model serves its premium model instead of failing.",
         "language": "python",
         "type": "inline",
@@ -2414,7 +2477,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2285,
+        "line": 2292,
         "text": "# `local` is excluded on purpose: this path returns silently, and",
         "language": "python",
         "type": "inline",
@@ -2423,7 +2486,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2286,
+        "line": 2293,
         "text": "# every local degradation must reach the caller's reasons. A local",
         "language": "python",
         "type": "inline",
@@ -2432,7 +2495,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2287,
+        "line": 2294,
         "text": "# roster that defines premium but not frontier falls through to the",
         "language": "python",
         "type": "inline",
@@ -2441,7 +2504,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2288,
+        "line": 2295,
         "text": "# best-defined-tier branch below, which resolves to the same",
         "language": "python",
         "type": "inline",
@@ -2450,7 +2513,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2289,
+        "line": 2296,
         "text": "# premium entry *and* records why.",
         "language": "python",
         "type": "inline",
@@ -2459,7 +2522,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2297,
+        "line": 2304,
         "text": "# The `local` roster may omit base tiers (frontier/premium): those",
         "language": "python",
         "type": "inline",
@@ -2468,7 +2531,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2298,
+        "line": 2305,
         "text": "# requests degrade to the best tier it does define. Scoped to `local`",
         "language": "python",
         "type": "inline",
@@ -2477,7 +2540,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2299,
+        "line": 2306,
         "text": "# on purpose \u2014 for every other provider a missing base tier stays a",
         "language": "python",
         "type": "inline",
@@ -2486,7 +2549,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2300,
+        "line": 2307,
         "text": "# structured mapping error, so their behavior is unchanged.",
         "language": "python",
         "type": "inline",
@@ -2495,7 +2558,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2342,
+        "line": 2349,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2504,7 +2567,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2343,
+        "line": 2350,
         "text": "# Prompt composition (D2: composition, not replacement)",
         "language": "python",
         "type": "inline",
@@ -2513,7 +2576,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2344,
+        "line": 2351,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2522,7 +2585,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2358,
+        "line": 2365,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2531,7 +2594,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2359,
+        "line": 2366,
         "text": "# Complexity-based escalation (D3: at dispatch time)",
         "language": "python",
         "type": "inline",
@@ -2540,7 +2603,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2360,
+        "line": 2367,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2549,7 +2612,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2372,
+        "line": 2379,
         "text": "# Strip trailing wildcards and filename patterns",
         "language": "python",
         "type": "inline",
@@ -2558,7 +2621,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2374,
+        "line": 2381,
         "text": "# Keep only directory-like components (no wildcards)",
         "language": "python",
         "type": "inline",
@@ -2567,7 +2630,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2485,
+        "line": 2492,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2576,7 +2639,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2486,
+        "line": 2493,
         "text": "# Phase-aware archetype resolution (D2: coordinator-owned phase mapping)",
         "language": "python",
         "type": "inline",
@@ -2585,7 +2648,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2487,
+        "line": 2494,
         "text": "# ---------------------------------------------------------------------------",
         "language": "python",
         "type": "inline",
@@ -2594,7 +2657,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2533,
+        "line": 2540,
         "text": "# Validated at load time; this branch only fires if the cache is mutated.",
         "language": "python",
         "type": "inline",
@@ -2603,7 +2666,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2540,
+        "line": 2547,
         "text": "# Enforce the `local` provider trust boundary (design D3) before anything",
         "language": "python",
         "type": "inline",
@@ -2612,7 +2675,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2541,
+        "line": 2548,
         "text": "# is resolved or dispatched: local models are permitted only where their",
         "language": "python",
         "type": "inline",
@@ -2621,7 +2684,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2542,
+        "line": 2549,
         "text": "# output is cheap to discard or verified downstream. The coordinator is the",
         "language": "python",
         "type": "inline",
@@ -2630,7 +2693,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2543,
+        "line": 2550,
         "text": "# single decision point, so no client can route around this check.",
         "language": "python",
         "type": "inline",
@@ -2639,7 +2702,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2554,
+        "line": 2561,
         "text": "# Enforce the write-capability contract at resolution time (design D3 /",
         "language": "python",
         "type": "inline",
@@ -2648,7 +2711,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2555,
+        "line": 2562,
         "text": "# Task 2.5): a write-capable phase MUST resolve to a write_capable archetype.",
         "language": "python",
         "type": "inline",
@@ -2657,7 +2720,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2556,
+        "line": 2563,
         "text": "# This is the structured-field gate \u2014 no substring matching over prompts.",
         "language": "python",
         "type": "inline",
@@ -2666,7 +2729,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2565,
+        "line": 2572,
         "text": "# Filter signals to keys listed in the phase entry \u2014 security-style",
         "language": "python",
         "type": "inline",
@@ -2675,7 +2738,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2566,
+        "line": 2573,
         "text": "# whitelist that mirrors the spec's \"unknown keys silently dropped\" rule.",
         "language": "python",
         "type": "inline",
@@ -2684,7 +2747,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2580,
+        "line": 2587,
         "text": "# Empty for every provider except `local`, so existing providers keep",
         "language": "python",
         "type": "inline",
@@ -2693,7 +2756,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 2581,
+        "line": 2588,
         "text": "# byte-identical reasons.",
         "language": "python",
         "type": "inline",
@@ -22599,12 +22662,12 @@
       "items": [
         {
           "file": "agents_config.py",
-          "line": 952,
+          "line": 959,
           "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
         },
         {
           "file": "agents_config.py",
-          "line": 1290,
+          "line": 1297,
           "enclosing_node": "py:agents_config._emit_sync_audit"
         },
         {
@@ -23259,12 +23322,12 @@
       "items": [
         {
           "file": "agents_config.py",
-          "line": 789,
+          "line": 796,
           "enclosing_node": "py:agents_config.load_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 2039,
+          "line": 2046,
           "enclosing_node": "py:agents_config.load_archetypes_config"
         },
         {
@@ -23494,665 +23557,665 @@
       "items": [
         {
           "file": "agents_config.py",
-          "line": 693,
+          "line": 700,
           "function": "__init__",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.ProviderModelMappingError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 693,
+          "line": 700,
           "parameter": "model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.ProviderModelMappingError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 693,
+          "line": 700,
           "parameter": "provider",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.ProviderModelMappingError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 719,
+          "line": 726,
           "function": "__init__",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.LocalRosterConfigError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 719,
+          "line": 726,
           "parameter": "detail",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.LocalRosterConfigError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 719,
+          "line": 726,
           "parameter": "rule",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.LocalRosterConfigError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 739,
+          "line": 746,
           "function": "__init__",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.LocalProviderTrustBoundaryError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 739,
+          "line": 746,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.LocalProviderTrustBoundaryError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 756,
+          "line": 763,
           "function": "_default_agents_path",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._default_agents_path"
         },
         {
           "file": "agents_config.py",
-          "line": 760,
+          "line": 767,
           "function": "_default_secrets_path",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._default_secrets_path"
         },
         {
           "file": "agents_config.py",
-          "line": 764,
+          "line": 771,
           "function": "load_agents_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.load_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 836,
+          "line": 843,
           "function": "_parse_mode",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.load_agents_config._parse_mode"
         },
         {
           "file": "agents_config.py",
-          "line": 836,
+          "line": 843,
           "parameter": "mode_data",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.load_agents_config._parse_mode"
         },
         {
           "file": "agents_config.py",
-          "line": 911,
+          "line": 918,
           "function": "_resolve_api_key_from_openbao",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
         },
         {
           "file": "agents_config.py",
-          "line": 911,
+          "line": 918,
           "parameter": "agent",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_api_key_from_openbao"
         },
         {
           "file": "agents_config.py",
-          "line": 970,
+          "line": 977,
           "function": "__init__",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.DuplicateApiKeyError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 970,
+          "line": 977,
           "parameter": "first_agent",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.DuplicateApiKeyError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 970,
+          "line": 977,
           "parameter": "second_agent",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.DuplicateApiKeyError.__init__"
         },
         {
           "file": "agents_config.py",
-          "line": 980,
+          "line": 987,
           "function": "get_api_key_identities",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_api_key_identities"
         },
         {
           "file": "agents_config.py",
-          "line": 1137,
+          "line": 1144,
           "function": "mutations",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.ProfileSyncResult.mutations"
         },
         {
           "file": "agents_config.py",
-          "line": 1149,
+          "line": 1156,
           "function": "derive_allowed_operations",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.derive_allowed_operations"
         },
         {
           "file": "agents_config.py",
-          "line": 1150,
+          "line": 1157,
           "parameter": "capabilities",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.derive_allowed_operations"
         },
         {
           "file": "agents_config.py",
-          "line": 1151,
+          "line": 1158,
           "parameter": "trust_level",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.derive_allowed_operations"
         },
         {
           "file": "agents_config.py",
-          "line": 1190,
+          "line": 1197,
           "function": "_is_unique_violation",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._is_unique_violation"
         },
         {
           "file": "agents_config.py",
-          "line": 1190,
+          "line": 1197,
           "parameter": "exc",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._is_unique_violation"
         },
         {
           "file": "agents_config.py",
-          "line": 1209,
+          "line": 1216,
           "function": "_registry_sync_timestamp",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._registry_sync_timestamp"
         },
         {
           "file": "agents_config.py",
-          "line": 1225,
+          "line": 1232,
           "function": "_desired_profile_row",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._desired_profile_row"
         },
         {
           "file": "agents_config.py",
-          "line": 1225,
+          "line": 1232,
           "parameter": "agent",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._desired_profile_row"
         },
         {
           "file": "agents_config.py",
-          "line": 1238,
+          "line": 1245,
           "function": "_profile_drift",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._profile_drift"
         },
         {
           "file": "agents_config.py",
-          "line": 1239,
+          "line": 1246,
           "parameter": "desired",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._profile_drift"
         },
         {
           "file": "agents_config.py",
-          "line": 1240,
+          "line": 1247,
           "parameter": "existing",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._profile_drift"
         },
         {
           "file": "agents_config.py",
-          "line": 1256,
+          "line": 1263,
           "function": "_emit_sync_audit",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._emit_sync_audit"
         },
         {
           "file": "agents_config.py",
-          "line": 1257,
+          "line": 1264,
           "parameter": "audit",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._emit_sync_audit"
         },
         {
           "file": "agents_config.py",
-          "line": 1259,
+          "line": 1266,
           "parameter": "action",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._emit_sync_audit"
         },
         {
           "file": "agents_config.py",
-          "line": 1260,
+          "line": 1267,
           "parameter": "profile_name",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._emit_sync_audit"
         },
         {
           "file": "agents_config.py",
-          "line": 1261,
+          "line": 1268,
           "parameter": "agent_type",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._emit_sync_audit"
         },
         {
           "file": "agents_config.py",
-          "line": 1301,
+          "line": 1308,
           "function": "_sync_assignments",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._sync_assignments"
         },
         {
           "file": "agents_config.py",
-          "line": 1302,
+          "line": 1309,
           "parameter": "agents",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._sync_assignments"
         },
         {
           "file": "agents_config.py",
-          "line": 1304,
+          "line": 1311,
           "parameter": "db",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._sync_assignments"
         },
         {
           "file": "agents_config.py",
-          "line": 1305,
+          "line": 1312,
           "parameter": "audit",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._sync_assignments"
         },
         {
           "file": "agents_config.py",
-          "line": 1306,
+          "line": 1313,
           "parameter": "result",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._sync_assignments"
         },
         {
           "file": "agents_config.py",
-          "line": 1487,
+          "line": 1494,
           "function": "sync_profiles",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.sync_profiles"
         },
         {
           "file": "agents_config.py",
-          "line": 1720,
+          "line": 1727,
           "function": "get_mcp_env",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_mcp_env"
         },
         {
           "file": "agents_config.py",
-          "line": 1721,
+          "line": 1728,
           "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_mcp_env"
         },
         {
           "file": "agents_config.py",
-          "line": 1758,
+          "line": 1765,
           "function": "get_agents_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1774,
+          "line": 1781,
           "function": "get_agent_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_agent_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1774,
+          "line": 1781,
           "parameter": "agent_id",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_agent_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1782,
+          "line": 1789,
           "function": "reset_agents_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.reset_agents_config"
         },
         {
           "file": "agents_config.py",
-          "line": 1792,
+          "line": 1799,
           "function": "get_dispatch_configs",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_dispatch_configs"
         },
         {
           "file": "agents_config.py",
-          "line": 1860,
+          "line": 1867,
           "function": "get_agent_isolation",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_agent_isolation"
         },
         {
           "file": "agents_config.py",
-          "line": 1860,
+          "line": 1867,
           "parameter": "agent_type",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_agent_isolation"
         },
         {
           "file": "agents_config.py",
-          "line": 1876,
+          "line": 1883,
           "function": "_default_archetypes_path",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._default_archetypes_path"
         },
         {
           "file": "agents_config.py",
-          "line": 1880,
+          "line": 1887,
           "function": "_as_positive_number",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._as_positive_number"
         },
         {
           "file": "agents_config.py",
-          "line": 1880,
+          "line": 1887,
           "parameter": "value",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._as_positive_number"
         },
         {
           "file": "agents_config.py",
-          "line": 1887,
+          "line": 1894,
           "function": "_validate_local_roster",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._validate_local_roster"
         },
         {
           "file": "agents_config.py",
-          "line": 1888,
+          "line": 1895,
           "parameter": "raw_aliases",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._validate_local_roster"
         },
         {
           "file": "agents_config.py",
-          "line": 1889,
+          "line": 1896,
           "parameter": "raw_host_class",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._validate_local_roster"
         },
         {
           "file": "agents_config.py",
-          "line": 2009,
+          "line": 2016,
           "function": "load_archetypes_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.load_archetypes_config"
         },
         {
           "file": "agents_config.py",
-          "line": 2107,
+          "line": 2114,
           "function": "get_archetype",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_archetype"
         },
         {
           "file": "agents_config.py",
-          "line": 2107,
+          "line": 2114,
           "parameter": "name",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.get_archetype"
         },
         {
           "file": "agents_config.py",
-          "line": 2121,
+          "line": 2128,
           "function": "get_phase_mapping",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_phase_mapping"
         },
         {
           "file": "agents_config.py",
-          "line": 2133,
+          "line": 2140,
           "function": "reset_archetypes_config",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.reset_archetypes_config"
         },
         {
           "file": "agents_config.py",
-          "line": 2141,
+          "line": 2148,
           "function": "_served_local_roster",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._served_local_roster"
         },
         {
           "file": "agents_config.py",
-          "line": 2141,
+          "line": 2148,
           "parameter": "roster",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._served_local_roster"
         },
         {
           "file": "agents_config.py",
-          "line": 2170,
+          "line": 2177,
           "function": "_with_served_local_roster",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._with_served_local_roster"
         },
         {
           "file": "agents_config.py",
-          "line": 2170,
+          "line": 2177,
           "parameter": "providers",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._with_served_local_roster"
         },
         {
           "file": "agents_config.py",
-          "line": 2184,
+          "line": 2191,
           "function": "_normalize_provider_model_map",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._normalize_provider_model_map"
         },
         {
           "file": "agents_config.py",
-          "line": 2184,
+          "line": 2191,
           "parameter": "raw_map",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._normalize_provider_model_map"
         },
         {
           "file": "agents_config.py",
-          "line": 2214,
+          "line": 2221,
           "function": "get_provider_model_map",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.get_provider_model_map"
         },
         {
           "file": "agents_config.py",
-          "line": 2221,
+          "line": 2228,
           "function": "_tier_entry_to_spec",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._tier_entry_to_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2221,
+          "line": 2228,
           "parameter": "entry",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._tier_entry_to_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2236,
+          "line": 2243,
           "function": "_best_defined_tier",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._best_defined_tier"
         },
         {
           "file": "agents_config.py",
-          "line": 2236,
+          "line": 2243,
           "parameter": "provider_map",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._best_defined_tier"
         },
         {
           "file": "agents_config.py",
-          "line": 2245,
+          "line": 2252,
           "function": "resolve_provider_model_spec",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_provider_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2246,
+          "line": 2253,
           "parameter": "model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2248,
+          "line": 2255,
           "parameter": "provider",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2326,
+          "line": 2333,
           "function": "resolve_provider_model",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_provider_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2327,
+          "line": 2334,
           "parameter": "model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2329,
+          "line": 2336,
           "parameter": "provider",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_provider_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2346,
+          "line": 2353,
           "function": "compose_prompt",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.compose_prompt"
         },
         {
           "file": "agents_config.py",
-          "line": 2346,
+          "line": 2353,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.compose_prompt"
         },
         {
           "file": "agents_config.py",
-          "line": 2346,
+          "line": 2353,
           "parameter": "task_prompt",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.compose_prompt"
         },
         {
           "file": "agents_config.py",
-          "line": 2362,
+          "line": 2369,
           "function": "_unique_dir_prefixes",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._unique_dir_prefixes"
         },
         {
           "file": "agents_config.py",
-          "line": 2362,
+          "line": 2369,
           "parameter": "write_allow",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._unique_dir_prefixes"
         },
         {
           "file": "agents_config.py",
-          "line": 2381,
+          "line": 2388,
           "function": "resolve_model",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2382,
+          "line": 2389,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2383,
+          "line": 2390,
           "parameter": "package_metadata",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_model"
         },
         {
           "file": "agents_config.py",
-          "line": 2420,
+          "line": 2427,
           "function": "_resolve_model_spec",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._resolve_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2421,
+          "line": 2428,
           "parameter": "archetype",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2422,
+          "line": 2429,
           "parameter": "package_metadata",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec"
         },
         {
           "file": "agents_config.py",
-          "line": 2429,
+          "line": 2436,
           "function": "_finalize",
           "kind": "return_type",
           "enclosing_node": "py:agents_config._resolve_model_spec._finalize"
         },
         {
           "file": "agents_config.py",
-          "line": 2429,
+          "line": 2436,
           "parameter": "reasons",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec._finalize"
         },
         {
           "file": "agents_config.py",
-          "line": 2429,
+          "line": 2436,
           "parameter": "source_model",
           "kind": "param_type",
           "enclosing_node": "py:agents_config._resolve_model_spec._finalize"
         },
         {
           "file": "agents_config.py",
-          "line": 2490,
+          "line": 2497,
           "function": "resolve_archetype_for_phase",
           "kind": "return_type",
           "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
         },
         {
           "file": "agents_config.py",
-          "line": 2491,
+          "line": 2498,
           "parameter": "phase",
           "kind": "param_type",
           "enclosing_node": "py:agents_config.resolve_archetype_for_phase"
@@ -37866,7 +37929,7 @@
     "items": [
       {
         "file": "agents_config.py",
-        "line": 573,
+        "line": 580,
         "category": "hardcoded_secret",
         "severity": "medium",
         "detail": "Potential hardcoded secret in 'api_key_env'",
@@ -37874,7 +37937,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 589,
+        "line": 596,
         "category": "hardcoded_secret",
         "severity": "medium",
         "detail": "Potential hardcoded secret in 'api_key_env'",
@@ -37882,7 +37945,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1140,
+        "line": 1147,
         "category": "sql_concatenation",
         "severity": "high",
         "detail": "SQL built via string concatenation",
@@ -37890,7 +37953,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1140,
+        "line": 1147,
         "category": "sql_concatenation",
         "severity": "high",
         "detail": "SQL built via string concatenation",
@@ -37898,7 +37961,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1140,
+        "line": 1147,
         "category": "sql_concatenation",
         "severity": "high",
         "detail": "SQL built via string concatenation",
@@ -37906,7 +37969,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1140,
+        "line": 1147,
         "category": "sql_concatenation",
         "severity": "high",
         "detail": "SQL built via string concatenation",
@@ -37914,7 +37977,7 @@
       },
       {
         "file": "agents_config.py",
-        "line": 1140,
+        "line": 1147,
         "category": "sql_concatenation",
         "severity": "high",
         "detail": "SQL built via string concatenation",
