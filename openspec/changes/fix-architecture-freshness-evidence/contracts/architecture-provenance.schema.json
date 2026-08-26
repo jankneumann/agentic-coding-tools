@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/architecture-provenance.schema.json",
+  "title": "Architecture Producer Provenance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "producer",
+    "repository_id",
+    "source_revision",
+    "worktree_dirty",
+    "mode",
+    "input_roots",
+    "input_fingerprint",
+    "generated_at",
+    "optional_tools",
+    "validation",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 2
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer_id",
+        "producer_version"
+      ],
+      "properties": {
+        "producer_id": {
+          "const": "architecture"
+        },
+        "producer_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "repository_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "source_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+    },
+    "worktree_dirty": {
+      "type": "boolean"
+    },
+    "mode": {
+      "enum": [
+        "full",
+        "quick"
+      ]
+    },
+    "input_roots": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      },
+      "uniqueItems": true
+    },
+    "input_enumeration": {
+      "description": "How the relevant-input set was enumerated. 'git' honours .gitignore and is what every checkout and CI job uses; 'walk' is the degraded fallback for a source export with no .git. Compared as producer identity, since the two strategies see different file sets. Optional so provenance written before this field existed stays schema-valid \u2014 its absence is caught as a producer-identity mismatch, which names the remediation, rather than as an opaque schema error.",
+      "enum": [
+        "git",
+        "walk"
+      ]
+    },
+    "input_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "optional_tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "available",
+          "version"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "error_count",
+        "warning_count"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "passed",
+            "passed-with-warnings"
+          ]
+        },
+        "error_count": {
+          "type": "integer",
+          "const": 0
+        },
+        "warning_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256",
+          "size_bytes",
+          "required",
+          "tier"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^docs/architecture-analysis/(?!.*(^|/)\\.\\.(/|$)).+$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "carried_over": {
+            "description": "True when the recording run did not produce this artifact \u2014 promotion is a one-way merge, so a file an optional stage skipped survives in the output directory at the bytes an earlier revision wrote. The entry is still recorded (its digest keeps pinning the committed bytes); the flag is what stops the record from claiming this revision generated it. Optional so a document assembled outside a staged run, or written before this field existed, stays schema-valid \u2014 absent means 'unknown', never 'freshly generated'.",
+            "type": "boolean"
+          },
+          "tier": {
+            "description": "Where this artifact's bytes are expected to live. 'committed' means the file is tracked in version control and a clean checkout is expected to contain it, so its absence is drift. 'local-cache' means the pipeline generates it but the repository deliberately does not track it, so a clean checkout is expected NOT to contain it and its absence is not drift. The digest is verified for both tiers whenever the file IS present, so a stale local cache is still reported rather than trusted. Required and enumerated rather than optional-with-default: a record written before this field existed must be rejected loudly, not silently reinterpreted as 'committed'.",
+            "type": "string",
+            "enum": [
+              "committed",
+              "local-cache"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
