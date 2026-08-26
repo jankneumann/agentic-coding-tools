@@ -56,11 +56,14 @@ model_aliases:
       model: grok-4.5
       thinking: low
   pi:
-    # OpenRouter <publisher>/<model> slugs; standard fixed by ri-01; frontier
-    # is Kimi 3 (E8); premium/economy stay in the qwen3-coder family.
+    # OpenRouter <publisher>/<model> slugs; frontier is Kimi 3 (E8).
+    # standard is a STEALTH slug (switch-pi-standard-to-ox-alpha, superseding
+    # ri-01's qwen/qwen3-coder pin) and is temporary by construction — it stops
+    # resolving without notice when the cloak lifts. premium/economy stay on
+    # stable published qwen3-coder slugs so the ladder survives that.
     frontier: moonshotai/kimi-k3
     premium: qwen/qwen3-coder-plus
-    standard: qwen/qwen3-coder
+    standard: stealth/ox-alpha
     economy: qwen/qwen3-coder-flash
   # Always-on local host (see local_host_class above). Entries use the extended
   # form {model, total_params_b, active_params_b, reviewed} so the MoE-first

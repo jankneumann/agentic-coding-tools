@@ -2,8 +2,8 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-08-24T22:25:50+00:00  
-Git SHA: `5694e757482a97b99eed628ea8cb1794d60351c6`
+Generated: 2026-08-25T21:28:19+00:00  
+Git SHA: `2c31a75e7db147d54560dc5fa451c07383a3e529`
 
 ## System Overview
 

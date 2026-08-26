@@ -886,8 +886,10 @@ class TestProviderModelMapRoster:
 
     def test_pi_tiers_are_openrouter_slugs(self) -> None:
         # Spec configuration.2 "pi maps to OpenRouter slugs": every tier value is
-        # a `<publisher>/<model>` slug. The `standard` == `qwen/qwen3-coder`
-        # assertion below is the spec's own SHALL, not an incidental literal.
+        # a `<publisher>/<model>` slug. The spec constrains slug FORM only —
+        # switch-pi-standard-to-ox-alpha removed the `standard` ==
+        # `qwen/qwen3-coder` SHALL so an operator can retarget a tier without a
+        # spec amendment. Do not reintroduce a hardcoded publisher here.
         from src.agents_config import DEFAULT_PROVIDER_MODEL_MAP
 
         pi = DEFAULT_PROVIDER_MODEL_MAP["providers"]["pi"]
@@ -896,7 +898,29 @@ class TestProviderModelMapRoster:
             assert slug.count("/") == 1, (
                 f"pi {tier}={slug!r} is not <publisher>/<model> form"
             )
-        assert _tier_model(pi["standard"]) == "qwen/qwen3-coder"
+
+    def test_pi_fallbacks_are_not_stealth_slugs(self) -> None:
+        """A fallback must not share the primary's failure mode.
+
+        switch-pi-standard-to-ox-alpha points pi's `standard` tier at a stealth
+        slug, which stops resolving without notice when the cloak lifts. A
+        fallback that is itself a stealth slug would be retired by the same
+        event that retires the primary, so `pi-local` would have no route left.
+        This encodes that reasoning as a test rather than a comment, because a
+        comment does not fail CI when someone "helpfully" aligns the fallback
+        with the primary.
+        """
+        pi_local = next(
+            a for a in load_agents_config() if a.name == "pi-local"
+        )
+        assert pi_local.cli is not None
+        fallbacks = pi_local.cli.model_fallbacks
+        assert fallbacks, "pi-local must retain at least one fallback model"
+        stealth = [s for s in fallbacks if s.startswith("stealth/")]
+        assert not stealth, (
+            f"pi-local model_fallbacks must not be stealth slugs: {stealth!r} "
+            "shares the primary's abrupt-retirement failure mode"
+        )
 
 
 # ---------------------------------------------------------------------------
