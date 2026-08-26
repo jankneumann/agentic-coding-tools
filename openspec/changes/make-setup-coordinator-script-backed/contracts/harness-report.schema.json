@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openspec.local/schemas/harness-report.schema.json",
+  "title": "Harness detection report",
+  "description": "Output of `setup_coordinator.py detect-harnesses --json`. Reports presence only; credential validity is never checked.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "checked_validity", "degraded", "warnings", "host", "vendors", "summary"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic. Increment on any breaking shape change."
+    },
+    "degraded": {
+      "type": "boolean",
+      "description": "True when the report is incomplete for any reason the caller should not read as 'nothing found' -- an unreadable roster, an unavailable sibling module, or a skipped detection layer. An empty `vendors` array with degraded=false asserts that zero vendors genuinely exist; with degraded=true it asserts nothing. Without this field a failed run and a clean empty run are byte-identical, which reintroduces the fail-open the roster resolution was fixed to remove."
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Human-readable reasons the run degraded. MUST be non-empty when degraded is true, and empty when it is false -- a degraded report that cannot say why is not actionable."
+    },
+    "checked_validity": {
+      "const": false,
+      "description": "Always false. Detection is presence-only by design (no billed inference probe, per vendor_health's D6 constraint). Consumers must not treat state=ready as proof of a valid or unexpired credential."
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "home"],
+      "properties": {
+        "platform": {
+          "type": "string",
+          "minLength": 1,
+          "description": "sys.platform of the host that was inspected."
+        },
+        "home": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Home directory that was searched. Recorded because detection is host-local and a report is not portable to another machine."
+        }
+      }
+    },
+    "vendors": {
+      "type": "array",
+      "minItems": 0,
+      "items": { "$ref": "#/$defs/VendorReport" },
+      "description": "One entry per <vendor>-local agent found in agents.yaml."
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ready", "cli_missing", "config_missing", "unknown", "total"],
+      "properties": {
+        "ready": { "type": "integer", "minimum": 0 },
+        "cli_missing": { "type": "integer", "minimum": 0 },
+        "config_missing": { "type": "integer", "minimum": 0 },
+        "unknown": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "degraded": { "const": true } }, "required": ["degraded"] },
+      "then": { "properties": { "warnings": { "minItems": 1 } } }
+    },
+    {
+      "if": { "properties": { "degraded": { "const": false } }, "required": ["degraded"] },
+      "then": { "properties": { "warnings": { "maxItems": 0 } } }
+    }
+  ],
+  "$defs": {
+    "VendorReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vendor",
+        "agent_id",
+        "agent_type",
+        "cli_command",
+        "cli_on_path",
+        "config_artifact",
+        "config_present",
+        "state",
+        "remediation"
+      ],
+      "properties": {
+        "vendor": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Vendor key derived from the <vendor>-local agents.yaml entry."
+        },
+        "agent_id": { "type": "string", "minLength": 1 },
+        "agent_type": { "type": "string", "minLength": 1 },
+        "cli_command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Command searched for on PATH. Reported even when absent so the operator knows what was looked for."
+        },
+        "cli_on_path": { "type": "boolean" },
+        "config_artifact": {
+          "type": ["string", "null"],
+          "description": "Home-relative path checked for this vendor, or null when the vendor declares no detectable configuration location. null is what produces state=unknown."
+        },
+        "config_present": {
+          "type": ["boolean", "null"],
+          "description": "Null when config_artifact is null — absence of a declared location is not evidence of absence of configuration."
+        },
+        "credential_env_var": {
+          "type": ["string", "null"],
+          "description": "Env var the CLI itself requires, from cli.api_key_env in agents.yaml (e.g. OPENROUTER_API_KEY for pi)."
+        },
+        "credential_env_set": { "type": ["boolean", "null"] },
+        "state": {
+          "enum": ["ready", "cli_missing", "config_missing", "unknown"],
+          "description": "ready = CLI on PATH and config artifact present. cli_missing = CLI not on PATH. config_missing = CLI present, declared artifact absent. unknown = no declared artifact to check; MUST NOT be conflated with config_missing (design decision D5)."
+        },
+        "remediation": {
+          "type": ["string", "null"],
+          "description": "Operator-facing next step, or null. MUST be null when state is unknown — emitting a login instruction for a vendor with no login command is the failure this field exists to avoid."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "unknown" } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "cli_on_path": { "const": true },
+              "config_artifact": { "type": "null" },
+              "config_present": { "type": "null" },
+              "remediation": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "state": { "const": "ready" } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "cli_on_path": { "const": true },
+              "config_artifact": { "type": "string", "minLength": 1 },
+              "config_present": { "const": true }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "state": { "const": "cli_missing" } }, "required": ["state"] },
+          "then": { "properties": { "cli_on_path": { "const": false } } }
+        },
+        {
+          "if": { "properties": { "state": { "const": "config_missing" } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "cli_on_path": { "const": true },
+              "config_artifact": { "type": "string", "minLength": 1 },
+              "config_present": { "const": false }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

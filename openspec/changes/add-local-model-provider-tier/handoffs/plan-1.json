@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-15T12:24:05.752753+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned the local model provider tier for GX10-hosted dispatch: a sixth first-class provider following the pi precedent, with the MoE-first hardware-matching rule and archetype trust boundary encoded as enforced config. Tier: coordinated; Gate 1 selected Approach 1 (first-class provider).",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "local is a first-class provider (D1)",
+        "rationale": "Keeps local a distinct vendor for trust, routing, audit, and rate-limit policy; pi precedent reused",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Trust boundary enforced in resolver with audited refusals (D3)",
+        "rationale": "Prose gates are invisible to unattended loops; coordinator is the single decision point",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Hardware matching as machine-checked roster metadata (D4)",
+        "rationale": "GB10 is bandwidth-bound (~273 GB/s); active-parameter ceiling and dense >=30B rejection enforced at startup, not in comments",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Health probe + concurrency cap in adapter (D5)",
+        "rationale": "Structured fallback, never a hang; policy engine must not switch to a dead endpoint",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement wp-contracts then wp-coordinator and wp-dispatch in parallel per work-packages.yaml"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-local-model-provider-tier/proposal.md",
+        "description": "approved proposal with selected approach"
+      },
+      {
+        "path": "openspec/changes/add-local-model-provider-tier/design.md",
+        "description": "design decisions D1-D7"
+      },
+      {
+        "path": "openspec/changes/add-local-model-provider-tier/work-packages.yaml",
+        "description": "coordinated-tier execution plan"
+      }
+    ]
+  }
+}

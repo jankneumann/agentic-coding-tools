@@ -1,0 +1,407 @@
+schema_version: 1
+roadmap_id: skill-rightsizing
+source_proposal: docs/proposals/skill-rightsizing-roadmap.md
+status: planning
+policy:
+  # Matches every existing roadmap (repo-improvement/symphony/sentinel/codeviz).
+  # switch_if_time_saved would permit vendor switching with no cost ceiling
+  # unless cost_ceiling_usd is set, so switch mode is deferred.
+  default_action: wait_if_budget_exceeded
+  max_switch_attempts_per_item: 2
+items:
+- item_id: ri-01
+  title: Convert the failure record into executable regression scenarios
+  status: candidate
+  priority: 1
+  effort: L
+  depends_on: []
+  description: Turn the Observations and Follow-ups sections of the 18 files in docs/merge-logs/
+    and the entries in docs/lessons-learned.md into runnable regression scenarios under
+    the gen-eval scenario format, each tagged with the defect category it represents.
+  rationale: These are human-witnessed defects with rationale attached — the least circular
+    evidence in the repository, and currently inert prose. They also supply the real defect
+    categories that the seeded-defect harness needs, so this gates ri-06.
+  change_id: convert-failure-record-to-regression-scenarios
+  acceptance_outcomes:
+  - Every Observation and Follow-up in docs/merge-logs/ is either converted to a scenario
+    or explicitly marked not-reproducible with a reason.
+  - The scenario suite runs from a single command and reports pass/fail per scenario.
+  - Each scenario carries a defect-category tag drawn from a documented closed vocabulary.
+  - At least one converted scenario fails against the current codebase, proving the suite
+    has teeth rather than encoding only already-fixed behaviour.
+- item_id: ri-02
+  title: Seal the archive benchmark corpus into development and holdout partitions
+  status: candidate
+  priority: 1
+  effort: S
+  depends_on: []
+  description: Partition the 92 archived OpenSpec changes into a 60-change development split
+    and a 32-change sealed holdout, recorded in a committed manifest with a checksum, and
+    biased so the holdout draws from the most recent changes.
+  rationale: If skills are authored while looking at benchmark tasks, the benchmark measures
+    memorization. Sealing costs nothing today and is impossible to reconstruct later.
+  change_id: seal-archive-benchmark-corpus-split
+  acceptance_outcomes:
+  - A committed manifest assigns all 92 archived changes to exactly one partition.
+  - The manifest records a checksum that detects post-hoc reassignment.
+  - Tooling refuses to run holdout tasks unless explicitly invoked with a decision-run flag.
+  - The holdout partition is drawn predominantly from changes archived after 2026-05-01.
+- item_id: ri-03
+  title: Aggregate process telemetry into a comparable scorecard feed
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on: []
+  description: Extract turns, tool calls, tokens, retries, ESCALATE transitions, rework-report
+    entries and time-to-green from the existing langfuse, collect-transcripts, session-log
+    and loop-state.json sources into a single per-run record suitable for arm comparison.
+  rationale: These are observations rather than judgments, so nothing can grade itself. For
+    the rightsizing question specifically they are the primary metric, and the instrumentation
+    already exists but is not aggregated for this purpose.
+  change_id: aggregate-process-telemetry-scorecard
+  acceptance_outcomes:
+  - A single command emits one JSON record per agent run with all named metrics populated.
+  - Records from at least two different vendor harnesses normalize to the same schema.
+  - The feed backfills from existing stored transcripts, not only from new runs.
+- item_id: ri-04
+  title: Record the /doctor context-cost baseline
+  status: candidate
+  priority: 2
+  effort: S
+  depends_on: []
+  description: Run the /doctor setup checkup against the repository and commit its findings
+    as a dated baseline — the always-loaded skill-listing context cost, its biggest
+    contributors, the unused-skill list, and any slow SessionStart hooks.
+  rationale: Every skill's name and description is preloaded into every session, so the
+    listing is a fixed per-turn tax. Establishing the number before any edits gives the
+    frontmatter work a denominator.
+  change_id: record-doctor-context-cost-baseline
+  acceptance_outcomes:
+  - A committed dated report states the total skill-listing context cost and names its top
+    contributors.
+  - Skills never triggered in the available transcript history are listed as deletion
+    candidates.
+  - Any SessionStart hook flagged as slow is recorded with its measured duration.
+- item_id: ri-05
+  title: Build the archived-change task-replay runner
+  status: candidate
+  priority: 1
+  effort: L
+  depends_on:
+  - ri-02
+  description: Build a runner that restores the repository to a change's pre-implementation
+    commit, hands the agent that change's proposal.md as intent while withholding the
+    implementation, and scores the produced diff against the change's own Given/When/Then
+    scenarios and tests.
+  rationale: The archive is a benchmark because each specification was written before its
+    implementation and ratified at a human gate. That temporal separation is what breaks
+    circularity, and the runner is what turns it into a measurement.
+  change_id: build-task-replay-runner
+  acceptance_outcomes:
+  - The runner replays any development-split change end to end and emits a per-scenario
+    pass/fail result.
+  - Replay is validated on 10 changes before the corpus is scaled to 30.
+  - The agent under replay has no filesystem access to the withheld implementation diff.
+  - Each task runs N=3 times per arm and the runner reports variance across runs.
+- item_id: ri-06
+  title: Measure validator recall with a seeded-defect harness
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-01
+  description: Inject 40 known defects drawn from the categories established in ri-01, run
+    each review skill against them, and report per-skill recall.
+  rationale: /security-review, /parallel-review-plan, /parallel-review-implementation and the
+    convergence loop have no measured detection rate. Ground truth is known by construction,
+    so this tier is free of circularity entirely.
+  change_id: measure-validator-recall-seeded-defects
+  acceptance_outcomes:
+  - Each review skill reports a recall figure against the 40-defect set.
+  - Defect categories are traceable to real observations from the failure record.
+  - Seeded defects are injected reproducibly from a committed manifest.
+  - Recall is reported per defect category, not only in aggregate.
+- item_id: ri-07
+  title: Add the mutation-score guardrail
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-05
+  description: Score the test suites produced during a replay by mutation, so a run that
+    raises its pass rate by writing weaker tests is detected rather than rewarded.
+  rationale: A model-written test suite is only a valid grader if it is not vacuous, and
+    vacuity is objectively measurable. This closes the one gaming path the acceptance-rate
+    metric cannot see.
+  change_id: add-mutation-score-guardrail
+  acceptance_outcomes:
+  - Every replay emits a mutation score alongside its acceptance-scenario pass rate.
+  - A deliberately weakened test suite is demonstrated to lower the score.
+  - The guardrail is wired into the accept/reject rule as a non-regression condition.
+- item_id: ri-08
+  title: Calibrate the LLM judge against human labels
+  status: candidate
+  priority: 3
+  effort: M
+  depends_on:
+  - ri-05
+  description: Human-label 40 stratified replay outputs, measure agreement between those
+    labels and the LLM judge with Cohen's kappa, and publish the judge's error rate with
+    every subsequent result that uses it.
+  rationale: Where LLM judgment is unavoidable, calibration converts "the model grades itself"
+    into "the model grades itself and we know how often it is wrong" — a defensible position
+    rather than a fatal one.
+  change_id: calibrate-llm-judge-against-human-labels
+  acceptance_outcomes:
+  - Cohen's kappa is reported per judged dimension against the 40-item labelled set.
+  - Dimensions scoring below kappa 0.7 are excluded from the scorecard.
+  - The judge runs blind to arm identity and with randomized presentation order.
+  - The judge does not receive the skill under test in its context.
+- item_id: ri-09
+  title: Publish the arm-A baseline scorecard
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on:
+  - ri-03
+  - ri-05
+  - ri-07
+  description: Run the current skills across the development split and publish the baseline
+    scorecard covering acceptance pass rate, SHALL/MUST clause coverage, mutation score and
+    process telemetry, with the accept/reject rule pre-registered before any cut lands.
+  rationale: Without a committed before-number every later deletion is a hope rather than a
+    measurement. Pre-registering the decision rule prevents the threshold moving to fit the
+    result.
+  change_id: publish-arm-a-baseline-scorecard
+  acceptance_outcomes:
+  - A committed scorecard reports every metric for the current skills across the development
+    split.
+  - The accept/reject rule is recorded before any rightsizing change is merged.
+  - Run-to-run variance is reported per metric so later deltas can be read against noise.
+- item_id: ri-10
+  title: Rewrite skill frontmatter to what the runtime reads
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on:
+  - ri-04
+  - ri-09
+  description: Delete the dead triggers field from all 52 skills that carry it, audit category
+    and tags for any real consumer, and rewrite all 74 descriptions to state both what the
+    skill does and when to use it.
+  rationale: Nothing in the repository reads triggers, while 69 of 74 descriptions omit the
+    when-to-use clause that actually drives skill selection. This is the cheapest change with
+    a measurable payoff.
+  change_id: rewrite-skill-frontmatter
+  acceptance_outcomes:
+  - No SKILL.md contains a triggers field.
+  - All 74 descriptions state both capability and trigger condition in third person.
+  - The /doctor listing context cost is re-measured and compared against the ri-04 baseline.
+  - Skill-selection accuracy on a held-out set of natural user phrasings does not regress.
+- item_id: ri-11
+  title: Give cross-skill scripts self-describing CLI interfaces
+  status: candidate
+  priority: 1
+  effort: L
+  depends_on:
+  - ri-09
+  description: Add console entry points in skills/pyproject.toml for the shared scripts, so
+    every cross-skill call becomes a named command that accepts --json, exits non-zero with
+    an actionable message, and documents itself through --help.
+  rationale: 104 hard-coded relative paths and 243 <skill-base-dir> placeholders make the
+    skill tree a build system with no build tool. A self-describing interface means the skill
+    prose no longer has to teach the model how to call it.
+  change_id: add-self-describing-cli-entry-points
+  acceptance_outcomes:
+  - No SKILL.md contains a <skill-base-dir> placeholder or a sys.path.insert line.
+  - Every shared command supports --json and --help.
+  - Failure paths exit non-zero with a message naming the corrective action.
+  - The "run it BARE — do not pipe" warning class is removed because exit status is no longer
+    ambiguous.
+- item_id: ri-12
+  title: Collapse the mechanical preamble into a session-start tool
+  status: candidate
+  priority: 1
+  effort: L
+  depends_on:
+  - ri-11
+  description: Replace the coordinator detection, tier selection, worktree setup, parent-branch
+    resolution and worker-vendor recording steps with a single command returning structured
+    state, and reduce the corresponding prose in all seven skills that carry it.
+  rationale: Roughly 150 lines per large skill are procedure transcribed into English with no
+    decisions in it, duplicated seven times. Collapsing it turns tier selection into
+    unit-testable Python and removes an entire class of drift.
+  change_id: collapse-mechanical-preamble-session-start
+  acceptance_outcomes:
+  - One command returns tier, tier rationale, worktree path, worktree branch, feature branch
+    and worker vendor as JSON.
+  - Tier-selection logic exists in exactly one place and is unit tested.
+  - The seven affected skills no longer restate coordinator detection or tier selection.
+  - Replay results for the affected skills are non-inferior to the ri-09 baseline.
+- item_id: ri-13
+  title: Delete the Common Rationalizations block and relax the tail-block invariants
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-09
+  description: Remove Common Rationalizations from the skill tail template and from all 20
+    skills carrying it, drop the minimum-row thresholds, and retain Verification only where
+    its items are machine-checkable and Red Flags only where they name a failure this
+    codebase has actually seen.
+  rationale: The Rationalizations table argues pre-emptively against excuses a frontier model
+    does not make, costs 578 lines, and sits behind a test-enforced minimum that forces
+    padding on every new skill.
+  change_id: delete-rationalizations-relax-tail-block
+  acceptance_outcomes:
+  - No SKILL.md contains a Common Rationalizations section.
+  - The tail-block invariant test no longer enforces minimum row counts.
+  - Every retained Verification item names a file path, command or artifact that can be
+    checked.
+  - Replay results are non-inferior to the ri-09 baseline.
+- item_id: ri-14
+  title: Cut competence-restating rules and relocate genuine project policy
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-09
+  description: Apply the keep/cut test — does this encode a project-specific decision, or
+    describe ordinary competence — across all skill prose, deleting the second category and
+    moving surviving policy such as feature-flag, safe-default and rollback requirements into
+    CLAUDE.md where it is stated once.
+  rationale: Rules that restate how a competent engineer already works compete with the
+    model's own judgment and dilute the rules that carry real information.
+  change_id: cut-competence-rules-relocate-policy
+  acceptance_outcomes:
+  - Every surviving imperative in a SKILL.md traces to a project-specific decision, recorded
+    in the change's spec delta.
+  - Feature-flag, safe-default and rollback policy appears exactly once, in CLAUDE.md.
+  - Total MUST/CRITICAL/NEVER occurrences across skills falls, and every remainder is
+    justified in review.
+  - Replay results are non-inferior to the ri-09 baseline.
+- item_id: ri-15
+  title: Apply progressive disclosure to the eleven oversized skills
+  status: candidate
+  priority: 2
+  effort: L
+  depends_on:
+  - ri-12
+  - ri-13
+  - ri-14
+  description: Restructure each SKILL.md over 500 lines into an index plus reference files one
+    level deep, so a run loads only the phases it actually needs.
+  rationale: 66 of 74 skills have no progressive disclosure at all; the 887-line
+    validate-feature loads in full whether or not the run includes the E2E phase. Sequenced
+    after the deletion items because they touch the same files.
+  change_id: apply-progressive-disclosure-oversized-skills
+  acceptance_outcomes:
+  - No SKILL.md exceeds 500 lines.
+  - All reference files link directly from their SKILL.md with no nested references.
+  - Reference files over 100 lines carry a table of contents.
+  - Measured per-run context consumption falls for at least one skill where a phase is
+    skipped.
+- item_id: ri-16
+  title: Rescope review convergence from consensus to disagreement routing
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-06
+  description: Stop treating multi-vendor agreement as a proxy for correctness in the review
+    convergence loop, and repurpose disagreement as a triage signal that routes contested
+    findings into human review.
+  rationale: Shared training distributions produce shared blind spots, so a five-vendor
+    consensus can be five-way wrong identically. Disagreement genuinely localizes hard cases;
+    agreement is not a verdict. The ri-06 recall figures establish what each vendor actually
+    detects.
+  change_id: rescope-review-convergence-disagreement-routing
+  acceptance_outcomes:
+  - Convergence output distinguishes contested findings from agreed findings and routes
+    contested ones to a human queue.
+  - No gate treats unanimous vendor agreement as sufficient evidence of correctness on its
+    own.
+  - Routing precision is reported against the seeded-defect set from ri-06.
+- item_id: ri-17
+  title: Run the sealed holdout and apply the pre-registered decision rule
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on:
+  - ri-10
+  - ri-12
+  - ri-13
+  - ri-14
+  - ri-15
+  description: Unseal the 32-change holdout partition, run both arms across it, and accept or
+    reject the rightsizing work against the rule registered in ri-09.
+  rationale: This is the decision the entire programme exists to support, and it is only
+    credible if the holdout was never consulted during authoring.
+  change_id: run-sealed-holdout-decision
+  acceptance_outcomes:
+  - Both arms run across all 32 holdout changes at N=3 with blinded judging.
+  - The accept/reject verdict is stated against the rule as registered, without amendment.
+  - Per-metric deltas are published with variance, and any rejected cut is reverted or
+    reworked rather than retained.
+- item_id: ri-18
+  title: Invert the skill test suite from shape assertions to behavioural scenarios
+  status: candidate
+  priority: 2
+  effort: M
+  depends_on:
+  - ri-17
+  description: Retire the content-invariant tests that assert structure — tail-block presence,
+    minimum row counts, section ordering — and replace them with three behavioural scenarios
+    per user-invocable skill drawn from the replay harness.
+  rationale: 24,740 lines of test code currently police 17,945 lines of prose without ever
+    executing a skill, so a skill can be structurally perfect and behaviourally broken. This
+    is the mechanism that makes every change expensive.
+  change_id: invert-skill-test-suite-to-behavioural
+  acceptance_outcomes:
+  - Frontmatter parsing and reference resolution checks are retained; shape assertions are
+    removed.
+  - Each user-invocable skill has at least three behavioural scenarios wired into CI.
+  - Total skill test line count falls while measured behavioural coverage rises.
+  - A deliberately broken skill fails its behavioural scenarios.
+- item_id: ri-19
+  title: Assert in CI that skill-generated artifacts pass their own validators
+  status: candidate
+  priority: 1
+  effort: S
+  depends_on: []
+  description: For every skill that emits a structured artifact — OpenSpec change directories,
+    roadmap.yaml, spec deltas, work-packages.yaml — add a test that generates the artifact and
+    runs the real validator against it, wired into CI.
+  rationale: plan-roadmap's scaffolder created specs/ and never wrote a delta into it, so it
+    shipped changes openspec validate --strict rejects, and its 17 tests never caught it
+    because they asserted the output contained the right strings rather than that it was
+    valid. This is the shape-not-behaviour gap in its cheapest, most targeted form, and unlike
+    ri-18 it can land immediately without waiting on the holdout decision.
+  change_id: assert-generated-artifacts-validate-in-ci
+  acceptance_outcomes:
+  - Every artifact-generating skill has a test that runs its artifact through the real
+    validator, not a structural approximation.
+  - Bypassing the scaffolder's spec-delta writer makes that test fail.
+  - The checks run in CI on every push and block merge on failure.
+  - Each generator documents which validator is authoritative for its output.
+- item_id: ri-20
+  title: Collect the 25 test directories CI never runs
+  status: candidate
+  priority: 1
+  effort: M
+  depends_on: []
+  description: Resolve the bare-module-name collisions that make roughly half the skill test
+    directories uncollectable in the default sweep, then add them to pytest testpaths so they
+    run in CI.
+  rationale: 25 of the 52 directories under skills/tests/ are absent from the testpaths
+    allowlist, including tests/plan-roadmap — which is how the scaffolder shipped invalid
+    changes while its tests passed locally. They cannot simply be added; several skills expose
+    a bare `models` module, so in a full sweep `models` resolves to whichever skill's scripts/
+    reached sys.path first. A comment in pyproject.toml already records this failure mode for
+    one directory — a test CI never runs fails the same way as one that always passes.
+  change_id: collect-uncollected-skill-tests
+  acceptance_outcomes:
+  - Every directory under skills/tests/ containing test files is listed in testpaths.
+  - The default sweep collects all of them without import errors.
+  - Modules sharing a name across skills are namespaced or imported unambiguously.
+  - The number of tests collected by the default sweep is recorded before and after.

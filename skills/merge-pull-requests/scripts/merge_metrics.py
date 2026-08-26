@@ -11,13 +11,17 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from merge_events import DEFAULT_LOG_PATH, load_events
+import merge_events
+from merge_events import load_events
 
 
 def compute_metrics_summary(
     *,
-    log_path: Path = DEFAULT_LOG_PATH,
+    log_path: Path | None = None,
 ) -> dict[str, Any]:
+    # Read through the module so there is exactly one seam to redirect; see
+    # the note on merge_events.DEFAULT_LOG_PATH.
+    log_path = merge_events.DEFAULT_LOG_PATH if log_path is None else log_path
     events = load_events(log_path=log_path)
 
     merges = [e for e in events if e.get("event_type") == "merge"]
@@ -69,8 +73,9 @@ def _median(values: list[float]) -> float:
 
 def format_metrics_table(
     *,
-    log_path: Path = DEFAULT_LOG_PATH,
+    log_path: Path | None = None,
 ) -> str:
+    log_path = merge_events.DEFAULT_LOG_PATH if log_path is None else log_path
     summary = compute_metrics_summary(log_path=log_path)
 
     lines = [

@@ -103,27 +103,46 @@ testpaths = [
     "tests/project-context-runtime",
     "tests/project-context-refresh",
     # trace-requirements-to-contracts task 5.7b. `tests/validate-feature` was
-    # never listed, so test_gen_eval_mode_selection.py has never run in CI —
+    # never listed, so test_gen_eval_mode_selection.py had never run in CI —
     # the same fail-open this list already recorded for tests/coordination-bridge
-    # above. It is not an isolated slip: 25 of the dirs under skills/tests/ are
-    # unlisted, hiding ~1161 tests and 23 real failures, and collecting them all
-    # at once additionally trips flat-module shadowing (several skills ship a
-    # top-level scripts/models.py). Fixing that is issue-tracked separately; this
-    # entry closes only the directory this change depends on.
+    # above. The wider problem this note described (24 more unlisted dirs, ~1182
+    # hidden tests, 23 real failures, flat-module shadowing when collected
+    # together) is now fixed: the failures are repaired and every one of those
+    # directories runs in the isolated per-directory loop in ci.yml, which is
+    # the mechanism that survives the shadowing.
     "tests/validate-feature",
     # cite-requirements walkthrough (trace-requirements-to-contracts): the
     # deterministic text-manipulation core; resolution glue needs the gen-eval
     # venv and is exercised by use, not by this suite.
     "tests/cite-requirements",
+    # vision: content invariants plus the localization guards that keep the
+    # upstream-adapted evidence ladder and verdict channel from regressing on a
+    # future upstream sync.
+    "tests/vision",
+    # setup-coordinator entrypoint suite. Registered as its own task because an
+    # unregistered test directory fails open: pytest collects nothing and the
+    # run is indistinguishable from a suite with zero tests. Verify this entry
+    # by collecting with NO path argument — naming the directory bypasses
+    # `testpaths` and passes identically whether or not this line exists.
+    "tests/setup-coordinator",
     "expedite/scripts/tests",
+    # The CI-coverage guard itself. It used to sit loose in skills/tests, which
+    # no testpaths entry names, so the test that asserts "every test directory
+    # is run by CI" was the one directory CI never ran — and its own
+    # working-directory bug went unnoticed for that reason. It has no skill
+    # imports, so it is safe in the shared session.
+    "tests/ci_coverage",
     # NOTE: validate-feature/scripts/tests, autopilot/scripts/tests,
-    # security-review/tests and parallel-infrastructure/tests are deliberately
-    # absent. Skills import siblings by flat module name and twelve of those
-    # names are defined by more than one skill, so a single pytest session
-    # resolves the wrong one. CI runs those four in a separate process (see the
-    # "Run in-skill test suites (isolated process)" step in ci.yml).
-    # tests/test_ci_test_coverage.py fails if any test directory is reached by
-    # neither mechanism.
+    # security-review/tests, parallel-infrastructure/tests and most dirs under
+    # skills/tests/ are deliberately absent. Skills import siblings by flat
+    # module name and twelve of those names are defined by more than one skill,
+    # so a single pytest session resolves the wrong one — and the breakage is
+    # not only at collection time: tests/project-context-refresh passes alone
+    # and fails 25 tests when collected alongside tests/agent-coordinator. CI
+    # runs them in separate processes instead (see the "Run in-skill test suites
+    # (isolated processes)" step in ci.yml).
+    # tests/ci_coverage/test_ci_test_coverage.py fails if any test directory is
+    # reached by neither mechanism.
 ]
 
 [tool.ruff]

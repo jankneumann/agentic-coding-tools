@@ -116,14 +116,41 @@ verify_venvs() {
 # ---------------------------------------------------------------------------
 # Verify OpenSpec CLI
 # ---------------------------------------------------------------------------
+# Pin shared with CI and scripts/setup-cli.sh.  Empty when the file is absent
+# (mirror-layout consumer repos), which falls back to unpinned behavior.
+openspec_pin() {
+    [[ -f "$PROJECT_DIR/.openspec-version" ]] || return 0
+    tr -d '[:space:]' < "$PROJECT_DIR/.openspec-version"
+}
+
 verify_openspec() {
-    if command -v openspec >/dev/null 2>&1; then
+    local pinned installed
+    pinned="$(openspec_pin)"
+    installed=""
+    command -v openspec >/dev/null 2>&1 && installed="$(openspec --version 2>/dev/null || echo unknown)"
+
+    if [[ -n "$pinned" && "$installed" == "$pinned" ]]; then
+        ok "openspec CLI $installed"
+        return
+    fi
+    if [[ -z "$pinned" && -n "$installed" ]]; then
         ok "openspec CLI"
-    elif $CHECK_ONLY; then
-        warn "openspec not found"
+        return
+    fi
+
+    # Drift here is version drift as much as absence: an ephemeral sandbox can
+    # come back with a CLI whose `--strict` semantics disagree with CI's pin
+    # (issue #318), and presence-only checks would call that healthy.
+    if $CHECK_ONLY; then
+        if [[ -z "$installed" ]]; then
+            warn "openspec not found"
+        else
+            warn "openspec CLI is $installed, pinned $pinned"
+        fi
     elif command -v npm >/dev/null 2>&1; then
-        npm install -g @fission-ai/openspec >&2 2>&1 \
-            && repair "openspec CLI" || warn "openspec install failed"
+        local spec="@fission-ai/openspec${pinned:+@$pinned}"
+        npm install -g "$spec" >&2 2>&1 \
+            && repair "openspec CLI ${pinned:-latest}" || warn "openspec install failed"
     else
         warn "openspec not found, npm not available"
     fi
@@ -132,16 +159,40 @@ verify_openspec() {
 # ---------------------------------------------------------------------------
 # Verify skills installed
 # ---------------------------------------------------------------------------
+# Number of installed skills in one mirror tree, or 0 when the tree is absent.
+# The -d guard is load-bearing under `set -euo pipefail`; see verify_skills.
+count_skills() {
+    local dir="$1"
+    [[ -d "$dir" ]] || { printf '0\n'; return; }
+    find "$dir" -maxdepth 2 -name SKILL.md 2>/dev/null | wc -l | tr -d '[:space:]'
+}
+
 verify_skills() {
     local source_installer="$PROJECT_DIR/skills/install.sh"  # source-contribution-only
     if [[ ! -f "$source_installer" ]]; then
         return  # not a skills source repo
     fi
 
-    if [[ -d "$PROJECT_DIR/.claude/skills" ]] || [[ -d "$PROJECT_DIR/.agents/skills" ]]; then
-        ok "skills installed"
+    # Count SKILL.md files rather than testing that the directory exists: a
+    # partial or failed install leaves an empty .claude/skills/ behind, and
+    # "the directory is there" would report that as healthy while the harness
+    # discovers nothing.
+    #
+    # count_skills guards on -d before running find.  Handing find a path that
+    # does not exist makes it exit 1, and under `set -euo pipefail` that status
+    # survives the pipe and fails the assignment, aborting this function before
+    # it can install anything -- on a fresh clone, which is precisely the case
+    # this check exists to repair.  The ERR trap does not save it either: that
+    # trap does not fire inside functions without `set -E`, so the run would end
+    # silently, mid-pass, looking like a clean bootstrap.
+    local installed
+    installed=$(( $(count_skills "$PROJECT_DIR/.claude/skills")
+                + $(count_skills "$PROJECT_DIR/.agents/skills") ))
+
+    if [[ "$installed" -gt 0 ]]; then
+        ok "skills installed ($installed)"
     elif $CHECK_ONLY; then
-        warn "skills directories missing"
+        warn "no skills found under .claude/skills or .agents/skills"
     else
         bash "$source_installer" \
             --mode rsync --deps none --python-tools none --force >&2 2>&1 \

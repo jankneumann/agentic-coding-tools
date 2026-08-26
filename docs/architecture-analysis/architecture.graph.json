@@ -1,12 +1,14 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-08-20T13:22:26+00:00",
-      "git_sha": "41f70b5193d8f3146f1f292268d7b5d733d9cc76",
+      "generated_at": "2026-08-24T22:25:50+00:00",
+      "git_sha": "5694e757482a97b99eed628ea8cb1794d60351c6",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
-      "notes": []
+      "notes": [
+        "TypeScript analysis not available"
+      ]
     }
   ],
   "nodes": [
@@ -1018,8 +1020,8 @@
       "name": "PollConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 440,
-        "end": 454
+        "start": 526,
+        "end": 540
       },
       "tags": [],
       "signatures": {}
@@ -1031,8 +1033,8 @@
       "name": "ModeConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 458,
-        "end": 463
+        "start": 544,
+        "end": 549
       },
       "tags": [],
       "signatures": {}
@@ -1044,8 +1046,8 @@
       "name": "CliConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 467,
-        "end": 487
+        "start": 553,
+        "end": 573
       },
       "tags": [],
       "signatures": {}
@@ -1057,8 +1059,8 @@
       "name": "SdkConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 491,
-        "end": 504
+        "start": 577,
+        "end": 590
       },
       "tags": [],
       "signatures": {}
@@ -1070,8 +1072,8 @@
       "name": "AgentEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 508,
-        "end": 523
+        "start": 594,
+        "end": 609
       },
       "tags": [],
       "signatures": {}
@@ -1083,8 +1085,8 @@
       "name": "EscalationConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 531,
-        "end": 541
+        "start": 617,
+        "end": 627
       },
       "tags": [],
       "signatures": {}
@@ -1096,8 +1098,8 @@
       "name": "ArchetypeConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 545,
-        "end": 556
+        "start": 631,
+        "end": 642
       },
       "tags": [],
       "signatures": {}
@@ -1109,8 +1111,8 @@
       "name": "PhaseMappingEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 560,
-        "end": 570
+        "start": 646,
+        "end": 656
       },
       "tags": [],
       "signatures": {}
@@ -1122,8 +1124,8 @@
       "name": "ModelSpec",
       "file": "agents_config.py",
       "span": {
-        "start": 574,
-        "end": 584
+        "start": 660,
+        "end": 670
       },
       "tags": [],
       "signatures": {}
@@ -1135,8 +1137,8 @@
       "name": "ResolvedArchetype",
       "file": "agents_config.py",
       "span": {
-        "start": 588,
-        "end": 601
+        "start": 674,
+        "end": 687
       },
       "tags": [],
       "signatures": {}
@@ -1148,8 +1150,34 @@
       "name": "ProviderModelMappingError",
       "file": "agents_config.py",
       "span": {
-        "start": 604,
-        "end": 621
+        "start": 690,
+        "end": 707
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.LocalRosterConfigError",
+      "kind": "class",
+      "language": "python",
+      "name": "LocalRosterConfigError",
+      "file": "agents_config.py",
+      "span": {
+        "start": 710,
+        "end": 728
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.LocalProviderTrustBoundaryError",
+      "kind": "class",
+      "language": "python",
+      "name": "LocalProviderTrustBoundaryError",
+      "file": "agents_config.py",
+      "span": {
+        "start": 731,
+        "end": 749
       },
       "tags": [],
       "signatures": {}
@@ -1161,8 +1189,8 @@
       "name": "DuplicateApiKeyError",
       "file": "agents_config.py",
       "span": {
-        "start": 834,
-        "end": 849
+        "start": 962,
+        "end": 977
       },
       "tags": [],
       "signatures": {}
@@ -1174,8 +1202,8 @@
       "name": "ProfileSyncError",
       "file": "agents_config.py",
       "span": {
-        "start": 982,
-        "end": 988
+        "start": 1110,
+        "end": 1116
       },
       "tags": [],
       "signatures": {}
@@ -1187,8 +1215,8 @@
       "name": "ProfileSyncResult",
       "file": "agents_config.py",
       "span": {
-        "start": 992,
-        "end": 1018
+        "start": 1120,
+        "end": 1146
       },
       "tags": [],
       "signatures": {}
@@ -2656,8 +2684,8 @@
       "name": "DirectPostgresClient",
       "file": "db_postgres.py",
       "span": {
-        "start": 78,
-        "end": 313
+        "start": 112,
+        "end": 347
       },
       "tags": [],
       "signatures": {}
@@ -4242,8 +4270,38 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 607,
-        "end": 621
+        "start": 693,
+        "end": 707
+      },
+      "tags": [
+        "dunder"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.LocalRosterConfigError.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "agents_config.py",
+      "span": {
+        "start": 719,
+        "end": 728
+      },
+      "tags": [
+        "dunder"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config.LocalProviderTrustBoundaryError.__init__",
+      "kind": "function",
+      "language": "python",
+      "name": "__init__",
+      "file": "agents_config.py",
+      "span": {
+        "start": 739,
+        "end": 749
       },
       "tags": [
         "dunder"
@@ -4257,8 +4315,8 @@
       "name": "_default_agents_path",
       "file": "agents_config.py",
       "span": {
-        "start": 628,
-        "end": 629
+        "start": 756,
+        "end": 757
       },
       "tags": [
         "private"
@@ -4272,8 +4330,8 @@
       "name": "_default_secrets_path",
       "file": "agents_config.py",
       "span": {
-        "start": 632,
-        "end": 633
+        "start": 760,
+        "end": 761
       },
       "tags": [
         "private"
@@ -4287,8 +4345,8 @@
       "name": "load_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 636,
-        "end": 776
+        "start": 764,
+        "end": 904
       },
       "tags": [
         "db_access"
@@ -4302,8 +4360,8 @@
       "name": "_parse_mode",
       "file": "agents_config.py",
       "span": {
-        "start": 708,
-        "end": 730
+        "start": 836,
+        "end": 858
       },
       "tags": [
         "private",
@@ -4318,8 +4376,8 @@
       "name": "_resolve_api_key_from_openbao",
       "file": "agents_config.py",
       "span": {
-        "start": 783,
-        "end": 831
+        "start": 911,
+        "end": 959
       },
       "tags": [
         "private",
@@ -4334,8 +4392,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 842,
-        "end": 849
+        "start": 970,
+        "end": 977
       },
       "tags": [
         "dunder"
@@ -4349,8 +4407,8 @@
       "name": "get_api_key_identities",
       "file": "agents_config.py",
       "span": {
-        "start": 852,
-        "end": 900
+        "start": 980,
+        "end": 1028
       },
       "tags": [
         "db_access"
@@ -4364,8 +4422,8 @@
       "name": "mutations",
       "file": "agents_config.py",
       "span": {
-        "start": 1009,
-        "end": 1018
+        "start": 1137,
+        "end": 1146
       },
       "tags": [
         "property"
@@ -4379,8 +4437,8 @@
       "name": "derive_allowed_operations",
       "file": "agents_config.py",
       "span": {
-        "start": 1021,
-        "end": 1050
+        "start": 1149,
+        "end": 1178
       },
       "tags": [
         "db_access"
@@ -4394,8 +4452,8 @@
       "name": "_is_unique_violation",
       "file": "agents_config.py",
       "span": {
-        "start": 1062,
-        "end": 1078
+        "start": 1190,
+        "end": 1206
       },
       "tags": [
         "private"
@@ -4409,8 +4467,8 @@
       "name": "_registry_sync_timestamp",
       "file": "agents_config.py",
       "span": {
-        "start": 1081,
-        "end": 1088
+        "start": 1209,
+        "end": 1222
       },
       "tags": [
         "private"
@@ -4424,8 +4482,8 @@
       "name": "_desired_profile_row",
       "file": "agents_config.py",
       "span": {
-        "start": 1091,
-        "end": 1101
+        "start": 1225,
+        "end": 1235
       },
       "tags": [
         "private"
@@ -4439,8 +4497,8 @@
       "name": "_profile_drift",
       "file": "agents_config.py",
       "span": {
-        "start": 1104,
-        "end": 1119
+        "start": 1238,
+        "end": 1253
       },
       "tags": [
         "private",
@@ -4455,8 +4513,8 @@
       "name": "_emit_sync_audit",
       "file": "agents_config.py",
       "span": {
-        "start": 1122,
-        "end": 1164
+        "start": 1256,
+        "end": 1298
       },
       "tags": [
         "async",
@@ -4471,8 +4529,8 @@
       "name": "_sync_assignments",
       "file": "agents_config.py",
       "span": {
-        "start": 1167,
-        "end": 1333
+        "start": 1301,
+        "end": 1484
       },
       "tags": [
         "async",
@@ -4488,8 +4546,8 @@
       "name": "sync_profiles",
       "file": "agents_config.py",
       "span": {
-        "start": 1336,
-        "end": 1562
+        "start": 1487,
+        "end": 1713
       },
       "tags": [
         "async",
@@ -4504,8 +4562,8 @@
       "name": "get_mcp_env",
       "file": "agents_config.py",
       "span": {
-        "start": 1569,
-        "end": 1597
+        "start": 1720,
+        "end": 1748
       },
       "tags": [
         "db_access"
@@ -4519,8 +4577,8 @@
       "name": "get_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1607,
-        "end": 1620
+        "start": 1758,
+        "end": 1771
       },
       "tags": [],
       "signatures": {}
@@ -4532,8 +4590,8 @@
       "name": "get_agent_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1623,
-        "end": 1628
+        "start": 1774,
+        "end": 1779
       },
       "tags": [],
       "signatures": {}
@@ -4545,8 +4603,8 @@
       "name": "reset_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1631,
-        "end": 1634
+        "start": 1782,
+        "end": 1785
       },
       "tags": [],
       "signatures": {}
@@ -4558,8 +4616,8 @@
       "name": "get_dispatch_configs",
       "file": "agents_config.py",
       "span": {
-        "start": 1641,
-        "end": 1702
+        "start": 1792,
+        "end": 1853
       },
       "tags": [],
       "signatures": {}
@@ -4571,8 +4629,8 @@
       "name": "get_agent_isolation",
       "file": "agents_config.py",
       "span": {
-        "start": 1709,
-        "end": 1718
+        "start": 1860,
+        "end": 1869
       },
       "tags": [],
       "signatures": {}
@@ -4584,11 +4642,42 @@
       "name": "_default_archetypes_path",
       "file": "agents_config.py",
       "span": {
-        "start": 1725,
-        "end": 1726
+        "start": 1876,
+        "end": 1877
       },
       "tags": [
         "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._as_positive_number",
+      "kind": "function",
+      "language": "python",
+      "name": "_as_positive_number",
+      "file": "agents_config.py",
+      "span": {
+        "start": 1880,
+        "end": 1884
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._validate_local_roster",
+      "kind": "function",
+      "language": "python",
+      "name": "_validate_local_roster",
+      "file": "agents_config.py",
+      "span": {
+        "start": 1887,
+        "end": 2006
+      },
+      "tags": [
+        "private",
+        "db_access"
       ],
       "signatures": {}
     },
@@ -4599,8 +4688,8 @@
       "name": "load_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1729,
-        "end": 1818
+        "start": 2009,
+        "end": 2099
       },
       "tags": [
         "db_access"
@@ -4614,8 +4703,8 @@
       "name": "get_archetype",
       "file": "agents_config.py",
       "span": {
-        "start": 1826,
-        "end": 1837
+        "start": 2107,
+        "end": 2118
       },
       "tags": [
         "db_access"
@@ -4629,8 +4718,8 @@
       "name": "get_phase_mapping",
       "file": "agents_config.py",
       "span": {
-        "start": 1840,
-        "end": 1849
+        "start": 2121,
+        "end": 2130
       },
       "tags": [],
       "signatures": {}
@@ -4642,10 +4731,41 @@
       "name": "reset_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1852,
-        "end": 1857
+        "start": 2133,
+        "end": 2138
       },
       "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._served_local_roster",
+      "kind": "function",
+      "language": "python",
+      "name": "_served_local_roster",
+      "file": "agents_config.py",
+      "span": {
+        "start": 2141,
+        "end": 2167
+      },
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._with_served_local_roster",
+      "kind": "function",
+      "language": "python",
+      "name": "_with_served_local_roster",
+      "file": "agents_config.py",
+      "span": {
+        "start": 2170,
+        "end": 2181
+      },
+      "tags": [
+        "private"
+      ],
       "signatures": {}
     },
     {
@@ -4655,11 +4775,12 @@
       "name": "_normalize_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 1860,
-        "end": 1884
+        "start": 2184,
+        "end": 2211
       },
       "tags": [
-        "private"
+        "private",
+        "db_access"
       ],
       "signatures": {}
     },
@@ -4670,8 +4791,8 @@
       "name": "get_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 1887,
-        "end": 1891
+        "start": 2214,
+        "end": 2218
       },
       "tags": [],
       "signatures": {}
@@ -4683,8 +4804,24 @@
       "name": "_tier_entry_to_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 1894,
-        "end": 1906
+        "start": 2221,
+        "end": 2233
+      },
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:agents_config._best_defined_tier",
+      "kind": "function",
+      "language": "python",
+      "name": "_best_defined_tier",
+      "file": "agents_config.py",
+      "span": {
+        "start": 2236,
+        "end": 2242
       },
       "tags": [
         "private",
@@ -4699,8 +4836,8 @@
       "name": "resolve_provider_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 1909,
-        "end": 1959
+        "start": 2245,
+        "end": 2323
       },
       "tags": [
         "db_access"
@@ -4714,8 +4851,8 @@
       "name": "resolve_provider_model",
       "file": "agents_config.py",
       "span": {
-        "start": 1962,
-        "end": 1975
+        "start": 2326,
+        "end": 2339
       },
       "tags": [],
       "signatures": {}
@@ -4727,8 +4864,8 @@
       "name": "compose_prompt",
       "file": "agents_config.py",
       "span": {
-        "start": 1982,
-        "end": 1991
+        "start": 2346,
+        "end": 2355
       },
       "tags": [],
       "signatures": {}
@@ -4740,8 +4877,8 @@
       "name": "_unique_dir_prefixes",
       "file": "agents_config.py",
       "span": {
-        "start": 1998,
-        "end": 2014
+        "start": 2362,
+        "end": 2378
       },
       "tags": [
         "private",
@@ -4756,8 +4893,8 @@
       "name": "resolve_model",
       "file": "agents_config.py",
       "span": {
-        "start": 2017,
-        "end": 2053
+        "start": 2381,
+        "end": 2417
       },
       "tags": [],
       "signatures": {}
@@ -4769,8 +4906,8 @@
       "name": "_resolve_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 2056,
-        "end": 2114
+        "start": 2420,
+        "end": 2482
       },
       "tags": [
         "private",
@@ -4785,8 +4922,8 @@
       "name": "_finalize",
       "file": "agents_config.py",
       "span": {
-        "start": 2065,
-        "end": 2077
+        "start": 2429,
+        "end": 2445
       },
       "tags": [
         "private"
@@ -4800,8 +4937,8 @@
       "name": "resolve_archetype_for_phase",
       "file": "agents_config.py",
       "span": {
-        "start": 2122,
-        "end": 2208
+        "start": 2490,
+        "end": 2596
       },
       "tags": [],
       "signatures": {}
@@ -7210,7 +7347,7 @@
       "file": "coordination_api.py",
       "span": {
         "start": 571,
-        "end": 3496
+        "end": 3526
       },
       "tags": [
         "db_access"
@@ -8063,11 +8200,28 @@
       "file": "coordination_api.py",
       "span": {
         "start": 2247,
-        "end": 2317
+        "end": 2347
       },
       "tags": [
         "async",
         "entry_point",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit",
+      "kind": "function",
+      "language": "python",
+      "name": "_audit",
+      "file": "coordination_api.py",
+      "span": {
+        "start": 2267,
+        "end": 2287
+      },
+      "tags": [
+        "async",
+        "private",
         "db_access"
       ],
       "signatures": {}
@@ -8079,8 +8233,8 @@
       "name": "report_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 2324,
-        "end": 2410
+        "start": 2354,
+        "end": 2440
       },
       "tags": [
         "async",
@@ -8096,8 +8250,8 @@
       "name": "test_notification",
       "file": "coordination_api.py",
       "span": {
-        "start": 2417,
-        "end": 2451
+        "start": 2447,
+        "end": 2481
       },
       "tags": [
         "async",
@@ -8113,8 +8267,8 @@
       "name": "notifications_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 2454,
-        "end": 2464
+        "start": 2484,
+        "end": 2494
       },
       "tags": [
         "async",
@@ -8129,8 +8283,8 @@
       "name": "discovery_register",
       "file": "coordination_api.py",
       "span": {
-        "start": 2471,
-        "end": 2499
+        "start": 2501,
+        "end": 2529
       },
       "tags": [
         "async",
@@ -8145,8 +8299,8 @@
       "name": "discovery_agents",
       "file": "coordination_api.py",
       "span": {
-        "start": 2502,
-        "end": 2533
+        "start": 2532,
+        "end": 2563
       },
       "tags": [
         "async",
@@ -8161,8 +8315,8 @@
       "name": "discovery_heartbeat",
       "file": "coordination_api.py",
       "span": {
-        "start": 2536,
-        "end": 2560
+        "start": 2566,
+        "end": 2590
       },
       "tags": [
         "async",
@@ -8177,8 +8331,8 @@
       "name": "discovery_cleanup",
       "file": "coordination_api.py",
       "span": {
-        "start": 2563,
-        "end": 2593
+        "start": 2593,
+        "end": 2623
       },
       "tags": [
         "async",
@@ -8193,8 +8347,8 @@
       "name": "gen_eval_list_scenarios",
       "file": "coordination_api.py",
       "span": {
-        "start": 2600,
-        "end": 2625
+        "start": 2630,
+        "end": 2655
       },
       "tags": [
         "async",
@@ -8209,8 +8363,8 @@
       "name": "gen_eval_validate",
       "file": "coordination_api.py",
       "span": {
-        "start": 2628,
-        "end": 2649
+        "start": 2658,
+        "end": 2679
       },
       "tags": [
         "async",
@@ -8225,8 +8379,8 @@
       "name": "gen_eval_create",
       "file": "coordination_api.py",
       "span": {
-        "start": 2652,
-        "end": 2674
+        "start": 2682,
+        "end": 2704
       },
       "tags": [
         "async",
@@ -8241,8 +8395,8 @@
       "name": "gen_eval_run",
       "file": "coordination_api.py",
       "span": {
-        "start": 2677,
-        "end": 2700
+        "start": 2707,
+        "end": 2730
       },
       "tags": [
         "async",
@@ -8257,8 +8411,8 @@
       "name": "search_issues",
       "file": "coordination_api.py",
       "span": {
-        "start": 2707,
-        "end": 2720
+        "start": 2737,
+        "end": 2750
       },
       "tags": [
         "async",
@@ -8274,8 +8428,8 @@
       "name": "ready_issues",
       "file": "coordination_api.py",
       "span": {
-        "start": 2723,
-        "end": 2739
+        "start": 2753,
+        "end": 2769
       },
       "tags": [
         "async",
@@ -8291,8 +8445,8 @@
       "name": "request_permission_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2749,
-        "end": 2781
+        "start": 2779,
+        "end": 2811
       },
       "tags": [
         "async",
@@ -8307,8 +8461,8 @@
       "name": "request_approval_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2788,
-        "end": 2824
+        "start": 2818,
+        "end": 2854
       },
       "tags": [
         "async",
@@ -8323,8 +8477,8 @@
       "name": "check_approval_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 2827,
-        "end": 2852
+        "start": 2857,
+        "end": 2882
       },
       "tags": [
         "async",
@@ -8339,8 +8493,8 @@
       "name": "_database_health",
       "file": "coordination_api.py",
       "span": {
-        "start": 2858,
-        "end": 2879
+        "start": 2888,
+        "end": 2909
       },
       "tags": [
         "async",
@@ -8355,8 +8509,8 @@
       "name": "help_overview",
       "file": "coordination_api.py",
       "span": {
-        "start": 2886,
-        "end": 2893
+        "start": 2916,
+        "end": 2923
       },
       "tags": [
         "async",
@@ -8371,8 +8525,8 @@
       "name": "help_topic",
       "file": "coordination_api.py",
       "span": {
-        "start": 2896,
-        "end": 2916
+        "start": 2926,
+        "end": 2946
       },
       "tags": [
         "async",
@@ -8387,8 +8541,8 @@
       "name": "get_sync_points_status",
       "file": "coordination_api.py",
       "span": {
-        "start": 2923,
-        "end": 2933
+        "start": 2953,
+        "end": 2963
       },
       "tags": [
         "async",
@@ -8403,8 +8557,8 @@
       "name": "get_active_worktrees",
       "file": "coordination_api.py",
       "span": {
-        "start": 2936,
-        "end": 2945
+        "start": 2966,
+        "end": 2975
       },
       "tags": [
         "async",
@@ -8419,8 +8573,8 @@
       "name": "mint_events_token",
       "file": "coordination_api.py",
       "span": {
-        "start": 2948,
-        "end": 2978
+        "start": 2978,
+        "end": 3008
       },
       "tags": [
         "async",
@@ -8436,8 +8590,8 @@
       "name": "stream_work_events",
       "file": "coordination_api.py",
       "span": {
-        "start": 2981,
-        "end": 3029
+        "start": 3011,
+        "end": 3059
       },
       "tags": [
         "async",
@@ -8452,8 +8606,8 @@
       "name": "patch_issue_labels",
       "file": "coordination_api.py",
       "span": {
-        "start": 3032,
-        "end": 3081
+        "start": 3062,
+        "end": 3111
       },
       "tags": [
         "async",
@@ -8469,8 +8623,8 @@
       "name": "force_release_lock",
       "file": "coordination_api.py",
       "span": {
-        "start": 3084,
-        "end": 3118
+        "start": 3114,
+        "end": 3148
       },
       "tags": [
         "async",
@@ -8486,8 +8640,8 @@
       "name": "kick_agent",
       "file": "coordination_api.py",
       "span": {
-        "start": 3121,
-        "end": 3239
+        "start": 3151,
+        "end": 3269
       },
       "tags": [
         "async",
@@ -8503,8 +8657,8 @@
       "name": "put_saved_view",
       "file": "coordination_api.py",
       "span": {
-        "start": 3242,
-        "end": 3276
+        "start": 3272,
+        "end": 3306
       },
       "tags": [
         "async",
@@ -8520,8 +8674,8 @@
       "name": "post_kanban_audit",
       "file": "coordination_api.py",
       "span": {
-        "start": 3279,
-        "end": 3312
+        "start": 3309,
+        "end": 3342
       },
       "tags": [
         "async",
@@ -8537,8 +8691,8 @@
       "name": "live",
       "file": "coordination_api.py",
       "span": {
-        "start": 3315,
-        "end": 3317
+        "start": 3345,
+        "end": 3347
       },
       "tags": [
         "async",
@@ -8553,8 +8707,8 @@
       "name": "ready",
       "file": "coordination_api.py",
       "span": {
-        "start": 3320,
-        "end": 3329
+        "start": 3350,
+        "end": 3359
       },
       "tags": [
         "async",
@@ -8569,8 +8723,8 @@
       "name": "health",
       "file": "coordination_api.py",
       "span": {
-        "start": 3332,
-        "end": 3336
+        "start": 3362,
+        "end": 3366
       },
       "tags": [
         "async",
@@ -8585,8 +8739,8 @@
       "name": "github_prs",
       "file": "coordination_api.py",
       "span": {
-        "start": 3343,
-        "end": 3380
+        "start": 3373,
+        "end": 3410
       },
       "tags": [
         "async",
@@ -8601,8 +8755,8 @@
       "name": "openspec_proposals",
       "file": "coordination_api.py",
       "span": {
-        "start": 3383,
-        "end": 3425
+        "start": 3413,
+        "end": 3455
       },
       "tags": [
         "async",
@@ -8617,8 +8771,8 @@
       "name": "code_search_status_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 3429,
-        "end": 3447
+        "start": 3459,
+        "end": 3477
       },
       "tags": [
         "async",
@@ -8633,8 +8787,8 @@
       "name": "verify_code_search_principal",
       "file": "coordination_api.py",
       "span": {
-        "start": 3449,
-        "end": 3463
+        "start": 3479,
+        "end": 3493
       },
       "tags": [
         "async",
@@ -8649,8 +8803,8 @@
       "name": "search_code_endpoint",
       "file": "coordination_api.py",
       "span": {
-        "start": 3466,
-        "end": 3494
+        "start": 3496,
+        "end": 3524
       },
       "tags": [
         "async",
@@ -8665,8 +8819,8 @@
       "name": "main",
       "file": "coordination_api.py",
       "span": {
-        "start": 3504,
-        "end": 3533
+        "start": 3534,
+        "end": 3563
       },
       "tags": [],
       "signatures": {}
@@ -10615,14 +10769,29 @@
       "signatures": {}
     },
     {
+      "id": "py:db_postgres._parse_iso_datetime",
+      "kind": "function",
+      "language": "python",
+      "name": "_parse_iso_datetime",
+      "file": "db_postgres.py",
+      "span": {
+        "start": 32,
+        "end": 45
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:db_postgres._coerce_filter_value",
       "kind": "function",
       "language": "python",
       "name": "_coerce_filter_value",
       "file": "db_postgres.py",
       "span": {
-        "start": 25,
-        "end": 43
+        "start": 48,
+        "end": 69
       },
       "tags": [
         "private"
@@ -10636,8 +10805,8 @@
       "name": "_validate_identifier",
       "file": "db_postgres.py",
       "span": {
-        "start": 46,
-        "end": 51
+        "start": 72,
+        "end": 77
       },
       "tags": [
         "private"
@@ -10651,8 +10820,8 @@
       "name": "_validate_select_clause",
       "file": "db_postgres.py",
       "span": {
-        "start": 54,
-        "end": 63
+        "start": 80,
+        "end": 89
       },
       "tags": [
         "private"
@@ -10666,8 +10835,8 @@
       "name": "_serialize_for_asyncpg",
       "file": "db_postgres.py",
       "span": {
-        "start": 66,
-        "end": 75
+        "start": 92,
+        "end": 109
       },
       "tags": [
         "private"
@@ -10681,8 +10850,8 @@
       "name": "__init__",
       "file": "db_postgres.py",
       "span": {
-        "start": 85,
-        "end": 87
+        "start": 119,
+        "end": 121
       },
       "tags": [
         "dunder"
@@ -10696,8 +10865,8 @@
       "name": "_get_pool",
       "file": "db_postgres.py",
       "span": {
-        "start": 89,
-        "end": 96
+        "start": 123,
+        "end": 130
       },
       "tags": [
         "async",
@@ -10712,8 +10881,8 @@
       "name": "rpc",
       "file": "db_postgres.py",
       "span": {
-        "start": 98,
-        "end": 126
+        "start": 132,
+        "end": 160
       },
       "tags": [
         "async"
@@ -10727,8 +10896,8 @@
       "name": "query",
       "file": "db_postgres.py",
       "span": {
-        "start": 128,
-        "end": 215
+        "start": 162,
+        "end": 249
       },
       "tags": [
         "async"
@@ -10742,8 +10911,8 @@
       "name": "insert",
       "file": "db_postgres.py",
       "span": {
-        "start": 217,
-        "end": 243
+        "start": 251,
+        "end": 277
       },
       "tags": [
         "async",
@@ -10758,8 +10927,8 @@
       "name": "update",
       "file": "db_postgres.py",
       "span": {
-        "start": 245,
-        "end": 285
+        "start": 279,
+        "end": 319
       },
       "tags": [
         "async",
@@ -10774,8 +10943,8 @@
       "name": "delete",
       "file": "db_postgres.py",
       "span": {
-        "start": 287,
-        "end": 307
+        "start": 321,
+        "end": 341
       },
       "tags": [
         "async",
@@ -10790,8 +10959,8 @@
       "name": "close",
       "file": "db_postgres.py",
       "span": {
-        "start": 309,
-        "end": 313
+        "start": 343,
+        "end": 347
       },
       "tags": [
         "async"
@@ -20360,1176 +20529,6 @@
       "signatures": {}
     },
     {
-      "id": "ts:kanban-viz/vite.config",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/vite.config",
-      "file": "kanban-viz/vite.config.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/App",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/App",
-      "file": "kanban-viz/src/App.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/main",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/main",
-      "file": "kanban-viz/src/main.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/vite-env.d",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/vite-env.d",
-      "file": "kanban-viz/src/vite-env.d.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/__tests__/fixtures",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/__tests__/fixtures",
-      "file": "kanban-viz/src/__tests__/fixtures.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/__tests__/setup",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/__tests__/setup",
-      "file": "kanban-viz/src/__tests__/setup.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/Board",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/Board",
-      "file": "kanban-viz/src/components/Board.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/Card",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/Card",
-      "file": "kanban-viz/src/components/Card.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/ClusterBadge",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/ClusterBadge",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/Column",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/Column",
-      "file": "kanban-viz/src/components/Column.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/ConsentPrompt",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/ConsentPrompt",
-      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/HiddenReposToggle",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/HiddenReposToggle",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/PRCardView",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/PRCardView",
-      "file": "kanban-viz/src/components/PRCardView.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/ProposalCardView",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/ProposalCardView",
-      "file": "kanban-viz/src/components/ProposalCardView.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/PROriginFilter",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/PROriginFilter",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/RefreshButton",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/RefreshButton",
-      "file": "kanban-viz/src/components/RefreshButton.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/RepoBadge",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/RepoBadge",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/SaveViewButton",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/SaveViewButton",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/SourceSwimlanes",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/SourceSwimlanes",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/SyncPointBanner",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/SyncPointBanner",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/VendorSwimlanes",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/VendorSwimlanes",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/hooks/useBoardCards",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/hooks/useBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/hooks/useCoordinator",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/hooks/useCoordinator",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/lib/coordinator-types",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/lib/coordinator-types",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/lib/reversibility",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/lib/reversibility",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/lib/runtime",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/lib/runtime",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/lib/saveView",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/lib/saveView",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:App",
-      "kind": "component",
-      "language": "typescript",
-      "name": "App",
-      "file": "kanban-viz/src/App.tsx",
-      "span": {
-        "start": 14,
-        "end": 109
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:Board",
-      "kind": "component",
-      "language": "typescript",
-      "name": "Board",
-      "file": "kanban-viz/src/components/Board.tsx",
-      "span": {
-        "start": 24,
-        "end": 81
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:Card",
-      "kind": "component",
-      "language": "typescript",
-      "name": "Card",
-      "file": "kanban-viz/src/components/Card.tsx",
-      "span": {
-        "start": 41,
-        "end": 206
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:ClusterBadge",
-      "kind": "component",
-      "language": "typescript",
-      "name": "ClusterBadge",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "span": {
-        "start": 72,
-        "end": 79
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:ClusterBadgeInner",
-      "kind": "component",
-      "language": "typescript",
-      "name": "ClusterBadgeInner",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "span": {
-        "start": 81,
-        "end": 124
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:ClusterHighlightWrapper",
-      "kind": "component",
-      "language": "typescript",
-      "name": "ClusterHighlightWrapper",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "span": {
-        "start": 130,
-        "end": 152
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:Column",
-      "kind": "component",
-      "language": "typescript",
-      "name": "Column",
-      "file": "kanban-viz/src/components/Column.tsx",
-      "span": {
-        "start": 25,
-        "end": 70
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:ConsentPrompt",
-      "kind": "component",
-      "language": "typescript",
-      "name": "ConsentPrompt",
-      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
-      "span": {
-        "start": 12,
-        "end": 69
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:HiddenReposToggle",
-      "kind": "component",
-      "language": "typescript",
-      "name": "HiddenReposToggle",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
-      "span": {
-        "start": 30,
-        "end": 83
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:PRCardView",
-      "kind": "component",
-      "language": "typescript",
-      "name": "PRCardView",
-      "file": "kanban-viz/src/components/PRCardView.tsx",
-      "span": {
-        "start": 75,
-        "end": 226
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:ProposalCardView",
-      "kind": "component",
-      "language": "typescript",
-      "name": "ProposalCardView",
-      "file": "kanban-viz/src/components/ProposalCardView.tsx",
-      "span": {
-        "start": 22,
-        "end": 175
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:PROriginFilter",
-      "kind": "component",
-      "language": "typescript",
-      "name": "PROriginFilter",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "span": {
-        "start": 69,
-        "end": 131
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:RefreshButton",
-      "kind": "component",
-      "language": "typescript",
-      "name": "RefreshButton",
-      "file": "kanban-viz/src/components/RefreshButton.tsx",
-      "span": {
-        "start": 30,
-        "end": 132
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:RepoBadge",
-      "kind": "component",
-      "language": "typescript",
-      "name": "RepoBadge",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "span": {
-        "start": 53,
-        "end": 81
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:SaveViewButton",
-      "kind": "component",
-      "language": "typescript",
-      "name": "SaveViewButton",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx",
-      "span": {
-        "start": 53,
-        "end": 162
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:IssueSourceRow",
-      "kind": "component",
-      "language": "typescript",
-      "name": "IssueSourceRow",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 108,
-        "end": 229
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:PRSourceRow",
-      "kind": "component",
-      "language": "typescript",
-      "name": "PRSourceRow",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 245,
-        "end": 377
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:PartialResultChip",
-      "kind": "component",
-      "language": "typescript",
-      "name": "PartialResultChip",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 393,
-        "end": 440
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:ProposalSourceRow",
-      "kind": "component",
-      "language": "typescript",
-      "name": "ProposalSourceRow",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 442,
-        "end": 549
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:SourceSwimlanes",
-      "kind": "component",
-      "language": "typescript",
-      "name": "SourceSwimlanes",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 554,
-        "end": 645
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:SyncPointBanner",
-      "kind": "component",
-      "language": "typescript",
-      "name": "SyncPointBanner",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
-      "span": {
-        "start": 43,
-        "end": 302
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:VendorSwimlanes",
-      "kind": "component",
-      "language": "typescript",
-      "name": "VendorSwimlanes",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "span": {
-        "start": 64,
-        "end": 139
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:relativeTime",
-      "kind": "function",
-      "language": "typescript",
-      "name": "relativeTime",
-      "file": "kanban-viz/src/components/Card.tsx",
-      "span": {
-        "start": 28,
-        "end": 39
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:emitHighlight",
-      "kind": "function",
-      "language": "typescript",
-      "name": "emitHighlight",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "span": {
-        "start": 22,
-        "end": 26
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:useHighlightState",
-      "kind": "function",
-      "language": "typescript",
-      "name": "useHighlightState",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "span": {
-        "start": 32,
-        "end": 63
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:shortForm",
-      "kind": "function",
-      "language": "typescript",
-      "name": "shortForm",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
-      "span": {
-        "start": 16,
-        "end": 19
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:loadFromStorage",
-      "kind": "function",
-      "language": "typescript",
-      "name": "loadFromStorage",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "span": {
-        "start": 28,
-        "end": 43
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:saveToStorage",
-      "kind": "function",
-      "language": "typescript",
-      "name": "saveToStorage",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "span": {
-        "start": 45,
-        "end": 51
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:filterByOrigin",
-      "kind": "function",
-      "language": "typescript",
-      "name": "filterByOrigin",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "span": {
-        "start": 137,
-        "end": 143
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:formatRelative",
-      "kind": "function",
-      "language": "typescript",
-      "name": "formatRelative",
-      "file": "kanban-viz/src/components/RefreshButton.tsx",
-      "span": {
-        "start": 134,
-        "end": 142
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:hashString",
-      "kind": "function",
-      "language": "typescript",
-      "name": "hashString",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "span": {
-        "start": 22,
-        "end": 30
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:repoToColor",
-      "kind": "function",
-      "language": "typescript",
-      "name": "repoToColor",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "span": {
-        "start": 33,
-        "end": 40
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:slugify",
-      "kind": "function",
-      "language": "typescript",
-      "name": "slugify",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx",
-      "span": {
-        "start": 43,
-        "end": 51
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:bucketIssues",
-      "kind": "function",
-      "language": "typescript",
-      "name": "bucketIssues",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 70,
-        "end": 76
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:bucketPRs",
-      "kind": "function",
-      "language": "typescript",
-      "name": "bucketPRs",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 79,
-        "end": 85
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:bucketProposals",
-      "kind": "function",
-      "language": "typescript",
-      "name": "bucketProposals",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 88,
-        "end": 94
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:fetchSyncStatus",
-      "kind": "function",
-      "language": "typescript",
-      "name": "fetchSyncStatus",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
-      "span": {
-        "start": 24,
-        "end": 33
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:extractVendor",
-      "kind": "function",
-      "language": "typescript",
-      "name": "extractVendor",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "span": {
-        "start": 29,
-        "end": 32
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:groupByVendor",
-      "kind": "function",
-      "language": "typescript",
-      "name": "groupByVendor",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "span": {
-        "start": 46,
-        "end": 57
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:determineConsensus",
-      "kind": "function",
-      "language": "typescript",
-      "name": "determineConsensus",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "span": {
-        "start": 60,
-        "end": 62
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:clusterBoardCards",
-      "kind": "function",
-      "language": "typescript",
-      "name": "clusterBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "span": {
-        "start": 57,
-        "end": 127
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:fetchPRs",
-      "kind": "function",
-      "language": "typescript",
-      "name": "fetchPRs",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "span": {
-        "start": 179,
-        "end": 188
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:fetchProposals",
-      "kind": "function",
-      "language": "typescript",
-      "name": "fetchProposals",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "span": {
-        "start": 190,
-        "end": 209
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:useBoardCards",
-      "kind": "function",
-      "language": "typescript",
-      "name": "useBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "span": {
-        "start": 211,
-        "end": 360
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:fetchIssuesForSingleChange",
-      "kind": "function",
-      "language": "typescript",
-      "name": "fetchIssuesForSingleChange",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "span": {
-        "start": 64,
-        "end": 84
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:fetchIssuesUnioned",
-      "kind": "function",
-      "language": "typescript",
-      "name": "fetchIssuesUnioned",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "span": {
-        "start": 96,
-        "end": 112
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:mintEventsToken",
-      "kind": "function",
-      "language": "typescript",
-      "name": "mintEventsToken",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "span": {
-        "start": 114,
-        "end": 130
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:useCoordinator",
-      "kind": "function",
-      "language": "typescript",
-      "name": "useCoordinator",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "span": {
-        "start": 132,
-        "end": 321
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:assertNever",
-      "kind": "function",
-      "language": "typescript",
-      "name": "assertNever",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 208,
-        "end": 212
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:issueStatusToColumn",
-      "kind": "function",
-      "language": "typescript",
-      "name": "issueStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 218,
-        "end": 230
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:prStatusToColumn",
-      "kind": "function",
-      "language": "typescript",
-      "name": "prStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 236,
-        "end": 247
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:proposalStatusToColumn",
-      "kind": "function",
-      "language": "typescript",
-      "name": "proposalStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 250,
-        "end": 257
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:toIssueCard",
-      "kind": "function",
-      "language": "typescript",
-      "name": "toIssueCard",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 295,
-        "end": 297
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:deriveIssueRepo",
-      "kind": "function",
-      "language": "typescript",
-      "name": "deriveIssueRepo",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 336,
-        "end": 352
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:getClusterKey",
-      "kind": "function",
-      "language": "typescript",
-      "name": "getClusterKey",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 364,
-        "end": 374
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:classify",
-      "kind": "function",
-      "language": "typescript",
-      "name": "classify",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "span": {
-        "start": 46,
-        "end": 48
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:classifyOrDefault",
-      "kind": "function",
-      "language": "typescript",
-      "name": "classifyOrDefault",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "span": {
-        "start": 54,
-        "end": 56
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:requiresConsent",
-      "kind": "function",
-      "language": "typescript",
-      "name": "requiresConsent",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "span": {
-        "start": 59,
-        "end": 61
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:isTauri",
-      "kind": "function",
-      "language": "typescript",
-      "name": "isTauri",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "span": {
-        "start": 12,
-        "end": 14
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:isBrowser",
-      "kind": "function",
-      "language": "typescript",
-      "name": "isBrowser",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "span": {
-        "start": 21,
-        "end": 23
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:saveView",
-      "kind": "function",
-      "language": "typescript",
-      "name": "saveView",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "span": {
-        "start": 35,
-        "end": 45
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:saveBrowser",
-      "kind": "function",
-      "language": "typescript",
-      "name": "saveBrowser",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "span": {
-        "start": 47,
-        "end": 66
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:saveTauri",
-      "kind": "function",
-      "language": "typescript",
-      "name": "saveTauri",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "span": {
-        "start": 68,
-        "end": 90
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
       "id": "pg:public.public.file_locks",
       "kind": "table",
       "language": "sql",
@@ -27977,6 +26976,13 @@
       "evidence": "ast:call:get_agents_config"
     },
     {
+      "from": "py:agents_config._validate_local_roster",
+      "to": "py:agents_config._as_positive_number",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_as_positive_number"
+    },
+    {
       "from": "py:agents_config.load_archetypes_config",
       "to": "py:agents_config._default_archetypes_path",
       "type": "call",
@@ -27989,6 +26995,13 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:validate"
+    },
+    {
+      "from": "py:agents_config.load_archetypes_config",
+      "to": "py:agents_config._validate_local_roster",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_validate_local_roster"
     },
     {
       "from": "py:agents_config.load_archetypes_config",
@@ -28005,11 +27018,32 @@
       "evidence": "ast:call:load_archetypes_config"
     },
     {
+      "from": "py:agents_config._with_served_local_roster",
+      "to": "py:agents_config._served_local_roster",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_served_local_roster"
+    },
+    {
+      "from": "py:agents_config._normalize_provider_model_map",
+      "to": "py:agents_config._with_served_local_roster",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_with_served_local_roster"
+    },
+    {
       "from": "py:agents_config.get_provider_model_map",
       "to": "py:agents_config._normalize_provider_model_map",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_normalize_provider_model_map"
+    },
+    {
+      "from": "py:agents_config._best_defined_tier",
+      "to": "py:agents_config._tier_entry_to_spec",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_tier_entry_to_spec"
     },
     {
       "from": "py:agents_config.resolve_provider_model_spec",
@@ -28031,6 +27065,13 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_tier_entry_to_spec"
+    },
+    {
+      "from": "py:agents_config.resolve_provider_model_spec",
+      "to": "py:agents_config._best_defined_tier",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_best_defined_tier"
     },
     {
       "from": "py:agents_config.resolve_provider_model",
@@ -28850,6 +27891,13 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:compute_affected_tests"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api",
+      "to": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_audit"
     },
     {
       "from": "py:coordination_api.create_coordination_api",
@@ -29763,6 +28811,20 @@
     },
     {
       "from": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint",
+      "to": "py:audit.get_audit_service",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:get_audit_service"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint",
+      "to": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_audit"
+    },
+    {
+      "from": "py:coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit",
       "to": "py:audit.get_audit_service",
       "type": "call",
       "confidence": "high",
@@ -31946,11 +31008,25 @@
       "evidence": "ast:call:create_db_client"
     },
     {
+      "from": "py:db_postgres._coerce_filter_value",
+      "to": "py:db_postgres._parse_iso_datetime",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_parse_iso_datetime"
+    },
+    {
       "from": "py:db_postgres._validate_select_clause",
       "to": "py:db_postgres._validate_identifier",
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_validate_identifier"
+    },
+    {
+      "from": "py:db_postgres._serialize_for_asyncpg",
+      "to": "py:db_postgres._parse_iso_datetime",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_parse_iso_datetime"
     },
     {
       "from": "py:db_postgres.DirectPostgresClient.rpc",
@@ -37068,94 +36144,5 @@
       "path": "start_work_session"
     }
   ],
-  "disconnected_frontend_calls": [
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    }
-  ]
+  "disconnected_frontend_calls": []
 }

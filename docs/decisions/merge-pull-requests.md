@@ -5,47 +5,69 @@
 
 ---
 
-## 2026-07-12 — add-merge-plan-orchestration
+## 2026-08-20 — 2026-08-24-add-merge-plan-orchestration
+
+### Phase: Implementation
+
+**Reuse canonical merge and review helpers** — The plan executor resolves the repository root, composes existing safety gates, and keeps one source of truth for merge policy without selecting generated mirrors.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-24-add-merge-plan-orchestration/session-log.md](/openspec/changes/archive/2026-08-24-add-merge-plan-orchestration/session-log.md) (D2)
+
+---
+
+## 2026-08-20 — 2026-08-24-add-merge-plan-orchestration
+
+### Phase: Implementation
+
+**Treat the durable claim as the crash boundary** — Persisting `in_progress` before side effects and reconciling live terminal state prevents duplicate merges after a process crash or final-save failure.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-24-add-merge-plan-orchestration/session-log.md](/openspec/changes/archive/2026-08-24-add-merge-plan-orchestration/session-log.md) (D3)
+
+---
+
+## 2026-07-12 — 2026-08-24-add-merge-plan-orchestration
 
 ### Phase: Plan
 
 **Separate plan definition from live state** — Different lifecycles: definition is a reviewable snapshot, live state is hot/concurrent. Conflating them breaks multi-host dispatch.
 
 - Status: `active`
-- Source: [openspec/changes/add-merge-plan-orchestration/session-log.md](/openspec/changes/add-merge-plan-orchestration/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-08-24-add-merge-plan-orchestration/session-log.md](/openspec/changes/archive/2026-08-24-add-merge-plan-orchestration/session-log.md) (D2)
 
 ---
 
-## 2026-07-12 — add-merge-plan-orchestration
+## 2026-07-12 — 2026-08-24-add-merge-plan-orchestration
 
 ### Phase: Plan
 
 **Living plan: execution may insert discovered prerequisites** — A static plan cannot represent a blocker found mid-execution (the joserfc CVE case).
 
 - Status: `active`
-- Source: [openspec/changes/add-merge-plan-orchestration/session-log.md](/openspec/changes/add-merge-plan-orchestration/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-08-24-add-merge-plan-orchestration/session-log.md](/openspec/changes/archive/2026-08-24-add-merge-plan-orchestration/session-log.md) (D3)
 
 ---
 
-## 2026-07-12 — add-merge-plan-orchestration
+## 2026-07-12 — 2026-08-24-add-merge-plan-orchestration
 
 ### Phase: Plan
 
 **Security-check backstop is normative** — Execution SHALL defer to the auto-mode classifier rather than auto-bypass a failing required security check.
 
 - Status: `active`
-- Source: [openspec/changes/add-merge-plan-orchestration/session-log.md](/openspec/changes/add-merge-plan-orchestration/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-08-24-add-merge-plan-orchestration/session-log.md](/openspec/changes/archive/2026-08-24-add-merge-plan-orchestration/session-log.md) (D4)
 
 ---
 
-## 2026-07-12 — add-merge-plan-orchestration
+## 2026-07-12 — 2026-08-24-add-merge-plan-orchestration
 
 ### Phase: Plan
 
 **Spec deltas contain Phase-1 behavior only; Phase 2 lives in design.md** — Keeps the archived capability spec honest — no claiming coordinator behavior that isn't built.
 
 - Status: `active`
-- Source: [openspec/changes/add-merge-plan-orchestration/session-log.md](/openspec/changes/add-merge-plan-orchestration/session-log.md) (D5)
+- Source: [openspec/changes/archive/2026-08-24-add-merge-plan-orchestration/session-log.md](/openspec/changes/archive/2026-08-24-add-merge-plan-orchestration/session-log.md) (D5)
 
 ---
 

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-13T11:14:50.919569+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned integration of the atomic harness (bastani-inc/atomic, a pi fork with a durable TypeScript workflow engine) as the first experimental-tier vendor, plus a scoped workflow-executor pilot in fix-scrub. An empirical CLI probe (A1-A20) was run before any config was drafted; all artifacts validate strictly and Gate 1 selected Approach 2.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Introduce an experimental provider class instead of a sixth first-class roster key",
+        "rationale": "The roster is closed at exactly five providers in four normative places; a trial vendor should not reopen them. The class is reusable for future harness trials, keeps unknown non-experimental providers failing loudly, and excludes experimental findings from review quorum (pi --no-tools false-consensus lesson applied preemptively).",
+        "capability": "configuration",
+        "supersedes": null
+      },
+      {
+        "title": "Pilot the workflow engine through one opt-in seam (fix-scrub --executor atomic-workflow)",
+        "rationale": "Headless dispatch emits machine-parseable workflow.run.end events (probe A14), giving a clean adapter contract; bounding the pilot to one skill keeps a promote-or-retire decision falsifiable without touching autopilot phases.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Pin atomic to OpenRouter with model slugs distinct from pi; always pass --provider/--model",
+        "rationale": "Probe A10 showed ambient credential auto-detection (an unpinned run silently picked Bedrock); A20 makes Anthropic-subscription use cost-hostile. Distinct slugs add reviewer diversity instead of duplicating pi's qwen3-coder lineup. Final slugs gate on the A18 live re-probe.",
+        "capability": "configuration",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Wait for add-frontier-model-tier to merge, then run /implement-feature add-atomic-harness starting with wp-empirical (probe re-verification + gated A18 live re-probe)."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-atomic-harness/proposal.md",
+        "description": "approved proposal (Approach 2 selected at Gate 1)"
+      },
+      {
+        "path": "openspec/changes/add-atomic-harness/design.md",
+        "description": "decisions D1-D8 + empirical findings A1-A20"
+      },
+      {
+        "path": "openspec/changes/add-atomic-harness/tasks.md",
+        "description": "TDD-ordered implementation plan"
+      },
+      {
+        "path": "openspec/changes/add-atomic-harness/work-packages.yaml",
+        "description": "five-package DAG mirroring the pi-change decomposition"
+      },
+      {
+        "path": "openspec/changes/add-atomic-harness/contracts/workflow-dispatch/result.schema.json",
+        "description": "workflow dispatch result envelope contract"
+      }
+    ]
+  }
+}

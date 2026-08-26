@@ -79,9 +79,13 @@ jobs:
       # with them. A process boundary per skill is the isolation the
       # architecture already implies.
       #
-      # skills/tests/test_ci_test_coverage.py fails if a test directory is
-      # reached by neither this step nor testpaths, so the gap cannot silently
-      # reopen.
+      # skills/tests/ci_coverage/test_ci_test_coverage.py fails if a test
+      # directory is reached by neither this step nor testpaths, so the gap
+      # cannot silently reopen. That guard resolves each pytest argument below
+      # against its step's working-directory; until 2026-08-24 it resolved every
+      # token against skills/, so the context-eval job's `pytest tests` (run from
+      # packages/context-eval) credited skills/tests and hid the 24 directories
+      # this list now names.
       - name: Run in-skill test suites (isolated processes)
         run: |
           set -euo pipefail
@@ -103,7 +107,33 @@ jobs:
             quick-task/tests \
             session-log/tests \
             session-log/scripts \
-            tech-debt-analysis/tests
+            tech-debt-analysis/tests \
+            tests/merge-pull-requests \
+            tests/shared \
+            tests/agent-coordinator \
+            tests/archive-roadmap \
+            tests/autopilot \
+            tests/autopilot-roadmap \
+            tests/coordinator-task-status-renderer \
+            tests/docs \
+            tests/githooks \
+            tests/integration \
+            tests/iterate-on-plan \
+            tests/langfuse \
+            tests/phase-record-compaction \
+            tests/plan-roadmap \
+            tests/playwright-validator \
+            tests/prioritize-proposals \
+            tests/prototype-feature \
+            tests/quick-task \
+            tests/refresh-architecture-contracts \
+            tests/review-artifacts \
+            tests/roadmap-runtime \
+            tests/session-bootstrap \
+            tests/session-log \
+            tests/supervise \
+            tests/vendor-neutral-autopilot \
+            tests/worktree
           do
             echo "::group::pytest $suite"
             uv run pytest "$suite" -q || status=1
@@ -136,8 +166,27 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Pinned via `.openspec-version`, not `@latest` (issue #318). `--strict`
+      # semantics move between minor releases, so an unpinned install makes
+      # this gate's verdict a function of when the job ran rather than of the
+      # tree it validated — the same commit can flip green/red on an upstream
+      # publish. Bump the pin by editing that one file; every other install
+      # site (scripts/setup-cli.sh, the session-bootstrap scripts,
+      # skills/install.sh) reads it too, so local and CI cannot disagree.
       - name: Install openspec
-        run: npm install -g @fission-ai/openspec
+        run: npm install -g "@fission-ai/openspec@$(tr -d '[:space:]' < .openspec-version)"
+
+      # Makes the log self-describing after the fact, and stops a cached or
+      # pre-installed binary from silently substituting a different version.
+      - name: Verify openspec matches the pin
+        run: |
+          expected="$(tr -d '[:space:]' < .openspec-version)"
+          actual="$(openspec --version)"
+          echo "openspec pinned=${expected} running=${actual}"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::openspec version mismatch: pinned ${expected}, running ${actual}"
+            exit 1
+          fi
 
       - name: Validate specs
         run: openspec validate --strict --all
@@ -775,11 +824,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          # Pinned, like every tool below. `ci.yml` already carries one unpinned
-          # installer (`npm install -g @fission-ai/openspec`, issue #318) whose
-          # drift let a local 1.1.1 and CI's 1.6.0 disagree about the same tree
-          # and nearly produced a phantom defect report. This job adds no second
-          # one.
+          # Pinned, like every tool below and like the openspec CLI in
+          # validate-specs. That one used to float on `@latest`, which let a
+          # local 1.1.1 and CI's 1.6.0 disagree about the same tree and nearly
+          # produced a phantom defect report (issue #318); it now reads
+          # `.openspec-version`. No unpinned installer remains in this file.
           version: "0.9.18"
 
       - name: Set up Python 3.12

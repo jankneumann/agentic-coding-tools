@@ -1,0 +1,249 @@
+schema_version: 1
+
+feature:
+  id: add-local-model-provider-tier
+  title: "Local model provider tier for GX10-hosted dispatch"
+  plan_revision: 1
+  created_by: claude-code
+
+# No HTTP surface is added; per repo convention for no-HTTP changes the primary
+# contract slot carries the canonical schema (local roster entry + host class).
+contracts:
+  revision: 2
+  openapi:
+    primary: "openspec/changes/add-local-model-provider-tier/contracts/local-roster-entry.schema.json"
+    files:
+      - "openspec/changes/add-local-model-provider-tier/contracts/local-roster-entry.schema.json"
+      - "openspec/changes/add-local-model-provider-tier/contracts/README.md"
+      - "openspec/changes/add-local-model-provider-tier/contracts/openapi/v1.yaml"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ── wp-contracts — validate and freeze the roster-entry contract
+  - package_id: wp-contracts
+    title: "Roster-entry contract validation"
+    task_type: contracts
+    description: |
+      Validate contracts/local-roster-entry.schema.json as JSON Schema and freeze
+      it as the coordination boundary between the coordinator package (validation
+      implementation, D4) and the dispatch package (roster consumption).
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "contract:local-roster-entry"
+      ttl_minutes: 60
+      reason: "Contract definition for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/changes/add-local-model-provider-tier/contracts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: local-tier-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Roster-entry schema validates as JSON Schema draft 2020-12"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json, jsonschema; jsonschema.Draft202012Validator.check_schema(json.load(open(\"openspec/changes/add-local-model-provider-tier/contracts/local-roster-entry.schema.json\")))'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contracts_valid"
+    metadata:
+      loc_estimate: 80
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "contracts_valid"
+
+  # ── wp-coordinator — roster, startup validation, trust boundary (tasks 1.1–2.2)
+  - package_id: wp-coordinator
+    title: "Coordinator: local roster, hardware-matching validation, trust boundary"
+    task_type: implementation
+    description: |
+      Tasks 1.1–2.2: add the `local` roster to archetypes.yaml using the extended
+      entry form; implement startup validation (active-parameter ceiling, dense
+      >=30B rejection, review date) per D4; sync DEFAULT_PROVIDER_MODEL_MAP; enforce
+      the archetype trust boundary in resolve_archetype_for_phase with audited
+      refusals per D3; byte-identical resolution regression guard per D6. TDD:
+      tests 1.1/1.2/2.1 precede implementations 1.3/1.4/2.2.
+    role: implementer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/tests/test_coordination_api.py"
+      keys:
+        - "feature:add-local-model-provider-tier:coordinator"
+      ttl_minutes: 120
+      reason: "Local provider roster and resolver trust boundary"
+    scope:
+      write_allow:
+        - "agent-coordinator/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/**"
+    worktree:
+      name: local-tier-wp-coordinator
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Coordinator unit tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/pytest agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_coordination_api.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_tests_pass"
+    metadata:
+      loc_estimate: 400
+      complexity: medium
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "coordinator_tests_pass"
+
+  # ── wp-dispatch — skills-side adapter and smoke path (tasks 3.1–4.2)
+  - package_id: wp-dispatch
+    title: "Dispatch adapter: local provider, probe, concurrency cap, smoke path"
+    task_type: implementation
+    description: |
+      Tasks 3.1–4.2: add `local` to _SUPPORTED_PROVIDERS; implement the
+      Pi coding-agent harness runner plus one-shot OpenAI-compatible provider
+      extension with LOCAL_INFERENCE_BASE_URL/API_KEY/MAX_CONCURRENCY, session
+      health probe, explicit handoff validation, and queueing cap per D2/D5; expose
+      probe status to the roadmap policy engine; extend smoke_provider_dispatch
+      with the `local` selector. TDD: tests 3.1/4.1 precede implementations
+      3.2/3.3/4.2.
+    role: implementer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/autopilot/scripts/provider_dispatch.py"
+        - "skills/autopilot/scripts/pi_local_provider.ts"
+        - "skills/autopilot/scripts/smoke_provider_dispatch.py"
+        - "skills/autopilot-roadmap/scripts/policy.py"
+      keys:
+        - "feature:add-local-model-provider-tier:dispatch"
+      ttl_minutes: 120
+      reason: "Local provider dispatch adapter and smoke path"
+    scope:
+      write_allow:
+        - "skills/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+    worktree:
+      name: local-tier-wp-dispatch
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Skills-side dispatch tests pass (adapter, fallback, cap, smoke selector)"
+          kind: command
+          command: "skills/.venv/bin/pytest skills/autopilot/scripts/tests/ -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "dispatch_tests_pass"
+    metadata:
+      loc_estimate: 350
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "dispatch_tests_pass"
+
+  # ── wp-integration — docs, merge, full quality gates (tasks 4.3–4.4)
+  - package_id: wp-integration
+    title: "Integration: docs, merge, full quality gates"
+    task_type: integration
+    description: |
+      Tasks 4.3–4.4: update operator docs (phase-archetype resolution guide,
+      provider smoke guide); merge wp-coordinator and wp-dispatch branches; run
+      full quality gates (pytest, mypy --strict, ruff) across agent-coordinator
+      and skills venvs.
+    role: integrator
+    priority: 3
+    depends_on:
+      - wp-coordinator
+      - wp-dispatch
+    locks:
+      files: []
+      keys:
+        - "feature:add-local-model-provider-tier:integration"
+      ttl_minutes: 120
+      reason: "Feature-level integration and quality gates"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+    worktree:
+      name: local-tier-wp-integration
+      mode: shared
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Full test suites green in both venvs"
+          kind: command
+          command: "bash -c 'agent-coordinator/.venv/bin/pytest agent-coordinator/tests -q -m \"not e2e and not integration\" && skills/.venv/bin/pytest skills -q'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "quality_gates_pass"
+    metadata:
+      loc_estimate: 100
+      complexity: low
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "quality_gates_pass"

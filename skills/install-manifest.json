@@ -129,7 +129,9 @@
       "coordination-bridge"
     ],
     "setup-coordinator": [
-      "coordination-bridge"
+      "coordination-bridge",
+      "parallel-infrastructure",
+      "project-context-runtime"
     ],
     "supervise": [
       "plan-roadmap",
@@ -152,6 +154,10 @@
     ],
     "vendor-status": [
       "parallel-infrastructure"
+    ],
+    "vision": [
+      "shared",
+      "worktree"
     ]
   },
   "skills": {
@@ -363,11 +369,20 @@
     "vendor-status": {
       "distribution": "portable"
     },
+    "vision": {
+      "distribution": "portable"
+    },
     "worktree": {
       "distribution": "portable"
     }
   },
   "smoke_entrypoints": [
+    {
+      "path": "setup-coordinator/scripts/setup_coordinator.py",
+      "args": [
+        "--help"
+      ]
+    },
     {
       "path": "merge-pull-requests/scripts/discover_prs.py",
       "args": [

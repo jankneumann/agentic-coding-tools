@@ -1,0 +1,79 @@
+{
+  "findings": [
+    {
+      "axis": "security",
+      "criticality": "low",
+      "description": "ZAP reported informational cacheability on three public 404 responses; no high-threshold DAST finding was present.",
+      "disposition": "accept",
+      "id": 1,
+      "resolution": "Classified below the configured high security threshold; raw ZAP report SHA-256 ff472256a4c18ca0a4dbb2433f0a9332adcf78393fed7a47c27d4dea8cb70aeb.",
+      "severity": "fyi",
+      "type": "security"
+    },
+    {
+      "axis": "architecture",
+      "criticality": "medium",
+      "description": "Structural size lint reported three advisory file-size nits and no blocking architecture finding.",
+      "disposition": "accept",
+      "id": 2,
+      "resolution": "The canonical skill pre-existed the limit; the helper and literal bash/zsh tests remain on the exact prerequisite surfaces and were independently reviewed clean.",
+      "severity": "nit",
+      "type": "architecture"
+    },
+    {
+      "axis": "security",
+      "criticality": "critical",
+      "description": "OWASP Dependency-Check reports GHSA-5xrq-8626-4rwp against vitest 3.2.4 at critical severity (CVSS 9.8).",
+      "disposition": "escalate",
+      "id": 3,
+      "resolution": "Unresolved baseline dependency finding; the configured high-threshold security gate blocks merge.",
+      "severity": "critical",
+      "type": "security"
+    },
+    {
+      "axis": "security",
+      "criticality": "high",
+      "description": "OWASP Dependency-Check reports two high-severity Nano ID findings against nanoid 3.3.12 (GHSA-28wg-ghj8-5hjv and GHSA-2v37-7h3g-55p8).",
+      "disposition": "escalate",
+      "id": 4,
+      "resolution": "Unresolved baseline dependency findings; the configured high-threshold security gate blocks merge.",
+      "severity": "critical",
+      "type": "security"
+    },
+    {
+      "axis": "security",
+      "criticality": "high",
+      "description": "OWASP Dependency-Check reports GHSA-r28c-9q8g-f849 against postcss 8.5.14 at high severity (CVSS 7.5).",
+      "disposition": "escalate",
+      "id": 5,
+      "resolution": "Unresolved baseline dependency finding; the configured high-threshold security gate blocks merge.",
+      "severity": "critical",
+      "type": "security"
+    },
+    {
+      "axis": "security",
+      "criticality": "high",
+      "description": "OWASP Dependency-Check reports GHSA-fx2h-pf6j-xcff against vite 6.4.2 at high severity (CVSS 7.5).",
+      "disposition": "escalate",
+      "id": 6,
+      "resolution": "Unresolved baseline dependency finding; the configured high-threshold security gate blocks merge.",
+      "severity": "critical",
+      "type": "security"
+    },
+    {
+      "axis": "security",
+      "criticality": "high",
+      "description": "OWASP Dependency-Check reports GHSA-96hv-2xvq-fx4p against ws 8.20.1 at high severity (CVSS 7.5).",
+      "disposition": "escalate",
+      "id": 7,
+      "resolution": "Unresolved baseline dependency finding; the configured high-threshold security gate blocks merge.",
+      "severity": "critical",
+      "type": "security"
+    }
+  ],
+  "review_type": "implementation",
+  "reviewer_vendor": "validate-feature",
+  "target": "validate-feature-findings-gate",
+  "validated_commit": "eb90904edb7842d3e571ac2bc822d4339dbc55a4",
+  "validated_tree": "d63367ce39dc18828cb6ec1f4f6662ad2fb5ac7b"
+}

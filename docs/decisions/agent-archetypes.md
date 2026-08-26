@@ -5,6 +5,61 @@
 
 ---
 
+## 2026-08-16 — add-local-model-provider-tier
+
+### Phase: Implementation
+
+**Served model map strips local roster metadata** — Review F-05: hardware metadata is load-time validation input, not part of the canonical ProviderModelMap contract
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D3)
+
+---
+
+## 2026-08-16 — add-local-model-provider-tier
+
+### Phase: Implementation
+
+**403 refusal declared as OpenAPI delta** — Review F-06: new response shape is a contract change and must be declared in this change's contracts
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D5)
+
+---
+
+## 2026-08-15 — add-local-model-provider-tier
+
+### Phase: Plan
+
+**local is a first-class provider (D1)** — Keeps local a distinct vendor for trust, routing, audit, and rate-limit policy; pi precedent reused
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D1)
+
+---
+
+## 2026-08-15 — add-local-model-provider-tier
+
+### Phase: Plan
+
+**Trust boundary enforced in resolver with audited refusals (D3)** — Prose gates are invisible to unattended loops; coordinator is the single decision point
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D2)
+
+---
+
+## 2026-08-15 — add-local-model-provider-tier
+
+### Phase: Plan
+
+**Hardware matching as machine-checked roster metadata (D4)** — GB10 is bandwidth-bound (~273 GB/s); active-parameter ceiling and dense >=30B rejection enforced at startup, not in comments
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D3)
+
+---
+
 ## 2026-05-16 — 2026-05-16-vendor-neutral-autopilot
 
 ### Phase: Implementation

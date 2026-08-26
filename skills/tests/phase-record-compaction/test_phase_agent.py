@@ -5,7 +5,7 @@ Asserts:
 - The driver-visible result does not include the sub-agent transcript.
 - The standard prompt scaffold (artifacts manifest, incoming PhaseRecord
   JSON, phase task instructions) is assembled and passed to the runner.
-- isolation: "worktree" only for phase == "IMPLEMENT" (D7).
+- isolation: "worktree" for every write-capable phase (D7).
 
 Spec reference: skill-workflow / Autopilot Phase Sub-Agent Isolation —
 all scenarios.
@@ -16,6 +16,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from typing import Any
+
+import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -132,38 +134,51 @@ class TestPromptScaffold:
 
 
 class TestWorktreeIsolation:
-    """isolation: worktree only for IMPLEMENT (D7)."""
+    """Every write-capable phase runs in a managed worktree (D7).
 
-    def test_implement_uses_worktree_isolation(self) -> None:
+    Written when ``_WORKTREE_PHASES`` was literally ``{"IMPLEMENT"}``, so the
+    original form of this class asserted that IMPL_REVIEW and VALIDATE ran in
+    the shared checkout. The set was since broadened on purpose -- those phases
+    write review checkpoints and validation evidence, and the repo rule is that
+    a mutating phase never touches the shared checkout. Nothing caught the stale
+    assertions because no CI invocation reached this directory.
+
+    The parametrization below covers *every* phase, not just the interesting
+    ones, so adding a phase to (or removing one from) ``_WORKTREE_PHASES`` has
+    to be a deliberate edit here rather than a silent behavior change.
+    """
+
+    # (phase, isolated) — isolated=False only for phases that genuinely write
+    # nothing into the checkout: INIT reads state, GATEKEEPER evaluates signals,
+    # SUBMIT_PR operates on an already-committed branch.
+    @pytest.mark.parametrize(
+        ("phase", "isolated"),
+        [
+            ("INIT", False),
+            ("GATEKEEPER", False),
+            ("SUBMIT_PR", False),
+            ("PLAN", True),
+            ("PLAN_ITERATE", True),
+            ("PLAN_REVIEW", True),
+            ("PLAN_FIX", True),
+            ("IMPLEMENT", True),
+            ("IMPL_ITERATE", True),
+            ("IMPL_REVIEW", True),
+            ("IMPL_FIX", True),
+            ("VALIDATE", True),
+            ("VAL_REVIEW", True),
+            ("VAL_FIX", True),
+        ],
+    )
+    def test_isolation_matches_write_capability(
+        self, phase: str, isolated: bool
+    ) -> None:
         runner = _CapturingRunner()
         run_phase_subagent(
-            phase="IMPLEMENT",
+            phase=phase,
             state_dict={"change_id": "ch-1"},
             incoming_handoff=_incoming(),
             subagent_runner=runner,
         )
         opts = runner.calls[0]["options"]
-        assert opts.get("isolation") == "worktree"
-
-    def test_impl_review_runs_in_shared_checkout(self) -> None:
-        runner = _CapturingRunner()
-        run_phase_subagent(
-            phase="IMPL_REVIEW",
-            state_dict={"change_id": "ch-1"},
-            incoming_handoff=_incoming(),
-            subagent_runner=runner,
-        )
-        opts = runner.calls[0]["options"]
-        # IMPL_REVIEW is read-mostly; no worktree isolation
-        assert opts.get("isolation") != "worktree"
-
-    def test_validate_runs_in_shared_checkout(self) -> None:
-        runner = _CapturingRunner()
-        run_phase_subagent(
-            phase="VALIDATE",
-            state_dict={"change_id": "ch-1"},
-            incoming_handoff=_incoming(),
-            subagent_runner=runner,
-        )
-        opts = runner.calls[0]["options"]
-        assert opts.get("isolation") != "worktree"
+        assert (opts.get("isolation") == "worktree") is isolated

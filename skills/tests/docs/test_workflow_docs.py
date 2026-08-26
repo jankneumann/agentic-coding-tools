@@ -20,6 +20,12 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SKILLS_WORKFLOW_DOC = REPO_ROOT / "docs" / "skills-workflow.md"
 CLAUDE_MD = REPO_ROOT / "CLAUDE.md"
+#: Since `5fe437b1 feat(context): restructure CLAUDE.md into TOC + topic docs`,
+#: CLAUDE.md is a table of contents and the workflow diagram it used to inline
+#: lives here. The invariant these tests hold is unchanged -- an operator who
+#: starts at CLAUDE.md can reach /prototype-feature -- but it is now satisfied
+#: by a link plus a diagram in two files rather than by one file.
+WORKFLOW_GUIDE = REPO_ROOT / "docs" / "guides" / "workflow.md"
 
 
 @pytest.fixture(scope="module")
@@ -30,6 +36,11 @@ def workflow_doc() -> str:
 @pytest.fixture(scope="module")
 def claude_md() -> str:
     return CLAUDE_MD.read_text()
+
+
+@pytest.fixture(scope="module")
+def workflow_guide() -> str:
+    return WORKFLOW_GUIDE.read_text()
 
 
 class TestSkillsWorkflowDocReferencesPrototypeFeature:
@@ -92,32 +103,48 @@ class TestSkillsWorkflowDocPrinciple:
 
 
 class TestClaudeMdWorkflowDiagramUpdated:
-    def test_prototype_feature_in_claude_md_workflow(
-        self, claude_md: str
-    ) -> None:
-        assert "/prototype-feature" in claude_md, (
-            "CLAUDE.md workflow diagram must reference /prototype-feature"
+    """The CLAUDE.md -> workflow-diagram chain must still reach the prototype stage.
+
+    CLAUDE.md no longer inlines the diagram, so "is it in CLAUDE.md" is the
+    wrong question; asking it let these tests pass vacuously right up until
+    they were first run. The reader's path is what matters: CLAUDE.md must
+    link to the guide, and the guide must carry the references in order.
+    """
+
+    def test_claude_md_links_to_the_workflow_guide(self, claude_md: str) -> None:
+        # Without this link the guide is unreachable from the entry point and
+        # the two tests below would be checking an orphaned file.
+        assert "docs/guides/workflow.md" in claude_md, (
+            "CLAUDE.md must link to docs/guides/workflow.md -- it is the "
+            "pointer that replaced the inlined workflow diagram"
         )
 
-    def test_iterate_on_plan_prototype_context_in_claude_md(
-        self, claude_md: str
+    def test_prototype_feature_in_workflow_diagram(
+        self, workflow_guide: str
     ) -> None:
-        assert "--prototype-context" in claude_md, (
-            "CLAUDE.md must reference /iterate-on-plan --prototype-context "
-            "as the convergence mechanism"
+        assert "/prototype-feature" in workflow_guide, (
+            "the workflow diagram must reference /prototype-feature"
+        )
+
+    def test_iterate_on_plan_prototype_context_in_workflow_diagram(
+        self, workflow_guide: str
+    ) -> None:
+        assert "--prototype-context" in workflow_guide, (
+            "the workflow diagram must reference "
+            "/iterate-on-plan --prototype-context as the convergence mechanism"
         )
 
     def test_prototype_step_appears_after_plan_before_implement(
-        self, claude_md: str
+        self, workflow_guide: str
     ) -> None:
-        # Ordering matters — the prototype step is between plan and implement.
+        # Ordering matters -- the prototype step is between plan and implement.
         # If someone accidentally inserts it after implement, it breaks the
         # mental model of "diverge before commit".
-        plan_pos = claude_md.find("/plan-feature")
-        prototype_pos = claude_md.find("/prototype-feature")
-        implement_pos = claude_md.find("/implement-feature")
+        plan_pos = workflow_guide.find("/plan-feature")
+        prototype_pos = workflow_guide.find("/prototype-feature")
+        implement_pos = workflow_guide.find("/implement-feature")
         assert plan_pos != -1 and prototype_pos != -1 and implement_pos != -1
         assert plan_pos < prototype_pos < implement_pos, (
-            "in CLAUDE.md workflow diagram, /prototype-feature must appear "
+            "in the workflow diagram, /prototype-feature must appear "
             "between /plan-feature and /implement-feature"
         )

@@ -12,6 +12,7 @@
         "__future__",
         "logging",
         "os",
+        "re",
         "dataclasses",
         "datetime",
         "pathlib",
@@ -274,6 +275,7 @@
         "refresh_rpc_client",
         "audit",
         "agents_config",
+        "agents_config",
         "audit",
         "logging",
         "logging",
@@ -490,6 +492,7 @@
       "imports": [
         "json",
         "re",
+        "datetime",
         "typing",
         "uuid",
         "asyncpg",
@@ -1343,8 +1346,8 @@
       "name": "__init__",
       "qualified_name": "agents_config.ProviderModelMappingError.__init__",
       "file": "agents_config.py",
-      "line_start": 607,
-      "line_end": 621,
+      "line_start": 693,
+      "line_end": 707,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1359,11 +1362,52 @@
       "docstring": null
     },
     {
+      "name": "__init__",
+      "qualified_name": "agents_config.LocalRosterConfigError.__init__",
+      "file": "agents_config.py",
+      "line_start": 719,
+      "line_end": 728,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "super.__init__",
+        "super"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "agents_config.LocalProviderTrustBoundaryError.__init__",
+      "file": "agents_config.py",
+      "line_start": 739,
+      "line_end": 749,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "tuple",
+        "sorted",
+        "super.__init__",
+        "super",
+        "join"
+      ],
+      "called_by": [],
+      "db_tables": [],
+      "tags": [
+        "dunder"
+      ],
+      "docstring": null
+    },
+    {
       "name": "_default_agents_path",
       "qualified_name": "agents_config._default_agents_path",
       "file": "agents_config.py",
-      "line_start": 628,
-      "line_end": 629,
+      "line_start": 756,
+      "line_end": 757,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1383,8 +1427,8 @@
       "name": "_default_secrets_path",
       "qualified_name": "agents_config._default_secrets_path",
       "file": "agents_config.py",
-      "line_start": 632,
-      "line_end": 633,
+      "line_start": 760,
+      "line_end": 761,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1404,8 +1448,8 @@
       "name": "load_agents_config",
       "qualified_name": "agents_config.load_agents_config",
       "file": "agents_config.py",
-      "line_start": 636,
-      "line_end": 776,
+      "line_start": 764,
+      "line_end": 904,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1450,8 +1494,8 @@
       "name": "_parse_mode",
       "qualified_name": "agents_config.load_agents_config._parse_mode",
       "file": "agents_config.py",
-      "line_start": 708,
-      "line_end": 730,
+      "line_start": 836,
+      "line_end": 858,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1474,8 +1518,8 @@
       "name": "_resolve_api_key_from_openbao",
       "qualified_name": "agents_config._resolve_api_key_from_openbao",
       "file": "agents_config.py",
-      "line_start": 783,
-      "line_end": 831,
+      "line_start": 911,
+      "line_end": 959,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1506,8 +1550,8 @@
       "name": "__init__",
       "qualified_name": "agents_config.DuplicateApiKeyError.__init__",
       "file": "agents_config.py",
-      "line_start": 842,
-      "line_end": 849,
+      "line_start": 970,
+      "line_end": 977,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1525,8 +1569,8 @@
       "name": "get_api_key_identities",
       "qualified_name": "agents_config.get_api_key_identities",
       "file": "agents_config.py",
-      "line_start": 852,
-      "line_end": 900,
+      "line_start": 980,
+      "line_end": 1028,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1550,8 +1594,8 @@
       "name": "mutations",
       "qualified_name": "agents_config.ProfileSyncResult.mutations",
       "file": "agents_config.py",
-      "line_start": 1009,
-      "line_end": 1018,
+      "line_start": 1137,
+      "line_end": 1146,
       "is_async": false,
       "decorators": [
         "property"
@@ -1570,8 +1614,8 @@
       "name": "derive_allowed_operations",
       "qualified_name": "agents_config.derive_allowed_operations",
       "file": "agents_config.py",
-      "line_start": 1021,
-      "line_end": 1050,
+      "line_start": 1149,
+      "line_end": 1178,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1596,8 +1640,8 @@
       "name": "_is_unique_violation",
       "qualified_name": "agents_config._is_unique_violation",
       "file": "agents_config.py",
-      "line_start": 1062,
-      "line_end": 1078,
+      "line_start": 1190,
+      "line_end": 1206,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1619,12 +1663,11 @@
       "name": "_registry_sync_timestamp",
       "qualified_name": "agents_config._registry_sync_timestamp",
       "file": "agents_config.py",
-      "line_start": 1081,
-      "line_end": 1088,
+      "line_start": 1209,
+      "line_end": 1222,
       "is_async": false,
       "decorators": [],
       "calls": [
-        "datetime.now.isoformat",
         "datetime.now"
       ],
       "called_by": [
@@ -1634,14 +1677,14 @@
       "tags": [
         "private"
       ],
-      "docstring": "Value for ``agent_profiles.synced_from_registry_at`` on this write.\n\nMigration 032 added the column so operators can tell registry-projected\nrows from hand-maintained ones; it stays NULL unless the projection\nactually stamps it."
+      "docstring": "Value for ``agent_profiles.synced_from_registry_at`` on this write.\n\nMigration 032 added the column so operators can tell registry-projected\nrows from hand-maintained ones; it stays NULL unless the projection\nactually stamps it.\n\nReturns a ``datetime``, never an ISO string: asyncpg binds TIMESTAMPTZ\nparameters from datetime objects only, and a str here fails every boot\nwhose sync needs a profile write (DataError at bind time) — which the\nmocked-DB tests cannot see because ``FakeDb`` accepts any payload. This\ntook production down on 2026-08-22; the type is load-bearing."
     },
     {
       "name": "_desired_profile_row",
       "qualified_name": "agents_config._desired_profile_row",
       "file": "agents_config.py",
-      "line_start": 1091,
-      "line_end": 1101,
+      "line_start": 1225,
+      "line_end": 1235,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1660,8 +1703,8 @@
       "name": "_profile_drift",
       "qualified_name": "agents_config._profile_drift",
       "file": "agents_config.py",
-      "line_start": 1104,
-      "line_end": 1119,
+      "line_start": 1238,
+      "line_end": 1253,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1683,8 +1726,8 @@
       "name": "_emit_sync_audit",
       "qualified_name": "agents_config._emit_sync_audit",
       "file": "agents_config.py",
-      "line_start": 1122,
-      "line_end": 1164,
+      "line_start": 1256,
+      "line_end": 1298,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -1706,8 +1749,8 @@
       "name": "_sync_assignments",
       "qualified_name": "agents_config._sync_assignments",
       "file": "agents_config.py",
-      "line_start": 1167,
-      "line_end": 1333,
+      "line_start": 1301,
+      "line_end": 1484,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -1730,6 +1773,7 @@
         "result.reassigned.append",
         "previous.get",
         "existing.items",
+        "logger.debug",
         "db.delete",
         "result.unassigned.append",
         "pointed.get"
@@ -1749,8 +1793,8 @@
       "name": "sync_profiles",
       "qualified_name": "agents_config.sync_profiles",
       "file": "agents_config.py",
-      "line_start": 1336,
-      "line_end": 1562,
+      "line_start": 1487,
+      "line_end": 1713,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -1801,8 +1845,8 @@
       "name": "get_mcp_env",
       "qualified_name": "agents_config.get_mcp_env",
       "file": "agents_config.py",
-      "line_start": 1569,
-      "line_end": 1597,
+      "line_start": 1720,
+      "line_end": 1748,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1822,8 +1866,8 @@
       "name": "get_agents_config",
       "qualified_name": "agents_config.get_agents_config",
       "file": "agents_config.py",
-      "line_start": 1607,
-      "line_end": 1620,
+      "line_start": 1758,
+      "line_end": 1771,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1844,8 +1888,8 @@
       "name": "get_agent_config",
       "qualified_name": "agents_config.get_agent_config",
       "file": "agents_config.py",
-      "line_start": 1623,
-      "line_end": 1628,
+      "line_start": 1774,
+      "line_end": 1779,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1863,8 +1907,8 @@
       "name": "reset_agents_config",
       "qualified_name": "agents_config.reset_agents_config",
       "file": "agents_config.py",
-      "line_start": 1631,
-      "line_end": 1634,
+      "line_start": 1782,
+      "line_end": 1785,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -1877,8 +1921,8 @@
       "name": "get_dispatch_configs",
       "qualified_name": "agents_config.get_dispatch_configs",
       "file": "agents_config.py",
-      "line_start": 1641,
-      "line_end": 1702,
+      "line_start": 1792,
+      "line_end": 1853,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1899,8 +1943,8 @@
       "name": "get_agent_isolation",
       "qualified_name": "agents_config.get_agent_isolation",
       "file": "agents_config.py",
-      "line_start": 1709,
-      "line_end": 1718,
+      "line_start": 1860,
+      "line_end": 1869,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1915,8 +1959,8 @@
       "name": "_default_archetypes_path",
       "qualified_name": "agents_config._default_archetypes_path",
       "file": "agents_config.py",
-      "line_start": 1725,
-      "line_end": 1726,
+      "line_start": 1876,
+      "line_end": 1877,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1933,11 +1977,62 @@
       "docstring": null
     },
     {
+      "name": "_as_positive_number",
+      "qualified_name": "agents_config._as_positive_number",
+      "file": "agents_config.py",
+      "line_start": 1880,
+      "line_end": 1884,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "isinstance",
+        "float"
+      ],
+      "called_by": [
+        "agents_config._validate_local_roster"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Return *value* as a float when it is a positive, non-boolean number."
+    },
+    {
+      "name": "_validate_local_roster",
+      "qualified_name": "agents_config._validate_local_roster",
+      "file": "agents_config.py",
+      "line_start": 1887,
+      "line_end": 2006,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "raw_aliases.get",
+        "_as_positive_number",
+        "host_class.get",
+        "LocalRosterConfigError",
+        "list",
+        "roster.items",
+        "isinstance",
+        "sorted",
+        "_REVIEWED_DATE_RE.match",
+        "date.fromisoformat"
+      ],
+      "called_by": [
+        "agents_config.load_archetypes_config"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "docstring": "Validate the `local` roster against its host class (design D4).\n\nNo-op unless ``model_aliases.local`` exists — nothing requires the local\nprovider to be configured. When it does exist, every entry must use the\nextended form and satisfy both hardware rules, or startup fails with a\n:class:`LocalRosterConfigError` naming the rule.\n\nContract: ``contracts/local-roster-entry.schema.json``."
+    },
+    {
       "name": "load_archetypes_config",
       "qualified_name": "agents_config.load_archetypes_config",
       "file": "agents_config.py",
-      "line_start": 1729,
-      "line_end": 1818,
+      "line_start": 2009,
+      "line_end": 2099,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1948,8 +2043,9 @@
         "yaml.safe_load",
         "ValueError",
         "validate",
-        "_normalize_provider_model_map",
+        "_validate_local_roster",
         "raw.get",
+        "_normalize_provider_model_map",
         "raw.items",
         "data.get",
         "EscalationConfig",
@@ -1978,8 +2074,8 @@
       "name": "get_archetype",
       "qualified_name": "agents_config.get_archetype",
       "file": "agents_config.py",
-      "line_start": 1826,
-      "line_end": 1837,
+      "line_start": 2107,
+      "line_end": 2118,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -1999,8 +2095,8 @@
       "name": "get_phase_mapping",
       "qualified_name": "agents_config.get_phase_mapping",
       "file": "agents_config.py",
-      "line_start": 1840,
-      "line_end": 1849,
+      "line_start": 2121,
+      "line_end": 2130,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2015,8 +2111,8 @@
       "name": "reset_archetypes_config",
       "qualified_name": "agents_config.reset_archetypes_config",
       "file": "agents_config.py",
-      "line_start": 1852,
-      "line_end": 1857,
+      "line_start": 2133,
+      "line_end": 2138,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -2026,17 +2122,63 @@
       "docstring": "Reset the global archetypes + phase_mapping caches (for testing)."
     },
     {
+      "name": "_served_local_roster",
+      "qualified_name": "agents_config._served_local_roster",
+      "file": "agents_config.py",
+      "line_start": 2141,
+      "line_end": 2167,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "isinstance",
+        "roster.items",
+        "entry.get"
+      ],
+      "called_by": [
+        "agents_config._with_served_local_roster"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "docstring": "Reduce a `local` roster to the tier-entry shape the contract serves.\n\n``archetypes.yaml`` carries hardware metadata (``total_params_b``,\n``active_params_b``, ``reviewed``) on every `local` entry so\n:func:`_validate_local_roster` can enforce the MoE-first rule at startup.\nThat metadata is load-time *validation input*, not part of the provider\nmodel map: ``openspec/schemas/provider-model-map.schema.json`` admits only\na bare model id or ``{model, thinking}`` per tier, so it is dropped here\nrather than leaking into every consumer of the served map."
+    },
+    {
+      "name": "_with_served_local_roster",
+      "qualified_name": "agents_config._with_served_local_roster",
+      "file": "agents_config.py",
+      "line_start": 2170,
+      "line_end": 2181,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "_served_local_roster"
+      ],
+      "called_by": [
+        "agents_config._normalize_provider_model_map"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Return *providers* with the `local` roster stripped to tier entries.\n\nEvery other provider passes through untouched — resolution output for\npre-existing providers must stay byte-identical (design D6)."
+    },
+    {
       "name": "_normalize_provider_model_map",
       "qualified_name": "agents_config._normalize_provider_model_map",
       "file": "agents_config.py",
-      "line_start": 1860,
-      "line_end": 1884,
+      "line_start": 2184,
+      "line_end": 2211,
       "is_async": false,
       "decorators": [],
       "calls": [
         "list",
+        "_with_served_local_roster",
         "dict",
         "DEFAULT_PROVIDER_MODEL_MAP.items",
+        "raw_map.get",
+        "isinstance",
         "raw_map.items"
       ],
       "called_by": [
@@ -2046,7 +2188,8 @@
       ],
       "db_tables": [],
       "tags": [
-        "private"
+        "private",
+        "db_access"
       ],
       "docstring": "Return a schema-shaped provider model map.\n\n``archetypes.yaml`` stores only the ``model_aliases`` provider object for\nreadability, while tests and contracts use the full schema shape."
     },
@@ -2054,8 +2197,8 @@
       "name": "get_provider_model_map",
       "qualified_name": "agents_config.get_provider_model_map",
       "file": "agents_config.py",
-      "line_start": 1887,
-      "line_end": 1891,
+      "line_start": 2214,
+      "line_end": 2218,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2073,8 +2216,8 @@
       "name": "_tier_entry_to_spec",
       "qualified_name": "agents_config._tier_entry_to_spec",
       "file": "agents_config.py",
-      "line_start": 1894,
-      "line_end": 1906,
+      "line_start": 2221,
+      "line_end": 2233,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2083,6 +2226,7 @@
         "entry.get"
       ],
       "called_by": [
+        "agents_config._best_defined_tier",
         "agents_config.resolve_provider_model_spec"
       ],
       "db_tables": [],
@@ -2093,11 +2237,33 @@
       "docstring": "Coerce a provider-map tier entry (string or object form) to a spec."
     },
     {
+      "name": "_best_defined_tier",
+      "qualified_name": "agents_config._best_defined_tier",
+      "file": "agents_config.py",
+      "line_start": 2236,
+      "line_end": 2242,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "_tier_entry_to_spec",
+        "provider_map.get"
+      ],
+      "called_by": [
+        "agents_config.resolve_provider_model_spec"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private",
+        "db_access"
+      ],
+      "docstring": "Return the highest tier this provider actually defines, if any."
+    },
+    {
       "name": "resolve_provider_model_spec",
       "qualified_name": "agents_config.resolve_provider_model_spec",
       "file": "agents_config.py",
-      "line_start": 1909,
-      "line_end": 1959,
+      "line_start": 2245,
+      "line_end": 2323,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2112,6 +2278,8 @@
         "_tier_entry_to_spec",
         "provider_map.get",
         "logger.info",
+        "_best_defined_tier",
+        "reasons.append",
         "provider_map.values"
       ],
       "called_by": [
@@ -2125,14 +2293,14 @@
       "tags": [
         "db_access"
       ],
-      "docstring": "Resolve a logical/legacy model value for *provider* to a ModelSpec.\n\nWithout a provider, the source model passes through with no thinking\nlevel. With a provider, logical tiers and legacy Claude aliases are\ntranslated through the provider map. Exact provider-specific model IDs\nalready present in that provider's mapping are accepted as explicit\naliases (their tier's thinking level applies)."
+      "docstring": "Resolve a logical/legacy model value for *provider* to a ModelSpec.\n\nWithout a provider, the source model passes through with no thinking\nlevel. With a provider, logical tiers and legacy Claude aliases are\ntranslated through the provider map. Exact provider-specific model IDs\nalready present in that provider's mapping are accepted as explicit\naliases (their tier's thinking level applies).\n\nWhen *reasons* is supplied, tier degradations beyond the pre-existing\noptional-tier fallback are appended to it so callers can surface them."
     },
     {
       "name": "resolve_provider_model",
       "qualified_name": "agents_config.resolve_provider_model",
       "file": "agents_config.py",
-      "line_start": 1962,
-      "line_end": 1975,
+      "line_start": 2326,
+      "line_end": 2339,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2147,8 +2315,8 @@
       "name": "compose_prompt",
       "qualified_name": "agents_config.compose_prompt",
       "file": "agents_config.py",
-      "line_start": 1982,
-      "line_end": 1991,
+      "line_start": 2346,
+      "line_end": 2355,
       "is_async": false,
       "decorators": [],
       "calls": [],
@@ -2161,8 +2329,8 @@
       "name": "_unique_dir_prefixes",
       "qualified_name": "agents_config._unique_dir_prefixes",
       "file": "agents_config.py",
-      "line_start": 1998,
-      "line_end": 2014,
+      "line_start": 2362,
+      "line_end": 2378,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2187,8 +2355,8 @@
       "name": "resolve_model",
       "qualified_name": "agents_config.resolve_model",
       "file": "agents_config.py",
-      "line_start": 2017,
-      "line_end": 2053,
+      "line_start": 2381,
+      "line_end": 2417,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2203,8 +2371,8 @@
       "name": "_resolve_model_spec",
       "qualified_name": "agents_config._resolve_model_spec",
       "file": "agents_config.py",
-      "line_start": 2056,
-      "line_end": 2114,
+      "line_start": 2420,
+      "line_end": 2482,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2232,8 +2400,8 @@
       "name": "_finalize",
       "qualified_name": "agents_config._resolve_model_spec._finalize",
       "file": "agents_config.py",
-      "line_start": 2065,
-      "line_end": 2077,
+      "line_start": 2429,
+      "line_end": 2445,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2252,8 +2420,8 @@
       "name": "resolve_archetype_for_phase",
       "qualified_name": "agents_config.resolve_archetype_for_phase",
       "file": "agents_config.py",
-      "line_start": 2122,
-      "line_end": 2208,
+      "line_start": 2490,
+      "line_end": 2596,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -2263,6 +2431,9 @@
         "mapping.keys",
         "get_archetype",
         "RuntimeError",
+        "LocalProviderTrustBoundaryError",
+        "boundary_reasons.append",
+        "join",
         "ValueError",
         "items",
         "_resolve_model_spec",
@@ -2272,7 +2443,7 @@
       "called_by": [],
       "db_tables": [],
       "tags": [],
-      "docstring": "Resolve archetype, model, and system_prompt for an autopilot phase.\n\nLooks up *phase* in the ``phase_mapping`` section of ``archetypes.yaml``,\nresolves the configured archetype, and runs the standard escalation\npipeline against *signals* (filtered to the keys listed in the phase\nentry's ``signals`` field — unknown keys are silently dropped).\n\nArgs:\n    phase: One of the 13 non-terminal autopilot phase names.\n    signals: Free-form signal dict from the caller; only keys listed in\n        the phase entry's ``signals`` are used for escalation.\n\nReturns:\n    A :class:`ResolvedArchetype` carrying the model, system prompt,\n    archetype name, and a reasons trace.\n\nRaises:\n    KeyError: If *phase* is not present in ``phase_mapping``.\n    RuntimeError: If the cached archetypes config has been mutated such\n        that the phase entry's archetype reference is no longer valid."
+      "docstring": "Resolve archetype, model, and system_prompt for an autopilot phase.\n\nLooks up *phase* in the ``phase_mapping`` section of ``archetypes.yaml``,\nresolves the configured archetype, and runs the standard escalation\npipeline against *signals* (filtered to the keys listed in the phase\nentry's ``signals`` field — unknown keys are silently dropped).\n\nArgs:\n    phase: One of the 13 non-terminal autopilot phase names.\n    signals: Free-form signal dict from the caller; only keys listed in\n        the phase entry's ``signals`` are used for escalation.\n\nReturns:\n    A :class:`ResolvedArchetype` carrying the model, system prompt,\n    archetype name, and a reasons trace.\n\nRaises:\n    KeyError: If *phase* is not present in ``phase_mapping``.\n    RuntimeError: If the cached archetypes config has been mutated such\n        that the phase entry's archetype reference is no longer valid.\n    LocalProviderTrustBoundaryError: If *provider* is ``local`` and the\n        phase's archetype is outside :data:`LOCAL_TRUSTED_ARCHETYPES`\n        (design D3) — raised before any model resolution or dispatch."
     },
     {
       "name": "__init__",
@@ -2760,6 +2931,7 @@
         "coordination_api.create_coordination_api.query_audit",
         "coordination_api.create_coordination_api.merge_train_metrics_endpoint",
         "coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint",
+        "coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit",
         "coordination_api.create_coordination_api.patch_issue_labels",
         "coordination_api.create_coordination_api.force_release_lock",
         "coordination_api.create_coordination_api.kick_agent",
@@ -6009,7 +6181,7 @@
       "qualified_name": "coordination_api.create_coordination_api",
       "file": "coordination_api.py",
       "line_start": 571,
-      "line_end": 3496,
+      "line_end": 3526,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -6167,11 +6339,12 @@
         "audit.query",
         "sum",
         "get",
-        "_resolve",
         "get_audit_service.log_operation",
         "principal.get",
         "_logging.getLogger.debug",
         "_logging.getLogger",
+        "_resolve",
+        "_audit",
         "metadata.get",
         "isinstance",
         "get_discovery_service",
@@ -7573,21 +7746,22 @@
       "qualified_name": "coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint",
       "file": "coordination_api.py",
       "line_start": 2247,
-      "line_end": 2317,
+      "line_end": 2347,
       "is_async": true,
       "decorators": [
         "app.post('/archetypes/resolve_for_phase')"
       ],
       "calls": [
-        "_resolve",
-        "HTTPException",
-        "str",
         "get_audit_service.log_operation",
         "get_audit_service",
         "principal.get",
         "_logging.getLogger.debug",
         "_logging.getLogger",
-        "list"
+        "_resolve",
+        "HTTPException",
+        "str",
+        "list",
+        "_audit"
       ],
       "called_by": [],
       "db_tables": [],
@@ -7596,14 +7770,41 @@
         "entry_point",
         "db_access"
       ],
-      "docstring": "Resolve archetype + model + system_prompt for an autopilot phase.\n\nSee OpenSpec change `add-per-phase-archetype-resolution`:\n- specs/agent-coordinator/spec.md (Phase Archetype Resolution Endpoint)\n- specs/agent-archetypes/spec.md  (Phase Archetype Resolution Endpoint Contract)\n- contracts/openapi/v1.yaml#/paths/~1archetypes~1resolve_for_phase\n\nAudit: emits a coordination operation `resolve_archetype_for_phase`\nwith phase + resolved {archetype, model} on every successful call."
+      "docstring": "Resolve archetype + model + system_prompt for an autopilot phase.\n\nSee OpenSpec change `add-per-phase-archetype-resolution`:\n- specs/agent-coordinator/spec.md (Phase Archetype Resolution Endpoint)\n- specs/agent-archetypes/spec.md  (Phase Archetype Resolution Endpoint Contract)\n- contracts/openapi/v1.yaml#/paths/~1archetypes~1resolve_for_phase\n\nAudit: emits a coordination operation `resolve_archetype_for_phase`\nwith phase + resolved {archetype, model} on every successful call, and\nthe same operation with ``success=False`` when the `local` provider\ntrust boundary refuses the pairing (add-local-model-provider-tier D3)."
+    },
+    {
+      "name": "_audit",
+      "qualified_name": "coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit",
+      "file": "coordination_api.py",
+      "line_start": 2267,
+      "line_end": 2287,
+      "is_async": true,
+      "decorators": [],
+      "calls": [
+        "get_audit_service.log_operation",
+        "get_audit_service",
+        "principal.get",
+        "_logging.getLogger.debug",
+        "_logging.getLogger"
+      ],
+      "called_by": [
+        "coordination_api.create_coordination_api",
+        "coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint"
+      ],
+      "db_tables": [],
+      "tags": [
+        "async",
+        "private",
+        "db_access"
+      ],
+      "docstring": "Best-effort audit. Failures here MUST NOT block the response."
     },
     {
       "name": "report_status",
       "qualified_name": "coordination_api.create_coordination_api.report_status",
       "file": "coordination_api.py",
-      "line_start": 2324,
-      "line_end": 2410,
+      "line_start": 2354,
+      "line_end": 2440,
       "is_async": true,
       "decorators": [
         "app.post('/status/report')"
@@ -7637,8 +7838,8 @@
       "name": "test_notification",
       "qualified_name": "coordination_api.create_coordination_api.test_notification",
       "file": "coordination_api.py",
-      "line_start": 2417,
-      "line_end": 2451,
+      "line_start": 2447,
+      "line_end": 2481,
       "is_async": true,
       "decorators": [
         "app.post('/notifications/test')"
@@ -7665,8 +7866,8 @@
       "name": "notifications_status",
       "qualified_name": "coordination_api.create_coordination_api.notifications_status",
       "file": "coordination_api.py",
-      "line_start": 2454,
-      "line_end": 2464,
+      "line_start": 2484,
+      "line_end": 2494,
       "is_async": true,
       "decorators": [
         "app.get('/notifications/status')"
@@ -7686,8 +7887,8 @@
       "name": "discovery_register",
       "qualified_name": "coordination_api.create_coordination_api.discovery_register",
       "file": "coordination_api.py",
-      "line_start": 2471,
-      "line_end": 2499,
+      "line_start": 2501,
+      "line_end": 2529,
       "is_async": true,
       "decorators": [
         "app.post('/discovery/register')"
@@ -7710,8 +7911,8 @@
       "name": "discovery_agents",
       "qualified_name": "coordination_api.create_coordination_api.discovery_agents",
       "file": "coordination_api.py",
-      "line_start": 2502,
-      "line_end": 2533,
+      "line_start": 2532,
+      "line_end": 2563,
       "is_async": true,
       "decorators": [
         "app.get('/discovery/agents')"
@@ -7734,8 +7935,8 @@
       "name": "discovery_heartbeat",
       "qualified_name": "coordination_api.create_coordination_api.discovery_heartbeat",
       "file": "coordination_api.py",
-      "line_start": 2536,
-      "line_end": 2560,
+      "line_start": 2566,
+      "line_end": 2590,
       "is_async": true,
       "decorators": [
         "app.post('/discovery/heartbeat')"
@@ -7758,8 +7959,8 @@
       "name": "discovery_cleanup",
       "qualified_name": "coordination_api.create_coordination_api.discovery_cleanup",
       "file": "coordination_api.py",
-      "line_start": 2563,
-      "line_end": 2593,
+      "line_start": 2593,
+      "line_end": 2623,
       "is_async": true,
       "decorators": [
         "app.post('/discovery/cleanup')"
@@ -7782,8 +7983,8 @@
       "name": "gen_eval_list_scenarios",
       "qualified_name": "coordination_api.create_coordination_api.gen_eval_list_scenarios",
       "file": "coordination_api.py",
-      "line_start": 2600,
-      "line_end": 2625,
+      "line_start": 2630,
+      "line_end": 2655,
       "is_async": true,
       "decorators": [
         "app.get('/gen-eval/scenarios')"
@@ -7804,8 +8005,8 @@
       "name": "gen_eval_validate",
       "qualified_name": "coordination_api.create_coordination_api.gen_eval_validate",
       "file": "coordination_api.py",
-      "line_start": 2628,
-      "line_end": 2649,
+      "line_start": 2658,
+      "line_end": 2679,
       "is_async": true,
       "decorators": [
         "app.post('/gen-eval/validate')"
@@ -7828,8 +8029,8 @@
       "name": "gen_eval_create",
       "qualified_name": "coordination_api.create_coordination_api.gen_eval_create",
       "file": "coordination_api.py",
-      "line_start": 2652,
-      "line_end": 2674,
+      "line_start": 2682,
+      "line_end": 2704,
       "is_async": true,
       "decorators": [
         "app.post('/gen-eval/create')"
@@ -7853,8 +8054,8 @@
       "name": "gen_eval_run",
       "qualified_name": "coordination_api.create_coordination_api.gen_eval_run",
       "file": "coordination_api.py",
-      "line_start": 2677,
-      "line_end": 2700,
+      "line_start": 2707,
+      "line_end": 2730,
       "is_async": true,
       "decorators": [
         "app.post('/gen-eval/run')"
@@ -7878,8 +8079,8 @@
       "name": "search_issues",
       "qualified_name": "coordination_api.create_coordination_api.search_issues",
       "file": "coordination_api.py",
-      "line_start": 2707,
-      "line_end": 2720,
+      "line_start": 2737,
+      "line_end": 2750,
       "is_async": true,
       "decorators": [
         "app.post('/issues/search')"
@@ -7903,8 +8104,8 @@
       "name": "ready_issues",
       "qualified_name": "coordination_api.create_coordination_api.ready_issues",
       "file": "coordination_api.py",
-      "line_start": 2723,
-      "line_end": 2739,
+      "line_start": 2753,
+      "line_end": 2769,
       "is_async": true,
       "decorators": [
         "app.post('/issues/ready')"
@@ -7929,8 +8130,8 @@
       "name": "request_permission_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.request_permission_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2749,
-      "line_end": 2781,
+      "line_start": 2779,
+      "line_end": 2811,
       "is_async": true,
       "decorators": [
         "app.post('/permissions/request')"
@@ -7955,8 +8156,8 @@
       "name": "request_approval_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.request_approval_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2788,
-      "line_end": 2824,
+      "line_start": 2818,
+      "line_end": 2854,
       "is_async": true,
       "decorators": [
         "app.post('/approvals/request')"
@@ -7982,8 +8183,8 @@
       "name": "check_approval_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.check_approval_endpoint",
       "file": "coordination_api.py",
-      "line_start": 2827,
-      "line_end": 2852,
+      "line_start": 2857,
+      "line_end": 2882,
       "is_async": true,
       "decorators": [
         "app.get('/approvals/{request_id}')"
@@ -8007,8 +8208,8 @@
       "name": "_database_health",
       "qualified_name": "coordination_api.create_coordination_api._database_health",
       "file": "coordination_api.py",
-      "line_start": 2858,
-      "line_end": 2879,
+      "line_start": 2888,
+      "line_end": 2909,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -8034,8 +8235,8 @@
       "name": "help_overview",
       "qualified_name": "coordination_api.create_coordination_api.help_overview",
       "file": "coordination_api.py",
-      "line_start": 2886,
-      "line_end": 2893,
+      "line_start": 2916,
+      "line_end": 2923,
       "is_async": true,
       "decorators": [
         "app.get('/help')"
@@ -8055,8 +8256,8 @@
       "name": "help_topic",
       "qualified_name": "coordination_api.create_coordination_api.help_topic",
       "file": "coordination_api.py",
-      "line_start": 2896,
-      "line_end": 2916,
+      "line_start": 2926,
+      "line_end": 2946,
       "is_async": true,
       "decorators": [
         "app.get('/help/{topic}')"
@@ -8078,8 +8279,8 @@
       "name": "get_sync_points_status",
       "qualified_name": "coordination_api.create_coordination_api.get_sync_points_status",
       "file": "coordination_api.py",
-      "line_start": 2923,
-      "line_end": 2933,
+      "line_start": 2953,
+      "line_end": 2963,
       "is_async": true,
       "decorators": [
         "app.get('/sync-points/status')"
@@ -8099,8 +8300,8 @@
       "name": "get_active_worktrees",
       "qualified_name": "coordination_api.create_coordination_api.get_active_worktrees",
       "file": "coordination_api.py",
-      "line_start": 2936,
-      "line_end": 2945,
+      "line_start": 2966,
+      "line_end": 2975,
       "is_async": true,
       "decorators": [
         "app.get('/worktrees/active')"
@@ -8122,8 +8323,8 @@
       "name": "mint_events_token",
       "qualified_name": "coordination_api.create_coordination_api.mint_events_token",
       "file": "coordination_api.py",
-      "line_start": 2948,
-      "line_end": 2978,
+      "line_start": 2978,
+      "line_end": 3008,
       "is_async": true,
       "decorators": [
         "app.post('/events/auth')"
@@ -8149,8 +8350,8 @@
       "name": "stream_work_events",
       "qualified_name": "coordination_api.create_coordination_api.stream_work_events",
       "file": "coordination_api.py",
-      "line_start": 2981,
-      "line_end": 3029,
+      "line_start": 3011,
+      "line_end": 3059,
       "is_async": true,
       "decorators": [
         "app.get('/events/work')"
@@ -8181,8 +8382,8 @@
       "name": "patch_issue_labels",
       "qualified_name": "coordination_api.create_coordination_api.patch_issue_labels",
       "file": "coordination_api.py",
-      "line_start": 3032,
-      "line_end": 3081,
+      "line_start": 3062,
+      "line_end": 3111,
       "is_async": true,
       "decorators": [
         "app.patch('/issues/{issue_id}/labels')"
@@ -8216,8 +8417,8 @@
       "name": "force_release_lock",
       "qualified_name": "coordination_api.create_coordination_api.force_release_lock",
       "file": "coordination_api.py",
-      "line_start": 3084,
-      "line_end": 3118,
+      "line_start": 3114,
+      "line_end": 3148,
       "is_async": true,
       "decorators": [
         "app.delete('/locks/{path:path}')"
@@ -8245,8 +8446,8 @@
       "name": "kick_agent",
       "qualified_name": "coordination_api.create_coordination_api.kick_agent",
       "file": "coordination_api.py",
-      "line_start": 3121,
-      "line_end": 3239,
+      "line_start": 3151,
+      "line_end": 3269,
       "is_async": true,
       "decorators": [
         "app.post('/agents/{agent_id}/kick')"
@@ -8285,8 +8486,8 @@
       "name": "put_saved_view",
       "qualified_name": "coordination_api.create_coordination_api.put_saved_view",
       "file": "coordination_api.py",
-      "line_start": 3242,
-      "line_end": 3276,
+      "line_start": 3272,
+      "line_end": 3306,
       "is_async": true,
       "decorators": [
         "app.put('/kanban-viz/saved-views/{slug}')"
@@ -8315,8 +8516,8 @@
       "name": "post_kanban_audit",
       "qualified_name": "coordination_api.create_coordination_api.post_kanban_audit",
       "file": "coordination_api.py",
-      "line_start": 3279,
-      "line_end": 3312,
+      "line_start": 3309,
+      "line_end": 3342,
       "is_async": true,
       "decorators": [
         "app.post('/kanban-viz/audit')"
@@ -8345,8 +8546,8 @@
       "name": "live",
       "qualified_name": "coordination_api.create_coordination_api.live",
       "file": "coordination_api.py",
-      "line_start": 3315,
-      "line_end": 3317,
+      "line_start": 3345,
+      "line_end": 3347,
       "is_async": true,
       "decorators": [
         "app.get('/live')"
@@ -8364,8 +8565,8 @@
       "name": "ready",
       "qualified_name": "coordination_api.create_coordination_api.ready",
       "file": "coordination_api.py",
-      "line_start": 3320,
-      "line_end": 3329,
+      "line_start": 3350,
+      "line_end": 3359,
       "is_async": true,
       "decorators": [
         "app.get('/ready')"
@@ -8386,8 +8587,8 @@
       "name": "health",
       "qualified_name": "coordination_api.create_coordination_api.health",
       "file": "coordination_api.py",
-      "line_start": 3332,
-      "line_end": 3336,
+      "line_start": 3362,
+      "line_end": 3366,
       "is_async": true,
       "decorators": [
         "app.get('/health')"
@@ -8407,8 +8608,8 @@
       "name": "github_prs",
       "qualified_name": "coordination_api.create_coordination_api.github_prs",
       "file": "coordination_api.py",
-      "line_start": 3343,
-      "line_end": 3380,
+      "line_start": 3373,
+      "line_end": 3410,
       "is_async": true,
       "decorators": [
         "app.get('/github/prs')"
@@ -8430,8 +8631,8 @@
       "name": "openspec_proposals",
       "qualified_name": "coordination_api.create_coordination_api.openspec_proposals",
       "file": "coordination_api.py",
-      "line_start": 3383,
-      "line_end": 3425,
+      "line_start": 3413,
+      "line_end": 3455,
       "is_async": true,
       "decorators": [
         "app.get('/openspec/proposals')"
@@ -8455,8 +8656,8 @@
       "name": "code_search_status_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.code_search_status_endpoint",
       "file": "coordination_api.py",
-      "line_start": 3429,
-      "line_end": 3447,
+      "line_start": 3459,
+      "line_end": 3477,
       "is_async": true,
       "decorators": [
         "app.get('/search/code/status')"
@@ -8481,8 +8682,8 @@
       "name": "verify_code_search_principal",
       "qualified_name": "coordination_api.create_coordination_api.verify_code_search_principal",
       "file": "coordination_api.py",
-      "line_start": 3449,
-      "line_end": 3463,
+      "line_start": 3479,
+      "line_end": 3493,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -8503,8 +8704,8 @@
       "name": "search_code_endpoint",
       "qualified_name": "coordination_api.create_coordination_api.search_code_endpoint",
       "file": "coordination_api.py",
-      "line_start": 3466,
-      "line_end": 3494,
+      "line_start": 3496,
+      "line_end": 3524,
       "is_async": true,
       "decorators": [
         "app.post('/search/code')"
@@ -8531,8 +8732,8 @@
       "name": "main",
       "qualified_name": "coordination_api.main",
       "file": "coordination_api.py",
-      "line_start": 3504,
-      "line_end": 3533,
+      "line_start": 3534,
+      "line_end": 3563,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -11584,11 +11785,34 @@
       "docstring": "Reset the global database client (for testing)."
     },
     {
+      "name": "_parse_iso_datetime",
+      "qualified_name": "db_postgres._parse_iso_datetime",
+      "file": "db_postgres.py",
+      "line_start": 32,
+      "line_end": 45,
+      "is_async": false,
+      "decorators": [],
+      "calls": [
+        "_ISO_DT_RE.match",
+        "datetime.fromisoformat",
+        "val.replace"
+      ],
+      "called_by": [
+        "db_postgres._coerce_filter_value",
+        "db_postgres._serialize_for_asyncpg"
+      ],
+      "db_tables": [],
+      "tags": [
+        "private"
+      ],
+      "docstring": "Parse an ISO-8601 timestamp if `val` looks like one.\n\nDatabaseClient callers write TIMESTAMPTZ values as ISO strings so\nthe PostgREST JSON backend can serialize them. asyncpg rejects those\nstrings (`DataError: invalid input for query argument $N`) and\nrequires a datetime instance instead."
+    },
+    {
       "name": "_coerce_filter_value",
       "qualified_name": "db_postgres._coerce_filter_value",
       "file": "db_postgres.py",
-      "line_start": 25,
-      "line_end": 43,
+      "line_start": 48,
+      "line_end": 69,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -11596,7 +11820,8 @@
         "_UUID_RE.match",
         "UUID",
         "int",
-        "float"
+        "float",
+        "_parse_iso_datetime"
       ],
       "called_by": [
         "db_postgres.DirectPostgresClient.query"
@@ -11605,14 +11830,14 @@
       "tags": [
         "private"
       ],
-      "docstring": "Coerce a PostgREST filter string value to the appropriate Python type.\n\nasyncpg requires typed parameters — passing a string for a UUID or int\ncolumn causes a type mismatch error."
+      "docstring": "Coerce a PostgREST filter string value to the appropriate Python type.\n\nasyncpg requires typed parameters — passing a string for a UUID, int,\nor timestamptz column causes a type mismatch error."
     },
     {
       "name": "_validate_identifier",
       "qualified_name": "db_postgres._validate_identifier",
       "file": "db_postgres.py",
-      "line_start": 46,
-      "line_end": 51,
+      "line_start": 72,
+      "line_end": 77,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -11639,8 +11864,8 @@
       "name": "_validate_select_clause",
       "qualified_name": "db_postgres._validate_select_clause",
       "file": "db_postgres.py",
-      "line_start": 54,
-      "line_end": 63,
+      "line_start": 80,
+      "line_end": 89,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -11664,13 +11889,14 @@
       "name": "_serialize_for_asyncpg",
       "qualified_name": "db_postgres._serialize_for_asyncpg",
       "file": "db_postgres.py",
-      "line_start": 66,
-      "line_end": 75,
+      "line_start": 92,
+      "line_end": 109,
       "is_async": false,
       "decorators": [],
       "calls": [
         "isinstance",
-        "json.dumps"
+        "json.dumps",
+        "_parse_iso_datetime"
       ],
       "called_by": [
         "db_postgres.DirectPostgresClient.rpc",
@@ -11681,14 +11907,14 @@
       "tags": [
         "private"
       ],
-      "docstring": "Serialize dict values to JSON strings for asyncpg jsonb columns.\n\nasyncpg requires JSON strings (not Python dicts) when binding\nparameters to jsonb columns. Lists are left as-is because asyncpg\nhandles PostgreSQL array types (TEXT[], etc.) natively."
+      "docstring": "Adapt Python values to asyncpg parameter types.\n\n- dicts become JSON strings for jsonb columns\n- ISO-8601 timestamp strings become datetime for timestamptz columns\n- lists are left as-is (asyncpg handles PostgreSQL arrays natively)\n\nServices emit ISO strings to satisfy the PostgREST JSON contract;\nthis adapter converts them so asyncpg does not raise DataError on\nTIMESTAMPTZ binds (the issue_close completed_at/closed_at path)."
     },
     {
       "name": "__init__",
       "qualified_name": "db_postgres.DirectPostgresClient.__init__",
       "file": "db_postgres.py",
-      "line_start": 85,
-      "line_end": 87,
+      "line_start": 119,
+      "line_end": 121,
       "is_async": false,
       "decorators": [],
       "calls": [
@@ -11705,8 +11931,8 @@
       "name": "_get_pool",
       "qualified_name": "db_postgres.DirectPostgresClient._get_pool",
       "file": "db_postgres.py",
-      "line_start": 89,
-      "line_end": 96,
+      "line_start": 123,
+      "line_end": 130,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -11724,8 +11950,8 @@
       "name": "rpc",
       "qualified_name": "db_postgres.DirectPostgresClient.rpc",
       "file": "db_postgres.py",
-      "line_start": 98,
-      "line_end": 126,
+      "line_start": 132,
+      "line_end": 160,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -11753,8 +11979,8 @@
       "name": "query",
       "qualified_name": "db_postgres.DirectPostgresClient.query",
       "file": "db_postgres.py",
-      "line_start": 128,
-      "line_end": 215,
+      "line_start": 162,
+      "line_end": 249,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -11791,8 +12017,8 @@
       "name": "insert",
       "qualified_name": "db_postgres.DirectPostgresClient.insert",
       "file": "db_postgres.py",
-      "line_start": 217,
-      "line_end": 243,
+      "line_start": 251,
+      "line_end": 277,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -11822,8 +12048,8 @@
       "name": "update",
       "qualified_name": "db_postgres.DirectPostgresClient.update",
       "file": "db_postgres.py",
-      "line_start": 245,
-      "line_end": 285,
+      "line_start": 279,
+      "line_end": 319,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -11853,8 +12079,8 @@
       "name": "delete",
       "qualified_name": "db_postgres.DirectPostgresClient.delete",
       "file": "db_postgres.py",
-      "line_start": 287,
-      "line_end": 307,
+      "line_start": 321,
+      "line_end": 341,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -11880,8 +12106,8 @@
       "name": "close",
       "qualified_name": "db_postgres.DirectPostgresClient.close",
       "file": "db_postgres.py",
-      "line_start": 309,
-      "line_end": 313,
+      "line_start": 343,
+      "line_end": 347,
       "is_async": true,
       "decorators": [],
       "calls": [
@@ -26442,8 +26668,8 @@
       "name": "PollConfig",
       "qualified_name": "agents_config.PollConfig",
       "file": "agents_config.py",
-      "line_start": 440,
-      "line_end": 454,
+      "line_start": 526,
+      "line_end": 540,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26454,8 +26680,8 @@
       "name": "ModeConfig",
       "qualified_name": "agents_config.ModeConfig",
       "file": "agents_config.py",
-      "line_start": 458,
-      "line_end": 463,
+      "line_start": 544,
+      "line_end": 549,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26466,8 +26692,8 @@
       "name": "CliConfig",
       "qualified_name": "agents_config.CliConfig",
       "file": "agents_config.py",
-      "line_start": 467,
-      "line_end": 487,
+      "line_start": 553,
+      "line_end": 573,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26478,8 +26704,8 @@
       "name": "SdkConfig",
       "qualified_name": "agents_config.SdkConfig",
       "file": "agents_config.py",
-      "line_start": 491,
-      "line_end": 504,
+      "line_start": 577,
+      "line_end": 590,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26490,8 +26716,8 @@
       "name": "AgentEntry",
       "qualified_name": "agents_config.AgentEntry",
       "file": "agents_config.py",
-      "line_start": 508,
-      "line_end": 523,
+      "line_start": 594,
+      "line_end": 609,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26502,8 +26728,8 @@
       "name": "EscalationConfig",
       "qualified_name": "agents_config.EscalationConfig",
       "file": "agents_config.py",
-      "line_start": 531,
-      "line_end": 541,
+      "line_start": 617,
+      "line_end": 627,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26514,8 +26740,8 @@
       "name": "ArchetypeConfig",
       "qualified_name": "agents_config.ArchetypeConfig",
       "file": "agents_config.py",
-      "line_start": 545,
-      "line_end": 556,
+      "line_start": 631,
+      "line_end": 642,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26526,8 +26752,8 @@
       "name": "PhaseMappingEntry",
       "qualified_name": "agents_config.PhaseMappingEntry",
       "file": "agents_config.py",
-      "line_start": 560,
-      "line_end": 570,
+      "line_start": 646,
+      "line_end": 656,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26538,8 +26764,8 @@
       "name": "ModelSpec",
       "qualified_name": "agents_config.ModelSpec",
       "file": "agents_config.py",
-      "line_start": 574,
-      "line_end": 584,
+      "line_start": 660,
+      "line_end": 670,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26550,8 +26776,8 @@
       "name": "ResolvedArchetype",
       "qualified_name": "agents_config.ResolvedArchetype",
       "file": "agents_config.py",
-      "line_start": 588,
-      "line_end": 601,
+      "line_start": 674,
+      "line_end": 687,
       "bases": [],
       "methods": [],
       "decorators": [
@@ -26562,8 +26788,36 @@
       "name": "ProviderModelMappingError",
       "qualified_name": "agents_config.ProviderModelMappingError",
       "file": "agents_config.py",
-      "line_start": 604,
-      "line_end": 621,
+      "line_start": 690,
+      "line_end": 707,
+      "bases": [
+        "ValueError"
+      ],
+      "methods": [
+        "__init__"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "LocalRosterConfigError",
+      "qualified_name": "agents_config.LocalRosterConfigError",
+      "file": "agents_config.py",
+      "line_start": 710,
+      "line_end": 728,
+      "bases": [
+        "ValueError"
+      ],
+      "methods": [
+        "__init__"
+      ],
+      "decorators": []
+    },
+    {
+      "name": "LocalProviderTrustBoundaryError",
+      "qualified_name": "agents_config.LocalProviderTrustBoundaryError",
+      "file": "agents_config.py",
+      "line_start": 731,
+      "line_end": 749,
       "bases": [
         "ValueError"
       ],
@@ -26576,8 +26830,8 @@
       "name": "DuplicateApiKeyError",
       "qualified_name": "agents_config.DuplicateApiKeyError",
       "file": "agents_config.py",
-      "line_start": 834,
-      "line_end": 849,
+      "line_start": 962,
+      "line_end": 977,
       "bases": [
         "ValueError"
       ],
@@ -26590,8 +26844,8 @@
       "name": "ProfileSyncError",
       "qualified_name": "agents_config.ProfileSyncError",
       "file": "agents_config.py",
-      "line_start": 982,
-      "line_end": 988,
+      "line_start": 1110,
+      "line_end": 1116,
       "bases": [
         "RuntimeError"
       ],
@@ -26602,8 +26856,8 @@
       "name": "ProfileSyncResult",
       "qualified_name": "agents_config.ProfileSyncResult",
       "file": "agents_config.py",
-      "line_start": 992,
-      "line_end": 1018,
+      "line_start": 1120,
+      "line_end": 1146,
       "bases": [],
       "methods": [
         "mutations"
@@ -28101,8 +28355,8 @@
       "name": "DirectPostgresClient",
       "qualified_name": "db_postgres.DirectPostgresClient",
       "file": "db_postgres.py",
-      "line_start": 78,
-      "line_end": 313,
+      "line_start": 112,
+      "line_end": 347,
       "bases": [],
       "methods": [
         "__init__",
@@ -29944,6 +30198,10 @@
     },
     {
       "from": "agents_config",
+      "to": "re"
+    },
+    {
+      "from": "agents_config",
       "to": "dataclasses"
     },
     {
@@ -30849,6 +31107,10 @@
     {
       "from": "db_postgres",
       "to": "re"
+    },
+    {
+      "from": "db_postgres",
+      "to": "datetime"
     },
     {
       "from": "db_postgres",
@@ -33342,6 +33604,11 @@
       "pattern": "orm"
     },
     {
+      "function": "agents_config._validate_local_roster",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
       "function": "agents_config.load_archetypes_config",
       "tables": [],
       "pattern": "orm"
@@ -33352,7 +33619,22 @@
       "pattern": "orm"
     },
     {
+      "function": "agents_config._served_local_roster",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "agents_config._normalize_provider_model_map",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
       "function": "agents_config._tier_entry_to_spec",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "agents_config._best_defined_tier",
       "tables": [],
       "pattern": "orm"
     },
@@ -33669,6 +33951,11 @@
     },
     {
       "function": "coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint",
+      "tables": [],
+      "pattern": "orm"
+    },
+    {
+      "function": "coordination_api.create_coordination_api.resolve_archetype_for_phase_endpoint._audit",
       "tables": [],
       "pattern": "orm"
     },
@@ -34820,10 +35107,10 @@
     }
   ],
   "summary": {
-    "total_functions": 1079,
-    "total_classes": 248,
+    "total_functions": 1088,
+    "total_classes": 250,
     "total_modules": 77,
-    "async_functions": 435,
+    "async_functions": 436,
     "entry_points": 96,
     "dead_code_candidates": [
       "agents_config.ProfileSyncResult.mutations",
@@ -35348,7 +35635,7 @@
       },
       {
         "name": "audit.get_audit_service",
-        "caller_count": 34
+        "caller_count": 35
       },
       {
         "name": "coordination_api.resolve_identity",

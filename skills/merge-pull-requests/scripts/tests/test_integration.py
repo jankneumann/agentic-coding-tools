@@ -18,10 +18,8 @@ class TestFullMergeLifecycle:
 
     @patch("post_merge_pipeline.monitor_ci_for_rollback")
     @patch("post_merge_pipeline.auto_cascade_rebase")
-    @patch("post_merge_pipeline.emit_event")
     def test_merge_with_pipeline_full_flow(
         self,
-        mock_emit,
         mock_rebase,
         mock_rollback,
     ) -> None:
@@ -56,7 +54,10 @@ class TestFullMergeLifecycle:
 
         assert result["success"] is True
         assert "post_merge" in result
-        assert result["post_merge"]["event_emitted"] is True
+        # Metrics moved out of the pipeline into merge_pr (stubbed above), so
+        # the pipeline result no longer carries an event key. That merge_pr
+        # records the event is asserted in test_merge_pr_records_events.py.
+        assert "event_emitted" not in result["post_merge"]
         mock_rebase.assert_called_once()
         # Rollback is skipped when merge_sha is not in the merge result
         # (gh pr merge doesn't return the merge commit SHA directly)

@@ -117,6 +117,42 @@ def test_resolve_identity_defaults_to_cloud_agent() -> None:
     assert agent_type == "cloud_agent"
 
 
+def test_local_trust_boundary_returns_403_and_failed_audit(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A local-provider refusal is structured, forbidden, and auditable."""
+    from src.agents_config import LocalProviderTrustBoundaryError
+
+    def _refuse(*args: Any, **kwargs: Any) -> None:
+        raise LocalProviderTrustBoundaryError("architect", phase="PLAN")
+
+    audit = AsyncMock()
+    monkeypatch.setattr("src.agents_config.resolve_archetype_for_phase", _refuse)
+    monkeypatch.setattr("src.audit._audit_service", audit)
+
+    response = client.post(
+        "/archetypes/resolve_for_phase",
+        headers=_auth_headers(),
+        json={"phase": "PLAN", "provider": "local", "signals": {}},
+    )
+
+    assert response.status_code == 403
+    detail = response.json()["detail"]
+    assert detail["provider"] == "local"
+    assert detail["archetype"] == "architect"
+    assert set(detail["permitted_archetypes"]) == {
+        "runner",
+        "analyst",
+        "documenter",
+        "validator",
+    }
+    audit.log_operation.assert_awaited_once()
+    call = audit.log_operation.await_args.kwargs
+    assert call["operation"] == "resolve_archetype_for_phase"
+    assert call["success"] is False
+    assert call["result"]["refusal"] == "local_provider_trust_boundary"
+
+
 # =============================================================================
 # Lock endpoint tests
 # =============================================================================

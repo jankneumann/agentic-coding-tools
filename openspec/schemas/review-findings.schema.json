@@ -23,12 +23,17 @@
           "package_id": { "type": "string" },
           "file_path": { "type": "string", "description": "File path the finding relates to (optional, enables cross-vendor matching)" },
           "line_range": {
-            "type": "object",
-            "properties": {
-              "start": { "type": "integer" },
-              "end": { "type": "integer" }
-            },
-            "description": "Line range within file_path (optional)"
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "start": { "type": "integer" },
+                  "end": { "type": "integer" }
+                }
+              },
+              { "type": "string", "pattern": "^\\s*\\d+(\\s*-\\s*\\d+)?\\s*$" }
+            ],
+            "description": "Line range within file_path (optional). Two shapes are accepted, matching consensus_synthesizer._parse_line_range: the canonical object form, and the bare string form ('10' or '10-20') that vendors emit in practice. The parser was widened to accept the string; this schema was not, so the CLI replay path rejected documents the in-process path consumed fine. Keep the two in step."
           },
           "axis": {
             "type": "string",
