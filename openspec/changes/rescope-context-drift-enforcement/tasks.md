@@ -65,55 +65,55 @@ exit codes, then the servo. Each phase is observable before the next enforces on
 
 ## 2. Classify drift as inherited or introduced
 
-- [ ] 2.1 Write a test that base-present drift is attributed inherited — **S**
+- [x] 2.1 Write a test that base-present drift is attributed inherited — **S**
   **Spec scenarios**: Inherited drift names the integration branch as owner
   **Design decisions**: D2, D3
   **Files**: `skills/tests/project-context-refresh/test_gate.py`
   **Dependencies**: None
 
-- [ ] 2.2 Write a test that branch-caused drift is attributed introduced — **S**
+- [x] 2.2 Write a test that branch-caused drift is attributed introduced — **S**
   **Spec scenarios**: Introduced drift is attributed to the branch
   **Files**: `skills/tests/project-context-refresh/test_gate.py`
   **Dependencies**: None
 
-- [ ] 2.3 Write a test that indeterminate attribution resolves to inherited — **XS**
+- [x] 2.3 Write a test that indeterminate attribution resolves to inherited — **XS**
   **Spec scenarios**: Ambiguous attribution errs toward inherited
   **Design decisions**: D2
   **Files**: `skills/tests/project-context-refresh/test_gate.py`
   **Dependencies**: None
 
-- [ ] Checkpoint: confirm the attribution tests fail, and that no existing test broke
+- [x] Checkpoint: confirm the attribution tests fail, and that no existing test broke
 
-- [ ] 2.4 Add a merge-base resolver for the gate — **S**
+- [x] 2.4 Add a merge-base resolver for the gate — **S**
   **Design decisions**: D2
   **Files**: `skills/project-context-refresh/scripts/gate.py`
   **Dependencies**: 2.1, 1.4
   `checkpoint.py:385` already resolves merge bases; reuse its shape rather than a new idiom.
 
-- [ ] 2.5 Attribute findings by path-level ancestry — **M**
+- [x] 2.5 Attribute findings by path-level ancestry — **M**
   **Spec scenarios**: Inherited drift names the integration branch as owner, Introduced drift is attributed to the branch
   **Design decisions**: D2
   **Files**: `skills/project-context-refresh/scripts/gate.py`
   **Dependencies**: 2.2, 2.3, 2.4
   `git diff --name-only <provenance.source_revision>..<merge_base> -- <input_roots>`.
 
-- [ ] 2.6 Annotate each reported finding with its attribution — **S**
+- [x] 2.6 Annotate each reported finding with its attribution — **S**
   **Files**: `skills/project-context-refresh/scripts/gate.py`
   **Dependencies**: 2.5
 
-- [ ] 2.7 Publish the report schema addition for attribution — **S**
+- [x] 2.7 Publish the report schema addition for attribution — **S**
   **Contracts**: `contracts/context-drift-gate.schema.json`
   **Files**: `openspec/schemas/context-drift-gate.schema.json`, `openspec/contracts/project-context-refresh/schemas/context-drift-gate.schema.json`
   **Dependencies**: 2.6
 
-- [ ] 2.8 Confirm classify_degradation stayed pure — **XS**
+- [x] 2.8 Confirm classify_degradation stayed pure — **XS**
   **Design decisions**: D3
   **Files**: `skills/tests/project-context-refresh/test_classify_degradation.py`
   **Dependencies**: 2.5
   `TestPurity` asserts no IO by patching, and `:235` hard-pins the informational set.
   Attribution must live outside that function. Verification only; no production change.
 
-- [ ] Checkpoint: run gate plus classify_degradation suites, review the diff, confirm scope
+- [x] Checkpoint: run gate plus classify_degradation suites, review the diff, confirm scope
 
 ## 3. Make the blocking verdict event-aware
 
