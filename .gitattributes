@@ -18,3 +18,25 @@ uv.lock merge=binary
 package-lock.json merge=binary
 yarn.lock merge=binary
 pnpm-lock.yaml merge=binary
+
+# Generated architecture analysis artifacts — binary merge (pick one side, flag
+# conflict).
+#
+# NOT merge=union. Union merge is line-oriented and knows nothing about document
+# semantics: when two branches both regenerate, it concatenates the two JSON
+# documents line by line. git reports a CLEAN merge (exit 0) and the result is
+# neither valid JSON nor a description of any single revision of the repo, so the
+# breakage surfaces later at whatever reads the artifact rather than at the merge.
+#
+# These are resolver outputs, not mergeable source files. A resolver output is
+# never correctly merged line-wise; the correct resolution is always to take one
+# side and re-run `refresh-architecture`, and binary merge forces exactly that by
+# leaving the path conflicted.
+#
+# graph and diagnostics stay committed and are the ones that conflict most today,
+# so they need this policy most. The enrichment/zones paths are declared too so
+# the policy still holds wherever they are tracked.
+docs/architecture-analysis/architecture.graph.json merge=binary
+docs/architecture-analysis/architecture.diagnostics.json merge=binary
+docs/architecture-analysis/treesitter_enrichment.json merge=binary
+docs/architecture-analysis/parallel_zones.json merge=binary
