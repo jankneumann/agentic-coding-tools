@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the architecture refresh pipeline against an arbitrary target directory.
 
-Three modes:
+Four modes:
 
 * default — exec ``refresh_architecture.sh`` in place (legacy behavior).
 * ``--check`` — read-only, mtime-independent freshness check via architecture
@@ -9,18 +9,23 @@ Three modes:
 * ``--staged`` — deterministic stage → validate → promote → write provenance.
   A failed generation leaves the last known-good committed artifacts intact
   (spec scenarios architecture-refresh.8 and .9).
+* ``--ensure`` — ``--check``, then ``--staged`` only if the check is not fresh.
+  Purely a composition of the other two (D4): it owns no freshness logic, no
+  digest routine and no promotion path, so there is exactly one implementation
+  of each for the two to share.
 """
 
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, TextIO
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 REFRESH_SCRIPT = SCRIPTS_DIR / "refresh_architecture.sh"
@@ -73,6 +78,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "architecture provenance and preserves last known-good on failure."
         ),
     )
+    parser.add_argument(
+        "--ensure",
+        action="store_true",
+        help=(
+            "Check freshness and run the staged refresh only when the check is "
+            "not fresh. Writes nothing on an already-fresh checkout."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -98,12 +111,18 @@ def build_env(args: argparse.Namespace) -> dict[str, str]:
 # --------------------------------------------------------------------------- #
 # Check mode (read-only)
 # --------------------------------------------------------------------------- #
-def run_check(target_dir: Path, *, mode: str) -> int:
-    """Print a JSON freshness report; return 0 only when ``fresh``."""
+def run_check(target_dir: Path, *, mode: str, stream: TextIO | None = None) -> int:
+    """Print a JSON freshness report; return 0 only when ``fresh``.
+
+    *stream* defaults to stdout, which is what ``--check`` has always written
+    to. Ensure mode overrides it so that the report it does not want on stdout
+    (the "why I am about to refresh" one) does not have to be recomputed to be
+    redirected.
+    """
     from arch_utils.provenance import check_freshness
 
     result = check_freshness(target_dir, mode=mode)
-    print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
+    print(json.dumps(result.to_dict(), indent=2, sort_keys=True), file=stream or sys.stdout)
     return 0 if result.is_fresh else 1
 
 
@@ -234,6 +253,28 @@ def run_staged(target_dir: Path, args: argparse.Namespace) -> int:
     return 0
 
 
+# --------------------------------------------------------------------------- #
+# Ensure mode (check, then staged refresh only if needed)
+# --------------------------------------------------------------------------- #
+def run_ensure(target_dir: Path, args: argparse.Namespace, *, mode: str) -> int:
+    """Make the artifacts current, doing nothing if they already are (D4).
+
+    Every byte of behaviour here comes from :func:`run_check` and
+    :func:`run_staged`; the only thing this function decides is which of the two
+    reports belongs on stdout. Fresh means the check report is the answer and no
+    write happens at all. Not fresh means the check report is the *reason*, so it
+    goes to stderr and the staged report — including its exit code — becomes the
+    answer. Callers therefore parse exactly one JSON document either way.
+    """
+    buffered = io.StringIO()
+    if run_check(target_dir, mode=mode, stream=buffered) == 0:
+        sys.stdout.write(buffered.getvalue())
+        return 0
+
+    sys.stderr.write(buffered.getvalue())
+    return run_staged(target_dir, args)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entrypoint."""
     args = parse_args(argv)
@@ -251,6 +292,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not REFRESH_SCRIPT.is_file():
         print(f"ERROR: refresh script not found: {REFRESH_SCRIPT}", file=sys.stderr)
         return 2
+
+    if args.ensure:
+        return run_ensure(target_dir, args, mode=mode)
 
     if args.staged:
         return run_staged(target_dir, args)
