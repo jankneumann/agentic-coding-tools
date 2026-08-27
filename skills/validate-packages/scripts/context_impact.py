@@ -19,7 +19,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
 
 try:
@@ -41,6 +41,18 @@ SURFACES: tuple[str, ...] = (
 )
 
 RULES_FILENAME = "context-impact-rules.yaml"
+
+#: The work-package declaration file. Duplicated from ``gate.py`` rather than
+#: imported, because the dependency runs the other way: ``gate.py`` imports this
+#: module, and this module must stay importable with no gate present.
+WORK_PACKAGES_FILENAME = "work-packages.yaml"
+
+#: Write-scope globs that match every conceivable path. Such a glob does not
+#: *declare* a scope, it declines to: it draws no boundary and so distinguishes
+#: nothing. Mirrors ``BROAD_WRITE_SCOPES`` in
+#: ``skills/autopilot/scripts/complexity_gate.py``, which already treats exactly
+#: this set as a scope-safety concern rather than as a claim.
+BOUNDLESS_WRITE_SCOPES = frozenset({"**", "**/*", "*", ".", "./"})
 
 
 class ContextImpactRulesError(Exception):
@@ -206,6 +218,45 @@ def declared_rationale(package: Mapping[str, Any]) -> Mapping[str, Mapping[str, 
     return block.get("rationale") or {}
 
 
+def carries_a_declaration(changed_files: Sequence[str]) -> bool:
+    """Whether the changed-file list transports a work-package declaration.
+
+    This is the shape the gate always evaluates — it selects a
+    ``work-packages.yaml`` *because* the diff moved or edited it — and it is the
+    shape in which co-presence is least likely to be authorship: a plan commit
+    writes the declaration alongside nothing, and an archive commit moves it
+    alongside whatever else that commit regenerated.
+    """
+    return any(
+        PurePosixPath(path).name == WORK_PACKAGES_FILENAME for path in changed_files
+    )
+
+
+def attributing_globs(
+    write_allow: Sequence[str], changed_files: Sequence[str]
+) -> tuple[str, ...]:
+    """The ``write_allow`` globs that may attribute a path in *changed_files*.
+
+    D6: a changed path is attributed to a work package when that package's
+    *declared* scope covers it. A boundless glob (see
+    ``BOUNDLESS_WRITE_SCOPES``) declares nothing — it covers every path in the
+    repository equally, so a match against it is not evidence about this package
+    at all, only evidence that the path was in the diff. Attribution through it
+    is attribution by co-presence, which is what this function removes.
+
+    It is dropped only when the diff carries a work-package declaration, because
+    that is exactly the case where a diff is known to be transporting
+    declarations rather than reporting one package's own edits. Elsewhere —
+    ri-09's uncommitted checkpoint file lists, and any caller using this module
+    as a plain path classifier — a boundless glob keeps its historical
+    "everything is mine" reading, since there is no other candidate author to
+    confuse it with.
+    """
+    if not carries_a_declaration(changed_files):
+        return tuple(write_allow)
+    return tuple(glob for glob in write_allow if glob not in BOUNDLESS_WRITE_SCOPES)
+
+
 def package_files(
     package: Mapping[str, Any], changed_files: Sequence[str]
 ) -> tuple[str, ...]:
@@ -213,10 +264,16 @@ def package_files(
 
     A package can only invalidate context through files it is allowed to write,
     so files outside ``scope.write_allow`` — or inside ``scope.deny`` — are not
-    its impact to declare.
+    its impact to declare. ``attributing_globs`` further drops a boundless
+    ``write_allow`` when the diff transports work-package declarations: PR #423
+    charged an archived change's ``wp-integration`` with ``decisions`` for five
+    ``docs/decisions/*.md`` files the archive commit itself had regenerated,
+    purely because that package declared ``write_allow: ['**']``.
     """
     scope = package.get("scope") or {}
-    write_allow = tuple(scope.get("write_allow") or ())
+    write_allow = attributing_globs(
+        tuple(scope.get("write_allow") or ()), changed_files
+    )
     deny = tuple(scope.get("deny") or ())
     return tuple(
         path
@@ -261,6 +318,8 @@ __all__ = [
     "ContextImpactRulesError",
     "ImpactRules",
     "IndexScopes",
+    "attributing_globs",
+    "carries_a_declaration",
     "declared_rationale",
     "declared_surfaces",
     "default_rules_path",
