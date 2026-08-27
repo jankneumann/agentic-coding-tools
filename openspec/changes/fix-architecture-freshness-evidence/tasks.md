@@ -87,7 +87,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
 
 ## 2. RPC entry point grounding
 
-- [ ] 2.1 Write a test that the default entry point is provenance-backed — **S**
+- [x] 2.1 Write a test that the default entry point is provenance-backed — **S**
   **Spec scenarios**: architecture-refresh.20
   **Design decisions**: D4 (resolution order), D5 (reset seam)
   **Files**: `skills/refresh-architecture/scripts/tests/test_rpc_server.py`
@@ -95,25 +95,25 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   Assert `reason != "mtime"` and that `source_revision`, `producer_version`,
   `input_fingerprint`, `provenance_path` are non-null when reached via `get_server()`.
 
-- [ ] 2.2 Write a test that elapsed time alone never flips the verdict — **S**
+- [x] 2.2 Write a test that elapsed time alone never flips the verdict — **S**
   **Spec scenarios**: architecture-refresh.21
   **Files**: `skills/refresh-architecture/scripts/tests/test_rpc_server.py`
   **Dependencies**: None
   Backdate the graph mtime well beyond the age threshold with inputs unchanged.
 
-- [ ] 2.3 Write a test that the verdict is independent of the working directory — **S**
+- [x] 2.3 Write a test that the verdict is independent of the working directory — **S**
   **Spec scenarios**: architecture-refresh.22
   **Files**: `skills/refresh-architecture/scripts/tests/test_rpc_server.py`
   **Dependencies**: None
 
-- [ ] 2.4 Add a `reset_server()` seam — **XS**
+- [x] 2.4 Add a `reset_server()` seam — **XS**
   **Design decisions**: D5
   **Files**: `skills/refresh-architecture/scripts/rpc_server.py`
   **Dependencies**: 2.1
 
 - [ ] Checkpoint: run `pytest skills/refresh-architecture/scripts/tests/test_rpc_server.py`, confirm the three new tests fail for the right reason
 
-- [ ] 2.5 Resolve `repo_root` inside `get_server()` — **S**
+- [x] 2.5 Resolve `repo_root` inside `get_server()` — **S**
   **Spec scenarios**: architecture-refresh.20, architecture-refresh.21
   **Design decisions**: D4
   **Files**: `skills/refresh-architecture/scripts/rpc_server.py`
@@ -122,13 +122,13 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   path's directory, then `None`. Legacy mode stays reachable only when no repository
   resolves.
 
-- [ ] 2.6 Resolve the default graph path against the repository — **S**
+- [x] 2.6 Resolve the default graph path against the repository — **S**
   **Spec scenarios**: architecture-refresh.22
   **Design decisions**: D4
   **Files**: `skills/refresh-architecture/scripts/rpc_server.py`
   **Dependencies**: 2.3, 2.5
 
-- [ ] 2.7 Confirm the merge-train probe reports a real drift reason — **XS**
+- [x] 2.7 Confirm the merge-train probe reports a real drift reason — **XS**
   **Spec scenarios**: architecture-refresh.20
   **Files**: `agent-coordinator/tests/test_refresh_rpc_client.py`
   **Dependencies**: 2.5, 2.6
