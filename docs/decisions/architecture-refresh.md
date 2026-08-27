@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-08-27 — fix-architecture-freshness-evidence
+
+### Phase: Implementation
+
+**A relative default graph path anchors at the module file, not the cwd** — Design D4 said anchor `git rev-parse` at the directory containing the resolved graph path, but DEFAULT_GRAPH_PATH is relative, so that directory only exists by way of the cwd -- exactly what scenario .22 forbids. Following D4 literally would have satisfied the decision and violated the spec. A relative path now anchors at the module's own directory, also inside the repository being probed and also cwd-independent; an absolute path still anchors at its own directory.
+
+- Status: `active`
+- Source: [openspec/changes/fix-architecture-freshness-evidence/session-log.md](/openspec/changes/fix-architecture-freshness-evidence/session-log.md) (D1)
+
+---
+
+## 2026-08-27 — fix-architecture-freshness-evidence
+
+### Phase: Implementation
+
+**A legacy-schema record emits both the version mismatch and PROVENANCE_INVALID** — test_architecture_freshness.py::test_schema_invalid_provenance_is_drift writes {schema_version: 1} and asserts the codes intersect {PROVENANCE_INVALID, PROVENANCE_MISSING}. That file is in no package's write_allow and had to keep passing untouched. Emitting both is also simply truthful, and scenario .19's 'SHALL NOT report as artifact drift' is unaffected because neither is an artifact code.
+
+- Status: `active`
+- Source: [openspec/changes/fix-architecture-freshness-evidence/session-log.md](/openspec/changes/fix-architecture-freshness-evidence/session-log.md) (D2)
+
+---
+
+## 2026-08-27 — fix-architecture-freshness-evidence
+
+### Phase: Implementation
+
+**Schema-version mismatch is checked before structural validation** — _published_schema_path() can return None on a trimmed runtime copy. Checking the version independently of validate_provenance means the mismatch is still caught there, instead of going undetected entirely.
+
+- Status: `active`
+- Source: [openspec/changes/fix-architecture-freshness-evidence/session-log.md](/openspec/changes/fix-architecture-freshness-evidence/session-log.md) (D3)
+
+---
+
+## 2026-08-27 — fix-architecture-freshness-evidence
+
+### Phase: Implementation
+
+**The refresh ran with PROJECT_CONTEXT_REPO_ID pinned** — provenance.repository_id() derives identity from the git toplevel basename, which in a worktree is the change directory name. An unpinned run would have stamped 'fix-architecture-freshness-evidence' into a tracked artifact and produced a flip-flop on the next main-checkout refresh. The override is documented in that function's own docstring.
+
+- Status: `active`
+- Source: [openspec/changes/fix-architecture-freshness-evidence/session-log.md](/openspec/changes/fix-architecture-freshness-evidence/session-log.md) (D4)
+
+---
+
 ## 2026-08-26 — fix-architecture-freshness-evidence
 
 ### Phase: Plan

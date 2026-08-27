@@ -29,7 +29,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   **Files**: `skills/refresh-architecture/scripts/tests/test_provenance.py`
   **Dependencies**: None
 
-- [ ] Checkpoint: run the provenance suite, confirm the four new tests fail for the right reason
+- [x] Checkpoint: run the provenance suite, confirm the four new tests fail for the right reason
 
 - [x] 1.5 Publish the v2 provenance schema — **S**
   **Spec scenarios**: architecture-refresh.16
@@ -43,7 +43,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   **Files**: `skills/refresh-architecture/scripts/arch_utils/provenance.py`
   **Dependencies**: 1.4
 
-- [ ] Checkpoint: run `pytest skills/refresh-architecture/scripts/tests skills/tests/refresh-architecture-contracts`, review the diff, confirm scope
+- [x] Checkpoint: run `pytest skills/refresh-architecture/scripts/tests skills/tests/refresh-architecture-contracts`, review the diff, confirm scope
 
 - [x] 1.7 Extend `_OWNED_TOP_LEVEL` entries to carry a tier — **S**
   **Design decisions**: D1, D7 (which artifacts move)
@@ -73,7 +73,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   **Files**: `skills/refresh-architecture/scripts/arch_utils/provenance.py`
   **Dependencies**: 1.6, 1.9
 
-- [ ] Checkpoint: run the provenance suite, review the diff, confirm no file outside `arch_utils/` changed
+- [x] Checkpoint: run the provenance suite, review the diff, confirm no file outside `arch_utils/` changed
 
 - [x] 1.11 Bump `PROVENANCE_SCHEMA_VERSION` to 2 — **XS**
   **Design decisions**: D6
@@ -111,7 +111,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   **Files**: `skills/refresh-architecture/scripts/rpc_server.py`
   **Dependencies**: 2.1
 
-- [ ] Checkpoint: run `pytest skills/refresh-architecture/scripts/tests/test_rpc_server.py`, confirm the three new tests fail for the right reason
+- [x] Checkpoint: run `pytest skills/refresh-architecture/scripts/tests/test_rpc_server.py`, confirm the three new tests fail for the right reason
 
 - [x] 2.5 Resolve `repo_root` inside `get_server()` — **S**
   **Spec scenarios**: architecture-refresh.20, architecture-refresh.21
@@ -135,7 +135,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   Read-only verification that `merge_train_service.py:220`'s caller now receives
   populated provenance fields. No production change expected in this task.
 
-- [ ] Checkpoint: run the rpc_server suite plus `agent-coordinator` refresh-client tests, review the diff
+- [x] Checkpoint: run the rpc_server suite plus `agent-coordinator` refresh-client tests, review the diff
 
 ## 3. Merge hygiene for generated JSON
 
@@ -150,7 +150,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   Cover `architecture.graph.json`, `architecture.diagnostics.json`,
   `treesitter_enrichment.json`, `parallel_zones.json`, following the `uv.lock` precedent.
 
-- [ ] Checkpoint: run `git check-attr merge` on the four paths, review the diff
+- [x] Checkpoint: run `git check-attr merge` on the four paths, review the diff
 
 ## 4. Artifact demotion
 
@@ -166,7 +166,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   **Dependencies**: 4.1, 1.9
   `git rm --cached` only; the files stay on disk and keep being generated.
 
-- [ ] Checkpoint: confirm the three files remain on disk while `git ls-files` no longer lists them
+- [x] Checkpoint: confirm the three files remain on disk while `git ls-files` no longer lists them
 
 - [x] 4.3 Ignore the three local-cache artifacts — **XS**
   **Files**: `.gitignore`
@@ -179,7 +179,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   Run `make architecture-refresh`; the resulting record must show `schema_version: 2`,
   producer `1.3.0`, and `tier` on every artifact entry.
 
-- [ ] Checkpoint: run `make context-drift-gate`, confirm exit 0, review the diff for scope
+- [x] Checkpoint: run `make context-drift-gate`, confirm exit 0, review the diff for scope
 
 ## 5. Integration
 
@@ -189,7 +189,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   Run `install.sh`. Required because `gate-drift-with-mirrors-hooks-and-blocking-ci`
   will fail CI on mirror drift, and every code edit in this change is under `skills/`.
 
-- [ ] 5.2 Verify freshness on a clean clone — **S**
+- [x] 5.2 Verify freshness on a clean clone — **S**
   **Spec scenarios**: architecture-refresh.17
   **Files**: (verification only)
   **Dependencies**: 4.4, 5.1
@@ -201,4 +201,4 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   **Dependencies**: 4.4
   Confirm tracked bytes under `docs/architecture-analysis/` fall by at least 2.76 MB.
 
-- [ ] Checkpoint: full `pytest` for the two touched skills, `openspec validate --strict`, review the cumulative diff
+- [x] Checkpoint: full `pytest` for the two touched skills, `openspec validate --strict`, review the cumulative diff

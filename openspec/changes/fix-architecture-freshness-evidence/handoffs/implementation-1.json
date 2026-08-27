@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-27T03:26:45.554755+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented all 28 tasks across six work packages. The RPC probe now reaches the content-based path, the heavy generated JSON is declared unmergeable, and 2,762,479 bytes of analyzer cache moved to a new provenance local-cache tier. Verified on a real clean clone that absent local-cache artifacts report fresh rather than ARTIFACT_MISSING.",
+    "completed_work": [
+      "wp-contracts: v2 provenance schema published, tier required and enumerated (26 tests)",
+      "wp-provenance: tier-aware check_freshness, new schema-version reason code, both version constants bumped (29 tests)",
+      "wp-rpc: get_server resolves repo_root, graph path resolved against the repository, reset_server seam (24 tests)",
+      "wp-merge-hygiene: four heavy JSON paths declared merge=binary, guarded against a future switch to union (8 tests)",
+      "wp-artifacts: three artifacts untracked and ignored, provenance regenerated at schema 2 (8 tests)",
+      "wp-integration: mirrors verified in sync, ruff clean, clean-clone freshness verified",
+      "Fixed three under-declared context-impact surfaces the gate caught in this change's own work-packages.yaml"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "A relative default graph path anchors at the module file, not the cwd",
+        "rationale": "Design D4 said anchor `git rev-parse` at the directory containing the resolved graph path, but DEFAULT_GRAPH_PATH is relative, so that directory only exists by way of the cwd -- exactly what scenario .22 forbids. Following D4 literally would have satisfied the decision and violated the spec. A relative path now anchors at the module's own directory, also inside the repository being probed and also cwd-independent; an absolute path still anchors at its own directory.",
+        "capability": "architecture-refresh",
+        "supersedes": null
+      },
+      {
+        "title": "A legacy-schema record emits both the version mismatch and PROVENANCE_INVALID",
+        "rationale": "test_architecture_freshness.py::test_schema_invalid_provenance_is_drift writes {schema_version: 1} and asserts the codes intersect {PROVENANCE_INVALID, PROVENANCE_MISSING}. That file is in no package's write_allow and had to keep passing untouched. Emitting both is also simply truthful, and scenario .19's 'SHALL NOT report as artifact drift' is unaffected because neither is an artifact code.",
+        "capability": "architecture-refresh",
+        "supersedes": null
+      },
+      {
+        "title": "Schema-version mismatch is checked before structural validation",
+        "rationale": "_published_schema_path() can return None on a trimmed runtime copy. Checking the version independently of validate_provenance means the mismatch is still caught there, instead of going undetected entirely.",
+        "capability": "architecture-refresh",
+        "supersedes": null
+      },
+      {
+        "title": "The refresh ran with PROJECT_CONTEXT_REPO_ID pinned",
+        "rationale": "provenance.repository_id() derives identity from the git toplevel basename, which in a worktree is the change directory name. An unpinned run would have stamped 'fix-architecture-freshness-evidence' into a tracked artifact and produced a flip-flop on the next main-checkout refresh. The override is documented in that function's own docstring.",
+        "capability": "architecture-refresh",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Validation should confirm the merge train now selects tests rather than falling to full-suite every six hours.",
+      "The four open questions above are all follow-up candidates; none blocks this change."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/refresh-architecture/scripts/arch_utils/provenance.py",
+        "description": "tier-aware freshness, both version constants"
+      },
+      {
+        "path": "skills/refresh-architecture/scripts/rpc_server.py",
+        "description": "repo_root resolution at the production entry point"
+      },
+      {
+        "path": "openspec/schemas/architecture-provenance.schema.json",
+        "description": "v2 contract"
+      },
+      {
+        "path": ".gitattributes",
+        "description": "merge=binary for the heavy generated JSON"
+      }
+    ]
+  }
+}
