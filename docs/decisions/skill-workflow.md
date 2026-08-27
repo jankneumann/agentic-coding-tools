@@ -82,36 +82,36 @@
 
 ---
 
-## 2026-07-26 — add-branch-local-context-checkpoints
+## 2026-07-26 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Implementation
 
 **The trigger decision lives in checkpoint.py, not in workflow prose** — wp-workflow's scope is a SKILL.md plus a test file, and implement-feature has no scripts/ directory -- so its tests had nothing to import. should_checkpoint() gives the decision a real home and keeps the workflow tests asserting against code rather than markdown.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D2)
 
 ---
 
-## 2026-07-25 — add-branch-local-context-checkpoints
+## 2026-07-25 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Plan
 
 **Trigger derives from ri-08 context_impact, not a new size field** — No required size field exists on work packages; loc_estimate, complexity and package_kind are optional hints that most packages omit. Deriving the trigger from declared context-impact surfaces ties it to the thing being reported on and needs no schema change.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D3)
 
 ---
 
-## 2026-07-25 — add-branch-local-context-checkpoints
+## 2026-07-25 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Plan
 
 **Unmigrated packages are reported as unmigrated, not impact-free** — The ri-08 detector returns None for a missing block and an empty frozenset for an explicit empty list. A missing block is absence of evidence; an empty list is an assertion. Collapsing them would let an unmigrated package appear verified.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D4)
 
 ---
 
