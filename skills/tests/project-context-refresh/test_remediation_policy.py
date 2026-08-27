@@ -409,6 +409,44 @@ def test_the_base_is_refreshed_before_anything_is_regenerated() -> None:
     )
 
 
+def test_the_servo_covers_only_the_inexpensive_deterministic_producers() -> None:
+    """The spec excludes the architecture producer by name.
+
+    ``openspec.projection`` is excluded too: it rewrites the canonical spec tree
+    under ``openspec/specs/``, which is the archive's owned sync-point operation,
+    not something a servo performs as a side effect of a version bump.
+    """
+    producers = _servo_job().get("env", {}).get("PRODUCERS", "").split()
+    assert producers == ["api.contracts", "decisions.timeline", "documentation.inventory"], (
+        f"the servo regenerates {producers!r}"
+    )
+
+
+def test_the_committed_paths_are_exactly_the_declared_producer_outputs() -> None:
+    """The workflow lists the output paths; the registry declares them.
+
+    The workflow stages only these paths, so a producer whose declared outputs
+    moved would be regenerated and then silently not committed. Comparing the two
+    here is what lets the workflow carry a readable literal list instead of
+    deriving one at run time.
+    """
+    from registry import list_producers
+
+    env = _servo_job().get("env", {})
+    wanted = set(env.get("PRODUCERS", "").split())
+    declared = {
+        output.rstrip("/")
+        for spec in list_producers()
+        if spec.producer_id in wanted
+        for output in spec.outputs
+    }
+    listed = {path.rstrip("/") for path in env.get("OUTPUT_PATHS", "").split()}
+    assert listed == declared, (
+        f"OUTPUT_PATHS in {_SERVO_JOB!r} is {sorted(listed)}, but the registry "
+        f"declares {sorted(declared)} for {sorted(wanted)}"
+    )
+
+
 def test_one_argv_builder_serves_both_the_write_and_the_check() -> None:
     """Design D5 constraint 2.
 
