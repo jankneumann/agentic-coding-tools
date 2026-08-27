@@ -13,17 +13,17 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   Assert `schema_version` is `const: 2`; assert an artifact entry without `tier` is
   rejected; assert a `tier` outside `{committed, local-cache}` is rejected.
 
-- [ ] 1.2 Write freshness tests for an absent local-cache artifact — **S**
+- [x] 1.2 Write freshness tests for an absent local-cache artifact — **S**
   **Spec scenarios**: architecture-refresh.17
   **Files**: `skills/refresh-architecture/scripts/tests/test_provenance.py`
   **Dependencies**: None
 
-- [ ] 1.3 Write freshness tests for a present-but-modified local-cache artifact — **XS**
+- [x] 1.3 Write freshness tests for a present-but-modified local-cache artifact — **XS**
   **Spec scenarios**: architecture-refresh.18
   **Files**: `skills/refresh-architecture/scripts/tests/test_provenance.py`
   **Dependencies**: None
 
-- [ ] 1.4 Write a freshness test for the legacy schema-version reason code — **XS**
+- [x] 1.4 Write a freshness test for the legacy schema-version reason code — **XS**
   **Spec scenarios**: architecture-refresh.19
   **Design decisions**: D3 (distinct reason code)
   **Files**: `skills/refresh-architecture/scripts/tests/test_provenance.py`
@@ -37,7 +37,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   **Files**: `openspec/schemas/architecture-provenance.schema.json`
   **Dependencies**: 1.1
 
-- [ ] 1.6 Add the `PROVENANCE_SCHEMA_VERSION_MISMATCH` reason code — **XS**
+- [x] 1.6 Add the `PROVENANCE_SCHEMA_VERSION_MISMATCH` reason code — **XS**
   **Spec scenarios**: architecture-refresh.19
   **Design decisions**: D3
   **Files**: `skills/refresh-architecture/scripts/arch_utils/provenance.py`
@@ -45,7 +45,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
 
 - [ ] Checkpoint: run `pytest skills/refresh-architecture/scripts/tests skills/tests/refresh-architecture-contracts`, review the diff, confirm scope
 
-- [ ] 1.7 Extend `_OWNED_TOP_LEVEL` entries to carry a tier — **S**
+- [x] 1.7 Extend `_OWNED_TOP_LEVEL` entries to carry a tier — **S**
   **Design decisions**: D1, D7 (which artifacts move)
   **Files**: `skills/refresh-architecture/scripts/arch_utils/provenance.py`
   **Dependencies**: 1.5
@@ -53,12 +53,12 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   `local-cache` to `treesitter_enrichment.json`, `python_analysis.json`,
   `parallel_zones.json`; `committed` to every other entry.
 
-- [ ] 1.8 Record the tier in `build_provenance` — **S**
+- [x] 1.8 Record the tier in `build_provenance` — **S**
   **Spec scenarios**: architecture-refresh.16
   **Files**: `skills/refresh-architecture/scripts/arch_utils/provenance.py`
   **Dependencies**: 1.7
 
-- [ ] 1.9 Make `check_freshness` tier-aware — **M**
+- [x] 1.9 Make `check_freshness` tier-aware — **M**
   **Spec scenarios**: architecture-refresh.17, architecture-refresh.18
   **Design decisions**: D1
   **Files**: `skills/refresh-architecture/scripts/arch_utils/provenance.py`
@@ -67,7 +67,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   for any absent recorded artifact regardless of the `required` flag. Absence becomes
   drift only for `tier == committed`; the digest check stays unconditional on presence.
 
-- [ ] 1.10 Reject provenance from an earlier schema version — **S**
+- [x] 1.10 Reject provenance from an earlier schema version — **S**
   **Spec scenarios**: architecture-refresh.19
   **Design decisions**: D3
   **Files**: `skills/refresh-architecture/scripts/arch_utils/provenance.py`
@@ -75,12 +75,12 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
 
 - [ ] Checkpoint: run the provenance suite, review the diff, confirm no file outside `arch_utils/` changed
 
-- [ ] 1.11 Bump `PROVENANCE_SCHEMA_VERSION` to 2 — **XS**
+- [x] 1.11 Bump `PROVENANCE_SCHEMA_VERSION` to 2 — **XS**
   **Design decisions**: D6
   **Files**: `skills/refresh-architecture/scripts/arch_utils/provenance.py`
   **Dependencies**: 1.8, 1.10
 
-- [ ] 1.12 Bump `PRODUCER_VERSION` to 1.3.0 — **XS**
+- [x] 1.12 Bump `PRODUCER_VERSION` to 1.3.0 — **XS**
   **Design decisions**: D6
   **Files**: `skills/refresh-architecture/scripts/arch_utils/provenance.py`
   **Dependencies**: 1.11
