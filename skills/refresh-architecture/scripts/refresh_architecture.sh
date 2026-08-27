@@ -135,12 +135,13 @@ try_install_typescript_deps() {
     return 1
 }
 
-# Interpreter that can run the tree-sitter stages, resolved once and cached.
-# Empty string means "resolved and unavailable"; unset means "not yet resolved".
+# Interpreter that can run the tree-sitter stages, resolved once and cached,
+# together with one verdict per stage. Empty string means "resolved and
+# unavailable"; unset means "not yet resolved".
 TREESITTER_PYTHON="${TREESITTER_PYTHON:-}"
 _TREESITTER_RESOLVED=false
 
-check_treesitter() {
+_resolve_treesitter() {
     # Delegates to arch_utils/interpreters.py rather than probing a path here.
     #
     # This used to hard-code "${SCRIPTS_DIR}/.venv/bin/python" — a per-skill venv
@@ -149,14 +150,41 @@ check_treesitter() {
     # provenance, which asked a *different* question in a different process,
     # still recorded tree-sitter as available (issue #378). One resolver means
     # the pipeline and the provenance record cannot disagree.
+    #
+    # `--shell` emits the same resolution provenance records, as assignments:
+    # the interpreter plus TREESITTER_STAGE_<stage>=true|false. Flat variables
+    # rather than an associative array, for the bash 3 compatibility this script
+    # keeps elsewhere.
+    if [ "${_TREESITTER_RESOLVED}" = true ]; then
+        return 0
+    fi
+    _TREESITTER_RESOLVED=true
+    TREESITTER_PYTHON=""
     if [ "${TREESITTER_ENABLED}" != "true" ]; then
+        return 0
+    fi
+    local resolved
+    resolved="$(${PYTHON} "${SCRIPTS_DIR}/arch_utils/interpreters.py" --shell 2>/dev/null || true)"
+    if [ -n "${resolved}" ]; then
+        eval "${resolved}"
+    fi
+    return 0
+}
+
+# check_treesitter <stage> — does this stage have every grammar it imports?
+#
+# Asking per stage instead of once for the pipeline is the point: requiring
+# tree_sitter_sql for everything meant one absent grammar disabled the
+# enrichment, comment-linker and pattern-reporter stages, which never parse SQL.
+check_treesitter() {
+    local stage="$1"
+    _resolve_treesitter
+    if [ -z "${TREESITTER_PYTHON}" ]; then
         return 1
     fi
-    if [ "${_TREESITTER_RESOLVED}" = false ]; then
-        _TREESITTER_RESOLVED=true
-        TREESITTER_PYTHON="$(${PYTHON} "${SCRIPTS_DIR}/arch_utils/interpreters.py" 2>/dev/null || true)"
-    fi
-    [ -n "${TREESITTER_PYTHON}" ]
+    local verdict
+    verdict="$(eval "echo \${TREESITTER_STAGE_${stage}:-false}")"
+    [ "${verdict}" = "true" ]
 }
 
 try_install_jsonschema() {
@@ -279,7 +307,7 @@ echo ""
 
 info "--- [1.2b] Tree-sitter SQL Analyzer ---"
 
-if check_treesitter; then
+if check_treesitter treesitter_sql; then
     SCRIPTS_PYTHON="${TREESITTER_PYTHON}"
     if [ -f "${SCRIPTS_DIR}/analyze_sql_treesitter.py" ] && [ -d "${MIGRATIONS_DIR}" ]; then
         if "${SCRIPTS_PYTHON}" "${SCRIPTS_DIR}/analyze_sql_treesitter.py" \
@@ -295,7 +323,7 @@ if check_treesitter; then
         skip "treesitter_sql"
     fi
 else
-    info "Tree-sitter not available — using regex SQL analyzer output"
+    info "Tree-sitter SQL grammar not available — using regex SQL analyzer output"
     skip "treesitter_sql"
 fi
 echo ""
@@ -426,7 +454,7 @@ echo ""
 
 info "--- [2.1b] Tree-sitter Enrichment ---"
 
-if check_treesitter && [ -f "${SCRIPTS_DIR}/enrich_with_treesitter.py" ]; then
+if check_treesitter treesitter_enrichment && [ -f "${SCRIPTS_DIR}/enrich_with_treesitter.py" ]; then
     SCRIPTS_PYTHON="${TREESITTER_PYTHON}"
     ENRICH_ARGS=("--queries" "${QUERIES_DIR}" "--output" "${ENRICHMENT_FILE}")
     [ -d "${PYTHON_SRC_DIR}" ] && ENRICH_ARGS+=("--python-src" "${PYTHON_SRC_DIR}")
@@ -442,7 +470,7 @@ if check_treesitter && [ -f "${SCRIPTS_DIR}/enrich_with_treesitter.py" ]; then
         skip "treesitter_enrichment"
     fi
 else
-    info "Tree-sitter not available — skipping enrichment"
+    info "Tree-sitter language grammars not available — skipping enrichment"
     skip "treesitter_enrichment"
 fi
 echo ""
@@ -456,7 +484,7 @@ info "--- [2.1c] Comment Linker ---"
 # check_treesitter is part of the condition, not an assumption. The enrichment
 # file can predate this run (in non-staged mode it is whatever the last refresh
 # left behind), so its presence does not imply an interpreter was resolved.
-if check_treesitter && [ -f "${ENRICHMENT_FILE}" ] && [ -f "${SCRIPTS_DIR}/insights/comment_linker.py" ]; then
+if check_treesitter comment_linker && [ -f "${ENRICHMENT_FILE}" ] && [ -f "${SCRIPTS_DIR}/insights/comment_linker.py" ]; then
     SCRIPTS_PYTHON="${TREESITTER_PYTHON}"
     if "${SCRIPTS_PYTHON}" "${SCRIPTS_DIR}/insights/comment_linker.py" \
         --input-dir "${ARCH_DIR}" \
@@ -478,7 +506,7 @@ echo ""
 
 info "--- [2.1d] Pattern Reporter ---"
 
-if check_treesitter && [ -f "${ENRICHMENT_FILE}" ] && [ -f "${SCRIPTS_DIR}/insights/pattern_reporter.py" ]; then
+if check_treesitter pattern_reporter && [ -f "${ENRICHMENT_FILE}" ] && [ -f "${SCRIPTS_DIR}/insights/pattern_reporter.py" ]; then
     SCRIPTS_PYTHON="${TREESITTER_PYTHON}"
     if "${SCRIPTS_PYTHON}" "${SCRIPTS_DIR}/insights/pattern_reporter.py" \
         --input-dir "${ARCH_DIR}" \
