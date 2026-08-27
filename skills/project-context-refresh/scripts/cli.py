@@ -373,8 +373,11 @@ def main(argv: list[str] | None = None) -> int:
         "--base",
         default=gate_module.DEFAULT_BASE,
         help=(
-            "Git ref the diff under test is taken against, used only to scope "
-            "work-package context-impact validation."
+            "Git ref the diff under test is taken against. Resolved to exactly "
+            "one revision -- origin/<ref> when it resolves, else the local ref -- "
+            "which scopes work-package context-impact validation and identifies "
+            "the tree the verdict was compared against. The report records it as "
+            "base_resolved_revision."
         ),
     )
     gp.add_argument(
