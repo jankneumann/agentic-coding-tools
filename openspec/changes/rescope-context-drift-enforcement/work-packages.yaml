@@ -60,6 +60,7 @@ packages:
         - "skills/tests/project-context-refresh/test_gate.py"
         - "openspec/schemas/context-drift-gate.schema.json"
         - "openspec/contracts/project-context-refresh/schemas/context-drift-gate.schema.json"
+        - "skills/project-context-refresh/install_assets/openspec/schemas/context-drift-gate.schema.json"
       read_allow:
         - "**"
       deny:
@@ -135,6 +136,7 @@ packages:
         - "skills/tests/project-context-refresh/test_classify_degradation.py"
         - "openspec/schemas/context-drift-gate.schema.json"
         - "openspec/contracts/project-context-refresh/schemas/context-drift-gate.schema.json"
+        - "skills/project-context-refresh/install_assets/openspec/schemas/context-drift-gate.schema.json"
       read_allow:
         - "**"
       deny:
