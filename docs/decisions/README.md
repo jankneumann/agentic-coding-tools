@@ -32,6 +32,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 - [coordinator-kanban-viz](./coordinator-kanban-viz.md)
 - [coordinator-task-status-renderer](./coordinator-task-status-renderer.md)
 - [evaluation-framework](./evaluation-framework.md)
+- [fitness-functions](./fitness-functions.md)
 - [gen-eval-framework](./gen-eval-framework.md)
 - [merge-infrastructure](./merge-infrastructure.md)
 - [merge-pull-requests](./merge-pull-requests.md)
