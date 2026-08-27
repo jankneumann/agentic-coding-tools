@@ -250,6 +250,21 @@ exit codes, then the servo. Each phase is observable before the next enforces on
   `Gate leaves the checkout unchanged` scenario. A destination inside the checkout is
   refused. Unset means no record, so today's behaviour is byte-for-byte preserved.
 
+- [x] 6.3 Give the `context_gate` row a destination — **S**
+  **Design decisions**: D7
+  **Files**: `.github/workflows/ci.yml`, `skills/tests/project-context-refresh/test_gate.py`
+  **Dependencies**: 6.2, 3.7
+  Added after 6.2 landed: `CONTEXT_GATE_METRICS_PATH` existed only where it was defined, so
+  the emitter was correct, tested, and unreachable in every real run. The gate job now sets
+  it to `${{ runner.temp }}` — outside the checkout, which `gate.py` refuses to write — and
+  uploads the row as a build artifact on all three events.
+  **Rejected first (reverted in `2627f7c7`):** emitting from the merge train's `dry_run`.
+  It contradicted that function's own contract ("a dry run that dirties main is not a dry
+  run") and observed only `main`, never a pull request — the population where the
+  inherited-versus-introduced split actually varies.
+  **Known limit:** per-run artifacts are not an aggregated trend line. The rows now exist on
+  the right population; joining them is separate work with no wiring in place.
+
 ## 7. Close the promotion gap
 
 - [x] 7.1 Rewrite both promotion notes together — **S**
@@ -257,43 +272,47 @@ exit codes, then the servo. Each phase is observable before the next enforces on
   **Files**: `docs/guides/session-completion.md`
   **Dependencies**: 3.7
   Replace the known-gap section with an applied record, and update the coverage-ratchet
+  note's back-reference in the same edit so the adjacency claim in
+  `specs/fitness-functions/spec.md:115-116` stays true.
   **Deviation (implemented):** an *applied* record would be false — the promotion is
   not applied and a pull request cannot apply it. The section was retitled to a
   pending promotion, `Status: NOT APPLIED` was kept, and what the rewrite records is
   the removed blocker plus the outstanding owner action (tasks 7.2, 7.3).
-  note's back-reference in the same edit so the adjacency claim in
-  `specs/fitness-functions/spec.md:115-116` stays true.
 
-- [ ] 7.2 Apply the branch-protection promotion — **XS**
-  **Files**: (repository settings; requires admin)
-  **Dependencies**: 7.1, 8.3
-  **Requires the repository owner.** A pull request cannot change branch protection. Run the
-  `gh api` call recorded at `docs/guides/session-completion.md:47-53` only after the gate is
-  green on `main`.
-
-- [ ] 7.3 Verify seven required contexts — **XS**
-  **Files**: (verification only)
-  **Dependencies**: 7.2
-
-- [ ] Checkpoint: confirm the guide reads coherently and no back-reference dangles
+- [x] Checkpoint: confirm the guide reads coherently and no back-reference dangles
 
 ## 8. Integration
 
-- [ ] 8.1 Re-sync the skill mirrors — **XS**
+- [x] 8.1 Re-sync the skill mirrors — **XS**
   **Files**: `.claude/skills/**`, `.agents/skills/**`
   **Dependencies**: 6.2, 4.2
   `gate-drift-with-mirrors-hooks-and-blocking-ci` will fail CI on mirror drift.
+  **Correction:** it does not. `.claude/skills/` and `.agents/skills/` are gitignored
+  (`.gitignore:277`), so mirror drift can never reach a diff, and `ci.yml:197` states
+  outright that the drift gate is not about mirror drift. The only CI check is
+  `install.sh --check`, which validates install *portability* — it passed while all six
+  mirrors still held the pre-change `gate.py`. The re-sync was run (`skills/install.sh`,
+  not a repo-root `install.sh` as the verification step names) and produced no tracked
+  change. Real local hygiene, no CI signal, no committable evidence.
 
-- [ ] 8.2 Confirm the edited modules are ruff-clean — **XS**
+- [x] 8.2 Confirm the edited modules are ruff-clean — **XS**
   **Files**: (verification only)
   **Dependencies**: 8.1
   `add-skills-lint-ci-gate` made `ruff` blocking over `skills/` at pinned 0.16.0 rules.
 
-- [ ] 8.3 Verify one verdict across checkout shapes end to end — **S**
+- [x] 8.3 Verify one verdict across checkout shapes end to end — **S**
   **Spec scenarios**: Gate reproduces across environments in both directions
   **Files**: (verification only)
   **Dependencies**: 8.2
   Clone the branch fresh, run `make context-drift-gate`, compare against the same command in
   a checkout whose local base branch trails its remote. Both must agree.
+  **Result:** both agree. A fresh clone with no local `main`, and a clone whose local
+  `main` trailed `origin/main` by five commits, each exited **0** with `outcome: fresh`
+  and each recorded `base_resolved_revision: 244442bc`, `base_resolved_from: remote`.
+  The stale local ref lost to the remote, on the exact shape that produced the verified
+  CI-green/local-red split.
 
-- [ ] Checkpoint: full suite, `openspec validate --strict`, review the cumulative diff
+- [x] Checkpoint: full suite, `openspec validate --strict`, review the cumulative diff
+  1,149 tests green across seven suites (project-context-refresh 453, validate-packages 151,
+  merge-pull-requests 192 + 170, project-context-runtime 94, install_sh 28, validate-feature
+  61+5s). `openspec validate --strict` valid. ruff 0.16.0 clean over every edited tree.

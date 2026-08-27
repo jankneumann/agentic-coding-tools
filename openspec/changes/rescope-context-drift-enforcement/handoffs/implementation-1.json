@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-27T18:41:15.912667+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Implemented all eight work packages across the coordinated tier: the gate now resolves its base ref once and records it, attributes each finding as inherited, introduced or indeterminate, and derives exit codes from attribution per triggering event. Two scope gaps in the plan were found and repaired during the run -- a third copy of the report schema no package could write, and a telemetry event no run could reach. Both are recorded in the artifacts rather than silently fixed.",
+    "completed_work": [
+      "wp-base: base resolved once via resolve_base(), recorded as tree.base_resolved_revision / base_resolved_from",
+      "wp-attribution: attribution and attributed_owner on every finding; classify_degradation purity pinned structurally",
+      "wp-events: event-aware exit codes; one always-running CI job with a case dispatch and a failing *) arm",
+      "wp-context-impact: attribution by declared scope; boundless globs stop attributing",
+      "wp-servo: dependabot-only remediation job under the repository's first, job-scoped, contents: write grant",
+      "wp-metrics: additive context_gate event type, emission opt-in and refused inside the checkout",
+      "wp-promotion: both promotion notes rewritten together; Status: NOT APPLIED kept accurate",
+      "wp-integration: mirrors re-synced, ruff clean, cross-environment agreement verified end to end",
+      "task 6.3 (added): CI job supplies the telemetry destination and uploads the row"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Telemetry emits from the gate's CI job, not the merge train",
+        "rationale": "The context_gate emitter shipped unreachable: CONTEXT_GATE_METRICS_PATH existed only where it was defined. Wiring it into main_convergence.dry_run was tried and reverted (2627f7c7) -- it contradicted that function's own contract, 'a dry run that dirties main is not a dry run', and observed only main, never a pull request. The gate's CI job writes to runner scratch, which the gate will accept because it is outside the checkout, and uploads the row as an artifact on all three events.",
+        "capability": "project-context-refresh-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "A boundless write_allow glob is not a scope declaration",
+        "rationale": "package_files already filtered by scope.write_allow; PR #423's false blame survived because the archived wp-integration declares write_allow: ['**'], which matches everything. Matching a boundless glob is evidence only that a path was in the diff. Dropped when the diff carries a work-packages.yaml -- the spec's own 'SHALL NOT thereby acquire responsibility' wording.",
+        "capability": "project-context-refresh-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "Absence of an event means the strict rule, and is distinct from an unknown event",
+        "rationale": "Defaulting to the permissive pull_request rule would have relaxed every local invocation and left the strict answer the one nobody sees. Absence is strict; an unrecognised name raises GateError rather than argparse's exit 2, which collides with the gate's own drift code.",
+        "capability": "project-context-refresh-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "outcome describes the tree, exit_code answers for the event",
+        "rationale": "An inherited-only pull request reports drift with exit 0. Reporting outcome: fresh alongside a non-empty blocking_drift[] would put the unfalsifiable green inside the report itself.",
+        "capability": "project-context-refresh-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "The write grant is guarded by pull-request authorship, not actor",
+        "rationale": "github.actor is whoever initiated the run, so a person pushing to or re-running a bot branch becomes the actor without becoming the author. The guard keys on pull_request.user.login and excludes forks, at job level, so the write steps are never reached rather than reached and declined.",
+        "capability": "fitness-functions",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Validate: confirm the gate is green on main after this lands, which is the precondition for the branch-protection promotion.",
+      "Validate: the CI artifact upload has not run in a real workflow; propagation was proven locally through make, not in Actions.",
+      "Owner action: tasks 7.2 and 7.3 in deferred-tasks.md require repo admin."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/project-context-refresh/scripts/gate.py",
+        "description": "base resolution, attribution, event-aware exit codes, telemetry emission"
+      },
+      {
+        "path": "skills/validate-packages/scripts/context_impact.py",
+        "description": "attribution by declared scope; boundless globs decline to attribute"
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "description": "event dispatch, the dependabot remediation job, telemetry destination and upload"
+      },
+      {
+        "path": "openspec/changes/rescope-context-drift-enforcement/deferred-tasks.md",
+        "description": "the two admin-only steps between this change and enforcement"
+      }
+    ]
+  }
+}
