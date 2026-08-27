@@ -921,6 +921,251 @@ class TestDriftAttribution:
 
 
 # --------------------------------------------------------------------------- #
+# Tasks 3.1-3.3, 3.6 — the blocking verdict is event-aware (D4)
+# --------------------------------------------------------------------------- #
+class TestEventAwareExitCodes:
+    """Which findings contribute to the drift exit code depends on the event.
+
+    Attribution says *who owns* a finding; the event says *whether this run is
+    the one that must block on it*. On a ``pull_request`` the branch is asked
+    only about drift it introduced -- blocking a one-line dependabot bump for a
+    stale artifact that was already on ``main`` is the failure this fixes -- so
+    inherited blocking drift is reported and does not contribute. On
+    ``merge_group`` and on a ``push`` to the integration branch every blocking
+    finding contributes, because at those points there is no other branch to
+    inherit from: the merge candidate is the tree that is about to become the
+    integration branch, and its debt is nobody else's.
+
+    The two axes compose rather than replace each other. A failure still
+    outranks drift on every event, and informational drift still blocks nowhere.
+    """
+
+    @staticmethod
+    def _inventory_drift() -> ProducerResult:
+        return _drift(DOCUMENTATION_INVENTORY, "out/inventory.md")
+
+    def test_inherited_only_drift_passes_a_pull_request(self, tmp_path):
+        """Scenario "Inherited drift alone does not fail a pull request"."""
+        TestDriftAttribution._register_inventory()
+        TestDriftAttribution._repo(tmp_path, input_moved_on_base=True)
+
+        result = _run_gate(tmp_path, self._inventory_drift(), event="pull_request")
+
+        assert result.exit_code == 0
+        # Reported, not discarded: the finding survives with its owner named, so
+        # exit 0 here is a legible "someone else's debt", not a silent pass.
+        finding = result.report["blocking_drift"][0]
+        assert finding["producer_id"] == DOCUMENTATION_INVENTORY
+        assert finding["attribution"] == "inherited"
+        assert finding["attributed_owner"] == gate.DEFAULT_BASE
+        assert result.report["outcome"] == "drift"
+
+    def test_introduced_drift_fails_a_pull_request(self, tmp_path):
+        """Scenario "Introduced drift fails a pull request"."""
+        TestDriftAttribution._register_inventory()
+        TestDriftAttribution._repo(tmp_path, input_moved_on_base=False)
+
+        result = _run_gate(tmp_path, self._inventory_drift(), event="pull_request")
+
+        assert result.exit_code == 2
+        assert result.report["outcome"] == "drift"
+        assert result.report["blocking_drift"][0]["attribution"] == "introduced"
+
+    @pytest.mark.parametrize("event", ["merge_group", "push"])
+    def test_inherited_drift_blocks_on_the_integration_branch(self, tmp_path, event):
+        """Scenario "Inherited drift blocks on the integration branch"."""
+        TestDriftAttribution._register_inventory()
+        TestDriftAttribution._repo(tmp_path, input_moved_on_base=True)
+
+        result = _run_gate(tmp_path, self._inventory_drift(), event=event)
+
+        assert result.exit_code == 2
+        assert result.report["blocking_drift"][0]["attribution"] == "inherited"
+
+    @pytest.mark.parametrize("event", ["pull_request", "merge_group", "push"])
+    def test_introduced_drift_blocks_on_every_event(self, tmp_path, event):
+        TestDriftAttribution._register_inventory()
+        TestDriftAttribution._repo(tmp_path, input_moved_on_base=False)
+
+        result = _run_gate(tmp_path, self._inventory_drift(), event=event)
+
+        assert result.exit_code == 2
+
+    def test_indeterminate_drift_passes_a_pull_request_and_blocks_the_candidate(
+        self, tmp_path
+    ):
+        """The seam where an unfalsifiable green would otherwise appear.
+
+        An unresolvable base makes every finding ``indeterminate``, which
+        resolves toward inherited, which on a ``pull_request`` does not
+        contribute. That is intended -- but only because the same tree is asked
+        again at ``merge_group``, where it blocks. Pinning both halves in one
+        test is what keeps the pull-request half from being read as a pass.
+        """
+        drifted = self._inventory_drift()
+        pr = _run_gate(tmp_path, drifted, event="pull_request")
+        candidate = _run_gate(tmp_path, drifted, event="merge_group")
+
+        assert pr.report["blocking_drift"][0]["attribution"] == "indeterminate"
+        assert pr.exit_code == 0
+        assert candidate.report["blocking_drift"][0]["attribution"] == "indeterminate"
+        assert candidate.exit_code == 2
+
+    def test_failure_outranks_inherited_drift_on_a_pull_request(self, tmp_path):
+        """The event axis never demotes a failure: exit 1 outranks everything."""
+        TestDriftAttribution._register_inventory()
+        TestDriftAttribution._repo(tmp_path, input_moved_on_base=True)
+
+        result = _run_gate(
+            tmp_path, self._inventory_drift(), _failed(API_CONTRACTS), event="pull_request"
+        )
+
+        assert result.exit_code == 1
+        assert result.report["outcome"] == "failed"
+
+    def test_context_impact_drift_blocks_a_pull_request(self, tmp_path):
+        """The context-impact arm is authored by the branch by construction.
+
+        It evaluates only the work-package files present in ``<base>...HEAD``, so
+        it is attributed ``introduced`` and cannot be downgraded by the event.
+        """
+        runner = _impact_runner(
+            {"packages": [_pkg("wp-one", "undeclared", ["apis"], undeclared=["decisions"])]}
+        )
+        result = _run_gate(
+            tmp_path,
+            _fresh(DOCUMENTATION_INVENTORY),
+            changed_files=(_WP_A,),
+            context_impact_runner=runner,
+            event="pull_request",
+        )
+        assert result.exit_code == 2
+        assert result.report["blocking_drift"][0]["producer_id"] == "context.impact"
+
+    def test_omitting_the_event_keeps_todays_verdict(self, tmp_path):
+        """Safe default: no event means every blocking finding contributes.
+
+        Every caller that predates this change -- ``make context-drift-gate``,
+        the convergence runner, a developer at a shell -- passes no event and
+        must get exactly the verdict it got before. Defaulting the other way
+        would turn every local run into the permissive pull-request rule and
+        make the strict answer the one nobody sees.
+        """
+        TestDriftAttribution._register_inventory()
+        TestDriftAttribution._repo(tmp_path, input_moved_on_base=True)
+
+        result = _run_gate(tmp_path, self._inventory_drift())
+
+        assert result.exit_code == 2
+        assert result.report["blocking_drift"][0]["attribution"] == "inherited"
+
+    @pytest.mark.parametrize(
+        "event", ["workflow_dispatch", "schedule", "PULL_REQUEST", ""]
+    )
+    def test_unhandled_event_fails(self, tmp_path, event):
+        """Scenario "Unknown event fails loudly" (task 3.6).
+
+        An event with no rule is an error, never a pass. A gate that quietly
+        applied its most permissive rule to an unrecognised trigger would report
+        success without having asked the question.
+        """
+        with pytest.raises(gate.GateError) as excinfo:
+            _run_gate(tmp_path, _fresh(DOCUMENTATION_INVENTORY), event=event)
+
+        assert "event" in str(excinfo.value)
+
+    def test_unhandled_event_is_refused_before_any_producer_runs(
+        self, tmp_path, capsys, monkeypatch
+    ):
+        """Through the CLI the refusal is exit 1 -- apparatus failure, not drift.
+
+        Deliberately not argparse ``choices``: argparse exits ``2`` on a rejected
+        value, and ``2`` is this gate's drift code. An unrecognised trigger is an
+        apparatus failure, so it is validated in the gate and surfaces as ``1``.
+
+        The refusal happens before the deterministic arm runs, which is why the
+        check runner here raises: a gate that cannot say what rule applies has
+        nothing to learn from running the producers first.
+        """
+
+        def _never(repository, **_kwargs):  # noqa: ANN001, ANN003
+            raise AssertionError("producers ran under an event with no rule")
+
+        monkeypatch.setattr(gate, "_default_check_runner", _never)
+        code = cli.main(
+            [
+                "--repo", str(tmp_path),
+                "--revision", FULL_SHA,
+                "gate",
+                "--event", "workflow_dispatch",
+            ]
+        )
+        assert code == 1
+        assert "workflow_dispatch" in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------------- #
+# Task 3.7 — the gate job runs on every declared event (D4)
+# --------------------------------------------------------------------------- #
+class TestCiEventCoverage:
+    """Static assertions over the workflow, because the hazard is a *skip*.
+
+    A required check that does not run reports success to branch protection, so
+    "the job is guarded off pull requests" and "the job passed" are
+    indistinguishable downstream. The event set therefore has to be normative
+    and assertable from the repository, not a CI implementation detail.
+    """
+
+    @staticmethod
+    def _workflow() -> dict[str, Any]:
+        import yaml
+
+        return yaml.safe_load((_REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text())
+
+    @classmethod
+    def _gate_job(cls) -> dict[str, Any]:
+        return cls._workflow()["jobs"]["context-drift-gate"]
+
+    def test_workflow_declares_all_three_events(self):
+        workflow = self._workflow()
+        # PyYAML 1.1 reads a bare `on:` key as the boolean True.
+        triggers = workflow.get("on", workflow.get(True))
+        assert set(triggers) == {"push", "pull_request", "merge_group"}
+        assert triggers["push"]["branches"] == ["main"]
+
+    def test_gate_job_is_not_conditioned_on_the_event(self):
+        assert "if" not in self._gate_job()
+
+    def test_gate_step_dispatches_on_the_event_name(self):
+        step = self._gate_step()
+        assert step["env"]["EVENT_NAME"] == "${{ github.event_name }}"
+        assert 'case "$EVENT_NAME"' in step["run"]
+        for event in ("pull_request)", "merge_group)", "push)"):
+            assert event in step["run"]
+
+    def test_gate_step_fails_on_an_unhandled_event(self):
+        run = self._gate_step()["run"]
+        arm = run.split("*)", 1)
+        assert len(arm) == 2, "no catch-all arm in the event dispatch"
+        assert "exit 1" in arm[1]
+
+    def test_gate_step_passes_the_event_through_the_makefile_target(self):
+        run = self._gate_step()["run"]
+        assert "make context-drift-gate" in run
+        assert "CONTEXT_GATE_EVENT" in run
+
+    @classmethod
+    def _gate_step(cls) -> dict[str, Any]:
+        steps = [
+            step
+            for step in cls._gate_job()["steps"]
+            if "case" in str(step.get("run", ""))
+        ]
+        assert len(steps) == 1, "expected exactly one event-dispatching gate step"
+        return steps[0]
+
+
+# --------------------------------------------------------------------------- #
 # Task 3.3 — context-impact scoping and usage-error mapping (D7)
 # --------------------------------------------------------------------------- #
 class TestContextImpact:
