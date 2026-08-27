@@ -5,6 +5,61 @@
 
 ---
 
+## 2026-08-26 — fix-architecture-freshness-evidence
+
+### Phase: Plan
+
+**Split the seven-item request into two changes** — Items 4-7 modify requirements that exist only as ## ADDED deltas inside four unarchived changes, so a ## MODIFIED delta has no archived baseline and fails openspec validate --strict. Items 1-3 target the archived architecture-refresh spec and have zero file contention -- rpc_server.py and .gitattributes are referenced by none of the 64 active changes.
+
+- Status: `active`
+- Source: [openspec/changes/fix-architecture-freshness-evidence/session-log.md](/openspec/changes/fix-architecture-freshness-evidence/session-log.md) (D1)
+
+---
+
+## 2026-08-26 — fix-architecture-freshness-evidence
+
+### Phase: Plan
+
+**Provenance records an artifact tier rather than dropping untracked artifacts** — Selected over the smaller alternative at Gate 1. Erasing the uncommitted artifacts from _OWNED_TOP_LEVEL would make 'deliberately uncommitted' indistinguishable from 'failed to generate', and would leave a stale local cache undetectable. A typed tier keeps the record auditable and gives the vocabulary for moving architecture.graph.json later without a second schema migration.
+
+- Status: `active`
+- Source: [openspec/changes/fix-architecture-freshness-evidence/session-log.md](/openspec/changes/fix-architecture-freshness-evidence/session-log.md) (D2)
+
+---
+
+## 2026-08-26 — fix-architecture-freshness-evidence
+
+### Phase: Plan
+
+**tier is required and enumerated, not optional-with-default** — Artifact items are additionalProperties: false and freshness fails closed on schema-invalid provenance. A defaulted tier would let a pre-change record read as 'committed' for every entry, which is the exact silent misclassification the field exists to prevent. Forces schema_version 1 -> 2.
+
+- Status: `active`
+- Source: [openspec/changes/fix-architecture-freshness-evidence/session-log.md](/openspec/changes/fix-architecture-freshness-evidence/session-log.md) (D3)
+
+---
+
+## 2026-08-26 — fix-architecture-freshness-evidence
+
+### Phase: Plan
+
+**Legacy mtime probe stays reachable, but only when no repository resolves** — The spec says the deprecated max_age_hours and graph_mtime fields MAY remain, test_rpc_server.py:314 pins legacy mode deliberately, and a source export with no .git is still supported by input_enumeration_strategy. The defect was never that the branch exists -- it is that get_server() never looked for a repository.
+
+- Status: `active`
+- Source: [openspec/changes/fix-architecture-freshness-evidence/session-log.md](/openspec/changes/fix-architecture-freshness-evidence/session-log.md) (D4)
+
+---
+
+## 2026-08-26 — fix-architecture-freshness-evidence
+
+### Phase: Plan
+
+**architecture.graph.json and architecture.diagnostics.json stay committed** — The graph is read out of git history by checkpoint.py:339 and by the architecture-diff target feeding validate-feature's new-cycle gate, and it is required=True with roughly twenty readers. The consumer scan found no hard reader for treesitter_enrichment.json, python_analysis.json, or parallel_zones.json, so only those three move to local-cache.
+
+- Status: `active`
+- Source: [openspec/changes/fix-architecture-freshness-evidence/session-log.md](/openspec/changes/fix-architecture-freshness-evidence/session-log.md) (D5)
+
+---
+
 ## 2026-07-26 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Implementation
