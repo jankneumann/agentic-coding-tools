@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-08-27 — rescope-context-drift-enforcement
+
+### Phase: Implementation
+
+**The write grant is guarded by pull-request authorship, not actor** — github.actor is whoever initiated the run, so a person pushing to or re-running a bot branch becomes the actor without becoming the author. The guard keys on pull_request.user.login and excludes forks, at job level, so the write steps are never reached rather than reached and declined.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-context-drift-enforcement/session-log.md](/openspec/changes/rescope-context-drift-enforcement/session-log.md) (D5)
+
+---
+
 ## 2026-08-16 — 2026-08-26-introduce-fitness-function-gates
 
 ### Phase: Implementation

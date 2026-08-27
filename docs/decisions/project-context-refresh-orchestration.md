@@ -18,9 +18,31 @@
 
 ## 2026-08-27 — rescope-context-drift-enforcement
 
+### Phase: Implementation
+
+**Telemetry emits from the gate's CI job, not the merge train** — The context_gate emitter shipped unreachable: CONTEXT_GATE_METRICS_PATH existed only where it was defined. Wiring it into main_convergence.dry_run was tried and reverted (2627f7c7) -- it contradicted that function's own contract, 'a dry run that dirties main is not a dry run', and observed only main, never a pull request. The gate's CI job writes to runner scratch, which the gate will accept because it is outside the checkout, and uploads the row as an artifact on all three events.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-context-drift-enforcement/session-log.md](/openspec/changes/rescope-context-drift-enforcement/session-log.md) (D1)
+
+---
+
+## 2026-08-27 — rescope-context-drift-enforcement
+
 ### Phase: Plan
 
 **Attribution uses path-level ancestry rather than content fingerprints** — compute_input_fingerprint reads working-tree bytes only and takes no revision; making it revision-aware would change the hashed payload format and invalidate every recorded input_fingerprint. Path-level comparison is a sound over-approximation because attribution is coarser than freshness, and its only error mode -- a file that changed and changed back reading as inherited -- runs away from blame, which is the safe direction for the failure being fixed.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-context-drift-enforcement/session-log.md](/openspec/changes/rescope-context-drift-enforcement/session-log.md) (D2)
+
+---
+
+## 2026-08-27 — rescope-context-drift-enforcement
+
+### Phase: Implementation
+
+**A boundless write_allow glob is not a scope declaration** — package_files already filtered by scope.write_allow; PR #423's false blame survived because the archived wp-integration declares write_allow: ['**'], which matches everything. Matching a boundless glob is evidence only that a path was in the diff. Dropped when the diff carries a work-packages.yaml -- the spec's own 'SHALL NOT thereby acquire responsibility' wording.
 
 - Status: `active`
 - Source: [openspec/changes/rescope-context-drift-enforcement/session-log.md](/openspec/changes/rescope-context-drift-enforcement/session-log.md) (D2)
@@ -40,9 +62,31 @@
 
 ## 2026-08-27 — rescope-context-drift-enforcement
 
+### Phase: Implementation
+
+**Absence of an event means the strict rule, and is distinct from an unknown event** — Defaulting to the permissive pull_request rule would have relaxed every local invocation and left the strict answer the one nobody sees. Absence is strict; an unrecognised name raises GateError rather than argparse's exit 2, which collides with the gate's own drift code.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-context-drift-enforcement/session-log.md](/openspec/changes/rescope-context-drift-enforcement/session-log.md) (D3)
+
+---
+
+## 2026-08-27 — rescope-context-drift-enforcement
+
 ### Phase: Plan
 
 **Event behaviour lives inside one always-running CI job** — requirement-traceability-sweep (ci.yml:626, dispatch ci.yml:737-798) already does this and its comment rejects the job-level if: outright -- a required check that does not run on merge_group is not a check on the merge candidate, and a skipped required check reports success to branch protection.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-context-drift-enforcement/session-log.md](/openspec/changes/rescope-context-drift-enforcement/session-log.md) (D4)
+
+---
+
+## 2026-08-27 — rescope-context-drift-enforcement
+
+### Phase: Implementation
+
+**outcome describes the tree, exit_code answers for the event** — An inherited-only pull request reports drift with exit 0. Reporting outcome: fresh alongside a non-empty blocking_drift[] would put the unfalsifiable green inside the report itself.
 
 - Status: `active`
 - Source: [openspec/changes/rescope-context-drift-enforcement/session-log.md](/openspec/changes/rescope-context-drift-enforcement/session-log.md) (D4)
