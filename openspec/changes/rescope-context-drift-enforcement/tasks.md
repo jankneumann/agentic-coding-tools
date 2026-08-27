@@ -241,11 +241,15 @@ exit codes, then the servo. Each phase is observable before the next enforces on
 
 ## 7. Close the promotion gap
 
-- [ ] 7.1 Rewrite both promotion notes together — **S**
+- [x] 7.1 Rewrite both promotion notes together — **S**
   **Design decisions**: D8
   **Files**: `docs/guides/session-completion.md`
   **Dependencies**: 3.7
   Replace the known-gap section with an applied record, and update the coverage-ratchet
+  **Deviation (implemented):** an *applied* record would be false — the promotion is
+  not applied and a pull request cannot apply it. The section was retitled to a
+  pending promotion, `Status: NOT APPLIED` was kept, and what the rewrite records is
+  the removed blocker plus the outstanding owner action (tasks 7.2, 7.3).
   note's back-reference in the same edit so the adjacency claim in
   `specs/fitness-functions/spec.md:115-116` stays true.
 
