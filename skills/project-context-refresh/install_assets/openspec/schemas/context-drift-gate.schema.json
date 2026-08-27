@@ -150,6 +150,14 @@
           "type": ["integer", "null"],
           "minimum": 0,
           "description": "Commits on HEAD not reachable from base_upstream. Null when base_upstream is null."
+        },
+        "base_resolved_revision": {
+          "type": ["string", "null"],
+          "description": "The single revision the base name resolved to, and the revision every comparison in this run used. Recorded because a base NAME can resolve to more than one revision: `origin/<base>` and a local `<base>` branch diverge whenever the local ref is behind, and a report that silently compared against both describes no single tree."
+        },
+        "base_resolved_from": {
+          "enum": ["remote", "local", null],
+          "description": "Which ref supplied base_resolved_revision. 'remote' is preferred and is what a fresh CI checkout effectively uses; 'local' is the documented fallback for a checkout with no remote-tracking ref."
         }
       }
     },

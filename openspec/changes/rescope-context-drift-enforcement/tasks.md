@@ -5,13 +5,13 @@ exit codes, then the servo. Each phase is observable before the next enforces on
 
 ## 1. Pin what the base ref means
 
-- [ ] 1.1 Write a test that the resolved base revision appears in the report — **S**
+- [x] 1.1 Write a test that the resolved base revision appears in the report — **S**
   **Spec scenarios**: Resolved base is recorded
   **Design decisions**: D1
   **Files**: `skills/tests/project-context-refresh/test_gate.py`
   **Dependencies**: None
 
-- [ ] 1.2 Write a test that the remote ref wins over a stale local ref — **S**
+- [x] 1.2 Write a test that the remote ref wins over a stale local ref — **S**
   **Spec scenarios**: Gate reproduces across environments in both directions
   **Design decisions**: D1
   **Files**: `skills/tests/project-context-refresh/test_gate.py`
@@ -19,7 +19,7 @@ exit codes, then the servo. Each phase is observable before the next enforces on
   Build a repo whose local base branch is behind `origin/<base>`, assert the gate resolves
   to the remote revision.
 
-- [ ] 1.3 Write a test that one tree yields one verdict across checkout shapes — **M**
+- [x] 1.3 Write a test that one tree yields one verdict across checkout shapes — **M**
   **Spec scenarios**: Gate reproduces across environments in both directions
   **Design decisions**: D1
   **Files**: `skills/tests/project-context-refresh/test_gate.py`
@@ -28,40 +28,40 @@ exit codes, then the servo. Each phase is observable before the next enforces on
   remote, must agree on outcome and exit code. This is the regression pin for the verified
   CI-green/local-red split.
 
-- [ ] Checkpoint: run the gate suite, confirm the three new tests fail for the right reason
+- [x] Checkpoint: run the gate suite, confirm the three new tests fail for the right reason
 
-- [ ] 1.4 Resolve the base name to exactly one revision — **S**
+- [x] 1.4 Resolve the base name to exactly one revision — **S**
   **Design decisions**: D1
   **Files**: `skills/project-context-refresh/scripts/gate.py`
   **Dependencies**: 1.2, 1.3
 
-- [ ] 1.5 Use the resolved revision for the changed-file diff — **S**
+- [x] 1.5 Use the resolved revision for the changed-file diff — **S**
   **Design decisions**: D1
   **Files**: `skills/project-context-refresh/scripts/gate.py`
   **Dependencies**: 1.4
   `_default_changed_files` (`gate.py:359`) currently diffs the raw base name while
   `describe_tree` (`gate.py:735`) uses `origin/<base>`. Both consume the resolved revision.
 
-- [ ] 1.6 Record the resolved revision in the report — **S**
+- [x] 1.6 Record the resolved revision in the report — **S**
   **Spec scenarios**: Resolved base is recorded
   **Files**: `skills/project-context-refresh/scripts/gate.py`
   **Dependencies**: 1.1, 1.4
 
-- [ ] Checkpoint: confirm the resolved revision appears in the report before touching the schema
+- [x] Checkpoint: confirm the resolved revision appears in the report before touching the schema
 
-- [ ] 1.7 Publish the report schema addition for the resolved base — **S**
+- [x] 1.7 Publish the report schema addition for the resolved base — **S**
   **Contracts**: `contracts/context-drift-gate.schema.json`
   **Files**: `openspec/schemas/context-drift-gate.schema.json`, `openspec/contracts/project-context-refresh/schemas/context-drift-gate.schema.json`
   **Dependencies**: 1.6
 
-- [ ] 1.8 Correct the stale `--base` help text — **XS**
+- [x] 1.8 Correct the stale `--base` help text — **XS**
   **Files**: `skills/project-context-refresh/scripts/cli.py`
   **Dependencies**: 1.5
   `cli.py:372-379` claims `--base` is "used only to scope work-package context-impact
   validation"; `run_gate:575` has used it for `describe_tree` unconditionally since before
   this change.
 
-- [ ] Checkpoint: run the gate suite green, review the diff, confirm only gate.py and cli.py changed
+- [x] Checkpoint: run the gate suite green, review the diff, confirm only gate.py and cli.py changed
 
 ## 2. Classify drift as inherited or introduced
 
