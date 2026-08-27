@@ -254,3 +254,138 @@ def test_refresh_script_resolves_its_tools_outside_source_checkout(tmp_path: Pat
     output = result.stdout + result.stderr
     assert "Python analyzer script not found" not in output
     assert "Postgres analyzer script not found" not in output
+
+
+def _tree_digest(root: Path) -> str:
+    """Digest every byte under *root*, path-sensitively.
+
+    Ensure mode's "writes nothing" claim is about bytes, not about mtimes or
+    about which files a reviewer happened to open, so the assertion compares a
+    digest of the whole artifact directory rather than a chosen file.
+    """
+    import hashlib
+
+    h = hashlib.sha256()
+    for path in sorted(p for p in root.rglob("*") if p.is_file()):
+        h.update(path.relative_to(root).as_posix().encode())
+        h.update(b"\0")
+        h.update(path.read_bytes())
+        h.update(b"\0")
+    return h.hexdigest()
+
+
+def _forbidden_pipeline(target_dir: Path, env: dict, quick: bool) -> int:
+    raise AssertionError("staged refresh ran when the checkout was already fresh")
+
+
+class TestEnsureMode:
+    """Spec: architecture-refresh — Ensure mode composes check and staged refresh."""
+
+    def _make_fresh(self, repo: Path) -> None:
+        with patch.object(run_architecture, "_run_pipeline", _fake_pipeline()):
+            assert run_architecture.main(["--target-dir", str(repo), "--staged"]) == 0
+
+    def test_ensure_leaves_fresh_artifacts_untouched(self, tmp_path: Path, capsys) -> None:
+        # Scenario: Fresh artifacts are left untouched
+        _init_repo(tmp_path)
+        self._make_fresh(tmp_path)
+        arch = tmp_path / "docs/architecture-analysis"
+        before = _tree_digest(arch)
+        capsys.readouterr()
+
+        with patch.object(run_architecture, "_run_pipeline", _forbidden_pipeline):
+            rc = run_architecture.main(["--target-dir", str(tmp_path), "--ensure"])
+
+        assert rc == 0
+        assert _tree_digest(arch) == before
+        assert json.loads(capsys.readouterr().out)["status"] == "fresh"
+
+    def test_ensure_is_idempotent(self, tmp_path: Path) -> None:
+        # Scenario: Ensure is idempotent
+        _init_repo(tmp_path)
+        arch = tmp_path / "docs/architecture-analysis"
+
+        with patch.object(run_architecture, "_run_pipeline", _fake_pipeline()):
+            assert run_architecture.main(["--target-dir", str(tmp_path), "--ensure"]) == 0
+        after_first = _tree_digest(arch)
+        prov_first = (arch / "architecture.provenance.json").read_bytes()
+
+        # The second run must do no work at all, not merely reproduce the bytes.
+        with patch.object(run_architecture, "_run_pipeline", _forbidden_pipeline):
+            assert run_architecture.main(["--target-dir", str(tmp_path), "--ensure"]) == 0
+
+        assert _tree_digest(arch) == after_first
+        assert (arch / "architecture.provenance.json").read_bytes() == prov_first
+
+    def test_ensure_regenerates_when_provenance_missing(self, tmp_path: Path, capsys) -> None:
+        # Scenario: Stale artifacts are regenerated (missing provenance)
+        _init_repo(tmp_path)
+        arch = tmp_path / "docs/architecture-analysis"
+        assert not arch.exists()
+
+        with patch.object(run_architecture, "_run_pipeline", _fake_pipeline()):
+            rc = run_architecture.main(["--target-dir", str(tmp_path), "--ensure"])
+
+        assert rc == 0
+        assert (arch / "architecture.provenance.json").is_file()
+        # One JSON document on stdout either way: when a refresh happens the
+        # check report is the reason (stderr) and the staged report is the answer.
+        captured = capsys.readouterr()
+        assert json.loads(captured.out)["status"] == "generated"
+        reason, _ = json.JSONDecoder().raw_decode(captured.err)
+        assert reason["status"] == "invalid"
+
+        assert run_architecture.main(["--target-dir", str(tmp_path), "--check"]) == 0
+        assert json.loads(capsys.readouterr().out)["status"] == "fresh"
+
+    def test_ensure_regenerates_when_inputs_changed(self, tmp_path: Path, capsys) -> None:
+        # Scenario: Stale artifacts are regenerated (stale provenance)
+        import subprocess
+
+        _init_repo(tmp_path)
+        self._make_fresh(tmp_path)
+        (tmp_path / "src" / "app.py").write_text("print('a real change')\n")
+        subprocess.run(["git", "add", "-A"], cwd=str(tmp_path), check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "change"],
+            cwd=str(tmp_path),
+            check=True,
+            capture_output=True,
+        )
+        capsys.readouterr()
+        assert run_architecture.main(["--target-dir", str(tmp_path), "--check"]) == 1
+        capsys.readouterr()
+
+        with patch.object(run_architecture, "_run_pipeline", _fake_pipeline()):
+            assert run_architecture.main(["--target-dir", str(tmp_path), "--ensure"]) == 0
+
+        capsys.readouterr()
+        assert run_architecture.main(["--target-dir", str(tmp_path), "--check"]) == 0
+        assert json.loads(capsys.readouterr().out)["status"] == "fresh"
+
+    def test_ensure_failed_refresh_preserves_last_known_good(self, tmp_path: Path) -> None:
+        # Scenario: Failed regeneration preserves last known-good
+        import subprocess
+
+        _init_repo(tmp_path)
+        self._make_fresh(tmp_path)
+        arch = tmp_path / "docs/architecture-analysis"
+        good = _tree_digest(arch)
+        good_prov = (arch / "architecture.provenance.json").read_bytes()
+
+        (tmp_path / "src" / "app.py").write_text("print('stale now')\n")
+        subprocess.run(["git", "add", "-A"], cwd=str(tmp_path), check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-q", "-m", "change"],
+            cwd=str(tmp_path),
+            check=True,
+            capture_output=True,
+        )
+
+        with patch.object(run_architecture, "_run_pipeline", _fake_pipeline(fail=True)):
+            rc = run_architecture.main(["--target-dir", str(tmp_path), "--ensure"])
+
+        assert rc == 3
+        assert _tree_digest(arch) == good
+        assert (arch / "architecture.provenance.json").read_bytes() == good_prov
+        assert not (tmp_path / ".architecture-staging").exists()
