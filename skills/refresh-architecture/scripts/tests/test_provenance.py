@@ -10,6 +10,10 @@ Covers spec scenarios:
 - architecture-refresh.6  invalid provenance fails closed
 - architecture-refresh.7  check identifies exact artifact drift
 - architecture-refresh.9  repeat refresh has no repository diff
+- architecture-refresh.16 every recorded artifact declares its tier
+- architecture-refresh.17 absent local-cache artifact is not drift
+- architecture-refresh.18 present local-cache artifact is still digest-verified
+- architecture-refresh.19 provenance from an earlier schema version fails closed
 """
 
 from __future__ import annotations
@@ -218,8 +222,11 @@ def test_malformed_provenance_is_invalid(repo: Path) -> None:
     prov.provenance_path(repo).write_text("{not json")
     r1 = _check(repo)
     assert r1.status == "invalid"
-    # Schema-invalid (valid JSON, wrong shape) also fails closed.
-    prov.provenance_path(repo).write_text(json.dumps({"schema_version": 1}))
+    # Schema-invalid (valid JSON, current version, wrong shape) also fails closed.
+    # The version is deliberately the current one: a *stale* version is its own
+    # reason code (PROVENANCE_SCHEMA_VERSION_MISMATCH), and this case is about
+    # the generic "does not match the published shape" path.
+    prov.provenance_path(repo).write_text(json.dumps({"schema_version": prov.PROVENANCE_SCHEMA_VERSION}))
     r2 = _check(repo)
     assert r2.status == "invalid"
     assert r2.reasons[0].code == prov.PROVENANCE_INVALID
@@ -462,3 +469,122 @@ def test_flagged_provenance_is_schema_valid_and_still_fresh(repo: Path) -> None:
     assert result.to_dict()["carried_over"] == [
         "docs/architecture-analysis/treesitter_enrichment.json"
     ]
+
+
+# --------------------------------------------------------------------------- #
+# Artifact tiers — what an artifact's absence is allowed to mean
+#
+# The defect these pin: the artifact loop in ``check_freshness`` reported
+# ARTIFACT_MISSING for every recorded artifact not on disk, and the ``required``
+# flag did not gate it (that flag only governs generation and promotion). So an
+# artifact the repository deliberately does not track turned the drift gate red
+# in every clean clone, and there was no vocabulary for saying "this one is
+# expected to be absent". ``tier`` is that vocabulary.
+# --------------------------------------------------------------------------- #
+_LOCAL_CACHE_NAMES = (
+    "treesitter_enrichment.json",
+    "python_analysis.json",
+    "parallel_zones.json",
+)
+
+
+def _seed_local_cache(repo: Path) -> None:
+    arch = repo / prov.ARCH_DIR_DEFAULT
+    for name in _LOCAL_CACHE_NAMES:
+        (arch / name).write_text('{"cache": "generated but not tracked"}\n')
+
+
+def _tiers(doc: dict) -> dict[str, str]:
+    return {a["path"]: a["tier"] for a in doc["artifacts"]}
+
+
+# Scenario .16 — every recorded artifact declares its tier
+def test_every_recorded_artifact_declares_a_tier(repo: Path) -> None:
+    _seed_local_cache(repo)
+    (repo / prov.ARCH_DIR_DEFAULT / "views" / ".gitkeep").write_text("")
+    doc = _generate(repo)
+    tiers = _tiers(doc)
+
+    assert tiers
+    assert set(tiers.values()) <= {prov.TIER_COMMITTED, prov.TIER_LOCAL_CACHE}
+    for name in _LOCAL_CACHE_NAMES:
+        assert tiers[f"{prov.ARCH_DIR_DEFAULT}/{name}"] == prov.TIER_LOCAL_CACHE
+    assert tiers[f"{prov.ARCH_DIR_DEFAULT}/architecture.graph.json"] == prov.TIER_COMMITTED
+    assert tiers[f"{prov.ARCH_DIR_DEFAULT}/architecture.summary.json"] == prov.TIER_COMMITTED
+    # The recursive views/ walk records through the same helper, so those files
+    # carry a tier too — they are tracked in git, so absence there is drift.
+    assert tiers[f"{prov.ARCH_DIR_DEFAULT}/views/overview.md"] == prov.TIER_COMMITTED
+    assert tiers[f"{prov.ARCH_DIR_DEFAULT}/views/.gitkeep"] == prov.TIER_COMMITTED
+    prov.validate_provenance(doc)
+
+
+# Scenario .17 — absent local-cache artifact is not drift
+def test_absent_local_cache_artifact_is_not_drift(repo: Path) -> None:
+    """A clean checkout has every committed artifact and none of the caches."""
+    _seed_local_cache(repo)
+    _generate(repo)
+    for name in _LOCAL_CACHE_NAMES:
+        (repo / prov.ARCH_DIR_DEFAULT / name).unlink()
+
+    result = _check(repo)
+
+    assert result.is_fresh, [r.to_dict() for r in result.reasons]
+    assert not [r for r in result.reasons if r.code == prov.ARTIFACT_MISSING]
+
+
+# Scenario .18 — a present local-cache artifact is still digest-verified
+def test_present_local_cache_artifact_is_still_digest_verified(repo: Path) -> None:
+    """Presence is judged identically for both tiers: a stale cache is reported."""
+    _seed_local_cache(repo)
+    _generate(repo)
+    cache = repo / prov.ARCH_DIR_DEFAULT / "treesitter_enrichment.json"
+    cache.write_text('{"cache": "bytes from an older revision"}\n')
+
+    result = _check(repo)
+
+    assert result.status == "stale"
+    by_path = {r.path: r.code for r in result.reasons if r.path}
+    assert by_path[f"{prov.ARCH_DIR_DEFAULT}/treesitter_enrichment.json"] == (
+        prov.ARTIFACT_DIGEST_MISMATCH
+    )
+
+
+# Scenario .19 — provenance from an earlier schema version fails closed
+def test_earlier_schema_version_is_stale_and_names_the_version(repo: Path) -> None:
+    """The remediation is "regenerate the record", not "regenerate a file".
+
+    Reporting a shape change as artifact drift sends the reader looking for the
+    file that changed, when nothing about any file changed.
+    """
+    doc = _generate(repo)
+    doc["schema_version"] = 1
+    for artifact in doc["artifacts"]:
+        artifact.pop("tier")
+    prov.provenance_path(repo).write_text(json.dumps(doc))
+
+    result = _check(repo)
+
+    assert result.status == "stale"
+    assert not result.is_fresh
+    codes = {r.code for r in result.reasons}
+    assert prov.PROVENANCE_SCHEMA_VERSION_MISMATCH in codes
+    assert prov.ARTIFACT_MISSING not in codes
+    assert prov.ARTIFACT_DIGEST_MISMATCH not in codes
+    detail = next(
+        r.detail for r in result.reasons if r.code == prov.PROVENANCE_SCHEMA_VERSION_MISMATCH
+    )
+    assert "1" in detail and str(prov.PROVENANCE_SCHEMA_VERSION) in detail
+
+
+def test_schema_version_mismatch_is_detected_before_artifact_state(repo: Path) -> None:
+    """A v1 record must not be re-read through v2 rules, whatever is on disk."""
+    doc = _generate(repo)
+    doc["schema_version"] = 1
+    prov.provenance_path(repo).write_text(json.dumps(doc))
+    (repo / prov.ARCH_DIR_DEFAULT / "architecture.summary.json").unlink()
+
+    result = _check(repo)
+
+    assert not result.is_fresh
+    assert result.reasons[0].code == prov.PROVENANCE_SCHEMA_VERSION_MISMATCH
+    assert prov.ARTIFACT_MISSING not in {r.code for r in result.reasons}
