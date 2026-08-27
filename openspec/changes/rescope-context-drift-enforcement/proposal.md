@@ -133,10 +133,18 @@ that happens to share the diff.
 
 ### 6. Record inherited-versus-introduced evidence
 
-Each gate run appends a `context_gate` event to `docs/merge-logs/metrics.jsonl`. The
+Each gate run records a `context_gate` event. The
 `MergeEvent` dataclass (`merge_events.py:28-45`) types `event_type` as an open string, so
 this is additive. It gives the advisory→blocking flip evidence, consistent with the
 documented `clean_runs_before_flip: 3` vocabulary in `architecture.config.yaml`.
+
+**Superseded during implementation.** This section originally named
+`docs/merge-logs/metrics.jsonl` as the destination. That path is inside the graded
+checkout, so writing it would break the ratified `Gate leaves the checkout unchanged`
+scenario — worst on `push: main`, where the gate would dirty the very tree it is
+certifying as clean. Emission is instead opt-in to an operator-supplied destination
+outside the checkout, and a destination inside it is refused rather than honoured.
+No spec requirement named the original path, so no delta changed.
 
 ## Acceptance criterion
 
