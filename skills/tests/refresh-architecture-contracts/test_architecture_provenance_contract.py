@@ -33,7 +33,7 @@ def validator(schema: dict) -> Draft202012Validator:
 
 def _valid_provenance() -> dict:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "producer": {"producer_id": "architecture", "producer_version": "1.0.0"},
         "repository_id": "agentic-coding-tools",
         "source_revision": "0" * 40,
@@ -50,6 +50,7 @@ def _valid_provenance() -> dict:
                 "sha256": "b" * 64,
                 "size_bytes": 2048,
                 "required": True,
+                "tier": "committed",
             }
         ],
     }
@@ -94,6 +95,17 @@ class TestPublishedSchema:
                 id="artifact-path-escape",
             ),
             pytest.param(lambda d: d.update(unexpected="x"), id="additional-property"),
+            pytest.param(
+                lambda d: d["artifacts"][0].pop("tier"), id="missing-artifact-tier"
+            ),
+            pytest.param(
+                lambda d: d["artifacts"][0].update(tier="committed-ish"),
+                id="unrecognized-artifact-tier",
+            ),
+            pytest.param(
+                lambda d: d["artifacts"][0].update(tier=None), id="null-artifact-tier"
+            ),
+            pytest.param(lambda d: d.update(schema_version=1), id="stale-schema-version"),
         ],
     )
     def test_invalid_provenance_is_rejected(
@@ -111,6 +123,45 @@ class TestPublishedSchema:
         doc = _valid_provenance()
         doc["artifacts"][0]["path"] = "docs/architecture-analysis/../../secrets.json"
         assert list(validator.iter_errors(doc)), "traversal paths must be rejected"
+
+
+    def test_schema_version_is_pinned_to_two(self, schema: dict) -> None:
+        # Task 1.5 / D2 — const, not an enum of accepted versions.
+        assert schema["properties"]["schema_version"] == {"type": "integer", "const": 2}
+
+    def test_artifact_tier_is_required_and_enumerated(self, schema: dict) -> None:
+        # Scenario architecture-refresh.16 / D1 — required, never optional-with-default.
+        items = schema["properties"]["artifacts"]["items"]
+        assert "tier" in items["required"]
+        assert items["properties"]["tier"]["enum"] == ["committed", "local-cache"]
+        assert items["additionalProperties"] is False
+
+    def test_artifact_without_tier_is_rejected(
+        self, validator: Draft202012Validator
+    ) -> None:
+        # Scenario architecture-refresh.16 — a pre-tier record must fail closed rather
+        # than being silently reinterpreted as "committed".
+        doc = _valid_provenance()
+        doc["artifacts"][0].pop("tier")
+        assert list(validator.iter_errors(doc)), "artifact entries must declare a tier"
+
+    def test_artifact_with_unrecognized_tier_is_rejected(
+        self, validator: Draft202012Validator
+    ) -> None:
+        # Scenario architecture-refresh.16
+        doc = _valid_provenance()
+        doc["artifacts"][0]["tier"] = "generated"
+        assert list(validator.iter_errors(doc)), "tier must be one of the two known tiers"
+
+    @pytest.mark.parametrize("tier", ["committed", "local-cache"])
+    def test_artifact_with_valid_tier_is_accepted(
+        self, validator: Draft202012Validator, tier: str
+    ) -> None:
+        # Scenario architecture-refresh.16
+        doc = _valid_provenance()
+        doc["artifacts"][0]["tier"] = tier
+        errors = sorted(validator.iter_errors(doc), key=str)
+        assert errors == [], f"expected valid, got: {[e.message for e in errors]}"
 
 
 class TestCanonicalRi06Integration:

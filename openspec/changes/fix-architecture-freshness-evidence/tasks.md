@@ -4,7 +4,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
 
 ## 1. Provenance artifact tiers
 
-- [ ] 1.1 Write contract tests for the v2 provenance schema — **S**
+- [x] 1.1 Write contract tests for the v2 provenance schema — **S**
   **Spec scenarios**: architecture-refresh.16
   **Design decisions**: D1 (tier required), D2 (const 2, not enum)
   **Contracts**: `openspec/schemas/architecture-provenance.schema.json`
@@ -31,7 +31,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
 
 - [ ] Checkpoint: run the provenance suite, confirm the four new tests fail for the right reason
 
-- [ ] 1.5 Publish the v2 provenance schema — **S**
+- [x] 1.5 Publish the v2 provenance schema — **S**
   **Spec scenarios**: architecture-refresh.16
   **Design decisions**: D1, D2
   **Files**: `openspec/schemas/architecture-provenance.schema.json`
