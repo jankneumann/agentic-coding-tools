@@ -66,20 +66,27 @@ def test_resolution_finds_a_project_root_interpreter() -> None:
 
 
 @requires_treesitter
-def test_resolved_interpreter_imports_every_required_module() -> None:
-    """Both modules, not just `tree_sitter`.
+def test_resolved_interpreter_imports_every_grammar_it_reports() -> None:
+    """The reported availability must be the resolved interpreter's own.
 
-    The SQL analyzer needs `tree_sitter_sql`; an interpreter carrying only
-    `tree_sitter` cannot run every stage that claims the tool, and reporting it
-    as available is what let provenance overstate what ran.
+    This replaces a check that the interpreter imported one fixed pair of
+    modules. Resolution is now per grammar (see `test_per_grammar_resolution`),
+    so the property that matters is truthfulness: whatever the resolution
+    reports as available really imports *there*, because that is what the stage
+    verdicts and the provenance record are both derived from.
     """
-    resolved = interpreters.resolve_treesitter_python()
-    assert resolved is not None
-    code = "".join(f"import {m}\n" for m in interpreters.REQUIRED_MODULES)
-    result = subprocess.run(
-        [str(resolved), "-c", code], capture_output=True, check=False
-    )
-    assert result.returncode == 0, result.stderr.decode()
+    resolution = interpreters.resolve_grammars()
+    assert resolution.python is not None
+    for module, available in resolution.available.items():
+        result = subprocess.run(
+            [str(resolution.python), "-c", f"import {module}"],
+            capture_output=True,
+            check=False,
+        )
+        assert (result.returncode == 0) is available, (
+            f"{module} reported available={available} by {resolution.python}: "
+            f"{result.stderr.decode()}"
+        )
 
 
 def _interpreter_without_treesitter() -> Path | None:

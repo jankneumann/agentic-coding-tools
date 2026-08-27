@@ -485,7 +485,7 @@ def compute_input_fingerprint(
 # Optional-tool identity (output-affecting)
 # --------------------------------------------------------------------------- #
 def detect_optional_tools() -> list[dict[str, Any]]:
-    """Identify output-affecting optional tools (tree-sitter SQL/enrichment).
+    """Identify output-affecting optional tools, one entry per grammar.
 
     Reports the interpreter the *pipeline* would use, not the one running this
     function. Importing ``tree_sitter`` in-process answered a different question:
@@ -494,22 +494,36 @@ def detect_optional_tools() -> list[dict[str, Any]]:
     running under a Python that did have it — still recorded
     ``available: true``. The record then vouched for artifacts that were never
     regenerated (issue #378).
+
+    A single ``tree-sitter`` entry could not say *which* stages ran, because the
+    grammars install independently: an interpreter with the Python and
+    TypeScript grammars but not the SQL one produces enrichment but no
+    tree-sitter SQL analysis. Recording each grammar keeps the record and the
+    pipeline's stage verdicts derived from one resolver answer, so they cannot
+    disagree about which stage had what it needed.
+
+    A version is recorded only for an importable grammar; distribution metadata
+    can outlive a package that no longer imports, and reporting that version
+    would overstate what the run had.
     """
     from arch_utils.interpreters import (
-        resolve_treesitter_python,
-        treesitter_version,
+        GRAMMAR_MODULES,
+        resolve_grammars,
+        tool_name,
     )
 
-    resolved = resolve_treesitter_python()
-    if resolved is None:
-        return [{"name": "tree-sitter", "available": False, "version": None}]
-    return [
-        {
-            "name": "tree-sitter",
-            "available": True,
-            "version": treesitter_version(resolved),
-        }
-    ]
+    resolution = resolve_grammars()
+    tools: list[dict[str, Any]] = []
+    for module in sorted(GRAMMAR_MODULES):
+        available = bool(resolution.available.get(module, False))
+        tools.append(
+            {
+                "name": tool_name(module),
+                "available": available,
+                "version": resolution.versions.get(module) if available else None,
+            }
+        )
+    return tools
 
 
 # --------------------------------------------------------------------------- #
