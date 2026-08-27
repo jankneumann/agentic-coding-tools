@@ -472,12 +472,24 @@ refresh-project-context-check: ## Read-only orchestrated refresh drift check (ex
 # `--strict-legacy` is deliberately never passed: most work-package files predate
 # the context_impact contract, and ri-08's progressive enforcement keyed on
 # whether a declaration block exists is the intended migration path.
+#
+# CONTEXT_GATE_EVENT is the triggering event the run answers for. CI passes
+# `github.event_name`; a local run leaves it EMPTY, which selects the strict
+# rule -- every blocking finding fails the gate. That default is deliberate: it
+# is the verdict this target gave before the event axis existed, so every caller
+# that predates it (a developer at a shell, main_convergence's drift check) is
+# unchanged. Passing `--event pull_request` reproduces the more permissive CI
+# rule, under which drift inherited from CONTEXT_GATE_BASE is reported without
+# failing. The flag is omitted rather than passed empty, because an empty event
+# name is not a rule the gate has -- it is an error, and would exit 1.
 
 CONTEXT_GATE_BASE ?= main
+CONTEXT_GATE_EVENT ?=
 
 .PHONY: context-drift-gate
 context-drift-gate: ## Composed deterministic context drift gate (exit 0 fresh / 2 blocking drift / 1 failure)
-	@$(PYTHON) skills/project-context-refresh/scripts/cli.py gate --base $(CONTEXT_GATE_BASE)
+	@$(PYTHON) skills/project-context-refresh/scripts/cli.py gate --base $(CONTEXT_GATE_BASE) \
+		$(if $(CONTEXT_GATE_EVENT),--event $(CONTEXT_GATE_EVENT))
 
 # Enablement Consistency Gate (ri-13)
 #

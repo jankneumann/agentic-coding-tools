@@ -203,6 +203,22 @@ jobs:
   # add-deterministic-context-drift-gates; pinned by test_decision_index_orphan.py).
   #
   # Exit 2 is drift, exit 1 is an apparatus failure; both fail the job.
+  #
+  # ONE job on all three declared events (`push` to main, `pull_request`,
+  # `merge_group`) — deliberately NOT guarded by an `if:`, for the same reason
+  # `requirement-traceability-sweep` below is not: a required check that does not
+  # run on `merge_group` is not a check on the merge candidate, and a skipped
+  # required check reports SUCCESS to branch protection, which is precisely the
+  # unfalsifiable green this gate exists to prevent. The event set is normative
+  # in the spec delta ("Gate event coverage is normative"), not a CI detail.
+  #
+  # Event-dependent behaviour therefore lives INSIDE the step, as a `case` over
+  # `$EVENT_NAME` with an explicit `*)` arm that exits non-zero. What the event
+  # changes is only *which blocking findings contribute to the exit code*, never
+  # which are reported: `pull_request` blocks on drift the branch introduced and
+  # reports drift it inherited from `main`; `merge_group` and `push` block on all
+  # of it, because at those points there is no other branch to inherit from. The
+  # rule itself lives in gate.py, not here — this job selects it and nothing more.
   context-drift-gate:
     runs-on: ubuntu-latest
 
@@ -225,11 +241,61 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run deterministic context drift gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if make context-drift-gate PYTHON=skills/.venv/bin/python; then
+          set -uo pipefail
+          # GitHub Actions runs a `run:` step with no `shell:` key as `bash -e {0}`,
+          # so errexit is ON here by default. Every arm below inspects the gate's
+          # status rather than dying on it: exit 2 (drift) and exit 1 (apparatus
+          # failure) both have to reach the annotation below, and under errexit
+          # they would abort the step before it is printed.
+          set +e
+
+          run_drift_gate() {
+            # $1: the triggering event, handed to the gate so exactly ONE place
+            # decides the verdict. `make context-drift-gate` is the same command
+            # a developer runs, so a CI failure reproduces verbatim (D1) --
+            # including which findings this event blocks on.
+            make context-drift-gate PYTHON=skills/.venv/bin/python \
+              CONTEXT_GATE_EVENT="$1"
+          }
+
+          case "$EVENT_NAME" in
+            pull_request)
+              # Introduced drift blocks. Drift the branch inherited from `main`
+              # is reported with `main` named as its owner and does NOT block:
+              # one stale artifact on the integration branch failing twelve
+              # unrelated pull requests, dependency bumps included, is the
+              # failure this rule fixes. It is not thereby forgiven -- the same
+              # tree is asked again below, on the merge candidate.
+              run_drift_gate pull_request
+              STATUS=$?
+              ;;
+            merge_group)
+              # Every blocking finding counts: a merge group IS the prospective
+              # integration branch, so there is no other branch to inherit from.
+              # This is the run that keeps the pull-request rule above honest,
+              # which is why the job must not be guarded off this event.
+              run_drift_gate merge_group
+              STATUS=$?
+              ;;
+            push)
+              # Restricted to `main` by the workflow-level `on:` block. The tree
+              # has already become the integration branch, so it owns all of it.
+              run_drift_gate push
+              STATUS=$?
+              ;;
+            *)
+              echo "::error::context drift gate: unhandled event '$EVENT_NAME' — no rule for this trigger"
+              exit 1
+              ;;
+          esac
+
+          if [ "$STATUS" -eq 0 ]; then
             exit 0
           fi
-          echo "::error::Deterministic context drift. The stale artifacts and their remediation commands are listed above. Reproduce locally with 'make context-drift-gate'."
+          echo "::error::Deterministic context drift. The stale artifacts and their remediation commands are listed above. Reproduce locally with 'make context-drift-gate CONTEXT_GATE_EVENT=$EVENT_NAME'."
           exit 1
 
   # Coverage no-decrease ratchet (introduce-fitness-function-gates, design D5).

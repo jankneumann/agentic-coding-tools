@@ -39,6 +39,27 @@ A surviving ``not-configured`` can only come from an *optional* producer —
 to ``failed`` before it ever reaches here — so it is external degradation and by
 decision must not block.
 
+**Which blocking findings count depends on the triggering event (D4).** The table
+above answers *how severe*; attribution answers *whose fault*; the event answers
+*is this the run that must block on it*:
+
+=========================  ===========  ==========  ===============
+event                      introduced   inherited   indeterminate
+=========================  ===========  ==========  ===============
+``pull_request``           blocks       reported    reported
+``merge_group``            blocks       blocks      blocks
+``push`` (integration)     blocks       blocks      blocks
+no event supplied          blocks       blocks      blocks
+anything else              error — an unknown event is never a pass
+=========================  ===========  ==========  ===============
+
+Inherited drift is *reported*, not dropped: it stays in ``blocking_drift`` with
+its attribution and owner, so exit ``0`` there reads as "someone else's debt".
+The merge candidate is still asked, at ``merge_group`` and on the push that
+follows, where there is no other branch to inherit from — so nothing reaches the
+integration branch unchecked. Omitting the event selects the strict rule so that
+every caller predating this change gets exactly the verdict it got before.
+
 Two reconciliations are recorded rather than left implicit.
 
 **Missing architecture provenance exits 2, not 1.** The exit table's "or
@@ -148,6 +169,23 @@ ATTRIBUTION_INDETERMINATE = "indeterminate"
 
 #: The owner recorded for a detached checkout, which names no branch.
 DETACHED_BRANCH_OWNER = "HEAD"
+
+#: Triggering events the gate has a rule for (D4). Attribution says *who owns* a
+#: finding; the event says whether *this* run is the one that must block on it.
+EVENT_PULL_REQUEST = "pull_request"
+EVENT_MERGE_GROUP = "merge_group"
+EVENT_PUSH = "push"
+
+#: Events at which every blocking finding contributes to the drift exit code,
+#: whatever its attribution: there is no other branch to inherit from. A merge
+#: group *is* the prospective integration branch, and a push has already become
+#: it, so debt sitting there is nobody else's to clear.
+BLOCK_ALL_EVENTS = frozenset({EVENT_MERGE_GROUP, EVENT_PUSH})
+
+#: Every event with a rule. An event outside this set is an error, never a pass
+#: (see :func:`require_known_event`); *absence* of an event is not — see
+#: :func:`event_blocking_findings` for why the default is the strict rule.
+KNOWN_EVENTS = frozenset({EVENT_PULL_REQUEST, *BLOCK_ALL_EVENTS})
 
 _FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 
@@ -567,6 +605,71 @@ def _context_impact_finding(
 
 
 # --------------------------------------------------------------------------- #
+# Event dispatch (D4) — which findings this run is the one to block on
+# --------------------------------------------------------------------------- #
+def require_known_event(event: str | None) -> None:
+    """Refuse an event the gate has no rule for. ``None`` is not such an event.
+
+    An unrecognised trigger is an *apparatus* failure, not drift: the gate
+    cannot say which rule applies, so it has no verdict to report. Applying the
+    most permissive rule instead would report success without having asked the
+    question, which is the unfalsifiable green the whole event axis exists to
+    prevent.
+
+    Validated here rather than with argparse ``choices`` because argparse exits
+    ``2`` on a rejected value and ``2`` is this gate's *drift* code — a reviewer
+    would go looking for a stale artifact that does not exist. Raised as a
+    :class:`GateError`, which ``cli._gate`` renders as exit ``1``.
+
+    ``None`` means *no event was supplied*, which every caller that predates this
+    change does. That is a distinct state from an unknown name and is handled by
+    :func:`event_blocking_findings`, not refused here.
+    """
+    if event is None or event in KNOWN_EVENTS:
+        return
+    known = ", ".join(sorted(KNOWN_EVENTS))
+    raise GateError(
+        f"unhandled event {event!r} — no rule for this trigger; "
+        f"the gate has rules for {known}, and treats an unknown event as an "
+        "error rather than as a pass"
+    )
+
+
+def event_blocking_findings(
+    blocking: Sequence[dict[str, Any]], event: str | None
+) -> list[dict[str, Any]]:
+    """The blocking findings that contribute to the drift exit code on *event*.
+
+    On a ``pull_request`` only *introduced* drift contributes. Inherited drift —
+    and ``indeterminate`` drift, which resolves toward inherited — is reported
+    and does not, because blaming a branch for the integration branch's debt is
+    the failure this axis exists to prevent: one stale artifact on ``main`` once
+    failed this gate on twelve unrelated pull requests, including one-line
+    dependency bumps.
+
+    On every other event every blocking finding contributes. That includes the
+    no-event default, and the default is deliberately the *strict* rule: a caller
+    that passes no event — ``make context-drift-gate``, the convergence runner, a
+    developer at a shell — gets exactly the verdict it got before this change.
+    Defaulting to the pull-request rule instead would silently relax every local
+    invocation and leave the strict answer the one nobody ever sees.
+
+    Findings are filtered, never dropped from the report: the returned list feeds
+    the exit code only, and ``blocking_drift`` still carries every finding with
+    its attribution and its owner. Exit ``0`` with a non-empty ``blocking_drift``
+    is therefore legible as "someone else's debt", not as a clean tree — which is
+    also why ``outcome`` keeps describing the *tree* rather than the exit code.
+    """
+    if event != EVENT_PULL_REQUEST:
+        return list(blocking)
+    return [
+        finding
+        for finding in blocking
+        if finding.get("attribution") == ATTRIBUTION_INTRODUCED
+    ]
+
+
+# --------------------------------------------------------------------------- #
 # Composition
 # --------------------------------------------------------------------------- #
 def _default_check_runner(repository: Path, **kwargs: Any) -> orchestrator.RefreshResult:
@@ -583,6 +686,7 @@ def run_gate(
     *,
     revision: str | None = None,
     base: str = DEFAULT_BASE,
+    event: str | None = None,
     changed_files: Sequence[str] | None = None,
     rules: Path | str | None = None,
     architecture: orchestrator.ArchitectureProducer | None = None,
@@ -606,7 +710,14 @@ def run_gate(
     per consumer is what produced a report comparing against two bases at the
     same time, and with it a tree that was green in CI and red in a checkout
     whose local base branch had fallen behind.
+
+    ``event`` is the trigger the run is answering for (D4). It decides which
+    blocking findings contribute to the exit code, never which are reported.
+    Omitting it selects the strict rule — today's verdict — and an event with no
+    rule is refused here, before any producer runs: a gate that cannot say which
+    rule applies has nothing to learn from running them first.
     """
+    require_known_event(event)
     repo_root = Path(repository).resolve()
     resolved_base = resolve_base(repo_root, base)
     run_check = check_runner or _default_check_runner
@@ -628,6 +739,7 @@ def run_gate(
             repo_root, base, fallback_head=revision, resolved_base=resolved_base
         ),
         attribution=resolve_attribution_context(repo_root, resolved_base),
+        event=event,
     )
     return GateResult(report=report, exit_code=report["exit_code"])
 
@@ -640,6 +752,7 @@ def render_report(
     revision: str | None = None,
     tree: dict[str, Any] | None = None,
     attribution: AttributionContext | None = None,
+    event: str | None = None,
 ) -> dict[str, Any]:
     """Render the gate report, joining every result with its canonical owner.
 
@@ -650,10 +763,14 @@ def render_report(
     *attribution* is supplied by :func:`run_gate`, which already resolved the base
     to one revision; a standalone caller that omits it gets the evidence-free
     default, where every finding is ``indeterminate`` and therefore owned by the
-    integration branch. Attribution annotates findings and nothing else — it does
-    not enter the exit-code derivation, which stays exactly the mapping from the
-    four disjoint groups it was before.
+    integration branch.
+
+    *event* selects which blocking findings contribute to the exit code (D4);
+    omitting it selects the strict rule, which is today's verdict. Attribution
+    still annotates every finding it is computed for, whatever the event — the
+    event filters the *verdict*, never the report.
     """
+    require_known_event(event)
     attribution = attribution if attribution is not None else AttributionContext()
     breakdown = orchestrator.classify_degradation(
         tuple(refresh.producer_results), refresh.semantic_index
@@ -733,10 +850,19 @@ def render_report(
     for group_list in (blocking, informational, not_configured, failed):
         group_list.sort(key=lambda entry: entry["producer_id"])
 
+    # ``outcome`` describes the tree; ``exit_code`` is this event's verdict on it.
+    # They agree on every event but ``pull_request``, where inherited blocking
+    # drift is reported and does not block: there the report reads
+    # ``drift (exit 0)``, which is the honest pair. Collapsing them the other way
+    # -- calling the tree ``fresh`` while ``blocking_drift`` is non-empty -- would
+    # put the unfalsifiable green inside the report itself. The schema derives
+    # ``outcome`` from the four groups for exactly this reason.
+    blocks = event_blocking_findings(blocking, event)
     if failed:
         outcome, exit_code = OUTCOME_FAILED, EXIT_FAILED
     elif blocking:
-        outcome, exit_code = OUTCOME_DRIFT, EXIT_DRIFT
+        outcome = OUTCOME_DRIFT
+        exit_code = EXIT_DRIFT if blocks else EXIT_FRESH
     else:
         outcome, exit_code = OUTCOME_FRESH, EXIT_FRESH
 
@@ -1148,14 +1274,19 @@ __all__ = [
     "ATTRIBUTION_INDETERMINATE",
     "ATTRIBUTION_INHERITED",
     "ATTRIBUTION_INTRODUCED",
+    "BLOCK_ALL_EVENTS",
     "CONTEXT_IMPACT_OWNER",
     "CONTEXT_IMPACT_PRODUCER_ID",
     "DEFAULT_BASE",
     "DETACHED_BRANCH_OWNER",
+    "EVENT_MERGE_GROUP",
+    "EVENT_PULL_REQUEST",
+    "EVENT_PUSH",
     "EXIT_DRIFT",
     "EXIT_FAILED",
     "EXIT_FRESH",
     "GATE_SCHEMA_VERSION",
+    "KNOWN_EVENTS",
     "SEMANTIC_NOT_ATTEMPTED_REASON",
     "SEMANTIC_STATUS_NOT_ATTEMPTED",
     "AttributionContext",
@@ -1166,10 +1297,12 @@ __all__ = [
     "architecture_freshness",
     "attribute_producer",
     "describe_tree",
+    "event_blocking_findings",
     "owner_by_producer_id",
     "provenance_state",
     "render_report",
     "render_text",
+    "require_known_event",
     "resolve_attribution_context",
     "resolve_base",
     "resolve_gate_merge_base",

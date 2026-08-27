@@ -1,4 +1,4 @@
-"""Composed drift gate tests (ri-10 wp-gate tasks 3.1-3.3, design D1/D5/D6/D7).
+"""Composed drift gate tests (ri-10 wp-gate tasks 3.1-3.3, design D1/D4/D5/D6/D7).
 
 The gate composes three arms — the deterministic producers via
 ``orchestrator.check``, architecture freshness via the orchestrator's
@@ -27,8 +27,16 @@ Organised by the requirement each class pins:
 * ``TestBaseResolution`` — the base name resolves to exactly one revision, that
   revision is recorded in the report, the remote ref wins over a stale local one,
   and one tree yields one verdict across checkout shapes (D1).
+* ``TestEventAwareExitCodes`` — "Gate exit codes derive from the classification",
+  event half: inherited blocking drift is reported on a ``pull_request`` and
+  blocks on ``merge_group`` and ``push``, introduced drift blocks everywhere, an
+  omitted event keeps today's verdict, and an event with no rule is an error (D4).
+* ``TestCiEventCoverage`` — "Gate event coverage is normative": the job runs on
+  all three declared events with no job-level ``if:``, and its shell fragment is
+  driven under ``bash -e`` rather than only pattern-matched (D4).
 * ``TestLocalReproduction`` — the ``gate`` subcommand and the
-  ``context-drift-gate`` Makefile target exist and agree with ``run_gate``.
+  ``context-drift-gate`` Makefile target exist and agree with ``run_gate``,
+  including the event CI passes through it.
 Producer fixtures are synthetic on purpose. This repository's live producer state
 is in flux while a sibling package fixes a ``decisions.timeline`` false positive,
 so asserting against real repository drift would pin the tests to noise.
@@ -38,6 +46,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -1027,8 +1037,13 @@ class TestEventAwareExitCodes:
         """The context-impact arm is authored by the branch by construction.
 
         It evaluates only the work-package files present in ``<base>...HEAD``, so
-        it is attributed ``introduced`` and cannot be downgraded by the event.
+        wherever a base resolves it is attributed ``introduced`` and the
+        pull-request rule cannot downgrade it. The repository here is a real one
+        for exactly that reason: with no resolvable base every finding is
+        ``indeterminate``, which is a different case, pinned separately above.
         """
+        TestDriftAttribution._register_inventory()
+        TestDriftAttribution._repo(tmp_path, input_moved_on_base=True)
         runner = _impact_runner(
             {"packages": [_pkg("wp-one", "undeclared", ["apis"], undeclared=["decisions"])]}
         )
@@ -1153,6 +1168,53 @@ class TestCiEventCoverage:
         run = self._gate_step()["run"]
         assert "make context-drift-gate" in run
         assert "CONTEXT_GATE_EVENT" in run
+
+    @pytest.mark.parametrize("gate_status", [0, 1, 2])
+    @pytest.mark.parametrize(
+        "event", ["pull_request", "merge_group", "push", "workflow_dispatch"]
+    )
+    def test_the_dispatch_fragment_behaves_as_specified(
+        self, tmp_path, event, gate_status
+    ):
+        """Drive the step's shell, rather than only asserting on its text.
+
+        Run under ``bash -e``, which is how Actions invokes a ``run:`` step with
+        no ``shell:`` key. That is the condition the fragment's own ``set +e``
+        exists for: without it the gate's exit 2 would abort the step before the
+        ``::error::`` annotation naming the stale artifacts is ever printed.
+
+        ``make`` is stubbed so the assertion is about the dispatch, not about
+        this repository's current freshness. Every known event must reach it and
+        propagate its status; the unknown event must fail without reaching it,
+        because a trigger with no rule is an error and never a pass.
+        """
+        bash = shutil.which("bash")
+        if bash is None:  # pragma: no cover - CI and dev shells both have bash
+            pytest.skip("bash is unavailable")
+
+        fragment = tmp_path / "fragment.sh"
+        fragment.write_text(self._gate_step()["run"], encoding="utf-8")
+        stub = tmp_path / "make"
+        stub.write_text(f'#!/bin/sh\necho "make $@"\nexit {gate_status}\n', encoding="utf-8")
+        stub.chmod(0o755)
+
+        completed = subprocess.run(
+            [bash, "-e", str(fragment)],
+            env={**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "EVENT_NAME": event},
+            capture_output=True,
+            text=True,
+        )
+
+        if event == "workflow_dispatch":
+            assert completed.returncode == 1
+            assert "unhandled event 'workflow_dispatch'" in completed.stdout
+            assert "make context-drift-gate" not in completed.stdout
+            return
+        assert f"CONTEXT_GATE_EVENT={event}" in completed.stdout
+        # Drift (2) and apparatus failure (1) both fail the job, and both are
+        # annotated -- the annotation is the only thing a reviewer reads first.
+        assert completed.returncode == (0 if gate_status == 0 else 1)
+        assert ("::error::" in completed.stdout) is (gate_status != 0)
 
     @classmethod
     def _gate_step(cls) -> dict[str, Any]:
@@ -1372,6 +1434,42 @@ class TestLocalReproduction:
         body = target.split("\n.PHONY", 1)[0]
         assert "gate" in body
         assert "--strict-legacy" not in body
+
+    def test_makefile_target_carries_the_event_ci_passes(self):
+        """Task 3.8: the event must not break the local/CI equivalence.
+
+        CI hands the target ``CONTEXT_GATE_EVENT``; the target forwards it as
+        ``--event``. The forwarding is conditional because the *local* default is
+        no event at all -- passing an empty ``--event`` would be an event the
+        gate has no rule for, and would turn every bare ``make
+        context-drift-gate`` into exit 1.
+        """
+        makefile = (_REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        body = makefile.split("context-drift-gate:", 1)[1].split("\n.PHONY", 1)[0]
+        assert "CONTEXT_GATE_EVENT" in makefile
+        assert "$(if $(CONTEXT_GATE_EVENT),--event $(CONTEXT_GATE_EVENT))" in body
+
+    def test_bare_makefile_invocation_passes_no_event(self):
+        """``make -n`` is the ground truth for what the local command expands to."""
+        completed = subprocess.run(
+            ["make", "-n", "context-drift-gate"],
+            cwd=_REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert "cli.py gate --base main" in completed.stdout
+        assert "--event" not in completed.stdout
+
+    def test_makefile_invocation_with_an_event_forwards_it(self):
+        completed = subprocess.run(
+            ["make", "-n", "context-drift-gate", "CONTEXT_GATE_EVENT=pull_request"],
+            cwd=_REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert "--event pull_request" in completed.stdout
 
 
 # --------------------------------------------------------------------------- #
