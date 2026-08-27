@@ -184,3 +184,9 @@ requirement with no archived baseline fails `openspec validate --strict`.
 That change is gated on archiving those four, and its acceptance criterion is the
 branch-protection promotion documented as an open gap in
 `docs/guides/session-completion.md:26-67`.
+
+Its draft proposal — including the three candidate mechanisms for computing a
+merge-base fingerprint, the convergence-window problem, and the test pins an
+implementer will hit — is carried alongside this change at
+`follow-up-rescope-context-drift-enforcement.md`. That file is a draft, not an
+OpenSpec artifact.
