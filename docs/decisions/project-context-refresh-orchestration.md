@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-08-27 — rescope-context-drift-enforcement
+
+### Phase: Plan
+
+**Base reference resolves to one recorded revision, preferring the remote ref** — Verified on a branch byte-identical to origin/main: --base main exits 2 while --base origin/main exits 0, because _default_changed_files (gate.py:359) diffs the local ref while describe_tree (gate.py:735) compares against origin/<base>. The remote ref wins because CI's fresh checkout already effectively uses it; preferring local would make CI the outlier and leave the split unfixed.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-context-drift-enforcement/session-log.md](/openspec/changes/rescope-context-drift-enforcement/session-log.md) (D1)
+
+---
+
+## 2026-08-27 — rescope-context-drift-enforcement
+
+### Phase: Plan
+
+**Attribution uses path-level ancestry rather than content fingerprints** — compute_input_fingerprint reads working-tree bytes only and takes no revision; making it revision-aware would change the hashed payload format and invalidate every recorded input_fingerprint. Path-level comparison is a sound over-approximation because attribution is coarser than freshness, and its only error mode -- a file that changed and changed back reading as inherited -- runs away from blame, which is the safe direction for the failure being fixed.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-context-drift-enforcement/session-log.md](/openspec/changes/rescope-context-drift-enforcement/session-log.md) (D2)
+
+---
+
+## 2026-08-27 — rescope-context-drift-enforcement
+
+### Phase: Plan
+
+**Attribution is a separate axis, not a fifth classification group** — classify_degradation must stay pure: TestPurity asserts no IO by patching, and attribution shells out to git. test_classify_degradation.py:235 additionally hard-pins the informational set. Severity and ownership are independent questions and folding them together would conflate them.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-context-drift-enforcement/session-log.md](/openspec/changes/rescope-context-drift-enforcement/session-log.md) (D3)
+
+---
+
+## 2026-08-27 — rescope-context-drift-enforcement
+
+### Phase: Plan
+
+**Event behaviour lives inside one always-running CI job** — requirement-traceability-sweep (ci.yml:626, dispatch ci.yml:737-798) already does this and its comment rejects the job-level if: outright -- a required check that does not run on merge_group is not a check on the merge candidate, and a skipped required check reports success to branch protection.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-context-drift-enforcement/session-log.md](/openspec/changes/rescope-context-drift-enforcement/session-log.md) (D4)
+
+---
+
 ## 2026-07-26 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Implementation
