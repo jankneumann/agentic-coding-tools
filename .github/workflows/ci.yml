@@ -243,6 +243,19 @@ jobs:
       - name: Run deterministic context drift gate
         env:
           EVENT_NAME: ${{ github.event_name }}
+          # The gate's telemetry destination (D7 -- metrics). `gate.py` builds a
+          # `context_gate` row for every run and refuses to write it anywhere
+          # inside the checkout it grades: leaving that tree byte-identical is a
+          # ratified scenario, so the destination has to be supplied from
+          # outside. `runner.temp` is the runner's scratch directory, NOT under
+          # `github.workspace`, which is why the row can be written here without
+          # the gate having to relax that refusal.
+          #
+          # This is the repository's only destination for that row. Without it
+          # the event type is declared and never emitted, and a metrics pipeline
+          # that reports nothing while looking healthy is the same unfalsifiable
+          # green the event axis exists to prevent.
+          CONTEXT_GATE_METRICS_PATH: ${{ runner.temp }}/context-gate-metrics.jsonl
         run: |
           set -uo pipefail
           # GitHub Actions runs a `run:` step with no `shell:` key as `bash -e {0}`,
@@ -297,6 +310,32 @@ jobs:
           fi
           echo "::error::Deterministic context drift. The stale artifacts and their remediation commands are listed above. Reproduce locally with 'make context-drift-gate CONTEXT_GATE_EVENT=$EVENT_NAME'."
           exit 1
+
+      # The row written above survives the runner only if it is uploaded, and it
+      # is most interesting on exactly the runs that fail: a gate that exits 2 is
+      # the population the inherited-versus-introduced split was built to
+      # describe. Hence `always()` rather than `success()`.
+      #
+      # Telemetry must never change the verdict, in either direction. The gate
+      # already swallows its own emission failures, and the two settings here
+      # close the other half: `always()` means a red gate still uploads, and
+      # `if-no-files-found: ignore` means a run that wrote no row at all -- an
+      # apparatus failure before the report, or the unhandled-event arm -- fails
+      # on the gate's own exit code and not on a missing artifact.
+      #
+      # No `permissions:` block: uploading an artifact needs none, and this job
+      # stays on the workflow-level `contents: read`.
+      - name: Upload context gate telemetry
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          # Artifact names are unique per run, and one run may retry: the event
+          # name keeps the three triggers distinguishable to a reader, and the
+          # run id and attempt keep two uploads from ever contending for one
+          # name.
+          name: context-gate-metrics-${{ github.event_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/context-gate-metrics.jsonl
+          if-no-files-found: ignore
 
   # Coverage no-decrease ratchet (introduce-fitness-function-gates, design D5).
   #

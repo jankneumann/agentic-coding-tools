@@ -47,6 +47,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -1215,6 +1216,85 @@ class TestCiEventCoverage:
         # annotated -- the annotation is the only thing a reviewer reads first.
         assert completed.returncode == (0 if gate_status == 0 else 1)
         assert ("::error::" in completed.stdout) is (gate_status != 0)
+
+    # ----------------------------------------------------------------- #
+    # The gate's own telemetry row (D7 -- metrics)
+    # ----------------------------------------------------------------- #
+    # `gate.py` has built a `context_gate` row since wp-metrics and refuses to
+    # write it anywhere inside the checkout it grades, so nothing in this
+    # repository could name a destination for it and the event type was
+    # declared-but-unreachable. The gate's own job is the one place that both
+    # runs on every declared event and has somewhere outside the tree to write
+    # to, which is why these assertions live beside the event-coverage ones.
+
+    def test_the_gate_step_names_a_metrics_destination(self):
+        assert "CONTEXT_GATE_METRICS_PATH" in self._gate_step()["env"], (
+            "the gate builds a context_gate row for every run; with no "
+            "destination named it is discarded and the event type is unreachable"
+        )
+
+    def test_the_metrics_destination_is_runner_scratch_not_the_workspace(self):
+        """A destination inside the checkout is refused by the gate itself.
+
+        Leaving the graded tree byte-identical is a ratified scenario, so
+        ``emit_gate_metrics`` declines any path under the repository root and
+        warns instead of writing. A workspace-relative destination here would
+        therefore produce a wire that silently records nothing -- which is the
+        failure this pins, not a style preference about paths.
+        """
+        destination = self._gate_step()["env"]["CONTEXT_GATE_METRICS_PATH"]
+        assert re.match(r"^\$\{\{\s*runner\.temp\s*\}\}/", destination), destination
+        assert "github.workspace" not in destination
+        assert "github.workspace" not in self._upload_step()["with"]["path"]
+
+    def test_the_upload_takes_exactly_what_the_gate_wrote(self):
+        assert (
+            self._upload_step()["with"]["path"]
+            == self._gate_step()["env"]["CONTEXT_GATE_METRICS_PATH"]
+        )
+
+    def test_the_upload_survives_a_red_or_crashed_gate(self):
+        """The verdict is the product; the row is evidence about the product.
+
+        A gate that exits 2 is the population the inherited-versus-introduced
+        split exists to describe, so the failing runs are the ones whose row
+        matters most -- ``success()`` would drop exactly those. And a run that
+        wrote no row at all (an apparatus failure before the report, or the
+        unhandled-event arm) must still fail on the gate's exit code rather than
+        on a missing artifact.
+        """
+        step = self._upload_step()
+        assert step["uses"] == "actions/upload-artifact@v7"
+        assert step["if"] == "always()"
+        assert step["with"]["if-no-files-found"] == "ignore"
+
+    def test_the_artifact_name_cannot_collide(self):
+        name = self._upload_step()["with"]["name"]
+        for expression in ("github.event_name", "github.run_id", "github.run_attempt"):
+            assert expression in name, name
+
+    def test_the_gate_job_asks_for_no_write_grant(self):
+        """An artifact upload needs no elevated token.
+
+        The workflow-level grant is ``contents: read`` and the repository's only
+        write grant is confined to one unrelated job; telemetry is not a reason
+        to widen either.
+        """
+        assert "permissions" not in self._gate_job()
+        workflow = self._workflow()
+        assert workflow["permissions"] == {"contents": "read"}
+        assert "permissions" not in self._gate_step()
+        assert "permissions" not in self._upload_step()
+
+    @classmethod
+    def _upload_step(cls) -> dict[str, Any]:
+        steps = [
+            step
+            for step in cls._gate_job()["steps"]
+            if str(step.get("uses", "")).startswith("actions/upload-artifact@")
+        ]
+        assert len(steps) == 1, "expected exactly one telemetry upload step"
+        return steps[0]
 
     @classmethod
     def _gate_step(cls) -> dict[str, Any]:
