@@ -137,6 +137,7 @@ packages:
         - "**/.venv/**"
     context_impact:
       surfaces:
+        - "architecture"
         - "semantic_code"
     worktree:
       name: freshness-tiers
@@ -217,6 +218,7 @@ packages:
         - "**/.venv/**"
     context_impact:
       surfaces:
+        - "architecture"
         - "semantic_code"
     worktree:
       name: freshness-rpc
@@ -353,6 +355,8 @@ packages:
     context_impact:
       surfaces:
         - "architecture"
+        - "documentation"
+        - "semantic_code"
     worktree:
       name: freshness-artifacts
       mode: isolated

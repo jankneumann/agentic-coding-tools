@@ -183,7 +183,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
 
 ## 5. Integration
 
-- [ ] 5.1 Re-sync the skill mirrors — **XS**
+- [x] 5.1 Re-sync the skill mirrors — **XS**
   **Files**: `.claude/skills/**`, `.agents/skills/**`
   **Dependencies**: 2.6, 1.12
   Run `install.sh`. Required because `gate-drift-with-mirrors-hooks-and-blocking-ci`
@@ -196,7 +196,7 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
   Clone the branch to a scratch directory, run `make context-drift-gate`, confirm exit
   0 with no `ARTIFACT_MISSING` for any `local-cache` path.
 
-- [ ] 5.3 Record the repository weight reduction — **XS**
+- [x] 5.3 Record the repository weight reduction — **XS**
   **Files**: (verification only)
   **Dependencies**: 4.4
   Confirm tracked bytes under `docs/architecture-analysis/` fall by at least 2.76 MB.
