@@ -168,7 +168,7 @@ exit codes, then the servo. Each phase is observable before the next enforces on
 
 ## 4. Fix context-impact attribution
 
-- [ ] 4.1 Write a test that a co-present work-package file is not blamed — **S**
+- [x] 4.1 Write a test that a co-present work-package file is not blamed — **S**
   **Spec scenarios**: Co-present work-package files are not blamed for unrelated paths
   **Design decisions**: D6
   **Files**: `skills/tests/validate-packages/test_context_impact.py`
@@ -176,13 +176,13 @@ exit codes, then the servo. Each phase is observable before the next enforces on
   Reproduce PR #423: a commit that moves a work-packages.yaml and regenerates unrelated
   decision documents.
 
-- [ ] 4.2 Attribute changed paths by declared scope — **M**
+- [x] 4.2 Attribute changed paths by declared scope — **M**
   **Spec scenarios**: Co-present work-package files are not blamed for unrelated paths
   **Design decisions**: D6
   **Files**: `skills/validate-packages/scripts/context_impact.py`
   **Dependencies**: 4.1
 
-- [ ] Checkpoint: run the validate-packages suite, confirm the compat tests still pass
+- [x] Checkpoint: run the validate-packages suite, confirm the compat tests still pass
 
 ## 5. Auto-remediate dependency-update pull requests
 
