@@ -45,3 +45,57 @@
 ### Context
 Planned the drift-gate attribution rework (items 4-7 of the original seven-item request) after archiving the prerequisites that blocked its spec deltas. Planning verified three defects beyond the original scope, the sharpest being that the same tree yields CI success and local exit 2 -- a violation of the ratified 'Gate reproduces locally' scenario. Those three are in scope, because attribution layered on an environment-dependent base inherits the ambiguity.
 
+---
+
+## Phase: Implementation (2026-08-27)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Telemetry emits from the gate's CI job, not the merge train** `architectural: project-context-refresh-orchestration` — The context_gate emitter shipped unreachable: CONTEXT_GATE_METRICS_PATH existed only where it was defined. Wiring it into main_convergence.dry_run was tried and reverted (2627f7c7) -- it contradicted that function's own contract, 'a dry run that dirties main is not a dry run', and observed only main, never a pull request. The gate's CI job writes to runner scratch, which the gate will accept because it is outside the checkout, and uploads the row as an artifact on all three events.
+2. **A boundless write_allow glob is not a scope declaration** `architectural: project-context-refresh-orchestration` — package_files already filtered by scope.write_allow; PR #423's false blame survived because the archived wp-integration declares write_allow: ['**'], which matches everything. Matching a boundless glob is evidence only that a path was in the diff. Dropped when the diff carries a work-packages.yaml -- the spec's own 'SHALL NOT thereby acquire responsibility' wording.
+3. **Absence of an event means the strict rule, and is distinct from an unknown event** `architectural: project-context-refresh-orchestration` — Defaulting to the permissive pull_request rule would have relaxed every local invocation and left the strict answer the one nobody sees. Absence is strict; an unrecognised name raises GateError rather than argparse's exit 2, which collides with the gate's own drift code.
+4. **outcome describes the tree, exit_code answers for the event** `architectural: project-context-refresh-orchestration` — An inherited-only pull request reports drift with exit 0. Reporting outcome: fresh alongside a non-empty blocking_drift[] would put the unfalsifiable green inside the report itself.
+5. **The write grant is guarded by pull-request authorship, not actor** `architectural: fitness-functions` — github.actor is whoever initiated the run, so a person pushing to or re-running a bot branch becomes the actor without becoming the author. The guard keys on pull_request.user.login and excludes forks, at job level, so the write steps are never reached rather than reached and declined.
+
+### Alternatives Considered
+- Revision-aware content fingerprints for attribution: rejected because ls-tree yields git blob SHAs, not the sha256 the payload hashes; changing the payload format invalidates every recorded input_fingerprint
+- if: github.event_name != 'pull_request' on the gate job: rejected because a skipped required check reports success to branch protection -- the precise hazard the gate exists to prevent
+- Emitting the context_gate row to docs/merge-logs/metrics.jsonl: rejected because inside the graded checkout; breaks the ratified 'Gate leaves the checkout unchanged' scenario, worst on push: main where the gate certifies the tree it would dirty
+- A remediation servo on all pull requests: rejected because larger blast radius for the repository's first write escalation; human PRs already have an author who can run one command
+
+### Trade-offs
+- Accepted Path-level ancestry over content comparison at the merge base because misclassifies introduced as inherited only when a file changed and changed back -- the safe direction, since the failure being fixed is falsely blaming a branch
+- Accepted Per-run CI artifacts over a durable aggregated trend file because a durable trend written from a PR context needs the repository write grant that wp-servo confined to dependabot; artifacts capture the right population at no write cost
+- Accepted Checkbox flips in the orchestrator's per-package integration commit over flips in each implementation commit because tasks.md is in no package's write_allow, and eight branches editing one file invites conflicts; the flip still travels with the package landing
+
+### Open Questions
+- [ ] Aggregating per-run context_gate artifacts into a trend line has no wiring; the advisory-to-blocking flip criterion still cannot be evaluated from data.
+- [ ] extract-gen-eval-package remains unarchivable -- its delta MODIFIES a requirement heading that exists in no spec.
+- [ ] The coordinator accepts issue writes and returns success with a generated UUID, then does not read them back; 39 seeded tasks vanished twice.
+
+### Completed Work
+- wp-base: base resolved once via resolve_base(), recorded as tree.base_resolved_revision / base_resolved_from
+- wp-attribution: attribution and attributed_owner on every finding; classify_degradation purity pinned structurally
+- wp-events: event-aware exit codes; one always-running CI job with a case dispatch and a failing *) arm
+- wp-context-impact: attribution by declared scope; boundless globs stop attributing
+- wp-servo: dependabot-only remediation job under the repository's first, job-scoped, contents: write grant
+- wp-metrics: additive context_gate event type, emission opt-in and refused inside the checkout
+- wp-promotion: both promotion notes rewritten together; Status: NOT APPLIED kept accurate
+- wp-integration: mirrors re-synced, ruff clean, cross-environment agreement verified end to end
+- task 6.3 (added): CI job supplies the telemetry destination and uploads the row
+
+### Next Steps
+- Validate: confirm the gate is green on main after this lands, which is the precondition for the branch-protection promotion.
+- Validate: the CI artifact upload has not run in a real workflow; propagation was proven locally through make, not in Actions.
+- Owner action: tasks 7.2 and 7.3 in deferred-tasks.md require repo admin.
+
+### Relevant Files
+- `skills/project-context-refresh/scripts/gate.py` — base resolution, attribution, event-aware exit codes, telemetry emission
+- `skills/validate-packages/scripts/context_impact.py` — attribution by declared scope; boundless globs decline to attribute
+- `.github/workflows/ci.yml` — event dispatch, the dependabot remediation job, telemetry destination and upload
+- `openspec/changes/rescope-context-drift-enforcement/deferred-tasks.md` — the two admin-only steps between this change and enforcement
+
+### Context
+Implemented all eight work packages across the coordinated tier: the gate now resolves its base ref once and records it, attributes each finding as inherited, introduced or indeterminate, and derives exit codes from attribution per triggering event. Two scope gaps in the plan were found and repaired during the run -- a third copy of the report schema no package could write, and a telemetry event no run could reach. Both are recorded in the artifacts rather than silently fixed.
+
