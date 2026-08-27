@@ -1,0 +1,580 @@
+schema_version: 1
+
+feature:
+  id: rescope-context-drift-enforcement
+  title: "Rescope context drift enforcement"
+  plan_revision: 1
+  created_by: plan-feature
+
+# No HTTP surface. The canonical contract is the gate report schema, so the
+# contract slot carries that schema rather than an OpenAPI document -- the
+# convention ri-08, ri-09 and add-deterministic-context-drift-gates used.
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/rescope-context-drift-enforcement/contracts/context-drift-gate.schema.json"
+    files:
+      - "openspec/changes/rescope-context-drift-enforcement/contracts/context-drift-gate.schema.json"
+
+defaults:
+  priority: 10
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-base
+    title: "Pin what the base ref means"
+    task_type: implementation
+    description: |
+      Phase 1, tasks 1.1-1.8. Resolve the base name to exactly one revision and
+      record it.
+
+      This is the root of the DAG because everything downstream compares against
+      the base. Today the same report compares against two: `_default_changed_files`
+      (`gate.py:359`) diffs the raw base name against the local ref while
+      `describe_tree` (`gate.py:735`) uses `origin/<base>`. Verified consequence --
+      on a branch byte-identical to `origin/main`, `--base main` exits 2 while
+      `--base origin/main` exits 0, and the report states
+      `commits_behind_base_upstream: 0` alongside 53 changed files.
+
+      Task 1.3 is the regression pin for the environment split: CI job 98378668232
+      concluded success on the tree where the local gate exits 2, which violates the
+      ratified `Gate reproduces locally` scenario.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/project-context-refresh/scripts/gate.py"
+      keys:
+        - "feature:rescope-context-drift-enforcement:base"
+      ttl_minutes: 120
+      reason: "Base reference resolution in the gate"
+    scope:
+      write_allow:
+        - "skills/project-context-refresh/scripts/gate.py"
+        - "skills/project-context-refresh/scripts/cli.py"
+        - "skills/tests/project-context-refresh/test_gate.py"
+        - "openspec/schemas/context-drift-gate.schema.json"
+        - "openspec/contracts/project-context-refresh/schemas/context-drift-gate.schema.json"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: drift-base
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Gate suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_gate.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["gate_suite"]
+        - name: "Report schema is a valid JSON Schema"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import json;from jsonschema import Draft202012Validator as V;V.check_schema(json.load(open('openspec/schemas/context-drift-gate.schema.json')))\""
+          evidence:
+            artifacts: []
+            result_keys: ["gate_schema_valid"]
+    metadata:
+      loc_estimate: 240
+      complexity: medium
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "gate_suite"
+        - "gate_schema_valid"
+
+  - package_id: wp-attribution
+    title: "Classify drift as inherited or introduced"
+    task_type: implementation
+    description: |
+      Phase 2, tasks 2.1-2.8. Attribute each drifted finding using path-level
+      ancestry against the merge base.
+
+      Sequential after wp-base, not parallel: attribution against an unpinned base
+      is meaningless, and both packages write `gate.py`.
+
+      Attribution is a separate axis from the four disjoint groups, deliberately.
+      `classify_degradation` must stay pure -- `TestPurity`
+      (`test_classify_degradation.py:374-435`) asserts no IO by patching, and
+      attribution shells out to git. `:235` additionally hard-pins the informational
+      set. Task 2.8 verifies both still hold.
+
+      Content fingerprints cannot answer this: `compute_input_fingerprint` reads
+      working-tree bytes only, and making it revision-aware would change the hashed
+      payload format and invalidate every recorded `input_fingerprint`.
+    role: implementer
+    priority: 2
+    depends_on:
+      - wp-base
+    locks:
+      files:
+        - "skills/project-context-refresh/scripts/gate.py"
+      keys:
+        - "feature:rescope-context-drift-enforcement:attribution"
+      ttl_minutes: 120
+      reason: "Inherited-versus-introduced attribution"
+    scope:
+      write_allow:
+        - "skills/project-context-refresh/scripts/gate.py"
+        - "skills/tests/project-context-refresh/test_gate.py"
+        - "skills/tests/project-context-refresh/test_classify_degradation.py"
+        - "openspec/schemas/context-drift-gate.schema.json"
+        - "openspec/contracts/project-context-refresh/schemas/context-drift-gate.schema.json"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: drift-attribution
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Attribution and classification suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_gate.py skills/tests/project-context-refresh/test_classify_degradation.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["attribution_suite"]
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "attribution_suite"
+
+  - package_id: wp-events
+    title: "Make the blocking verdict event-aware"
+    task_type: implementation
+    description: |
+      Phase 3, tasks 3.1-3.8. Inherited drift reports on pull requests; introduced
+      drift blocks on every event; everything blocks on merge-queue and
+      integration-branch events.
+
+      The CI shape is prescribed by in-repo precedent, not invented.
+      `requirement-traceability-sweep` (`ci.yml:626`, dispatch `ci.yml:737-798`) runs
+      ONE job on all three events and branches on `EVENT_NAME` inside a `case` with a
+      failing `*)` arm. Its comment rejects the job-level `if:` alternative outright:
+      a required check that does not run on `merge_group` is not a check on the merge
+      candidate, and an unguarded job on an unhandled event is an unfalsifiable green.
+
+      Task 3.8 exists because `test_gate.py:824` parses the Makefile to assert the CI
+      invocation matches; adding an event argument must not break that equivalence.
+    role: implementer
+    priority: 3
+    depends_on:
+      - wp-attribution
+    locks:
+      files:
+        - "skills/project-context-refresh/scripts/gate.py"
+        - ".github/workflows/ci.yml"
+      keys:
+        - "feature:rescope-context-drift-enforcement:events"
+      ttl_minutes: 120
+      reason: "Event-aware exit codes and CI dispatch"
+    scope:
+      write_allow:
+        - "skills/project-context-refresh/scripts/gate.py"
+        - "skills/project-context-refresh/scripts/cli.py"
+        - "skills/tests/project-context-refresh/test_gate.py"
+        - ".github/workflows/ci.yml"
+        - "Makefile"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: drift-events
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Exit-code suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_gate.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["exit_code_suite"]
+        - name: "Gate job is not guarded off any declared event"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import re,sys;y=open('.github/workflows/ci.yml').read();job=y[y.index('  context-drift-gate:'):];job=job[:job.index('\\n  coverage-ratchet:')];sys.exit(1 if re.search(r'^\\s{4}if:', job, re.M) else 0)\""
+          evidence:
+            artifacts: []
+            result_keys: ["no_job_level_if"]
+    metadata:
+      loc_estimate: 200
+      complexity: medium
+      package_kind: config
+    outputs:
+      result_keys:
+        - "exit_code_suite"
+        - "no_job_level_if"
+
+  - package_id: wp-context-impact
+    title: "Fix context-impact attribution"
+    task_type: implementation
+    description: |
+      Phase 4, tasks 4.1-4.2. Attribute a changed path to a work package only when
+      that package's declared scope covers it.
+
+      Fully independent of the gate work -- disjoint files, no dependencies -- so it
+      runs in parallel with wp-base from the start.
+
+      The defect reproduces from PR #423: archiving moves a `work-packages.yaml` into
+      the diff while the surrounding commit regenerates unrelated artifacts, and the
+      validator reported `wp-integration: undeclared surface 'decisions'`, blaming an
+      archived change for five decision documents the archive commit itself had just
+      regenerated. Co-presence in a diff is not authorship.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/validate-packages/scripts/context_impact.py"
+      keys:
+        - "feature:rescope-context-drift-enforcement:contextimpact"
+      ttl_minutes: 60
+      reason: "Scope-aware context-impact attribution"
+    scope:
+      write_allow:
+        - "skills/validate-packages/scripts/context_impact.py"
+        - "skills/tests/validate-packages/test_context_impact.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: drift-context-impact
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Context-impact suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/validate-packages -q"
+          evidence:
+            artifacts: []
+            result_keys: ["context_impact_suite"]
+    metadata:
+      loc_estimate: 120
+      complexity: low
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "context_impact_suite"
+
+  - package_id: wp-servo
+    title: "Auto-remediate dependency-update pull requests"
+    task_type: implementation
+    description: |
+      Phase 5, tasks 5.1-5.5. Regenerate the cheap deterministic producers and commit
+      them back, only on dependabot pull requests.
+
+      This introduces the repository's FIRST `contents: write` grant and its first
+      job-level `permissions:` block. Both workflows are `permissions: contents: read`
+      today with no job-level overrides anywhere, and `GITHUB_TOKEN` appears exactly
+      once, as a read token. Confining the grant to dependabot is the reason the scope
+      is what it is -- that population is provably never the cause of context drift and
+      produces up to 15 pull requests every Monday.
+
+      Three constraints, each traceable to a documented failure:
+      regenerate against a CURRENT base, because artifacts derived from a stale base
+      are themselves drift (`docs/merge-logs/2026-08-24.md:29` calls replaying the same
+      merge commit "theatre"); use IDENTICAL argv for check and write, because
+      `generate_tool_descriptor.py:570-573` records that differing argv reports drift on
+      a perfectly up-to-date file; and never emit a degenerate artifact, because an
+      empty one makes the byte-identity assertion compare empty against empty forever.
+
+      Sequential after wp-events because both write `.github/workflows/ci.yml`.
+    role: implementer
+    priority: 4
+    depends_on:
+      - wp-events
+    locks:
+      files:
+        - ".github/workflows/ci.yml"
+      keys:
+        - "feature:rescope-context-drift-enforcement:servo"
+      ttl_minutes: 90
+      reason: "Dependabot remediation job and its write grant"
+    scope:
+      write_allow:
+        - ".github/workflows/ci.yml"
+        - "skills/tests/project-context-refresh/test_remediation_policy.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: drift-servo
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Remediation policy suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_remediation_policy.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["remediation_policy"]
+        - name: "No workflow-level write grant exists"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import sys,yaml,glob;bad=[f for f in glob.glob('.github/workflows/*.yml') if (yaml.safe_load(open(f)) or {}).get('permissions',{}).get('contents')=='write'];print(bad);sys.exit(1 if bad else 0)\""
+          evidence:
+            artifacts: []
+            result_keys: ["no_workflow_write_grant"]
+    metadata:
+      loc_estimate: 160
+      complexity: medium
+      package_kind: config
+    outputs:
+      result_keys:
+        - "remediation_policy"
+        - "no_workflow_write_grant"
+
+  - package_id: wp-metrics
+    title: "Record inherited-versus-introduced evidence"
+    task_type: implementation
+    description: |
+      Phase 6, tasks 6.1-6.2. Append a `context_gate` event per gate run.
+
+      Additive by construction: `event_type` on `MergeEvent` (`merge_events.py:28`) is
+      an open `str`, `to_dict()` (`:41`) drops `None` fields, and
+      `merge_metrics.py:27-31` switches on known types and ignores others. No existing
+      reader changes.
+
+      This is what gives the advisory-to-blocking flip evidence rather than intuition,
+      consistent with the documented `clean_runs_before_flip: 3` vocabulary in
+      `architecture.config.yaml`.
+
+      Sequential after wp-events because it writes `gate.py`.
+    role: implementer
+    priority: 4
+    depends_on:
+      - wp-events
+    locks:
+      files:
+        - "skills/merge-pull-requests/scripts/merge_events.py"
+      keys:
+        - "feature:rescope-context-drift-enforcement:metrics"
+      ttl_minutes: 60
+      reason: "context_gate event type"
+    scope:
+      write_allow:
+        - "skills/merge-pull-requests/scripts/merge_events.py"
+        - "skills/tests/merge-pull-requests/test_merge_events.py"
+        - "skills/project-context-refresh/scripts/gate.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: drift-metrics
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Merge-events suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/merge-pull-requests/test_merge_events.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["merge_events_suite"]
+    metadata:
+      loc_estimate: 80
+      complexity: low
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "merge_events_suite"
+
+  - package_id: wp-promotion
+    title: "Close the promotion gap in the guide"
+    task_type: implementation
+    description: |
+      Phase 7, task 7.1 only. Rewrite both promotion notes together.
+
+      Tasks 7.2 and 7.3 apply and verify the branch-protection promotion. They are
+      NOT in this package and cannot be: a pull request cannot change branch
+      protection. They require the repository owner to run the `gh api` call recorded
+      at `docs/guides/session-completion.md:47-53`, and only after the gate is green
+      on `main`.
+
+      The rewrite must touch both notes in one edit.
+      `introduce-fitness-function-gates` wrote `session-completion.md:69-115`
+      immediately below the known-gap section and back-references it -- "Same additive
+      endpoint as the `context-drift-gate` promotion above" -- and
+      `specs/fitness-functions/spec.md:115-116` makes that adjacency normative.
+      Deleting one note alone leaves a spec-level claim pointing at nothing.
+    role: implementer
+    priority: 4
+    depends_on:
+      - wp-events
+    locks:
+      files:
+        - "docs/guides/session-completion.md"
+      keys:
+        - "feature:rescope-context-drift-enforcement:promotion"
+      ttl_minutes: 60
+      reason: "Rewrite both promotion notes coherently"
+    scope:
+      write_allow:
+        - "docs/guides/session-completion.md"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "documentation"
+    worktree:
+      name: drift-promotion
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "No dangling back-reference to a deleted note"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import sys;t=open('docs/guides/session-completion.md').read();sys.exit(1 if ('promotion above' in t and 'context-drift-gate' not in t) else 0)\""
+          evidence:
+            artifacts: []
+            result_keys: ["no_dangling_reference"]
+    metadata:
+      loc_estimate: 40
+      complexity: low
+      package_kind: config
+    outputs:
+      result_keys:
+        - "no_dangling_reference"
+
+  - package_id: wp-integration
+    title: "Mirror sync and cross-environment verification"
+    task_type: integration
+    description: |
+      Phase 8, tasks 8.1-8.3.
+
+      Task 8.3 is the acceptance evidence for the whole change: clone the branch fresh,
+      run `make context-drift-gate`, and compare against the same command in a checkout
+      whose local base branch trails its remote. Both must agree. That comparison is
+      the only verification that actually exercises the failure this change exists to
+      fix, because on the tree that produced the artifacts the two refs coincide.
+
+      Mirror sync is not bookkeeping: `gate-drift-with-mirrors-hooks-and-blocking-ci`
+      will fail CI on drift between `skills/` and its two copies, and every code edit
+      here is under `skills/`. Ruff is blocking over `skills/` at pinned 0.16.0 rules
+      since `add-skills-lint-ci-gate`.
+    role: integrator
+    priority: 5
+    depends_on:
+      - wp-base
+      - wp-attribution
+      - wp-events
+      - wp-context-impact
+      - wp-servo
+      - wp-metrics
+      - wp-promotion
+    locks:
+      files:
+        - ".claude/skills/project-context-refresh"
+        - ".agents/skills/project-context-refresh"
+      keys:
+        - "feature:rescope-context-drift-enforcement:mirrors"
+      ttl_minutes: 60
+      reason: "Mirror sync and integration verification"
+    scope:
+      write_allow:
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: drift-integration
+      mode: shared
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Skill install payload is in sync"
+          kind: command
+          command: "bash install.sh --check"
+          evidence:
+            artifacts: []
+            result_keys: ["mirrors_synced"]
+        - name: "Edited modules are ruff-clean"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/project-context-refresh skills/validate-packages skills/merge-pull-requests"
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_clean"]
+        - name: "Gate agrees across checkout shapes"
+          kind: command
+          command: "make context-drift-gate PYTHON=skills/.venv/bin/python"
+          evidence:
+            artifacts: []
+            result_keys: ["cross_environment_agreement"]
+    metadata:
+      loc_estimate: 20
+      complexity: low
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "mirrors_synced"
+        - "ruff_clean"
+        - "cross_environment_agreement"
