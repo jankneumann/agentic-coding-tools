@@ -186,13 +186,13 @@ exit codes, then the servo. Each phase is observable before the next enforces on
 
 ## 5. Auto-remediate dependency-update pull requests
 
-- [ ] 5.1 Write a test that human pull requests are never written to — **S**
+- [x] 5.1 Write a test that human pull requests are never written to — **S**
   **Spec scenarios**: Human pull request is not written to
   **Design decisions**: D5
   **Files**: `skills/tests/project-context-refresh/test_remediation_policy.py`
   **Dependencies**: None
 
-- [ ] 5.2 Write a test that write permission is job-scoped — **XS**
+- [x] 5.2 Write a test that write permission is job-scoped — **XS**
   **Spec scenarios**: Write permission is scoped to the remediation job
   **Design decisions**: D5
   **Files**: `skills/tests/project-context-refresh/test_remediation_policy.py`
@@ -200,15 +200,15 @@ exit codes, then the servo. Each phase is observable before the next enforces on
   Static assertion over `.github/workflows/*.yml`: no workflow-level write grant, exactly
   one job declaring one.
 
-- [ ] Checkpoint: confirm both policy tests fail, since no remediation job exists yet
+- [x] Checkpoint: confirm both policy tests fail, since no remediation job exists yet
 
-- [ ] 5.3 Add the dependency-update remediation job — **M**
+- [x] 5.3 Add the dependency-update remediation job — **M**
   **Spec scenarios**: Dependency-update pull request is remediated, Write permission is scoped to the remediation job
   **Design decisions**: D5
   **Files**: `.github/workflows/ci.yml`
   **Dependencies**: 5.1, 5.2, 3.7
 
-- [ ] 5.4 Refresh the base before regenerating — **S**
+- [x] 5.4 Refresh the base before regenerating — **S**
   **Spec scenarios**: Dependency-update pull request is remediated
   **Design decisions**: D5
   **Files**: `.github/workflows/ci.yml`
@@ -216,14 +216,19 @@ exit codes, then the servo. Each phase is observable before the next enforces on
   Artifacts derived from a stale base are themselves drift; `docs/merge-logs/2026-08-24.md:29`
   records replaying the same merge commit as "theatre".
 
-- [ ] 5.5 Make the regenerate command identical to the check command — **S**
+- [x] 5.5 Make the regenerate command identical to the check command — **S**
   **Design decisions**: D5
   **Files**: `.github/workflows/ci.yml`, `Makefile`
   **Dependencies**: 5.4
   Per `generate_tool_descriptor.py:570-573`, differing argv between checker and writer
   reports drift on an up-to-date file forever.
 
-- [ ] Checkpoint: run the policy suite green, review the ci.yml permissions diff line by line
+- [x] Checkpoint: run the policy suite green, review the ci.yml permissions diff line by line
+
+  **Note (5.5):** satisfied inside the workflow, not the Makefile. One `run_producer()`
+  helper is the only place `cli.py` is invoked for either mode, and `cli.py <mode>
+  <producer-id>` takes no other argument — so writer and checker have nothing left to
+  disagree about. `Makefile` needed no edit and was not touched.
 
 ## 6. Record inherited-versus-introduced evidence
 
