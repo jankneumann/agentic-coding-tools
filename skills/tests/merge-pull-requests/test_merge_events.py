@@ -26,10 +26,13 @@ otherwise append to the repository's own tracked ``docs/merge-logs/metrics.jsonl
 
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -189,3 +192,273 @@ class TestPurelyAdditive:
         assert summary["merge_count"] == 1
         assert summary["merge_success_rate"] == 1.0
         assert summary["backend_counts"] == {"direct": 1}
+
+
+# --------------------------------------------------------------------------- #
+# Emission from the gate (task 6.2)
+# --------------------------------------------------------------------------- #
+_GATE_SCRIPTS = _SKILLS_ROOT / "project-context-refresh" / "scripts"
+if str(_GATE_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_GATE_SCRIPTS))
+
+import gate  # noqa: E402
+import orchestrator  # noqa: E402
+import results as R  # noqa: E402
+from _runtime import ChangeKind, Remediation, RepositoryArtifact  # noqa: E402
+
+_FULL_SHA = "c" * 40
+
+
+def _drift(producer_id: str, path: str) -> Any:
+    return R.drift(
+        producer_id,
+        "1",
+        artifacts=(
+            RepositoryArtifact(path=path, change=ChangeKind.MODIFIED, sha256="0" * 64),
+        ),
+        validations=[R.failed_validation(R.vid(producer_id, "render"), "would change")],
+        remediation=[Remediation(summary=f"re-run {producer_id}")],
+    )
+
+
+def _checker(*producer_results: Any):
+    def _run(repository, **_kwargs):  # noqa: ANN001, ANN003
+        outcome, _error = orchestrator.decide_outcome(producer_results, None)
+        return orchestrator.RefreshResult(
+            operation_id=None,
+            outcome=outcome,
+            producer_results=tuple(producer_results),
+            semantic_index=None,
+        )
+
+    return _run
+
+
+def _impact_runner(argv):  # noqa: ANN001
+    return 0, json.dumps({"packages": []})
+
+
+def _run_gate(repository: Path, *producer_results: Any, **kwargs: Any):
+    kwargs.setdefault("revision", _FULL_SHA)
+    kwargs.setdefault("changed_files", ())
+    kwargs.setdefault("check_runner", _checker(*producer_results))
+    kwargs.setdefault("context_impact_runner", _impact_runner)
+    return gate.run_gate(repository, **kwargs)
+
+
+def _dirty_checkout(root: Path) -> Path:
+    """A git checkout with one uncommitted edit and one untracked file."""
+    subprocess.run(["git", "init", str(root)], check=True, capture_output=True)
+    tracked = root / "tracked.md"
+    tracked.write_text("committed\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "-C", str(root), "add", "tracked.md"], check=True, capture_output=True
+    )
+    tracked.write_text("uncommitted edit\n", encoding="utf-8")
+    (root / "scratch.txt").write_text("untracked\n", encoding="utf-8")
+    return root
+
+
+def _digest_tree(root: Path) -> dict[str, str]:
+    """Digest every path under *root*, tracked and untracked, excluding ``.git``."""
+    digests: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        if ".git" in path.relative_to(root).parts[:1]:
+            continue
+        rel = str(path.relative_to(root))
+        digests[rel] = "<dir>" if path.is_dir() else hashlib.sha256(
+            path.read_bytes()
+        ).hexdigest()
+    return digests
+
+
+class TestGateEmission:
+    """The gate records one row per run — without paying for it in its verdict."""
+
+    def test_no_destination_means_no_record(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Implementation Rule 4: new configuration defaults to current behaviour."""
+        monkeypatch.delenv(gate.GATE_METRICS_PATH_ENV, raising=False)
+        repo = _dirty_checkout(tmp_path / "repo")
+        before = _digest_tree(repo)
+
+        result = _run_gate(repo, _drift("documentation.inventory", "docs/a.md"))
+
+        assert result.exit_code == 2
+        assert _digest_tree(repo) == before
+        assert not list(repo.rglob("metrics.jsonl"))
+
+    def test_a_configured_destination_receives_one_row_per_run(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv(gate.GATE_METRICS_PATH_ENV, raising=False)
+        repo = _dirty_checkout(tmp_path / "repo")
+        destination = tmp_path / "outside" / "metrics.jsonl"
+
+        result = _run_gate(
+            repo,
+            _drift("documentation.inventory", "docs/a.md"),
+            metrics_path=destination,
+        )
+        _run_gate(
+            repo,
+            _drift("documentation.inventory", "docs/a.md"),
+            metrics_path=destination,
+        )
+
+        rows = load_events(log_path=destination, event_type="context_gate")
+        assert len(rows) == 2
+        row = rows[0]
+        assert row["gate_outcome"] == result.report["outcome"] == "drift"
+        assert row["gate_exit_code"] == result.exit_code == 2
+        assert row["gate_source_revision"] == result.report["source_revision"]
+        assert "gate_event" not in row
+        # One blocking finding, and the counters cover the whole vocabulary so a
+        # zero is recorded rather than omitted.
+        assert (
+            row["gate_blocking_inherited"]
+            + row["gate_blocking_introduced"]
+            + row["gate_blocking_indeterminate"]
+        ) == len(result.report["blocking_drift"]) == 1
+        assert row["gate_informational_inherited"] == 0
+        assert row["gate_informational_introduced"] == 0
+        assert row["gate_informational_indeterminate"] == 0
+
+    def test_the_environment_variable_configures_the_destination(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """CI has no gate flag to pass; the environment is the only seam it has."""
+        repo = _dirty_checkout(tmp_path / "repo")
+        destination = tmp_path / "outside" / "metrics.jsonl"
+        monkeypatch.setenv(gate.GATE_METRICS_PATH_ENV, str(destination))
+
+        _run_gate(
+            repo,
+            R.fresh(
+                "documentation.inventory",
+                "1",
+                validations=[R.passed("documentation.inventory-check", "clean")],
+            ),
+            event="merge_group",
+        )
+
+        rows = load_events(log_path=destination, event_type="context_gate")
+        assert len(rows) == 1
+        assert rows[0]["gate_event"] == "merge_group"
+        assert rows[0]["gate_outcome"] == "fresh"
+        assert rows[0]["success"] is True
+
+    def test_a_destination_inside_the_checkout_is_refused(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+    ) -> None:
+        """"Gate leaves the checkout unchanged" outranks recording the run.
+
+        Pointed at the tree it is grading, the gate declines rather than writes:
+        the read-only scenario digests the checkout tracked and untracked before
+        and after, and a JSONL append is exactly the kind of "small" write that
+        would make the gate the reason ``main`` is dirty.
+        """
+        monkeypatch.delenv(gate.GATE_METRICS_PATH_ENV, raising=False)
+        repo = _dirty_checkout(tmp_path / "repo")
+        before = _digest_tree(repo)
+
+        result = _run_gate(
+            repo,
+            _drift("documentation.inventory", "docs/a.md"),
+            metrics_path=repo / "docs" / "merge-logs" / "metrics.jsonl",
+        )
+
+        assert result.exit_code == 2
+        assert _digest_tree(repo) == before
+        assert not (repo / "docs").exists()
+        assert "refusing to record gate metrics" in capsys.readouterr().err
+
+    def test_an_unwritable_destination_cannot_change_the_verdict(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        """A missing or unwritable events file is telemetry's problem, not the gate's."""
+        monkeypatch.delenv(gate.GATE_METRICS_PATH_ENV, raising=False)
+        repo = _dirty_checkout(tmp_path / "repo")
+        blocker = tmp_path / "not-a-directory"
+        blocker.write_text("in the way\n", encoding="utf-8")
+
+        with_metrics = _run_gate(
+            repo,
+            _drift("documentation.inventory", "docs/a.md"),
+            metrics_path=blocker / "nested" / "metrics.jsonl",
+        )
+        without_metrics = _run_gate(repo, _drift("documentation.inventory", "docs/a.md"))
+
+        assert with_metrics.exit_code == without_metrics.exit_code == 2
+        assert with_metrics.report == without_metrics.report
+        # And the write really was attempted and really did fail, so this test
+        # cannot pass by quietly not emitting at all.
+        assert "NotADirectoryError" in capsys.readouterr().err
+
+    def test_an_emitter_that_raises_cannot_change_the_verdict(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        """Every failure mode, not just the anticipated ones, stops at the seam."""
+        repo = _dirty_checkout(tmp_path / "repo")
+
+        def _boom(_metrics_path):  # noqa: ANN001
+            raise RuntimeError("metrics sink exploded")
+
+        monkeypatch.setattr(gate, "_metrics_destination", _boom)
+        result = _run_gate(repo, _drift("documentation.inventory", "docs/a.md"))
+
+        assert result.exit_code == 2
+        assert result.report["outcome"] == "drift"
+        assert "metrics sink exploded" in capsys.readouterr().err
+
+    def test_a_reported_but_non_blocking_run_records_both_numbers(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The pull-request case the flip exists to measure: drift, exit 0.
+
+        Rendered directly rather than through a synthetic ancestry fixture --
+        what is under test here is that the record keeps ``outcome`` and
+        ``exit_code`` apart, not how attribution reached its answer.
+        """
+        monkeypatch.delenv(gate.GATE_METRICS_PATH_ENV, raising=False)
+        destination = tmp_path / "outside" / "metrics.jsonl"
+        report = {
+            "source_revision": _FULL_SHA,
+            "tree": {"base_resolved_revision": "d" * 40, "base_resolved_from": "remote"},
+            "outcome": "drift",
+            "exit_code": 0,
+            "blocking_drift": [
+                {"producer_id": "documentation.inventory", "attribution": "inherited"},
+                {"producer_id": "api.contracts", "attribution": "indeterminate"},
+            ],
+            "informational_drift": [
+                {"producer_id": "openspec.projection", "attribution": "introduced"}
+            ],
+        }
+
+        written = gate.emit_gate_metrics(
+            tmp_path / "repo",
+            report,
+            event="pull_request",
+            metrics_path=destination,
+        )
+
+        assert written == destination.resolve()
+        (row,) = load_events(log_path=destination)
+        assert row["gate_outcome"] == "drift"
+        assert row["gate_exit_code"] == 0
+        assert row["success"] is True
+        assert row["gate_event"] == "pull_request"
+        assert row["gate_base_revision"] == "d" * 40
+        assert row["gate_base_resolved_from"] == "remote"
+        assert row["gate_blocking_inherited"] == 1
+        assert row["gate_blocking_indeterminate"] == 1
+        assert row["gate_blocking_introduced"] == 0
+        assert row["gate_informational_introduced"] == 1
