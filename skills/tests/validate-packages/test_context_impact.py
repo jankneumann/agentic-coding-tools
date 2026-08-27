@@ -187,3 +187,86 @@ class TestIndexScopes:
             scope={"write_allow": ["src/**"], "read_allow": ["src/**"]}
         )
         assert index_scopes(package).deny == ()
+
+
+# The PR #423 shape, taken from commit 11a134aa ("archive four completed
+# context-lifecycle changes"): archiving moves a change's whole directory --
+# including its `work-packages.yaml` -- into the diff, while the surrounding
+# commit regenerates the decision index the archive itself invalidated.
+ARCHIVED_CHANGE = "openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints"
+
+ARCHIVE_MOVE = (
+    f"{ARCHIVED_CHANGE}/proposal.md",
+    f"{ARCHIVED_CHANGE}/design.md",
+    f"{ARCHIVED_CHANGE}/tasks.md",
+    f"{ARCHIVED_CHANGE}/work-packages.yaml",
+)
+
+REGENERATED_DECISIONS = (
+    "docs/decisions/README.md",
+    "docs/decisions/architecture-refresh.md",
+    "docs/decisions/project-context-refresh-orchestration.md",
+    "docs/decisions/project-context-refresh.md",
+    "docs/decisions/skill-workflow.md",
+)
+
+ARCHIVE_DIFF = (*ARCHIVE_MOVE, *REGENERATED_DECISIONS)
+
+
+class TestCoPresenceIsNotAuthorship:
+    """D6: a changed path is attributed by declared scope, not by co-presence.
+
+    The reported defect: ``wp-integration`` of an archived change declares no
+    boundary at all (``write_allow: ['**']``), so every path the archive commit
+    happened to carry was charged to it -- and the five regenerated decision
+    documents produced ``undeclared surface 'decisions'`` against a change that
+    had already shipped.
+    """
+
+    @staticmethod
+    def _archived_integration_package():
+        """``wp-integration`` exactly as the archived change declares it."""
+        return minimal_package(
+            package_id="wp-integration",
+            scope={
+                "write_allow": ["**"],
+                "read_allow": ["**"],
+                "deny": ["**/.venv/**"],
+            },
+            context_impact={
+                "surfaces": ["capabilities", "apis", "documentation", "semantic_code"],
+            },
+        )
+
+    def test_regenerated_decisions_are_not_charged_to_a_co_present_package(self, rules):
+        implied = infer_surfaces(
+            self._archived_integration_package(), ARCHIVE_DIFF, rules
+        )
+        assert "decisions" not in implied, (
+            "a package whose declaration merely rode along in the archive diff was "
+            f"charged with 'decisions' implied by {implied.get('decisions')}"
+        )
+
+    def test_the_moved_declaration_file_itself_is_not_charged(self, rules):
+        implied = infer_surfaces(
+            self._archived_integration_package(), ARCHIVE_DIFF, rules
+        )
+        charged = {path for paths in implied.values() for path in paths}
+        assert not charged & set(ARCHIVE_MOVE), sorted(charged & set(ARCHIVE_MOVE))
+
+    def test_a_bounded_scope_still_owns_the_paths_it_covers(self, rules):
+        """Do not weaken: a declared scope that does cover the path still counts."""
+        package = minimal_package(
+            scope={"write_allow": ["docs/decisions/**"], "read_allow": ["**"]}
+        )
+        implied = infer_surfaces(package, ARCHIVE_DIFF, rules)
+        assert "decisions" in implied
+        assert set(implied["decisions"]) == set(REGENERATED_DECISIONS)
+
+    def test_an_unbounded_scope_still_owns_an_ordinary_diff(self, rules):
+        """The compatibility boundary: no declaration file, no co-presence problem."""
+        package = minimal_package(
+            scope={"write_allow": ["**"], "read_allow": ["**"]}
+        )
+        implied = infer_surfaces(package, ["docs/guides/workflow.md"], rules)
+        assert "documentation" in implied
