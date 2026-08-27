@@ -1334,6 +1334,106 @@ class ConvergenceResult:
 _DRIFT_VERDICT_BY_EXIT: dict[int, str] = {0: "fresh", 2: "drift"}
 
 
+# --------------------------------------------------------------------------- #
+# The gate record (D7) -- telemetry about the verdict, never part of it
+# --------------------------------------------------------------------------- #
+#: Environment variable ``make context-drift-gate`` forwards to the gate as
+#: ``--event``. The report does not echo it back, so the record reads it from the
+#: same environment the invocation was made in. Absent means no event was
+#: supplied, which is the gate's strict rule and is recorded as an absent key
+#: rather than an invented name.
+GATE_EVENT_ENV = "CONTEXT_GATE_EVENT"
+
+#: The gate's attribution vocabulary, consumed rather than defined here:
+#: ``gate.py`` owns these names and writes them verbatim onto every finding it
+#: reports. Counted as a fixed group so a run with no inherited findings records
+#: ``0`` rather than omitting the key -- "three clean runs in a row" is a claim
+#: about runs that counted zero, and a missing key would let silence count as
+#: clean.
+_GATE_ATTRIBUTIONS: tuple[str, ...] = ("inherited", "introduced", "indeterminate")
+
+
+def _attribution_counts(findings: Any) -> dict[str, int]:
+    """Count one drift group by attribution, with every member present."""
+    counts = dict.fromkeys(_GATE_ATTRIBUTIONS, 0)
+    for finding in findings or ():
+        attribution = finding.get("attribution") if isinstance(finding, dict) else None
+        if attribution in counts:
+            counts[attribution] += 1
+    return counts
+
+
+def record_gate_event(
+    repository: Path | str,
+    gate: CommandResult,
+    *,
+    environ: Mapping[str, str] | None = None,
+) -> Path | None:
+    """Append one ``context_gate`` row for *gate*. Returns where, or ``None``.
+
+    The gate builds this record but cannot deliver it. A ratified scenario
+    requires it to leave the tree it grades byte-identical, so it refuses any
+    destination inside the checkout -- which is every destination a reader of
+    this repository would look in. The direction is therefore inverted here: the
+    gate stays read-only and reports on stdout, and the merge train, which
+    already writes ``docs/merge-logs/``, reads that report and writes the row.
+
+    The row is built by :func:`merge_events.context_gate_event`, the same builder
+    the gate calls, so there is one field vocabulary rather than two that drift
+    apart. The destination is ``merge_events.DEFAULT_LOG_PATH`` resolved against
+    the repository root -- read at call time, because that constant is the
+    suite's single monkeypatchable seam and because the train may be driven from
+    a directory that is not the checkout.
+
+    **Recording must never change the verdict.** The verdict is the product; the
+    row is evidence about the product. Every failure mode -- stdout that is not a
+    report, a report missing a key, an unwritable log, the events module absent
+    -- is caught here and reported to stderr, which is why the ``except
+    Exception`` is deliberate rather than lazy: narrowing it would let some
+    unanticipated error escape into a convergence outcome, and a convergence
+    outcome that depends on whether telemetry succeeded is worse than no
+    telemetry. *gate* is taken read-only and the caller's ``verdict`` is already
+    computed, so there is no path by which this edits what it describes.
+    """
+    try:
+        scripts_dir = str(Path(__file__).resolve().parent)
+        if scripts_dir not in sys.path:
+            sys.path.insert(0, scripts_dir)
+        import merge_events
+
+        report = json.loads(gate.stdout)
+        tree = report.get("tree") or {}
+        blocking = _attribution_counts(report.get("blocking_drift"))
+        informational = _attribution_counts(report.get("informational_drift"))
+        env = os.environ if environ is None else environ
+        destination = Path(repository).resolve() / merge_events.DEFAULT_LOG_PATH
+        merge_events.emit_event(
+            merge_events.context_gate_event(
+                outcome=report["outcome"],
+                exit_code=report["exit_code"],
+                gate_event=env.get(GATE_EVENT_ENV) or None,
+                source_revision=report.get("source_revision"),
+                base_revision=tree.get("base_resolved_revision"),
+                base_resolved_from=tree.get("base_resolved_from"),
+                blocking_inherited=blocking["inherited"],
+                blocking_introduced=blocking["introduced"],
+                blocking_indeterminate=blocking["indeterminate"],
+                informational_inherited=informational["inherited"],
+                informational_introduced=informational["introduced"],
+                informational_indeterminate=informational["indeterminate"],
+            ),
+            log_path=destination,
+        )
+        return destination
+    except Exception as error:  # noqa: BLE001 -- see the docstring
+        print(
+            f"[WARN] context gate event not recorded: "
+            f"{type(error).__name__}: {error}",
+            file=sys.stderr,
+        )
+        return None
+
+
 def dry_run(
     repository: Path | str,
     *,
@@ -1353,6 +1453,12 @@ def dry_run(
     mutating path writes producer output into the working tree, and a dry run
     that dirties main is not a dry run. ``make context-drift-gate`` writes
     nothing by construction, which is why it is the assessment used.
+
+    The one thing this pass does write is a single ``context_gate`` telemetry row
+    for the gate run it just observed (:func:`record_gate_event`). That is not
+    producer output and it is not part of the assessment: the row is appended to
+    the same append-only ``docs/merge-logs/`` log the train already keeps, and
+    failing to write it cannot alter a field of the result below.
     """
     root = Path(repository).resolve()
     identity = derive_convergence_identity(
@@ -1371,6 +1477,8 @@ def dry_run(
         gate_error: str | None = str(exc)
     else:
         gate_error = None
+        # After the verdict, never before it, and unable to change it.
+        record_gate_event(root, gate, environ=environ)
 
     return ConvergenceResult(
         status=ConvergenceStatus.DRY_RUN,
