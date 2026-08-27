@@ -227,17 +227,23 @@ exit codes, then the servo. Each phase is observable before the next enforces on
 
 ## 6. Record inherited-versus-introduced evidence
 
-- [ ] 6.1 Write a test for the context_gate event shape — **S**
+- [x] 6.1 Write a test for the context_gate event shape — **S**
   **Design decisions**: D7
   **Files**: `skills/tests/merge-pull-requests/test_merge_events.py`
   **Dependencies**: None
 
-- [ ] Checkpoint: confirm the event shape test fails before the emitter exists
+- [x] Checkpoint: confirm the event shape test fails before the emitter exists
 
-- [ ] 6.2 Emit a context_gate event per gate run — **S**
+- [x] 6.2 Emit a context_gate event per gate run — **S**
   **Design decisions**: D7
   **Files**: `skills/project-context-refresh/scripts/gate.py`, `skills/merge-pull-requests/scripts/merge_events.py`
   **Dependencies**: 6.1, 2.6
+
+  **Deviation (implemented):** emission is opt-in to a destination outside the
+  checkout, not an append to `docs/merge-logs/metrics.jsonl` as proposal section 6
+  described. That path is inside the graded tree and would break the ratified
+  `Gate leaves the checkout unchanged` scenario. A destination inside the checkout is
+  refused. Unset means no record, so today's behaviour is byte-for-byte preserved.
 
 ## 7. Close the promotion gap
 
