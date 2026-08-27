@@ -39,6 +39,7 @@ and blocking. It is what ``make context-drift-gate`` runs, so a CI failure
 reproduces verbatim in a developer checkout.
 
     python scripts/cli.py gate --base main
+    python scripts/cli.py gate --base main --event pull_request
 
 The exit code distinguishes deterministic drift from an internal failure:
 
@@ -56,6 +57,15 @@ leaves ``gate`` at ``0``, because a required producer reporting no configuration
 has already been rewritten to a failure by registry policy, so a surviving one
 is external degradation. ``_exit_code`` and ``refresh-check`` keep their
 mappings unchanged; the gate is a third caller with its own documented codes.
+
+``--event`` narrows *which* blocking findings the code is derived from, never
+which are reported: on ``pull_request`` drift the branch inherited from the
+integration branch is listed with its owner and does not fail the gate, while on
+``merge_group`` and ``push`` every blocking finding does. Omitting it selects the
+strict rule, so a local run and the pre-existing callers keep today's verdict.
+An event the gate has no rule for exits ``1`` — an apparatus failure, because the
+gate cannot say which rule applies — and deliberately not argparse's own ``2``,
+which here would read as drift.
 
 Output is the canonical ri-06 ``ProducerResult`` JSON (a list for ``*-all``) or,
 for the orchestrator, a refresh summary, so callers parse exactly what ri-07
@@ -244,6 +254,7 @@ def _gate(repository: Path, revision: str, args: argparse.Namespace) -> int:
             repository,
             revision=revision,
             base=args.base,
+            event=args.event,
             changed_files=tuple(args.changed_files) if args.changed_files else None,
             rules=args.rules,
         )
@@ -378,6 +389,19 @@ def main(argv: list[str] | None = None) -> int:
             "which scopes work-package context-impact validation and identifies "
             "the tree the verdict was compared against. The report records it as "
             "base_resolved_revision."
+        ),
+    )
+    gp.add_argument(
+        "--event",
+        default=None,
+        metavar="NAME",
+        help=(
+            "Triggering event this run answers for: pull_request, merge_group, "
+            "or push. On pull_request, blocking drift the branch inherited from "
+            "the integration branch is reported but does not fail the gate; on "
+            "the other two every blocking finding fails it, because there is no "
+            "other branch to inherit from. Omit it for the strict rule, which is "
+            "what a local run gets. An event with no rule is an error, not a pass."
         ),
     )
     gp.add_argument(
