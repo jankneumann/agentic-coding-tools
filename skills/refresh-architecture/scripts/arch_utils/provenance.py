@@ -85,7 +85,15 @@ PRODUCER_ID = "architecture"
 #: no longer tracked. This is a different fact from the record-shape change
 #: below, and both are compared: a reader seeing only the schema bump could not
 #: tell whether the artifact set had changed, and vice versa.
-PRODUCER_VERSION = "1.3.0"
+#:
+#: 1.4.0 — optional-tool identity is recorded per grammar. ``optional_tools``
+#: was a single ``tree-sitter`` entry, which could not say which stages had what
+#: they needed: the grammars install independently, so an interpreter with the
+#: Python and TypeScript grammars but not the SQL one runs three stages and
+#: skips one. A record written before this carries the single-entry shape and
+#: reports PRODUCER_IDENTITY_MISMATCH once; regenerating resolves it. The first
+#: run after this upgrade is expected to be stale, and is not a regression.
+PRODUCER_VERSION = "1.4.0"
 #: Bump when the *shape* of the provenance record changes.
 #:
 #: 2 — every artifact entry carries a required ``tier``. Not optional-with-a-

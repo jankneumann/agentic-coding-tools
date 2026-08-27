@@ -207,6 +207,44 @@ def test_optional_tool_identity_change_is_stale(repo: Path) -> None:
     assert prov.PRODUCER_IDENTITY_MISMATCH in {r.code for r in result.reasons}
 
 
+def test_pre_grammar_record_mismatches_once_then_regenerates(repo: Path) -> None:
+    """The one-time cost of per-grammar optional-tool identity (D6).
+
+    A record written before the upgrade carries one `tree-sitter` entry and the
+    previous producer version. The check must say PRODUCER_IDENTITY_MISMATCH
+    rather than report the artifacts as drifted, and one regeneration must
+    settle it — that is why the first post-upgrade run reporting stale is
+    expected rather than a regression.
+    """
+    roots = ["src", "database/migrations"]
+    rev = prov.analyzed_revision(repo)
+    os.environ["SOURCE_DATE_EPOCH"] = str(prov.deterministic_epoch(repo, rev))
+    try:
+        pre_upgrade = prov.build_provenance(
+            repo,
+            mode="full",
+            roots=roots,
+            optional_tools=[
+                {"name": "tree-sitter", "available": True, "version": "0.25.2"}
+            ],
+        )
+        pre_upgrade["producer"]["producer_version"] = "1.2.0"
+        prov.write_provenance(repo, pre_upgrade)
+
+        stale = prov.check_freshness(repo, mode="full")
+        assert stale.status == "stale"
+        assert prov.PRODUCER_IDENTITY_MISMATCH in {r.code for r in stale.reasons}
+        assert prov.ARTIFACT_DIGEST_MISMATCH not in {r.code for r in stale.reasons}
+
+        prov.write_provenance(
+            repo, prov.build_provenance(repo, mode="full", roots=roots)
+        )
+    finally:
+        os.environ.pop("SOURCE_DATE_EPOCH", None)
+
+    assert prov.check_freshness(repo, mode="full").is_fresh
+
+
 # --------------------------------------------------------------------------- #
 # Scenario .6 — invalid provenance fails closed
 # --------------------------------------------------------------------------- #
