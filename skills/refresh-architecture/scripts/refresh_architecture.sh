@@ -234,11 +234,32 @@ info "--- [1.2] Postgres Analyzer ---"
 info "Migrations: ${MIGRATIONS_DIR}"
 
 if [ ! -d "${MIGRATIONS_DIR}" ]; then
-    error "Migrations directory not found: ${MIGRATIONS_DIR}"
-    fail "postgres_analyzer"
+    # Skip an inapplicable input root; do not fail it.
+    #
+    # This is the verdict the TypeScript analyzer below already reaches for a
+    # missing TS_SRC_DIR, and it is reached here for the same reason: an
+    # analyzer with nothing to parse has produced no analysis, and neither an
+    # error nor an empty artifact is an honest record of that. `fail` also
+    # increments ERRORS, which blocks staged promotion, so a repository whose
+    # migrations are Python (Alembic, Django, Prisma) could never write
+    # provenance at all — the pipeline failed on every run, permanently.
+    warn "MIGRATIONS_DIR does not exist: ${MIGRATIONS_DIR} — skipping Postgres analyzer"
+    warn "Set MIGRATIONS_DIR to this repository's SQL migrations root, or leave it unset if there is none."
+    warn "NOT writing an empty ${PG_ANALYSIS}: zero tables from a missing directory is a"
+    warn "configuration error, and recording it as a result would misreport it as analysis."
+    skip "postgres_analyzer"
 elif [ ! -f "${SCRIPTS_DIR}/analyze_postgres.py" ]; then
     warn "Postgres analyzer script not found: ${SCRIPTS_DIR}/analyze_postgres.py"
     fail "postgres_analyzer"
+elif [ -z "$(find "${MIGRATIONS_DIR}" -type f -name '*.sql' -print -quit 2>/dev/null)" ]; then
+    # Present but holding nothing this analyzer parses — the same skip, for the
+    # same reason. A present root is not evidence of SQL: it is where a non-SQL
+    # migration tool keeps its own chain.
+    warn "No *.sql files under ${MIGRATIONS_DIR} — skipping Postgres analyzer"
+    warn "The analyzer parses SQL migrations; a repository using a non-SQL migration tool"
+    warn "(Alembic, Django, Prisma) keeps nothing here for it to parse."
+    warn "Point MIGRATIONS_DIR at a directory of *.sql migrations, or leave it unset if there are none."
+    skip "postgres_analyzer"
 else
     if ${PYTHON} "${SCRIPTS_DIR}/analyze_postgres.py" \
         "${MIGRATIONS_DIR}" \
