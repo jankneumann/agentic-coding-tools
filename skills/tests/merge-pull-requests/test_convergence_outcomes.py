@@ -42,6 +42,7 @@ for _extra in (
         sys.path.insert(0, str(_extra))
 
 import main_convergence as mc  # noqa: E402
+import merge_events  # noqa: E402
 
 MERGED_SHA = "a" * 40
 CONVERGED_SHA = "c" * 40
@@ -719,6 +720,236 @@ def test_a_dry_run_never_treats_an_unreadable_gate_as_fresh(tmp_path: Path) -> N
     result = mc.dry_run(tmp_path, runner=_Broken(), store=_NoStore(), environ={})
 
     assert result.drift["verdict"] == "apparatus-failure"
+
+
+# --------------------------------------------------------------------------- #
+# The gate record (D7 emission from the merge train)
+# --------------------------------------------------------------------------- #
+# ``wp-metrics`` gave the gate a ``context_gate`` emitter and then, correctly,
+# forbade it from writing anywhere inside the checkout it grades. That left the
+# record unreachable: nothing outside the gate may point it at the repository.
+# The merge train closes it from the other side -- it already writes
+# ``docs/merge-logs/``, so it reads the gate's report off stdout and writes the
+# row itself, leaving the gate read-only.
+GATE_REPORT: dict = {
+    "schema_version": 1,
+    "source_revision": MERGED_SHA,
+    "tree": {
+        "commits_behind_base_upstream": 3,
+        "base_resolved_revision": "b" * 40,
+        "base_resolved_from": "remote",
+    },
+    "outcome": "drift",
+    "exit_code": 2,
+    "blocking_drift": [
+        {"producer_id": "a", "attribution": "inherited", "attributed_owner": "main"},
+        {"producer_id": "b", "attribution": "introduced", "attributed_owner": "HEAD"},
+        {"producer_id": "c", "attribution": "introduced", "attributed_owner": "HEAD"},
+    ],
+    "informational_drift": [
+        {"producer_id": "d", "attribution": "indeterminate", "attributed_owner": "main"}
+    ],
+    "not_configured": [],
+    "failed": [],
+}
+
+
+class _Gated(_FakeRepo):
+    """A fake whose drift gate prints a report on stdout, as ``make`` does."""
+
+    def __init__(self, *, report: object = None, gate_returncode: int = 2, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.report = GATE_REPORT if report is None else report
+        self.gate_returncode = gate_returncode
+
+    def __call__(self, argv, cwd):  # noqa: ANN001
+        parts = tuple(str(a) for a in argv)
+        if parts == mc.DRIFT_GATE_COMMAND:
+            self.calls.append(parts)
+            stdout = (
+                self.report if isinstance(self.report, str) else json.dumps(self.report)
+            )
+            return mc.CommandResult(
+                argv=parts, returncode=self.gate_returncode, stdout=stdout
+            )
+        return super().__call__(argv, cwd)
+
+
+def _gate_log(root: Path) -> Path:
+    return root / merge_events.DEFAULT_LOG_PATH
+
+
+def _rows(root: Path) -> list[dict]:
+    """Every event recorded under *root*, or none when nothing was written."""
+    log = _gate_log(root)
+    if not log.is_file():
+        return []
+    return [
+        json.loads(line)
+        for line in log.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def test_a_dry_run_records_a_context_gate_event_from_the_gate_report(tmp_path: Path) -> None:
+    result = mc.dry_run(tmp_path, runner=_Gated(), store=_NoStore(), environ={})
+
+    rows = _rows(tmp_path)
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["event_type"] == "context_gate"
+    assert row["backend"] == "context-drift-gate"
+    assert row["pr_number"] == 0
+    assert row["success"] is False
+    assert row["gate_outcome"] == "drift"
+    assert row["gate_exit_code"] == 2
+    assert row["gate_source_revision"] == MERGED_SHA
+    assert row["gate_base_revision"] == "b" * 40
+    assert row["gate_base_resolved_from"] == "remote"
+    assert result.drift["verdict"] == "drift"
+
+
+def test_the_recorded_event_is_written_under_the_repository_root(tmp_path: Path) -> None:
+    """Resolved against the repository, not the process CWD: the train may be
+    driven from anywhere, and a row in the wrong tree is a row nobody reads."""
+    root = tmp_path / "checkout"
+    root.mkdir()
+
+    mc.dry_run(root, runner=_Gated(), store=_NoStore(), environ={})
+
+    assert _rows(root)
+    assert not (tmp_path / merge_events.DEFAULT_LOG_PATH).exists()
+
+
+def test_the_recorded_event_counts_findings_by_attribution(tmp_path: Path) -> None:
+    """The attribution axis is the whole point of the record: it is what makes
+    "is introduced drift trending down" answerable. Zeroes are real zeroes."""
+    mc.dry_run(tmp_path, runner=_Gated(), store=_NoStore(), environ={})
+
+    row = _rows(tmp_path)[0]
+    assert row["gate_blocking_inherited"] == 1
+    assert row["gate_blocking_introduced"] == 2
+    assert row["gate_blocking_indeterminate"] == 0
+    assert row["gate_informational_inherited"] == 0
+    assert row["gate_informational_introduced"] == 0
+    assert row["gate_informational_indeterminate"] == 1
+
+
+def test_the_recorded_event_omits_a_trigger_the_gate_was_never_given(tmp_path: Path) -> None:
+    """No ``--event`` means the gate applied the strict rule. Absent, not a
+    placeholder: "no event" is a real state and a name for it would be a lie."""
+    mc.dry_run(tmp_path, runner=_Gated(), store=_NoStore(), environ={})
+
+    assert "gate_event" not in _rows(tmp_path)[0]
+
+
+def test_the_recorded_event_names_the_trigger_the_gate_was_given(tmp_path: Path) -> None:
+    mc.dry_run(
+        tmp_path,
+        runner=_Gated(),
+        store=_NoStore(),
+        environ={mc.GATE_EVENT_ENV: "push"},
+    )
+
+    assert _rows(tmp_path)[0]["gate_event"] == "push"
+
+
+def test_a_clean_gate_records_a_successful_run(tmp_path: Path) -> None:
+    clean = dict(GATE_REPORT, outcome="fresh", exit_code=0, blocking_drift=[])
+
+    mc.dry_run(
+        tmp_path,
+        runner=_Gated(report=clean, gate_returncode=0),
+        store=_NoStore(),
+        environ={},
+    )
+
+    row = _rows(tmp_path)[0]
+    assert row["success"] is True
+    assert row["gate_outcome"] == "fresh"
+    assert row["gate_blocking_inherited"] == 0
+    assert row["gate_blocking_introduced"] == 0
+    assert row["gate_blocking_indeterminate"] == 0
+
+
+def test_converging_in_dry_run_mode_records_the_gate_event(tmp_path: Path) -> None:
+    """The merge train's own entry point, not just the helper underneath it."""
+    result = mc.converge(
+        tmp_path,
+        runner=_Gated(),
+        store=_NoStore(),
+        environ={},
+        merged_pull_requests=_prs(42),
+        dry_run=True,
+    )
+
+    assert result.status is mc.ConvergenceStatus.DRY_RUN
+    assert len(_rows(tmp_path)) == 1
+
+
+def test_a_gate_that_printed_no_report_records_nothing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Unparseable stdout is not a report. The verdict still stands, because the
+    verdict comes from the exit code and never from the telemetry."""
+    result = mc.dry_run(tmp_path, runner=_FakeRepo(), store=_NoStore(), environ={})
+
+    assert result.drift["verdict"] == "fresh"
+    assert result.exit_code() == 0
+    assert _rows(tmp_path) == []
+    assert "[WARN]" in capsys.readouterr().err
+
+
+def test_a_report_missing_the_keys_the_record_needs_records_nothing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    result = mc.dry_run(
+        tmp_path,
+        runner=_Gated(report={"schema_version": 99}),
+        store=_NoStore(),
+        environ={},
+    )
+
+    assert result.drift["verdict"] == "drift"
+    assert _rows(tmp_path) == []
+    assert "[WARN]" in capsys.readouterr().err
+
+
+def test_a_gate_that_could_not_launch_records_nothing(tmp_path: Path) -> None:
+    """No launch, no report. The existing apparatus-failure path is untouched."""
+
+    class _Unlaunchable(_FakeRepo):
+        def __call__(self, argv, cwd):  # noqa: ANN001
+            if tuple(str(a) for a in argv) == mc.DRIFT_GATE_COMMAND:
+                raise OSError("make: command not found")
+            return super().__call__(argv, cwd)
+
+    result = mc.dry_run(tmp_path, runner=_Unlaunchable(), store=_NoStore(), environ={})
+
+    assert result.drift["verdict"] == "apparatus-failure"
+    assert result.drift["exit_code"] is None
+    assert _rows(tmp_path) == []
+
+
+def test_a_failed_recording_cannot_change_the_convergence_outcome(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The verdict is the product; the row is evidence about the product. An
+    unwritable destination must produce a warning and an identical result."""
+    recorded = mc.dry_run(tmp_path, runner=_Gated(), store=_NoStore(), environ={})
+    assert _rows(tmp_path), "baseline: the row must have been written"
+    capsys.readouterr()
+
+    log = _gate_log(tmp_path)
+    log.unlink()
+    log.mkdir()  # nothing can be appended to a directory
+
+    unrecorded = mc.dry_run(tmp_path, runner=_Gated(), store=_NoStore(), environ={})
+
+    assert unrecorded.to_dict() == recorded.to_dict()
+    assert unrecorded.exit_code() == recorded.exit_code() == 0
+    assert _rows(tmp_path) == []
+    assert "[WARN]" in capsys.readouterr().err
 
 
 # --------------------------------------------------------------------------- #
