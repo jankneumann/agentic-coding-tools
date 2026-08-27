@@ -93,6 +93,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -115,6 +116,14 @@ if _VALIDATE_PACKAGES_SCRIPTS.is_dir() and str(_VALIDATE_PACKAGES_SCRIPTS) not i
 
 from context_impact import SURFACES  # noqa: E402
 import validate_context_impact  # noqa: E402
+
+# The metrics sink (D7 -- metrics) lives in ``merge-pull-requests``. Unlike ri-08
+# above it is deliberately *not* imported here: the record is telemetry, so a
+# checkout without that skill installed must still gate. The import happens
+# inside :func:`emit_gate_metrics`, where any failure is already swallowed.
+_MERGE_EVENTS_SCRIPTS = (
+    Path(__file__).resolve().parents[2] / "merge-pull-requests" / "scripts"
+)
 
 #: Contract version of the emitted report. Pinned by the schema's ``const``.
 GATE_SCHEMA_VERSION = 1
@@ -191,6 +200,13 @@ _FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 
 #: Bounded like every other reason string in this contract family.
 _MAX_REASON = 300
+
+#: Environment variable naming the file this run's ``context_gate`` record is
+#: appended to (D7 -- metrics). Unset means no record, which is what every caller
+#: predating this change gets. It is a path rather than a boolean because there
+#: is no safe default destination: the only directory the gate reliably knows is
+#: the checkout it is grading, and it must not write there.
+GATE_METRICS_PATH_ENV = "CONTEXT_GATE_METRICS_PATH"
 
 #: ``orchestrator.check``'s call shape, injectable so composition is testable
 #: without running real producers against a real checkout.
@@ -670,6 +686,127 @@ def event_blocking_findings(
 
 
 # --------------------------------------------------------------------------- #
+# Metrics (D7) — telemetry about the verdict, never part of it
+# --------------------------------------------------------------------------- #
+def _attribution_counts(findings: Iterable[dict[str, Any]]) -> dict[str, int]:
+    """Count *findings* by attribution, with every vocabulary member present.
+
+    Seeded with all three keys at zero rather than built from what happened to
+    appear, so a group with no inherited findings records ``0`` instead of
+    omitting the key. "Three clean runs in a row" is a claim about runs that
+    counted zero, and a missing key would let silence count as clean.
+    """
+    counts = {
+        ATTRIBUTION_INHERITED: 0,
+        ATTRIBUTION_INTRODUCED: 0,
+        ATTRIBUTION_INDETERMINATE: 0,
+    }
+    for finding in findings:
+        attribution = finding.get("attribution")
+        if attribution in counts:
+            counts[attribution] += 1
+    return counts
+
+
+def _metrics_destination(metrics_path: Path | str | None) -> Path | None:
+    """The file this run's record is appended to, or ``None`` when off.
+
+    Off unless a destination is named, by argument or by
+    ``CONTEXT_GATE_METRICS_PATH``. The argument wins so a test or an embedding
+    caller is not at the mercy of the ambient environment.
+    """
+    raw = metrics_path if metrics_path is not None else os.environ.get(
+        GATE_METRICS_PATH_ENV
+    )
+    if raw is None or not str(raw).strip():
+        return None
+    return Path(raw).expanduser().resolve()
+
+
+def emit_gate_metrics(
+    repository: Path | str,
+    report: dict[str, Any],
+    *,
+    event: str | None = None,
+    metrics_path: Path | str | None = None,
+) -> Path | None:
+    """Append one ``context_gate`` row for this run. Returns where, or ``None``.
+
+    Two constraints shape this, and both point the same way.
+
+    **The gate must leave the checkout unchanged.** That is a ratified scenario,
+    and it is not a scenario about *artifacts* — a dirty fixture is digested
+    tracked and untracked before and after a run and must be byte-identical. A
+    JSONL append into ``docs/merge-logs/`` would break it, and would break it
+    in the one place it matters most: on ``push: main``, where the gate is
+    supposed to be the thing that says the tree is clean. So the destination is
+    supplied from outside and a destination *inside* the graded checkout is
+    refused rather than honoured. CI points it at runner scratch space; nothing
+    points it at the repository.
+
+    **Emission must never change the verdict.** The verdict is the product; the
+    record is evidence about the product. Every failure mode — the skill absent,
+    the directory unwritable, the disk full, a future field a reader chokes on —
+    is caught here and reported to stderr, which is why the ``except Exception``
+    is deliberate rather than lazy: narrowing it would let some unanticipated
+    error escape into an exit code, and an exit code that depends on whether
+    telemetry succeeded is worse than no telemetry. It is called after the report
+    is rendered and takes it read-only, so there is no path by which it edits the
+    thing it is describing.
+
+    Refusals are announced rather than silent. A configured destination that
+    never receives a row is a misconfiguration, and a metrics pipeline that
+    reports nothing while looking healthy is the same unfalsifiable green the
+    event axis exists to prevent.
+    """
+    try:
+        destination = _metrics_destination(metrics_path)
+        if destination is None:
+            return None
+        repo_root = Path(repository).resolve()
+        if destination == repo_root or destination.is_relative_to(repo_root):
+            print(
+                f"[WARN] refusing to record gate metrics at {destination}: it is "
+                "inside the checkout under test, and the gate does not write to "
+                "the tree it grades — point "
+                f"{GATE_METRICS_PATH_ENV} outside the repository",
+                file=sys.stderr,
+            )
+            return None
+        if str(_MERGE_EVENTS_SCRIPTS) not in sys.path:
+            sys.path.insert(0, str(_MERGE_EVENTS_SCRIPTS))
+        import merge_events
+
+        tree = report.get("tree") or {}
+        blocking = _attribution_counts(report.get("blocking_drift") or ())
+        informational = _attribution_counts(report.get("informational_drift") or ())
+        merge_events.emit_event(
+            merge_events.context_gate_event(
+                outcome=report["outcome"],
+                exit_code=report["exit_code"],
+                gate_event=event,
+                source_revision=report.get("source_revision"),
+                base_revision=tree.get("base_resolved_revision"),
+                base_resolved_from=tree.get("base_resolved_from"),
+                blocking_inherited=blocking[ATTRIBUTION_INHERITED],
+                blocking_introduced=blocking[ATTRIBUTION_INTRODUCED],
+                blocking_indeterminate=blocking[ATTRIBUTION_INDETERMINATE],
+                informational_inherited=informational[ATTRIBUTION_INHERITED],
+                informational_introduced=informational[ATTRIBUTION_INTRODUCED],
+                informational_indeterminate=informational[ATTRIBUTION_INDETERMINATE],
+            ),
+            log_path=destination,
+        )
+        return destination
+    except Exception as error:  # noqa: BLE001 — see the docstring
+        print(
+            f"[WARN] gate metrics not recorded: {type(error).__name__}: {error}",
+            file=sys.stderr,
+        )
+        return None
+
+
+# --------------------------------------------------------------------------- #
 # Composition
 # --------------------------------------------------------------------------- #
 def _default_check_runner(repository: Path, **kwargs: Any) -> orchestrator.RefreshResult:
@@ -693,6 +830,7 @@ def run_gate(
     check_runner: CheckRunner | None = None,
     changed_files_resolver: ChangedFilesResolver | None = None,
     context_impact_runner: ContextImpactRunner | None = None,
+    metrics_path: Path | str | None = None,
 ) -> GateResult:
     """Compose the three arms into one report and one exit code.
 
@@ -716,6 +854,14 @@ def run_gate(
     Omitting it selects the strict rule — today's verdict — and an event with no
     rule is refused here, before any producer runs: a gate that cannot say which
     rule applies has nothing to learn from running them first.
+
+    ``metrics_path`` names a file to append this run's ``context_gate`` record to
+    (D7 — metrics); omitted, and with ``CONTEXT_GATE_METRICS_PATH`` unset, no
+    record is written and the run is byte-for-byte what it was before. The
+    record is emitted from the finished report, is best-effort, and is refused
+    outright inside the graded checkout — see :func:`emit_gate_metrics` for why
+    all three follow from the gate being read-only and from the verdict, not the
+    telemetry, being the product.
     """
     require_known_event(event)
     repo_root = Path(repository).resolve()
@@ -741,6 +887,7 @@ def run_gate(
         attribution=resolve_attribution_context(repo_root, resolved_base),
         event=event,
     )
+    emit_gate_metrics(repo_root, report, event=event, metrics_path=metrics_path)
     return GateResult(report=report, exit_code=report["exit_code"])
 
 
