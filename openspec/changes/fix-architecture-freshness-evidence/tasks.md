@@ -154,13 +154,13 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
 
 ## 4. Artifact demotion
 
-- [ ] 4.1 Write a test asserting the three artifacts are untracked — **XS**
+- [x] 4.1 Write a test asserting the three artifacts are untracked — **XS**
   **Design decisions**: D7
   **Files**: `skills/tests/refresh-architecture-contracts/test_local_cache_artifacts.py`
   **Dependencies**: None
   Assert `git ls-files` returns nothing for the three `local-cache` paths.
 
-- [ ] 4.2 Untrack the three local-cache artifacts — **XS**
+- [x] 4.2 Untrack the three local-cache artifacts — **XS**
   **Design decisions**: D7
   **Files**: `docs/architecture-analysis/treesitter_enrichment.json`, `docs/architecture-analysis/python_analysis.json`, `docs/architecture-analysis/parallel_zones.json`
   **Dependencies**: 4.1, 1.9
@@ -168,11 +168,11 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
 
 - [ ] Checkpoint: confirm the three files remain on disk while `git ls-files` no longer lists them
 
-- [ ] 4.3 Ignore the three local-cache artifacts — **XS**
+- [x] 4.3 Ignore the three local-cache artifacts — **XS**
   **Files**: `.gitignore`
   **Dependencies**: 4.2
 
-- [ ] 4.4 Regenerate the committed provenance at schema 2 — **S**
+- [x] 4.4 Regenerate the committed provenance at schema 2 — **S**
   **Spec scenarios**: architecture-refresh.16, architecture-refresh.17
   **Files**: `docs/architecture-analysis/architecture.provenance.json`
   **Dependencies**: 1.11, 1.12, 4.3

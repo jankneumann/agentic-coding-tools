@@ -285,3 +285,13 @@ skills/merge-pull-requests/scripts/docs/
 # Scoped flow-validation output. The full-scope architecture.diagnostics.json is
 # committed; scoped runs (validate-feature) write here so they cannot clobber it.
 docs/architecture-analysis/architecture.diagnostics.scoped.json
+
+# Local-cache architecture artifacts. These are generated analyzer caches with no
+# consumer outside the refresh-architecture pipeline: nothing reads them but the
+# next stage of the same run, and they churn ~2.76 MB of blob per refresh. The
+# pipeline still writes them to disk, and provenance still records them with
+# `tier: local-cache` and still verifies their digest when they are present — an
+# absent local-cache artifact is simply not drift, so tracking them buys nothing.
+docs/architecture-analysis/treesitter_enrichment.json
+docs/architecture-analysis/python_analysis.json
+docs/architecture-analysis/parallel_zones.json
