@@ -24,6 +24,9 @@ Organised by the requirement each class pins:
 * ``TestContextImpact`` — validation is scoped to the work-package files in the
   diff, ``--strict-legacy`` is never passed, ``unmigrated`` never fails, and the
   validator's usage exit code ``2`` maps to the gate's ``1`` (D7).
+* ``TestBaseResolution`` — the base name resolves to exactly one revision, that
+  revision is recorded in the report, the remote ref wins over a stale local one,
+  and one tree yields one verdict across checkout shapes (D1).
 * ``TestLocalReproduction`` — the ``gate`` subcommand and the
   ``context-drift-gate`` Makefile target exist and agree with ``run_gate``.
 Producer fixtures are synthetic on purpose. This repository's live producer state
@@ -72,14 +75,6 @@ from registry import (
 FULL_SHA = "c" * 40
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_SKILL_ASSETS = (
-    _REPO_ROOT
-    / "skills"
-    / "project-context-refresh"
-    / "install_assets"
-    / "openspec"
-    / "schemas"
-)
 _RUNTIME_ASSETS = (
     _REPO_ROOT
     / "skills"
@@ -88,7 +83,14 @@ _RUNTIME_ASSETS = (
     / "openspec"
     / "schemas"
 )
-_GATE_SCHEMA = _SKILL_ASSETS / "context-drift-gate.schema.json"
+# The report is validated against the repository's own published contract -- the
+# same file this skill's gate verification runs `check_schema` over -- rather than
+# against the copy under project-context-refresh/install_assets/. The two are
+# pinned byte-identical by
+# skills/tests/install_sh/test_openspec_assets.py::test_skill_assets_match_the_repository_openspec_tree,
+# so this reads the same contract from the authoritative side: openspec/ is where
+# a change lands, and the shipped asset is the copy that has to follow it.
+_GATE_SCHEMA = _REPO_ROOT / "openspec" / "schemas" / "context-drift-gate.schema.json"
 _TYPES_SCHEMA = _RUNTIME_ASSETS / "context-refresh-types.schema.json"
 
 
@@ -203,6 +205,11 @@ def _run_gate(tmp_path: Path, *producer_results: ProducerResult, **kwargs: Any):
     kwargs.setdefault("check_runner", _checker(*producer_results))
     kwargs.setdefault("context_impact_runner", _impact_runner())
     return gate.run_gate(tmp_path, **kwargs)
+
+
+# Work-package paths shared by the base-resolution and context-impact suites.
+_WP_A = "openspec/changes/change-a/work-packages.yaml"
+_WP_B = "openspec/changes/change-b/work-packages.yaml"
 
 
 # --------------------------------------------------------------------------- #
@@ -618,12 +625,169 @@ class TestTreeIdentification:
 
 
 # --------------------------------------------------------------------------- #
+# Task 1.1-1.3 — the base name resolves to exactly one revision (D1)
+# --------------------------------------------------------------------------- #
+class TestBaseResolution:
+    """A base NAME is not a revision, and the report has to say which one it used.
+
+    ``origin/main`` and a local ``main`` branch name the same thing right up until
+    the local ref falls behind, at which point they name two different trees. The
+    gate used to consult both in a single run -- the changed-file diff against the
+    raw name, ``describe_tree`` against ``origin/<base>`` -- so one report could
+    state ``commits_behind_base_upstream: 0`` beside 53 changed files, and one tree
+    could be green in CI (fresh checkout, no local ``main``) and red locally (local
+    ``main`` dozens of commits behind). Resolution order is ``origin/<base>``, then
+    the local ref: a fresh ``actions/checkout`` has no local base branch, so CI is
+    already effectively on the remote.
+    """
+
+    @staticmethod
+    def _git(repo: Path, *args: str) -> str:
+        completed = subprocess.run(
+            [
+                "git", "-C", str(repo),
+                "-c", "user.email=gate@test", "-c", "user.name=gate",
+                *args,
+            ],
+            check=True, capture_output=True, text=True,
+        )
+        return completed.stdout.strip()
+
+    @classmethod
+    def _commit(cls, repo: Path, message: str, files: dict[str, str]) -> str:
+        for rel, content in files.items():
+            path = repo / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+        cls._git(repo, "add", "-A")
+        cls._git(repo, "commit", "-m", message)
+        return cls._git(repo, "rev-parse", "HEAD")
+
+    @classmethod
+    def _origin(cls, root: Path) -> dict[str, str]:
+        """One upstream: ``main`` advances by one commit, ``feature`` branches off its tip."""
+        subprocess.run(
+            ["git", "init", "-b", "main", str(root)], check=True, capture_output=True
+        )
+        older = cls._commit(root, "older base", {"README.md": "one\n"})
+        base = cls._commit(root, "base tip", {"README.md": "two\n"})
+        cls._git(root, "checkout", "-b", "feature")
+        branch = cls._commit(
+            root, "branch work", {_WP_A: "schema_version: 1\npackages: []\n"}
+        )
+        return {"older": older, "base": base, "branch": branch}
+
+    @classmethod
+    def _checkout(cls, origin: Path, dest: Path, *, stale_local_base: str | None) -> Path:
+        """One checkout of *origin* at ``feature``, optionally with a trailing local base.
+
+        ``stale_local_base=None`` is the fresh ``actions/checkout`` shape: the only
+        thing naming the base is ``refs/remotes/origin/main``.
+        """
+        subprocess.run(
+            ["git", "clone", "--branch", "feature", str(origin), str(dest)],
+            check=True, capture_output=True,
+        )
+        if stale_local_base is not None:
+            cls._git(dest, "branch", "main", stale_local_base)
+        return dest
+
+    def test_resolved_base_revision_is_recorded_in_the_report(self, tmp_path):
+        """Scenario "Resolved base is recorded": the revision is readable without git."""
+        revisions = self._origin(tmp_path / "origin")
+        checkout = self._checkout(
+            tmp_path / "origin", tmp_path / "work", stale_local_base=None
+        )
+
+        result = _run_gate(
+            checkout, _fresh(DOCUMENTATION_INVENTORY), changed_files=None
+        )
+
+        tree = result.report["tree"]
+        assert tree["base_resolved_revision"] == revisions["base"]
+        assert tree["base_resolved_from"] == "remote"
+
+    def test_unresolvable_base_is_recorded_as_null_rather_than_guessed(self, tmp_path):
+        """A shallow or detached checkout is not an apparatus failure; it is an absent base."""
+        result = _run_gate(tmp_path, _fresh(DOCUMENTATION_INVENTORY))
+
+        tree = result.report["tree"]
+        assert tree["base_resolved_revision"] is None
+        assert tree["base_resolved_from"] is None
+
+    def test_remote_ref_wins_over_a_stale_local_base(self, tmp_path):
+        """The local ``main`` trails its remote, and the remote is what the run uses."""
+        revisions = self._origin(tmp_path / "origin")
+        checkout = self._checkout(
+            tmp_path / "origin", tmp_path / "work", stale_local_base=revisions["older"]
+        )
+        runner = _impact_runner({"packages": []})
+
+        result = _run_gate(
+            checkout,
+            _fresh(DOCUMENTATION_INVENTORY),
+            changed_files=None,
+            context_impact_runner=runner,
+        )
+
+        tree = result.report["tree"]
+        assert tree["base_resolved_revision"] == revisions["base"]
+        assert tree["base_resolved_revision"] != revisions["older"]
+        assert tree["base_resolved_from"] == "remote"
+        # The diff itself used that revision, not the stale local ref: README.md
+        # changed between the local base and the remote base, so its presence in
+        # the validator argv would mean the changed-file arm consulted the other ref.
+        assert runner.calls, "the context-impact arm never ran"
+        assert "README.md" not in runner.calls[0]
+
+    def test_one_tree_yields_one_verdict_across_checkout_shapes(self, tmp_path):
+        """The regression pin for the CI-green/local-red split (job 98378668232).
+
+        Same upstream, same branch commit, two checkout shapes. Before the base was
+        pinned, the fresh clone's ``git diff main...HEAD`` failed outright and the
+        gate graded an empty diff to a clean exit 0, while the checkout with a
+        trailing local ``main`` graded a diff that reached back over the base's own
+        history and exited 2. One tree, two verdicts.
+        """
+        revisions = self._origin(tmp_path / "origin")
+        undeclared = {
+            "packages": [
+                _pkg("wp-one", "undeclared", ["apis"], undeclared=["documentation"])
+            ]
+        }
+        shapes = {
+            "fresh-clone": None,
+            "stale-local-base": revisions["older"],
+        }
+        reports = {}
+        for shape, stale_local_base in shapes.items():
+            checkout = self._checkout(
+                tmp_path / "origin", tmp_path / shape, stale_local_base=stale_local_base
+            )
+            result = _run_gate(
+                checkout,
+                _fresh(DOCUMENTATION_INVENTORY),
+                changed_files=None,
+                context_impact_runner=_impact_runner(undeclared, code=1),
+            )
+            reports[shape] = result
+
+        fresh, stale = reports["fresh-clone"], reports["stale-local-base"]
+        assert (fresh.exit_code, fresh.report["outcome"]) == (
+            stale.exit_code,
+            stale.report["outcome"],
+        )
+        assert fresh.exit_code == 2
+        assert fresh.report["context_impact"]["evaluated"] == [_WP_A]
+        assert stale.report["context_impact"]["evaluated"] == [_WP_A]
+        for report in (fresh.report, stale.report):
+            assert report["tree"]["base_resolved_revision"] == revisions["base"]
+            assert report["tree"]["base_resolved_from"] == "remote"
+
+
+# --------------------------------------------------------------------------- #
 # Task 3.3 — context-impact scoping and usage-error mapping (D7)
 # --------------------------------------------------------------------------- #
-_WP_A = "openspec/changes/change-a/work-packages.yaml"
-_WP_B = "openspec/changes/change-b/work-packages.yaml"
-
-
 class TestContextImpact:
     def test_only_work_package_files_in_the_diff_are_validated(self, tmp_path):
         runner = _impact_runner({"packages": [_pkg("wp-one", "declared", ["apis"])]})

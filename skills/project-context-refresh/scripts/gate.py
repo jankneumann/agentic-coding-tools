@@ -143,7 +143,9 @@ _MAX_REASON = 300
 #: ``orchestrator.check``'s call shape, injectable so composition is testable
 #: without running real producers against a real checkout.
 CheckRunner = Callable[..., orchestrator.RefreshResult]
-#: ``(repository, base) -> changed repository-relative paths``.
+#: ``(repository, base_revision) -> changed repository-relative paths``. The
+#: second argument is the *resolved* base (see :func:`resolve_base`), not the
+#: raw ``--base`` name, so the diff and the report describe one revision.
 ChangedFilesResolver = Callable[[Path, str], "tuple[str, ...]"]
 #: ``argv -> (exit_code, stdout)`` for one ri-08 validator invocation.
 ContextImpactRunner = Callable[[Sequence[str]], "tuple[int, str]"]
@@ -356,16 +358,23 @@ def work_package_files(changed_files: Iterable[str]) -> tuple[str, ...]:
     )
 
 
-def _default_changed_files(repository: Path, base: str) -> tuple[str, ...]:
-    """``git diff --name-only <base>...HEAD``, or empty when the base is unknown.
+def _default_changed_files(repository: Path, base_revision: str) -> tuple[str, ...]:
+    """``git diff --name-only <base_revision>...HEAD``, or empty when it is unknown.
+
+    *base_revision* is what :func:`resolve_base` decided the ``--base`` name means,
+    which is the same revision ``describe_tree`` reports. Passing the raw name here
+    is what let one report compare against two bases: a local ``main`` that had
+    fallen behind produced a 53-file diff while the tree block, reading
+    ``origin/main``, reported zero commits behind.
 
     An unresolvable base is not an apparatus failure. It names a branch that may
     legitimately be absent from a shallow or detached CI checkout, and the
     deterministic arms — the gate's actual yield — do not depend on it. The empty
-    result stays visible in the report as an empty ``evaluated`` list.
+    result stays visible in the report as an empty ``evaluated`` list, and the
+    report records ``base_resolved_revision: null`` so the absence is legible.
     """
     completed = subprocess.run(
-        ["git", "-C", str(repository), "diff", "--name-only", f"{base}...HEAD"],
+        ["git", "-C", str(repository), "diff", "--name-only", f"{base_revision}...HEAD"],
         capture_output=True,
         text=True,
         check=False,
@@ -555,14 +564,21 @@ def run_gate(
 
     ``changed_files`` is accepted explicitly so the gate works on an uncommitted
     worktree; when omitted it is resolved from ``git diff <base>...HEAD``.
+
+    The base name is resolved to one revision *here*, once, and that revision is
+    what both the changed-file diff and ``describe_tree`` consume. Resolving it
+    per consumer is what produced a report comparing against two bases at the
+    same time, and with it a tree that was green in CI and red in a checkout
+    whose local base branch had fallen behind.
     """
     repo_root = Path(repository).resolve()
+    resolved_base = resolve_base(repo_root, base)
     run_check = check_runner or _default_check_runner
     refresh = run_check(repo_root, revision=revision, architecture=architecture)
 
     if changed_files is None:
         resolve = changed_files_resolver or _default_changed_files
-        changed_files = resolve(repo_root, base)
+        changed_files = resolve(repo_root, resolved_base.diff_ref)
 
     impact = run_context_impact(
         repo_root, list(changed_files), rules=rules, runner=context_impact_runner
@@ -572,7 +588,9 @@ def run_gate(
         refresh,
         impact,
         revision=revision,
-        tree=describe_tree(repo_root, base, fallback_head=revision),
+        tree=describe_tree(
+            repo_root, base, fallback_head=revision, resolved_base=resolved_base
+        ),
     )
     return GateResult(report=report, exit_code=report["exit_code"])
 
@@ -706,11 +724,69 @@ def _git_lines(repository: Path, *args: str) -> str | None:
     return completed.stdout.strip() if completed.returncode == 0 else None
 
 
+@dataclass(frozen=True, slots=True)
+class ResolvedBase:
+    """The single revision a base *name* resolved to, and which ref supplied it.
+
+    A base name is not a revision. ``origin/main`` and a local ``main`` branch
+    name the same commit right up until the local ref falls behind, at which
+    point they name two different trees — and a run that consults both describes
+    neither. ``revision`` is ``None`` when nothing resolved, which is a legible
+    absence rather than an error: a shallow or detached checkout may carry no ref
+    for the base at all.
+    """
+
+    name: str
+    revision: str | None = None
+    resolved_from: str | None = None
+
+    @property
+    def diff_ref(self) -> str:
+        """What every comparison in the run is taken against.
+
+        Falls back to the raw name when nothing resolved, so an absent base still
+        produces today's empty diff rather than a crash.
+        """
+        return self.revision or self.name
+
+
+def resolve_base(repository: Path, base: str = DEFAULT_BASE) -> ResolvedBase:
+    """Resolve *base* to exactly one revision: ``origin/<base>``, else the local ref.
+
+    The remote wins because a fresh ``actions/checkout`` has no local base branch,
+    so CI is already effectively on the remote — preferring the local ref would
+    make CI the outlier rather than fixing the disagreement. Read-only: no fetch,
+    so the resolution is only as current as the last one.
+
+    ``resolved_from`` is derived from the ref the revision actually came from
+    rather than from which candidate matched, so ``--base origin/main`` — where
+    ``origin/origin/main`` does not exist and the second candidate is itself a
+    remote-tracking ref — is still recorded as ``remote``. A base given as a raw
+    SHA has no symbolic name and is recorded as ``local``.
+    """
+    for candidate in (f"origin/{base}", base):
+        revision = _git_lines(
+            repository, "rev-parse", "--verify", "--quiet", f"{candidate}^{{commit}}"
+        )
+        if not revision:
+            continue
+        full_name = (
+            _git_lines(repository, "rev-parse", "--symbolic-full-name", candidate) or ""
+        )
+        return ResolvedBase(
+            name=base,
+            revision=revision,
+            resolved_from="remote" if full_name.startswith("refs/remotes/") else "local",
+        )
+    return ResolvedBase(name=base)
+
+
 def describe_tree(
     repository: Path,
     base: str = DEFAULT_BASE,
     *,
     fallback_head: str | None = None,
+    resolved_base: ResolvedBase | None = None,
 ) -> dict[str, Any]:
     """Name the tree this verdict applies to (issue #385).
 
@@ -724,10 +800,18 @@ def describe_tree(
     fetch, no network — ``base_upstream`` is null when ``origin/<base>`` has no
     local ref, and the counts are only as current as the last fetch.
 
+    ``base_resolved_revision`` closes the remaining gap: this block already named
+    the tree under test, but not the tree it was compared *against*, so a reader
+    could not tell which of two possible bases produced the verdict.
+
     ``fallback_head`` keeps the seam usable outside a git checkout (the CLI
     test harness grades synthetic trees with an explicit revision); a real
-    repository never needs it.
+    repository never needs it. ``resolved_base`` is passed in by
+    :func:`run_gate` so the changed-file diff and this block cannot resolve the
+    base name twice and disagree; standalone callers get their own resolution.
     """
+    if resolved_base is None:
+        resolved_base = resolve_base(repository, base)
     head = _git_lines(repository, "rev-parse", "HEAD") or fallback_head
     if not head:
         raise GateError("could not resolve HEAD; pass an explicit full-SHA revision")
@@ -750,6 +834,8 @@ def describe_tree(
         "base_upstream": upstream_ref,
         "commits_behind_base_upstream": behind,
         "commits_ahead_of_base_upstream": ahead,
+        "base_resolved_revision": resolved_base.revision,
+        "base_resolved_from": resolved_base.resolved_from,
     }
 
 
@@ -840,12 +926,14 @@ __all__ = [
     "ContextImpactOutcome",
     "GateError",
     "GateResult",
+    "ResolvedBase",
     "architecture_freshness",
     "describe_tree",
     "owner_by_producer_id",
     "provenance_state",
     "render_report",
     "render_text",
+    "resolve_base",
     "run_context_impact",
     "run_gate",
     "work_package_files",
