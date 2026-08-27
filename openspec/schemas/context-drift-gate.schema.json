@@ -209,6 +209,16 @@
           "items": {
             "$ref": "https://agentic-coding-tools.dev/schemas/context-refresh-types.schema.json#/$defs/Remediation"
           }
+        },
+        "attribution": {
+          "type": "string",
+          "enum": ["inherited", "introduced", "indeterminate"],
+          "description": "Whether this finding was already present at the merge base ('inherited') or is attributable to the branch under test ('introduced'). 'indeterminate' is recorded when ownership cannot be decided from the available evidence, and is treated as inherited: falsely blaming a branch for the integration branch's debt is the failure this attribution exists to prevent, so the bias runs away from blame."
+        },
+        "attributed_owner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Who is responsible for clearing this finding: the branch, or the integration branch."
         }
       }
     },

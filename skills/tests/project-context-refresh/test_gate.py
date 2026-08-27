@@ -786,6 +786,141 @@ class TestBaseResolution:
 
 
 # --------------------------------------------------------------------------- #
+# Task 2.1-2.3 — drift is attributed inherited or introduced (D2/D3)
+# --------------------------------------------------------------------------- #
+class TestDriftAttribution:
+    """Whose fault is this finding: the branch, or the branch it forked from?
+
+    On a ``pull_request`` event ``actions/checkout`` grades the merge commit, so
+    every open PR inherits whatever drift already sits on the integration branch
+    -- which is how one stale artifact on ``main`` failed the gate on 12
+    unrelated PRs including one-line dependabot bumps. Attribution is a separate
+    axis from the four disjoint groups (D3): the groups say how severe a finding
+    is, attribution says who owns it.
+
+    The evidence is path-level ancestry, not content (D2):
+    ``git diff --name-only <recorded revision>..<merge base> -- <declared inputs>``.
+    If a declared input already moved between the revision the producer's output
+    was last written at and the merge base, the producer was *already* stale
+    there and the finding is inherited; if nothing moved, the base was fresh and
+    the branch introduced it. The inference can only fail in the direction of
+    calling introduced drift inherited (a file that changed and changed back),
+    which is the safe direction for a gate whose bug is false blame.
+    """
+
+    @staticmethod
+    def _git(repo: Path, *args: str) -> str:
+        completed = subprocess.run(
+            [
+                "git", "-C", str(repo),
+                "-c", "user.email=gate@test", "-c", "user.name=gate",
+                *args,
+            ],
+            check=True, capture_output=True, text=True,
+        )
+        return completed.stdout.strip()
+
+    @classmethod
+    def _commit(cls, repo: Path, message: str, files: dict[str, str]) -> str:
+        for rel, content in files.items():
+            path = repo / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+        cls._git(repo, "add", "-A")
+        cls._git(repo, "commit", "-m", message)
+        return cls._git(repo, "rev-parse", "HEAD")
+
+    @classmethod
+    def _repo(cls, root: Path, *, input_moved_on_base: bool) -> dict[str, str]:
+        """A branch off ``origin/main``, differing only in what moved on the base.
+
+        Both shapes regenerate the producer's output at the first commit, so its
+        recorded revision is the same in each. ``input_moved_on_base`` decides
+        whether the *base* advanced over a declared input afterwards, which is
+        the single fact attribution reads.
+        """
+        subprocess.run(
+            ["git", "init", "-b", "main", str(root)], check=True, capture_output=True
+        )
+        regenerated = cls._commit(
+            root,
+            "regenerate the inventory",
+            {"inputs/a.md": "one\n", "out/inventory.md": "rendered from one\n"},
+        )
+        base = cls._commit(
+            root,
+            "base advances",
+            {"inputs/a.md": "two\n"} if input_moved_on_base else {"README.md": "hi\n"},
+        )
+        cls._git(root, "update-ref", "refs/remotes/origin/main", base)
+        cls._git(root, "checkout", "-b", "feature")
+        branch = cls._commit(
+            root,
+            "branch work",
+            {"README.md": "branch\n"} if input_moved_on_base else {"inputs/a.md": "three\n"},
+        )
+        return {"regenerated": regenerated, "base": base, "branch": branch}
+
+    @staticmethod
+    def _register_inventory() -> None:
+        register(
+            _StubProducer(
+                DOCUMENTATION_INVENTORY,
+                owner="project-context-refresh",
+                inputs=("inputs/*.md",),
+                outputs=("out/inventory.md",),
+            )
+        )
+
+    def test_drift_already_present_at_the_merge_base_is_inherited(self, tmp_path):
+        """Scenario "Inherited drift names the integration branch as owner"."""
+        self._register_inventory()
+        self._repo(tmp_path, input_moved_on_base=True)
+
+        result = _run_gate(
+            tmp_path, _drift(DOCUMENTATION_INVENTORY, "out/inventory.md")
+        )
+
+        finding = result.report["blocking_drift"][0]
+        assert finding["producer_id"] == DOCUMENTATION_INVENTORY
+        assert finding["attribution"] == "inherited"
+        assert finding["attributed_owner"] == gate.DEFAULT_BASE
+
+    def test_drift_caused_by_the_branch_is_introduced(self, tmp_path):
+        """Scenario "Introduced drift is attributed to the branch"."""
+        self._register_inventory()
+        self._repo(tmp_path, input_moved_on_base=False)
+
+        result = _run_gate(
+            tmp_path, _drift(DOCUMENTATION_INVENTORY, "out/inventory.md")
+        )
+
+        finding = result.report["blocking_drift"][0]
+        assert finding["attribution"] == "introduced"
+        assert finding["attributed_owner"] == "feature"
+
+    def test_indeterminate_attribution_resolves_to_inherited(self, tmp_path):
+        """Scenario "Ambiguous attribution errs toward inherited".
+
+        A checkout with no resolvable base -- shallow, detached, or simply not a
+        git tree -- has no merge base to compare against. That is recorded as
+        ``indeterminate`` rather than silently guessed, and the finding is still
+        owned by the integration branch, because erring toward inherited is what
+        keeps the gate from blaming a branch on absent evidence.
+        """
+        result = _run_gate(
+            tmp_path, _drift(DOCUMENTATION_INVENTORY, "out/inventory.md")
+        )
+
+        assert result.report["tree"]["base_resolved_revision"] is None
+        finding = result.report["blocking_drift"][0]
+        assert finding["attribution"] == "indeterminate"
+        assert finding["attributed_owner"] == gate.DEFAULT_BASE
+        # Attribution is observable before it is enforced: the verdict is today's.
+        assert result.exit_code == 2
+
+
+# --------------------------------------------------------------------------- #
 # Task 3.3 — context-impact scoping and usage-error mapping (D7)
 # --------------------------------------------------------------------------- #
 class TestContextImpact:
@@ -998,15 +1133,26 @@ class TestLocalReproduction:
 # Helpers
 # --------------------------------------------------------------------------- #
 class _StubProducer(Producer):
-    """A registry entry that exists only to supply a canonical owner."""
+    """A registry entry that exists only to supply a canonical owner.
 
-    def __init__(self, pid: str, owner: str = "stub-owner"):
+    ``inputs``/``outputs`` are overridable because attribution reads them: the
+    declared inputs are the pathspec the ancestry diff is taken over, and the
+    declared outputs are how the producer's recorded revision is located.
+    """
+
+    def __init__(
+        self,
+        pid: str,
+        owner: str = "stub-owner",
+        inputs: tuple[str, ...] = ("x",),
+        outputs: tuple[str, ...] = (),
+    ):
         self.spec = ProducerSpec(
             producer_id=pid,
             producer_version="1",
             owner=owner,
-            inputs=("x",),
-            outputs=(),
+            inputs=inputs,
+            outputs=outputs,
         )
 
     def run(self, mode, repository, source_revision):  # noqa: ANN001

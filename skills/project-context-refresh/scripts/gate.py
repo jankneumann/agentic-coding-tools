@@ -72,6 +72,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import re
 import subprocess
 import sys
 from collections.abc import Callable, Iterable, Sequence
@@ -137,6 +138,19 @@ EXIT_FRESH = 0
 EXIT_FAILED = 1
 EXIT_DRIFT = 2
 
+#: Attribution values (D2/D3). Attribution answers *whose fault* a finding is,
+#: which is a separate axis from ``classify_degradation``'s four disjoint groups
+#: answering *how severe* it is. It is computed here rather than there because it
+#: shells out to git and that function is pinned IO-free.
+ATTRIBUTION_INHERITED = "inherited"
+ATTRIBUTION_INTRODUCED = "introduced"
+ATTRIBUTION_INDETERMINATE = "indeterminate"
+
+#: The owner recorded for a detached checkout, which names no branch.
+DETACHED_BRANCH_OWNER = "HEAD"
+
+_FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+
 #: Bounded like every other reason string in this contract family.
 _MAX_REASON = 300
 
@@ -191,6 +205,16 @@ def _outputs_by_producer_id() -> dict[str, tuple[str, ...]]:
     return {spec.producer_id: spec.outputs for spec in list_producers()}
 
 
+def _specs_by_producer_id() -> dict[str, Any]:
+    """Every registered spec by producer id, for the declared inputs and outputs.
+
+    Attribution needs both halves of a spec — the inputs are the pathspec the
+    ancestry diff is taken over, the outputs are how the producer's recorded
+    revision is located — so it reads the spec rather than either projection.
+    """
+    return {spec.producer_id: spec for spec in list_producers()}
+
+
 def _bounded(text: str) -> str:
     collapsed = " ".join(str(text).split())
     if not collapsed:
@@ -238,12 +262,20 @@ def _remediation_entries(result: ProducerResult) -> list[dict[str, str]]:
     ]
 
 
-def _finding(result: ProducerResult, owner: str, artifacts: tuple[str, ...]) -> dict[str, Any]:
+def _finding(
+    result: ProducerResult,
+    owner: str,
+    artifacts: tuple[str, ...],
+    attribution: str,
+    attributed_owner: str,
+) -> dict[str, Any]:
     return {
         "producer_id": result.producer_id,
         "owner": owner,
         "artifacts": list(artifacts),
         "remediation": _remediation_entries(result),
+        "attribution": attribution,
+        "attributed_owner": attributed_owner,
     }
 
 
@@ -509,11 +541,15 @@ def run_context_impact(
     )
 
 
-def _context_impact_finding(paths: Sequence[str]) -> dict[str, Any]:
+def _context_impact_finding(
+    paths: Sequence[str], attribution: str, attributed_owner: str
+) -> dict[str, Any]:
     return {
         "producer_id": CONTEXT_IMPACT_PRODUCER_ID,
         "owner": CONTEXT_IMPACT_OWNER,
         "artifacts": list(paths),
+        "attribution": attribution,
+        "attributed_owner": attributed_owner,
         "remediation": [
             {
                 "summary": (
@@ -591,6 +627,7 @@ def run_gate(
         tree=describe_tree(
             repo_root, base, fallback_head=revision, resolved_base=resolved_base
         ),
+        attribution=resolve_attribution_context(repo_root, resolved_base),
     )
     return GateResult(report=report, exit_code=report["exit_code"])
 
@@ -602,13 +639,22 @@ def render_report(
     *,
     revision: str | None = None,
     tree: dict[str, Any] | None = None,
+    attribution: AttributionContext | None = None,
 ) -> dict[str, Any]:
     """Render the gate report, joining every result with its canonical owner.
 
     Every group is sorted by producer id and every artifact list by path, so a
     repeat run at the same revision is byte-identical and a diff of two reports
     shows only what actually changed.
+
+    *attribution* is supplied by :func:`run_gate`, which already resolved the base
+    to one revision; a standalone caller that omits it gets the evidence-free
+    default, where every finding is ``indeterminate`` and therefore owned by the
+    integration branch. Attribution annotates findings and nothing else — it does
+    not enter the exit-code derivation, which stays exactly the mapping from the
+    four disjoint groups it was before.
     """
+    attribution = attribution if attribution is not None else AttributionContext()
     breakdown = orchestrator.classify_degradation(
         tuple(refresh.producer_results), refresh.semantic_index
     )
@@ -634,7 +680,18 @@ def render_report(
             owner = owners.get(result.producer_id, result.producer_id)
             artifacts = _artifact_paths(result, outputs.get(result.producer_id, ()))
             if artifacts:
-                target.append(_finding(result, owner, artifacts))
+                attributed = attribute_producer(
+                    repository, result.producer_id, attribution
+                )
+                target.append(
+                    _finding(
+                        result,
+                        owner,
+                        artifacts,
+                        attributed,
+                        attribution.owner_for(attributed),
+                    )
+                )
             else:
                 # Drift the report cannot name is not a precise artifact list, so
                 # it is reported as an apparatus failure rather than as drift with
@@ -656,7 +713,14 @@ def render_report(
                 )
 
     if impact.blocking:
-        blocking.append(_context_impact_finding(impact.blocking))
+        attributed = attribute_producer(
+            repository, CONTEXT_IMPACT_PRODUCER_ID, attribution
+        )
+        blocking.append(
+            _context_impact_finding(
+                impact.blocking, attributed, attribution.owner_for(attributed)
+            )
+        )
     if impact.failure_reason:
         failed.append(
             {
@@ -781,6 +845,163 @@ def resolve_base(repository: Path, base: str = DEFAULT_BASE) -> ResolvedBase:
     return ResolvedBase(name=base)
 
 
+# --------------------------------------------------------------------------- #
+# Attribution (D2/D3) — a separate axis from the four groups
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True, slots=True)
+class AttributionContext:
+    """Everything one run needs to say who owns a finding.
+
+    ``merge_base`` is ``None`` whenever the base did not resolve to a revision,
+    which makes every finding ``indeterminate`` rather than an apparatus failure:
+    a shallow or detached checkout legitimately carries no base ref, and the
+    deterministic arms — the gate's actual yield — do not depend on one.
+    """
+
+    merge_base: str | None = None
+    integration_owner: str = DEFAULT_BASE
+    branch_owner: str = DETACHED_BRANCH_OWNER
+
+    def owner_for(self, attribution: str) -> str:
+        """Who must clear a finding with this attribution.
+
+        ``indeterminate`` is owned by the integration branch, not the branch
+        under test. That *is* the "err toward inherited" rule: the recorded
+        attribution keeps saying the evidence was absent, while the ownership it
+        resolves to runs away from blame, because falsely blaming a branch for
+        the integration branch's debt is the failure this axis exists to prevent.
+        """
+        if attribution == ATTRIBUTION_INTRODUCED:
+            return self.branch_owner
+        return self.integration_owner
+
+
+def resolve_gate_merge_base(repository: Path, base_revision: str | None) -> str | None:
+    """The merge base between the resolved base revision and ``HEAD``.
+
+    Takes the *resolved* revision rather than the ``--base`` name so this cannot
+    become the second place in one run that decides what the base means. ``None``
+    is a first-class answer, matching ``checkpoint.resolve_merge_base``: a
+    detached fixture repository or a branch with no common ancestor has no
+    baseline, and inventing one would attribute findings against a tree that was
+    never a baseline for anything.
+    """
+    if not base_revision:
+        return None
+    out = _git_lines(repository, "merge-base", base_revision, "HEAD")
+    return out if out and _FULL_SHA.match(out) else None
+
+
+def _branch_under_test(repository: Path) -> str:
+    """The branch name introduced drift is attributed to, else ``HEAD``."""
+    name = _git_lines(repository, "rev-parse", "--abbrev-ref", "HEAD")
+    return name if name and name != DETACHED_BRANCH_OWNER else DETACHED_BRANCH_OWNER
+
+
+def resolve_attribution_context(
+    repository: Path, resolved_base: ResolvedBase
+) -> AttributionContext:
+    """Build the run's attribution context from the already-resolved base."""
+    return AttributionContext(
+        merge_base=resolve_gate_merge_base(repository, resolved_base.revision),
+        integration_owner=resolved_base.name,
+        branch_owner=_branch_under_test(repository),
+    )
+
+
+def _provenance_at(repository: Path, revision: str) -> dict[str, Any] | None:
+    """The committed architecture provenance document as of *revision*.
+
+    Read out of git rather than off the filesystem so the baseline is the one the
+    merge base actually carried, not whatever the working tree holds now — the
+    same reason ``checkpoint.architecture_changed_nodes`` reads its baseline with
+    ``git show``.
+    """
+    raw = _git_lines(repository, "show", f"{revision}:{ARCHITECTURE_PROVENANCE_PATH}")
+    if not raw:
+        return None
+    try:
+        document = json.loads(raw)
+    except ValueError:
+        return None
+    return document if isinstance(document, dict) else None
+
+
+def _attribution_evidence(
+    repository: Path, producer_id: str, merge_base: str
+) -> tuple[str | None, tuple[str, ...]]:
+    """``(recorded revision, declared input pathspecs)`` for one producer.
+
+    The architecture producer records both itself: its committed provenance names
+    the ``source_revision`` the analysis was generated from and the
+    ``input_roots`` it was generated over. Registered producers carry no such
+    document, so the revision their output was last written at is recovered from
+    the history of their declared managed outputs up to the merge base — which is
+    the same claim the provenance document makes, read from git instead of JSON.
+
+    Either half missing yields ``None``/``()``, which the caller reads as absent
+    evidence rather than as an answer.
+    """
+    if producer_id == orchestrator.ARCHITECTURE_PRODUCER_ID:
+        document = _provenance_at(repository, merge_base)
+        if document is None:
+            return None, ()
+        revision = document.get("source_revision")
+        roots = tuple(str(root) for root in document.get("input_roots") or () if root)
+        return (revision if isinstance(revision, str) and revision else None), roots
+
+    spec = _specs_by_producer_id().get(producer_id)
+    if spec is None or not spec.inputs or not spec.outputs:
+        return None, ()
+    recorded = _git_lines(
+        repository, "log", "-1", "--format=%H", merge_base, "--", *spec.outputs
+    )
+    return (recorded or None), tuple(spec.inputs)
+
+
+def attribute_producer(
+    repository: Path, producer_id: str, context: AttributionContext
+) -> str:
+    """Attribute one producer's finding by path-level ancestry (D2).
+
+    ``git diff --name-only <recorded revision>..<merge base> -- <declared inputs>``.
+    A non-empty answer means a declared input had already moved by the time the
+    branch forked, so the producer was *already* stale at the merge base and the
+    finding is inherited; an empty answer means the base was fresh and the branch
+    introduced it.
+
+    Content comparison is not available: ``compute_input_fingerprint`` hashes
+    working-tree bytes (``provenance._iter_root_files_git`` takes no revision and
+    ``provenance._discover`` calls ``read_bytes`` on a filesystem path), and
+    switching it to ``git cat-file`` would change the hashed payload and
+    invalidate every recorded ``input_fingerprint``. Path level is the coarser
+    question anyway, and its one failure mode — a file that changed and changed
+    back inside the range reads as inherited — points away from blame.
+
+    The context-impact arm is the exception that needs no inference: it evaluates
+    only the work-package files present in ``<base>...HEAD``, so the branch is by
+    construction their author.
+    """
+    if context.merge_base is None:
+        return ATTRIBUTION_INDETERMINATE
+    if producer_id == CONTEXT_IMPACT_PRODUCER_ID:
+        return ATTRIBUTION_INTRODUCED
+    recorded, inputs = _attribution_evidence(repository, producer_id, context.merge_base)
+    if not recorded or not inputs:
+        return ATTRIBUTION_INDETERMINATE
+    changed = _git_lines(
+        repository,
+        "diff",
+        "--name-only",
+        f"{recorded}..{context.merge_base}",
+        "--",
+        *inputs,
+    )
+    if changed is None:
+        return ATTRIBUTION_INDETERMINATE
+    return ATTRIBUTION_INHERITED if changed else ATTRIBUTION_INTRODUCED
+
+
 def describe_tree(
     repository: Path,
     base: str = DEFAULT_BASE,
@@ -874,7 +1095,17 @@ def render_text(report: dict[str, Any]) -> str:
         ("informational_drift", "informational"),
     ):
         for finding in report[group]:
-            lines.append(f"  [{label}] {finding['producer_id']} — owner {finding['owner']}")
+            described = (
+                f"  [{label}] {finding['producer_id']} — owner {finding['owner']}"
+            )
+            attributed = finding.get("attribution")
+            if attributed:
+                # Named in the human output because a reader looking at a red gate
+                # needs to know whether the fix belongs to this branch at all.
+                described += (
+                    f" — {attributed}, attributed to {finding['attributed_owner']}"
+                )
+            lines.append(described)
             lines.extend(f"      {path}" for path in finding["artifacts"])
             for remediation in finding["remediation"]:
                 command = remediation.get("command")
@@ -914,26 +1145,34 @@ def render_text(report: dict[str, Any]) -> str:
 __all__ = [
     "ARCHITECTURE_OWNER",
     "ARCHITECTURE_PROVENANCE_PATH",
+    "ATTRIBUTION_INDETERMINATE",
+    "ATTRIBUTION_INHERITED",
+    "ATTRIBUTION_INTRODUCED",
     "CONTEXT_IMPACT_OWNER",
     "CONTEXT_IMPACT_PRODUCER_ID",
     "DEFAULT_BASE",
+    "DETACHED_BRANCH_OWNER",
     "EXIT_DRIFT",
     "EXIT_FAILED",
     "EXIT_FRESH",
     "GATE_SCHEMA_VERSION",
     "SEMANTIC_NOT_ATTEMPTED_REASON",
     "SEMANTIC_STATUS_NOT_ATTEMPTED",
+    "AttributionContext",
     "ContextImpactOutcome",
     "GateError",
     "GateResult",
     "ResolvedBase",
     "architecture_freshness",
+    "attribute_producer",
     "describe_tree",
     "owner_by_producer_id",
     "provenance_state",
     "render_report",
     "render_text",
+    "resolve_attribution_context",
     "resolve_base",
+    "resolve_gate_merge_base",
     "run_context_impact",
     "run_gate",
     "work_package_files",
