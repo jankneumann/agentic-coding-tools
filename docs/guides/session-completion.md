@@ -23,9 +23,10 @@
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 
-## Known gap: `context-drift-gate` is not a required status check
+## Pending promotion: `context-drift-gate` is not a required status check
 
-**Status: NOT APPLIED.** This is an open gap, not a completed step.
+**Status: NOT APPLIED.** The blocker that kept this promotion unapplied is gone; the
+promotion itself is still outstanding and still needs a repository admin.
 
 Branch protection on `main` requires exactly six contexts:
 
@@ -44,6 +45,38 @@ That is precisely the posture the retired decision-index job had, and it is how
 merged past while red because nothing enforced it. Treat a red
 `context-drift-gate` as blocking by convention until the promotion below is applied.
 
+**What was blocking the promotion, and what changed.** The precondition below —
+"green on `main`" — was unreachable, because the gate attributed `main`'s own
+pre-existing drift to every branch that merely inherited it. One stale artifact on
+the integration branch failed the gate identically on 12 unrelated pull requests,
+one-line dependabot bumps included (`docs/merge-logs/2026-08-24.md:26`). Promoting
+a check with that failure mode would have blocked every merge in the repository.
+
+`rescope-context-drift-enforcement` removed that failure mode:
+
+- The gate resolves the base explicitly — `origin/<base>`, then a local ref, then a
+  recorded null — and the report records both the resolved revision and how it
+  resolved, so a verdict can be audited against a known tree.
+- Every finding carries an `attribution` (`inherited` | `introduced` |
+  `indeterminate`) and an `attributed_owner`.
+- The exit code depends on the triggering event. On `pull_request`, introduced
+  drift exits 2, while inherited and indeterminate drift exit 0 and are reported
+  with the integration branch named as owner. On `merge_group` and `push: main`,
+  **all** blocking drift exits 2 — at those points there is no other branch to
+  inherit from. An unhandled event is an error, not a pass.
+- The gate job runs on all three of those events with no job-level `if:`, because a
+  required check that is skipped reports success to branch protection.
+- `make context-drift-gate` with no `CONTEXT_GATE_EVENT` keeps the **strict** rule —
+  every blocking finding fails — which is what it did before this change.
+
+**What that does not establish.** It does not make the gate green on `main`, and
+landing it on a branch is not the precondition being met. The precondition is
+satisfied only when the gate is observed green on `main` after this change is
+merged and `main`'s own inherited drift has been remediated; making a red check
+required blocks every merge. Until then, this section records an unapplied
+promotion, and the remaining action belongs to the repository owner, not to any
+pull request.
+
 **Promotion (one-time, requires repo admin):**
 
 ```bash
@@ -60,17 +93,20 @@ gh api /repos/jankneumann/agentic-coding-tools/branches/main/protection/required
   --jq '.contexts'
 ```
 
-The output MUST list all seven contexts. Once it does, delete this section — a
-"known gap" that has been closed is worse than no note at all.
+The output MUST list all seven contexts.
 
-Do not apply the promotion until the gate is green on `main`; making a red check
-required blocks every merge.
+**Do not delete this section once it is applied** — replace the status line above
+with `**Status: APPLIED <date>.**` and keep the promotion command and its
+verification on record. The `coverage-ratchet` section below back-references this
+one, and `openspec/specs/fitness-functions/spec.md:115-116` makes that adjacency
+normative: deleting this note would leave a spec-level claim pointing at nothing.
 
 ## Advisory by design: `coverage-ratchet` is not a required status check
 
-**Status: INTENTIONALLY ADVISORY.** Unlike the section above, this is not a gap —
-the `coverage-ratchet` job (`.github/workflows/ci.yml`) ships non-required on
-purpose (introduce-fitness-function-gates, design D5).
+**Status: INTENTIONALLY ADVISORY.** Unlike the pending promotion above, this is not
+a gap awaiting an operator — the `coverage-ratchet` job
+(`.github/workflows/ci.yml`) ships non-required on purpose
+(introduce-fitness-function-gates, design D5).
 
 The job measures line coverage for the `agent-coordinator` and `skills` suites
 and compares each against `coverage-baseline.json` at the repo root, failing when
@@ -101,8 +137,8 @@ gh api -X POST \
   -f 'contexts[]=coverage-ratchet'
 ```
 
-Same additive endpoint as the `context-drift-gate` promotion above — existing
-contexts are preserved. Verify afterwards:
+Same additive endpoint as the pending `context-drift-gate` promotion above —
+existing contexts are preserved. Verify afterwards:
 
 ```bash
 gh api /repos/jankneumann/agentic-coding-tools/branches/main/protection/required_status_checks \
