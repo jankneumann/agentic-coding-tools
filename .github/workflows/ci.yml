@@ -983,3 +983,219 @@ jobs:
         # (2 = present evidence that does not authorize, 3 = absent or expired
         # evidence) to its own 2, printing the real one as `Error <n>`.
         run: make semantic-enablement-gate PYTHON=packages/context-eval/.venv/bin/python
+
+  # Dependency-update remediation servo (rescope-context-drift-enforcement, D5).
+  #
+  # THE REPOSITORY'S FIRST `contents: write` GRANT. Every other job in both
+  # workflows runs under the workflow-level `permissions: contents: read` at the
+  # top of this file; this job is the single exception, and the grant is declared
+  # HERE, on the job. Never at workflow level: a workflow-level grant applies to
+  # every job in the file, including the ones that run unguarded on human pull
+  # requests, which would hand a write token to the entire build to give it to
+  # one step. skills/tests/project-context-refresh/test_remediation_policy.py
+  # asserts both halves — no workflow-level grant anywhere, exactly one job
+  # declaring one — so the confinement is normative, not conventional.
+  #
+  # SCOPE: dependency-update pull requests only. That population opens up to 15
+  # pull requests every Monday (.github/dependabot.yml) and is provably never the
+  # cause of context drift — a one-line version bump cannot stale a decision
+  # index — so it is where an automatic fix is worth most and risks least. A
+  # servo on ALL pull requests was considered and rejected: a much larger blast
+  # radius for a first write escalation, and a human pull request already has an
+  # author who can run the one command themselves.
+  #
+  # The guard is at JOB level, so a human pull request never REACHES the write
+  # steps. A job that runs on a human branch and merely decides not to commit is
+  # a weaker confinement of the same grant: the decision would then live in bash,
+  # several steps after a checkout that already persisted a write-capable token
+  # into the working copy.
+  #
+  # AUTHORSHIP, not `github.actor`, is the gate. The actor is whoever initiated
+  # the run; a person who pushes to or re-runs a bot branch becomes the actor
+  # without becoming the author, and the spec's population is "pull requests
+  # opened by the dependency-update bot". The head-repository term excludes
+  # forks, whose GITHUB_TOKEN is read-only whatever `permissions:` requests;
+  # genuine dependency-update branches always live in this repository, so that
+  # term costs nothing here and stops the job from starting work it could not
+  # finish.
+  #
+  # Placed LAST rather than beside the drift gate it serves: every other job in
+  # this file is a check, and keeping the only job that WRITES outside that run
+  # makes the write surface of the workflow one contiguous block to review.
+  #
+  # This job is NOT a required status check and must not be promoted to one: it
+  # is skipped on every event but a bot pull request, and a skipped required
+  # check reports SUCCESS to branch protection — the unfalsifiable green the
+  # context-drift-gate note above exists to avoid.
+  dependency-update-remediation:
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.user.login == 'dependabot[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # The whole escalation, in two lines. A job-level block REPLACES the
+    # workflow-level one rather than adding to it, so every other scope is `none`
+    # for this job: the servo commits and pushes, and touches no other API.
+    permissions:
+      contents: write
+
+    env:
+      # The inexpensive, byte-deterministic producers, and only those.
+      #
+      # `architecture` is excluded by the spec requirement itself: it needs
+      # tree-sitter and writes megabytes, which is neither inexpensive nor
+      # something a bot should push onto a dependency bump.
+      #
+      # `openspec.projection` is excluded for a different reason — it rewrites
+      # the canonical spec tree under openspec/specs/, which is the archive's
+      # owned sync-point operation (cleanup-feature), not a servo's to perform
+      # as a side effect of a version bump.
+      PRODUCERS: "api.contracts decisions.timeline documentation.inventory"
+      # The declared outputs of exactly those three producers. Kept here rather
+      # than derived at run time so the commit's file scope is readable in the
+      # workflow; test_remediation_policy.py compares this list against the ri-05
+      # registry, so the two cannot drift apart silently.
+      OUTPUT_PATHS: >-
+        docs/architecture-analysis/contracts-inventory.md
+        docs/decisions
+        docs/architecture-analysis/skills-inventory.md
+
+    steps:
+      # The pull-request BRANCH, not the `refs/pull/N/merge` ref actions/checkout
+      # hands a `pull_request` event by default. That merge ref is detached — no
+      # branch to push — and it is precisely the stale replay
+      # docs/merge-logs/2026-08-24.md:29 calls "theatre": it is whatever GitHub
+      # last computed, not what `main` is now. The base is refreshed below from a
+      # fetch performed in this run instead.
+      #
+      # No `repository:` override is needed: the job guard already established
+      # that the head branch lives in this repository.
+      - name: Check out the dependency-update branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          # The merge below needs real history, not a shallow cone.
+          fetch-depth: 0
+          # Keeps the granted token on `origin` so the push at the end of the job
+          # needs no second credential path.
+          persist-credentials: true
+
+      - name: Refresh the base before regenerating
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Fetched HERE, in this run, so "current" means current now rather than
+          # whenever GitHub last recomputed the merge ref.
+          git fetch --no-tags origin "$BASE_REF"
+
+          # Artifacts regenerated on a stale base ARE drift. The decision index
+          # and the skills inventory are whole-tree projections: a tree missing
+          # the base's newest session logs and skills regenerates to something
+          # that is already stale the moment it merges, and the servo would have
+          # committed the very thing the gate is looking for.
+          if ! git merge --no-edit FETCH_HEAD; then
+            git merge --abort || true
+            echo "::error::Cannot refresh the base: merging origin/$BASE_REF into this branch conflicts. Regenerating on the unrefreshed branch would commit artifacts derived from a stale base, so nothing was written. Rebase the pull request and re-run."
+            exit 1
+          fi
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      # Installed AFTER the base refresh, so the environment matches the tree the
+      # producers are about to read.
+      - name: Install skills deps
+        working-directory: skills
+        run: uv sync --all-extras
+
+      - name: Regenerate the inexpensive deterministic producers
+        run: |
+          set -euo pipefail
+
+          run_producer() {
+            # $1 = mode (generate | check), $2 = producer id.
+            #
+            # ONE argv builder for both modes: the only difference between what
+            # this servo writes and what the gate checks is the subcommand word.
+            # generate_tool_descriptor.py:570-573 records why that matters —
+            # check mode asserts byte identity against what it would generate
+            # from its OWN argv, so a writer given flags the checker does not
+            # pass (or the reverse) reports drift on a perfectly up-to-date file
+            # and the two oscillate forever. `cli.py <mode> <producer-id>` takes
+            # no other argument, so there is nothing left for them to disagree
+            # about — and it is the same entry point the gate's deterministic arm
+            # reaches through orchestrator.check().
+            skills/.venv/bin/python skills/project-context-refresh/scripts/cli.py "$1" "$2"
+          }
+
+          for producer in $PRODUCERS; do
+            run_producer generate "$producer"
+          done
+
+          # Never emit a degenerate artifact (generate_tool_descriptor.py:296-304):
+          # a write path that can emit an EMPTY artifact "would make the
+          # byte-identity assertion compare empty against empty forever" — the
+          # check below would pass on nothing at all, and the servo would commit
+          # the erasure of a whole inventory as though it were a refresh.
+          for path in $OUTPUT_PATHS; do
+            if [ -d "$path" ]; then
+              if [ -z "$(find "$path" -type f -print -quit)" ]; then
+                echo "::error::Refusing to commit: the regenerated directory '$path' is empty. An empty artifact satisfies a byte-identity check against itself, so this would go green while erasing the inventory."
+                exit 1
+              fi
+            elif [ ! -s "$path" ]; then
+              echo "::error::Refusing to commit: the regenerated artifact '$path' is missing or empty. An empty artifact satisfies a byte-identity check against itself, so this would go green while erasing the inventory."
+              exit 1
+            fi
+          done
+
+          # The writer's own output, put to the checker, through the same argv.
+          # If this fails the producer is not byte-deterministic and the servo
+          # must not push: it would be committing drift under a fix's name.
+          for producer in $PRODUCERS; do
+            run_producer check "$producer"
+          done
+
+      - name: Commit and push the regenerated artifacts
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+
+          # Only the producers' declared outputs. The base refresh brought the
+          # whole of the base branch into this tree; staging everything would
+          # push unrelated files under a commit message claiming to be a
+          # regeneration.
+          git add -- $OUTPUT_PATHS
+
+          if git diff --cached --quiet; then
+            # Nothing regenerated differently, so there is nothing to remediate
+            # and the local base refresh is discarded with the runner. The push
+            # is skipped ENTIRELY here rather than pushing a bare merge commit:
+            # an unnecessary push takes the pull request out of the dependency
+            # bot's own rebase management for no gain.
+            echo "::notice::Deterministic context artifacts are already current on this branch; nothing pushed."
+            exit 0
+          fi
+
+          git commit --message "chore(context): regenerate deterministic context artifacts" \
+            --message "Regenerated by the dependency-update remediation servo against a refreshed base. Producers: $PRODUCERS."
+
+          # Deliberately NOT tolerant of a failed push. GITHUB_TOKEN can be
+          # read-only for reasons this job's `permissions:` block cannot raise,
+          # and a servo that swallows that error reports a green check for work
+          # it did not do.
+          if ! git push origin "HEAD:refs/heads/$HEAD_REF"; then
+            echo "::error::Could not push the regenerated context artifacts to '$HEAD_REF'. Either GITHUB_TOKEN is read-only for this run — an organisation default this job's grant cannot raise, or a head branch outside this repository — or the branch moved while the job ran. Nothing reached the pull request."
+            exit 1
+          fi
