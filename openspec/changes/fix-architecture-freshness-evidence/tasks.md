@@ -139,12 +139,12 @@ Sizes follow the plan-feature sizing reference. No task is L or XL.
 
 ## 3. Merge hygiene for generated JSON
 
-- [ ] 3.1 Write a test asserting the heavy artifacts are declared unmergeable — **XS**
+- [x] 3.1 Write a test asserting the heavy artifacts are declared unmergeable — **XS**
   **Files**: `skills/tests/refresh-architecture-contracts/test_generated_artifact_merge_policy.py`
   **Dependencies**: None
   Assert `git check-attr merge` reports `binary` for the four heavy JSON paths.
 
-- [ ] 3.2 Declare the heavy artifacts `merge=binary` — **XS**
+- [x] 3.2 Declare the heavy artifacts `merge=binary` — **XS**
   **Files**: `.gitattributes`
   **Dependencies**: 3.1
   Cover `architecture.graph.json`, `architecture.diagnostics.json`,
