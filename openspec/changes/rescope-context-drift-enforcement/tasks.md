@@ -117,40 +117,40 @@ exit codes, then the servo. Each phase is observable before the next enforces on
 
 ## 3. Make the blocking verdict event-aware
 
-- [ ] 3.1 Write a test that inherited-only drift passes a pull request — **S**
+- [x] 3.1 Write a test that inherited-only drift passes a pull request — **S**
   **Spec scenarios**: Inherited drift alone does not fail a pull request
   **Files**: `skills/tests/project-context-refresh/test_gate.py`
   **Dependencies**: None
 
-- [ ] 3.2 Write a test that introduced drift fails a pull request — **S**
+- [x] 3.2 Write a test that introduced drift fails a pull request — **S**
   **Spec scenarios**: Introduced drift fails a pull request
   **Files**: `skills/tests/project-context-refresh/test_gate.py`
   **Dependencies**: None
 
-- [ ] 3.3 Write a test that inherited drift blocks on the integration branch — **S**
+- [x] 3.3 Write a test that inherited drift blocks on the integration branch — **S**
   **Spec scenarios**: Inherited drift blocks on the integration branch
   **Files**: `skills/tests/project-context-refresh/test_gate.py`
   **Dependencies**: None
 
-- [ ] Checkpoint: confirm the three exit-code tests fail, and existing exit-code tests still pass
+- [x] Checkpoint: confirm the three exit-code tests fail, and existing exit-code tests still pass
 
-- [ ] 3.4 Accept the triggering event as gate input — **S**
+- [x] 3.4 Accept the triggering event as gate input — **S**
   **Design decisions**: D4
   **Files**: `skills/project-context-refresh/scripts/gate.py`, `skills/project-context-refresh/scripts/cli.py`
   **Dependencies**: 3.1
 
-- [ ] 3.5 Derive exit codes from the attribution-by-event matrix — **S**
+- [x] 3.5 Derive exit codes from the attribution-by-event matrix — **S**
   **Spec scenarios**: Inherited drift alone does not fail a pull request, Introduced drift fails a pull request, Inherited drift blocks on the integration branch
   **Files**: `skills/project-context-refresh/scripts/gate.py`
   **Dependencies**: 3.2, 3.3, 3.4, 2.6
 
-- [ ] 3.6 Write a test that an unhandled event fails — **XS**
+- [x] 3.6 Write a test that an unhandled event fails — **XS**
   **Spec scenarios**: Unknown event fails loudly
   **Design decisions**: D4
   **Files**: `skills/tests/project-context-refresh/test_gate.py`
   **Dependencies**: None
 
-- [ ] 3.7 Dispatch on the event inside the gate job — **M**
+- [x] 3.7 Dispatch on the event inside the gate job — **M**
   **Spec scenarios**: Gate runs on every declared event, Unknown event fails loudly
   **Design decisions**: D4
   **Files**: `.github/workflows/ci.yml`
@@ -158,13 +158,13 @@ exit codes, then the servo. Each phase is observable before the next enforces on
   Follow `requirement-traceability-sweep` (`ci.yml:626`, dispatch `ci.yml:737-798`): one job
   on all three events, `case "$EVENT_NAME"`, explicit failing `*)` arm. No job-level `if:`.
 
-- [ ] 3.8 Keep the Makefile target reproducing the CI invocation — **S**
+- [x] 3.8 Keep the Makefile target reproducing the CI invocation — **S**
   **Files**: `Makefile`, `skills/tests/project-context-refresh/test_gate.py`
   **Dependencies**: 3.7
   `test_gate.py:824` parses the Makefile to assert the two match; the event argument must
   not break that equivalence.
 
-- [ ] Checkpoint: run the full gate suite, review the ci.yml diff against the sweep precedent
+- [x] Checkpoint: run the full gate suite, review the ci.yml diff against the sweep precedent
 
 ## 4. Fix context-impact attribution
 
