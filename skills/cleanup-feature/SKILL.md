@@ -331,12 +331,28 @@ make architecture-refresh
 
 Use `make architecture-refresh`, never the bare `make architecture` generation
 target. Provenance is written only by the staged path (`run_staged` in
-`refresh-architecture/scripts/run_architecture.py`), and the deterministic
-architecture producer decides freshness by comparing *committed* provenance —
-missing or malformed provenance is routed to **drift**, not to "owner absent". So
-the full generation target can regenerate every artifact and still leave
-`make context-drift-gate` red. The staged target requires a committed HEAD, which
-holds here: this step runs after the merge has landed.
+`refresh-architecture/scripts/run_architecture.py`), and the artifacts this
+repository tracks are worth nothing to a reader without it. The staged target
+requires a committed HEAD, which holds here: this step runs after the merge has
+landed.
+
+This step is a courtesy to the next reader, not a gate. Architecture freshness is
+a property of the checkout that last regenerated the artifacts, so it is
+**informational** in `make context-drift-gate`: skipping this step cannot turn the
+gate red, and running it cannot make anyone else's checkout fresh. What it does is
+make the *committed-tier* artifacts on `main` describe `main`, so that the
+`--ensure` call every consumer skill makes at its read boundary finds a fresh
+check and writes nothing. Skip it and the artifacts are merely stale: the next
+`explore-feature`, `plan-feature`, `validate-feature`, `tech-debt-analysis`,
+`validate-flows` or `validate-packages` run regenerates them locally — correct
+results, but a working tree dirtied with tracked-artifact churn the developer did
+not ask for.
+
+The baseline is local and tier-aware, not universally committed. Provenance shares
+the version-control status of its committed-tier artifacts; a `local-cache`
+artifact's absence from a clean checkout is not drift at all. A consumer
+repository that records the whole analysis as `local-cache` has nothing to refresh
+here and can drop this step entirely — its readers ensure on demand instead.
 
 ### 4.5. Fast-Forward Submodule Main Branches
 
