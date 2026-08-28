@@ -172,8 +172,29 @@ non-reproducible. It already says the right thing: drift is data.
   against a detached HEAD, per the `merge-pull-requests` HEAD-mutation guard) will now
   write into `docs/architecture-analysis/` when stale. That directory is gitignored in the
   consumer, so no tracked file changes, but the mutation guard should be checked for
-  whether it digests ignored paths. — *Task 3.4 verifies this before any consumer call
-  site lands.*
+  whether it digests ignored paths. — **Task 3.4 verified: it cannot trip.**
+  `capture_head` (`merge-pull-requests/scripts/_helpers.py:90-100`) derives its entire
+  state from `git branch --show-current` plus `git rev-parse HEAD`, and drift is a
+  comparison of those two strings. No digest, no file list, no `git status` — writes
+  anywhere, ignored or tracked, are invisible to it. The merge-time detached-HEAD refusal
+  (`merge_pr.py:627-643`) uses the same primitive.
+
+  One adjacent finding, recorded because it is easy to mistake for the same guard: the
+  separate dirty-worktree check (`_helpers.py:203-233`) runs `git status --porcelain`
+  without `--ignored`, so ignored writes are invisible there too — but `.gitignore` does
+  not apply to *tracked* files, and this repository tracks most of
+  `docs/architecture-analysis/`. Regenerating those would show as ` M`. That check is a
+  non-fatal warning with one caller, `discover_prs.py:136`, on the discovery path rather
+  than the review path, so the effect is a spurious dirty-tree warning during PR
+  discovery, not a block. Nothing pins this behaviour in a test.
+
+  **Second-order consequence for this repository.** The premise above — "that directory is
+  gitignored in the consumer" — does not hold here. After `fix-architecture-freshness-evidence`
+  this repository tracks its committed-tier artifacts and ignores only four. A consumer
+  call site that runs `--ensure` and regenerates a *tracked* artifact therefore dirties
+  the tree. `--ensure` writes nothing when the check is fresh, so this arises only on a
+  genuinely stale checkout, but it is the reason task 5.1 pins that `checkpoint.py` never
+  calls `--ensure`.
 - **Per-grammar provenance changes `optional_tools` shape.** Existing provenance records
   a single `tree-sitter` entry; the new shape records one entry per grammar. A
   `producer_version` bump makes old provenance report `PRODUCER_IDENTITY_MISMATCH` once,
