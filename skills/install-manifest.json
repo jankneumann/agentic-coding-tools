@@ -58,6 +58,7 @@
     ],
     "explore-feature": [
       "coordination-bridge",
+      "refresh-architecture",
       "shared",
       "worktree"
     ],
@@ -145,12 +146,19 @@
     ],
     "validate-feature": [
       "coordination-bridge",
+      "refresh-architecture",
       "security-review",
       "session-log",
       "shared",
       "validate-flows",
       "validate-packages",
       "worktree"
+    ],
+    "validate-flows": [
+      "refresh-architecture"
+    ],
+    "validate-packages": [
+      "refresh-architecture"
     ],
     "vendor-status": [
       "parallel-infrastructure"

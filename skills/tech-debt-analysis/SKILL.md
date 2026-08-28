@@ -109,10 +109,11 @@ sync point keeps it current on your behalf:
 ```bash
 # Ensure architecture artifacts are current, immediately before the first read.
 # `--ensure` is `--check` plus a staged refresh only when the check is not fresh,
-# so on an already-fresh checkout it writes nothing. Resolve the interpreter the
-# way the Makefile does: the producers and the freshness check must agree about
-# which optional grammars are importable, or they report permanent drift.
-ARCH_PY="$([ -x skills/.venv/bin/python ] && echo skills/.venv/bin/python || echo python3)"
+# so on an already-fresh checkout it writes nothing. PYTHON must name the same
+# interpreter this repository's architecture targets use: the check runs in-process
+# and the pipeline runs in a subprocess, and if the two disagree about which
+# optional grammars are importable they report permanent, unfixable drift.
+ARCH_PY="${PYTHON:-python3}"
 if "$ARCH_PY" "<agent-skills-dir>/refresh-architecture/scripts/run_architecture.py" --ensure --python "$ARCH_PY"; then
   ARCH_FRESHNESS="ensured"
 else
