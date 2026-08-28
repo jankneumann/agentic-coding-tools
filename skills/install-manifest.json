@@ -118,6 +118,12 @@
       "shared",
       "worktree"
     ],
+    "refine-roadmap": [
+      "plan-roadmap",
+      "roadmap-runtime",
+      "shared",
+      "worktree"
+    ],
     "refresh-architecture": [
       "shared",
       "validate-flows",
@@ -317,6 +323,9 @@
     "quick-task": {
       "distribution": "portable"
     },
+    "refine-roadmap": {
+      "distribution": "portable"
+    },
     "refresh-architecture": {
       "distribution": "portable"
     },
@@ -410,6 +419,12 @@
     {
       "path": "prototype-feature/scripts/collect_outcomes.py",
       "mode": "import"
+    },
+    {
+      "path": "refine-roadmap/scripts/refiner.py",
+      "args": [
+        "--help"
+      ]
     },
     {
       "path": "validate-flows/scripts/validate_flows.py",

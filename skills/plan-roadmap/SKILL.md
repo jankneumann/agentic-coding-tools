@@ -186,6 +186,7 @@ Change directories always live at `openspec/changes/<change-id>/`, never nested 
 
 ```
 Ingestion:     pitch / proposal.md  →  roadmap.yaml      (this skill)
+Refinement:    active roadmap       →  safe item edits   (/refine-roadmap)
 Execution:     roadmap.yaml         →  item completion   (/autopilot-roadmap)
 Maintenance:   roadmap.yaml         →  roadmap.md        (renderer; check_roadmap_sync)
 Archival:      workspace/           →  archive/<date>-<id>/  (/archive-roadmap)

@@ -295,6 +295,7 @@ class Roadmap:
     updated_at: str | None = None
     status: RoadmapStatus = RoadmapStatus.PLANNING
     policy: Policy = field(default_factory=Policy)
+    refinements: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -309,6 +310,8 @@ class Roadmap:
             d["created_at"] = self.created_at
         if self.updated_at:
             d["updated_at"] = self.updated_at
+        if self.refinements:
+            d["refinements"] = [dict(record) for record in self.refinements]
         return d
 
     @classmethod
@@ -322,6 +325,7 @@ class Roadmap:
             updated_at=data.get("updated_at"),
             status=RoadmapStatus(data.get("status", "planning")),
             policy=Policy.from_dict(data["policy"]) if "policy" in data else Policy(),
+            refinements=[dict(record) for record in (data.get("refinements") or [])],
         )
 
     def get_item(self, item_id: str) -> RoadmapItem | None:
