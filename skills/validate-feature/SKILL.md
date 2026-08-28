@@ -561,6 +561,19 @@ against the changed files. The diff producer runs first so new dependency cycles
 exist as findings before gate_logic.architecture_status() evaluates the phase:
 
 ```bash
+# Ensure architecture artifacts are current, immediately before the first read.
+# `--ensure` is `--check` plus a staged refresh only when the check is not fresh,
+# so on an already-fresh checkout it writes nothing. Resolve the interpreter the
+# way the Makefile does: the producers and the freshness check must agree about
+# which optional grammars are importable, or they report permanent drift.
+ARCH_PY="$([ -x skills/.venv/bin/python ] && echo skills/.venv/bin/python || echo python3)"
+if "$ARCH_PY" "<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py" --ensure --python "$ARCH_PY"; then
+  ARCH_FRESHNESS="ensured"
+else
+  ARCH_FRESHNESS="DEGRADED"
+  echo "DEGRADED: architecture artifacts could not be made current; the last known-good analysis is left intact but unverified. Report every architecture-derived finding below as unverified rather than as current." >&2
+fi
+
 # Get changed files relative to main
 CHANGED_FILES=$(git diff --name-only main...HEAD | tr "\n" ",")
 
@@ -569,7 +582,7 @@ ARCH_BASE_SHA=$(git merge-base main HEAD)
 ARCH_DIFF="docs/architecture-analysis/architecture.diff.json"
 if [ -f Makefile ] && [ -f "docs/architecture-analysis/architecture.graph.json" ]; then
   echo "Running architecture baseline diff against $ARCH_BASE_SHA..."
-  if make architecture && make architecture-diff BASE_SHA="$ARCH_BASE_SHA"; then
+  if make architecture-diff BASE_SHA="$ARCH_BASE_SHA"; then
     ARCH_NEW_CYCLES=$(python3 -c "import json; d=json.load(open(\"$ARCH_DIFF\")); print(d[\"summary\"][\"new_cycles\"])")
     ARCH_DIFF_RESULT=$(python3 -c "import json,sys; sys.path.insert(0, \"<skill-base-dir>/scripts\"); import gate_logic; d=json.load(open(\"$ARCH_DIFF\")); findings=[{\"category\": \"new_cycle\", \"description\": \"New dependency cycle: \" + \" -> \".join(c)} for c in d[\"details\"][\"new_cycles\"]]; print(gate_logic.architecture_status(findings))")
     echo "Architecture diff: $ARCH_NEW_CYCLES new cycle(s); gate status: $ARCH_DIFF_RESULT"
@@ -609,7 +622,7 @@ if [ -f "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" ] && [ -f
   fi
 else
   echo "DEGRADED: Architecture flow validation was NOT CHECKED (missing scripts or artifacts)"
-  echo "  Run make architecture to generate architecture artifacts"
+  echo "  ARCH_FRESHNESS=$ARCH_FRESHNESS — re-run the ensure call above to generate them"
   FLOW_RESULT="DEGRADED"
 fi
 
@@ -631,7 +644,7 @@ echo "Structural linters: $LINTER_RESULT"
 # Aggregate without allowing a later passing sub-phase to erase an earlier
 # failure or unavailable checker.
 ARCH_RESULT="pass"
-for SUBPHASE_RESULT in "$ARCH_DIFF_RESULT" "$FLOW_RESULT" "$LINTER_RESULT"; do
+for SUBPHASE_RESULT in "$ARCH_FRESHNESS" "$ARCH_DIFF_RESULT" "$FLOW_RESULT" "$LINTER_RESULT"; do
   if [ "$SUBPHASE_RESULT" = "fail" ]; then
     ARCH_RESULT="fail"
   elif [ "$SUBPHASE_RESULT" = "DEGRADED" ] && [ "$ARCH_RESULT" != "fail" ]; then

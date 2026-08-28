@@ -127,7 +127,28 @@ python3 "<skill-base-dir>/scripts/validate_work_result.py" <path-to-result.json>
 
 ### `<skill-base-dir>/scripts/validate_schema.py`
 
-Generic JSON schema validator.
+Generic JSON schema validator. When the document it is pointed at is an
+architecture artifact, make that artifact current first — validating a stale
+graph reports the shape of an analysis nobody is going to act on:
+
+```bash
+# Ensure architecture artifacts are current, immediately before the first read.
+# `--ensure` is `--check` plus a staged refresh only when the check is not fresh,
+# so on an already-fresh checkout it writes nothing. Resolve the interpreter the
+# way the Makefile does: the producers and the freshness check must agree about
+# which optional grammars are importable, or they report permanent drift.
+ARCH_PY="$([ -x skills/.venv/bin/python ] && echo skills/.venv/bin/python || echo python3)"
+if "$ARCH_PY" "<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py" --ensure --python "$ARCH_PY"; then
+  ARCH_FRESHNESS="ensured"
+else
+  ARCH_FRESHNESS="DEGRADED"
+  echo "DEGRADED: architecture artifacts could not be made current; the last known-good analysis is left intact but unverified. Report every architecture-derived finding below as unverified rather than as current." >&2
+fi
+```
+
+The ensure call belongs here, in the caller's step, and not inside
+`validate_schema.py`: the script takes an explicit document path, is run against
+fixtures with no repository, and must keep validating the file it was handed.
 
 **Usage**:
 ```bash
