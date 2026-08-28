@@ -76,6 +76,7 @@ from _runtime import (
 )
 from registry import (
     API_CONTRACTS,
+    DECISIONS_TIMELINE,
     DOCUMENTATION_INVENTORY,
     OPENSPEC_PROJECTION,
     Producer,
@@ -329,8 +330,30 @@ class TestExitCodes:
             assert result.report["exit_code"] == expected
 
 
+def _architecture_missing_provenance() -> ProducerResult:
+    """The architecture verdict on a checkout with no local provenance baseline."""
+    return R.drift(
+        orchestrator.ARCHITECTURE_PRODUCER_ID,
+        "1.0.0",
+        artifacts=(
+            RepositoryArtifact(
+                path=gate.ARCHITECTURE_PROVENANCE_PATH,
+                change=ChangeKind.DELETED,
+                sha256=None,
+            ),
+        ),
+        validations=[
+            R.failed_validation(
+                "architecture-provenance",
+                "PROVENANCE_MISSING: no local architecture provenance",
+            )
+        ],
+        remediation=[Remediation(summary="make architecture-refresh")],
+    )
+
+
 class TestArchitectureBlock:
-    def test_missing_provenance_is_unverifiable_and_blocks(self, tmp_path):
+    def test_missing_provenance_is_unverifiable_and_does_not_block(self, tmp_path):
         arch = R.drift(
             "architecture",
             "1.0.0",
@@ -354,14 +377,19 @@ class TestArchitectureBlock:
             "freshness": "unverifiable",
             "provenance": "missing",
         }
-        assert result.exit_code == 2
+        assert [f["producer_id"] for f in result.report["informational_drift"]] == [
+            orchestrator.ARCHITECTURE_PRODUCER_ID
+        ]
+        assert result.report["blocking_drift"] == []
+        assert result.exit_code == 0
+        assert result.report["outcome"] == "fresh"
 
     def test_absent_owner_degrades_without_blocking(self, tmp_path):
         result = _run_gate(tmp_path, _not_configured("architecture"))
         assert result.report["architecture"]["freshness"] == "not-configured"
         assert result.exit_code == 0
 
-    def test_stale_digests_are_stale_not_unverifiable(self, tmp_path):
+    def test_stale_digests_are_stale_and_do_not_block(self, tmp_path):
         provenance = tmp_path / gate.ARCHITECTURE_PROVENANCE_PATH
         provenance.parent.mkdir(parents=True, exist_ok=True)
         provenance.write_text(json.dumps({"schema_version": 1}), encoding="utf-8")
@@ -388,7 +416,61 @@ class TestArchitectureBlock:
             "freshness": "stale",
             "provenance": "present",
         }
+        assert [f["producer_id"] for f in result.report["informational_drift"]] == [
+            orchestrator.ARCHITECTURE_PRODUCER_ID
+        ]
+        assert result.report["blocking_drift"] == []
+        assert result.exit_code == 0
+
+    def test_architecture_drift_never_masks_committed_artifact_drift(self, tmp_path):
+        """D3: demoting architecture must not demote anything it ran beside."""
+        result = _run_gate(
+            tmp_path,
+            _architecture_missing_provenance(),
+            _drift(DECISIONS_TIMELINE, "docs/decisions/index.md"),
+        )
         assert result.exit_code == 2
+        assert result.report["outcome"] == "drift"
+        assert [f["producer_id"] for f in result.report["blocking_drift"]] == [
+            DECISIONS_TIMELINE
+        ]
+        assert [f["producer_id"] for f in result.report["informational_drift"]] == [
+            orchestrator.ARCHITECTURE_PRODUCER_ID
+        ]
+        assert result.report["architecture"]["freshness"] == "unverifiable"
+
+    def test_architecture_that_cannot_reach_a_verdict_still_fails(self, tmp_path):
+        """Reclassification moves drift, never a producer that could not answer."""
+        result = _run_gate(
+            tmp_path,
+            _drift_without_artifacts(
+                orchestrator.ARCHITECTURE_PRODUCER_ID,
+                "architecture freshness could not be determined: OSError",
+            ),
+        )
+        assert result.exit_code == 1
+        assert result.report["outcome"] == "failed"
+        assert [d["producer_id"] for d in result.report["failed"]] == [
+            orchestrator.ARCHITECTURE_PRODUCER_ID
+        ]
+        assert result.report["informational_drift"] == []
+
+    def test_failed_architecture_producer_still_exits_one(self, tmp_path):
+        result = _run_gate(tmp_path, _failed(orchestrator.ARCHITECTURE_PRODUCER_ID))
+        assert result.exit_code == 1
+        assert result.report["architecture"]["freshness"] == "unverifiable"
+
+    def test_informational_architecture_carries_indeterminate_attribution(
+        self, tmp_path
+    ):
+        """D2: provenance is no longer committed, so the merge base holds no
+        baseline to attribute against. ``indeterminate`` is the vocabulary's word
+        for absent evidence, and it resolves to the integration owner."""
+        result = _run_gate(tmp_path, _architecture_missing_provenance())
+        (finding,) = result.report["informational_drift"]
+        assert finding["attribution"] == gate.ATTRIBUTION_INDETERMINATE
+        assert finding["attributed_owner"] == gate.DEFAULT_BASE
+        assert result.exit_code == 0
 
     def test_malformed_provenance_is_reported_separately(self, tmp_path):
         provenance = tmp_path / gate.ARCHITECTURE_PROVENANCE_PATH

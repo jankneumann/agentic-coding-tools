@@ -9,8 +9,8 @@ derived from a classification rather than from a collapsed terminal state:
   registered producer in ``check`` mode and writes neither the durable store nor
   the working tree. Dispatch is not re-implemented here;
 * **architecture freshness** — via the orchestrator's architecture seam, whose
-  default compares *committed* provenance with ``check_freshness`` and fails
-  closed on unverifiable evidence (D4). Consumed, not re-implemented;
+  default compares *local* provenance with ``check_freshness``. Consumed, not
+  re-implemented, and reported without blocking (D2/D3);
 * **work-package context impact** — ri-08's ``validate_context_impact``, invoked
   over the ``work-packages.yaml`` files present in the diff under test and
   **never** with ``--strict-legacy`` (D7).
@@ -62,15 +62,29 @@ every caller predating this change gets exactly the verdict it got before.
 
 Two reconciliations are recorded rather than left implicit.
 
-**Missing architecture provenance exits 2, not 1.** The exit table's "or
-unverifiable architecture provenance" clause reads, in isolation, as though a
-missing baseline were an apparatus failure. It is not: D4 maps missing,
-malformed, and schema-invalid provenance to ``R.drift``, and the spec scenario
-"Missing provenance blocks" requires *the drift exit code*. The ``architecture``
-report block still names it ``unverifiable``, keeping "no baseline at all"
-distinguishable from "digests disagree", but it is blocking drift. Exit ``1``
-covers the case where the architecture producer could not reach a verdict at
-all, which arrives as a ``failed`` result.
+**Missing architecture provenance exits 0, and is still reported.** ri-10 D4
+made unverifiable provenance *blocking*; that consequence is withdrawn here.
+Architecture artifacts and their provenance are a regenerable local analysis
+cache (D2), so their freshness is a property of the checkout that last
+regenerated them and of no other. A gate run on any other checkout cannot
+observe it, and blocking on it blocked on a condition true of every clean clone.
+The architecture arm therefore joins ``openspec.projection`` in
+``informational_drift`` and contributes nothing to the exit code (D3).
+
+What survives from D4 is the *reporting* distinction, not the consequence: the
+``architecture`` block still names a missing or malformed baseline
+``unverifiable`` rather than ``not-configured``, so "no baseline at all" stays
+distinguishable from "digests disagree" and from an absent optional owner. Exit
+``1`` is untouched — the architecture producer that could not reach a verdict at
+all still arrives as ``failed``, and one that drifted without naming an artifact
+is still reclassified below. Only the *drift* verdict moved, and only in the
+direction of exiting 0; nothing that exited 2 for a committed artifact does now.
+
+Architecture findings reach ``informational_drift`` attributed ``indeterminate``:
+:func:`_attribution_evidence` looks for provenance at the merge base, and after
+D2 there is none to find. That is the correct reading of the vocabulary — the
+evidence is absent, not the blame assigned — and it costs nothing, because
+attribution only ever filters *blocking* findings for the exit code.
 
 **The validator's exit ``2`` becomes the gate's exit ``1``.**
 ``validate_context_impact.py`` returns ``2`` for *usage* errors — a missing file
@@ -146,10 +160,23 @@ CONTEXT_IMPACT_OWNER = "validate-packages"
 #: than an ri-05 registry entry (mirrors ``cli._owner_by_producer_id``).
 ARCHITECTURE_OWNER = "refresh-architecture"
 
-#: The committed provenance document the architecture arm compares against.
+#: The local provenance document the architecture arm compares against. Local
+#: rather than committed (D2): it lives beside the ~36 MB of regenerated
+#: artifacts it describes and shares their version-control status.
 ARCHITECTURE_PROVENANCE_PATH = "docs/architecture-analysis/architecture.provenance.json"
 
-#: Freshness reason codes that mean "there is no usable committed baseline".
+#: Producer ids whose drift is reported but never blocks, passed explicitly to
+#: :func:`orchestrator.classify_degradation` rather than folded into its default.
+#: ``classify_degradation`` is a pure partition over ids the *caller* nominates,
+#: and the reason architecture is informational is a property of this gate's
+#: question — "must a reviewer fix this before merge?" — not of the classifier.
+#: Keeping the addition here also keeps the orchestrator's own default, which
+#: other callers read, describing only ``openspec.projection`` (D3).
+GATE_INFORMATIONAL_PRODUCERS: frozenset[str] = orchestrator.INFORMATIONAL_PRODUCERS | {
+    orchestrator.ARCHITECTURE_PRODUCER_ID
+}
+
+#: Freshness reason codes that mean "there is no usable local baseline".
 #: ``_default_architecture_producer`` renders each drift validation summary as
 #: ``"<CODE>: <detail>"``, so a prefix match recovers the code without importing
 #: ``refresh-architecture`` (which may legitimately be absent).
@@ -406,10 +433,13 @@ def provenance_state(repository: Path) -> str:
 def architecture_freshness(result: ProducerResult | None) -> str:
     """Map the architecture producer's result onto the report's freshness enum.
 
-    ``unverifiable`` is deliberately *not* folded into ``not-configured``:
-    unverifiable evidence blocks, an absent optional owner does not (D4). It
-    covers a missing or malformed committed baseline and a producer that could
-    not reach a verdict at all.
+    ``unverifiable`` is deliberately *not* folded into ``not-configured``, even
+    though neither blocks any more: "there is no baseline to compare against" and
+    "the architecture owner is not installed here" are different facts about the
+    checkout, and a reader deciding whether to run ``--ensure`` needs them apart
+    (D2). It covers a missing or malformed local baseline and a producer that
+    could not reach a verdict at all — the latter arriving as ``failed``, which
+    still exits ``1``.
     """
     if result is None:
         return "not-configured"
@@ -920,7 +950,9 @@ def render_report(
     require_known_event(event)
     attribution = attribution if attribution is not None else AttributionContext()
     breakdown = orchestrator.classify_degradation(
-        tuple(refresh.producer_results), refresh.semantic_index
+        tuple(refresh.producer_results),
+        refresh.semantic_index,
+        informational_producer_ids=GATE_INFORMATIONAL_PRODUCERS,
     )
     owners = owner_by_producer_id()
     outputs = _outputs_by_producer_id()
@@ -1205,9 +1237,14 @@ def _attribution_evidence(
 ) -> tuple[str | None, tuple[str, ...]]:
     """``(recorded revision, declared input pathspecs)`` for one producer.
 
-    The architecture producer records both itself: its committed provenance names
-    the ``source_revision`` the analysis was generated from and the
-    ``input_roots`` it was generated over. Registered producers carry no such
+    The architecture producer would record both itself — its provenance names the
+    ``source_revision`` the analysis was generated from and the ``input_roots`` it
+    was generated over — but after D2 that document is a local file beside the
+    artifacts it describes and is not committed, so reading it at the merge base
+    yields nothing and architecture attributes ``indeterminate``. The lookup is
+    kept rather than special-cased away: it is correct for any consumer that does
+    commit provenance, and architecture no longer enters ``blocking_drift``, so
+    the answer never reaches an exit code. Registered producers carry no such
     document, so the revision their output was last written at is recovered from
     the history of their declared managed outputs up to the merge base — which is
     the same claim the provenance document makes, read from git instead of JSON.
@@ -1441,6 +1478,7 @@ __all__ = [
     "GateError",
     "GateResult",
     "ResolvedBase",
+    "GATE_INFORMATIONAL_PRODUCERS",
     "architecture_freshness",
     "attribute_producer",
     "describe_tree",
