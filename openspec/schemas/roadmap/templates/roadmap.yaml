@@ -5,6 +5,7 @@ source_proposal: <path-to-proposal.md>
 created_at: <ISO-8601>
 updated_at: <ISO-8601>
 status: planning
+refinements: []
 
 policy:
   default_action: wait_if_budget_exceeded

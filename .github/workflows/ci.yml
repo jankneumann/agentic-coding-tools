@@ -126,6 +126,7 @@ jobs:
             tests/prioritize-proposals \
             tests/prototype-feature \
             tests/quick-task \
+            tests/refine-roadmap \
             tests/refresh-architecture-contracts \
             tests/review-artifacts \
             tests/roadmap-runtime \

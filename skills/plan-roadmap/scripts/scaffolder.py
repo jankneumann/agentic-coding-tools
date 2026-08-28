@@ -35,6 +35,11 @@ def _derive_change_id(item: RoadmapItem) -> str:
     return _slugify(item.title)
 
 
+def derive_change_id(item: RoadmapItem) -> str:
+    """Public sibling-skill API for deterministic change-id derivation."""
+    return _derive_change_id(item)
+
+
 #: A change-id becomes a single directory name under ``openspec/changes/``.
 #: Dots are allowed because real change-ids use them (``adopt-opsx-1.0-workflow``),
 #: but a leading dot is not, and ``..`` is rejected separately below.
