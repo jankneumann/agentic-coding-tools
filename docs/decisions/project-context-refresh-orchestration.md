@@ -16,6 +16,17 @@
 
 ---
 
+## 2026-08-28 — bind-decision-index-to-session-log-writes
+
+### Phase: Plan
+
+**The gate keeps checking the decision index** — This removes one cause, not the check. A hand-edited session log, a manual archive move, and any future writer bypassing PhaseRecord all still stale the index. Six firings with one cause and one fix is an argument for closing the cause, never for lowering the check that found it.
+
+- Status: `active`
+- Source: [openspec/changes/bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/bind-decision-index-to-session-log-writes/session-log.md) (D4)
+
+---
+
 ## 2026-08-27 — 2026-08-28-rescope-context-drift-enforcement
 
 ### Phase: Plan
