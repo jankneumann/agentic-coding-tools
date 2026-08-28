@@ -316,3 +316,15 @@ exit codes, then the servo. Each phase is observable before the next enforces on
   1,149 tests green across seven suites (project-context-refresh 453, validate-packages 151,
   merge-pull-requests 192 + 170, project-context-runtime 94, install_sh 28, validate-feature
   61+5s). `openspec validate --strict` valid. ruff 0.16.0 clean over every edited tree.
+
+## Migration Notes
+
+Tasks 7.2 and 7.3 were migrated to `deferred-tasks.md` on 2026-08-28 rather than to a
+coordinator issue or a follow-up proposal. Both are repository-settings operations that a
+pull request cannot perform: applying the `context-drift-gate` branch-protection promotion
+and verifying seven required contexts. They need the repository owner, after the gate is
+green on `main` — which it now is (`outcome: fresh`, exit 0, verified in CI on the
+`push: main` event).
+
+Coordinator issues were not used because the coordinator accepts issue writes and discards
+them silently; see issue #429.

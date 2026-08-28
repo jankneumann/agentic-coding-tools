@@ -91,3 +91,26 @@ Planned the repair of architecture freshness evidence after verifying that the R
 ### Context
 Implemented all 28 tasks across six work packages. The RPC probe now reaches the content-based path, the heavy generated JSON is declared unmergeable, and 2,762,479 bytes of analyzer cache moved to a new provenance local-cache tier. Verified on a real clean clone that absent local-cache artifacts report fresh rather than ARTIFACT_MISSING.
 
+
+---
+
+## Phase: Cleanup (2026-08-28)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Rebase-merge, not squash** — the commits are conventional and ordered interface → implementation → tests, which `git blame` and `git bisect` benefit from.
+2. **Archived on `main` in a single cleanup pass** — both changes were already merged, so the archive move, merged spec deltas, and regenerated decision index describe state that is already on `main`.
+
+### Alternatives Considered
+- Coordinator issues for open-task migration: rejected — the coordinator accepts writes and discards them (issue #429), so a migration there would have been silently lost.
+
+### Trade-offs
+- Accepted one cleanup commit covering both archives over one commit each, because both landed on the same merged `main` state and the decision index is regenerated once for both.
+
+### Open Questions
+- [ ] Staged rollout (skill steps 5c/5d) does not apply: this is a tooling and skills repository with no deployed service, no traffic split, and no feature flag gating these changes. No rollout record is fabricated for it.
+- [ ] Docker-dependent validation phases (smoke, security, E2E) were never run — Docker is unavailable in this environment, so no `validation-report.md` exists.
+
+### Context
+Merged as PR #425 via rebase (agent-authored conventional commits encode design intent). All 18 CI checks green, including `context-drift-gate` on a fresh `actions/checkout` — the environment that would have broken had the local-cache tier been wrong. No open tasks to migrate; every box was checked at implementation time.

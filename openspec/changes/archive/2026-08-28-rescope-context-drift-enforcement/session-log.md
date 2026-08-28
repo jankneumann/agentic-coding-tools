@@ -99,3 +99,26 @@ Planned the drift-gate attribution rework (items 4-7 of the original seven-item 
 ### Context
 Implemented all eight work packages across the coordinated tier: the gate now resolves its base ref once and records it, attributes each finding as inherited, introduced or indeterminate, and derives exit codes from attribution per triggering event. Two scope gaps in the plan were found and repaired during the run -- a third copy of the report schema no package could write, and a telemetry event no run could reach. Both are recorded in the artifacts rather than silently fixed.
 
+
+---
+
+## Phase: Cleanup (2026-08-28)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Rebase-merge, not squash** — the commits are conventional and ordered interface → implementation → tests, which `git blame` and `git bisect` benefit from.
+2. **Archived on `main` in a single cleanup pass** — both changes were already merged, so the archive move, merged spec deltas, and regenerated decision index describe state that is already on `main`.
+
+### Alternatives Considered
+- Coordinator issues for open-task migration: rejected — the coordinator accepts writes and discards them (issue #429), so a migration there would have been silently lost.
+
+### Trade-offs
+- Accepted one cleanup commit covering both archives over one commit each, because both landed on the same merged `main` state and the decision index is regenerated once for both.
+
+### Open Questions
+- [ ] Staged rollout (skill steps 5c/5d) does not apply: this is a tooling and skills repository with no deployed service, no traffic split, and no feature flag gating these changes. No rollout record is fabricated for it.
+- [ ] Docker-dependent validation phases (smoke, security, E2E) were never run — Docker is unavailable in this environment, so no `validation-report.md` exists.
+
+### Context
+Merged as PR #426 via rebase. All 18 checks green. Tasks 7.2 and 7.3 were migrated to `deferred-tasks.md` rather than to coordinator issues, because they are repository-settings operations a pull request cannot perform and because the coordinator discards issue writes (#429). The gate is now green on `main` — `outcome: fresh`, exit 0, confirmed in CI on the `push: main` event — so the precondition those two tasks were waiting on is satisfied.
