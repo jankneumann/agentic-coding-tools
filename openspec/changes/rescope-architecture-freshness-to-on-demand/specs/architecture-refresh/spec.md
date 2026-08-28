@@ -6,15 +6,22 @@
 
 Architecture provenance SHALL be written at
 `docs/architecture-analysis/architecture.provenance.json`, beside the artifacts it
-describes, and SHALL share those artifacts' version-control status. Freshness SHALL be
-determined by comparing that provenance against recomputed digests of the artifacts
-present in the same checkout, never by file modification times.
+describes, and SHALL share the version-control status of its **committed-tier** artifacts.
+Freshness SHALL be determined by comparing that provenance against recomputed digests of
+the artifacts present in the same checkout, never by file modification times.
 
-Provenance is meaningful only alongside the artifacts whose digests it records, and the
-artifacts are regenerated output too large to review as a diff. The specification
-therefore does not require provenance to be committed and does not promise that a clean
-checkout is fresh. A checkout that has not regenerated the artifacts holds an unverified
-baseline, and the read-only check SHALL say so.
+Each recorded artifact declares a tier. A **committed-tier** artifact is expected in every
+clean checkout, and its absence SHALL be reported as drift. A **local-cache** artifact is
+regenerated output that a repository MAY decline to track; its absence SHALL NOT be
+reported as drift, and its presence SHALL still be digest-verified. A repository therefore
+chooses its posture per artifact rather than for the capability as a whole.
+
+The promise a clean checkout carries follows from that choice. Where every recorded
+artifact is committed-tier, a clean checkout at the recorded revision SHALL be fresh.
+Where the artifacts a consumer needs are local-cache — the posture a repository takes when
+those artifacts are too large to review as a diff — a checkout that has not regenerated
+them holds an **unverified** baseline rather than a stale one, and the read-only check
+SHALL say so. The specification does not require every repository to commit them.
 
 Regenerating architecture artifacts SHALL update the provenance in the same promotion, so
 that a checkout which has just regenerated passes the freshness check with no further
@@ -29,6 +36,17 @@ edits.
 - **WHEN** the read-only freshness check runs on a checkout with neither artifacts nor provenance
 - **THEN** it SHALL report the provenance as missing
 - **AND** SHALL NOT report artifact digests as mismatched
+
+#### Scenario: Committed-tier artifacts keep the clean-checkout promise
+- **GIVEN** a repository whose recorded artifacts are all committed-tier
+- **WHEN** the read-only freshness check runs on a clean checkout at the recorded revision
+- **THEN** it SHALL report fresh without regenerating anything
+
+#### Scenario: An untracked local-cache artifact is not drift
+- **GIVEN** a repository that records an artifact as local-cache and does not track it
+- **WHEN** the read-only freshness check runs on a clean checkout
+- **THEN** the absent artifact SHALL NOT be reported as drift
+- **AND** a present one SHALL still be digest-verified
 
 #### Scenario: Regeneration updates the local baseline
 - **WHEN** architecture artifacts are regenerated after a source change

@@ -37,6 +37,22 @@ in `.gitignore` before this change existed. Committing provenance without the ar
 (Approach C in the proposal) yields `stale` on every clone, which is *less* accurate than
 `missing`.
 
+**Amended during implementation — this decision predates PR #425.** `fix-architecture-freshness-evidence`
+landed a per-artifact `tier` (`committed` | `local-cache`) after this design was written.
+Two statements above are stale as a result. *"Committing provenance without the artifacts
+(Approach C in the proposal) yields `stale` on every clone"* is no longer true: an absent
+`local-cache` artifact is not drift at all, neither `stale` nor `missing`. And *"No consumer
+will commit them"* is false for this repository, which commits its committed-tier artifacts
+and whose gate is green in CI on a fresh `actions/checkout` and on `push: main`.
+
+The requirement was therefore rewritten in the tier vocabulary that already ships rather
+than by dropping the clean-checkout promise outright. Provenance shares the version-control
+status of its **committed-tier** artifacts. A repository whose artifacts are all
+committed-tier keeps the guarantee it has today; a consumer that records the 36 MB of
+analysis as `local-cache` gets the unverified-until-`--ensure` posture this change is for.
+Both are true statements about their own repository, and neither needs a mechanism that did
+not already exist.
+
 **What survives from ri-10 D4.** The *reporting* distinction: missing or malformed
 provenance is still reported as `unverifiable`, not as an absent owner, so "no baseline"
 and "digests disagree" stay distinguishable. What does not survive is the *blocking*
