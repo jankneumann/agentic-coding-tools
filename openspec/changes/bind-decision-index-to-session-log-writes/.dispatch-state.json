@@ -1,0 +1,7 @@
+{
+  "change_id": "bind-decision-index-to-session-log-writes",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

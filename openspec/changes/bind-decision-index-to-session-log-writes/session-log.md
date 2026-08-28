@@ -38,3 +38,41 @@
 ### Context
 Planned a fourth best-effort step in PhaseRecord.write_both() that regenerates the per-capability decision index the session-log append invalidates. Closes the last of three causes that made the deterministic context drift gate appear to fire constantly; the other two were fixed by #426 and #428 earlier the same session. Deliberately does not decide the branch-protection promotion -- it makes that question answerable.
 
+---
+
+## Phase: Implementation (2026-08-28)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Step four derives its roots from markdown_path, not from cwd** `architectural: skill-workflow` — The index is rebuilt from the tree the entry actually landed in, which is both more correct than trusting the process working directory and the property that keeps every test off the repository's real docs/decisions/. When step one failed or wrote outside openspec/changes/, the step skips with a warning: that call invalidated no index, and regenerating anyway risks rewriting an unrelated one.
+2. **Two skip guards protect against a degenerate index** `architectural: skill-workflow` — The generator deletes capability files no current decision supports, so running it over an unreadable archive would replace a stale index with an empty one that then compares equal to itself forever. Neither guard is a flag or an opt-out; both are failure handling, so D2's no-switch decision stands.
+3. **An eighth write_both() call site exists and is an orchestrator boundary** `architectural: skill-workflow` — Planning enumerated seven. The structural guard found autopilot/scripts/phase_agent.py:631, _write_phase_failed_record, an escalation boundary rather than a worker path. It is allowlisted with the reason recorded. A prose-grep guard would have missed it; the AST walk over heredoc-lifted Python found it.
+
+### Alternatives Considered
+- A new parameter on write_both() to force regeneration failure in tests: rejected because tests monkeypatch the module-level resolver instead, mirroring the existing SANITIZER_SCRIPT seam, so PhaseWriteResult and the signature stay unchanged
+- Deriving the index roots from the process working directory: rejected because would have made every test that calls write_both() rewrite the repository's real docs/decisions/ as a side effect of asserting
+
+### Trade-offs
+- Accepted Best-of-3 latency assertion over a single-shot measurement because keeps CI stable on a loaded machine while still printing the number on every run, so a regression is visible rather than absorbed
+
+### Open Questions
+- [ ] Five SKILL.md prose blocks still say write_both() 'runs three best-effort steps internally' and enumerate three. Outside this change's declared scope; needs a follow-up plus an install.sh mirror sync.
+- [ ] Hand-edited session logs remain a gate finding rather than a prevented condition, by design (D5).
+
+### Completed Work
+- Step four in write_both(), running after the coordinator step and before PhaseWriteResult is constructed
+- 25 new tests: currency and idempotence, three failure-isolation cases, generator absence, the orchestrator-scoping guard, and the hand-edited-log gate guard
+- Docstring corrected from 3-step to 4-step
+
+### Next Steps
+- Validation should re-run the counterfactual on a clean clone rather than trusting the throwaway-clone measurement.
+- Confirm the five stale SKILL.md prose blocks are filed before they are read as authoritative.
+
+### Relevant Files
+- `skills/session-log/scripts/phase_record.py` — write_both() step four and the lazy generator resolver
+- `skills/tests/phase-record-compaction/test_decision_index_binding.py` — 25 tests including both invariant guards
+
+### Context
+Added the fourth best-effort step to PhaseRecord.write_both(): regenerate the per-capability decision index that step one's markdown append invalidates. Measured 46.5 ms against a 250 ms target. The counterfactual was run in a throwaway clone: the same commit with docs/decisions/ reverted exits 2 with decisions.timeline attributed introduced, which is the defect this closes.
+
