@@ -167,6 +167,24 @@ form "do not call the Agent tool unless the user requested it." Dispatch without
 asking for per-call confirmation. If the harness genuinely exposes no sub-agent tool,
 run the steps inline **and say so** — never fall back silently.
 
+The last dispatch below reads the architecture artifacts, so make them current
+first — this is the read boundary, and nothing upstream of it keeps them fresh:
+
+```bash
+# Ensure architecture artifacts are current, immediately before the first read.
+# `--ensure` is `--check` plus a staged refresh only when the check is not fresh,
+# so on an already-fresh checkout it writes nothing. Resolve the interpreter the
+# way the Makefile does: the producers and the freshness check must agree about
+# which optional grammars are importable, or they report permanent drift.
+ARCH_PY="$([ -x skills/.venv/bin/python ] && echo skills/.venv/bin/python || echo python3)"
+if "$ARCH_PY" "<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py" --ensure --python "$ARCH_PY"; then
+  ARCH_FRESHNESS="ensured"
+else
+  ARCH_FRESHNESS="DEGRADED"
+  echo "DEGRADED: architecture artifacts could not be made current; the last known-good analysis is left intact but unverified. Report every architecture-derived finding below as unverified rather than as current." >&2
+fi
+```
+
 ```
 Task(subagent_type="Explore", model=analyst_model, prompt="Read openspec/project.md and summarize the project purpose, tech stack, and conventions", run_in_background=true)
 Task(subagent_type="Explore", model=analyst_model, prompt="Run 'openspec list --specs' and summarize existing specifications", run_in_background=true)
@@ -176,15 +194,6 @@ Task(subagent_type="Explore", model=analyst_model, prompt="Read docs/architectur
 ```
 
 Wait for all results and synthesize into unified context summary.
-
-Before creating artifacts, ensure architecture artifacts are current:
-
-```bash
-if [ ! -f docs/architecture-analysis/architecture.summary.json ] || \
-   [ "$(git log -1 --format=%ct main)" -gt "$(stat -f %m docs/architecture-analysis/architecture.summary.json 2>/dev/null || echo 0)" ]; then
-  make architecture
-fi
-```
 
 ### 3. Present Context and Discovery Questions [all tiers]
 
