@@ -81,6 +81,20 @@ future writer that bypasses `PhaseRecord` all still stale the index, and all mus
 caught. The measured six firings were one cause with one fix; that is an argument for closing
 the cause, never for lowering the check that found it.
 
+## Note on the "and" splitting heuristic
+
+Three task titles contain "and" and are deliberately not split, because each is a single
+outcome with two assertions rather than two outcomes:
+
+- **1.1** — "matches a fresh regeneration, **and** a second produces no further change" is one
+  property, idempotent currency, and asserting only the first half would pass for a generator
+  that runs twice and disagrees with itself.
+- **1.5** — one edit to one docstring; "3-step to 4-step" and "name the fourth step" describe
+  the same sentence.
+- **1.7** — one scenario: a hand-edited log must be reported **and** must still block. Split,
+  the second half is the one that would quietly go unwritten, and it is the guard against this
+  change becoming a way to stop checking.
+
 ## Migration
 
 Single step, no ordering constraints, no data migration. The first `write_both()` after this
