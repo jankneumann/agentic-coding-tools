@@ -22,6 +22,7 @@ Regenerate, validate, or inspect the `docs/architecture-analysis/` artifacts tha
 | Argument | Description |
 |----------|-------------|
 | *(empty)* | Full pipeline: analyze + compile + validate + views + report |
+| `--ensure` | Make the artifacts current if they are not: check, then a staged refresh only when needed |
 | `--validate` | Validate the existing graph (no regeneration) |
 | `--views` | Regenerate views and parallel zones from existing graph |
 | `--report` | Generate Markdown report from existing Layer 2 artifacts |
@@ -110,6 +111,27 @@ runs all layers in the consumer project working directory. Expect output
 showing each stage completing.
 
 **When to use:** After significant code changes, before planning a new feature, or when artifacts are stale/missing.
+
+#### Ensure On Demand (`--ensure`)
+
+```bash
+python3 "<skill-base-dir>/scripts/run_architecture.py" --ensure
+```
+
+`--ensure` is the read-only check followed by the staged refresh **only when the
+check is not fresh**. It introduces no third freshness rule: it composes the two
+modes below it, so there is one digest routine and one promotion path for both to
+share. On an already-fresh checkout it writes nothing — not an artifact byte, not
+a provenance byte — which is what makes it safe to call unconditionally. Two
+consecutive runs with no intervening source change leave the second a pure check.
+
+Exactly one JSON document reaches stdout either way. Fresh: the check report, the
+answer. Not fresh: the check report goes to stderr as the *reason*, and the staged
+report and its exit code become the answer. A failed staged run preserves the last
+known-good artifacts and exits non-zero.
+
+**When to use:** immediately before reading the artifacts. This is the call the six
+consumer skills make at their read boundary; see *Integration with Workflow*.
 
 #### Validate Only (`--validate`)
 
@@ -219,7 +241,12 @@ If the user asks to commit, stage the `docs/architecture-analysis/` directory:
 git add docs/architecture-analysis/
 ```
 
-Architecture artifacts are designed to be committed to the repo so agents can consult them during planning.
+Commit the **committed-tier** artifacts — the ones a clean checkout is expected to
+carry, so agents can consult them without regenerating first. Artifacts the
+repository records as `local-cache` (large analyzer caches that churn on every run)
+stay untracked and ignored: their absence is not drift, and a consumer that needs
+one regenerates it on demand. That choice is recorded in `.gitignore` per artifact,
+and `git add docs/architecture-analysis/` honours it.
 
 ## Key Files Reference
 
@@ -246,6 +273,9 @@ mtime-independent** — decided by input/producer/artifact identity, never file 
   failed run preserves the last known-good committed artifacts.
 - `make architecture-check` — read-only freshness check; exits 0 only when
   `fresh` and prints precise drift reason codes + stale artifact paths.
+- `run_architecture.py --ensure` — the check, then the staged refresh only when
+  the check is not fresh. Writes nothing on an already-fresh checkout, so it is
+  the call a reader makes unconditionally before reading.
 - `carried_over` — promotion copies staged files into the output directory and
   never deletes, because the optional stages skip soft (a partial refresh must
   not destroy the last good copy) and `views/.gitkeep` is committed but never
@@ -262,9 +292,46 @@ mtime-independent** — decided by input/producer/artifact identity, never file 
   `producer_id=architecture` result per `(repository, revision)` operation and
   projects it onto the refresh RPC. It never finalizes the whole operation.
 
+### The baseline is local, and its promise is per-artifact
+
+`architecture.provenance.json` lives beside the artifacts it describes and shares
+the version-control status of its **committed-tier** artifacts. Every recorded
+artifact declares a tier, so a repository chooses its posture per artifact rather
+than for the capability as a whole:
+
+| Tier | Expected in a clean checkout | Absence is |
+|---|---|---|
+| `committed` | yes | drift |
+| `local-cache` | no | not drift — but a copy that *is* present is still digest-verified |
+
+The promise a clean checkout carries follows from that choice. Where every recorded
+artifact is committed-tier — this repository's posture for `architecture.graph.json`
+and `architecture.summary.json` — a clean checkout at the recorded revision is
+`fresh` with nothing to regenerate. Where the artifacts a consumer needs are
+local-cache, because tens of megabytes of regenerated JSON per source change is not
+reviewable as a diff, a checkout that has not regenerated them holds an
+**unverified** baseline rather than a stale one, and the read-only check says so.
+
+Neither posture makes freshness someone else's job. A gate, a sync point, or a CI
+run observes the checkout *it* runs in, so it cannot answer the question for yours.
+That is why the reader ensures, and why architecture drift is informational rather
+than blocking in `make context-drift-gate`.
+
 ## Integration with Workflow
 
-- **Before `/plan-feature`**: Run full pipeline to ensure agents have current architecture context
+Consumers do not wait for this skill. `explore-feature`, `plan-feature`,
+`validate-feature`, `tech-debt-analysis`, `validate-flows` and `validate-packages`
+each run `--ensure` at the top of their artifact-reading step, so they read current
+artifacts whether or not anyone refreshed first — and pay nothing beyond the check
+when the checkout is already fresh. The branch-local checkpoint deliberately does
+**not**: it reports architecture freshness and delta as findings and stays
+read-only, because a reporter that regenerates its own evidence produces a report
+nobody can reproduce.
+
+- **Invoke this skill directly** when the artifacts, the report, or a diff are the
+  *product* — a structural review, `--diff` against a base branch, a feature slice.
 - **During `/implement-feature`**: Run `--validate` after code changes to check for broken flows
-- **Before `/validate-feature`**: Run `--diff` against the base branch to understand architectural impact
-- **In CI**: Run `make architecture-check` (content-based) to catch stale committed artifacts
+- **After a merge**: `cleanup-feature` runs `make architecture-refresh` so the
+  committed-tier artifacts on `main` describe `main`. That is what keeps every
+  consumer's `--ensure` a no-op for everyone who clones it.
+- **In CI**: `make architecture-check` (content-based) reports; it does not gate.
