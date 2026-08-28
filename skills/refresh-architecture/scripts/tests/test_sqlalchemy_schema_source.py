@@ -447,7 +447,7 @@ def test_pipeline_with_sqlalchemy_source_analyzes_the_orm_schema(
 
 
 def test_pipeline_unimportable_target_skips_and_still_promotes(
-    alembic_repo: Path,
+    sa_python: str, alembic_repo: Path
 ) -> None:
     """The source is inapplicable; the pipeline continues and exits clean."""
     run = run_pipeline(
@@ -456,6 +456,7 @@ def test_pipeline_unimportable_target_skips_and_still_promotes(
         extra_env={
             "SCHEMA_SOURCE": "sqlalchemy",
             "SCHEMA_TARGET": "no_such_models:metadata",
+            "SCHEMA_SOURCE_PYTHON": sa_python,
         },
     )
 
@@ -467,6 +468,37 @@ def test_pipeline_unimportable_target_skips_and_still_promotes(
     assert "no_such_models" in run.stdout, (
         "the pipeline must surface the import error, not just the skip:\n" + run.stdout
     )
+
+
+def test_pipeline_promotes_when_sqlalchemy_is_missing(
+    alembic_repo: Path, tmp_path: Path
+) -> None:
+    """An optional dependency's absence is a skip like any other.
+
+    Runs on every machine, with or without SQLAlchemy installed, because the
+    shadow package makes the import fail either way — this is the branch a
+    checkout without the optional dependency actually takes.
+    """
+    shadow = tmp_path / "shadow"
+    (shadow / "sqlalchemy").mkdir(parents=True)
+    (shadow / "sqlalchemy" / "__init__.py").write_text(
+        'raise ImportError("simulated missing sqlalchemy")\n', encoding="utf-8"
+    )
+
+    run = run_pipeline(
+        alembic_repo,
+        migrations_dir="alembic/versions",
+        extra_env={
+            "SCHEMA_SOURCE": "sqlalchemy",
+            "SCHEMA_TARGET": "models:metadata",
+            "PYTHONPATH": str(shadow),
+        },
+    )
+
+    assert run.result("schema_source") == "SKIP", run.stdout
+    assert run.errors == 0, run.stdout
+    assert run.returncode == 0, run.stdout
+    assert "sqlalchemy" in run.stdout.lower()
 
 
 # --------------------------------------------------------------------------- #

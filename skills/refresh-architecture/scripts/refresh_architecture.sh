@@ -43,6 +43,31 @@ PG_ANALYSIS="${ARCH_DIR}/postgres_analysis.json"
 
 PYTHON="${PYTHON:-python3}"
 AUTO_INSTALL_DEPS="${AUTO_INSTALL_DEPS:-true}"
+
+# Optional ORM schema source (D7). Unset — the default — means this whole
+# branch is inert and MIGRATIONS_DIR is read exactly as it always was.
+#
+#   SCHEMA_SOURCE=sqlalchemy   emit CREATE TABLE DDL from a declared MetaData
+#                              into a staging directory and point the SQL
+#                              analyzers at it. For repositories whose
+#                              migrations are Python (Alembic), which have
+#                              nothing the SQL analyzers parse.
+#   SCHEMA_TARGET              '<module>:<attribute>', e.g. app.models:Base
+#   SCHEMA_SOURCE_PYTHON       interpreter that can import the models. Defaults
+#                              to PYTHON, but the models usually need the
+#                              application's own venv, which is rarely the
+#                              analysis interpreter.
+#   SCHEMA_SOURCE_DIR          where the DDL is written. Defaults to a
+#                              run-scoped temp directory removed on exit, so
+#                              nothing unrecorded is promoted into ARCH_DIR;
+#                              set it to keep the DDL for inspection.
+#
+# No database connection is opened by any of this; see dump_sqlalchemy_schema.py.
+SCHEMA_SOURCE="${SCHEMA_SOURCE:-}"
+SCHEMA_TARGET="${SCHEMA_TARGET:-}"
+SCHEMA_SOURCE_PYTHON="${SCHEMA_SOURCE_PYTHON:-${PYTHON}}"
+SCHEMA_SOURCE_DIR="${SCHEMA_SOURCE_DIR:-}"
+SCHEMA_SOURCE_DIR_IS_TEMP=false
 SCRIPTS_ABS_DIR="$(cd "${SCRIPTS_DIR}" 2>/dev/null && pwd || true)"
 TOOLS_ROOT_DIR="${SCRIPTS_ABS_DIR%/scripts}"
 
@@ -95,6 +120,11 @@ done
 
 # Use simple variables instead of associative arrays (bash 3 compat)
 STEPS="python_analyzer postgres_analyzer treesitter_sql typescript_analyzer compiler treesitter_enrichment comment_linker pattern_reporter validator parallel_zones views report"
+# The schema source is a step only where it is configured: an unset
+# SCHEMA_SOURCE must not add a row to a summary every existing caller reads.
+if [ -n "${SCHEMA_SOURCE}" ]; then
+    STEPS="schema_source ${STEPS}"
+fi
 TREESITTER_ENABLED="${TREESITTER_ENABLED:-true}"
 ENRICHMENT_FILE="${ARCH_DIR}/treesitter_enrichment.json"
 COMMENT_INSIGHTS_FILE="${ARCH_DIR}/comment_insights.json"
@@ -253,6 +283,70 @@ else
     fi
 fi
 echo ""
+
+# ---------------------------------------------------------------------------
+# Step 1.1b: Schema Source (optional; ORM metadata instead of SQL migrations)
+# ---------------------------------------------------------------------------
+#
+# Inert unless SCHEMA_SOURCE is set. When it is, the dumper compiles the
+# declared MetaData to CREATE TABLE DDL and MIGRATIONS_DIR is repointed at that
+# output for the rest of this run, so the regex and tree-sitter SQL analyzers
+# below consume it with no knowledge that it came from an ORM.
+#
+# A skip leaves MIGRATIONS_DIR exactly as configured rather than substituting
+# anything: the SQL analyzers then reach their own D5 verdict about it, which is
+# the same answer they would have given had the source never been configured.
+
+if [ -n "${SCHEMA_SOURCE}" ]; then
+    info "--- [1.1b] Schema Source (${SCHEMA_SOURCE}) ---"
+
+    if [ "${SCHEMA_SOURCE}" != "sqlalchemy" ]; then
+        warn "Unknown SCHEMA_SOURCE: ${SCHEMA_SOURCE} — the only supported value is 'sqlalchemy'"
+        warn "Leaving MIGRATIONS_DIR (${MIGRATIONS_DIR}) as configured."
+        skip "schema_source"
+    elif [ ! -f "${SCRIPTS_DIR}/dump_sqlalchemy_schema.py" ]; then
+        warn "Schema dumper not found: ${SCRIPTS_DIR}/dump_sqlalchemy_schema.py — skipping"
+        skip "schema_source"
+    elif [ -z "${SCHEMA_TARGET}" ]; then
+        warn "SCHEMA_SOURCE=sqlalchemy needs SCHEMA_TARGET='<module>:<attribute>'"
+        warn "e.g. SCHEMA_TARGET=app.models:Base — skipping the ORM schema source"
+        skip "schema_source"
+    else
+        if [ -z "${SCHEMA_SOURCE_DIR}" ]; then
+            SCHEMA_SOURCE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/arch-schema-source.XXXXXX")"
+            SCHEMA_SOURCE_DIR_IS_TEMP=true
+            # Removed on exit: the DDL is analyzer input, not an artifact, and
+            # writing it under ARCH_DIR would promote a file provenance does not
+            # record and promotion never deletes.
+            trap 'if [ "${SCHEMA_SOURCE_DIR_IS_TEMP}" = true ]; then rm -rf "${SCHEMA_SOURCE_DIR}"; fi' EXIT
+        fi
+        mkdir -p "${SCHEMA_SOURCE_DIR}"
+
+        # Numbered because analyze_postgres.py orders migrations by a leading
+        # integer; the whole schema is one file, so it is the first one.
+        SCHEMA_SOURCE_RC=0
+        ${SCHEMA_SOURCE_PYTHON} "${SCRIPTS_DIR}/dump_sqlalchemy_schema.py" \
+            --target "${SCHEMA_TARGET}" \
+            --output "${SCHEMA_SOURCE_DIR}/0001_schema.sql" 2>&1 || SCHEMA_SOURCE_RC=$?
+
+        if [ "${SCHEMA_SOURCE_RC}" -eq 0 ]; then
+            MIGRATIONS_DIR="${SCHEMA_SOURCE_DIR}"
+            info "SQL analyzers will read the ORM schema at ${MIGRATIONS_DIR}"
+            pass "schema_source"
+        elif [ "${SCHEMA_SOURCE_RC}" -eq 3 ]; then
+            # Inapplicable input, per D5: warn loudly, write nothing, promote.
+            # The dumper printed the reason (import error, or a MetaData with no
+            # tables) immediately above.
+            warn "ORM schema source unusable — see the SKIP reason above"
+            warn "MIGRATIONS_DIR (${MIGRATIONS_DIR}) left as configured; the SQL analyzers decide for themselves."
+            skip "schema_source"
+        else
+            error "Schema dumper failed (exit code ${SCHEMA_SOURCE_RC})"
+            fail "schema_source"
+        fi
+    fi
+    echo ""
+fi
 
 # ---------------------------------------------------------------------------
 # Step 1.2: Postgres Analyzer
