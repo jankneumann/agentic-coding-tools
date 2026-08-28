@@ -5,14 +5,14 @@
 
 ---
 
-## 2026-08-28 — rescope-architecture-freshness-to-on-demand
+## 2026-08-28 — 2026-08-28-rescope-architecture-freshness-to-on-demand
 
 ### Phase: Implementation
 
 **Architecture is reclassified through an existing keyword, not a new branch** — classify_degradation already accepts informational_producer_ids, which gate.py was defaulting. Passing a frozenset at the call site leaves the pure classifier and its structural purity pins untouched, and leaves the orchestrator's default describing only openspec.projection for every other caller.
 
 - Status: `active`
-- Source: [openspec/changes/rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/rescope-architecture-freshness-to-on-demand/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md) (D2)
 
 ---
 

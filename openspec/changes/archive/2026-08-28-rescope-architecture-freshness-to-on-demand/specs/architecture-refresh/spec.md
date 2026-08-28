@@ -27,31 +27,36 @@ Regenerating architecture artifacts SHALL update the provenance in the same prom
 that a checkout which has just regenerated passes the freshness check with no further
 edits.
 
-#### Scenario: Checkout that regenerated is fresh
-- **WHEN** the staged refresh has promoted artifacts and provenance in this checkout
-- **AND** no source under the recorded input roots has changed since
-- **THEN** the read-only freshness check SHALL report fresh
+#### Scenario: Clean checkout at the recorded revision is fresh
+- **GIVEN** a clean checkout at the revision recorded in provenance
+- **AND** every recorded artifact is committed-tier
+- **WHEN** the read-only freshness check runs
+- **THEN** the check SHALL report fresh
+- **AND** the checkout SHALL have no diff
+
+#### Scenario: Missing provenance fails closed
+- **GIVEN** a checkout with no provenance file
+- **WHEN** the read-only freshness check runs
+- **THEN** the check SHALL fail closed and report the missing provenance as unverifiable
+- **AND** it SHALL NOT report artifact digests as mismatched
+
+#### Scenario: Regeneration updates the committed baseline
+- **GIVEN** architecture artifacts regenerated after a source change
+- **WHEN** the regeneration completes
+- **THEN** the promoted provenance SHALL record the new analyzed revision and digests
+- **AND** the freshness check SHALL report fresh without further edits
 
 #### Scenario: Clean clone is unverified, not stale
-- **WHEN** the read-only freshness check runs on a checkout with neither artifacts nor provenance
+- **GIVEN** a repository that records its artifacts as local-cache and does not track them
+- **WHEN** the read-only freshness check runs on a checkout holding neither artifacts nor provenance
 - **THEN** it SHALL report the provenance as missing
 - **AND** SHALL NOT report artifact digests as mismatched
-
-#### Scenario: Committed-tier artifacts keep the clean-checkout promise
-- **GIVEN** a repository whose recorded artifacts are all committed-tier
-- **WHEN** the read-only freshness check runs on a clean checkout at the recorded revision
-- **THEN** it SHALL report fresh without regenerating anything
 
 #### Scenario: An untracked local-cache artifact is not drift
 - **GIVEN** a repository that records an artifact as local-cache and does not track it
 - **WHEN** the read-only freshness check runs on a clean checkout
 - **THEN** the absent artifact SHALL NOT be reported as drift
 - **AND** a present one SHALL still be digest-verified
-
-#### Scenario: Regeneration updates the local baseline
-- **WHEN** architecture artifacts are regenerated after a source change
-- **THEN** the promoted provenance SHALL record the new analyzed revision and digests
-- **AND** the freshness check SHALL report fresh without further edits
 
 ## ADDED Requirements
 

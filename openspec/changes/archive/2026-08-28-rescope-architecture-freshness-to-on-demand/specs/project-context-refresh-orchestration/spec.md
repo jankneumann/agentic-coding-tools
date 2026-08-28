@@ -1,8 +1,28 @@
 # project-context-refresh-orchestration — delta
 
-## MODIFIED Requirements
+## REMOVED Requirements
 
 ### Requirement: Architecture freshness fails closed on unverifiable provenance
+
+**Reason**: The requirement's premise is reversed, not adjusted, so a MODIFIED block whose
+heading still reads "fails closed" would be false. Architecture freshness is a per-machine
+property: `check_freshness` reports fresh only when every recorded artifact is present with
+a matching digest, and a repository that records those artifacts as local-cache holds no
+such baseline on a clean checkout. Blocking on that condition blocked on something true by
+design everywhere except the machine that last ran the refresh — measured in the first
+consumer as `refresh_status: degraded` on every convergence pass for a week, with no step in
+the workflow that could clear it.
+
+**Migration**: Replaced by the ADDED "Architecture freshness is reported, not enforced"
+below, which keeps every scenario of the retired requirement including
+`Absent owner degrades without blocking`, and keeps the report block byte-identical in
+shape. What is withdrawn is the blocking consequence alone; the *reporting* distinction
+from ri-10 D4 survives, so "no baseline" stays distinguishable from "digests disagree".
+Consumers regain freshness through `run_architecture.py --ensure` at their read boundary.
+
+## ADDED Requirements
+
+### Requirement: Architecture freshness is reported, not enforced
 
 The architecture producer SHALL determine freshness by comparing local provenance against
 recomputed artifact digests, and SHALL NOT report freshness by rebuilding provenance from
@@ -46,7 +66,7 @@ owner and SHALL NOT fail the gate.
 - **THEN** architecture SHALL be reported as an absent optional owner
 - **AND** the gate SHALL exit zero
 
-## ADDED Requirements
+
 
 ### Requirement: Architecture freshness is ensured by consumers on demand
 

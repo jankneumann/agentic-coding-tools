@@ -5,47 +5,47 @@
 
 ---
 
-## 2026-08-28 — rescope-architecture-freshness-to-on-demand
+## 2026-08-28 — 2026-08-28-rescope-architecture-freshness-to-on-demand
 
 ### Phase: Implementation
 
 **The architecture baseline requirement is tier-aware, not tier-blind** — D2 was authored before fix-architecture-freshness-evidence landed a per-artifact tier, so it rejected Approach C on a behaviour that no longer exists -- an absent local-cache artifact is not stale and not missing, it is not drift -- and asserted that no consumer commits the artifacts, which is false for this repository. The requirement now says provenance shares the version-control status of its committed-tier artifacts: an all-committed repository keeps the clean-checkout guarantee its CI demonstrated, while a local-cache consumer gets the unverified-until-ensure posture. No new mechanism was needed.
 
 - Status: `active`
-- Source: [openspec/changes/rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/rescope-architecture-freshness-to-on-demand/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md) (D1)
 
 ---
 
-## 2026-08-28 — rescope-architecture-freshness-to-on-demand
+## 2026-08-28 — 2026-08-28-rescope-architecture-freshness-to-on-demand
 
 ### Phase: Implementation
 
 **Consumers ensure at the skill's documented read step, never inside the scripts** — validate_flows.py, analyze_coupling.py and validate_schema.py all take an explicit artifact path and are run against fixtures with no repository. A script that regenerated would regenerate against cwd while reading a caller-supplied tmpdir, break hermetic tests, and impose on a caller-supplied path exactly the posture change D8 refuses for the checkpoint.
 
 - Status: `active`
-- Source: [openspec/changes/rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/rescope-architecture-freshness-to-on-demand/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md) (D3)
 
 ---
 
-## 2026-08-28 — rescope-architecture-freshness-to-on-demand
+## 2026-08-28 — 2026-08-28-rescope-architecture-freshness-to-on-demand
 
 ### Phase: Implementation
 
 **A failed --ensure degrades loudly rather than stopping the consumer** — A failed staged run preserves last known-good, so the reader has degraded input rather than none. All six consumers are advisory analysis producers that already degraded on missing artifacts. Hard-failing would reintroduce on the reader's side the blocking consequence D3 just removed from the gate, locking out any machine that cannot run the pipeline.
 
 - Status: `active`
-- Source: [openspec/changes/rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/rescope-architecture-freshness-to-on-demand/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md) (D4)
 
 ---
 
-## 2026-08-28 — rescope-architecture-freshness-to-on-demand
+## 2026-08-28 — 2026-08-28-rescope-architecture-freshness-to-on-demand
 
 ### Phase: Implementation
 
 **PRODUCER_VERSION skipped 1.3.0 deliberately** — 1.3.0 belongs to the per-artifact tier change on main. Reusing it for per-grammar tool identity would have given one version string two meanings once the histories met -- which they did, during the rebase, where it resolved cleanly to 1.4.0.
 
 - Status: `active`
-- Source: [openspec/changes/rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/rescope-architecture-freshness-to-on-demand/session-log.md) (D5)
+- Source: [openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md) (D5)
 
 ---
 

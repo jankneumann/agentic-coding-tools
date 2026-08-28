@@ -52,3 +52,29 @@
 ### Context
 Implemented all five phases: the Postgres analyzer skips inapplicable input, optional grammars resolve per analyzer stage, run_architecture.py gains --ensure, SQLAlchemy metadata becomes an optional SQL schema source, the gate reports architecture without blocking on it, and six consumer skills ensure freshness at their read boundary. The plan predated fix-architecture-freshness-evidence, so its committed-baseline requirement was rewritten in that change's tier vocabulary rather than dropping the clean-checkout freshness promise.
 
+
+---
+
+## Phase: Cleanup (2026-08-28)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Merged under an explicit operator override of the pre-merge validation gate** — the gate halted on `Smoke tests: missing; Security scan: missing; E2E tests: missing`. Docker is unavailable in this environment, so no `validation-report.md` could be produced. The operator requested the override explicitly; all 18 CI checks were green, and #425/#426 merged under the same condition.
+2. **The `project-context-refresh-orchestration` delta was restructured from MODIFIED to REMOVED + ADDED** — `openspec archive` refused the MODIFIED block because it renamed `Missing provenance blocks` and `Stale architecture blocks` into their inverted forms, which reads as dropping them. The requirement's premise is reversed rather than adjusted, so a MODIFIED block whose heading still read "fails closed" would have been false. The retired requirement is named with a Reason and a Migration; every scenario survives under the ADDED replacement.
+3. **The `architecture-refresh` delta kept the canonical scenario names** — `Clean checkout at the recorded revision is fresh`, `Missing provenance fails closed`, and `Regeneration updates the committed baseline` were being renamed. Their behaviour survives (the *check* still fails closed; only the *gate* stopped blocking), so the names were restored with tier-aware bodies rather than replaced.
+4. **Rebase conflicts in `docs/decisions/` were resolved by regeneration, not by hand-merging** — those files are derived artifacts; a hand-merged version matches neither side's source and is overwritten by the next `make decisions`.
+
+### Alternatives Considered
+- Hand-resolving the `docs/decisions/` conflicts: rejected — a merged derived artifact is one no generator would produce.
+- Keeping MODIFIED with the canonical scenario names and inverted bodies: rejected — `Missing provenance blocks` as a name over a body saying it does not block is a false record.
+
+### Trade-offs
+- Accepted merging without Docker-dependent validation over leaving the change open indefinitely, on explicit operator instruction. Smoke, security, and E2E have never run for any of the three changes this session.
+
+### Open Questions
+- [ ] Staged rollout (skill steps 5c/5d) does not apply: no deployed service, no traffic split, no feature flag gates this change. No rollout record is fabricated.
+- [ ] Three prose sites still assert that unverifiable provenance blocks — two `description` strings in the promoted gate schemas and an `orchestrator.py` docstring. False as of this change; the schema pair must be edited together or the byte-compare test goes red.
+
+### Context
+Merged as PR #428 via rebase after a conflict with the archive commit that landed minutes earlier. The post-merge `make architecture-refresh` wrote provenance at `producer_version 1.4.0` with the per-grammar `optional_tools` shape — four entries where there was one — settling the identity mismatch in one regeneration rather than firing for every developer.
