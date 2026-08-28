@@ -6,11 +6,13 @@ format (for human + git archaeology) and the coordinator handoff_documents
 JSON payload (for programmatic consumption by the next phase). Round-trips
 losslessly through both representations.
 
-The `write_both()` method runs a three-step best-effort pipeline:
+The `write_both()` method runs a four-step best-effort pipeline:
     1. append rendered markdown to openspec/changes/<id>/session-log.md
     2. run sanitize_session_log.py in-place on the file
     3. write the structured payload to the coordinator (or fall back to
        openspec/changes/<id>/handoffs/<phase-slug>-<N>.json on failure)
+    4. regenerate docs/decisions/ — the per-capability index derived from the
+       `architectural:` tags step 1 just appended
 
 Each step is independent — failures are logged as warnings but do not raise.
 
@@ -48,6 +50,49 @@ _EXTRACT_PATH = _THIS_DIR / "extract_session_log.py"
 def _installed_bridge_path() -> Path:
     """Return the coordination bridge in this installation's skills root."""
     return Path(__file__).resolve().parents[2] / "coordination-bridge" / "scripts" / "coordination_bridge.py"
+
+
+def _decision_index_generator() -> Path:
+    """Return the decision-index generator in this installation's skills root.
+
+    Resolved by a call at write time, never bound to a module-level constant at
+    import: a checkout without the ``explore-feature`` skill must still be able
+    to import this module and write its session log. Absence is a warning from
+    step four, not an ImportError at load.
+
+    This is the same entry point ``make decisions`` runs.
+    """
+    return (
+        Path(__file__).resolve().parents[2]
+        / "explore-feature"
+        / "scripts"
+        / "archive_index.py"
+    )
+
+
+def _decision_index_command(
+    *,
+    generator: Path,
+    archive_root: Path,
+    decisions_dir: Path,
+    capabilities_root: Path,
+) -> list[str]:
+    """The argv step four runs — identical in shape to the ``decisions`` target.
+
+    Factored out so the latency test can time the real command rather than a
+    reconstruction of it that could drift from what actually runs.
+    """
+    return [
+        sys.executable,
+        str(generator),
+        "--emit-decisions",
+        "--archive-root",
+        str(archive_root),
+        "--decisions-output-dir",
+        str(decisions_dir),
+        "--capabilities-root",
+        str(capabilities_root),
+    ]
 
 
 def _load_extract() -> Any:
@@ -311,7 +356,14 @@ class PhaseRecord:
         sanitizer_script: str | Path | None = None,
         date: str | None = None,
     ) -> PhaseWriteResult:
-        """Best-effort 3-step persistence: markdown → sanitize → coordinator.
+        """Best-effort 4-step persistence: markdown → sanitize → coordinator →
+        regenerate the decision index.
+
+        Step four regenerates ``docs/decisions/``, the per-capability index
+        derived from the ``architectural:`` tags step one just appended. It runs
+        last, and unconditionally: a session-log entry is the only thing that
+        invalidates that index, so the writer is the only thing that can prevent
+        the drift, and there is no flag or environment variable to forget.
 
         Each step runs independently and logs warnings on failure rather
         than raising. The result captures what succeeded and any warnings.
@@ -348,6 +400,12 @@ class PhaseRecord:
         handoff_id, local_path = self._step_coordinator(
             coordinator_writer, handoffs_dir, warnings
         )
+
+        # Step 4: regenerate the decision index step 1 invalidated.
+        # Deliberately last: the index is derived from the appended session log,
+        # so running it any earlier would rebuild from a file that does not yet
+        # contain this entry — a confidently wrong index rather than a stale one.
+        self._step_regenerate_decision_index(markdown_path, warnings)
 
         return PhaseWriteResult(
             markdown_path=markdown_path,
@@ -463,6 +521,92 @@ class PhaseRecord:
                 message="coordination_bridge not importable",
             )
             return None, local_path
+
+    @staticmethod
+    def _archive_root_for(markdown_path: Path | None) -> Path | None:
+        """The ``openspec/changes`` root the appended log belongs to.
+
+        Derived from the file step one actually wrote, so the regeneration reads
+        the same tree the entry landed in. ``None`` when step one wrote nothing,
+        or wrote somewhere the decision index is not derived from — in both
+        cases this call invalidated no index, and regenerating anyway would only
+        risk rewriting an unrelated one.
+        """
+        if markdown_path is None:
+            return None
+        parents = markdown_path.resolve().parents
+        if (
+            len(parents) >= 4
+            and parents[1].name == "changes"
+            and parents[2].name == "openspec"
+        ):
+            return parents[1]
+        return None
+
+    def _step_regenerate_decision_index(
+        self,
+        markdown_path: Path | None,
+        warnings: list[str],
+    ) -> None:
+        """Regenerate ``docs/decisions/`` from the session logs in the archive.
+
+        Best-effort like the three steps beside it, and for a sharper reason:
+        by the time this runs the markdown is on disk and the handoff has been
+        attempted. The session log is the durable record of a phase; a stale
+        index is a reported, one-command-fixable condition. So this catches
+        broadly, warns, and returns — ``write_both()`` is documented as never
+        raising and its callers rely on that.
+        """
+        try:
+            archive_root = self._archive_root_for(markdown_path)
+            if archive_root is None:
+                warnings.append(
+                    "step_4_decisions: skipped (no session log appended under "
+                    "openspec/changes/)"
+                )
+                return
+
+            generator = _decision_index_generator()
+            if not generator.exists():
+                warnings.append(
+                    f"step_4_decisions: generator not found at {generator}"
+                )
+                return
+
+            # Guard against emitting a degenerate index: the generator deletes
+            # capability files that no current decision supports, so running it
+            # over an archive it cannot read would replace a stale index with an
+            # empty one — which then compares equal to itself and stops being
+            # reported at all.
+            if not archive_root.is_dir() or not any(
+                archive_root.rglob("session-log.md")
+            ):
+                warnings.append(
+                    f"step_4_decisions: no session logs under {archive_root}, skipped"
+                )
+                return
+
+            repo_root = archive_root.parent.parent
+            result = subprocess.run(
+                _decision_index_command(
+                    generator=generator,
+                    archive_root=archive_root,
+                    decisions_dir=repo_root / "docs" / "decisions",
+                    capabilities_root=repo_root / "openspec" / "specs",
+                ),
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+            )
+            if result.returncode != 0:
+                warnings.append(
+                    f"step_4_decisions: exit {result.returncode}: "
+                    f"{result.stderr.strip()[:200]}"
+                )
+        except Exception as exc:  # noqa: BLE001
+            warnings.append(f"step_4_decisions: {type(exc).__name__}: {exc}")
+            logger.warning("PhaseRecord.write_both step 4 failed: %s", exc)
 
     def _default_coordinator_writer(self) -> Any:
         """Locate `coordination_bridge.try_handoff_write` for production use."""
