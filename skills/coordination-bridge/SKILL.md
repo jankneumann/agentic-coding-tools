@@ -33,6 +33,28 @@ python3 "<skill-base-dir>/scripts/coordination_bridge.py" <command> [args]
 **Stdout** (detect): JSON with `COORDINATOR_AVAILABLE`, transport, capabilities
 **Exit codes**: 0 = success, 1 = coordinator unavailable or error
 
+## Issue backend (issue #429)
+
+`try_issue_*` defaults to the coordinator HTTP API. Coordinator writes currently
+return success with a generated UUID and then vanish from every subsequent read,
+so the durable interim store is GitHub Issues in this repository.
+
+Opt in:
+
+```
+COORDINATION_ISSUES_BACKEND=github
+GITHUB_TOKEN=...                  # or GH_TOKEN / GITHUB_PAT
+COORDINATION_GITHUB_REPO=owner/repo   # optional; GITHUB_REPOSITORY is also read
+```
+
+`COORDINATION_ISSUES_BACKEND=github` is required in GitHub Actions (where
+`GITHUB_TOKEN` and `GITHUB_REPOSITORY` are always set) so CI does not silently
+retarget onto live Issues. A failed GitHub write is a non-2xx that the bridge
+surfaces; it never reports `success: true` for a discarded record.
+
+`depends_on` is stored in the issue body (metadata comment + task list). Callers
+(`seed_tasks_from_md.py`, the status renderer) are unchanged.
+
 ## Work-Queue Truth / Projection Contract
 
 The queue helpers this skill exposes (`try_get_work` → `/work/claim`,
