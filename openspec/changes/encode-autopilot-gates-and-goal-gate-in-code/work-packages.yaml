@@ -67,6 +67,8 @@ packages:
     context_impact:
       surfaces:
         - "capabilities"
+        - "apis"
+        - "documentation"
     worktree:
       name: contracts
       mode: shared
@@ -411,6 +413,7 @@ packages:
     context_impact:
       surfaces:
         - "capabilities"
+        - "documentation"
     worktree:
       name: integration
       mode: shared
