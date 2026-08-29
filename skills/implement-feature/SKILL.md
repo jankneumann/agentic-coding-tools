@@ -618,7 +618,7 @@ for w in result.warnings:
 EOF
 ```
 
-`write_both()` runs three best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/implementation-<N>.json`). Each step logs warnings on failure but does not raise. The session-log.md is included in `git add .` in Step 8.
+`write_both()` runs four best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/implementation-<N>.json`) → regenerate the decision index that the append invalidated. Each step logs warnings on failure but does not raise. The session-log.md **and** any regenerated `docs/decisions/` files are included in `git add .` in Step 8.
 
 ### 8. Commit Changes [all tiers]
 

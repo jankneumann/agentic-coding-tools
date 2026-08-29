@@ -60,6 +60,14 @@ packages:
         - "skills/session-log/scripts/phase_record.py"
         - "skills/tests/phase-record-compaction/test_phase_record_write_both.py"
         - "skills/tests/phase-record-compaction/test_decision_index_binding.py"
+        # Five SKILL.md blocks enumerate the pipeline as three steps. Correct on
+        # main, false the moment step four lands, so the correction ships with the
+        # change that invalidates them rather than as a follow-up.
+        - "skills/plan-feature/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
       read_allow:
         - "**"
       deny:

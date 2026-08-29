@@ -164,5 +164,14 @@ A branch whose only change is a session-log write, made through the normal
 |---|---|
 | `skill-workflow` | MODIFIED: session-log persistence regenerates the derived decision index |
 
-Code touched: `skills/session-log/scripts/phase_record.py`, plus tests. No skill `SKILL.md`
-changes, no work-package scope changes, no gate changes.
+Code touched: `skills/session-log/scripts/phase_record.py`, plus tests. No work-package
+scope changes, no gate changes.
+
+**Amended during implementation.** This section originally claimed "no skill `SKILL.md`
+changes". Five of them document the pipeline as running *three* best-effort steps and
+enumerate them — `plan-feature:672`, `implement-feature:621`, `validate-feature:1116`,
+`iterate-on-plan:458`, `iterate-on-implementation:427`. That prose is correct on `main`
+today and becomes false the moment this change lands. Deferring it would ship a pull request
+that knowingly falsifies five documents, so the correction travels with the change that
+invalidates them. `write_allow` was widened to record it rather than leaving the scope
+declaration disagreeing with the diff.
