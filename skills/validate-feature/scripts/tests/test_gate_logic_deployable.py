@@ -92,6 +92,17 @@ class TestClassifyDeployableSurface:
         assert surface.deployable is False
         assert surface.source == "derived"
 
+    def test_dot_directory_paths_are_not_deployable(self) -> None:
+        surface = classify_deployable_surface(
+            changed_files=[
+                ".github/workflows/ci.yml",
+                ".agents/skills/example/SKILL.md",
+                ".githooks/pre-commit",
+            ]
+        )
+        assert surface.deployable is False
+        assert surface.source == "derived"
+
     def test_agent_coordinator_path_is_deployable(self) -> None:
         surface = classify_deployable_surface(
             changed_files=["agent-coordinator/src/coordination_api.py"]
@@ -133,11 +144,11 @@ class TestResolveRequiredPhasesBySurface:
         phases = resolve_required_phases()
         assert set(REQUIRED_PHASES) <= set(phases)
 
-    def test_work_packages_adds_evidence(self, tmp_path: Path) -> None:
+    def test_work_packages_keep_evidence_non_blocking(self, tmp_path: Path) -> None:
         change_dir = _write_change_dir(tmp_path, deployable=False, work_packages=True)
         surface = classify_deployable_surface(change_dir=change_dir)
         phases = resolve_required_phases(surface=surface, change_dir=change_dir)
-        assert "Evidence" in phases
+        assert "Evidence" not in phases
         assert "Smoke Tests" not in phases
 
 

@@ -60,9 +60,6 @@ ALWAYS_REQUIRED_PHASES: dict[str, str] = {
     "Spec Compliance": "Spec compliance",
 }
 
-EVIDENCE_PHASE_HEADING = "Evidence"
-EVIDENCE_PHASE_LABEL = "Evidence completeness"
-
 # The Architecture phase joins the required set only in blocking mode (D4).
 ARCHITECTURE_PHASE_HEADING = "Architecture"
 ARCHITECTURE_PHASE_LABEL = "Architecture gate"
@@ -289,7 +286,10 @@ def architecture_mode(
 
 
 def _normalize_repo_path(path: str) -> str:
-    return path.replace("\\", "/").lstrip("./")
+    normalized = path.replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
 
 
 def _classify_path(path: str) -> str:
@@ -454,7 +454,7 @@ def resolve_required_phases(
     Spec compliance is always required. Smoke / Security / E2E join the set
     only when the change has a deployable surface (or the surface cannot be
     proven absent — fail closed). Architecture still joins only in blocking
-    mode (D4). Evidence joins when ``work-packages.yaml`` exists.
+    mode (D4). Evidence completeness remains informational and non-blocking.
     """
     resolved_surface = surface or classify_deployable_surface(
         change_dir=change_dir,
@@ -466,8 +466,6 @@ def resolve_required_phases(
         phases.update(REQUIRED_PHASES)
     if architecture_mode(config_path, config=_resolved(config, config_path)) == "blocking":
         phases[ARCHITECTURE_PHASE_HEADING] = ARCHITECTURE_PHASE_LABEL
-    if change_dir is not None and (Path(change_dir) / "work-packages.yaml").is_file():
-        phases[EVIDENCE_PHASE_HEADING] = EVIDENCE_PHASE_LABEL
     return phases
 
 
@@ -713,8 +711,7 @@ def pre_merge_gate(
         config_path: Optional path to architecture.config.yaml. Governs whether
             the Architecture phase is required (D4); defaults to advisory.
         change_dir: OpenSpec change directory, used to read a declared
-            ``deployable`` flag and to require Evidence when work-packages.yaml
-            exists.
+            ``deployable`` flag.
         changed_files: Paths changed by this change. Used to derive the
             deployable surface when it is not declared.
         deployable: Explicit surface override (True/False).

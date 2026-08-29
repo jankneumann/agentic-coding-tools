@@ -177,6 +177,39 @@ def test_close_is_visible_to_list() -> None:
     assert len(listed["data"]["issues"]) == 1
 
 
+def test_canonical_status_update_round_trips_and_closes_terminal_issue() -> None:
+    store = FakeGitHub()
+    client = _client(store)
+    created = client.create(title="done", labels=["change:demo", "task:1.1"])
+
+    updated = client.update(issue_id=created["data"]["id"], status="completed")
+
+    assert updated["data"]["status"] == "completed"
+    raw = store.issues[int(created["data"]["id"])]
+    assert raw["state"] == "closed"
+    assert "status: completed" in raw["body"]
+
+
+def test_list_filters_canonical_status_after_mapping() -> None:
+    store = FakeGitHub()
+    client = _client(store)
+    pending = client.create(title="pending", labels=["change:demo"])
+    completed = client.create(title="completed", labels=["change:demo"])
+    failed = client.create(title="failed", labels=["change:demo"])
+    client.update(issue_id=completed["data"]["id"], status="completed")
+    client.update(issue_id=failed["data"]["id"], status="failed")
+
+    pending_issues = client.list_issues(labels=["change:demo"], status="pending")
+    completed_issues = client.list_issues(labels=["change:demo"], status="completed")
+
+    assert [item["id"] for item in pending_issues["data"]["issues"]] == [
+        pending["data"]["id"]
+    ]
+    assert [item["id"] for item in completed_issues["data"]["issues"]] == [
+        completed["data"]["id"]
+    ]
+
+
 def test_bridge_dispatches_to_github_when_configured(monkeypatch) -> None:
     store = FakeGitHub()
     monkeypatch.setenv("COORDINATION_ISSUES_BACKEND", "github")
