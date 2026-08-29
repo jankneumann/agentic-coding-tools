@@ -274,7 +274,9 @@ items:
   - Time-to-unblock is visible in agent-metrics.
 - item_id: ri-12
   title: Schedule the learning pipeline
-  status: candidate
+  status: superseded
+  superseded_by:
+  - closed-loop-learning:ri-01
   priority: 3
   effort: M
   depends_on:
@@ -298,8 +300,9 @@ items:
   status: blocked
   priority: 3
   effort: M
-  depends_on:
-  - ri-12
+  depends_on: []
+  external_depends_on:
+  - closed-loop-learning:ri-01
   description: Compile a periodic routing scorecard (success rate, convergence rounds,
     cost, latency, limit-hit frequency per vendor x phase-archetype x location) from
     routing records, the dispatch ledger, and convergence metrics; render it into

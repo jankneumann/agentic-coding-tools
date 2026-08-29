@@ -18,8 +18,8 @@
 | 2 | Make human gates non-blocking | M | candidate | ri-08 |
 | 3 | Reconcile versions and stale docs to one truth | S | approved | - |
 | 3 | Use native fan-out for same-vendor parallel work | M | blocked | - |
-| 3 | Schedule the learning pipeline | M | candidate | ri-08, ri-01 |
-| 3 | Feed routing decisions with outcome data | M | blocked | ri-12 |
+| 3 | Schedule the learning pipeline | M | superseded | ri-08, ri-01 |
+| 3 | Feed routing decisions with outcome data | M | blocked | - |
 | 3 | Enforce artifact freshness and automatic retrieval | M | candidate | ri-01 |
 | 4 | Decompose the coordinator monoliths | L | blocked | - |
 | 4 | Evaluate the router with gen-eval and replay | M | blocked | ri-13 |
@@ -54,7 +54,6 @@ graph TD
     ri-08 --> ri-11
     ri-08 --> ri-12
     ri-01 --> ri-12
-    ri-12 --> ri-13
     ri-01 --> ri-14
     ri-13 --> ri-16
 ```
@@ -218,7 +217,7 @@ Run review-convergence fan-out and local-parallel work-package DAGs through nati
 
 ### ri-12: Schedule the learning pipeline
 
-- **Status**: candidate
+- **Status**: superseded
 - **Priority**: 3
 - **Effort**: M
 - **Depends on**: `ri-08`, `ri-01`
@@ -235,7 +234,6 @@ Add a weekly trigger or CI cron running collect-transcripts --enable over the we
 - **Status**: blocked
 - **Priority**: 3
 - **Effort**: M
-- **Depends on**: `ri-12`
 
 Compile a periodic routing scorecard (success rate, convergence rounds, cost, latency, limit-hit frequency per vendor x phase-archetype x location) from routing records, the dispatch ledger, and convergence metrics; render it into routing.yaml as human-reviewed advisory weights, replace replanner.py's regex ID-matching with scorecard- and learning-driven route/task signals, and give replan_required a real handler via a scheduled /plan-roadmap --replan pass.
 

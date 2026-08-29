@@ -189,3 +189,19 @@ def test_live_roadmaps_have_no_superseded_prerequisites():
     repo_root = Path(__file__).resolve().parents[3]
     errors = [e for e in validate_cross_roadmap(repo_root) if "superseded" in e]
     assert errors == [], f"live roadmaps carry a superseded prerequisite: {errors}"
+
+
+def test_closed_loop_scheduler_owns_repo_improvement_handoff():
+    """The successor edge releases ri-13 without scheduling ri-12 twice."""
+    repo_root = Path(__file__).resolve().parents[3]
+    roadmaps = load_all_roadmaps(repo_root)
+
+    scheduler = roadmaps["repo-improvement"].get_item("ri-12")
+    consumer = roadmaps["repo-improvement"].get_item("ri-13")
+
+    assert scheduler is not None
+    assert scheduler.status.value == "superseded"
+    assert scheduler.superseded_by == ["closed-loop-learning:ri-01"]
+
+    assert consumer is not None
+    assert "ri-12" not in consumer.depends_on
