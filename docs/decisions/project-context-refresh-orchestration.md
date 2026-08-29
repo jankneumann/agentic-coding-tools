@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-08-29 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Cleanup
+
+**The context-impact finding was fixed, not overridden** — Widening write_allow without updating context_impact.surfaces created exactly the declaration-versus-reality gap the gates exist to find, and the gate found it -- attributed introduced, owned by the branch, reproducing identically in CI and locally. The same author made the same class of mistake earlier the same day on a different change; both were caught by the same deterministic check.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D2)
+
+---
+
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Plan
+
+**The gate keeps checking the decision index** — This removes one cause, not the check. A hand-edited session log, a manual archive move, and any future writer bypassing PhaseRecord all still stale the index. Six firings with one cause and one fix is an argument for closing the cause, never for lowering the check that found it.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D4)
+
+---
+
 ## 2026-08-28 — 2026-08-28-rescope-architecture-freshness-to-on-demand
 
 ### Phase: Implementation
@@ -13,17 +35,6 @@
 
 - Status: `active`
 - Source: [openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md) (D2)
-
----
-
-## 2026-08-28 — bind-decision-index-to-session-log-writes
-
-### Phase: Plan
-
-**The gate keeps checking the decision index** — This removes one cause, not the check. A hand-edited session log, a manual archive move, and any future writer bypassing PhaseRecord all still stale the index. Six firings with one cause and one fix is an argument for closing the cause, never for lowering the check that found it.
-
-- Status: `active`
-- Source: [openspec/changes/bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/bind-decision-index-to-session-log-writes/session-log.md) (D4)
 
 ---
 

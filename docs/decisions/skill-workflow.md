@@ -5,69 +5,91 @@
 
 ---
 
-## 2026-08-28 — bind-decision-index-to-session-log-writes
+## 2026-08-29 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Cleanup
+
+**The SKILL.md prose correction shipped with this change, not as a follow-up** — Five blocks documented write_both() as three steps. That prose is correct on main and false the moment step four lands, so deferring it would have merged a pull request that knowingly falsifies five documents -- the same deferred-repair shape this change exists to remove. write_allow and the proposal's Impact claim were both amended so the declaration matches the diff.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D1)
+
+---
+
+## 2026-08-29 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Cleanup
+
+**Merged under an explicit override, with the gap filed rather than absorbed** — Docker is unavailable here, so smoke, security and E2E cannot be generated for any change in this environment. Four changes this session produced no validation-report.md and none could have; the operator granted --force three times for mechanically identical reasons. Issue #432 proposes making the required phase set conditional on deployable surface, keeping the report itself mandatory, and failing closed when the surface cannot be determined.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D3)
+
+---
+
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
 
 ### Phase: Plan
 
 **Regeneration is a fourth step inside write_both(), not a caller responsibility** — The defect is that regeneration lives somewhere a caller must remember. Moving it to seven callers relocates the defect and adds every future skill to the list. It runs after the coordinator step, never before: it derives from what step one appended, so an early run would regenerate from a session log missing this entry and produce a confidently wrong index rather than a stale one.
 
 - Status: `active`
-- Source: [openspec/changes/bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/bind-decision-index-to-session-log-writes/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D1)
 
 ---
 
-## 2026-08-28 — bind-decision-index-to-session-log-writes
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
 
 ### Phase: Implementation
 
 **Step four derives its roots from markdown_path, not from cwd** — The index is rebuilt from the tree the entry actually landed in, which is both more correct than trusting the process working directory and the property that keeps every test off the repository's real docs/decisions/. When step one failed or wrote outside openspec/changes/, the step skips with a warning: that call invalidated no index, and regenerating anyway risks rewriting an unrelated one.
 
 - Status: `active`
-- Source: [openspec/changes/bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/bind-decision-index-to-session-log-writes/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D1)
 
 ---
 
-## 2026-08-28 — bind-decision-index-to-session-log-writes
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
 
 ### Phase: Plan
 
 **Always on, with no flag** — Measured 0.06s across 168 changes producing 25 index files, so there is no performance argument for a switch. And this repository has a fresh lesson about off-by-default correctness work: rescope-context-drift-enforcement shipped a context_gate emitter that was correct, tested and unreachable because the only thing that could enable it was an environment variable nobody was assigned to set. Rule 4 protects callers from surprise; here the surprise is the drift, and no caller's inputs, outputs or PhaseWriteResult fields change.
 
 - Status: `active`
-- Source: [openspec/changes/bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/bind-decision-index-to-session-log-writes/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D2)
 
 ---
 
-## 2026-08-28 — bind-decision-index-to-session-log-writes
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
 
 ### Phase: Implementation
 
 **Two skip guards protect against a degenerate index** — The generator deletes capability files no current decision supports, so running it over an unreadable archive would replace a stale index with an empty one that then compares equal to itself forever. Neither guard is a flag or an opt-out; both are failure handling, so D2's no-switch decision stands.
 
 - Status: `active`
-- Source: [openspec/changes/bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/bind-decision-index-to-session-log-writes/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D2)
 
 ---
 
-## 2026-08-28 — bind-decision-index-to-session-log-writes
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
 
 ### Phase: Plan
 
 **Orchestrator-scoping becomes enforced rather than assumed** — Step four writes docs/decisions/, outside every work package's write_allow. Verified at planning time that all seven write_both() call sites are orchestrator phase-boundary steps, so the conflict is latent rather than actual -- but latent by convention. Three defects of exactly this shape landed this session, each invisible because no check tied a declaration to reality. A test now pins it, rather than widening a write_allow or exempting derived paths from a scope checker that caught all three.
 
 - Status: `active`
-- Source: [openspec/changes/bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/bind-decision-index-to-session-log-writes/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D3)
 
 ---
 
-## 2026-08-28 — bind-decision-index-to-session-log-writes
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
 
 ### Phase: Implementation
 
 **An eighth write_both() call site exists and is an orchestrator boundary** — Planning enumerated seven. The structural guard found autopilot/scripts/phase_agent.py:631, _write_phase_failed_record, an escalation boundary rather than a worker path. It is allowlisted with the reason recorded. A prose-grep guard would have missed it; the AST walk over heredoc-lifted Python found it.
 
 - Status: `active`
-- Source: [openspec/changes/bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/bind-decision-index-to-session-log-writes/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D3)
 
 ---
 

@@ -76,3 +76,41 @@ Planned a fourth best-effort step in PhaseRecord.write_both() that regenerates t
 ### Context
 Added the fourth best-effort step to PhaseRecord.write_both(): regenerate the per-capability decision index that step one's markdown append invalidates. Measured 46.5 ms against a 250 ms target. The counterfactual was run in a throwaway clone: the same commit with docs/decisions/ reverted exits 2 with decisions.timeline attributed introduced, which is the defect this closes.
 
+---
+
+## Phase: Cleanup (2026-08-29)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **The SKILL.md prose correction shipped with this change, not as a follow-up** `architectural: skill-workflow` — Five blocks documented write_both() as three steps. That prose is correct on main and false the moment step four lands, so deferring it would have merged a pull request that knowingly falsifies five documents -- the same deferred-repair shape this change exists to remove. write_allow and the proposal's Impact claim were both amended so the declaration matches the diff.
+2. **The context-impact finding was fixed, not overridden** `architectural: project-context-refresh-orchestration` — Widening write_allow without updating context_impact.surfaces created exactly the declaration-versus-reality gap the gates exist to find, and the gate found it -- attributed introduced, owned by the branch, reproducing identically in CI and locally. The same author made the same class of mistake earlier the same day on a different change; both were caught by the same deterministic check.
+3. **Merged under an explicit override, with the gap filed rather than absorbed** `architectural: skill-workflow` — Docker is unavailable here, so smoke, security and E2E cannot be generated for any change in this environment. Four changes this session produced no validation-report.md and none could have; the operator granted --force three times for mechanically identical reasons. Issue #432 proposes making the required phase set conditional on deployable surface, keeping the report itself mandatory, and failing closed when the surface cannot be determined.
+
+### Alternatives Considered
+- Filing the SKILL.md prose correction as a follow-up change: rejected because would have left five documents false between this merge and the follow-up, closed only by someone remembering
+- Forcing past the context-impact finding along with the validation gate: rejected because the finding was real and self-inflicted; the validation override is about phases this environment cannot run, which is a different thing entirely
+
+### Trade-offs
+- Accepted Merging without Docker-dependent validation over leaving the change open indefinitely because on explicit operator instruction, with the structural gap filed as #432 rather than absorbed as routine
+
+### Open Questions
+- [ ] Issue #432: the required phase set should key on deployable surface. Open design question is whether the surface is declared, derived from changed paths, or both.
+- [ ] The branch-protection promotion is now unblocked in principle: the gate's signal is no longer dominated by drift the system inflicts on itself. Decide after a week of real runs.
+
+### Completed Work
+- PR #431 merged via rebase; 7 commits
+- Five SKILL.md prose blocks corrected, three with the downstream git-add consequence stated
+- context_impact.surfaces corrected after the gate caught the omission
+- Issue #432 filed on the validation gate's unconditional phase set
+
+### Next Steps
+- Watch the next few changes: a session-log write should now leave no decisions.timeline drift without any manual command.
+- Revisit the branch-protection promotion once the gate has run clean for a week.
+
+### Relevant Files
+- `skills/session-log/scripts/phase_record.py` — write_both() step four, now live on main
+
+### Context
+Merged as PR #431 under an explicit operator override of the pre-merge validation gate, archived, and cleaned up. The drift gate caught a real defect in this very PR before merge -- the widened write_allow for the SKILL.md prose fix left context_impact.surfaces claiming only semantic_code -- which was fixed rather than forced past. Filed issue #432 to make the validation gate's required phase set conditional on deployable surface.
+

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-29T00:45:51.129454+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Merged as PR #431 under an explicit operator override of the pre-merge validation gate, archived, and cleaned up. The drift gate caught a real defect in this very PR before merge -- the widened write_allow for the SKILL.md prose fix left context_impact.surfaces claiming only semantic_code -- which was fixed rather than forced past. Filed issue #432 to make the validation gate's required phase set conditional on deployable surface.",
+    "completed_work": [
+      "PR #431 merged via rebase; 7 commits",
+      "Five SKILL.md prose blocks corrected, three with the downstream git-add consequence stated",
+      "context_impact.surfaces corrected after the gate caught the omission",
+      "Issue #432 filed on the validation gate's unconditional phase set"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "The SKILL.md prose correction shipped with this change, not as a follow-up",
+        "rationale": "Five blocks documented write_both() as three steps. That prose is correct on main and false the moment step four lands, so deferring it would have merged a pull request that knowingly falsifies five documents -- the same deferred-repair shape this change exists to remove. write_allow and the proposal's Impact claim were both amended so the declaration matches the diff.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "The context-impact finding was fixed, not overridden",
+        "rationale": "Widening write_allow without updating context_impact.surfaces created exactly the declaration-versus-reality gap the gates exist to find, and the gate found it -- attributed introduced, owned by the branch, reproducing identically in CI and locally. The same author made the same class of mistake earlier the same day on a different change; both were caught by the same deterministic check.",
+        "capability": "project-context-refresh-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "Merged under an explicit override, with the gap filed rather than absorbed",
+        "rationale": "Docker is unavailable here, so smoke, security and E2E cannot be generated for any change in this environment. Four changes this session produced no validation-report.md and none could have; the operator granted --force three times for mechanically identical reasons. Issue #432 proposes making the required phase set conditional on deployable surface, keeping the report itself mandatory, and failing closed when the surface cannot be determined.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Watch the next few changes: a session-log write should now leave no decisions.timeline drift without any manual command.",
+      "Revisit the branch-protection promotion once the gate has run clean for a week."
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/session-log/scripts/phase_record.py",
+        "description": "write_both() step four, now live on main"
+      }
+    ]
+  }
+}
