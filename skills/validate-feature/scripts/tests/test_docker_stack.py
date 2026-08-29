@@ -12,9 +12,32 @@ TDD test-first: these tests define the expected behavior for:
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent.parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+
+@pytest.fixture(autouse=True)
+def _assume_runtime_usable(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
+    """Non-detection tests must not invoke a real `docker info` / `podman info`.
+
+    TestRuntimeDetection owns the usability probe and so skips this stub.
+    Patching ``_runtime_info_ok`` (not ``subprocess.run``) leaves compose /
+    pg_isready mocks in start/wait/teardown tests undisturbed.
+    """
+    if getattr(request, "cls", None) is TestRuntimeDetection:
+        return
+    from environments import docker_stack
+
+    monkeypatch.setattr(
+        docker_stack, "_runtime_info_ok", lambda name, timeout=5.0: True
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -67,39 +90,117 @@ class TestProtocolCompliance:
 
 
 class TestRuntimeDetection:
-    """DockerStackEnvironment must detect docker or podman on PATH."""
+    """DockerStackEnvironment must detect a *usable* docker or podman.
 
-    @patch("shutil.which")
-    def test_detects_docker(self, mock_which: MagicMock) -> None:
+    PATH presence is not enough: a docker binary with a dead daemon must
+    fall through to a working podman (issue #433).
+    """
+
+    def _patch(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        *,
+        present: dict[str, str],
+        usable: dict[str, bool],
+        timeout_for: frozenset[str] | None = None,
+    ) -> None:
+        from environments import docker_stack
+
+        monkeypatch.setattr("shutil.which", lambda cmd: present.get(cmd))
+
+        timeouts = timeout_for or frozenset()
+
+        def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
+            del kwargs
+            name = cmd[0] if cmd else ""
+            if name in timeouts:
+                raise docker_stack.subprocess.TimeoutExpired(cmd=cmd, timeout=1)
+            rc = 0 if usable.get(name, False) else 1
+            return MagicMock(returncode=rc, stdout="", stderr="")
+
+        monkeypatch.setattr(docker_stack.subprocess, "run", fake_run)
+
+    def test_detects_usable_docker(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        mock_which.side_effect = lambda cmd: "/usr/bin/docker" if cmd == "docker" else None
+        self._patch(
+            monkeypatch,
+            present={"docker": "/usr/bin/docker"},
+            usable={"docker": True},
+        )
         env = DockerStackEnvironment(compose_file="docker-compose.yml")
         assert env.runtime == "docker"
 
-    @patch("shutil.which")
-    def test_falls_back_to_podman(self, mock_which: MagicMock) -> None:
+    def test_falls_back_to_podman_when_docker_absent(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        mock_which.side_effect = lambda cmd: "/usr/bin/podman" if cmd == "podman" else None
+        self._patch(
+            monkeypatch,
+            present={"podman": "/usr/bin/podman"},
+            usable={"podman": True},
+        )
         env = DockerStackEnvironment(compose_file="docker-compose.yml")
         assert env.runtime == "podman"
 
-    @patch("shutil.which")
-    def test_raises_when_no_runtime(self, mock_which: MagicMock) -> None:
+    def test_dead_docker_falls_through_to_live_podman(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The configuration that produced #433: docker on PATH, daemon down, podman works."""
         from environments.docker_stack import DockerStackEnvironment
 
-        mock_which.return_value = None
-        with pytest.raises(RuntimeError, match="[Nn]either docker nor podman"):
-            DockerStackEnvironment(compose_file="docker-compose.yml")
+        self._patch(
+            monkeypatch,
+            present={"docker": "/usr/bin/docker", "podman": "/usr/bin/podman"},
+            usable={"docker": False, "podman": True},
+        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml")
+        assert env.runtime == "podman"
 
-    @patch("shutil.which")
-    def test_prefers_docker_over_podman(self, mock_which: MagicMock) -> None:
+    def test_prefers_docker_when_both_usable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from environments.docker_stack import DockerStackEnvironment
 
-        mock_which.side_effect = lambda cmd: f"/usr/bin/{cmd}"
+        self._patch(
+            monkeypatch,
+            present={"docker": "/usr/bin/docker", "podman": "/usr/bin/podman"},
+            usable={"docker": True, "podman": True},
+        )
         env = DockerStackEnvironment(compose_file="docker-compose.yml")
         assert env.runtime == "docker"
+
+    def test_raises_when_neither_present(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from environments.docker_stack import DockerStackEnvironment
+
+        self._patch(monkeypatch, present={}, usable={})
+        with pytest.raises(RuntimeError, match="not installed"):
+            DockerStackEnvironment(compose_file="docker-compose.yml")
+
+    def test_raises_naming_unusable_vs_absent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from environments.docker_stack import DockerStackEnvironment
+
+        self._patch(
+            monkeypatch,
+            present={"docker": "/usr/bin/docker"},
+            usable={"docker": False},
+        )
+        with pytest.raises(RuntimeError, match="daemon is not responding") as exc:
+            DockerStackEnvironment(compose_file="docker-compose.yml")
+        message = str(exc.value)
+        assert "docker" in message
+        assert "podman not installed" in message
+
+    def test_info_timeout_counts_as_unusable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from environments.docker_stack import DockerStackEnvironment
+
+        self._patch(
+            monkeypatch,
+            present={"docker": "/usr/bin/docker", "podman": "/usr/bin/podman"},
+            usable={"podman": True},
+            timeout_for=frozenset({"docker"}),
+        )
+        env = DockerStackEnvironment(compose_file="docker-compose.yml")
+        assert env.runtime == "podman"
 
 
 # ---------------------------------------------------------------------------

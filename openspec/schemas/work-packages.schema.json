@@ -30,7 +30,11 @@
           "description": "Monotonic integer. Increment when plan/work-packages change materially."
         },
         "created_by": { "type": "string", "minLength": 1, "maxLength": 128 },
-        "created_at": { "type": "string", "format": "date-time" }
+        "created_at": { "type": "string", "format": "date-time" },
+        "deployable": {
+          "type": "boolean",
+          "description": "Whether this change has a running service to deploy, smoke-test, scan, and exercise end-to-end. When omitted, validate-feature derives the surface from changed paths and fails closed on ambiguity (issue #432)."
+        }
       }
     },
     "contracts": {

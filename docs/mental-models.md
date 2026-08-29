@@ -34,7 +34,7 @@ If you read nothing else, read this section.
 - The **head chef** is `/autopilot` (or you, when you drive the workflow manually). The head chef plans service, sequences tickets, and owns the pass.
 - A **ticket** is an OpenSpec change-id (`openspec/changes/<id>/`). Mise en place for that ticket is its `proposal.md`, `design.md`, `tasks.md`, and any contracts under `contracts/`.
 - The **kitchen brigade** is the set of skills under `skills/`. Each skill is a station with a defined role.
-- The **pass** is `/validate-feature` and `/cleanup-feature`. Nothing reaches the customer (main branch, then production) without crossing the pass. The hard-gate phases — *Smoke Tests, Security, E2E Tests* — are enumerated in `skills/validate-feature/scripts/gate_logic.py` (`REQUIRED_PHASES`); spec/evidence/deploy run as soft gates that do not block merge.
+- The **pass** is `/validate-feature` and `/cleanup-feature`. Nothing reaches the customer (main branch, then production) without crossing the pass. Spec compliance is always a hard gate. Smoke / Security / E2E join the hard-gate set only when the change has a deployable surface (`skills/validate-feature/scripts/gate_logic.py`); a skills-only change records those phases as **not applicable**, not skipped. Ambiguity fails closed.
 - **Slowification** lives in the planning skills (`/explore-feature`, `/plan-feature`, `/iterate-on-plan`, `/prototype-feature`, `/parallel-review-plan`).
 - **Simplification** lives in the OpenSpec change → work-package decomposition, the worktree isolation model (`skills/worktree/scripts/worktree.py`), and the explicit list of sync-point skills.
 - **Amplification** lives in vendor-diverse review, coordinator events (`agent-coordinator/src/coordination_api.py`), validation phase escalation (`skills/validate-feature/scripts/gate_logic.py`), and PR webhook subscriptions.
@@ -62,7 +62,7 @@ This shift is the reason this repo exists. The single-developer-with-Copilot mod
 | Prep cooks (mise en place) | Pre-stage everything before service | `/explore-feature`, `/plan-feature`, `/prototype-feature`, OpenSpec proposal artifacts, [`docs/architecture-artifacts.md`](architecture-artifacts.md) |
 | Expediter | Inspects readiness at the pass; refuses outgoing work that is not right | `/expedite` (read-only verdict); `skills/worktree/scripts/merge_worktrees.py`, `/merge-pull-requests`, and `/cleanup-feature` perform the actions the expediter clears |
 | Dishwasher | Resets stations between tickets | `skills/worktree/scripts/worktree.py` (`teardown`, `gc`), the cleanup half of `/cleanup-feature` |
-| The pass | Last quality check; nothing leaves without crossing it | `/validate-feature` — soft gates (spec, evidence, deploy) run for signal; hard gates (Smoke / Security / E2E) enforced by `skills/validate-feature/scripts/gate_logic.py:REQUIRED_PHASES` |
+| The pass | Last quality check; nothing leaves without crossing it | `/validate-feature` — Spec always hard-gates; Smoke / Security / E2E hard-gate only when the change has a deployable surface (`gate_logic.py`) |
 | The ticket rail | Single source of truth for what's in flight | Coordinator claims/locks (`agent-coordinator/src/coordination_api.py` — `/work/*`, `/locks/*`, `/issues/*`), `.git-worktrees/.registry.json`, `openspec/changes/<id>/` |
 | Andon cord | "Stop the line" signal | Validation-phase failures; `subscribe_pr_activity` webhook events; vendor-disagreement in parallel review |
 
@@ -140,7 +140,7 @@ Kim & Spear argue that high-performing organizations win not through heroics but
 |---|---|
 | `/parallel-review-plan` and `/parallel-review-implementation` | Vendor-diverse second opinions; disagreement between vendors is high-signal |
 | Coordinator events / heartbeats | Failed or stalled agents are visible in `.git-worktrees/.registry.json` and via `agent-coordinator/src/coordination_api.py` (`/audit`, `/work/get`), not hidden in transcripts |
-| `/validate-feature` hard-gate ladder | `skills/validate-feature/scripts/gate_logic.py` enumerates `REQUIRED_PHASES` (Smoke / Security / E2E); a `fail` status in `validation-report.md` halts `pre_merge_gate` |
+| `/validate-feature` hard-gate ladder | `skills/validate-feature/scripts/gate_logic.py` always requires Spec Compliance; Smoke / Security / E2E join only for a deployable surface. `fail` / `skipped` / `missing` on a required phase in `validation-report.md` halt `pre_merge_gate`. `not applicable` is for phases that do not apply, not for phases that were skipped. |
 | `subscribe_pr_activity` | Webhook events wake the session on CI failure or review comment |
 | `gen-eval` scenarios under `agent-coordinator/evaluation/scenarios/` | Failures rehearse production behavior at the validation gate (lock-lifecycle, audit-trail, work-queue, handoffs, etc.) |
 | `rework-report.json` (emitted by `skills/validate-feature/scripts/rework_report.py`) | Maps failed scenarios to owners and recommended actions (`iterate` / `revise-spec` / `defer` / `block-cleanup`) |

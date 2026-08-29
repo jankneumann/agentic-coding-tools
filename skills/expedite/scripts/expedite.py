@@ -103,7 +103,10 @@ def check_validation_report(report_path: Path | None) -> CheckResult:
         return CheckResult(name="validation_report", status="skip",
                            detail="no validation-report.md at any candidate path",
                            action="run /validate-feature")
-    action, reason, _details = gate_logic.pre_merge_gate(str(report_path), force=False)
+    change_dir = report_path.parent if report_path.name == "validation-report.md" else None
+    action, reason, _details = gate_logic.pre_merge_gate(
+        str(report_path), force=False, change_dir=change_dir,
+    )
     if action == "continue":
         return CheckResult(name="validation_report", status="pass",
                            detail=f"hard gates pass ({report_path.name})")

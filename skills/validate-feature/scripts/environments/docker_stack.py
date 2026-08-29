@@ -29,6 +29,53 @@ import fcntl
 logger = logging.getLogger(__name__)
 PORT_REGISTRY_DIR = Path(tempfile.gettempdir()) / "agentic-coding-tools-ports"
 
+_RUNTIME_CANDIDATES = ("docker", "podman")
+_RUNTIME_INFO_TIMEOUT_SECONDS = 5.0
+
+
+def _runtime_info_ok(name: str, timeout: float = _RUNTIME_INFO_TIMEOUT_SECONDS) -> bool:
+    """Return True iff ``<name> info`` exits 0 within *timeout* seconds."""
+    try:
+        result = subprocess.run(
+            [name, "info"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
+
+
+def detect_container_runtime() -> str:
+    """Return the first usable container runtime, preferring docker.
+
+    A runtime is usable only when its binary is on PATH and ``<runtime> info``
+    succeeds. Presence without a responding daemon is treated as unusable so a
+    dead docker does not hide a working podman (issue #433).
+    """
+    unusable: list[str] = []
+    absent: list[str] = []
+    for name in _RUNTIME_CANDIDATES:
+        if not shutil.which(name):
+            absent.append(name)
+            continue
+        if _runtime_info_ok(name):
+            return name
+        unusable.append(name)
+
+    parts: list[str] = []
+    for name in unusable:
+        parts.append(f"{name} present but its daemon is not responding")
+    for name in absent:
+        parts.append(f"{name} not installed")
+    detail = "; ".join(parts) if parts else "no candidates considered"
+    raise RuntimeError(
+        "No usable container runtime. " + detail + ". "
+        "Install docker or podman, or start the matching daemon, "
+        "to use DockerStackEnvironment."
+    )
+
 
 @contextmanager
 def _locked_port_registry() -> Iterator[dict[str, dict[str, Any]]]:
@@ -79,14 +126,12 @@ class DockerStackEnvironment:
 
     @staticmethod
     def _detect_runtime() -> str:
-        """Detect docker or podman on PATH. Prefer docker."""
-        if shutil.which("docker"):
-            return "docker"
-        if shutil.which("podman"):
-            return "podman"
-        raise RuntimeError(
-            "Neither docker nor podman found on PATH. Install one to use DockerStackEnvironment."
-        )
+        """Return the first usable container runtime, preferring docker.
+
+        Usable means the binary is on PATH *and* ``<runtime> info`` succeeds.
+        A docker binary with a dead daemon must not mask a working podman.
+        """
+        return detect_container_runtime()
 
     def _allocate_ports(self) -> dict[str, object]:
         """Reserve four available ports in a persistent cross-session registry.
@@ -292,3 +337,31 @@ class DockerStackEnvironment:
             "ENV_TYPE": "docker",
             "AGENT_COORDINATOR_DB_PORT": db_port,
         }
+
+
+def main() -> None:
+    """CLI: ``python docker_stack.py --detect`` prints the usable runtime."""
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(
+        description="Detect a usable container runtime (docker or podman).",
+    )
+    parser.add_argument(
+        "--detect",
+        action="store_true",
+        help="Print the first usable runtime and exit 0; exit 1 if none is usable.",
+    )
+    args = parser.parse_args()
+    if not args.detect:
+        parser.print_help()
+        sys.exit(2)
+    try:
+        print(detect_container_runtime())
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

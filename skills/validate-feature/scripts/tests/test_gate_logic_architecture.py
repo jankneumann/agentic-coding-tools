@@ -26,6 +26,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from gate_logic import (  # noqa: E402
+    ALWAYS_REQUIRED_PHASES,
     REQUIRED_PHASES,
     architecture_mode,
     architecture_status,
@@ -71,6 +72,7 @@ _FILE_SIZE_FINDING = {
 }
 
 _PASSING_REQUIRED_PHASES = (
+    "## Spec Compliance\n\n- **Status**: pass\n\n"
     "## Smoke Tests\n\n- **Status**: pass\n\n"
     "## Security\n\n- **Status**: pass\n\n"
     "## E2E Tests\n\n- **Status**: pass\n"
@@ -194,7 +196,7 @@ class TestAdvisoryMode:
     def test_architecture_not_in_required_phases(self, tmp_path: Path) -> None:
         phases = resolve_required_phases(_write_config(tmp_path, "advisory"))
         assert "Architecture" not in phases
-        assert set(phases) == set(REQUIRED_PHASES)
+        assert set(phases) == set(ALWAYS_REQUIRED_PHASES) | set(REQUIRED_PHASES)
 
     def test_new_cycle_does_not_fail_the_gate(self, tmp_path: Path) -> None:
         status = architecture_status(
@@ -224,7 +226,12 @@ class TestAdvisoryMode:
 
         action, _reason, statuses = pre_merge_gate(str(report))
         assert action == "continue"
-        assert set(statuses) == {"Smoke Tests", "Security", "E2E Tests"}
+        assert set(statuses) == {
+            "Spec Compliance",
+            "Smoke Tests",
+            "Security",
+            "E2E Tests",
+        }
 
 
 class TestBlockingMode:

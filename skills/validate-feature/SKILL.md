@@ -34,7 +34,7 @@ Valid phase names: `deploy`, `smoke`, `gen-eval`, `security`, `e2e`, `architectu
 ## Prerequisites
 
 - Feature branch exists with implementation commits (default `openspec/<change-id>`, or the operator-mandated branch when `OPENSPEC_BRANCH_OVERRIDE` is set)
-- Docker/docker-compose installed and running (for Deploy phase)
+- A usable container runtime (docker or podman, daemon answering `info`) for the Deploy phase. Detection is the same as `DockerStackEnvironment._detect_runtime`: PATH presence is not enough.
 - Approved OpenSpec proposal exists at `openspec/changes/<change-id>/`
 - Run `/implement-feature` first if no implementation exists
 
@@ -144,14 +144,35 @@ if [ "$COMMIT_COUNT" -eq 0 ]; then
   exit 1
 fi
 
-# Check Docker availability (only if Deploy phase will run)
-if docker info > /dev/null 2>&1; then
-  echo "Docker is available"
+# Classify deployable surface (issue #432). Container-dependent phases are
+# required only when this change has a running service; a skills/docs/openspec
+# change records those phases as not applicable rather than skipped.
+CHANGE_DIR="$(git rev-parse --show-toplevel)/openspec/changes/$CHANGE_ID"
+SURFACE_JSON=$(python3 "<skill-base-dir>/scripts/gate_logic.py" --describe-surface \
+  --change-dir "$CHANGE_DIR")
+echo "$SURFACE_JSON"
+DEPLOYABLE=$(printf '%s' "$SURFACE_JSON" | python3 -c \
+  'import json,sys; print("true" if json.load(sys.stdin)["deployable"] else "false")')
+
+# Check for a usable container runtime only when Deploy will run.
+# Same predicate as DockerStackEnvironment._detect_runtime: PATH presence is
+# not enough — `docker info` / `podman info` must succeed. Prefer docker when
+# both work; fall through to podman when docker is installed but its daemon
+# is down (issue #433).
+if [ "$DEPLOYABLE" = "true" ]; then
+  if RUNTIME=$(python3 "<skill-base-dir>/scripts/environments/docker_stack.py" --detect); then
+    echo "Container runtime is available: $RUNTIME"
+  else
+    echo "ERROR: no usable container runtime (docker or podman)."
+    echo "  A binary on PATH is not sufficient — its daemon must answer \`info\`."
+    echo "  macOS: brew install --cask docker   OR   brew install podman"
+    echo "  Linux: sudo systemctl start docker  OR   sudo systemctl start podman"
+    exit 1
+  fi
 else
-  echo "ERROR: Docker is not available. Install Docker Desktop or start the Docker daemon."
-  echo "  macOS: brew install --cask docker"
-  echo "  Linux: sudo systemctl start docker"
-  exit 1
+  echo "No deployable surface — Deploy/Smoke/Security/E2E are not applicable."
+  echo "  Record those phases as **Status**: not applicable (not skipped)."
+  DEPLOY_NOT_APPLICABLE=true
 fi
 
 ```
@@ -251,9 +272,13 @@ Ensure `validation-report.md` and `architecture-impact.md` are updated in the ch
 ### 3. Deploy Phase
 
 **Phase name:** `deploy`
-**Criticality:** Critical (stops validation on failure)
+**Criticality:** Critical when the change has a deployable surface; **not applicable** otherwise (issue #432). Do not record `skipped` for a phase that could never have applied.
 
 ```bash
+if [ "$DEPLOY_NOT_APPLICABLE" = true ]; then
+  echo "NOT APPLICABLE: no deployable surface — Deploy is not a skipped check."
+  DEPLOY_RESULT="not applicable"
+else
 # Find docker-compose file
 COMPOSE_FILE=$(find "$PROJECT_ROOT" -maxdepth 2 -name "docker-compose.yml" | head -1)
 
@@ -312,6 +337,7 @@ else
 
   DEPLOY_RESULT="pass"
 fi
+fi
 ```
 
 If Deploy fails, report the failure with Docker logs and skip to Teardown.
@@ -324,6 +350,10 @@ If Deploy fails, report the failure with Docker logs and skip to Teardown.
 Run the reusable pytest smoke test suite against the live services. The suite is configurable via environment variables so it works with any deployed HTTP API.
 
 ```bash
+if [ "$DEPLOY_NOT_APPLICABLE" = true ]; then
+  echo "NOT APPLICABLE: no deployable surface — Smoke is not a skipped check."
+  SMOKE_RESULT="not applicable"
+else
 # Configure for the target API (adjust per project)
 export API_BASE_URL="${API_BASE_URL:-http://localhost:8000}"
 export API_HEALTH_ENDPOINT="${API_HEALTH_ENDPOINT:-/health}"
@@ -347,6 +377,7 @@ elif [ $SMOKE_EXIT -eq 5 ]; then
 else
   SMOKE_RESULT="fail"
   SMOKE_FAILED=true
+fi
 fi
 ```
 
@@ -435,8 +466,10 @@ Gen-eval failures are non-critical and do not block validation. Results are incl
 Run security scanners (OWASP Dependency-Check and ZAP) against the live deployment using the existing security-review orchestrator.
 
 ```bash
-# Skip if --skip-security flag was provided
-if [ "$SKIP_SECURITY" = true ]; then
+if [ "$DEPLOY_NOT_APPLICABLE" = true ]; then
+  echo "NOT APPLICABLE: no deployable surface — Security is not a skipped check."
+  SECURITY_RESULT="not applicable"
+elif [ "$SKIP_SECURITY" = true ]; then
   echo "SKIP: Security phase skipped (--skip-security flag)"
   SECURITY_RESULT="skip"
 else
@@ -499,8 +532,10 @@ python3 "<skill-base-dir>/scripts/gate_logic.py" openspec/changes/"$CHANGE_ID"/v
 **Criticality:** Non-critical (continues on failure)
 
 ```bash
-# Skip if --skip-e2e flag was provided
-if [ "$SKIP_E2E" = true ]; then
+if [ "$DEPLOY_NOT_APPLICABLE" = true ]; then
+  echo "NOT APPLICABLE: no deployable surface — E2E is not a skipped check."
+  E2E_RESULT="not applicable"
+elif [ "$SKIP_E2E" = true ]; then
   echo "SKIP: E2E phase skipped (--skip-e2e flag)"
   E2E_RESULT="skip"
 else
@@ -1031,6 +1066,8 @@ EOF
 
 echo "Report written to: $REPORT_FILE"
 ```
+
+The pre-merge gate parses `## Spec Compliance`, `## Smoke Tests`, `## Security`, and `## E2E Tests` headings with a `**Status**` line. Write those sections into the report. When `DEPLOY_NOT_APPLICABLE=true`, the container phases MUST say `**Status**: not applicable` with a reason — never `skipped`. Spec compliance is always required.
 
 ### 12.5. Finalize Ephemeral Validation Scope
 
