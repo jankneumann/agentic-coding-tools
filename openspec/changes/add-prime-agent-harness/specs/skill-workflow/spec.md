@@ -32,3 +32,20 @@ Dispatch SHALL observe the subscription-lane policy: the `prime` vendor runs non
 - **WHEN** any roster gate, fixture, or dispatch filter evaluates vendor membership
 - **THEN** `prime` and `pi` SHALL be matched as whole vendor keys
 - **AND** an unanchored substring match of `pi` against `prime` SHALL be treated as a defect
+
+#### Scenario: Coordinator identity is separate from provider authentication
+
+- **WHEN** `prime-local` is projected into coordinator setup and dispatch configuration
+- **THEN** its coordinator identity SHALL use the independently generated `prime_local_key` exposed by `--prime-local-key`
+- **AND** that key SHALL be injected only as `COORDINATION_API_KEY`
+- **AND** `PRIME_API_KEY` SHALL remain an operator-supplied Prime Inference credential referenced by `cli.api_key_env`
+- **AND** neither credential SHALL be generated from, serialized as, or substituted for the other
+
+#### Scenario: Cleanup is fail-closed across dispatch outcomes
+
+- **GIVEN** a Prime CLI dispatch config declares a cleanup object
+- **WHEN** a launched dispatch succeeds, exits non-zero, produces invalid output, is cancelled, or times out
+- **THEN** the dispatcher SHALL run the cleanup argument vector exactly once with shell interpretation disabled and a bounded timeout
+- **AND** it SHALL not expose coordinator credentials or unrelated provider secrets to the cleanup subprocess
+- **AND** cleanup failure or timeout SHALL preserve the primary error, add structured cleanup diagnostics, and make the vendor result unsuccessful and ineligible for review quorum
+- **AND** cleanup SHALL not terminate a concurrent unrelated Prime session

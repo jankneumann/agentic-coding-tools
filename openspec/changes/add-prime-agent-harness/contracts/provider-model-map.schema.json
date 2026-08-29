@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/contracts/provider-model-map-v3.schema.json",
+  "title": "ProviderModelMapV3",
+  "description": "Planned six-provider model map. Prime tier values are resolved empirically in P4 and cannot contain Anthropic model IDs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "providers", "tiers"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 3
+    },
+    "tiers": {
+      "type": "array",
+      "minItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["frontier", "premium", "standard", "economy"]
+      }
+    },
+    "providers": {
+      "type": "object",
+      "required": ["claude_code", "codex", "antigravity", "grok", "pi", "prime"],
+      "propertyNames": {
+        "enum": ["claude_code", "codex", "antigravity", "grok", "pi", "prime"]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["premium", "standard", "economy"],
+        "properties": {
+          "frontier": {"$ref": "#/$defs/tierEntry"},
+          "premium": {"$ref": "#/$defs/tierEntry"},
+          "standard": {"$ref": "#/$defs/tierEntry"},
+          "economy": {"$ref": "#/$defs/tierEntry"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "tierEntry": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["model"],
+          "properties": {
+            "model": {"type": "string", "minLength": 1},
+            "thinking": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    }
+  }
+}
+

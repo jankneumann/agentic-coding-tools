@@ -39,8 +39,9 @@ explicitly out of policy for this change (design D2): Claude models stay on
 
 - **ADD** a `prime-local` agent entry to `agent-coordinator/agents.yaml` with
   `type: prime`, `cli.command: prime-agent`, `cli.dispatch_modes` for `review`
-  (read-only), `alternative` (write), and `quick` (write), headless invocation via
-  `--mode json`, correct `model_flag` / `model` / `model_fallbacks`, and mirrored
+  only if the P6 admission gate passes, plus `alternative` (write) and `quick`
+  (write), headless invocation via `--mode json`, `cli.api_key_env:
+  PRIME_API_KEY`, correct `model_flag` / `model` / `model_fallbacks`, and mirrored
   `capabilities` / `archetypes` / `trust_level: 3` / `transport: mcp` / `profile:
   prime_local` / `isolation`.
 - **ADD** `prime` provider tier maps to `model_aliases`
@@ -51,6 +52,10 @@ explicitly out of policy for this change (design D2): Claude models stay on
   is closed to five roster keys with `minProperties: 5` — extend `propertyNames.enum`
   + `required` to six and bump `schema_version` to 3 (breaking schema change; see
   Rollback).
+- **EXTEND** the canonical CLI dispatch config with an optional lifecycle cleanup
+  object (`cleanup.args`, `cleanup.timeout_seconds`). The coordinator schema,
+  parser, and HTTP/MCP projection preserve it losslessly; the dispatcher consumes
+  it without a shell and runs it after every launched synchronous dispatch attempt.
 
 ### Hardcoded provider allow-lists (fail-closed; add `prime` to each)
 
@@ -63,10 +68,17 @@ explicitly out of policy for this change (design D2): Claude models stay on
   / `_MANUAL_REAUTH`, per empirical fact P5; plus an NDJSON envelope-unwrap branch in
   `_parse_findings` if P3 shows a novel shape),
   `agent-coordinator/scripts/seed_kanban_board.py` (`VENDORS`),
-  `agent-coordinator/scripts/setup_cloud.py` (per-vendor key provisioning),
   `agent-coordinator/src/schemas/kanban_viz/saved-view.json` (vendor enum),
   `openspec/schemas/consensus-report.schema.json` + the mirrored
   `skills/parallel-infrastructure/install_assets/` copy (vendor enum).
+
+`agent-coordinator/scripts/setup_cloud.py` is deliberately not a vendor allow-list.
+Its registry projection already derives `prime-local` into `prime_local_key`,
+`--prime-local-key`, a `COORDINATION_API_KEY_IDENTITIES` entry, and the
+`cprime-agent` alias. This change adds regression coverage for that generic behavior;
+it does not teach setup-cloud to provision `PRIME_API_KEY`. The latter remains an
+operator-supplied model-provider credential exposed only through `cli.api_key_env`,
+secrets templates, and provider-authentication documentation.
 
 ### Peripheral (Core + peripheral scope, per precedent D4 parity rule)
 
@@ -95,11 +107,11 @@ explicitly out of policy for this change (design D2): Claude models stay on
 
 | Spec capability | Delta | Nature |
 |---|---|---|
-| `configuration` | `specs/configuration/spec.md` | MODIFIED: Provider Dispatch Configuration Discovery, Provider Model Mapping Configuration (six-provider roster, schema v3, prime → Prime Inference slugs) |
+| `configuration` | `specs/configuration/spec.md` | MODIFIED: Provider Dispatch Configuration Discovery, Provider Model Mapping Configuration (six-provider roster, schema v3, prime → Prime Inference slugs); ADDED: typed CLI cleanup configuration and lossless HTTP/MCP projection |
 | `evaluation-framework` | `specs/evaluation-framework/spec.md` | MODIFIED: Agent Backend Abstraction (six backends; prime NDJSON scenario) |
 | `coordinator-kanban-viz` | `specs/coordinator-kanban-viz/spec.md` | MODIFIED: Demo Data Seeding for the Kanban Board (six-vendor swimlane coverage) |
 | `skill-workflow` | `specs/skill-workflow/spec.md` | ADDED: Prime Harness Dispatch (dispatch modes, NDJSON parsing, non-blind review guard, subscription-lane policy, daemon hygiene) |
-| `agent-identity` | — no delta | Profile seeding is roster-agnostic and additive by contract (see its *Retired harness profile survives seeding* scenario); `prime_local` seeds via the existing generic requirement |
+| `agent-identity` | — no delta | Existing generic registry profile/assignment sync materializes `prime_local`, while setup-cloud derives the separate `prime_local_key`; tests prove both projections. `PRIME_API_KEY` is not coordinator identity. |
 
 Architecture layers affected: **Execution** (CLI dispatch, adapters), **Coordination**
 (registry, archetype resolution), **Governance** (schema roster closure, subscription

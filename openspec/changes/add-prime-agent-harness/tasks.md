@@ -61,7 +61,8 @@ checkpoint 1.5 passes.
 
 - [ ] 2.2 Add `prime-local` to `agents.yaml` with `profile: prime_local`,
   `trust_level: 3`, `transport: mcp`, and `cli.dispatch_modes` per Phase 1 facts
-  (review mode included only if 1.3 passed) (M)
+  (review mode included only if 1.3 passed), plus `cli.api_key_env:
+  PRIME_API_KEY` for the separately supplied provider credential (M)
   **Dependencies**: 2.1
 
 - [ ] 2.3 Add `prime` tiers to `DEFAULT_PROVIDER_MODEL_MAP` (`src/agents_config.py`)
@@ -85,8 +86,13 @@ checkpoint 1.5 passes.
   `tests/test_kanban_viz_endpoints.py` fixtures (S)
   **Dependencies**: 2.2
 
-- [ ] 2.7 `scripts/setup_cloud.py`: add prime key provisioning (`PRIME_API_KEY`)
-  alongside the existing per-vendor blocks (S)
+- [ ] 2.7 Prove the registry-derived coordinator identity boundary in
+  `tests/test_setup_cloud.py`: `prime-local` yields `prime_local_key`,
+  `--prime-local-key`, a `{agent_id: prime-local, agent_type: prime}` identity, and
+  the `cprime-agent` alias injecting that key only as `COORDINATION_API_KEY`.
+  Assert setup-cloud neither accepts nor emits `PRIME_API_KEY`; production
+  `setup_cloud.py` requires no vendor-specific branch because it already projects
+  the registry generically (S)
   **Dependencies**: 2.2
 
 - [ ] 2.8 Checkpoint: coordinator suite green; mypy/ruff clean on changed files;
@@ -111,31 +117,31 @@ checkpoint 1.5 passes.
 
 - [ ] 3.4 `review_dispatcher.py`: re-auth tables per P5; `_parse_findings` NDJSON
   branch only if P3 showed a shape the existing pi stream-parse cannot handle;
-  daemon-hygiene cleanup step per P7/D6 if required (M)
+  parse the canonical optional cleanup object and execute it exactly once without a
+  shell after every launched attempt (success, non-zero exit, parse failure,
+  cancellation, timeout; async only after terminal polling). Add tests for absent
+  cleanup, success/failure/timeout paths, literal metacharacter argv, minimal secret
+  environment, cleanup failure/timeout, quorum ineligibility, and concurrent-session
+  safety per P7/D6 (M)
   **Dependencies**: 3.1, 3.4a
 
-- [ ] 3.4a Config-contract round-trip for the D6 cleanup field — **required before
-  3.4 can express a cleanup step in `agents.yaml`**. The `cli` object declares
+- [ ] 3.4a Canonical config-contract producer for the D6 cleanup field — **required
+  before 3.4 consumes cleanup from `agents.yaml`**. The `cli` object declares
   `"additionalProperties": False` (`agent-coordinator/src/agents_config.py`), so a
   `cleanup` key added to a vendor's `cli:` block is rejected today with
   `Additional properties are not allowed ('cleanup' was unexpected)` — verified
-  against `load_agents_config` on 2026-08-24. Land the field through all four
-  round-trip points, or D6's "the dispatch config gains an explicit cleanup step"
-  is unimplementable and the value is dropped before dispatch:
-  1. **Schema** — add `cleanup` to the `cli` properties block alongside
-     `api_key_env` (`agents_config.py`, the block ending in
-     `"additionalProperties": False`).
-  2. **Parser** — add the field to the `CliConfig` dataclass and read it in the
-     `CliConfig(...)` construction via `raw_cli.get("cleanup", ...)`.
-  3. **Serializer** — emit it in the `cli_out` dict so a load→serialize round trip
-     is lossless.
-  4. **Endpoint/projection** — extend the registry projection and its test
-     (`agent-coordinator/tests/test_registry_projection.py`) so the field survives
-     the coordinator API surface.
-  Gate: a test that writes a `cleanup` value into a vendor's `cli:` block, loads it,
-  serializes it, and asserts the value round-trips unchanged. Skip this task only if
-  P7 concludes `--mode json` one-shots leave no resident processes — in which case
-  amend D6 to drop the config-level cleanup step rather than leaving it unbuildable. (S)
+  against `load_agents_config` on 2026-08-24. Implement the contract shape
+  `cleanup: {args: [string, ...], timeout_seconds: integer}` through:
+  1. **Schema** — typed object with non-empty argv tokens and bounded timeout.
+  2. **Canonical parser** — a cleanup dataclass on `CliConfig`, parsed by
+     `load_agents_config()` with absence remaining backward-compatible.
+  3. **HTTP/MCP projection** — `get_dispatch_configs()` emits the object losslessly;
+     the existing HTTP and MCP endpoints both delegate to this producer.
+  4. **Tests** — `test_agents_config.py` covers acceptance, rejection, absence, and
+     load→projection equality; dispatch-config endpoint tests pin the same payload.
+  This capability is unconditional. P7 decides whether `prime-local` populates it;
+  when no residue exists the entry omits the field, without deleting the generic
+  lifecycle contract. (S)
   **Dependencies**: 3.1
 
 - [ ] 3.5 Vendor enum updates: `consensus-report.schema.json` + mirrored

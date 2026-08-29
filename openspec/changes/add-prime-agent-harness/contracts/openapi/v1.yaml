@@ -1,0 +1,54 @@
+openapi: 3.1.0
+info:
+  title: add-prime-agent-harness dispatch-config projection
+  version: "1.0.0"
+  description: |
+    Narrows the existing GET /agents/dispatch-configs response for the lifecycle
+    field introduced by this change. The complete roster/config contracts live in
+    ../roster.md and ../cli-dispatch-config.schema.json.
+paths:
+  /agents/dispatch-configs:
+    get:
+      operationId: getAgentDispatchConfigs
+      responses:
+        "200":
+          description: CLI and SDK dispatch configuration projected from agents.yaml
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [agents]
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      type: object
+                      required: [agent_id, type]
+                      properties:
+                        agent_id:
+                          type: string
+                        type:
+                          type: string
+                        cli:
+                          anyOf:
+                            - type: "null"
+                            - type: object
+                              properties:
+                                cleanup:
+                                  type: object
+                                  additionalProperties: false
+                                  required: [args]
+                                  properties:
+                                    args:
+                                      type: array
+                                      minItems: 1
+                                      items:
+                                        type: string
+                                        minLength: 1
+                                    timeout_seconds:
+                                      type: integer
+                                      minimum: 1
+                                      maximum: 60
+                                      default: 10
+components: {}
+
