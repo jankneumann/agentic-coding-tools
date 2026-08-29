@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/digest.schema.json",
+  "title": "SupervisorDigest",
+  "description": "openspec/supervise/digest.json — the ranked candidate-work digest produced by digest.py at the end of a CYCLE run.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "fingerprint", "generated_at", "weights", "sections", "ranked"],
+  "$defs": {
+    "rankedStub": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stub_key", "rank", "score", "decision", "factors", "signals"],
+      "properties": {
+        "stub_key": {"type": "string", "pattern": "^(change|prov):.+$"},
+        "rank": {"type": "integer", "minimum": 1},
+        "score": {"type": "number"},
+        "decision": {"type": "string", "enum": ["pending", "approved", "deferred", "rejected"]},
+        "suggested_change_id": {"type": ["string", "null"]},
+        "title": {"type": "string"},
+        "effort": {"type": "string", "enum": ["XS", "S", "M", "L", "XL"]},
+        "factors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["relevance", "value", "readiness", "scope_fit", "risk"],
+          "properties": {
+            "relevance": {"type": "integer", "minimum": 1, "maximum": 5},
+            "value": {"type": "integer", "minimum": 1, "maximum": 5},
+            "readiness": {"type": "integer", "minimum": 1, "maximum": 5},
+            "scope_fit": {"type": "integer", "minimum": 1, "maximum": 5},
+            "risk": {"type": "integer", "minimum": 1, "maximum": 5}
+          }
+        },
+        "justifications": {
+          "type": "object",
+          "additionalProperties": {"type": "string", "maxLength": 200}
+        },
+        "signals": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dependency_ready", "staleness_days", "prior_decision", "cached_scores"],
+          "properties": {
+            "dependency_ready": {"type": "boolean"},
+            "staleness_days": {"type": ["integer", "null"], "minimum": 0},
+            "prior_decision": {"type": ["string", "null"], "enum": ["deferred", "rejected", "approved", null]},
+            "deferred_until": {"type": ["string", "null"], "format": "date"},
+            "cached_scores": {"type": "boolean"}
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source_artifact": {"type": "string"},
+            "finding_ids": {"type": "array", "items": {"type": "string"}},
+            "generator": {"type": ["string", "null"]}
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {"const": 1},
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "reused_prior": {"type": "boolean", "default": false, "description": "True when the fingerprint was unchanged and the prior digest was re-presented."},
+    "weights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relevance", "value", "readiness", "scope_fit", "risk", "staleness_penalty_per_30d"],
+      "properties": {
+        "relevance": {"type": "number"}, "value": {"type": "number"}, "readiness": {"type": "number"},
+        "scope_fit": {"type": "number"}, "risk": {"type": "number"}, "staleness_penalty_per_30d": {"type": "number"}
+      }
+    },
+    "sections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["needs_decision", "ready_now", "new_this_cycle", "blocked", "degraded"],
+      "properties": {
+        "needs_decision": {"type": "array", "items": {"type": "string"}},
+        "ready_now": {"type": "array", "items": {"type": "string"}},
+        "new_this_cycle": {"type": "array", "items": {"type": "string"}, "description": "stub_keys in rank order"},
+        "blocked": {"type": "array", "items": {"type": "string"}},
+        "degraded": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "ranked": {"type": "array", "items": {"$ref": "#/$defs/rankedStub"}}
+  }
+}
