@@ -18,9 +18,9 @@ items:
     and gap analysis weekly, files coordinator issues for capability gaps above a
     frequency x severity threshold, and feeds candidate proposals into /prioritize-proposals.
   rationale: The learning pipeline is built but hand-cranked; nothing schedules it,
-    so capability-gap signal accumulates unread. This delivers repo-improvement ri-12,
-    unblocks its ri-13 consumers, and is sequenced first because every other capability
-    in this epic consumes the signal it produces.
+    so capability-gap signal accumulates unread. This supersedes repo-improvement:ri-12,
+    unblocks the repo-improvement:ri-13 consumers, and is sequenced first because every
+    other capability in this epic consumes the signal it produces.
   change_id: schedule-the-learning-flywheel-pipeline
   acceptance_outcomes:
   - A scheduled job runs the transcript-collection and gap-analysis pipeline at least
@@ -29,15 +29,14 @@ items:
     produce a coordinator issue carrying the memory-conventions tag set.
   - Improve-harness-generated candidates appear in the /prioritize-proposals queue
     alongside feature work.
-  - The repo-improvement roadmap marks ri-12 as delivered by this item, with no duplicate
-    implementation.
+  - The repo-improvement roadmap marks repo-improvement:ri-12 as superseded by this
+    item, with repo-improvement:ri-13 using a typed external dependency and no duplicate implementation.
 - item_id: ri-02
   title: Build the coordinator signal-type registry
   status: candidate
   priority: 1
   effort: M
-  depends_on:
-  - ri-01
+  depends_on: []
   description: Add a versioned, coordinator-served signal-type registry in Postgres
     that extends the memory-conventions failure_type taxonomy, where each signal type
     carries a detection prompt describing how that failure manifests. Includes the
@@ -75,12 +74,15 @@ items:
     satisfying the writer-plus-automated-reader rule for the new state.
   change_id: map-recorded-lessons-to-signal-types
   acceptance_outcomes:
-  - A lesson recorded via the remember tool persists with at least one signal-type
-    mapping alongside its memory-conventions tags, stored in coordinator Postgres.
-  - Lessons mapped to a given signal type are queryable through the coordinator from
-    any machine reaching it.
+  - A lesson persists with its repository scope, authenticated author, source session,
+    evidence, confidence, signal-type mapping, and an auditable lifecycle state.
+  - Only authorized active lessons scoped to the current repository are queryable for
+    injection; candidate, quarantined, retired, foreign-repository, and unauthenticated
+    records are excluded.
   - Writes use the memory-conventions tag schema unchanged except for the signal-type
-    extension.
+    extension and provenance fields required for authorization and audit.
+  - Promotion, quarantine, retirement, and rollback are policy-authorized transitions
+    whose actor, prior state, new state, and reason remain auditable.
 - item_id: ri-04
   title: Add anomaly-gated semantic failure detection hook
   status: candidate
@@ -89,13 +91,14 @@ items:
   depends_on:
   - ri-02
   - ri-03
-  description: Implement a PostToolUse hook (Claude Code adapter first) with two stages,
-    a deterministic anomaly gate (failed tool calls, nonzero exits, error-shaped output)
-    that decides when to classify, and an economy-tier classifier that parses the
-    recent trace and maps its diagnosis to registry signal types with a confidence
-    score. Detection prompts for all active signal types are batched into one windowed
-    call, verdicts are cached per session against a context fingerprint, and cost
-    is attributed and capped.
+  description: Implement a PostToolUse hook (Claude Code adapter first) with a deterministic
+    anomaly gate and an economy-tier classifier that receives only a bounded, normalized,
+    sanitized recent trace and maps its diagnosis to registry signal types. Sanitization
+    occurs before external dispatch, fingerprinting, caching, audit, or logging; raw
+    traces are never persisted. Detection prompts and trace content are wrapped as
+    untrusted data in a fixed structured schema; verdicts are allowlisted and cached
+    per session against a sanitized context fingerprint, and cost is attributed and
+    capped.
   rationale: This replaces Abacus's fragile exact-string tripwires with semantic detection,
     the deliberate departure named in the proposal - the same root cause recurs under
     different wording across vendors, and this repo has been bitten by string matching
@@ -106,8 +109,14 @@ items:
     alone decides when the classifier runs and never decides what matched.
   - Each detection event issues exactly one windowed classification call batching
     all active detection prompts to an economy-tier model, never one call per lesson.
-  - Verdicts are cached per session against a context fingerprint, and per-session
-    detection cost is attributed in usage accounting and capped.
+  - Tests prove secrets and credentials are redacted before dispatch, fingerprinting,
+    caching, audit, and logging, raw traces are never persisted, and sanitizer failure
+    produces neither classification nor injection.
+  - Adversarial trace and registry-prompt content cannot create roles, tools, permissions,
+    or instructions, override higher-priority instructions, or influence fields outside
+    the closed verdict schema and allowlist.
+  - Verdicts are cached per session against the sanitized context fingerprint, and
+    per-session detection cost is attributed in usage accounting and capped.
   - No exact string matching exists anywhere on the detection path, and malformed
     or low-confidence verdicts are discarded with no steering power.
   - The hook lands behind the per-harness adapter seam and degrades to a no-op (never
@@ -131,12 +140,15 @@ items:
     volume so recall cannot become context pollution, per the proposal's constraints.
   change_id: inject-recalled-lessons-with-abacus-recall-economics
   acceptance_outcomes:
-  - A confident verdict injects the mapped lessons at the point of failure; malformed
-    or low-confidence verdicts produce no injection.
-  - A lesson unencountered for four weeks measurably drops below half its recorded
-    strength and stops surfacing except on force-recall.
-  - Force-recall of the strongest lessons triggers after two consecutive failed tool
-    calls.
+  - A confident verdict injects only authorized active lessons scoped to the current
+    repository; lesson bodies remain inert quoted data and cannot override instructions.
+  - Effective strength is recorded strength multiplied by 2 raised to the negative
+    elapsed-time-over-14-days power, using an injected UTC clock.
+  - Fake-clock tests prove strength is S at time zero, S/2 at day 14, and S/4 at day
+    28 within tolerance, remains monotonic, and handles surfacing thresholds exactly
+    without sleeps.
+  - Force-recall of the strongest eligible lessons triggers after two consecutive
+    failed tool calls.
   - Injection volume never exceeds the cooldown schedule or the per-turn cap in any
     session.
   - The mechanism ships off by default pending the ri-06 evaluation gate.
@@ -158,9 +170,13 @@ items:
   change_id: evaluate-lesson-recall-and-gate-enablement
   acceptance_outcomes:
   - A gen-eval scenario shows a lesson recorded from one failure being injected in
-    a later session (different vendor or machine via the coordinator) when the same
-    root cause recurs under different surface wording that exact string matching would
-    miss.
+    a later cross-vendor session when the same root cause recurs under different surface
+    wording that exact string matching would miss.
+  - Adversarial cases cover secret exfiltration, prompt injection in traces and registry
+    prompts, poisoned or unauthorized lesson candidates, repository-scope isolation,
+    and decay freshness and threshold boundaries.
+  - Every adversarial case fails closed with no secret transmission and no unauthorized
+    steering or injection.
   - The measured false-positive injection rate is below the configured threshold.
   - Default-on enablement is recorded only after the scenario beats the no-injection
     baseline; until then the feature stays off by default.
@@ -180,26 +196,27 @@ items:
     future detection coverage.
   change_id: evolve-the-signal-type-registry-through-the-flywheel
   acceptance_outcomes:
-  - A scheduled improve-harness run over clustered capability gaps emits proposed
-    signal-type additions or detection-prompt refinements as registry updates.
-  - Each accepted update produces a new registry version, and prior versions remain
-    auditable.
-  - Applying a proposed registry update requires no skill-code change.
+  - A scheduled improve-harness run emits candidate signal-type additions or prompt
+    refinements without activating them.
+  - Activation requires the configured policy authority; unauthorized candidates remain
+    inert, and poisoned candidates can be quarantined without affecting recall.
+  - Each accepted update produces a new registry version, and activation, rollback,
+    quarantine, and prior versions remain auditable.
+  - Applying a policy-approved registry update requires no skill-code change.
 - item_id: ri-08
   title: Compute earned maturity tiers from dispatch outcomes
   status: candidate
   priority: 2
   effort: M
-  depends_on:
-  - ri-01
+  depends_on: []
   description: Add a coordinator service that derives a maturity tier per (vendor
     x archetype) from the dispatch ledger over a rolling window, using the Abacus
     priors, leave probing after 3 clean runs, reach full trust after 12 clean runs
     with under 30% worker failure rate, with failures paying the tier back down. Expose
     the tier and its underlying outcome aggregates via a coordinator endpoint in the
-    shape the ri-13 routing scorecard specifies.
+    shape the repo-improvement:ri-13 routing scorecard specifies.
   rationale: Replaces "confidence is configured" with "confidence is earned" from
-    recorded outcomes, and the aggregates it maintains are the same numbers the ri-13
+    recorded outcomes, and the aggregates it maintains are the same numbers the repo-improvement:ri-13
     scorecard and the add-adaptive-model-router signal ledger need, so this feeds
     routing rather than competing with it.
   change_id: compute-earned-maturity-tiers-from-dispatch-outcomes
@@ -207,7 +224,7 @@ items:
   - The coordinator serves a maturity tier per (vendor x archetype) computed from
     the dispatch ledger, with unit tests covering promotion thresholds and tier demotion
     on failures.
-  - Outcome aggregates are queryable in the shape the ri-13 routing scorecard specifies,
+  - Outcome aggregates are queryable in the shape the repo-improvement:ri-13 routing scorecard specifies,
     and the adaptive-model-router change can consume them without schema translation.
   - Tier computation parameters (clean-run thresholds, failure-rate ceiling, window)
     are configuration, not code constants.
@@ -242,24 +259,28 @@ items:
   effort: M
   depends_on:
   - ri-03
-  description: Add a PreCompact hook in the Claude Code adapter that runs one bounded
-    reflection pass before context compaction, a single dispatched look back over
-    the turn's actions with a restricted toolset (record to episodic memory, record
-    a signal-type-mapped lesson, update the current handoff), using an economy-tier
-    model, writing durable records or nothing and discarding the reflection transcript
-    itself.
+  description: Compose with the existing PreCompact handoff hook and run one bounded,
+    reentrancy-guarded reflection pass before context compaction. A mediated child receives
+    only a sanitized action view, no ambient repository or host tools, and no inherited
+    coordinator credential. It returns schema-validated candidate records to a trusted
+    adapter that performs authorized writes to episodic memory, signal-type lessons,
+    or the current handoff. The reflection transcript is discarded and the existing
+    flag-clear and handoff behavior always continues.
   rationale: Phase-boundary handoffs guard phase edges but compaction destroys evidence
     at context edges, which is currently unguarded; capturing knowledge right before
     the verbatim context is summarized away closes that gap.
   change_id: add-compaction-edge-reflection-pass
   acceptance_outcomes:
-  - When compaction fires in a Claude Code session, a reflection pass runs first and
-    any records it writes land in episodic memory or the handoff store before the
-    verbatim context is summarized away.
-  - At most one reflection is dispatched per compaction, under a hard step cap, on
-    an economy-tier model, with only the restricted toolset available.
-  - The reflection transcript is discarded and only the written records persist.
-  - The pass degrades to a no-op (never a block) when the coordinator is unreachable.
+  - The reflection composes with the existing precompact_handoff.py flow; tests prove
+    existing flag clearing and handoff persistence still run exactly once.
+  - A reentrancy guard enforces at most one bounded reflection per compaction.
+  - The child receives only a sanitized bounded action view and has no ambient repository
+    or host tools and no inherited coordinator credential.
+  - Only schema-valid candidates reach the trusted adapter, which rechecks authorization
+    before writing; the child cannot write durable state directly.
+  - The reflection transcript is discarded and only authorized records persist.
+  - Sanitization, dispatch, validation, or coordinator failure fails open for compaction
+    and preserves the existing handoff behavior without reflection writes.
 - item_id: ri-11
   title: Extend reflection to harnesses without PreCompact
   status: candidate
