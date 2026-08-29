@@ -71,3 +71,30 @@ The `prime` provider SHALL resolve to Prime Inference model slugs and SHALL NOT 
 - **WHEN** no Codex mapping exists for that alias or tier
 - **THEN** dispatch resolution SHALL fail with a structured configuration error before invoking Codex
 - **AND** the error SHALL identify the missing provider model mapping
+
+## ADDED Requirements
+
+### Requirement: CLI Dispatch Cleanup Configuration
+
+Provider dispatch configuration SHALL support an optional CLI cleanup object with a
+non-empty argument vector and a bounded timeout. The coordinator SHALL preserve this
+object losslessly from `agents.yaml` through the canonical parser and the shared
+HTTP/MCP dispatch-config projection. Configurations that omit cleanup SHALL retain
+their existing behavior.
+
+Cleanup arguments SHALL be data, not shell syntax: consumers SHALL append them to the
+configured CLI command and execute with shell interpretation disabled.
+
+#### Scenario: Cleanup configuration round-trips through every discovery path
+
+- **GIVEN** an agent CLI config declares `cleanup.args: ["shutdown"]`
+- **AND** `cleanup.timeout_seconds: 10`
+- **WHEN** the config is loaded locally or returned by the HTTP or MCP dispatch-config endpoint
+- **THEN** the consumer SHALL receive the same argument vector and timeout
+- **AND** no parser or serializer SHALL rename, flatten, or drop either value
+
+#### Scenario: Cleanup configuration is optional and strictly typed
+
+- **WHEN** an existing agent config omits `cleanup`
+- **THEN** loading and projecting that config SHALL succeed without adding a cleanup command
+- **AND** a scalar cleanup value, an empty argument vector, or an out-of-range timeout SHALL fail schema validation before dispatch

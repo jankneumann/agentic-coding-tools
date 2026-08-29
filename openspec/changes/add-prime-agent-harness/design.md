@@ -28,6 +28,10 @@ bypasses the harness where Claude usage is prepaid).
 
 Therefore:
 - The `prime` provider tier map SHALL contain **no Anthropic model IDs**.
+- `prime-local` SHALL declare `cli.api_key_env: PRIME_API_KEY`, while coordinator
+  authentication remains a separately generated `prime_local_key` exposed as
+  `--prime-local-key` and injected only as `COORDINATION_API_KEY`. Neither value
+  may be substituted for, generated from, or serialized as the other.
 - Operator setup documentation SHALL instruct authenticating prime-agent with
   `PRIME_API_KEY` (Prime Inference) only; `/login` OAuth to Anthropic/OpenAI/Copilot
   is documented as out of policy for dispatched use.
@@ -74,18 +78,36 @@ for `alternative` and `quick`), and the gap is filed as a follow-up. The unenfor
 ### D6. Daemon hygiene is part of the dispatch contract
 
 prime-agent runs daemon-backed worker sessions that survive terminal detach — a
-feature for interactive use, a leak for subprocess dispatch. P7 records whether
-`--mode json` one-shots leave resident processes; if they do, the dispatch config
-gains an explicit cleanup step (`prime-agent shutdown` or per-session stop) and the
-smoke-test gate asserts zero resident `prime-agent` processes after a dispatch round.
+feature for interactive use, a leak for subprocess dispatch. The canonical `cli`
+config therefore gains optional `cleanup: {args: [...], timeout_seconds: N}` support
+regardless of the P7 result. P7 decides whether the `prime-local` entry populates the
+field, not whether the config model and dispatcher understand it.
 
-That cleanup step is **not** expressible in `agents.yaml` as the contract stands.
-The `cli` object declares `"additionalProperties": False`, so a `cleanup` key is
-rejected at load time (`Additional properties are not allowed ('cleanup' was
-unexpected)`). Task 3.4a lands the field through all four round-trip points —
-schema, `CliConfig` parser, serializer, registry projection — and 3.4 depends on
-it. If P7 finds that one-shots leave no residue, drop the config-level cleanup
-step from this decision rather than leaving a config key the loader refuses.
+The cleanup contract is deliberately narrow and fail-closed:
+
+- `args` is a non-empty string array appended to the configured `cli.command`; it is
+  never a shell string and executes with `shell=False`.
+- `timeout_seconds` is bounded and defaults to 10 seconds. Cleanup runs exactly once
+  from the dispatcher's `finally` path after every launched synchronous attempt,
+  including success, non-zero exit, parse failure, cancellation, and timeout. For an
+  async mode it runs only after polling reaches a terminal outcome.
+- The cleanup subprocess receives a minimal allowlisted environment. Coordinator
+  credentials and unrelated vendor secrets are excluded; `PRIME_API_KEY` is included
+  only if P7 proves the cleanup command requires it.
+- Cleanup failure or timeout preserves the primary dispatch error, adds structured
+  cleanup diagnostics, and makes the vendor result unsuccessful and ineligible for
+  review quorum. A daemon-hygiene promise cannot be satisfied by a dirty success.
+- P7 must prefer a per-session stop derived from the parsed session identifier. If
+  prime-agent exposes only global shutdown, Prime dispatches are serialized or the
+  affected concurrent/review mode is withheld so one cleanup cannot terminate an
+  unrelated session.
+
+The field is currently rejected by `AGENTS_SCHEMA` and dropped by every parser and
+projection. Task 3.4a lands it through the coordinator schema, canonical `CliConfig`,
+`load_agents_config()`, and `get_dispatch_configs()` HTTP/MCP projection. Task 3.4
+lands the consumer-side dispatcher dataclass/parser and lifecycle execution. If P7
+finds no residue, `prime-local` omits `cleanup`; the generic capability and its tests
+remain available for future daemon-backed harnesses.
 
 ### D7. Prime Inference HTTP lane is a follow-up under `add-adaptive-model-router`, not this change
 
