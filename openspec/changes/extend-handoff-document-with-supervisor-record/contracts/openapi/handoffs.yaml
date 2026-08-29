@@ -1,0 +1,113 @@
+# agent-coordinator handoffs contract — proposed revision carried by
+# extend-handoff-document-with-supervisor-record. Integration copies this over
+# openspec/contracts/agent-coordinator/openapi/handoffs.yaml.
+#
+# AUTHORED FROM openspec/specs/agent-coordinator/spec.md — NOT generated from
+# the running application (D1). FORWARD-ENFORCED (D6): every operation carries
+# an x-traceability block.
+openapi: 3.1.0
+info:
+  title: "agent-coordinator: Handoff documents"
+  version: 1.1.0
+  description: >-
+    Session-continuity handoff persistence and retrieval, including the optional
+    supervisor_record (Session Continuity; Supervisor Record Storage).
+paths:
+  /handoffs/write:
+    post:
+      operationId: writeHandoff
+      summary: Write a handoff document
+      description: >-
+        Writing a handoff returns success with a handoff_id and the document is
+        persisted for future sessions; list fields round-trip as JSONB. The optional
+        supervisor_record object round-trips byte-identically and is stored as null
+        when omitted.
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.session-continuity
+          - agent-coordinator.supervisor-record-storage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [summary]
+              properties:
+                agent_id: {type: [string, "null"]}
+                agent_type: {type: [string, "null"]}
+                session_id: {type: [string, "null"]}
+                summary: {type: string}
+                completed_work: {type: [array, "null"]}
+                in_progress: {type: [array, "null"]}
+                decisions: {type: [array, "null"]}
+                next_steps: {type: [array, "null"]}
+                relevant_files: {type: [array, "null"]}
+                supervisor_record:
+                  type: [object, "null"]
+                  description: SupervisorRecord per contracts/schemas/supervisor-record.schema.json
+                  example:
+                    schema_version: 1
+                    written_at: "2026-08-29T03:00:00Z"
+                    active_changes: [{change_id: encode-autopilot-gates-and-goal-gate-in-code, current_phase: PLAN}]
+                    pending_gates: []
+                    standing_decisions: []
+                    back_edge: {last_digest_at: null, last_fingerprint: null, digested_stubs: []}
+      responses:
+        "200": {description: Handoff persisted with list fields and supervisor_record intact}
+        "422": {description: supervisor_record was neither a JSON object nor null}
+  /handoffs/read:
+    post:
+      operationId: readHandoff
+      summary: Read previous handoff documents
+      description: >-
+        Returns the most recent handoff documents matching the criteria, ordered by
+        creation time descending. Each row carries supervisor_record (object or null).
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - agent-coordinator.complete-http-api-coverage
+          - agent-coordinator.session-continuity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                agent_name: {type: string}
+                limit: {type: integer}
+      responses:
+        "200":
+          description: Most recent matching handoffs, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  handoffs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {type: string}
+                        agent_name: {type: string}
+                        session_id: {type: [string, "null"]}
+                        summary: {type: string}
+                        completed_work: {type: array}
+                        in_progress: {type: array}
+                        decisions: {type: array}
+                        next_steps: {type: array}
+                        relevant_files: {type: array}
+                        supervisor_record: {type: [object, "null"]}
+                        created_at: {type: [string, "null"]}
+        "401": {description: Missing or invalid X-API-Key}
+components:
+  securitySchemes:
+    coordinatorApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
