@@ -102,17 +102,29 @@ Builds a module-level import graph to detect:
 
 ### 0. Ensure Fresh Architecture Artifacts
 
-Before running the full analysis, ensure architecture artifacts are up to date for accurate coupling analysis:
+The `coupling` analyzer reads `architecture.graph.json` rather than the source, so
+its freshness is this skill's responsibility at the moment of reading — no gate or
+sync point keeps it current on your behalf:
 
 ```bash
-# Check if architecture graph exists and is fresh (< 7 days old)
-# If missing or stale, refresh it first:
-make architecture
-# Or invoke the skill:
-# /refresh-architecture
+# Ensure architecture artifacts are current, immediately before the first read.
+# `--ensure` is `--check` plus a staged refresh only when the check is not fresh,
+# so on an already-fresh checkout it writes nothing. PYTHON must name the same
+# interpreter this repository's architecture targets use: the check runs in-process
+# and the pipeline runs in a subprocess, and if the two disagree about which
+# optional grammars are importable they report permanent, unfixable drift.
+ARCH_PY="${PYTHON:-python3}"
+if "$ARCH_PY" "<agent-skills-dir>/refresh-architecture/scripts/run_architecture.py" --ensure --python "$ARCH_PY"; then
+  ARCH_FRESHNESS="ensured"
+else
+  ARCH_FRESHNESS="DEGRADED"
+  echo "DEGRADED: architecture artifacts could not be made current; the last known-good analysis is left intact but unverified. Report every architecture-derived finding below as unverified rather than as current." >&2
+fi
 ```
 
-The coupling analyzer automatically detects stale artifacts (> 7 days old) and warns in its output, but refreshing beforehand gives the most accurate results.
+The coupling analyzer also detects stale artifacts (> 7 days old) and warns in its
+output, but that warning is a backstop: the ensure call above is what makes the
+fan-in/fan-out figures describe the tree you are analyzing.
 
 ### 1. Run Orchestrator
 

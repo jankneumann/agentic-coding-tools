@@ -488,14 +488,25 @@ def _normalize_operation_response(
             state=state,
         )
     if 200 <= status_code < 300:
-        return {
+        payload = response.get("data")
+        result: dict[str, Any] = {
             "status": "ok",
             "operation": operation,
             "COORDINATOR_AVAILABLE": True,
             "COORDINATION_TRANSPORT": state.get("COORDINATION_TRANSPORT", "http"),
             "status_code": status_code,
-            "response": response.get("data"),
+            "response": payload,
+            "data": payload if isinstance(payload, dict) else {},
         }
+        # Seeder/renderer compatibility: they historically read data.id /
+        # data.issues rather than response.issue / response.issues.
+        if isinstance(payload, dict):
+            if isinstance(payload.get("issue"), dict):
+                result["issue"] = payload["issue"]
+                result["data"] = {**payload, **payload["issue"]}
+            if isinstance(payload.get("issues"), list):
+                result["issues"] = payload["issues"]
+        return result
     return {
         "status": "error",
         "operation": operation,
@@ -991,6 +1002,32 @@ def try_mark_merged(
     )
 
 
+def _github_issue_dispatch(operation: str, **kwargs: Any) -> dict[str, Any] | None:
+    """Return a GitHub-backed result, or None to use the coordinator."""
+    try:
+        import github_issues
+    except ImportError:
+        return None
+    if github_issues.issues_backend() != "github":
+        return None
+    try:
+        client = github_issues._default_client()
+    except RuntimeError:
+        return github_issues._unconfigured(operation)
+    method = getattr(client, {
+        "try_issue_create": "create",
+        "try_issue_list": "list_issues",
+        "try_issue_show": "show",
+        "try_issue_update": "update",
+        "try_issue_close": "close",
+        "try_issue_comment": "comment",
+        "try_issue_ready": "ready",
+        "try_issue_blocked": "blocked",
+        "try_issue_search": "search",
+    }[operation])
+    return method(**kwargs)
+
+
 def try_issue_create(
     *,
     title: str,
@@ -1004,7 +1041,20 @@ def try_issue_create(
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """Create a new issue via the coordinator HTTP API."""
+    """Create a new issue via GitHub (preferred) or the coordinator HTTP API."""
+    github = _github_issue_dispatch(
+        "try_issue_create",
+        title=title,
+        description=description,
+        issue_type=issue_type,
+        priority=priority,
+        labels=labels,
+        parent_id=parent_id,
+        assignee=assignee,
+        depends_on=depends_on,
+    )
+    if github is not None:
+        return github
     payload: dict[str, Any] = {
         "title": title,
         "description": description,
@@ -1041,7 +1091,18 @@ def try_issue_list(
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """List issues with optional filters via the coordinator HTTP API."""
+    """List issues with optional filters via GitHub or the coordinator HTTP API."""
+    github = _github_issue_dispatch(
+        "try_issue_list",
+        status=status,
+        issue_type=issue_type,
+        labels=labels,
+        parent_id=parent_id,
+        assignee=assignee,
+        limit=limit,
+    )
+    if github is not None:
+        return github
     payload: dict[str, Any] = {}
     if status is not None:
         payload["status"] = status
@@ -1072,7 +1133,10 @@ def try_issue_show(
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """Fetch a single issue's full details via the coordinator HTTP API."""
+    """Fetch a single issue's full details via GitHub or the coordinator HTTP API."""
+    github = _github_issue_dispatch("try_issue_show", issue_id=issue_id)
+    if github is not None:
+        return github
     return _execute_single_endpoint_operation(
         operation="try_issue_show",
         capability_flag="CAN_ISSUES",
@@ -1097,7 +1161,20 @@ def try_issue_update(
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """Update an issue via the coordinator HTTP API."""
+    """Update an issue via GitHub or the coordinator HTTP API."""
+    github = _github_issue_dispatch(
+        "try_issue_update",
+        issue_id=issue_id,
+        title=title,
+        description=description,
+        status=status,
+        priority=priority,
+        labels=labels,
+        assignee=assignee,
+        issue_type=issue_type,
+    )
+    if github is not None:
+        return github
     payload: dict[str, Any] = {"issue_id": issue_id}
     if title is not None:
         payload["title"] = title
@@ -1136,6 +1213,14 @@ def try_issue_close(
 
     Exactly one of ``issue_id`` (single) or ``issue_ids`` (batch) must be set.
     """
+    github = _github_issue_dispatch(
+        "try_issue_close",
+        issue_id=issue_id,
+        issue_ids=issue_ids,
+        reason=reason,
+    )
+    if github is not None:
+        return github
     payload: dict[str, Any] = {}
     if issue_id is not None:
         payload["issue_id"] = issue_id
@@ -1161,7 +1246,10 @@ def try_issue_comment(
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """Append a comment to an issue via the coordinator HTTP API."""
+    """Append a comment to an issue via GitHub or the coordinator HTTP API."""
+    github = _github_issue_dispatch("try_issue_comment", issue_id=issue_id, body=body)
+    if github is not None:
+        return github
     return _execute_single_endpoint_operation(
         operation="try_issue_comment",
         capability_flag="CAN_ISSUES",
@@ -1180,7 +1268,12 @@ def try_issue_ready(
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """List issues with no unresolved dependencies via the coordinator HTTP API."""
+    """List issues with no unresolved dependencies via GitHub or the coordinator."""
+    github = _github_issue_dispatch(
+        "try_issue_ready", parent_id=parent_id, limit=limit
+    )
+    if github is not None:
+        return github
     payload: dict[str, Any] = {}
     if parent_id is not None:
         payload["parent_id"] = parent_id
@@ -1207,6 +1300,9 @@ def try_issue_blocked(
 
     This endpoint is a GET that accepts ``limit`` as a query parameter.
     """
+    github = _github_issue_dispatch("try_issue_blocked", limit=limit)
+    if github is not None:
+        return github
     path = "/issues/blocked"
     if limit is not None:
         path = f"{path}?limit={int(limit)}"
@@ -1228,7 +1324,10 @@ def try_issue_search(
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
-    """Search issues by text matching via the coordinator HTTP API."""
+    """Search issues by text matching via GitHub or the coordinator HTTP API."""
+    github = _github_issue_dispatch("try_issue_search", query=query, limit=limit)
+    if github is not None:
+        return github
     payload: dict[str, Any] = {"query": query}
     if limit is not None:
         payload["limit"] = limit

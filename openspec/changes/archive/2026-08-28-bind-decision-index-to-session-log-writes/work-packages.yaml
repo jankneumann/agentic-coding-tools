@@ -1,0 +1,124 @@
+schema_version: 1
+
+feature:
+  id: bind-decision-index-to-session-log-writes
+  title: "Bind the decision index to session-log writes"
+  plan_revision: 1
+  created_by: plan-feature
+
+# No HTTP, database or event surface. The behavioural contract is the four-step
+# ordering and the best-effort guarantee, carried as spec scenarios -- the
+# convention ri-08, ri-09 and add-deterministic-context-drift-gates used for
+# producer-shaped work.
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/bind-decision-index-to-session-log-writes/contracts/README.md"
+    files:
+      - "openspec/changes/bind-decision-index-to-session-log-writes/contracts/README.md"
+
+defaults:
+  priority: 10
+  lock_ttl_minutes: 60
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-persistence
+    title: "The fourth persistence step"
+    task_type: implementation
+    description: |
+      Phase 1, tasks 1.1-1.8. Add decision-index regeneration as a fourth
+      best-effort step in `PhaseRecord.write_both()`.
+
+      Single package deliberately: the production change is one function in one
+      file, and the two invariant tests (1.6 orchestrator-scoping, 1.7 the gate
+      still catches) only mean anything alongside the step they constrain.
+      Splitting them into a second package would let the step land without its
+      guards.
+
+      Note for the implementer: `write_both()` is documented as never raising,
+      and four callers already rely on that. Step four must not become the
+      exception to it -- see design D3. Run the step AFTER the coordinator
+      write, never before: it derives from what step one appended, so an early
+      run regenerates from a session log missing this entry and produces a
+      confidently wrong index rather than a stale one.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/session-log/scripts/phase_record.py"
+      keys:
+        - "feature:bind-decision-index-to-session-log-writes:persistence"
+      ttl_minutes: 60
+      reason: "Fourth step in the phase-record persistence pipeline"
+    scope:
+      write_allow:
+        - "skills/session-log/scripts/phase_record.py"
+        - "skills/tests/phase-record-compaction/test_phase_record_write_both.py"
+        - "skills/tests/phase-record-compaction/test_decision_index_binding.py"
+        # Five SKILL.md blocks enumerate the pipeline as three steps. Correct on
+        # main, false the moment step four lands, so the correction ships with the
+        # change that invalidates them rather than as a follow-up.
+        - "skills/plan-feature/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/iterate-on-plan/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+        # Added with the five SKILL.md corrections: those files feed the
+        # documentation inventory, so the package genuinely touches this
+        # surface. The context-impact gate caught the omission.
+        - "documentation"
+    worktree:
+      name: persistence
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Phase-record pipeline suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/phase-record-compaction -q"
+          evidence:
+            artifacts: []
+            result_keys: ["pipeline_suite"]
+        - name: "Drift gate suite is undisturbed"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh -q"
+          evidence:
+            artifacts: []
+            result_keys: ["gate_suite"]
+        - name: "Edited module is ruff-clean"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/session-log"
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_clean"]
+        - name: "A session-log write leaves no decision-index drift"
+          kind: command
+          command: "make context-drift-gate PYTHON=skills/.venv/bin/python"
+          evidence:
+            artifacts: []
+            result_keys: ["acceptance_criterion"]
+    metadata:
+      loc_estimate: 120
+      complexity: low
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "pipeline_suite"
+        - "gate_suite"
+        - "ruff_clean"
+        - "acceptance_criterion"

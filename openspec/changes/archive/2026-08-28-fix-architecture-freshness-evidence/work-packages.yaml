@@ -1,0 +1,468 @@
+schema_version: 1
+
+feature:
+  id: fix-architecture-freshness-evidence
+  title: "Fix architecture freshness evidence"
+  plan_revision: 1
+  created_by: plan-feature
+
+# This change introduces no HTTP surface. Its canonical contract is the
+# architecture provenance record schema, so the contract slot carries that
+# schema rather than an OpenAPI document -- the convention ri-08, ri-09 and
+# add-deterministic-context-drift-gates already use.
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/fix-architecture-freshness-evidence/contracts/architecture-provenance.schema.json"
+    files:
+      - "openspec/changes/fix-architecture-freshness-evidence/contracts/architecture-provenance.schema.json"
+
+defaults:
+  priority: 10
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Provenance record contract v2"
+    task_type: implementation
+    description: |
+      Tasks 1.1 and 1.5. Publish `architecture-provenance.schema.json` at
+      `schema_version: 2` with a required `tier` enum on every artifact entry.
+
+      Two constraints are load-bearing and must be tested rather than assumed.
+      Artifact items are `additionalProperties: false`, so `tier` cannot be
+      introduced additively -- a reader that does not know the field rejects the
+      record. And `tier` is required rather than optional-with-default (D1):
+      a record written before this field existed must be rejected loudly, not
+      silently reinterpreted as `committed`, because that is exactly the
+      misclassification the field exists to prevent.
+
+      Task 1.1 must fail before 1.5 lands.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/schemas/architecture-provenance.schema.json"
+      keys:
+        - "contract:openspec/schemas/architecture-provenance.schema.json"
+      ttl_minutes: 60
+      reason: "Publish the v2 architecture provenance contract"
+    scope:
+      write_allow:
+        - "openspec/schemas/architecture-provenance.schema.json"
+        - "skills/tests/refresh-architecture-contracts/test_architecture_provenance_contract.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: freshness-contract
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Provenance schema is a valid JSON Schema"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import json;from jsonschema import Draft202012Validator as V;V.check_schema(json.load(open('openspec/schemas/architecture-provenance.schema.json')))\""
+          evidence:
+            artifacts: []
+            result_keys: ["provenance_schema_valid"]
+        - name: "Provenance contract tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/refresh-architecture-contracts/test_architecture_provenance_contract.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["provenance_contract_tests"]
+    metadata:
+      loc_estimate: 120
+      complexity: low
+      package_kind: data_model
+    outputs:
+      result_keys:
+        - "provenance_schema_valid"
+        - "provenance_contract_tests"
+
+  - package_id: wp-provenance
+    title: "Tier-aware freshness engine"
+    task_type: implementation
+    description: |
+      Tasks 1.2, 1.3, 1.4, 1.6 through 1.12. Teach `provenance.py` that an
+      artifact's tier decides what its absence means.
+
+      The defect this fixes is at `provenance.py:747-765`: the artifact loop
+      reports `ARTIFACT_MISSING` for every recorded artifact that is not on disk,
+      and the `required` flag does not gate it. That flag only governs generation
+      and promotion. Consequently, untracking any recorded artifact would turn
+      the drift gate red in every clean clone -- which is why the tier field must
+      land before the artifacts are untracked in wp-artifacts.
+
+      Absence becomes drift only for `tier == committed`. The digest check stays
+      unconditional on presence, so a stale local cache is reported rather than
+      trusted (scenario architecture-refresh.18).
+
+      Both version constants move (D6): `PROVENANCE_SCHEMA_VERSION` records the
+      record-shape change, `PRODUCER_VERSION` records that the set of artifacts
+      this producer commits changed. They are distinct facts and both are
+      compared.
+    role: implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/refresh-architecture/scripts/arch_utils/provenance.py"
+      keys:
+        - "feature:fix-architecture-freshness-evidence:provenance"
+      ttl_minutes: 120
+      reason: "Tier-aware freshness and version bumps"
+    scope:
+      write_allow:
+        - "skills/refresh-architecture/scripts/arch_utils/provenance.py"
+        - "skills/refresh-architecture/scripts/tests/test_provenance.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "architecture"
+        - "semantic_code"
+    worktree:
+      name: freshness-tiers
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Provenance unit suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/refresh-architecture/scripts/tests/test_provenance.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["provenance_unit_tests"]
+        - name: "Architecture freshness mapping is unchanged for committed artifacts"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/project-context-refresh/test_architecture_freshness.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["freshness_mapping_intact"]
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: algorithm
+    outputs:
+      result_keys:
+        - "provenance_unit_tests"
+        - "freshness_mapping_intact"
+
+  - package_id: wp-rpc
+    title: "Ground the RPC entry point in provenance"
+    task_type: implementation
+    description: |
+      Tasks 2.1 through 2.7. Make `get_server()` resolve a repository so the
+      production entry point reaches the content-based path that already exists.
+
+      Resolution order is explicit (D4): `REFRESH_RPC_REPO_ROOT`, then
+      `git rev-parse --show-toplevel` run from the directory containing the
+      resolved graph path, then `None`. The `None` branch is retained
+      deliberately -- the spec says the deprecated fields MAY remain, and a
+      source export with no `.git` is still supported. What changes is that it
+      becomes reachable only when there is genuinely no repository, rather than
+      by an entry point forgetting to look.
+
+      Resolution runs from the graph path's directory rather than the process
+      CWD because `DEFAULT_GRAPH_PATH` is relative today; resolving it against a
+      CWD that is not the repository root is what produces the observed
+      `stale: true, graph_mtime: null`.
+
+      `_SERVER` is a memoized module global under `_SERVER_LOCK` with no reset
+      hook, and no existing test constructs through `get_server()`. Task 2.4 adds
+      a named `reset_server()` seam rather than having tests assign the private
+      global, because reaching into another module's private state from a test
+      is coupling that survives refactors silently.
+
+      Runs in parallel with wp-provenance: the write scopes are disjoint at file
+      level within the same skill directory.
+    role: implementer
+    priority: 2
+    depends_on: []
+    locks:
+      files:
+        - "skills/refresh-architecture/scripts/rpc_server.py"
+      keys:
+        - "feature:fix-architecture-freshness-evidence:rpc"
+      ttl_minutes: 120
+      reason: "Repository resolution at the RPC entry point"
+    scope:
+      write_allow:
+        - "skills/refresh-architecture/scripts/rpc_server.py"
+        - "skills/refresh-architecture/scripts/tests/test_rpc_server.py"
+        - "agent-coordinator/tests/test_refresh_rpc_client.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "architecture"
+        - "semantic_code"
+    worktree:
+      name: freshness-rpc
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "RPC server suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/refresh-architecture/scripts/tests/test_rpc_server.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["rpc_server_tests"]
+        - name: "Default entry point never reports an mtime reason"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/refresh-architecture/scripts/tests/test_rpc_server.py -q -k 'default_entry_point or elapsed or working_directory'"
+          evidence:
+            artifacts: []
+            result_keys: ["entry_point_provenance_backed"]
+    metadata:
+      loc_estimate: 180
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "rpc_server_tests"
+        - "entry_point_provenance_backed"
+
+  - package_id: wp-merge-hygiene
+    title: "Declare heavy generated JSON unmergeable"
+    task_type: implementation
+    description: |
+      Tasks 3.1 and 3.2. Add `merge=binary` for the four heavy generated JSON
+      artifacts, following the `uv.lock` precedent from commit 2c31a75e.
+
+      Deliberately not `merge=union`: union merge is line-oriented and knows
+      nothing about the document semantics, so two branches that both regenerate
+      produce a clean-but-invalid merge. A resolver output is never correctly
+      merged line-wise; the only correct resolution is to take one side and
+      regenerate, and binary merge forces exactly that by leaving the path
+      conflicted.
+
+      Applies to `architecture.graph.json` and `architecture.diagnostics.json`
+      too, which stay committed -- they are the ones that actually conflict today.
+    role: implementer
+    priority: 2
+    depends_on: []
+    locks:
+      files:
+        - ".gitattributes"
+      keys:
+        - "feature:fix-architecture-freshness-evidence:mergepolicy"
+      ttl_minutes: 30
+      reason: "Merge policy for generated architecture artifacts"
+    scope:
+      write_allow:
+        - ".gitattributes"
+        - "skills/tests/refresh-architecture-contracts/test_generated_artifact_merge_policy.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: freshness-merge-policy
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Heavy artifacts are declared binary-merge"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/refresh-architecture-contracts/test_generated_artifact_merge_policy.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["merge_policy_declared"]
+    metadata:
+      loc_estimate: 40
+      complexity: low
+      package_kind: config
+    outputs:
+      result_keys:
+        - "merge_policy_declared"
+
+  - package_id: wp-artifacts
+    title: "Demote three artifacts to local-cache"
+    task_type: implementation
+    description: |
+      Tasks 4.1 through 4.4. Untrack `treesitter_enrichment.json` (1.25 MB),
+      `python_analysis.json` (991 KB) and `parallel_zones.json` (520 KB), ignore
+      them, and regenerate the committed provenance at schema 2.
+
+      Depends on wp-provenance and cannot start before it: untracking a recorded
+      artifact while `check_freshness` still treats every absence as
+      `ARTIFACT_MISSING` turns the drift gate red in every clean clone.
+
+      All three keep being generated by the pipeline; only the commit stops. The
+      consumer scan found no hard reader for any of them -- the readers that
+      exist log and skip when the file is absent. `architecture.graph.json` and
+      `architecture.diagnostics.json` deliberately stay committed: the graph is
+      read out of git history by `checkpoint.py:339` and by the
+      `architecture-diff` target feeding validate-feature's new-cycle gate.
+
+      Task 4.4 must run last in this package: the regenerated provenance is the
+      artifact that proves the tier assignment and the untracking agree.
+    role: implementer
+    priority: 3
+    depends_on:
+      - wp-provenance
+    locks:
+      files:
+        - "docs/architecture-analysis/architecture.provenance.json"
+        - ".gitignore"
+      keys:
+        - "feature:fix-architecture-freshness-evidence:artifacts"
+      ttl_minutes: 60
+      reason: "Untrack local-cache artifacts and regenerate provenance"
+    scope:
+      write_allow:
+        - ".gitignore"
+        - "docs/architecture-analysis/**"
+        - "skills/tests/refresh-architecture-contracts/test_local_cache_artifacts.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "architecture"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: freshness-artifacts
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Local-cache artifacts are untracked"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/refresh-architecture-contracts/test_local_cache_artifacts.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["local_cache_untracked"]
+        - name: "Regenerated provenance declares schema 2"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import json,sys;d=json.load(open('docs/architecture-analysis/architecture.provenance.json'));assert d['schema_version']==2,d['schema_version'];assert all('tier' in a for a in d['artifacts']);print('ok')\""
+          evidence:
+            artifacts:
+              - "docs/architecture-analysis/architecture.provenance.json"
+            result_keys: ["provenance_regenerated"]
+    metadata:
+      loc_estimate: 60
+      complexity: low
+      package_kind: data_model
+    outputs:
+      result_keys:
+        - "local_cache_untracked"
+        - "provenance_regenerated"
+
+  - package_id: wp-integration
+    title: "Mirror sync and clean-clone verification"
+    task_type: integration
+    description: |
+      Tasks 5.1 through 5.3. Re-sync the skill mirrors, then prove the change on
+      a clean clone rather than on the working tree that produced it.
+
+      The mirror sync is not optional bookkeeping:
+      `gate-drift-with-mirrors-hooks-and-blocking-ci` adds a CI job that fails on
+      drift between `skills/` and the `.claude/skills/` / `.agents/skills/`
+      copies, and every code edit in this change is under `skills/`.
+
+      The clean-clone check is the only verification that actually exercises
+      scenario architecture-refresh.17: on the tree that generated the artifacts
+      the local-cache files are present, so their absence is never tested there.
+    role: integrator
+    priority: 4
+    depends_on:
+      - wp-contracts
+      - wp-provenance
+      - wp-rpc
+      - wp-merge-hygiene
+      - wp-artifacts
+    locks:
+      files:
+        - ".claude/skills/refresh-architecture"
+        - ".agents/skills/refresh-architecture"
+      keys:
+        - "feature:fix-architecture-freshness-evidence:mirrors"
+      ttl_minutes: 60
+      reason: "Mirror sync and integration verification"
+    scope:
+      write_allow:
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: freshness-integration
+      mode: shared
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Skill install payload is in sync"
+          kind: command
+          command: "bash install.sh --check"
+          evidence:
+            artifacts: []
+            result_keys: ["mirrors_synced"]
+        - name: "Context drift gate is fresh on a clean clone"
+          kind: command
+          command: "make context-drift-gate PYTHON=skills/.venv/bin/python"
+          evidence:
+            artifacts: []
+            result_keys: ["clean_clone_fresh"]
+        - name: "Tracked architecture bytes fell by at least 2.76 MB"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import subprocess;print(sum(int(subprocess.run(['git','cat-file','-s',l.split()[2]],capture_output=True,text=True).stdout) for l in subprocess.run(['git','ls-tree','-r','HEAD','docs/architecture-analysis/'],capture_output=True,text=True).stdout.splitlines()))\""
+          evidence:
+            artifacts: []
+            result_keys: ["repository_weight"]
+    metadata:
+      loc_estimate: 20
+      complexity: low
+      package_kind: integration
+    outputs:
+      result_keys:
+        - "mirrors_synced"
+        - "clean_clone_fresh"
+        - "repository_weight"

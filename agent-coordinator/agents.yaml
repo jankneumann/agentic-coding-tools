@@ -175,7 +175,13 @@ agents:
     isolation: sandbox
     api_key: "${CODEX_API_KEY}"
     openbao_role_id: codex-cloud
-    capabilities: [lock, queue, memory, guardrails, handoff, feature_registry]
+    # `discover` restored 2026-08-14: the registry projection derives
+    # allowed_operations from these capabilities, and omitting `discover` would
+    # have dropped register_session/heartbeat/discover_agents from the synced
+    # profile — operations this agent holds today and needs to register a session
+    # and avoid being reaped as stale. The omission was a registry gap, not an
+    # intentional restriction (claude-remote already declares `discover`).
+    capabilities: [lock, queue, memory, guardrails, handoff, discover, feature_registry]
     archetypes: [implementer, reviewer]
     description: Remote Codex agent (runs on OpenAI infrastructure)
     cli:

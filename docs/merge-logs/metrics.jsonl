@@ -1,28 +1,10 @@
-{"event_type": "rebase", "pr_number": 10, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:43:54.458172+00:00"}
-{"event_type": "rebase", "pr_number": 0, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:43:54.459023+00:00"}
-{"event_type": "rebase", "pr_number": 1, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:43:54.459085+00:00"}
-{"event_type": "rebase", "pr_number": 2, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:43:54.459129+00:00"}
-{"event_type": "rebase", "pr_number": 3, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:43:54.459168+00:00"}
-{"event_type": "rebase", "pr_number": 4, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:43:54.459205+00:00"}
-{"event_type": "rebase", "pr_number": 11, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:43:54.460061+00:00"}
-{"event_type": "rebase", "pr_number": 0, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:43:54.460400+00:00"}
-{"event_type": "rebase", "pr_number": 1, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:43:54.460453+00:00"}
-{"event_type": "revert", "pr_number": 42, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:43:54.462384+00:00"}
-{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": true, "timestamp": "2026-08-05T17:43:54.589592+00:00"}
-{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": true, "timestamp": "2026-08-05T17:43:54.590045+00:00"}
-{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": true, "timestamp": "2026-08-05T17:43:54.590446+00:00"}
-{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": false, "timestamp": "2026-08-05T17:43:54.591300+00:00", "error": "API timeout"}
-{"event_type": "rebase", "pr_number": 10, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:44:29.341743+00:00"}
-{"event_type": "rebase", "pr_number": 0, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:44:29.342304+00:00"}
-{"event_type": "rebase", "pr_number": 1, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:44:29.342370+00:00"}
-{"event_type": "rebase", "pr_number": 2, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:44:29.342416+00:00"}
-{"event_type": "rebase", "pr_number": 3, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:44:29.342456+00:00"}
-{"event_type": "rebase", "pr_number": 4, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:44:29.342493+00:00"}
-{"event_type": "rebase", "pr_number": 11, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:44:29.343417+00:00"}
-{"event_type": "rebase", "pr_number": 0, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:44:29.343754+00:00"}
-{"event_type": "rebase", "pr_number": 1, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:44:29.343800+00:00"}
-{"event_type": "revert", "pr_number": 42, "backend": "direct", "success": true, "timestamp": "2026-08-05T17:44:29.345686+00:00"}
-{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": true, "timestamp": "2026-08-05T17:44:29.485330+00:00"}
-{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": true, "timestamp": "2026-08-05T17:44:29.485801+00:00"}
-{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": true, "timestamp": "2026-08-05T17:44:29.486209+00:00"}
-{"event_type": "train_compose", "pr_number": 0, "backend": "watcher", "success": false, "timestamp": "2026-08-05T17:44:29.486951+00:00", "error": "API timeout"}
+{"event_type": "merge", "pr_number": 418, "backend": "direct", "success": true, "timestamp": "2026-08-25T12:31:08.774268+00:00", "origin": "other", "strategy": "rebase", "duration_seconds": 4.898}
+{"event_type": "merge", "pr_number": 365, "backend": "direct", "success": true, "timestamp": "2026-08-25T12:46:34.669224+00:00", "origin": "dependabot", "strategy": "squash", "duration_seconds": 4.647}
+{"event_type": "merge", "pr_number": 369, "backend": "direct", "success": true, "timestamp": "2026-08-25T12:47:10.721333+00:00", "origin": "dependabot", "strategy": "squash", "duration_seconds": 4.243}
+{"event_type": "merge", "pr_number": 366, "backend": "direct", "success": true, "timestamp": "2026-08-25T12:47:33.387637+00:00", "origin": "dependabot", "strategy": "squash", "duration_seconds": 4.981}
+{"event_type": "merge", "pr_number": 367, "backend": "direct", "success": true, "timestamp": "2026-08-25T12:54:35.312144+00:00", "origin": "dependabot", "strategy": "squash", "duration_seconds": 5.854}
+{"event_type": "merge", "pr_number": 368, "backend": "direct", "success": true, "timestamp": "2026-08-25T12:55:19.905344+00:00", "origin": "dependabot", "strategy": "squash", "duration_seconds": 5.774}
+{"event_type": "merge", "pr_number": 413, "backend": "direct", "success": true, "timestamp": "2026-08-25T13:54:57.631171+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 6.281}
+{"event_type": "merge", "pr_number": 372, "backend": "direct", "success": true, "timestamp": "2026-08-25T13:55:20.870766+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 5.215}
+{"event_type": "merge", "pr_number": 374, "backend": "direct", "success": true, "timestamp": "2026-08-25T14:04:06.707913+00:00", "origin": "openspec", "strategy": "merge", "duration_seconds": 5.076}
+{"event_type": "merge", "pr_number": 409, "backend": "direct", "success": true, "timestamp": "2026-08-26T11:42:30.256270+00:00", "origin": "openspec", "strategy": "squash", "duration_seconds": 6.629}

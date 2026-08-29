@@ -5,25 +5,168 @@
 
 ---
 
-## 2026-07-26 — add-branch-local-context-checkpoints
+## 2026-08-28 — 2026-08-28-rescope-architecture-freshness-to-on-demand
+
+### Phase: Implementation
+
+**The architecture baseline requirement is tier-aware, not tier-blind** — D2 was authored before fix-architecture-freshness-evidence landed a per-artifact tier, so it rejected Approach C on a behaviour that no longer exists -- an absent local-cache artifact is not stale and not missing, it is not drift -- and asserted that no consumer commits the artifacts, which is false for this repository. The requirement now says provenance shares the version-control status of its committed-tier artifacts: an all-committed repository keeps the clean-checkout guarantee its CI demonstrated, while a local-cache consumer gets the unverified-until-ensure posture. No new mechanism was needed.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md) (D1)
+
+---
+
+## 2026-08-28 — 2026-08-28-rescope-architecture-freshness-to-on-demand
+
+### Phase: Implementation
+
+**Consumers ensure at the skill's documented read step, never inside the scripts** — validate_flows.py, analyze_coupling.py and validate_schema.py all take an explicit artifact path and are run against fixtures with no repository. A script that regenerated would regenerate against cwd while reading a caller-supplied tmpdir, break hermetic tests, and impose on a caller-supplied path exactly the posture change D8 refuses for the checkpoint.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md) (D3)
+
+---
+
+## 2026-08-28 — 2026-08-28-rescope-architecture-freshness-to-on-demand
+
+### Phase: Implementation
+
+**A failed --ensure degrades loudly rather than stopping the consumer** — A failed staged run preserves last known-good, so the reader has degraded input rather than none. All six consumers are advisory analysis producers that already degraded on missing artifacts. Hard-failing would reintroduce on the reader's side the blocking consequence D3 just removed from the gate, locking out any machine that cannot run the pipeline.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md) (D4)
+
+---
+
+## 2026-08-28 — 2026-08-28-rescope-architecture-freshness-to-on-demand
+
+### Phase: Implementation
+
+**PRODUCER_VERSION skipped 1.3.0 deliberately** — 1.3.0 belongs to the per-artifact tier change on main. Reusing it for per-grammar tool identity would have given one version string two meanings once the histories met -- which they did, during the rebase, where it resolved cleanly to 1.4.0.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md) (D5)
+
+---
+
+## 2026-08-27 — 2026-08-28-fix-architecture-freshness-evidence
+
+### Phase: Implementation
+
+**A relative default graph path anchors at the module file, not the cwd** — Design D4 said anchor `git rev-parse` at the directory containing the resolved graph path, but DEFAULT_GRAPH_PATH is relative, so that directory only exists by way of the cwd -- exactly what scenario .22 forbids. Following D4 literally would have satisfied the decision and violated the spec. A relative path now anchors at the module's own directory, also inside the repository being probed and also cwd-independent; an absolute path still anchors at its own directory.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md](/openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md) (D1)
+
+---
+
+## 2026-08-27 — 2026-08-28-fix-architecture-freshness-evidence
+
+### Phase: Implementation
+
+**A legacy-schema record emits both the version mismatch and PROVENANCE_INVALID** — test_architecture_freshness.py::test_schema_invalid_provenance_is_drift writes {schema_version: 1} and asserts the codes intersect {PROVENANCE_INVALID, PROVENANCE_MISSING}. That file is in no package's write_allow and had to keep passing untouched. Emitting both is also simply truthful, and scenario .19's 'SHALL NOT report as artifact drift' is unaffected because neither is an artifact code.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md](/openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md) (D2)
+
+---
+
+## 2026-08-27 — 2026-08-28-fix-architecture-freshness-evidence
+
+### Phase: Implementation
+
+**Schema-version mismatch is checked before structural validation** — _published_schema_path() can return None on a trimmed runtime copy. Checking the version independently of validate_provenance means the mismatch is still caught there, instead of going undetected entirely.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md](/openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md) (D3)
+
+---
+
+## 2026-08-27 — 2026-08-28-fix-architecture-freshness-evidence
+
+### Phase: Implementation
+
+**The refresh ran with PROJECT_CONTEXT_REPO_ID pinned** — provenance.repository_id() derives identity from the git toplevel basename, which in a worktree is the change directory name. An unpinned run would have stamped 'fix-architecture-freshness-evidence' into a tracked artifact and produced a flip-flop on the next main-checkout refresh. The override is documented in that function's own docstring.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md](/openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md) (D4)
+
+---
+
+## 2026-08-26 — 2026-08-28-fix-architecture-freshness-evidence
+
+### Phase: Plan
+
+**Split the seven-item request into two changes** — Items 4-7 modify requirements that exist only as ## ADDED deltas inside four unarchived changes, so a ## MODIFIED delta has no archived baseline and fails openspec validate --strict. Items 1-3 target the archived architecture-refresh spec and have zero file contention -- rpc_server.py and .gitattributes are referenced by none of the 64 active changes.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md](/openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md) (D1)
+
+---
+
+## 2026-08-26 — 2026-08-28-fix-architecture-freshness-evidence
+
+### Phase: Plan
+
+**Provenance records an artifact tier rather than dropping untracked artifacts** — Selected over the smaller alternative at Gate 1. Erasing the uncommitted artifacts from _OWNED_TOP_LEVEL would make 'deliberately uncommitted' indistinguishable from 'failed to generate', and would leave a stale local cache undetectable. A typed tier keeps the record auditable and gives the vocabulary for moving architecture.graph.json later without a second schema migration.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md](/openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md) (D2)
+
+---
+
+## 2026-08-26 — 2026-08-28-fix-architecture-freshness-evidence
+
+### Phase: Plan
+
+**tier is required and enumerated, not optional-with-default** — Artifact items are additionalProperties: false and freshness fails closed on schema-invalid provenance. A defaulted tier would let a pre-change record read as 'committed' for every entry, which is the exact silent misclassification the field exists to prevent. Forces schema_version 1 -> 2.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md](/openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md) (D3)
+
+---
+
+## 2026-08-26 — 2026-08-28-fix-architecture-freshness-evidence
+
+### Phase: Plan
+
+**Legacy mtime probe stays reachable, but only when no repository resolves** — The spec says the deprecated max_age_hours and graph_mtime fields MAY remain, test_rpc_server.py:314 pins legacy mode deliberately, and a source export with no .git is still supported by input_enumeration_strategy. The defect was never that the branch exists -- it is that get_server() never looked for a repository.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md](/openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md) (D4)
+
+---
+
+## 2026-08-26 — 2026-08-28-fix-architecture-freshness-evidence
+
+### Phase: Plan
+
+**architecture.graph.json and architecture.diagnostics.json stay committed** — The graph is read out of git history by checkpoint.py:339 and by the architecture-diff target feeding validate-feature's new-cycle gate, and it is required=True with roughly twenty readers. The consumer scan found no hard reader for treesitter_enrichment.json, python_analysis.json, or parallel_zones.json, so only those three move to local-cache.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md](/openspec/changes/archive/2026-08-28-fix-architecture-freshness-evidence/session-log.md) (D5)
+
+---
+
+## 2026-07-26 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Implementation
 
 **Architecture delta is computed against the working tree, not the committed graph** — A checkpoint describes a branch mid-flight; diffing two committed graphs would blind it during exactly the uncommitted window it exists for. The freshness finding already carries the caveat, so reading the working-tree graph loses nothing.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D3)
 
 ---
 
-## 2026-07-25 — add-branch-local-context-checkpoints
+## 2026-07-25 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Plan
 
 **Architecture coverage is a merge-base diff, not a slice** — architecture-provenance.schema.json pins mode to the enum full|quick, so a slice mode would be a contract change. diff_architecture.py already exists standalone and is wired into nothing. Freshness and delta are reported separately because a stale artifact yields a misleading delta.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D5)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D5)
 
 ---
 

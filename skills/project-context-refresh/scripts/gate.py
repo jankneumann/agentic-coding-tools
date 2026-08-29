@@ -9,8 +9,8 @@ derived from a classification rather than from a collapsed terminal state:
   registered producer in ``check`` mode and writes neither the durable store nor
   the working tree. Dispatch is not re-implemented here;
 * **architecture freshness** — via the orchestrator's architecture seam, whose
-  default compares *committed* provenance with ``check_freshness`` and fails
-  closed on unverifiable evidence (D4). Consumed, not re-implemented;
+  default compares *local* provenance with ``check_freshness``. Consumed, not
+  re-implemented, and reported without blocking (D2/D3);
 * **work-package context impact** — ri-08's ``validate_context_impact``, invoked
   over the ``work-packages.yaml`` files present in the diff under test and
   **never** with ``--strict-legacy`` (D7).
@@ -39,17 +39,52 @@ A surviving ``not-configured`` can only come from an *optional* producer —
 to ``failed`` before it ever reaches here — so it is external degradation and by
 decision must not block.
 
+**Which blocking findings count depends on the triggering event (D4).** The table
+above answers *how severe*; attribution answers *whose fault*; the event answers
+*is this the run that must block on it*:
+
+=========================  ===========  ==========  ===============
+event                      introduced   inherited   indeterminate
+=========================  ===========  ==========  ===============
+``pull_request``           blocks       reported    reported
+``merge_group``            blocks       blocks      blocks
+``push`` (integration)     blocks       blocks      blocks
+no event supplied          blocks       blocks      blocks
+anything else              error — an unknown event is never a pass
+=========================  ===========  ==========  ===============
+
+Inherited drift is *reported*, not dropped: it stays in ``blocking_drift`` with
+its attribution and owner, so exit ``0`` there reads as "someone else's debt".
+The merge candidate is still asked, at ``merge_group`` and on the push that
+follows, where there is no other branch to inherit from — so nothing reaches the
+integration branch unchecked. Omitting the event selects the strict rule so that
+every caller predating this change gets exactly the verdict it got before.
+
 Two reconciliations are recorded rather than left implicit.
 
-**Missing architecture provenance exits 2, not 1.** The exit table's "or
-unverifiable architecture provenance" clause reads, in isolation, as though a
-missing baseline were an apparatus failure. It is not: D4 maps missing,
-malformed, and schema-invalid provenance to ``R.drift``, and the spec scenario
-"Missing provenance blocks" requires *the drift exit code*. The ``architecture``
-report block still names it ``unverifiable``, keeping "no baseline at all"
-distinguishable from "digests disagree", but it is blocking drift. Exit ``1``
-covers the case where the architecture producer could not reach a verdict at
-all, which arrives as a ``failed`` result.
+**Missing architecture provenance exits 0, and is still reported.** ri-10 D4
+made unverifiable provenance *blocking*; that consequence is withdrawn here.
+Architecture artifacts and their provenance are a regenerable local analysis
+cache (D2), so their freshness is a property of the checkout that last
+regenerated them and of no other. A gate run on any other checkout cannot
+observe it, and blocking on it blocked on a condition true of every clean clone.
+The architecture arm therefore joins ``openspec.projection`` in
+``informational_drift`` and contributes nothing to the exit code (D3).
+
+What survives from D4 is the *reporting* distinction, not the consequence: the
+``architecture`` block still names a missing or malformed baseline
+``unverifiable`` rather than ``not-configured``, so "no baseline at all" stays
+distinguishable from "digests disagree" and from an absent optional owner. Exit
+``1`` is untouched — the architecture producer that could not reach a verdict at
+all still arrives as ``failed``, and one that drifted without naming an artifact
+is still reclassified below. Only the *drift* verdict moved, and only in the
+direction of exiting 0; nothing that exited 2 for a committed artifact does now.
+
+Architecture findings reach ``informational_drift`` attributed ``indeterminate``:
+:func:`_attribution_evidence` looks for provenance at the merge base, and after
+D2 there is none to find. That is the correct reading of the vocabulary — the
+evidence is absent, not the blame assigned — and it costs nothing, because
+attribution only ever filters *blocking* findings for the exit code.
 
 **The validator's exit ``2`` becomes the gate's exit ``1``.**
 ``validate_context_impact.py`` returns ``2`` for *usage* errors — a missing file
@@ -72,6 +107,8 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
+import re
 import subprocess
 import sys
 from collections.abc import Callable, Iterable, Sequence
@@ -94,6 +131,14 @@ if _VALIDATE_PACKAGES_SCRIPTS.is_dir() and str(_VALIDATE_PACKAGES_SCRIPTS) not i
 from context_impact import SURFACES  # noqa: E402
 import validate_context_impact  # noqa: E402
 
+# The metrics sink (D7 -- metrics) lives in ``merge-pull-requests``. Unlike ri-08
+# above it is deliberately *not* imported here: the record is telemetry, so a
+# checkout without that skill installed must still gate. The import happens
+# inside :func:`emit_gate_metrics`, where any failure is already swallowed.
+_MERGE_EVENTS_SCRIPTS = (
+    Path(__file__).resolve().parents[2] / "merge-pull-requests" / "scripts"
+)
+
 #: Contract version of the emitted report. Pinned by the schema's ``const``.
 GATE_SCHEMA_VERSION = 1
 
@@ -115,10 +160,23 @@ CONTEXT_IMPACT_OWNER = "validate-packages"
 #: than an ri-05 registry entry (mirrors ``cli._owner_by_producer_id``).
 ARCHITECTURE_OWNER = "refresh-architecture"
 
-#: The committed provenance document the architecture arm compares against.
+#: The local provenance document the architecture arm compares against. Local
+#: rather than committed (D2): it lives beside the ~36 MB of regenerated
+#: artifacts it describes and shares their version-control status.
 ARCHITECTURE_PROVENANCE_PATH = "docs/architecture-analysis/architecture.provenance.json"
 
-#: Freshness reason codes that mean "there is no usable committed baseline".
+#: Producer ids whose drift is reported but never blocks, passed explicitly to
+#: :func:`orchestrator.classify_degradation` rather than folded into its default.
+#: ``classify_degradation`` is a pure partition over ids the *caller* nominates,
+#: and the reason architecture is informational is a property of this gate's
+#: question — "must a reviewer fix this before merge?" — not of the classifier.
+#: Keeping the addition here also keeps the orchestrator's own default, which
+#: other callers read, describing only ``openspec.projection`` (D3).
+GATE_INFORMATIONAL_PRODUCERS: frozenset[str] = orchestrator.INFORMATIONAL_PRODUCERS | {
+    orchestrator.ARCHITECTURE_PRODUCER_ID
+}
+
+#: Freshness reason codes that mean "there is no usable local baseline".
 #: ``_default_architecture_producer`` renders each drift validation summary as
 #: ``"<CODE>: <detail>"``, so a prefix match recovers the code without importing
 #: ``refresh-architecture`` (which may legitimately be absent).
@@ -137,13 +195,52 @@ EXIT_FRESH = 0
 EXIT_FAILED = 1
 EXIT_DRIFT = 2
 
+#: Attribution values (D2/D3). Attribution answers *whose fault* a finding is,
+#: which is a separate axis from ``classify_degradation``'s four disjoint groups
+#: answering *how severe* it is. It is computed here rather than there because it
+#: shells out to git and that function is pinned IO-free.
+ATTRIBUTION_INHERITED = "inherited"
+ATTRIBUTION_INTRODUCED = "introduced"
+ATTRIBUTION_INDETERMINATE = "indeterminate"
+
+#: The owner recorded for a detached checkout, which names no branch.
+DETACHED_BRANCH_OWNER = "HEAD"
+
+#: Triggering events the gate has a rule for (D4). Attribution says *who owns* a
+#: finding; the event says whether *this* run is the one that must block on it.
+EVENT_PULL_REQUEST = "pull_request"
+EVENT_MERGE_GROUP = "merge_group"
+EVENT_PUSH = "push"
+
+#: Events at which every blocking finding contributes to the drift exit code,
+#: whatever its attribution: there is no other branch to inherit from. A merge
+#: group *is* the prospective integration branch, and a push has already become
+#: it, so debt sitting there is nobody else's to clear.
+BLOCK_ALL_EVENTS = frozenset({EVENT_MERGE_GROUP, EVENT_PUSH})
+
+#: Every event with a rule. An event outside this set is an error, never a pass
+#: (see :func:`require_known_event`); *absence* of an event is not — see
+#: :func:`event_blocking_findings` for why the default is the strict rule.
+KNOWN_EVENTS = frozenset({EVENT_PULL_REQUEST, *BLOCK_ALL_EVENTS})
+
+_FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+
 #: Bounded like every other reason string in this contract family.
 _MAX_REASON = 300
+
+#: Environment variable naming the file this run's ``context_gate`` record is
+#: appended to (D7 -- metrics). Unset means no record, which is what every caller
+#: predating this change gets. It is a path rather than a boolean because there
+#: is no safe default destination: the only directory the gate reliably knows is
+#: the checkout it is grading, and it must not write there.
+GATE_METRICS_PATH_ENV = "CONTEXT_GATE_METRICS_PATH"
 
 #: ``orchestrator.check``'s call shape, injectable so composition is testable
 #: without running real producers against a real checkout.
 CheckRunner = Callable[..., orchestrator.RefreshResult]
-#: ``(repository, base) -> changed repository-relative paths``.
+#: ``(repository, base_revision) -> changed repository-relative paths``. The
+#: second argument is the *resolved* base (see :func:`resolve_base`), not the
+#: raw ``--base`` name, so the diff and the report describe one revision.
 ChangedFilesResolver = Callable[[Path, str], "tuple[str, ...]"]
 #: ``argv -> (exit_code, stdout)`` for one ri-08 validator invocation.
 ContextImpactRunner = Callable[[Sequence[str]], "tuple[int, str]"]
@@ -187,6 +284,16 @@ def owner_by_producer_id() -> dict[str, str]:
 def _outputs_by_producer_id() -> dict[str, tuple[str, ...]]:
     """Declared managed outputs per producer, used only as an artifact fallback."""
     return {spec.producer_id: spec.outputs for spec in list_producers()}
+
+
+def _specs_by_producer_id() -> dict[str, Any]:
+    """Every registered spec by producer id, for the declared inputs and outputs.
+
+    Attribution needs both halves of a spec — the inputs are the pathspec the
+    ancestry diff is taken over, the outputs are how the producer's recorded
+    revision is located — so it reads the spec rather than either projection.
+    """
+    return {spec.producer_id: spec for spec in list_producers()}
 
 
 def _bounded(text: str) -> str:
@@ -236,12 +343,20 @@ def _remediation_entries(result: ProducerResult) -> list[dict[str, str]]:
     ]
 
 
-def _finding(result: ProducerResult, owner: str, artifacts: tuple[str, ...]) -> dict[str, Any]:
+def _finding(
+    result: ProducerResult,
+    owner: str,
+    artifacts: tuple[str, ...],
+    attribution: str,
+    attributed_owner: str,
+) -> dict[str, Any]:
     return {
         "producer_id": result.producer_id,
         "owner": owner,
         "artifacts": list(artifacts),
         "remediation": _remediation_entries(result),
+        "attribution": attribution,
+        "attributed_owner": attributed_owner,
     }
 
 
@@ -318,10 +433,13 @@ def provenance_state(repository: Path) -> str:
 def architecture_freshness(result: ProducerResult | None) -> str:
     """Map the architecture producer's result onto the report's freshness enum.
 
-    ``unverifiable`` is deliberately *not* folded into ``not-configured``:
-    unverifiable evidence blocks, an absent optional owner does not (D4). It
-    covers a missing or malformed committed baseline and a producer that could
-    not reach a verdict at all.
+    ``unverifiable`` is deliberately *not* folded into ``not-configured``, even
+    though neither blocks any more: "there is no baseline to compare against" and
+    "the architecture owner is not installed here" are different facts about the
+    checkout, and a reader deciding whether to run ``--ensure`` needs them apart
+    (D2). It covers a missing or malformed local baseline and a producer that
+    could not reach a verdict at all — the latter arriving as ``failed``, which
+    still exits ``1``.
     """
     if result is None:
         return "not-configured"
@@ -356,16 +474,23 @@ def work_package_files(changed_files: Iterable[str]) -> tuple[str, ...]:
     )
 
 
-def _default_changed_files(repository: Path, base: str) -> tuple[str, ...]:
-    """``git diff --name-only <base>...HEAD``, or empty when the base is unknown.
+def _default_changed_files(repository: Path, base_revision: str) -> tuple[str, ...]:
+    """``git diff --name-only <base_revision>...HEAD``, or empty when it is unknown.
+
+    *base_revision* is what :func:`resolve_base` decided the ``--base`` name means,
+    which is the same revision ``describe_tree`` reports. Passing the raw name here
+    is what let one report compare against two bases: a local ``main`` that had
+    fallen behind produced a 53-file diff while the tree block, reading
+    ``origin/main``, reported zero commits behind.
 
     An unresolvable base is not an apparatus failure. It names a branch that may
     legitimately be absent from a shallow or detached CI checkout, and the
     deterministic arms — the gate's actual yield — do not depend on it. The empty
-    result stays visible in the report as an empty ``evaluated`` list.
+    result stays visible in the report as an empty ``evaluated`` list, and the
+    report records ``base_resolved_revision: null`` so the absence is legible.
     """
     completed = subprocess.run(
-        ["git", "-C", str(repository), "diff", "--name-only", f"{base}...HEAD"],
+        ["git", "-C", str(repository), "diff", "--name-only", f"{base_revision}...HEAD"],
         capture_output=True,
         text=True,
         check=False,
@@ -500,11 +625,15 @@ def run_context_impact(
     )
 
 
-def _context_impact_finding(paths: Sequence[str]) -> dict[str, Any]:
+def _context_impact_finding(
+    paths: Sequence[str], attribution: str, attributed_owner: str
+) -> dict[str, Any]:
     return {
         "producer_id": CONTEXT_IMPACT_PRODUCER_ID,
         "owner": CONTEXT_IMPACT_OWNER,
         "artifacts": list(paths),
+        "attribution": attribution,
+        "attributed_owner": attributed_owner,
         "remediation": [
             {
                 "summary": (
@@ -519,6 +648,192 @@ def _context_impact_finding(paths: Sequence[str]) -> dict[str, Any]:
             }
         ],
     }
+
+
+# --------------------------------------------------------------------------- #
+# Event dispatch (D4) — which findings this run is the one to block on
+# --------------------------------------------------------------------------- #
+def require_known_event(event: str | None) -> None:
+    """Refuse an event the gate has no rule for. ``None`` is not such an event.
+
+    An unrecognised trigger is an *apparatus* failure, not drift: the gate
+    cannot say which rule applies, so it has no verdict to report. Applying the
+    most permissive rule instead would report success without having asked the
+    question, which is the unfalsifiable green the whole event axis exists to
+    prevent.
+
+    Validated here rather than with argparse ``choices`` because argparse exits
+    ``2`` on a rejected value and ``2`` is this gate's *drift* code — a reviewer
+    would go looking for a stale artifact that does not exist. Raised as a
+    :class:`GateError`, which ``cli._gate`` renders as exit ``1``.
+
+    ``None`` means *no event was supplied*, which every caller that predates this
+    change does. That is a distinct state from an unknown name and is handled by
+    :func:`event_blocking_findings`, not refused here.
+    """
+    if event is None or event in KNOWN_EVENTS:
+        return
+    known = ", ".join(sorted(KNOWN_EVENTS))
+    raise GateError(
+        f"unhandled event {event!r} — no rule for this trigger; "
+        f"the gate has rules for {known}, and treats an unknown event as an "
+        "error rather than as a pass"
+    )
+
+
+def event_blocking_findings(
+    blocking: Sequence[dict[str, Any]], event: str | None
+) -> list[dict[str, Any]]:
+    """The blocking findings that contribute to the drift exit code on *event*.
+
+    On a ``pull_request`` only *introduced* drift contributes. Inherited drift —
+    and ``indeterminate`` drift, which resolves toward inherited — is reported
+    and does not, because blaming a branch for the integration branch's debt is
+    the failure this axis exists to prevent: one stale artifact on ``main`` once
+    failed this gate on twelve unrelated pull requests, including one-line
+    dependency bumps.
+
+    On every other event every blocking finding contributes. That includes the
+    no-event default, and the default is deliberately the *strict* rule: a caller
+    that passes no event — ``make context-drift-gate``, the convergence runner, a
+    developer at a shell — gets exactly the verdict it got before this change.
+    Defaulting to the pull-request rule instead would silently relax every local
+    invocation and leave the strict answer the one nobody ever sees.
+
+    Findings are filtered, never dropped from the report: the returned list feeds
+    the exit code only, and ``blocking_drift`` still carries every finding with
+    its attribution and its owner. Exit ``0`` with a non-empty ``blocking_drift``
+    is therefore legible as "someone else's debt", not as a clean tree — which is
+    also why ``outcome`` keeps describing the *tree* rather than the exit code.
+    """
+    if event != EVENT_PULL_REQUEST:
+        return list(blocking)
+    return [
+        finding
+        for finding in blocking
+        if finding.get("attribution") == ATTRIBUTION_INTRODUCED
+    ]
+
+
+# --------------------------------------------------------------------------- #
+# Metrics (D7) — telemetry about the verdict, never part of it
+# --------------------------------------------------------------------------- #
+def _attribution_counts(findings: Iterable[dict[str, Any]]) -> dict[str, int]:
+    """Count *findings* by attribution, with every vocabulary member present.
+
+    Seeded with all three keys at zero rather than built from what happened to
+    appear, so a group with no inherited findings records ``0`` instead of
+    omitting the key. "Three clean runs in a row" is a claim about runs that
+    counted zero, and a missing key would let silence count as clean.
+    """
+    counts = {
+        ATTRIBUTION_INHERITED: 0,
+        ATTRIBUTION_INTRODUCED: 0,
+        ATTRIBUTION_INDETERMINATE: 0,
+    }
+    for finding in findings:
+        attribution = finding.get("attribution")
+        if attribution in counts:
+            counts[attribution] += 1
+    return counts
+
+
+def _metrics_destination(metrics_path: Path | str | None) -> Path | None:
+    """The file this run's record is appended to, or ``None`` when off.
+
+    Off unless a destination is named, by argument or by
+    ``CONTEXT_GATE_METRICS_PATH``. The argument wins so a test or an embedding
+    caller is not at the mercy of the ambient environment.
+    """
+    raw = metrics_path if metrics_path is not None else os.environ.get(
+        GATE_METRICS_PATH_ENV
+    )
+    if raw is None or not str(raw).strip():
+        return None
+    return Path(raw).expanduser().resolve()
+
+
+def emit_gate_metrics(
+    repository: Path | str,
+    report: dict[str, Any],
+    *,
+    event: str | None = None,
+    metrics_path: Path | str | None = None,
+) -> Path | None:
+    """Append one ``context_gate`` row for this run. Returns where, or ``None``.
+
+    Two constraints shape this, and both point the same way.
+
+    **The gate must leave the checkout unchanged.** That is a ratified scenario,
+    and it is not a scenario about *artifacts* — a dirty fixture is digested
+    tracked and untracked before and after a run and must be byte-identical. A
+    JSONL append into ``docs/merge-logs/`` would break it, and would break it
+    in the one place it matters most: on ``push: main``, where the gate is
+    supposed to be the thing that says the tree is clean. So the destination is
+    supplied from outside and a destination *inside* the graded checkout is
+    refused rather than honoured. CI points it at runner scratch space; nothing
+    points it at the repository.
+
+    **Emission must never change the verdict.** The verdict is the product; the
+    record is evidence about the product. Every failure mode — the skill absent,
+    the directory unwritable, the disk full, a future field a reader chokes on —
+    is caught here and reported to stderr, which is why the ``except Exception``
+    is deliberate rather than lazy: narrowing it would let some unanticipated
+    error escape into an exit code, and an exit code that depends on whether
+    telemetry succeeded is worse than no telemetry. It is called after the report
+    is rendered and takes it read-only, so there is no path by which it edits the
+    thing it is describing.
+
+    Refusals are announced rather than silent. A configured destination that
+    never receives a row is a misconfiguration, and a metrics pipeline that
+    reports nothing while looking healthy is the same unfalsifiable green the
+    event axis exists to prevent.
+    """
+    try:
+        destination = _metrics_destination(metrics_path)
+        if destination is None:
+            return None
+        repo_root = Path(repository).resolve()
+        if destination == repo_root or destination.is_relative_to(repo_root):
+            print(
+                f"[WARN] refusing to record gate metrics at {destination}: it is "
+                "inside the checkout under test, and the gate does not write to "
+                "the tree it grades — point "
+                f"{GATE_METRICS_PATH_ENV} outside the repository",
+                file=sys.stderr,
+            )
+            return None
+        if str(_MERGE_EVENTS_SCRIPTS) not in sys.path:
+            sys.path.insert(0, str(_MERGE_EVENTS_SCRIPTS))
+        import merge_events
+
+        tree = report.get("tree") or {}
+        blocking = _attribution_counts(report.get("blocking_drift") or ())
+        informational = _attribution_counts(report.get("informational_drift") or ())
+        merge_events.emit_event(
+            merge_events.context_gate_event(
+                outcome=report["outcome"],
+                exit_code=report["exit_code"],
+                gate_event=event,
+                source_revision=report.get("source_revision"),
+                base_revision=tree.get("base_resolved_revision"),
+                base_resolved_from=tree.get("base_resolved_from"),
+                blocking_inherited=blocking[ATTRIBUTION_INHERITED],
+                blocking_introduced=blocking[ATTRIBUTION_INTRODUCED],
+                blocking_indeterminate=blocking[ATTRIBUTION_INDETERMINATE],
+                informational_inherited=informational[ATTRIBUTION_INHERITED],
+                informational_introduced=informational[ATTRIBUTION_INTRODUCED],
+                informational_indeterminate=informational[ATTRIBUTION_INDETERMINATE],
+            ),
+            log_path=destination,
+        )
+        return destination
+    except Exception as error:  # noqa: BLE001 — see the docstring
+        print(
+            f"[WARN] gate metrics not recorded: {type(error).__name__}: {error}",
+            file=sys.stderr,
+        )
+        return None
 
 
 # --------------------------------------------------------------------------- #
@@ -538,12 +853,14 @@ def run_gate(
     *,
     revision: str | None = None,
     base: str = DEFAULT_BASE,
+    event: str | None = None,
     changed_files: Sequence[str] | None = None,
     rules: Path | str | None = None,
     architecture: orchestrator.ArchitectureProducer | None = None,
     check_runner: CheckRunner | None = None,
     changed_files_resolver: ChangedFilesResolver | None = None,
     context_impact_runner: ContextImpactRunner | None = None,
+    metrics_path: Path | str | None = None,
 ) -> GateResult:
     """Compose the three arms into one report and one exit code.
 
@@ -555,14 +872,36 @@ def run_gate(
 
     ``changed_files`` is accepted explicitly so the gate works on an uncommitted
     worktree; when omitted it is resolved from ``git diff <base>...HEAD``.
+
+    The base name is resolved to one revision *here*, once, and that revision is
+    what both the changed-file diff and ``describe_tree`` consume. Resolving it
+    per consumer is what produced a report comparing against two bases at the
+    same time, and with it a tree that was green in CI and red in a checkout
+    whose local base branch had fallen behind.
+
+    ``event`` is the trigger the run is answering for (D4). It decides which
+    blocking findings contribute to the exit code, never which are reported.
+    Omitting it selects the strict rule — today's verdict — and an event with no
+    rule is refused here, before any producer runs: a gate that cannot say which
+    rule applies has nothing to learn from running them first.
+
+    ``metrics_path`` names a file to append this run's ``context_gate`` record to
+    (D7 — metrics); omitted, and with ``CONTEXT_GATE_METRICS_PATH`` unset, no
+    record is written and the run is byte-for-byte what it was before. The
+    record is emitted from the finished report, is best-effort, and is refused
+    outright inside the graded checkout — see :func:`emit_gate_metrics` for why
+    all three follow from the gate being read-only and from the verdict, not the
+    telemetry, being the product.
     """
+    require_known_event(event)
     repo_root = Path(repository).resolve()
+    resolved_base = resolve_base(repo_root, base)
     run_check = check_runner or _default_check_runner
     refresh = run_check(repo_root, revision=revision, architecture=architecture)
 
     if changed_files is None:
         resolve = changed_files_resolver or _default_changed_files
-        changed_files = resolve(repo_root, base)
+        changed_files = resolve(repo_root, resolved_base.diff_ref)
 
     impact = run_context_impact(
         repo_root, list(changed_files), rules=rules, runner=context_impact_runner
@@ -572,8 +911,13 @@ def run_gate(
         refresh,
         impact,
         revision=revision,
-        tree=describe_tree(repo_root, base, fallback_head=revision),
+        tree=describe_tree(
+            repo_root, base, fallback_head=revision, resolved_base=resolved_base
+        ),
+        attribution=resolve_attribution_context(repo_root, resolved_base),
+        event=event,
     )
+    emit_gate_metrics(repo_root, report, event=event, metrics_path=metrics_path)
     return GateResult(report=report, exit_code=report["exit_code"])
 
 
@@ -584,15 +928,31 @@ def render_report(
     *,
     revision: str | None = None,
     tree: dict[str, Any] | None = None,
+    attribution: AttributionContext | None = None,
+    event: str | None = None,
 ) -> dict[str, Any]:
     """Render the gate report, joining every result with its canonical owner.
 
     Every group is sorted by producer id and every artifact list by path, so a
     repeat run at the same revision is byte-identical and a diff of two reports
     shows only what actually changed.
+
+    *attribution* is supplied by :func:`run_gate`, which already resolved the base
+    to one revision; a standalone caller that omits it gets the evidence-free
+    default, where every finding is ``indeterminate`` and therefore owned by the
+    integration branch.
+
+    *event* selects which blocking findings contribute to the exit code (D4);
+    omitting it selects the strict rule, which is today's verdict. Attribution
+    still annotates every finding it is computed for, whatever the event — the
+    event filters the *verdict*, never the report.
     """
+    require_known_event(event)
+    attribution = attribution if attribution is not None else AttributionContext()
     breakdown = orchestrator.classify_degradation(
-        tuple(refresh.producer_results), refresh.semantic_index
+        tuple(refresh.producer_results),
+        refresh.semantic_index,
+        informational_producer_ids=GATE_INFORMATIONAL_PRODUCERS,
     )
     owners = owner_by_producer_id()
     outputs = _outputs_by_producer_id()
@@ -616,7 +976,18 @@ def render_report(
             owner = owners.get(result.producer_id, result.producer_id)
             artifacts = _artifact_paths(result, outputs.get(result.producer_id, ()))
             if artifacts:
-                target.append(_finding(result, owner, artifacts))
+                attributed = attribute_producer(
+                    repository, result.producer_id, attribution
+                )
+                target.append(
+                    _finding(
+                        result,
+                        owner,
+                        artifacts,
+                        attributed,
+                        attribution.owner_for(attributed),
+                    )
+                )
             else:
                 # Drift the report cannot name is not a precise artifact list, so
                 # it is reported as an apparatus failure rather than as drift with
@@ -638,7 +1009,14 @@ def render_report(
                 )
 
     if impact.blocking:
-        blocking.append(_context_impact_finding(impact.blocking))
+        attributed = attribute_producer(
+            repository, CONTEXT_IMPACT_PRODUCER_ID, attribution
+        )
+        blocking.append(
+            _context_impact_finding(
+                impact.blocking, attributed, attribution.owner_for(attributed)
+            )
+        )
     if impact.failure_reason:
         failed.append(
             {
@@ -651,10 +1029,19 @@ def render_report(
     for group_list in (blocking, informational, not_configured, failed):
         group_list.sort(key=lambda entry: entry["producer_id"])
 
+    # ``outcome`` describes the tree; ``exit_code`` is this event's verdict on it.
+    # They agree on every event but ``pull_request``, where inherited blocking
+    # drift is reported and does not block: there the report reads
+    # ``drift (exit 0)``, which is the honest pair. Collapsing them the other way
+    # -- calling the tree ``fresh`` while ``blocking_drift`` is non-empty -- would
+    # put the unfalsifiable green inside the report itself. The schema derives
+    # ``outcome`` from the four groups for exactly this reason.
+    blocks = event_blocking_findings(blocking, event)
     if failed:
         outcome, exit_code = OUTCOME_FAILED, EXIT_FAILED
     elif blocking:
-        outcome, exit_code = OUTCOME_DRIFT, EXIT_DRIFT
+        outcome = OUTCOME_DRIFT
+        exit_code = EXIT_DRIFT if blocks else EXIT_FRESH
     else:
         outcome, exit_code = OUTCOME_FRESH, EXIT_FRESH
 
@@ -706,11 +1093,231 @@ def _git_lines(repository: Path, *args: str) -> str | None:
     return completed.stdout.strip() if completed.returncode == 0 else None
 
 
+@dataclass(frozen=True, slots=True)
+class ResolvedBase:
+    """The single revision a base *name* resolved to, and which ref supplied it.
+
+    A base name is not a revision. ``origin/main`` and a local ``main`` branch
+    name the same commit right up until the local ref falls behind, at which
+    point they name two different trees — and a run that consults both describes
+    neither. ``revision`` is ``None`` when nothing resolved, which is a legible
+    absence rather than an error: a shallow or detached checkout may carry no ref
+    for the base at all.
+    """
+
+    name: str
+    revision: str | None = None
+    resolved_from: str | None = None
+
+    @property
+    def diff_ref(self) -> str:
+        """What every comparison in the run is taken against.
+
+        Falls back to the raw name when nothing resolved, so an absent base still
+        produces today's empty diff rather than a crash.
+        """
+        return self.revision or self.name
+
+
+def resolve_base(repository: Path, base: str = DEFAULT_BASE) -> ResolvedBase:
+    """Resolve *base* to exactly one revision: ``origin/<base>``, else the local ref.
+
+    The remote wins because a fresh ``actions/checkout`` has no local base branch,
+    so CI is already effectively on the remote — preferring the local ref would
+    make CI the outlier rather than fixing the disagreement. Read-only: no fetch,
+    so the resolution is only as current as the last one.
+
+    ``resolved_from`` is derived from the ref the revision actually came from
+    rather than from which candidate matched, so ``--base origin/main`` — where
+    ``origin/origin/main`` does not exist and the second candidate is itself a
+    remote-tracking ref — is still recorded as ``remote``. A base given as a raw
+    SHA has no symbolic name and is recorded as ``local``.
+    """
+    for candidate in (f"origin/{base}", base):
+        revision = _git_lines(
+            repository, "rev-parse", "--verify", "--quiet", f"{candidate}^{{commit}}"
+        )
+        if not revision:
+            continue
+        full_name = (
+            _git_lines(repository, "rev-parse", "--symbolic-full-name", candidate) or ""
+        )
+        return ResolvedBase(
+            name=base,
+            revision=revision,
+            resolved_from="remote" if full_name.startswith("refs/remotes/") else "local",
+        )
+    return ResolvedBase(name=base)
+
+
+# --------------------------------------------------------------------------- #
+# Attribution (D2/D3) — a separate axis from the four groups
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True, slots=True)
+class AttributionContext:
+    """Everything one run needs to say who owns a finding.
+
+    ``merge_base`` is ``None`` whenever the base did not resolve to a revision,
+    which makes every finding ``indeterminate`` rather than an apparatus failure:
+    a shallow or detached checkout legitimately carries no base ref, and the
+    deterministic arms — the gate's actual yield — do not depend on one.
+    """
+
+    merge_base: str | None = None
+    integration_owner: str = DEFAULT_BASE
+    branch_owner: str = DETACHED_BRANCH_OWNER
+
+    def owner_for(self, attribution: str) -> str:
+        """Who must clear a finding with this attribution.
+
+        ``indeterminate`` is owned by the integration branch, not the branch
+        under test. That *is* the "err toward inherited" rule: the recorded
+        attribution keeps saying the evidence was absent, while the ownership it
+        resolves to runs away from blame, because falsely blaming a branch for
+        the integration branch's debt is the failure this axis exists to prevent.
+        """
+        if attribution == ATTRIBUTION_INTRODUCED:
+            return self.branch_owner
+        return self.integration_owner
+
+
+def resolve_gate_merge_base(repository: Path, base_revision: str | None) -> str | None:
+    """The merge base between the resolved base revision and ``HEAD``.
+
+    Takes the *resolved* revision rather than the ``--base`` name so this cannot
+    become the second place in one run that decides what the base means. ``None``
+    is a first-class answer, matching ``checkpoint.resolve_merge_base``: a
+    detached fixture repository or a branch with no common ancestor has no
+    baseline, and inventing one would attribute findings against a tree that was
+    never a baseline for anything.
+    """
+    if not base_revision:
+        return None
+    out = _git_lines(repository, "merge-base", base_revision, "HEAD")
+    return out if out and _FULL_SHA.match(out) else None
+
+
+def _branch_under_test(repository: Path) -> str:
+    """The branch name introduced drift is attributed to, else ``HEAD``."""
+    name = _git_lines(repository, "rev-parse", "--abbrev-ref", "HEAD")
+    return name if name and name != DETACHED_BRANCH_OWNER else DETACHED_BRANCH_OWNER
+
+
+def resolve_attribution_context(
+    repository: Path, resolved_base: ResolvedBase
+) -> AttributionContext:
+    """Build the run's attribution context from the already-resolved base."""
+    return AttributionContext(
+        merge_base=resolve_gate_merge_base(repository, resolved_base.revision),
+        integration_owner=resolved_base.name,
+        branch_owner=_branch_under_test(repository),
+    )
+
+
+def _provenance_at(repository: Path, revision: str) -> dict[str, Any] | None:
+    """The committed architecture provenance document as of *revision*.
+
+    Read out of git rather than off the filesystem so the baseline is the one the
+    merge base actually carried, not whatever the working tree holds now — the
+    same reason ``checkpoint.architecture_changed_nodes`` reads its baseline with
+    ``git show``.
+    """
+    raw = _git_lines(repository, "show", f"{revision}:{ARCHITECTURE_PROVENANCE_PATH}")
+    if not raw:
+        return None
+    try:
+        document = json.loads(raw)
+    except ValueError:
+        return None
+    return document if isinstance(document, dict) else None
+
+
+def _attribution_evidence(
+    repository: Path, producer_id: str, merge_base: str
+) -> tuple[str | None, tuple[str, ...]]:
+    """``(recorded revision, declared input pathspecs)`` for one producer.
+
+    The architecture producer would record both itself — its provenance names the
+    ``source_revision`` the analysis was generated from and the ``input_roots`` it
+    was generated over — but after D2 that document is a local file beside the
+    artifacts it describes and is not committed, so reading it at the merge base
+    yields nothing and architecture attributes ``indeterminate``. The lookup is
+    kept rather than special-cased away: it is correct for any consumer that does
+    commit provenance, and architecture no longer enters ``blocking_drift``, so
+    the answer never reaches an exit code. Registered producers carry no such
+    document, so the revision their output was last written at is recovered from
+    the history of their declared managed outputs up to the merge base — which is
+    the same claim the provenance document makes, read from git instead of JSON.
+
+    Either half missing yields ``None``/``()``, which the caller reads as absent
+    evidence rather than as an answer.
+    """
+    if producer_id == orchestrator.ARCHITECTURE_PRODUCER_ID:
+        document = _provenance_at(repository, merge_base)
+        if document is None:
+            return None, ()
+        revision = document.get("source_revision")
+        roots = tuple(str(root) for root in document.get("input_roots") or () if root)
+        return (revision if isinstance(revision, str) and revision else None), roots
+
+    spec = _specs_by_producer_id().get(producer_id)
+    if spec is None or not spec.inputs or not spec.outputs:
+        return None, ()
+    recorded = _git_lines(
+        repository, "log", "-1", "--format=%H", merge_base, "--", *spec.outputs
+    )
+    return (recorded or None), tuple(spec.inputs)
+
+
+def attribute_producer(
+    repository: Path, producer_id: str, context: AttributionContext
+) -> str:
+    """Attribute one producer's finding by path-level ancestry (D2).
+
+    ``git diff --name-only <recorded revision>..<merge base> -- <declared inputs>``.
+    A non-empty answer means a declared input had already moved by the time the
+    branch forked, so the producer was *already* stale at the merge base and the
+    finding is inherited; an empty answer means the base was fresh and the branch
+    introduced it.
+
+    Content comparison is not available: ``compute_input_fingerprint`` hashes
+    working-tree bytes (``provenance._iter_root_files_git`` takes no revision and
+    ``provenance._discover`` calls ``read_bytes`` on a filesystem path), and
+    switching it to ``git cat-file`` would change the hashed payload and
+    invalidate every recorded ``input_fingerprint``. Path level is the coarser
+    question anyway, and its one failure mode — a file that changed and changed
+    back inside the range reads as inherited — points away from blame.
+
+    The context-impact arm is the exception that needs no inference: it evaluates
+    only the work-package files present in ``<base>...HEAD``, so the branch is by
+    construction their author.
+    """
+    if context.merge_base is None:
+        return ATTRIBUTION_INDETERMINATE
+    if producer_id == CONTEXT_IMPACT_PRODUCER_ID:
+        return ATTRIBUTION_INTRODUCED
+    recorded, inputs = _attribution_evidence(repository, producer_id, context.merge_base)
+    if not recorded or not inputs:
+        return ATTRIBUTION_INDETERMINATE
+    changed = _git_lines(
+        repository,
+        "diff",
+        "--name-only",
+        f"{recorded}..{context.merge_base}",
+        "--",
+        *inputs,
+    )
+    if changed is None:
+        return ATTRIBUTION_INDETERMINATE
+    return ATTRIBUTION_INHERITED if changed else ATTRIBUTION_INTRODUCED
+
+
 def describe_tree(
     repository: Path,
     base: str = DEFAULT_BASE,
     *,
     fallback_head: str | None = None,
+    resolved_base: ResolvedBase | None = None,
 ) -> dict[str, Any]:
     """Name the tree this verdict applies to (issue #385).
 
@@ -724,10 +1331,18 @@ def describe_tree(
     fetch, no network — ``base_upstream`` is null when ``origin/<base>`` has no
     local ref, and the counts are only as current as the last fetch.
 
+    ``base_resolved_revision`` closes the remaining gap: this block already named
+    the tree under test, but not the tree it was compared *against*, so a reader
+    could not tell which of two possible bases produced the verdict.
+
     ``fallback_head`` keeps the seam usable outside a git checkout (the CLI
     test harness grades synthetic trees with an explicit revision); a real
-    repository never needs it.
+    repository never needs it. ``resolved_base`` is passed in by
+    :func:`run_gate` so the changed-file diff and this block cannot resolve the
+    base name twice and disagree; standalone callers get their own resolution.
     """
+    if resolved_base is None:
+        resolved_base = resolve_base(repository, base)
     head = _git_lines(repository, "rev-parse", "HEAD") or fallback_head
     if not head:
         raise GateError("could not resolve HEAD; pass an explicit full-SHA revision")
@@ -750,6 +1365,8 @@ def describe_tree(
         "base_upstream": upstream_ref,
         "commits_behind_base_upstream": behind,
         "commits_ahead_of_base_upstream": ahead,
+        "base_resolved_revision": resolved_base.revision,
+        "base_resolved_from": resolved_base.resolved_from,
     }
 
 
@@ -788,7 +1405,17 @@ def render_text(report: dict[str, Any]) -> str:
         ("informational_drift", "informational"),
     ):
         for finding in report[group]:
-            lines.append(f"  [{label}] {finding['producer_id']} — owner {finding['owner']}")
+            described = (
+                f"  [{label}] {finding['producer_id']} — owner {finding['owner']}"
+            )
+            attributed = finding.get("attribution")
+            if attributed:
+                # Named in the human output because a reader looking at a red gate
+                # needs to know whether the fix belongs to this branch at all.
+                described += (
+                    f" — {attributed}, attributed to {finding['attributed_owner']}"
+                )
+            lines.append(described)
             lines.extend(f"      {path}" for path in finding["artifacts"])
             for remediation in finding["remediation"]:
                 command = remediation.get("command")
@@ -828,24 +1455,42 @@ def render_text(report: dict[str, Any]) -> str:
 __all__ = [
     "ARCHITECTURE_OWNER",
     "ARCHITECTURE_PROVENANCE_PATH",
+    "ATTRIBUTION_INDETERMINATE",
+    "ATTRIBUTION_INHERITED",
+    "ATTRIBUTION_INTRODUCED",
+    "BLOCK_ALL_EVENTS",
     "CONTEXT_IMPACT_OWNER",
     "CONTEXT_IMPACT_PRODUCER_ID",
     "DEFAULT_BASE",
+    "DETACHED_BRANCH_OWNER",
+    "EVENT_MERGE_GROUP",
+    "EVENT_PULL_REQUEST",
+    "EVENT_PUSH",
     "EXIT_DRIFT",
     "EXIT_FAILED",
     "EXIT_FRESH",
     "GATE_SCHEMA_VERSION",
+    "KNOWN_EVENTS",
     "SEMANTIC_NOT_ATTEMPTED_REASON",
     "SEMANTIC_STATUS_NOT_ATTEMPTED",
+    "AttributionContext",
     "ContextImpactOutcome",
     "GateError",
     "GateResult",
+    "ResolvedBase",
+    "GATE_INFORMATIONAL_PRODUCERS",
     "architecture_freshness",
+    "attribute_producer",
     "describe_tree",
+    "event_blocking_findings",
     "owner_by_producer_id",
     "provenance_state",
     "render_report",
     "render_text",
+    "require_known_event",
+    "resolve_attribution_context",
+    "resolve_base",
+    "resolve_gate_merge_base",
     "run_context_impact",
     "run_gate",
     "work_package_files",

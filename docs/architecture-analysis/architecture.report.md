@@ -2,27 +2,26 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-08-16T18:58:50+00:00  
-Git SHA: `7db8ebdd40f4e8f8b646819f73713a59040a242e`
+Generated: 2026-08-29T00:44:33+00:00  
+Git SHA: `68bbca4e0a1a0a93a92237ed0fe19aa1d6002f2c`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **27 Postgres tables**. The codebase contains 1107 functions (431 async) and 243 classes.
+This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **27 Postgres tables**. The codebase contains 1088 functions (436 async) and 250 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1961 |
-| Total edges | 1163 |
-| Python modules | 102 |
-| Functions | 1107 (431 async) |
-| Classes | 243 |
+| Total nodes | 1903 |
+| Total edges | 1199 |
+| Python modules | 77 |
+| Functions | 1088 (436 async) |
+| Classes | 250 |
 | Mcp Endpoints | 96 |
 | DB tables | 27 |
-| Python nodes | 1436 |
-| Sql nodes | 435 |
-| Typescript nodes | 90 |
+| Python nodes | 1467 |
+| Sql nodes | 436 |
 
 ## Module Responsibility Map
 
@@ -30,10 +29,10 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 
 | Module | Layer | Role | In / Out |
 |--------|-------|------|----------|
-| `agents_config` | Foundation | Load and validate ``agents.yaml``. | 11 / 4 |
+| `agents_config` | Foundation | Load and validate ``agents.yaml``. | 15 / 8 |
 | `approval` | Service | Parse a datetime value from various formats. | 14 / 2 |
 | `assurance` | Service | — | 0 / 0 |
-| `audit` | Foundation | Get the global audit service instance. | 46 / 6 |
+| `audit` | Foundation | Get the global audit service instance. | 50 / 6 |
 | `audit_triage` | Service | Validate a single classifier finding against the required schema. | 2 / 1 |
 | `axi_output` | Service | Detect truncation precisely via the limit+1 fetch pattern. | 11 / 0 |
 | `cloudflare_access` | Service | Add the Cloudflare Access middleware to ``app`` when enabled. | 2 / 0 |
@@ -41,11 +40,11 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 | `code_search_authorization` | Service | Intersect caller narrowing with a server-owned grant or reject safely. | 5 / 0 |
 | `code_search_runtime` | Foundation | Read the default-off gate without importing optional search packages. | 22 / 3 |
 | `config` | Foundation | Resolve COORDINATOR_WORKDIR_ROOT — repo root when unset. | 77 / 3 |
-| `coordination_api` | Entry | Resolve effective API key by supported header precedence. | 1 / 216 |
+| `coordination_api` | Entry | Resolve effective API key by supported header precedence. | 1 / 222 |
 | `coordination_cli` | Service | Bridge async service calls to synchronous CLI. | 0 / 41 |
 | `coordination_mcp` | Entry | Own direct-search resources in the same loop that serves MCP calls. | 0 / 165 |
-| `db` | Foundation | Factory: returns the appropriate DatabaseClient based on config. | 46 / 4 |
-| `db_postgres` | Service | Coerce a PostgREST filter string value to the appropriate Python type. | 1 / 1 |
+| `db` | Foundation | Factory: returns the appropriate DatabaseClient based on config. | 47 / 4 |
+| `db_postgres` | Service | Parse an ISO-8601 timestamp if `val` looks like one. | 1 / 1 |
 | `discovery` | Service | Get the global discovery service instance. | 16 / 8 |
 | `docker_manager` | Service | Return ``True`` if the ``colima`` binary is on PATH. | 0 / 0 |
 | `event_bus` | Foundation | Classify event urgency based on type. | 15 / 0 |
@@ -88,7 +87,7 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 | `notifications.webhook` | Service | POST JSON payload with event data to the webhook URL. | 0 / 0 |
 | `openspec_proposals_api` | Service | Return the repo root. | 4 / 7 |
 | `openspec_sources` | Service | Parse OPENSPEC_SOURCES env var value into SourceDescriptors. | 5 / 1 |
-| `policy_engine` | Foundation | Get the global policy engine based on configuration. | 23 / 19 |
+| `policy_engine` | Foundation | Get the global policy engine based on configuration. | 23 / 21 |
 | `policy_sync` | Service | Return the singleton PolicySyncService instance. | 0 / 0 |
 | `port_allocator` | Service | Return the global ``PortAllocatorService`` singleton. | 9 / 1 |
 | `profile_loader` | Service | Recursively merge *override* into a copy of *base*. | 3 / 0 |
@@ -101,8 +100,10 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 | `sync_points` | Service | Return ``(clear, active_list)`` by reading the worktree registry. | 1 / 1 |
 | `teams` | Service | Get the global crew manifest (lazy singleton). | 2 / 3 |
 | `telemetry` | Foundation | Initialize OpenTelemetry providers based on environment configuration. | 21 / 0 |
+| `trust_levels` | Service | — | 1 / 0 |
+| `trust_resolution` | Foundation | Record a failed trust resolution; never masks the original fault. | 9 / 8 |
 | `watchdog` | Service | Return the singleton WatchdogService. | 3 / 4 |
-| `work_queue` | Foundation | Get the global work queue service instance. | 17 / 33 |
+| `work_queue` | Foundation | Get the global work queue service instance. | 17 / 32 |
 | `worktrees_view` | Service | Default: parents[2] of this file = repo root. | 2 / 2 |
 
 **Layers**: Entry = exposes MCP endpoints; Service = domain logic; Foundation = imported by 3+ modules (config, db, audit).
@@ -127,25 +128,25 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 │              notifications.templates, notifications.webhook, openspec_proposals_api, openspec_sources│
 │              policy_sync, port_allocator, profile_loader, risk_scorer│
 │              session_grants, sse_log_redaction, status, sync_points│
-│              teams, watchdog, worktrees_view     │
+│              teams, trust_levels, watchdog, worktrees_view│
 │             ↓ imports ↓                          │
-│  FOUNDATION  agents_config, audit, code_search, code_search_runtime, config, db, event_bus, feature_registry, guardrails, handoffs, help_service, issue_service, locks, memory, merge_queue, merge_train, policy_engine, profiles, refresh_rpc_client, telemetry, work_queue│
+│  FOUNDATION  agents_config, audit, code_search, code_search_runtime, config, db, event_bus, feature_registry, guardrails, handoffs, help_service, issue_service, locks, memory, merge_queue, merge_train, policy_engine, profiles, refresh_rpc_client, telemetry, trust_resolution, work_queue│
 └─────────────────────────────────────────────────┘
 ```
 
 **Single points of failure** — changes to these modules ripple widely:
 
-- `config` — imported by 23 modules
+- `config` — imported by 24 modules
 - `db` — imported by 21 modules
-- `audit` — imported by 14 modules
+- `audit` — imported by 15 modules
 - `policy_engine` — imported by 6 modules
 - `telemetry` — imported by 6 modules
 - `feature_registry` — imported by 5 modules
+- `agents_config` — imported by 4 modules
 - `code_search` — imported by 4 modules
 - `event_bus` — imported by 4 modules
 - `guardrails` — imported by 4 modules
 - `profiles` — imported by 4 modules
-- `agents_config` — imported by 3 modules
 - `code_search_runtime` — imported by 3 modules
 - `handoffs` — imported by 3 modules
 - `help_service` — imported by 3 modules
@@ -155,6 +156,7 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 - `merge_queue` — imported by 3 modules
 - `merge_train` — imported by 3 modules
 - `refresh_rpc_client` — imported by 3 modules
+- `trust_resolution` — imported by 3 modules
 - `work_queue` — imported by 3 modules
 
 ## Entry Points
@@ -276,29 +278,18 @@ This is a **Python MCP server** with 102 modules exposing **96 MCP endpoints** (
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2880 findings** across 5 categories:
+**2747 findings** across 4 categories:
 
-### Orphan — 1277
+### Orphan — 1217
 
-1277 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+1217 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'PollConfig' is unreachable from any entrypoint or test
 - 'ModeConfig' is unreachable from any entrypoint or test
 - 'CliConfig' is unreachable from any entrypoint or test
-- ... and 1272 more
-
-### Pattern Consistency — 39
-
-39 unclassified findings.
-
-- 'relativeTime' uses camelCase but most functions use snake_case
-- 'emitHighlight' uses camelCase but most functions use snake_case
-- 'useHighlightState' uses camelCase but most functions use snake_case
-- 'shortForm' uses camelCase but most functions use snake_case
-- 'loadFromStorage' uses camelCase but most functions use snake_case
-- ... and 34 more
+- ... and 1212 more
 
 ### Reachability — 96
 
@@ -313,16 +304,16 @@ Breakdown: 88 info, 8 warning.
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
 - ... and 91 more
 
-### Test Coverage — 1372
+### Test Coverage — 1338
 
-1372 functions lack test references — consider adding tests for critical paths.
+1338 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 1367 more
+- ... and 1333 more
 
 ### Disconnected Flow (expected) — 96
 
@@ -339,41 +330,41 @@ Breakdown: 88 info, 8 warning.
 
 *Data sources: [high_impact_nodes.json](high_impact_nodes.json), [parallel_zones.json](parallel_zones.json)*
 
-107 nodes with >= 5 transitive dependents. Changes to these ripple through the codebase — test thoroughly.
+118 nodes with >= 5 transitive dependents. Changes to these ripple through the codebase — test thoroughly.
 
 | Node | Dependents | Risk |
 |------|------------|------|
-| `config.get_config` | 181 | Critical — affects 181 downstream functions (28 modules affected) |
+| `config.get_config` | 182 | Critical — affects 182 downstream functions (30 modules affected) |
 | `http_proxy._error_response` | 109 | Critical — affects 109 downstream functions (modules: coordination_mcp, http_proxy) |
 | `http_proxy.get_client` | 109 | Critical — affects 109 downstream functions (modules: coordination_mcp, http_proxy) |
 | `http_proxy._request` | 108 | Critical — affects 108 downstream functions (modules: coordination_mcp, http_proxy) |
 | `http_proxy._agent_identity` | 72 | Critical — affects 72 downstream functions (modules: coordination_mcp, http_proxy) |
 | `policy_engine.get_policy_engine` | 43 | Critical — affects 43 downstream functions (6 modules affected) |
-| `audit.get_audit_service` | 32 | Critical — affects 32 downstream functions (13 modules affected) |
-| `config` | 31 | Critical — affects 31 downstream functions (31 modules affected) |
+| `audit.get_audit_service` | 42 | Critical — affects 42 downstream functions (15 modules affected) |
+| `config` | 32 | Critical — affects 32 downstream functions (32 modules affected) |
 | `coordination_api.resolve_identity` | 31 | Critical — affects 31 downstream functions (modules: coordination_api) |
 | `coordination_cli._print_dict` | 28 | Critical — affects 28 downstream functions (modules: coordination_cli) |
+| `db.create_db_client` | 28 | Critical — affects 28 downstream functions (24 modules affected) |
 | `coordination_api.authorize_operation` | 27 | Critical — affects 27 downstream functions (modules: coordination_api) |
 | `coordination_cli._output` | 27 | Critical — affects 27 downstream functions (modules: coordination_cli) |
-| `db.create_db_client` | 26 | Critical — affects 26 downstream functions (23 modules affected) |
+| `db.get_db` | 27 | Critical — affects 27 downstream functions (23 modules affected) |
+| `db_postgres` | 26 | Critical — affects 26 downstream functions (26 modules affected) |
+| `profile_loader.interpolate` | 26 | Critical — affects 26 downstream functions (9 modules affected) |
 | `coordination_cli._run` | 25 | Critical — affects 25 downstream functions (modules: coordination_cli) |
-| `db.get_db` | 25 | Critical — affects 25 downstream functions (22 modules affected) |
-| `db_postgres` | 25 | Critical — affects 25 downstream functions (25 modules affected) |
-| `db` | 24 | Critical — affects 24 downstream functions (24 modules affected) |
+| `db` | 25 | Critical — affects 25 downstream functions (25 modules affected) |
+| `profile_loader._load_secrets_file` | 25 | Critical — affects 25 downstream functions (9 modules affected) |
+| `teams.CrewManifest.validate` | 25 | Critical — affects 25 downstream functions (8 modules affected) |
+| `agents_config._default_agents_path` | 21 | Critical — affects 21 downstream functions (8 modules affected) |
+| `agents_config._default_secrets_path` | 21 | Critical — affects 21 downstream functions (8 modules affected) |
+| `agents_config.load_agents_config._parse_mode` | 21 | Critical — affects 21 downstream functions (8 modules affected) |
 | `code_search_authorization._is_normalized_relative` | 21 | Critical — affects 21 downstream functions (modules: code_search, code_search_authorization) |
+| `agents_config.load_agents_config` | 20 | Critical — affects 20 downstream functions (8 modules affected) |
 | `code_search_authorization.validate_safe_glob` | 20 | Critical — affects 20 downstream functions (modules: code_search, code_search_authorization) |
 | `merge_queue.get_merge_queue_service` | 20 | Critical — affects 20 downstream functions (modules: coordination_api, coordination_cli, coordination_mcp) |
 | `feature_registry.get_feature_registry_service` | 19 | High — test `feature_registry` changes thoroughly (5 modules affected) |
 | `issue_service.get_issue_service` | 19 | High — test `issue_service` changes thoroughly (modules: coordination_api, coordination_mcp) |
-| `profile_loader.interpolate` | 18 | High — test `profile_loader` changes thoroughly (7 modules affected) |
-| `profile_loader._load_secrets_file` | 17 | High — test `profile_loader` changes thoroughly (7 modules affected) |
-| `teams.CrewManifest.validate` | 17 | High — test `teams` changes thoroughly (6 modules affected) |
-| `audit` | 16 | High — test `audit` changes thoroughly (15 modules affected) |
-| `audit_triage` | 16 | High — test `audit_triage` changes thoroughly (15 modules affected) |
-| `openspec_proposals_api._run_git` | 14 | High — test `openspec_proposals_api` changes thoroughly (modules: coordination_api, openspec_proposals_api, openspec_sources) |
-| `work_queue.get_work_queue_service` | 14 | High — test `work_queue` changes thoroughly (modules: coordination_api, coordination_cli, coordination_mcp) |
-| `agents_config._default_agents_path` | 13 | High — test `agents_config` changes thoroughly (6 modules affected) |
-| ... | | 77 more |
+| `audit` | 17 | High — test `audit` changes thoroughly (16 modules affected) |
+| ... | | 88 more |
 
 ## Code Health Indicators
 
@@ -383,9 +374,9 @@ Breakdown: 88 info, 8 warning.
 
 | Indicator | Value |
 |-----------|-------|
-| Async ratio | 431/1066 (40%) |
-| Docstring coverage | 759/1066 (71%) |
-| Dead code candidates | 500 |
+| Async ratio | 436/1088 (40%) |
+| Docstring coverage | 777/1088 (71%) |
+| Dead code candidates | 502 |
 
 ### Hot Functions
 
@@ -394,21 +385,21 @@ Functions called by the most other functions — changes here have wide blast ra
 | Function | Callers |
 |----------|---------|
 | `http_proxy._request` | 54 |
-| `config.get_config` | 50 |
-| `http_proxy.get_config` | 50 |
+| `config.get_config` | 49 |
+| `http_proxy.get_config` | 49 |
 | `http_proxy._agent_identity` | 36 |
-| `audit.get_audit_service` | 32 |
+| `audit.get_audit_service` | 35 |
 | `coordination_api.resolve_identity` | 31 |
 | `coordination_api.authorize_operation` | 27 |
+| `db.get_db` | 26 |
 | `coordination_cli._run` | 25 |
-| `db.get_db` | 25 |
 | `git_adapter.SubprocessGitAdapter._run` | 25 |
 
 ### Dead Code Candidates
 
-500 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
+502 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
 
-- **agents_config** (9): `get_mcp_env`, `reset_agents_config`, `get_agent_isolation`, `get_phase_mapping`, `reset_archetypes_config`, `resolve_provider_model`, ... (+3)
+- **agents_config** (10): `mutations`, `get_mcp_env`, `reset_agents_config`, `get_agent_isolation`, `get_phase_mapping`, `reset_archetypes_config`, ... (+4)
 - **approval** (8): `db`, `submit_request`, `check_request`, `decide_request`, `expire_stale_requests`, `list_pending`, ... (+2)
 - **audit** (6): `from_dict`, `db`, `log_operation`, `_insert_audit_entry`, `query`, `timed`
 - **audit_triage** (5): `push`, `drain_all`, `load_prompt`, `drain_and_classify`, `reset_triage_buffer`
@@ -453,7 +444,7 @@ Functions called by the most other functions — changes here have wide blast ra
 - **policy_sync** (13): `start`, `stop`, `on_policy_change`, `running`, `on_policy_change`, `start`, ... (+7)
 - **port_allocator** (6): `env_snippet`, `allocate`, `release`, `status`, `_cleanup_expired`, `reset_port_allocator`
 - **profile_loader** (2): `resolve_dynamic_dsn`, `_replace`
-- **profiles** (5): `from_dict`, `db`, `get_profile`, `check_operation`, `_log_denial`
+- **profiles** (6): `from_dict`, `db`, `invalidate_cache`, `get_profile`, `check_operation`, `_log_denial`
 - **refresh_rpc_client** (4): `is_graph_stale`, `trigger_refresh`, `get_refresh_status`, `_invoke`
 - **risk_scorer** (10): `db`, `compute_score`, `get_violation_count`, `_trust_factor`, `_operation_factor`, `_resource_factor`, ... (+4)
 - **session_grants** (7): `db`, `request_grant`, `get_active_grants`, `has_grant`, `revoke_grants`, `_row_to_grant`, ... (+1)
@@ -469,17 +460,17 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1267 independent groups** identified. The largest interconnected group has 529 modules; 1571 modules are leaf nodes (safe to modify in isolation).
+**1191 independent groups** identified. The largest interconnected group has 544 modules; 1495 modules are leaf nodes (safe to modify in isolation).
 
-**38 high-impact modules** act as coupling points — parallel changes touching these need coordination.
+**41 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
 ### Interconnected Groups
 
-**Group 0** (529 members spanning 54 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_runtime`
-  ... and 46 more modules
+**Group 0** (544 members spanning 55 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_runtime`
+  ... and 47 more modules
 
-**Group 1** (54 members spanning 54 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_authorization`
-  ... and 46 more modules
+**Group 1** (56 members spanning 56 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_authorization`
+  ... and 48 more modules
 
 **Group 2** (35 members spanning 2 modules): `code_search`, `code_search_authorization`
 
@@ -487,9 +478,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 4** (14 members spanning 1 modules): `notifications`
 
-**Group 5** (9 members spanning 1 modules): `code_search_runtime`
+**Group 5** (10 members spanning 1 modules): `db_postgres`
 
-**Group 6** (9 members spanning 1 modules): `db_postgres`
+**Group 6** (9 members spanning 1 modules): `code_search_runtime`
 
 **Group 7** (6 members spanning 1 modules): `docker_manager`
 
@@ -497,9 +488,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1571)
+### Leaf Modules (1495)
 
-1571 modules have no dependents — changes are fully isolated. 1245 of the 1267 groups are singletons.
+1495 modules have no dependents — changes are fully isolated. 1169 of the 1191 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -509,9 +500,8 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1436 nodes)"]
-    Database["Database (435 nodes)"]
-    Frontend["Frontend (90 nodes)"]
+    Backend["Backend (1467 nodes)"]
+    Database["Database (436 nodes)"]
 ```
 
 ### Backend Components
@@ -519,7 +509,7 @@ flowchart TB
 ```mermaid
 flowchart TB
     __init__["__init__ (1 symbols)"]
-    agents_config["agents_config (41 symbols)"]
+    agents_config["agents_config (63 symbols)"]
     approval["approval (14 symbols)"]
     assurance["assurance (1 symbols)"]
     audit["audit (17 symbols)"]
@@ -534,7 +524,7 @@ flowchart TB
     coordination_cli["coordination_cli (34 symbols)"]
     coordination_mcp["coordination_mcp (80 symbols)"]
     db["db (23 symbols)"]
-    db_postgres["db_postgres (14 symbols)"]
+    db_postgres["db_postgres (15 symbols)"]
     discovery["discovery (20 symbols)"]
     docker_manager["docker_manager (8 symbols)"]
     event_bus["event_bus (22 symbols)"]
@@ -581,7 +571,7 @@ flowchart TB
     policy_sync["policy_sync (17 symbols)"]
     port_allocator["port_allocator (12 symbols)"]
     profile_loader["profile_loader (14 symbols)"]
-    profiles["profiles (14 symbols)"]
+    profiles["profiles (15 symbols)"]
     refresh_rpc_client["refresh_rpc_client (12 symbols)"]
     risk_scorer["risk_scorer (14 symbols)"]
     session_grants["session_grants (13 symbols)"]
@@ -591,10 +581,16 @@ flowchart TB
     teams["teams (14 symbols)"]
     telemetry["telemetry (20 symbols)"]
     tests__test_architecture["tests.test_architecture (52 symbols)"]
+    trust_levels["trust_levels (2 symbols)"]
+    trust_resolution["trust_resolution (5 symbols)"]
     watchdog["watchdog (18 symbols)"]
     work_queue["work_queue (24 symbols)"]
     worktrees_view["worktrees_view (4 symbols)"]
+    agents_config -->|"call"| audit
+    agents_config -->|"call"| config
+    agents_config -->|"call"| db
     agents_config -->|"call"| profile_loader
+    agents_config -->|"call"| profiles
     agents_config -->|"call"| teams
     approval -->|"call, import"| db
     audit -->|"call, import"| audit_triage
@@ -645,6 +641,7 @@ flowchart TB
     coordination_api -->|"call, import"| sse_log_redaction
     coordination_api -->|"import"| sync_points
     coordination_api -->|"call, import"| telemetry
+    coordination_api -->|"call, import"| trust_resolution
     coordination_api -->|"call, import"| watchdog
     coordination_api -->|"call, import"| work_queue
     coordination_api -->|"import"| worktrees_view
@@ -763,6 +760,8 @@ flowchart TB
     policy_engine -->|"call, import"| network_policies
     policy_engine -->|"call, import"| profiles
     policy_engine -->|"call, import"| telemetry
+    policy_engine -->|"import"| trust_levels
+    policy_engine -->|"call, import"| trust_resolution
     port_allocator -->|"import"| config
     profiles -->|"call, import"| audit
     profiles -->|"call, import"| config
@@ -772,6 +771,10 @@ flowchart TB
     session_grants -->|"call, import"| db
     sync_points -->|"call"| code_search_runtime
     teams -->|"call"| agents_config
+    trust_resolution -->|"call, import"| agents_config
+    trust_resolution -->|"call, import"| audit
+    trust_resolution -->|"call, import"| config
+    trust_resolution -->|"call, import"| profiles
     watchdog -->|"call, import"| db
     watchdog -->|"call, import"| event_bus
     work_queue -->|"call, import"| agents_config
@@ -782,8 +785,8 @@ flowchart TB
     work_queue -->|"call, import"| guardrails
     work_queue -->|"call"| locks
     work_queue -->|"call, import"| policy_engine
-    work_queue -->|"call, import"| profiles
     work_queue -->|"call, import"| telemetry
+    work_queue -->|"call, import"| trust_resolution
     worktrees_view -->|"call"| approval
     worktrees_view -->|"call"| code_search_runtime
 ```
@@ -792,8 +795,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    kanban_h_viz_s_src["kanban-viz/src (89 symbols)"]
-    kanban_h_viz_s_vite__config__ts["kanban-viz/vite.config.ts (1 symbols)"]
+    empty["No TypeScript nodes found"]
 ```
 
 ### Database ERD
@@ -823,6 +825,7 @@ erDiagram
         JSONB metadata
         TEXT name
         JSONB network_policy
+        TIMESTAMPTZ synced_from_registry_at
         INT trust_level
         TIMESTAMPTZ updated_at
     }

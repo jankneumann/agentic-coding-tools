@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-20T01:08:27.644264+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned the conversion of setup-coordinator from a 359-line narrated-bash SKILL.md into a script-backed skill with a tested entrypoint. Selected Approach 1 (self-contained subcommand CLI) at Gate 1, with four operator sub-decisions fixed at the same gate. Coordinated tier; VAL_REVIEW enabled by the GATEKEEPER judge.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Reuse vendor_health.check_all_vendors() unmodified; layer home-dir presence locally",
+        "rationale": "vendor_health.py is owned by the vendor-ux spec across 8 requirements, including Health Check Dimensions (which specifies a model-access probe) and Probe Cost, and carries an explicit inline constraint at lines 99-101: 'D6 still holds: this is env-var resolution, not an inference probe.' Modifying it would force a second delta spec and reopen that decision. Calling it costs nothing and confines blast radius.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Four-state detection model with 'unknown' as a first-class state",
+        "rationale": "Observed on macOS: claude/codex/grok/pi each expose a detectable home-dir auth artifact, but ~/.antigravity contains no auth/cred/token file at any depth <= 3 -- consistent with there being no 'agy login'. Collapsing undetectable into config_missing would emit a remediation instruction for a nonexistent command on every run. The contract enforces remediation=null when state=unknown.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "The deny-list defect is the dangerous one; fix is structural, not textual",
+        "rationale": "Three of the four allowlist defects fail visibly. The fourth -- a grep over the whole settings file -- concludes 'already allowed' when the wildcard appears in a deny list, reporting success while doing nothing. Silent failure is the defect class this change exists to remove, so membership is checked against permissions.allow specifically, never by scanning file text.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "The --json output is the canonical contract, not a README stub",
+        "rationale": "The change has no HTTP, DB, or event surface, but the JSON emitted by each subcommand IS the coordination boundary that SKILL.md, tests, and future callers consume. Specifying it as harness-report.schema.json makes 'emits JSON' testable beyond 'parses as JSON'. Same convention add-deterministic-context-drift-gates used.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Single wp-core package for phases 1-3 rather than parallel decomposition",
+        "rationale": "Approach 1 is deliberately one entrypoint file, so every phase-1-to-3 task writes scripts/setup_coordinator.py. Parallel packages would violate the non-overlapping write_allow rule. wp-integration is split out only because it touches a disjoint file set; the two are sequential by dependency, not parallel.",
+        "capability": "setup-coordinator",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Start with task 1.2 (testpaths registration) and verify collection before writing tests -- an unregistered suite fails open and looks identical to a suite with zero tests.",
+      "Each settings-writer test must be confirmed RED against current SKILL.md:211-232 behavior before the implementation lands.",
+      "Build the deny-list fixture in tmp_path; the repo's own settings.local.json has no deny key, so that defect is latent and cannot be observed against real files."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/make-setup-coordinator-script-backed/proposal.md",
+        "description": "approved proposal with selected approach"
+      },
+      {
+        "path": "openspec/changes/make-setup-coordinator-script-backed/design.md",
+        "description": "decisions D1-D7"
+      },
+      {
+        "path": "openspec/changes/make-setup-coordinator-script-backed/specs/setup-coordinator/spec.md",
+        "description": "1 MODIFIED + 5 ADDED requirements"
+      },
+      {
+        "path": "openspec/changes/make-setup-coordinator-script-backed/contracts/harness-report.schema.json",
+        "description": "canonical --json output contract"
+      },
+      {
+        "path": "openspec/changes/make-setup-coordinator-script-backed/work-packages.yaml",
+        "description": "wp-core -> wp-integration"
+      }
+    ]
+  }
+}

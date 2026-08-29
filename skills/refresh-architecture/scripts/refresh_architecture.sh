@@ -43,6 +43,31 @@ PG_ANALYSIS="${ARCH_DIR}/postgres_analysis.json"
 
 PYTHON="${PYTHON:-python3}"
 AUTO_INSTALL_DEPS="${AUTO_INSTALL_DEPS:-true}"
+
+# Optional ORM schema source (D7). Unset — the default — means this whole
+# branch is inert and MIGRATIONS_DIR is read exactly as it always was.
+#
+#   SCHEMA_SOURCE=sqlalchemy   emit CREATE TABLE DDL from a declared MetaData
+#                              into a staging directory and point the SQL
+#                              analyzers at it. For repositories whose
+#                              migrations are Python (Alembic), which have
+#                              nothing the SQL analyzers parse.
+#   SCHEMA_TARGET              '<module>:<attribute>', e.g. app.models:Base
+#   SCHEMA_SOURCE_PYTHON       interpreter that can import the models. Defaults
+#                              to PYTHON, but the models usually need the
+#                              application's own venv, which is rarely the
+#                              analysis interpreter.
+#   SCHEMA_SOURCE_DIR          where the DDL is written. Defaults to a
+#                              run-scoped temp directory removed on exit, so
+#                              nothing unrecorded is promoted into ARCH_DIR;
+#                              set it to keep the DDL for inspection.
+#
+# No database connection is opened by any of this; see dump_sqlalchemy_schema.py.
+SCHEMA_SOURCE="${SCHEMA_SOURCE:-}"
+SCHEMA_TARGET="${SCHEMA_TARGET:-}"
+SCHEMA_SOURCE_PYTHON="${SCHEMA_SOURCE_PYTHON:-${PYTHON}}"
+SCHEMA_SOURCE_DIR="${SCHEMA_SOURCE_DIR:-}"
+SCHEMA_SOURCE_DIR_IS_TEMP=false
 SCRIPTS_ABS_DIR="$(cd "${SCRIPTS_DIR}" 2>/dev/null && pwd || true)"
 TOOLS_ROOT_DIR="${SCRIPTS_ABS_DIR%/scripts}"
 
@@ -95,6 +120,11 @@ done
 
 # Use simple variables instead of associative arrays (bash 3 compat)
 STEPS="python_analyzer postgres_analyzer treesitter_sql typescript_analyzer compiler treesitter_enrichment comment_linker pattern_reporter validator parallel_zones views report"
+# The schema source is a step only where it is configured: an unset
+# SCHEMA_SOURCE must not add a row to a summary every existing caller reads.
+if [ -n "${SCHEMA_SOURCE}" ]; then
+    STEPS="schema_source ${STEPS}"
+fi
 TREESITTER_ENABLED="${TREESITTER_ENABLED:-true}"
 ENRICHMENT_FILE="${ARCH_DIR}/treesitter_enrichment.json"
 COMMENT_INSIGHTS_FILE="${ARCH_DIR}/comment_insights.json"
@@ -135,12 +165,13 @@ try_install_typescript_deps() {
     return 1
 }
 
-# Interpreter that can run the tree-sitter stages, resolved once and cached.
-# Empty string means "resolved and unavailable"; unset means "not yet resolved".
+# Interpreter that can run the tree-sitter stages, resolved once and cached,
+# together with one verdict per stage. Empty string means "resolved and
+# unavailable"; unset means "not yet resolved".
 TREESITTER_PYTHON="${TREESITTER_PYTHON:-}"
 _TREESITTER_RESOLVED=false
 
-check_treesitter() {
+_resolve_treesitter() {
     # Delegates to arch_utils/interpreters.py rather than probing a path here.
     #
     # This used to hard-code "${SCRIPTS_DIR}/.venv/bin/python" — a per-skill venv
@@ -149,14 +180,41 @@ check_treesitter() {
     # provenance, which asked a *different* question in a different process,
     # still recorded tree-sitter as available (issue #378). One resolver means
     # the pipeline and the provenance record cannot disagree.
+    #
+    # `--shell` emits the same resolution provenance records, as assignments:
+    # the interpreter plus TREESITTER_STAGE_<stage>=true|false. Flat variables
+    # rather than an associative array, for the bash 3 compatibility this script
+    # keeps elsewhere.
+    if [ "${_TREESITTER_RESOLVED}" = true ]; then
+        return 0
+    fi
+    _TREESITTER_RESOLVED=true
+    TREESITTER_PYTHON=""
     if [ "${TREESITTER_ENABLED}" != "true" ]; then
+        return 0
+    fi
+    local resolved
+    resolved="$(${PYTHON} "${SCRIPTS_DIR}/arch_utils/interpreters.py" --shell 2>/dev/null || true)"
+    if [ -n "${resolved}" ]; then
+        eval "${resolved}"
+    fi
+    return 0
+}
+
+# check_treesitter <stage> — does this stage have every grammar it imports?
+#
+# Asking per stage instead of once for the pipeline is the point: requiring
+# tree_sitter_sql for everything meant one absent grammar disabled the
+# enrichment, comment-linker and pattern-reporter stages, which never parse SQL.
+check_treesitter() {
+    local stage="$1"
+    _resolve_treesitter
+    if [ -z "${TREESITTER_PYTHON}" ]; then
         return 1
     fi
-    if [ "${_TREESITTER_RESOLVED}" = false ]; then
-        _TREESITTER_RESOLVED=true
-        TREESITTER_PYTHON="$(${PYTHON} "${SCRIPTS_DIR}/arch_utils/interpreters.py" 2>/dev/null || true)"
-    fi
-    [ -n "${TREESITTER_PYTHON}" ]
+    local verdict
+    verdict="$(eval "echo \${TREESITTER_STAGE_${stage}:-false}")"
+    [ "${verdict}" = "true" ]
 }
 
 try_install_jsonschema() {
@@ -227,6 +285,70 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
+# Step 1.1b: Schema Source (optional; ORM metadata instead of SQL migrations)
+# ---------------------------------------------------------------------------
+#
+# Inert unless SCHEMA_SOURCE is set. When it is, the dumper compiles the
+# declared MetaData to CREATE TABLE DDL and MIGRATIONS_DIR is repointed at that
+# output for the rest of this run, so the regex and tree-sitter SQL analyzers
+# below consume it with no knowledge that it came from an ORM.
+#
+# A skip leaves MIGRATIONS_DIR exactly as configured rather than substituting
+# anything: the SQL analyzers then reach their own D5 verdict about it, which is
+# the same answer they would have given had the source never been configured.
+
+if [ -n "${SCHEMA_SOURCE}" ]; then
+    info "--- [1.1b] Schema Source (${SCHEMA_SOURCE}) ---"
+
+    if [ "${SCHEMA_SOURCE}" != "sqlalchemy" ]; then
+        warn "Unknown SCHEMA_SOURCE: ${SCHEMA_SOURCE} — the only supported value is 'sqlalchemy'"
+        warn "Leaving MIGRATIONS_DIR (${MIGRATIONS_DIR}) as configured."
+        skip "schema_source"
+    elif [ ! -f "${SCRIPTS_DIR}/dump_sqlalchemy_schema.py" ]; then
+        warn "Schema dumper not found: ${SCRIPTS_DIR}/dump_sqlalchemy_schema.py — skipping"
+        skip "schema_source"
+    elif [ -z "${SCHEMA_TARGET}" ]; then
+        warn "SCHEMA_SOURCE=sqlalchemy needs SCHEMA_TARGET='<module>:<attribute>'"
+        warn "e.g. SCHEMA_TARGET=app.models:Base — skipping the ORM schema source"
+        skip "schema_source"
+    else
+        if [ -z "${SCHEMA_SOURCE_DIR}" ]; then
+            SCHEMA_SOURCE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/arch-schema-source.XXXXXX")"
+            SCHEMA_SOURCE_DIR_IS_TEMP=true
+            # Removed on exit: the DDL is analyzer input, not an artifact, and
+            # writing it under ARCH_DIR would promote a file provenance does not
+            # record and promotion never deletes.
+            trap 'if [ "${SCHEMA_SOURCE_DIR_IS_TEMP}" = true ]; then rm -rf "${SCHEMA_SOURCE_DIR}"; fi' EXIT
+        fi
+        mkdir -p "${SCHEMA_SOURCE_DIR}"
+
+        # Numbered because analyze_postgres.py orders migrations by a leading
+        # integer; the whole schema is one file, so it is the first one.
+        SCHEMA_SOURCE_RC=0
+        ${SCHEMA_SOURCE_PYTHON} "${SCRIPTS_DIR}/dump_sqlalchemy_schema.py" \
+            --target "${SCHEMA_TARGET}" \
+            --output "${SCHEMA_SOURCE_DIR}/0001_schema.sql" 2>&1 || SCHEMA_SOURCE_RC=$?
+
+        if [ "${SCHEMA_SOURCE_RC}" -eq 0 ]; then
+            MIGRATIONS_DIR="${SCHEMA_SOURCE_DIR}"
+            info "SQL analyzers will read the ORM schema at ${MIGRATIONS_DIR}"
+            pass "schema_source"
+        elif [ "${SCHEMA_SOURCE_RC}" -eq 3 ]; then
+            # Inapplicable input, per D5: warn loudly, write nothing, promote.
+            # The dumper printed the reason (import error, or a MetaData with no
+            # tables) immediately above.
+            warn "ORM schema source unusable — see the SKIP reason above"
+            warn "MIGRATIONS_DIR (${MIGRATIONS_DIR}) left as configured; the SQL analyzers decide for themselves."
+            skip "schema_source"
+        else
+            error "Schema dumper failed (exit code ${SCHEMA_SOURCE_RC})"
+            fail "schema_source"
+        fi
+    fi
+    echo ""
+fi
+
+# ---------------------------------------------------------------------------
 # Step 1.2: Postgres Analyzer
 # ---------------------------------------------------------------------------
 
@@ -234,11 +356,32 @@ info "--- [1.2] Postgres Analyzer ---"
 info "Migrations: ${MIGRATIONS_DIR}"
 
 if [ ! -d "${MIGRATIONS_DIR}" ]; then
-    error "Migrations directory not found: ${MIGRATIONS_DIR}"
-    fail "postgres_analyzer"
+    # Skip an inapplicable input root; do not fail it.
+    #
+    # This is the verdict the TypeScript analyzer below already reaches for a
+    # missing TS_SRC_DIR, and it is reached here for the same reason: an
+    # analyzer with nothing to parse has produced no analysis, and neither an
+    # error nor an empty artifact is an honest record of that. `fail` also
+    # increments ERRORS, which blocks staged promotion, so a repository whose
+    # migrations are Python (Alembic, Django, Prisma) could never write
+    # provenance at all — the pipeline failed on every run, permanently.
+    warn "MIGRATIONS_DIR does not exist: ${MIGRATIONS_DIR} — skipping Postgres analyzer"
+    warn "Set MIGRATIONS_DIR to this repository's SQL migrations root, or leave it unset if there is none."
+    warn "NOT writing an empty ${PG_ANALYSIS}: zero tables from a missing directory is a"
+    warn "configuration error, and recording it as a result would misreport it as analysis."
+    skip "postgres_analyzer"
 elif [ ! -f "${SCRIPTS_DIR}/analyze_postgres.py" ]; then
     warn "Postgres analyzer script not found: ${SCRIPTS_DIR}/analyze_postgres.py"
     fail "postgres_analyzer"
+elif [ -z "$(find "${MIGRATIONS_DIR}" -type f -name '*.sql' -print -quit 2>/dev/null)" ]; then
+    # Present but holding nothing this analyzer parses — the same skip, for the
+    # same reason. A present root is not evidence of SQL: it is where a non-SQL
+    # migration tool keeps its own chain.
+    warn "No *.sql files under ${MIGRATIONS_DIR} — skipping Postgres analyzer"
+    warn "The analyzer parses SQL migrations; a repository using a non-SQL migration tool"
+    warn "(Alembic, Django, Prisma) keeps nothing here for it to parse."
+    warn "Point MIGRATIONS_DIR at a directory of *.sql migrations, or leave it unset if there are none."
+    skip "postgres_analyzer"
 else
     if ${PYTHON} "${SCRIPTS_DIR}/analyze_postgres.py" \
         "${MIGRATIONS_DIR}" \
@@ -258,7 +401,7 @@ echo ""
 
 info "--- [1.2b] Tree-sitter SQL Analyzer ---"
 
-if check_treesitter; then
+if check_treesitter treesitter_sql; then
     SCRIPTS_PYTHON="${TREESITTER_PYTHON}"
     if [ -f "${SCRIPTS_DIR}/analyze_sql_treesitter.py" ] && [ -d "${MIGRATIONS_DIR}" ]; then
         if "${SCRIPTS_PYTHON}" "${SCRIPTS_DIR}/analyze_sql_treesitter.py" \
@@ -274,7 +417,7 @@ if check_treesitter; then
         skip "treesitter_sql"
     fi
 else
-    info "Tree-sitter not available — using regex SQL analyzer output"
+    info "Tree-sitter SQL grammar not available — using regex SQL analyzer output"
     skip "treesitter_sql"
 fi
 echo ""
@@ -405,7 +548,7 @@ echo ""
 
 info "--- [2.1b] Tree-sitter Enrichment ---"
 
-if check_treesitter && [ -f "${SCRIPTS_DIR}/enrich_with_treesitter.py" ]; then
+if check_treesitter treesitter_enrichment && [ -f "${SCRIPTS_DIR}/enrich_with_treesitter.py" ]; then
     SCRIPTS_PYTHON="${TREESITTER_PYTHON}"
     ENRICH_ARGS=("--queries" "${QUERIES_DIR}" "--output" "${ENRICHMENT_FILE}")
     [ -d "${PYTHON_SRC_DIR}" ] && ENRICH_ARGS+=("--python-src" "${PYTHON_SRC_DIR}")
@@ -421,7 +564,7 @@ if check_treesitter && [ -f "${SCRIPTS_DIR}/enrich_with_treesitter.py" ]; then
         skip "treesitter_enrichment"
     fi
 else
-    info "Tree-sitter not available — skipping enrichment"
+    info "Tree-sitter language grammars not available — skipping enrichment"
     skip "treesitter_enrichment"
 fi
 echo ""
@@ -435,7 +578,7 @@ info "--- [2.1c] Comment Linker ---"
 # check_treesitter is part of the condition, not an assumption. The enrichment
 # file can predate this run (in non-staged mode it is whatever the last refresh
 # left behind), so its presence does not imply an interpreter was resolved.
-if check_treesitter && [ -f "${ENRICHMENT_FILE}" ] && [ -f "${SCRIPTS_DIR}/insights/comment_linker.py" ]; then
+if check_treesitter comment_linker && [ -f "${ENRICHMENT_FILE}" ] && [ -f "${SCRIPTS_DIR}/insights/comment_linker.py" ]; then
     SCRIPTS_PYTHON="${TREESITTER_PYTHON}"
     if "${SCRIPTS_PYTHON}" "${SCRIPTS_DIR}/insights/comment_linker.py" \
         --input-dir "${ARCH_DIR}" \
@@ -457,7 +600,7 @@ echo ""
 
 info "--- [2.1d] Pattern Reporter ---"
 
-if check_treesitter && [ -f "${ENRICHMENT_FILE}" ] && [ -f "${SCRIPTS_DIR}/insights/pattern_reporter.py" ]; then
+if check_treesitter pattern_reporter && [ -f "${ENRICHMENT_FILE}" ] && [ -f "${SCRIPTS_DIR}/insights/pattern_reporter.py" ]; then
     SCRIPTS_PYTHON="${TREESITTER_PYTHON}"
     if "${SCRIPTS_PYTHON}" "${SCRIPTS_DIR}/insights/pattern_reporter.py" \
         --input-dir "${ARCH_DIR}" \

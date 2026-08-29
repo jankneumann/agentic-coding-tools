@@ -391,6 +391,67 @@ _SERVER: RefreshServer | None = None
 _SERVER_LOCK = threading.Lock()
 
 
+def _resolve_repo_root(graph_path: Path) -> Path | None:
+    """Resolve the repository whose provenance decides freshness.
+
+    Order (design D4):
+
+    1. ``REFRESH_RPC_REPO_ROOT`` — explicit operator override.
+    2. ``git rev-parse --show-toplevel`` anchored at the graph path's directory.
+    3. ``None`` — no repository, so the caller keeps the deprecated mtime probe.
+
+    Step 2 is deliberately anchored at the graph path rather than the process
+    cwd: the verdict must not depend on where the RPC happened to be invoked
+    from. ``DEFAULT_GRAPH_PATH`` is relative and so has no directory of its own
+    yet, so a relative path anchors at this module instead — also a fixed
+    location inside the repository being probed, and equally cwd-independent.
+
+    Step 3 is retained on purpose. A ``.git``-less source export is a supported
+    layout (see ``provenance.input_enumeration_strategy``), and legacy mode must
+    stay reachable when there genuinely is no repository — just no longer
+    because the entry point never looked for one.
+    """
+    override = os.environ.get("REFRESH_RPC_REPO_ROOT")
+    if override:
+        return Path(override)
+
+    anchor = (
+        graph_path.parent
+        if graph_path.is_absolute()
+        else Path(__file__).resolve().parent
+    )
+    while not anchor.is_dir() and anchor != anchor.parent:
+        anchor = anchor.parent
+
+    try:
+        proc = subprocess.run(  # noqa: S603 — fixed command, no shell
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=str(anchor),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    root = proc.stdout.strip()
+    if proc.returncode != 0 or not root:
+        return None
+    return Path(root)
+
+
+def reset_server() -> None:
+    """Drop the memoized singleton so the next ``get_server()`` re-resolves.
+
+    Public on purpose: resolution reads the environment and the filesystem, so
+    tests (and any caller that changes either) need a supported way to discard
+    the memoized instance instead of reaching into the module's private global.
+    """
+    global _SERVER
+    with _SERVER_LOCK:
+        _SERVER = None
+
+
 def get_server() -> RefreshServer:
     global _SERVER
     with _SERVER_LOCK:
@@ -398,7 +459,13 @@ def get_server() -> RefreshServer:
             graph_path = Path(
                 os.environ.get("REFRESH_RPC_GRAPH_PATH", str(DEFAULT_GRAPH_PATH))
             )
-            _SERVER = RefreshServer(graph_path=graph_path)
+            repo_root = _resolve_repo_root(graph_path)
+            if repo_root is not None and not graph_path.is_absolute():
+                # DEFAULT_GRAPH_PATH is repo-relative; anchoring it at the
+                # resolved repository (not the cwd) is what makes the probe
+                # answer the same question from any working directory.
+                graph_path = repo_root / graph_path
+            _SERVER = RefreshServer(graph_path=graph_path, repo_root=repo_root)
         return _SERVER
 
 

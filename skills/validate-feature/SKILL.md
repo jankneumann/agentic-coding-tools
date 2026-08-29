@@ -26,13 +26,15 @@ Deploy the feature locally with DEBUG logging, run security scans and behavioral
 - `--skip-ci` — skip the CI/CD status check
 - `--skip-security` — skip the Security Scan phase
 - `--phase <name>[,<name>]` — run only specified phases (e.g., `--phase smoke,security`)
+- `--ephemeral` — run write-capable validation steps in a disposable detached worktree
+- `--include-dirty` — with `--ephemeral`, materialize staged, unstaged, and untracked source state instead of refusing a dirty checkout
 
 Valid phase names: `deploy`, `smoke`, `gen-eval`, `security`, `e2e`, `architecture`, `spec`, `logs`, `ci`
 
 ## Prerequisites
 
 - Feature branch exists with implementation commits (default `openspec/<change-id>`, or the operator-mandated branch when `OPENSPEC_BRANCH_OVERRIDE` is set)
-- Docker/docker-compose installed and running (for Deploy phase)
+- A usable container runtime (docker or podman, daemon answering `info`) for the Deploy phase. Detection is the same as `DockerStackEnvironment._detect_runtime`: PATH presence is not enough.
 - Approved OpenSpec proposal exists at `openspec/changes/<change-id>/`
 - Run `/implement-feature` first if no implementation exists
 
@@ -72,6 +74,8 @@ python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 
 Read-only CI status checks may inspect from the shared checkout, but any report
 or evidence file must be written in a worktree so it lands on the PR branch.
+`--ephemeral` adds a disposable validation checkout inside this managed feature
+worktree boundary; it never makes the shared checkout writable.
 
 ## Steps
 
@@ -110,6 +114,8 @@ Parse flags from `$ARGUMENTS`:
 - `--skip-ci` → set SKIP_CI=true
 - `--skip-security` → set SKIP_SECURITY=true
 - `--phase <names>` → set PHASES to comma-separated list; only run those phases
+- `--ephemeral` → set EPHEMERAL=true
+- `--include-dirty` → set INCLUDE_DIRTY=true; reject it unless EPHEMERAL=true
 
 If `--phase` is provided, only the listed phases execute. If `--phase` includes phases other than `deploy`, assume services are already running (skip deploy and teardown).
 
@@ -138,19 +144,115 @@ if [ "$COMMIT_COUNT" -eq 0 ]; then
   exit 1
 fi
 
-# Check Docker availability (only if Deploy phase will run)
-if docker info > /dev/null 2>&1; then
-  echo "Docker is available"
+# Classify deployable surface (issue #432). Container-dependent phases are
+# required only when this change has a running service; a skills/docs/openspec
+# change records those phases as not applicable rather than skipped.
+CHANGE_DIR="$(git rev-parse --show-toplevel)/openspec/changes/$CHANGE_ID"
+SURFACE_JSON=$(python3 "<skill-base-dir>/scripts/gate_logic.py" --describe-surface \
+  --change-dir "$CHANGE_DIR")
+echo "$SURFACE_JSON"
+DEPLOYABLE=$(printf '%s' "$SURFACE_JSON" | python3 -c \
+  'import json,sys; print("true" if json.load(sys.stdin)["deployable"] else "false")')
+
+# Check for a usable container runtime only when Deploy will run.
+# Same predicate as DockerStackEnvironment._detect_runtime: PATH presence is
+# not enough — `docker info` / `podman info` must succeed. Prefer docker when
+# both work; fall through to podman when docker is installed but its daemon
+# is down (issue #433).
+if [ "$DEPLOYABLE" = "true" ]; then
+  if RUNTIME=$(python3 "<skill-base-dir>/scripts/environments/docker_stack.py" --detect); then
+    echo "Container runtime is available: $RUNTIME"
+  else
+    echo "ERROR: no usable container runtime (docker or podman)."
+    echo "  A binary on PATH is not sufficient — its daemon must answer \`info\`."
+    echo "  macOS: brew install --cask docker   OR   brew install podman"
+    echo "  Linux: sudo systemctl start docker  OR   sudo systemctl start podman"
+    exit 1
+  fi
 else
-  echo "ERROR: Docker is not available. Install Docker Desktop or start the Docker daemon."
-  echo "  macOS: brew install --cask docker"
-  echo "  Linux: sudo systemctl start docker"
-  exit 1
+  echo "No deployable surface — Deploy/Smoke/Security/E2E are not applicable."
+  echo "  Record those phases as **Status**: not applicable (not skipped)."
+  DEPLOY_NOT_APPLICABLE=true
 fi
 
 ```
 
 If not on the feature branch, check out `$FEATURE_BRANCH` (which honors `OPENSPEC_BRANCH_OVERRIDE`). If no implementation commits exist, abort with guidance.
+
+### 2.25. Enter Ephemeral Validation Scope (Optional)
+
+When `EPHEMERAL=true`, enter the canonical prepare/finalize lifecycle before
+Step 2.5. The source is the current feature checkout, not the previously
+resolved `PROJECT_ROOT` (which may name the main repository from inside a
+managed worktree). This is an executable shell boundary: Steps 2.5 through 12
+run from `VALIDATION_PATH`; Step 12.5 copies the durable allowlist back and
+removes the scratch checkout; Steps 13 and 14 then run from `VALIDATION_SOURCE`
+so PR comments, the session log, and its handoff are durable.
+
+```bash
+VALIDATION_HELPER="<skill-base-dir>/scripts/validation_worktree.py"
+VALIDATION_STATE_FILE=$(mktemp "${TMPDIR:-/tmp}/validate-feature-state.XXXXXX")
+INCLUDE_DIRTY_FLAG=""
+[ "$INCLUDE_DIRTY" = "true" ] && INCLUDE_DIRTY_FLAG="--include-dirty"
+
+if VALIDATION_PREPARE_OUTPUT=$(python3 "$VALIDATION_HELPER" prepare \
+    --source "$PWD" \
+    --change-id "$CHANGE_ID" \
+    --state-file "$VALIDATION_STATE_FILE" \
+    $INCLUDE_DIRTY_FLAG \
+    ); then
+  validation_json_field() {
+    printf '%s' "$VALIDATION_PREPARE_OUTPUT" | \
+      python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]], end="")' "$1"
+  }
+  if VALIDATION_SOURCE=$(validation_json_field source) && \
+      VALIDATION_PATH=$(validation_json_field path) && \
+      VALIDATION_VALIDATED_COMMIT=$(validation_json_field validated_commit) && \
+      VALIDATION_VALIDATED_TREE=$(validation_json_field validated_tree); then
+    export VALIDATION_SOURCE VALIDATION_PATH
+    export VALIDATION_VALIDATED_COMMIT VALIDATION_VALIDATED_TREE
+  else
+    VALIDATION_PARSE_STATUS=$?
+    python3 "$VALIDATION_HELPER" finalize --state-file "$VALIDATION_STATE_FILE" || true
+    rm -f -- "$VALIDATION_STATE_FILE"
+    echo "ERROR: could not parse ephemeral validation state" >&2
+    exit "$VALIDATION_PARSE_STATUS"
+  fi
+else
+  VALIDATION_PREPARE_STATUS=$?
+  rm -f -- "$VALIDATION_STATE_FILE"
+  echo "ERROR: could not prepare ephemeral validation" >&2
+  exit "$VALIDATION_PREPARE_STATUS"
+fi
+
+finalize_ephemeral_validation() {
+  validation_status="${1:-$?}"
+  validation_cleanup_status=0
+  trap - EXIT INT TERM
+  cd "$VALIDATION_SOURCE" || validation_cleanup_status=$?
+  python3 "$VALIDATION_HELPER" finalize --state-file "$VALIDATION_STATE_FILE" || \
+    validation_cleanup_status=$?
+  if [ "$validation_status" -eq 0 ]; then
+    validation_status=$validation_cleanup_status
+  fi
+  return "$validation_status"
+}
+trap 'finalize_ephemeral_validation $?' EXIT
+trap 'finalize_ephemeral_validation 130; exit 130' INT
+trap 'finalize_ephemeral_validation 143; exit 143' TERM
+
+cd "$VALIDATION_PATH"
+PROJECT_ROOT="$VALIDATION_PATH"
+OPENSPEC_PATH="$VALIDATION_PATH/openspec"
+```
+
+On a dirty checkout, omit `--include-dirty` to fail closed or pass it explicitly
+to reproduce the exact index, working-tree, and untracked state. The helper
+records `VALIDATION_VALIDATED_COMMIT` and `VALIDATION_VALIDATED_TREE`, copies only
+`validation-report.md`, `validation-findings.json`, and `architecture-impact.md`
+back to the feature checkout, and removes the scratch worktree even when an
+earlier step exits. Under a cloud harness whose environment profile already
+provides isolation, it logs a downgrade and runs in place.
 
 ### 2.5. Prepare Validation Artifacts
 
@@ -170,9 +272,13 @@ Ensure `validation-report.md` and `architecture-impact.md` are updated in the ch
 ### 3. Deploy Phase
 
 **Phase name:** `deploy`
-**Criticality:** Critical (stops validation on failure)
+**Criticality:** Critical when the change has a deployable surface; **not applicable** otherwise (issue #432). Do not record `skipped` for a phase that could never have applied.
 
 ```bash
+if [ "$DEPLOY_NOT_APPLICABLE" = true ]; then
+  echo "NOT APPLICABLE: no deployable surface — Deploy is not a skipped check."
+  DEPLOY_RESULT="not applicable"
+else
 # Find docker-compose file
 COMPOSE_FILE=$(find "$PROJECT_ROOT" -maxdepth 2 -name "docker-compose.yml" | head -1)
 
@@ -200,15 +306,15 @@ else
   AGENT_COORDINATOR_REST_PORT=${AGENT_COORDINATOR_REST_PORT:-8081} \
   AGENT_COORDINATOR_REALTIME_PORT=${AGENT_COORDINATOR_REALTIME_PORT:-4000} \
   COMPOSE_PROFILES=${COMPOSE_PROFILES:-api} \
-  LOG_LEVEL=DEBUG docker-compose -f "$COMPOSE_FILE" up -d --build 2>&1 | tee "$LOG_FILE"
+  LOG_LEVEL=DEBUG $RUNTIME compose -f "$COMPOSE_FILE" up -d --build 2>&1 | tee "$LOG_FILE"
 
   # Wait for health checks
   echo "Waiting for services to be healthy..."
-  docker-compose -f "$COMPOSE_FILE" ps
+  $RUNTIME compose -f "$COMPOSE_FILE" ps
 
   # Wait for PostgreSQL health check (up to 30 seconds)
   for i in $(seq 1 30); do
-    if docker-compose -f "$COMPOSE_FILE" exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
+    if $RUNTIME compose -f "$COMPOSE_FILE" exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
       echo "PostgreSQL is ready"
       break
     fi
@@ -226,10 +332,11 @@ else
   done
 
   # Collect running container logs in background
-  docker-compose -f "$COMPOSE_FILE" logs -f >> "$LOG_FILE" 2>&1 &
+  $RUNTIME compose -f "$COMPOSE_FILE" logs -f >> "$LOG_FILE" 2>&1 &
   LOG_PID=$!
 
   DEPLOY_RESULT="pass"
+fi
 fi
 ```
 
@@ -243,6 +350,10 @@ If Deploy fails, report the failure with Docker logs and skip to Teardown.
 Run the reusable pytest smoke test suite against the live services. The suite is configurable via environment variables so it works with any deployed HTTP API.
 
 ```bash
+if [ "$DEPLOY_NOT_APPLICABLE" = true ]; then
+  echo "NOT APPLICABLE: no deployable surface — Smoke is not a skipped check."
+  SMOKE_RESULT="not applicable"
+else
 # Configure for the target API (adjust per project)
 export API_BASE_URL="${API_BASE_URL:-http://localhost:8000}"
 export API_HEALTH_ENDPOINT="${API_HEALTH_ENDPOINT:-/health}"
@@ -266,6 +377,7 @@ elif [ $SMOKE_EXIT -eq 5 ]; then
 else
   SMOKE_RESULT="fail"
   SMOKE_FAILED=true
+fi
 fi
 ```
 
@@ -354,8 +466,10 @@ Gen-eval failures are non-critical and do not block validation. Results are incl
 Run security scanners (OWASP Dependency-Check and ZAP) against the live deployment using the existing security-review orchestrator.
 
 ```bash
-# Skip if --skip-security flag was provided
-if [ "$SKIP_SECURITY" = true ]; then
+if [ "$DEPLOY_NOT_APPLICABLE" = true ]; then
+  echo "NOT APPLICABLE: no deployable surface — Security is not a skipped check."
+  SECURITY_RESULT="not applicable"
+elif [ "$SKIP_SECURITY" = true ]; then
   echo "SKIP: Security phase skipped (--skip-security flag)"
   SECURITY_RESULT="skip"
 else
@@ -371,14 +485,23 @@ else
   SECURITY_EXIT=$?
 
   if [ $SECURITY_EXIT -eq 0 ]; then
-    SECURITY_RESULT="pass"
-    echo "Security: PASS — No threshold findings"
+    # Exit 0 under --allow-degraded-pass can mean "no findings" OR "a scanner
+    # never ran and we passed anyway". Those are different facts, so read the
+    # gate reasons rather than trusting the exit code alone (D6).
+    if grep -q "DEGRADED" docs/security-review/gate.json 2>/dev/null; then
+      SECURITY_RESULT="DEGRADED"
+      SECURITY_NOT_CHECKED=$(python3 -c "import json,sys; print('; '.join(r for r in json.load(open('docs/security-review/gate.json')).get('reasons', []) if 'DEGRADED' in r))" 2>/dev/null)
+      echo "Security: DEGRADED — ${SECURITY_NOT_CHECKED:-a scanner did not run; coverage incomplete}"
+    else
+      SECURITY_RESULT="pass"
+      echo "Security: PASS — No threshold findings"
+    fi
   elif [ $SECURITY_EXIT -eq 10 ]; then
     SECURITY_RESULT="fail"
     echo "Security: FAIL — Threshold findings detected"
   elif [ $SECURITY_EXIT -eq 11 ]; then
-    SECURITY_RESULT="degraded"
-    echo "Security: INCONCLUSIVE — Scanners degraded (check prerequisites)"
+    SECURITY_RESULT="DEGRADED"
+    echo "Security: DEGRADED (INCONCLUSIVE) — Scanners could not run (check prerequisites)"
   else
     SECURITY_RESULT="fail"
     echo "Security: ERROR — Unexpected exit code $SECURITY_EXIT"
@@ -388,15 +511,33 @@ fi
 
 The Security phase reuses the `/security-review` skill's scripts without requiring a separate invocation. The `--allow-degraded-pass` flag ensures missing prerequisites (Java, container runtime) degrade gracefully instead of blocking validation.
 
+Write `$SECURITY_RESULT` into `validation-report.md` verbatim — including `DEGRADED`
+— together with a one-line "what was not checked and why". `DEGRADED` is **not** a
+pass: `gate_logic.py` blocks the pre-merge gate on a DEGRADED required phase unless the
+operator passes `--accept-degraded Security`, and that override is echoed into the gate
+summary:
+
+```bash
+# Blocks: Security could not be checked
+python3 "<skill-base-dir>/scripts/gate_logic.py" openspec/changes/"$CHANGE_ID"/validation-report.md
+
+# Proceeds, recording the override in the gate summary
+python3 "<skill-base-dir>/scripts/gate_logic.py" openspec/changes/"$CHANGE_ID"/validation-report.md \
+  --accept-degraded Security
+```
+
 ### 6. E2E Phase
 
 **Phase name:** `e2e`
 **Criticality:** Non-critical (continues on failure)
 
 ```bash
-# Skip if --skip-e2e flag was provided
-if [ "$SKIP_E2E" = true ]; then
+if [ "$DEPLOY_NOT_APPLICABLE" = true ]; then
+  echo "NOT APPLICABLE: no deployable surface — E2E is not a skipped check."
+  E2E_RESULT="not applicable"
+elif [ "$SKIP_E2E" = true ]; then
   echo "SKIP: E2E phase skipped (--skip-e2e flag)"
+  E2E_RESULT="skip"
 else
   # Check if pytest-playwright is installed
   if python3 -c "import playwright" 2>/dev/null; then
@@ -410,10 +551,12 @@ else
 
   if [ -z "$E2E_DIR" ]; then
     echo "SKIP: No tests/e2e/ directory found. Skipping E2E phase."
+    E2E_RESULT="skip"
   elif [ "$PLAYWRIGHT_AVAILABLE" = false ]; then
-    echo "SKIP: pytest-playwright not installed. To install:"
+    echo "DEGRADED: E2E tests were NOT CHECKED because pytest-playwright is unavailable. To install:"
     echo "  pip install pytest-playwright"
     echo "  playwright install chromium"
+    E2E_RESULT="DEGRADED"
   else
     echo "Running E2E tests from $E2E_DIR..."
     pytest "$E2E_DIR" -v --tb=short 2>&1
@@ -431,39 +574,92 @@ fi
 ### 6b. Architecture Diagnostics Phase
 
 **Phase name:** `architecture`
-**Criticality:** Non-critical (continues on failure)
+**Criticality:** Config-ratcheted via `gates.architecture.mode` in `architecture.config.yaml`
+(OpenSpec `introduce-fitness-function-gates`, D4)
 
-Run architecture flow validation and structural linters against the changed files:
+| `gates.architecture.mode` | Effect |
+|---|---|
+| `advisory` (shipped default, and the fallback when the config file is absent or unreadable) | Findings are reported prominently in `validation-report.md` with their severities; the phase is **not** in `REQUIRED_PHASES` and never fails a run. |
+| `blocking` | `"Architecture"` joins `REQUIRED_PHASES` in `gate_logic.py`; a new dependency cycle (`severity_thresholds.new_cycle: critical`) fails the pre-merge gate. |
+
+The flip to `blocking` is a deliberate one-line config change made after
+`clean_runs_before_flip` (3) clean advisory runs, recorded with a date and rationale —
+not something a validation run decides for itself. Report the findings either way:
 
 ```bash
+python3 -c "import sys; sys.path.insert(0, '<skill-base-dir>/scripts'); \
+  import gate_logic; print(gate_logic.architecture_mode())"
+```
+
+Run the baseline architecture diff, flow validation, and structural linters
+against the changed files. The diff producer runs first so new dependency cycles
+exist as findings before gate_logic.architecture_status() evaluates the phase:
+
+```bash
+# Ensure architecture artifacts are current, immediately before the first read.
+# `--ensure` is `--check` plus a staged refresh only when the check is not fresh,
+# so on an already-fresh checkout it writes nothing. PYTHON must name the same
+# interpreter this repository's architecture targets use: the check runs in-process
+# and the pipeline runs in a subprocess, and if the two disagree about which
+# optional grammars are importable they report permanent, unfixable drift.
+ARCH_PY="${PYTHON:-python3}"
+if "$ARCH_PY" "<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py" --ensure --python "$ARCH_PY"; then
+  ARCH_FRESHNESS="ensured"
+else
+  ARCH_FRESHNESS="DEGRADED"
+  echo "DEGRADED: architecture artifacts could not be made current; the last known-good analysis is left intact but unverified. Report every architecture-derived finding below as unverified rather than as current." >&2
+fi
+
 # Get changed files relative to main
-CHANGED_FILES=$(git diff --name-only main...HEAD | tr '\n' ',')
+CHANGED_FILES=$(git diff --name-only main...HEAD | tr "\n" ",")
+
+# --- Sub-phase 0: Baseline graph diff (new-cycle producer) ---
+ARCH_BASE_SHA=$(git merge-base main HEAD)
+ARCH_DIFF="docs/architecture-analysis/architecture.diff.json"
+if [ -f Makefile ] && [ -f "docs/architecture-analysis/architecture.graph.json" ]; then
+  echo "Running architecture baseline diff against $ARCH_BASE_SHA..."
+  if make architecture-diff BASE_SHA="$ARCH_BASE_SHA"; then
+    ARCH_NEW_CYCLES=$(python3 -c "import json; d=json.load(open(\"$ARCH_DIFF\")); print(d[\"summary\"][\"new_cycles\"])")
+    ARCH_DIFF_RESULT=$(python3 -c "import json,sys; sys.path.insert(0, \"<skill-base-dir>/scripts\"); import gate_logic; d=json.load(open(\"$ARCH_DIFF\")); findings=[{\"category\": \"new_cycle\", \"description\": \"New dependency cycle: \" + \" -> \".join(c)} for c in d[\"details\"][\"new_cycles\"]]; print(gate_logic.architecture_status(findings))")
+    echo "Architecture diff: $ARCH_NEW_CYCLES new cycle(s); gate status: $ARCH_DIFF_RESULT"
+  else
+    echo "DEGRADED: Architecture baseline diff was NOT CHECKED because the producer failed"
+    ARCH_DIFF_RESULT="DEGRADED"
+  fi
+else
+  echo "DEGRADED: Architecture baseline diff was NOT CHECKED because Makefile or graph artifacts are unavailable"
+  ARCH_DIFF_RESULT="DEGRADED"
+fi
 
 # --- Sub-phase 1: Flow validation (validate_flows.py) ---
 if [ -f "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" ] && [ -f "docs/architecture-analysis/architecture.graph.json" ]; then
   echo "Running architecture flow validation on changed files..."
+  # Scoped run: omit --output so the validator writes the scoped artifact
+  # (architecture.diagnostics.scoped.json) rather than the committed full-scope
+  # architecture.diagnostics.json, which only refresh-architecture full run
+  # should produce.
+  ARCH_DIAGNOSTICS="docs/architecture-analysis/architecture.diagnostics.scoped.json"
   python3 "<skill-base-dir>/../validate-flows/scripts/validate_flows.py" \
     --graph docs/architecture-analysis/architecture.graph.json \
-    --output docs/architecture-analysis/architecture.diagnostics.json \
     --files "$CHANGED_FILES" 2>&1
   ARCH_EXIT=$?
 
   if [ $ARCH_EXIT -eq 0 ]; then
-    ARCH_RESULT="pass"
-    ARCH_ERRORS=$(python3 -c "import json; d=json.load(open('docs/architecture-analysis/architecture.diagnostics.json')); print(d['summary']['errors'])" 2>/dev/null || echo 0)
-    ARCH_WARNINGS=$(python3 -c "import json; d=json.load(open('docs/architecture-analysis/architecture.diagnostics.json')); print(d['summary']['warnings'])" 2>/dev/null || echo 0)
+    FLOW_RESULT="pass"
+    ARCH_ERRORS=$(python3 -c "import json; d=json.load(open(\"$ARCH_DIAGNOSTICS\")); print(d[\"summary\"][\"errors\"])" 2>/dev/null || echo 0)
+    ARCH_WARNINGS=$(python3 -c "import json; d=json.load(open(\"$ARCH_DIAGNOSTICS\")); print(d[\"summary\"][\"warnings\"])" 2>/dev/null || echo 0)
     if [ "$ARCH_ERRORS" -gt 0 ]; then
-      ARCH_RESULT="fail"
+      FLOW_RESULT="fail"
     elif [ "$ARCH_WARNINGS" -gt 0 ]; then
-      ARCH_RESULT="warn"
+      FLOW_RESULT="warn"
     fi
   else
-    ARCH_RESULT="fail"
+    FLOW_RESULT="fail"
   fi
 else
-  echo "SKIP: Architecture flow validation not available (missing scripts or artifacts)"
-  echo "  Run 'make architecture' to generate architecture artifacts"
-  ARCH_RESULT="skip"
+  echo "DEGRADED: Architecture flow validation was NOT CHECKED (missing scripts or artifacts)"
+  echo "  ARCH_FRESHNESS=$ARCH_FRESHNESS — re-run the ensure call above to generate them"
+  FLOW_RESULT="DEGRADED"
 fi
 
 # --- Sub-phase 2: Structural linters (dependency direction, file-size, naming) ---
@@ -477,16 +673,30 @@ if [ $LINTER_EXIT -eq 0 ]; then
   LINTER_RESULT="pass"
 else
   LINTER_RESULT="fail"
-  # Merge linter findings into architecture phase result
-  if [ "$ARCH_RESULT" != "fail" ]; then
-    ARCH_RESULT="fail"
-  fi
 fi
 
 echo "Structural linters: $LINTER_RESULT"
+
+# Aggregate without allowing a later passing sub-phase to erase an earlier
+# failure or unavailable checker.
+ARCH_RESULT="pass"
+for SUBPHASE_RESULT in "$ARCH_FRESHNESS" "$ARCH_DIFF_RESULT" "$FLOW_RESULT" "$LINTER_RESULT"; do
+  if [ "$SUBPHASE_RESULT" = "fail" ]; then
+    ARCH_RESULT="fail"
+  elif [ "$SUBPHASE_RESULT" = "DEGRADED" ] && [ "$ARCH_RESULT" != "fail" ]; then
+    ARCH_RESULT="DEGRADED"
+  elif [ "$SUBPHASE_RESULT" = "warn" ] && [ "$ARCH_RESULT" = "pass" ]; then
+    ARCH_RESULT="warn"
+  fi
+done
 ```
 
-Report architecture diagnostics including broken flows, missing test coverage, orphaned code, disconnected endpoints, dependency direction violations, oversized files, and naming convention issues. Structural linter findings are output in `review-findings.schema.json` format for integration with the consensus synthesizer.
+Render architecture.diff.json in validation-report.md before running the hard
+gate, including its summary.new_cycles count and every details.new_cycles path.
+Also report broken flows, missing test coverage, orphaned code, disconnected
+endpoints, dependency direction violations, oversized files, and naming convention
+issues. Structural linter findings are output in review-findings.schema.json format
+for integration with the consensus synthesizer.
 
 ### 7. Spec Compliance Phase (via Change Context)
 
@@ -767,8 +977,8 @@ if [ "$DEPLOY_SKIPPED" != true ] && [ -n "$COMPOSE_FILE" ]; then
     kill $LOG_PID 2>/dev/null
   fi
 
-  # Stop docker-compose services
-  docker-compose -f "$COMPOSE_FILE" down
+  # Stop services through the runtime selected during prerequisite detection.
+  $RUNTIME compose -f "$COMPOSE_FILE" down
 
   echo "Services stopped"
 fi
@@ -833,7 +1043,8 @@ Write the validation report to the OpenSpec change directory:
 ```bash
 REPORT_FILE="$OPENSPEC_PATH/changes/$CHANGE_ID/validation-report.md"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-COMMIT_SHA=$(git rev-parse --short HEAD)
+COMMIT_SHA="${VALIDATION_VALIDATED_COMMIT:-$(git rev-parse HEAD)}"
+VALIDATED_TREE="${VALIDATION_VALIDATED_TREE:-$(git rev-parse HEAD^{tree})}"
 
 # Write report (overwrites previous)
 cat > "$REPORT_FILE" << EOF
@@ -841,6 +1052,7 @@ cat > "$REPORT_FILE" << EOF
 
 **Date**: $TIMESTAMP
 **Commit**: $COMMIT_SHA
+**Validated tree**: $VALIDATED_TREE
 **Branch**: $FEATURE_BRANCH
 
 ## Phase Results
@@ -854,6 +1066,24 @@ EOF
 
 echo "Report written to: $REPORT_FILE"
 ```
+
+The pre-merge gate parses `## Spec Compliance`, `## Smoke Tests`, `## Security`, and `## E2E Tests` headings with a `**Status**` line. Write those sections into the report. When `DEPLOY_NOT_APPLICABLE=true`, the container phases MUST say `**Status**: not applicable` with a reason — never `skipped`. Spec compliance is always required.
+
+### 12.5. Finalize Ephemeral Validation Scope
+
+When `EPHEMERAL=true`, finalize before any durable source-checkout bookkeeping.
+This atomically copies only newly produced or changed allowlisted artifacts,
+removes the disposable worktree, and clears the failure trap:
+
+```bash
+finalize_ephemeral_validation
+PROJECT_ROOT="$VALIDATION_SOURCE"
+OPENSPEC_PATH="$VALIDATION_SOURCE/openspec"
+```
+
+Steps 13 and 14 now operate in `VALIDATION_SOURCE`. In particular,
+`PhaseRecord.write_both()` writes `session-log.md` and the validation handoff
+after scratch teardown, so neither durable bookkeeping artifact is discarded.
 
 ### 13. PR Comment
 
@@ -920,7 +1150,9 @@ for w in result.warnings:
 EOF
 ```
 
-`write_both()` runs three best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/validation-<N>.json`). Each step logs warnings on failure but does not raise.
+`write_both()` runs four best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/validation-<N>.json`) → regenerate the decision index that the append invalidated. Each step logs warnings on failure but does not raise.
+
+Step four means this skill's dedicated commit below may also carry `docs/decisions/` changes even though validation is otherwise read-only.
 
 **Commit and push** (validate-feature is read-only, so this needs a dedicated commit):
 

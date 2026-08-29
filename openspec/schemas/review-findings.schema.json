@@ -23,17 +23,22 @@
           "package_id": { "type": "string" },
           "file_path": { "type": "string", "description": "File path the finding relates to (optional, enables cross-vendor matching)" },
           "line_range": {
-            "type": "object",
-            "properties": {
-              "start": { "type": "integer" },
-              "end": { "type": "integer" }
-            },
-            "description": "Line range within file_path (optional)"
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "start": { "type": "integer" },
+                  "end": { "type": "integer" }
+                }
+              },
+              { "type": "string", "pattern": "^\\s*\\d+(\\s*-\\s*\\d+)?\\s*$" }
+            ],
+            "description": "Line range within file_path (optional). Two shapes are accepted, matching consensus_synthesizer._parse_line_range: the canonical object form, and the bare string form ('10' or '10-20') that vendors emit in practice. The parser was widened to accept the string; this schema was not, so the CLI replay path rejected documents the in-process path consumed fine. Keep the two in step."
           },
           "axis": {
             "type": "string",
-            "enum": ["correctness", "readability", "architecture", "security", "performance"],
-            "description": "5-axis review categorization (from code-review-and-quality skill)"
+            "enum": ["correctness", "readability", "architecture", "security", "performance", "observability", "resilience", "compatibility"],
+            "description": "8-axis review categorization (5 code-review axes plus the fitness-function axes observability, resilience, compatibility)"
           },
           "severity": {
             "type": "string",

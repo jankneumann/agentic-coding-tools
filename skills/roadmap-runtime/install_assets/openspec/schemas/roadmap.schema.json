@@ -26,6 +26,13 @@
       "type": "string",
       "format": "date-time"
     },
+    "refinements": {
+      "type": "array",
+      "description": "Append-only provenance records for approved mutations to an active roadmap.",
+      "items": {
+        "$ref": "#/$defs/refinement_record"
+      }
+    },
     "status": {
       "type": "string",
       "enum": ["planning", "approved", "in_progress", "blocked", "completed", "abandoned"],
@@ -65,6 +72,48 @@
     }
   },
   "$defs": {
+    "refinement_record": {
+      "type": "object",
+      "required": [
+        "timestamp",
+        "actor",
+        "source",
+        "rationale",
+        "base_sha256",
+        "operations"
+      ],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "actor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "base_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "roadmap_item": {
       "type": "object",
       "required": ["item_id", "title", "status", "priority", "effort", "depends_on"],
@@ -90,7 +139,7 @@
         },
         "status": {
           "type": "string",
-          "enum": ["candidate", "approved", "in_progress", "completed", "failed", "blocked", "replan_required", "skipped"],
+          "enum": ["candidate", "approved", "in_progress", "completed", "failed", "blocked", "replan_required", "skipped", "superseded"],
           "description": "Item lifecycle status."
         },
         "priority": {
@@ -107,6 +156,24 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Item IDs that must complete before this item can execute."
+        },
+        "external_depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^:\\s]+:[^:\\s]+$",
+            "description": "A cross-roadmap item reference of the form '<roadmap-id>:<item-id>'."
+          },
+          "description": "Cross-roadmap prerequisites. Each entry is an item_ref '<roadmap-id>:<item-id>' pointing at an item in another roadmap that must reach status 'completed' before this item can execute."
+        },
+        "superseded_by": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[^:\\s]+:[^:\\s]+$",
+            "description": "A cross-roadmap item reference of the form '<roadmap-id>:<item-id>'."
+          },
+          "description": "Cross-roadmap item_refs '<roadmap-id>:<item-id>' that supersede this item. Typically paired with status 'superseded'."
         },
         "acceptance_outcomes": {
           "type": "array",

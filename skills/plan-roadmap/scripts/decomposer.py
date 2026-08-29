@@ -41,8 +41,17 @@ from models import (  # type: ignore[import-untyped]
     validate_against_schema,
 )
 
+# change_id safety is defined next to the derivation that produces it, so the
+# validator and the scaffolder can never disagree about what is a legal id.
+from scaffolder import validate_change_id  # noqa: E402
+
 # Heading pattern: captures level (number of #) and text
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
+
+#: Statuses in which an item has *ceded* its change_id rather than claiming it.
+#: `skipped` and `superseded` are how a roadmap hands a change to another
+#: roadmap's item, so the duplicate-change_id check must not count them.
+_CEDED_STATUSES = frozenset({ItemStatus.SKIPPED, ItemStatus.SUPERSEDED})
 
 
 # ---------------------------------------------------------------------------
@@ -83,9 +92,15 @@ def validate_roadmap(data: dict, repo_root: Path) -> list[str]:
 
     1. JSON-schema conformance (``roadmap.schema.json``).
     2. ``item_id`` uniqueness.
-    3. ``depends_on`` referential integrity (every referenced id exists; no
+    3. ``change_id`` uniqueness among items that declare one.
+    4. ``depends_on`` referential integrity (every referenced id exists; no
        self-dependency).
-    4. DAG acyclicity.
+    5. DAG acyclicity.
+
+    ``change_id`` presence is deliberately *not* required: several roadmaps
+    predate the field and would fail retroactively. ``plan-roadmap`` populates
+    it via ``scaffolder.populate_change_ids`` before saving; this check only
+    catches two items claiming the same change directory.
 
     Args:
         data: Parsed roadmap mapping (e.g. ``yaml.safe_load(...)``).
@@ -123,7 +138,28 @@ def validate_roadmap(data: dict, repo_root: Path) -> list[str]:
     for item_id in sorted(dupes):
         errors.append(f"Duplicate item_id {item_id!r} — every item_id must be unique.")
 
-    # 3. depends_on referential integrity
+    # 3. change_id safety and uniqueness (only among items that declare one —
+    #    presence is optional so pre-existing roadmaps without the field stay
+    #    valid). Safety is checked here so a malformed id is rejected at
+    #    validation time rather than when it reaches the filesystem.
+    change_seen: dict[str, str] = {}
+    for item in roadmap.items:
+        if not item.change_id:
+            continue
+        id_error = validate_change_id(item.change_id)
+        if id_error:
+            errors.append(f"Item {item.item_id!r}: {id_error}")
+            continue
+        if item.change_id in change_seen:
+            errors.append(
+                f"Item {item.item_id!r} and {change_seen[item.change_id]!r} both "
+                f"declare change_id {item.change_id!r} — two items cannot share a "
+                f"change directory."
+            )
+        else:
+            change_seen[item.change_id] = item.item_id
+
+    # 4. depends_on referential integrity
     id_set = set(ids)
     for item in roadmap.items:
         for dep in item.depends_on:
@@ -303,11 +339,20 @@ def validate_cross_roadmap(repo_root: Path) -> list[str]:
     #    intra-roadmap case is checked here rather than in validate_roadmap
     #    because both cases have the same cause and the same fix, and a
     #    per-roadmap check would report the cross-roadmap case twice.
+    #
+    #    An item in a ceded state does NOT claim its change_id: `skipped` and
+    #    `superseded` are precisely how a roadmap hands ownership to another
+    #    roadmap's item, so counting them would make ceding impossible and leave
+    #    the duplicate permanently unresolvable. (Found in practice: the
+    #    repo-improvement roadmap skipped four router changes to cede them to
+    #    dispatch-governance, and this check still reported the collision.)
     change_owners: dict[str, list[str]] = {}
     for roadmap_id, roadmap in sorted(roadmaps.items()):
         seen_here: dict[str, str] = {}
         for item in roadmap.items:
             if not item.change_id:
+                continue
+            if item.status in _CEDED_STATUSES:
                 continue
             if item.change_id in seen_here:
                 errors.append(

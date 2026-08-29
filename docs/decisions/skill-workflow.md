@@ -5,6 +5,160 @@
 
 ---
 
+## 2026-08-29 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Cleanup
+
+**The SKILL.md prose correction shipped with this change, not as a follow-up** — Five blocks documented write_both() as three steps. That prose is correct on main and false the moment step four lands, so deferring it would have merged a pull request that knowingly falsifies five documents -- the same deferred-repair shape this change exists to remove. write_allow and the proposal's Impact claim were both amended so the declaration matches the diff.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D1)
+
+---
+
+## 2026-08-29 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Cleanup
+
+**Merged under an explicit override, with the gap filed rather than absorbed** — Docker is unavailable here, so smoke, security and E2E cannot be generated for any change in this environment. Four changes this session produced no validation-report.md and none could have; the operator granted --force three times for mechanically identical reasons. Issue #432 proposes making the required phase set conditional on deployable surface, keeping the report itself mandatory, and failing closed when the surface cannot be determined.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D3)
+
+---
+
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Plan
+
+**Regeneration is a fourth step inside write_both(), not a caller responsibility** — The defect is that regeneration lives somewhere a caller must remember. Moving it to seven callers relocates the defect and adds every future skill to the list. It runs after the coordinator step, never before: it derives from what step one appended, so an early run would regenerate from a session log missing this entry and produce a confidently wrong index rather than a stale one.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D1)
+
+---
+
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Implementation
+
+**Step four derives its roots from markdown_path, not from cwd** — The index is rebuilt from the tree the entry actually landed in, which is both more correct than trusting the process working directory and the property that keeps every test off the repository's real docs/decisions/. When step one failed or wrote outside openspec/changes/, the step skips with a warning: that call invalidated no index, and regenerating anyway risks rewriting an unrelated one.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D1)
+
+---
+
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Plan
+
+**Always on, with no flag** — Measured 0.06s across 168 changes producing 25 index files, so there is no performance argument for a switch. And this repository has a fresh lesson about off-by-default correctness work: rescope-context-drift-enforcement shipped a context_gate emitter that was correct, tested and unreachable because the only thing that could enable it was an environment variable nobody was assigned to set. Rule 4 protects callers from surprise; here the surprise is the drift, and no caller's inputs, outputs or PhaseWriteResult fields change.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D2)
+
+---
+
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Implementation
+
+**Two skip guards protect against a degenerate index** — The generator deletes capability files no current decision supports, so running it over an unreadable archive would replace a stale index with an empty one that then compares equal to itself forever. Neither guard is a flag or an opt-out; both are failure handling, so D2's no-switch decision stands.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D2)
+
+---
+
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Plan
+
+**Orchestrator-scoping becomes enforced rather than assumed** — Step four writes docs/decisions/, outside every work package's write_allow. Verified at planning time that all seven write_both() call sites are orchestrator phase-boundary steps, so the conflict is latent rather than actual -- but latent by convention. Three defects of exactly this shape landed this session, each invisible because no check tied a declaration to reality. A test now pins it, rather than widening a write_allow or exempting derived paths from a scope checker that caught all three.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D3)
+
+---
+
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Implementation
+
+**An eighth write_both() call site exists and is an orchestrator boundary** — Planning enumerated seven. The structural guard found autopilot/scripts/phase_agent.py:631, _write_phase_failed_record, an escalation boundary rather than a worker path. It is allowlisted with the reason recorded. A prose-grep guard would have missed it; the AST walk over heredoc-lifted Python found it.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D3)
+
+---
+
+## 2026-08-19 — add-local-model-provider-tier
+
+### Phase: GitHub Review Remediation
+
+**Use Pi as the local execution boundary** — A raw chat-completions response cannot inspect files, run commands, edit, or write a real handoff. The adapter now launches the existing Pi coding-agent harness with a one-shot custom-provider extension.
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D1)
+
+---
+
+## 2026-08-16 — add-local-model-provider-tier
+
+### Phase: Implementation
+
+**Defense-in-depth trust boundary in the adapter** — Review F-02: resolver-only enforcement is defeated when the coordinator is unreachable; the local dispatch path now refuses absent/non-permitted archetypes itself
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D1)
+
+---
+
+## 2026-08-16 — add-local-model-provider-tier
+
+### Phase: Implementation
+
+**Probe cache TTL 30s + connection-error invalidation** — Review F-03: a permanent verdict cannot express liveness; policy engine re-consults each evaluation
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D2)
+
+---
+
+## 2026-08-16 — add-local-model-provider-tier
+
+### Phase: Implementation
+
+**Smoke path uses INIT/runner for local** — Review F-01 (critical): the IMPLEMENT payload violated the trust boundary the change itself introduces; refusals are now hard smoke failures
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D4)
+
+---
+
+## 2026-08-15 — add-local-model-provider-tier
+
+### Phase: Plan
+
+**Health probe + concurrency cap in adapter (D5)** — Structured fallback, never a hang; policy engine must not switch to a dead endpoint
+
+- Status: `active`
+- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D4)
+
+---
+
+## 2026-08-13 — add-atomic-harness
+
+### Phase: Plan
+
+**Pilot the workflow engine through one opt-in seam (fix-scrub --executor atomic-workflow)** — Headless dispatch emits machine-parseable workflow.run.end events (probe A14), giving a clean adapter contract; bounding the pilot to one skill keeps a promote-or-retire decision falsifiable without touching autopilot phases.
+
+- Status: `active`
+- Source: [openspec/changes/add-atomic-harness/session-log.md](/openspec/changes/add-atomic-harness/session-log.md) (D2)
+
+---
+
 ## 2026-08-01 — 2026-08-04-gate-semantic-context-default-enablement
 
 ### Phase: Implementation
@@ -16,36 +170,36 @@
 
 ---
 
-## 2026-07-26 — add-branch-local-context-checkpoints
+## 2026-07-26 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Implementation
 
 **The trigger decision lives in checkpoint.py, not in workflow prose** — wp-workflow's scope is a SKILL.md plus a test file, and implement-feature has no scripts/ directory -- so its tests had nothing to import. should_checkpoint() gives the decision a real home and keeps the workflow tests asserting against code rather than markdown.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D2)
 
 ---
 
-## 2026-07-25 — add-branch-local-context-checkpoints
+## 2026-07-25 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Plan
 
 **Trigger derives from ri-08 context_impact, not a new size field** — No required size field exists on work packages; loc_estimate, complexity and package_kind are optional hints that most packages omit. Deriving the trigger from declared context-impact surfaces ties it to the thing being reported on and needs no schema change.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D3)
 
 ---
 
-## 2026-07-25 — add-branch-local-context-checkpoints
+## 2026-07-25 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Plan
 
 **Unmigrated packages are reported as unmigrated, not impact-free** — The ri-08 detector returns None for a missing block and an empty frozenset for an explicit empty list. A missing block is absence of evidence; an empty list is an assertion. Collapsing them would let an unmigrated package appear verified.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D4)
 
 ---
 

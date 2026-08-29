@@ -21,7 +21,7 @@
   "properties": {
     "schema_version": {
       "type": "integer",
-      "const": 1
+      "const": 2
     },
     "producer": {
       "type": "object",
@@ -118,7 +118,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "sha256", "size_bytes", "required"],
+        "required": ["path", "sha256", "size_bytes", "required", "tier"],
         "properties": {
           "path": {
             "type": "string",
@@ -138,6 +138,11 @@
           "carried_over": {
             "description": "True when the recording run did not produce this artifact — promotion is a one-way merge, so a file an optional stage skipped survives in the output directory at the bytes an earlier revision wrote. The entry is still recorded (its digest keeps pinning the committed bytes); the flag is what stops the record from claiming this revision generated it. Optional so a document assembled outside a staged run, or written before this field existed, stays schema-valid — absent means 'unknown', never 'freshly generated'.",
             "type": "boolean"
+          },
+          "tier": {
+            "description": "Where this artifact's bytes are expected to live. 'committed' means the file is tracked in version control and a clean checkout is expected to contain it, so its absence is drift. 'local-cache' means the pipeline generates it but the repository deliberately does not track it, so a clean checkout is expected NOT to contain it and its absence is not drift. The digest is verified for both tiers whenever the file IS present, so a stale local cache is still reported rather than trusted. Required and enumerated rather than optional-with-default: a record written before this field existed must be rejected loudly, not silently reinterpreted as 'committed'.",
+            "type": "string",
+            "enum": ["committed", "local-cache"]
           }
         }
       }

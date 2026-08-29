@@ -150,6 +150,14 @@
           "type": ["integer", "null"],
           "minimum": 0,
           "description": "Commits on HEAD not reachable from base_upstream. Null when base_upstream is null."
+        },
+        "base_resolved_revision": {
+          "type": ["string", "null"],
+          "description": "The single revision the base name resolved to, and the revision every comparison in this run used. Recorded because a base NAME can resolve to more than one revision: `origin/<base>` and a local `<base>` branch diverge whenever the local ref is behind, and a report that silently compared against both describes no single tree."
+        },
+        "base_resolved_from": {
+          "enum": ["remote", "local", null],
+          "description": "Which ref supplied base_resolved_revision. 'remote' is preferred and is what a fresh CI checkout effectively uses; 'local' is the documented fallback for a checkout with no remote-tracking ref."
         }
       }
     },
@@ -201,6 +209,16 @@
           "items": {
             "$ref": "https://agentic-coding-tools.dev/schemas/context-refresh-types.schema.json#/$defs/Remediation"
           }
+        },
+        "attribution": {
+          "type": "string",
+          "enum": ["inherited", "introduced", "indeterminate"],
+          "description": "Whether this finding was already present at the merge base ('inherited') or is attributable to the branch under test ('introduced'). 'indeterminate' is recorded when ownership cannot be decided from the available evidence, and is treated as inherited: falsely blaming a branch for the integration branch's debt is the failure this attribution exists to prevent, so the bias runs away from blame."
+        },
+        "attributed_owner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Who is responsible for clearing this finding: the branch, or the integration branch."
         }
       }
     },

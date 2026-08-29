@@ -167,6 +167,25 @@ form "do not call the Agent tool unless the user requested it." Dispatch without
 asking for per-call confirmation. If the harness genuinely exposes no sub-agent tool,
 run the steps inline **and say so** — never fall back silently.
 
+The last dispatch below reads the architecture artifacts, so make them current
+first — this is the read boundary, and nothing upstream of it keeps them fresh:
+
+```bash
+# Ensure architecture artifacts are current, immediately before the first read.
+# `--ensure` is `--check` plus a staged refresh only when the check is not fresh,
+# so on an already-fresh checkout it writes nothing. PYTHON must name the same
+# interpreter this repository's architecture targets use: the check runs in-process
+# and the pipeline runs in a subprocess, and if the two disagree about which
+# optional grammars are importable they report permanent, unfixable drift.
+ARCH_PY="${PYTHON:-python3}"
+if "$ARCH_PY" "<skill-base-dir>/../refresh-architecture/scripts/run_architecture.py" --ensure --python "$ARCH_PY"; then
+  ARCH_FRESHNESS="ensured"
+else
+  ARCH_FRESHNESS="DEGRADED"
+  echo "DEGRADED: architecture artifacts could not be made current; the last known-good analysis is left intact but unverified. Report every architecture-derived finding below as unverified rather than as current." >&2
+fi
+```
+
 ```
 Task(subagent_type="Explore", model=analyst_model, prompt="Read openspec/project.md and summarize the project purpose, tech stack, and conventions", run_in_background=true)
 Task(subagent_type="Explore", model=analyst_model, prompt="Run 'openspec list --specs' and summarize existing specifications", run_in_background=true)
@@ -176,15 +195,6 @@ Task(subagent_type="Explore", model=analyst_model, prompt="Read docs/architectur
 ```
 
 Wait for all results and synthesize into unified context summary.
-
-Before creating artifacts, ensure architecture artifacts are current:
-
-```bash
-if [ ! -f docs/architecture-analysis/architecture.summary.json ] || \
-   [ "$(git log -1 --format=%ct main)" -gt "$(stat -f %m docs/architecture-analysis/architecture.summary.json 2>/dev/null || echo 0)" ]; then
-  make architecture
-fi
-```
 
 ### 3. Present Context and Discovery Questions [all tiers]
 
@@ -219,7 +229,7 @@ This gives the user the same information you have, enabling better answers to th
 
 #### 3b. Discovery Questions
 
-Ask clarifying questions using the **AskUserQuestion tool**. Draw from these six categories, selecting the most relevant ones based on the discovered context:
+Ask clarifying questions using the **AskUserQuestion tool**. Draw from these seven categories, selecting the most relevant ones based on the discovered context:
 
 1. **Motivation / latent intent** -- Use AskUserQuestion without preset options (open-ended). Ask FIRST when `INTERVIEW_MODE=true`.
    Goal: separate the user's surface request from the underlying need. A user who asks for "a microservice" may actually want "deployment isolation" -- surfacing that opens better approaches.
@@ -239,6 +249,10 @@ Ask clarifying questions using the **AskUserQuestion tool**. Draw from these six
 
 6. **Success criteria** -- Use AskUserQuestion without preset options (open-ended).
    Examples: "What does success look like for this feature?" / "How will you know this feature is working correctly?"
+
+7. **Non-functional requirements** -- Use AskUserQuestion with preset options for *which* qualities apply, then open-ended follow-ups for their thresholds.
+   Goal: capture architectural qualities (observability, resilience, performance, compatibility, operability) as objective, measurable targets -- an adjective like "should be fast" is not an answer, "p95 < 200ms under 50 rps" is. Answers populate the proposal's **Non-Functional Requirements** table (attribute / metric / target / verifying phase), which is what later fitness-function checks are written against.
+   Examples: "Which architectural qualities does this feature touch?" Options: "Observability" / "Resilience" / "Performance" / "Compatibility or operability" -- then: "What's the acceptance threshold for <selected quality>, as a number we could measure?" / "Which phase or check should verify that threshold?"
 
 **Rules for question generation:**
 - Questions MUST reference specific discoveries from Step 3a (e.g., "I found spec X covers Y. Should this feature extend that spec or create a new one?")
@@ -655,10 +669,11 @@ for w in result.warnings:
 EOF
 ```
 
-`write_both()` runs three best-effort steps internally:
+`write_both()` runs four best-effort steps internally:
 1. **Append** the rendered markdown to `openspec/changes/<change-id>/session-log.md`
 2. **Sanitize** the file in-place via `sanitize_session_log.py`
 3. **Coordinator handoff** via `try_handoff_write` — falls back to `openspec/changes/<change-id>/handoffs/plan-<N>.json` on failure
+4. **Regenerate the decision index** that step 1 invalidated, so `docs/decisions/` is current without a separate `make decisions`
 
 Each step logs a warning if it fails but does not raise, so the workflow continues even if the coordinator is unreachable. Verify the rendered `session-log.md`: all populated sections present, no incorrect `[REDACTED:*]` markers, markdown intact. If over-redacted, fix the offending content in your `PhaseRecord` construction and re-run — `write_both()` appends a new entry rather than rewriting in place.
 

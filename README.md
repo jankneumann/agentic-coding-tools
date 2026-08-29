@@ -15,7 +15,7 @@ Plan work, define correctness up-front via OpenSpec scenarios, decompose into wo
 - `/iterate-on-plan` — refine the proposal via structured self-review before approval
 - `/prototype-feature` — dispatch N parallel variant skeletons for human pick-and-choose convergence
 - `/implement-feature` — orchestrate work-package dispatch (also a Worker for sequential tier)
-- `/plan-roadmap` / `/autopilot-roadmap` — decompose a multi-feature proposal and execute it iteratively
+- `/plan-roadmap` / `/refine-roadmap` / `/autopilot-roadmap` — create, safely evolve, and iteratively execute a multi-feature roadmap
 - `/autopilot` — drive the full plan → review → implement → validate → PR lifecycle with multi-vendor convergence
 
 ### Workers

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-16T13:33:35.401466+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Ran validate-feature against the implemented change. Deploy/smoke/E2E/CI and both security scanners were unavailable in this cloud harness, so the only real security signal was an adversarial code review of the authorization diff. That review found two HIGH defects: retiring an agent escalated it via the agent_type fallback, and the runtime gate never compared the resolved profile to the declared one. Six findings were fixed and regression-tested; four filed. Suite 2312 passed, 0 failed.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "D12 \u2014 enforce the registry claim at runtime, not only in CI",
+        "rationale": "The CI invariant proved the projection correct; nothing proved the enforcement point consulted it. Resolution now requires declared-name equality for registry agents and source=='assignment' for others.",
+        "capability": "agent-identity",
+        "supersedes": null
+      },
+      {
+        "title": "One resolver, three call sites",
+        "rationale": "coordination_api, work_queue and policy_engine each carried a copy; two still failed open. Extracted to src/trust_resolution.py.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Degraded security scanners reported as inconclusive, not pass",
+        "rationale": "Both scanners were unavailable; the gate's PASS was policy-granted degradation over zero scanning. Recording it as a pass would be the 'silence is not success' failure.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Re-run the adversarial security review against 509ff07",
+      "Deploy to an environment with Postgres and exercise the startup sync for real",
+      "Then /cleanup-feature and archive; pca-02 (OpenBao per-agent secrets) is unblocked"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/derive-agent-identity-from-registry/validation-report.md",
+        "description": "validation report with phase results and findings"
+      },
+      {
+        "path": "agent-coordinator/src/trust_resolution.py",
+        "description": "the single shared resolver (D12)"
+      }
+    ]
+  }
+}

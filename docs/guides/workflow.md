@@ -22,6 +22,7 @@ Unified skills with **tiered execution** — each skill auto-selects its tier at
 
 # Roadmap orchestration (multi-change decomposition + iterative execution)
 /plan-roadmap <proposal-path>                          → Decompose proposal into prioritized roadmap
+/refine-roadmap <workspace-path> <refinement>           → Preview and safely evolve an active roadmap
 /autopilot-roadmap <workspace-path>                    → Execute roadmap items with learning feedback
 ```
 

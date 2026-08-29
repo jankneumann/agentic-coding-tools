@@ -18,6 +18,8 @@ import pytest
 import yaml
 
 from src.agents_config import (
+    LOCAL_PROVIDER,
+    LOCAL_TRUSTED_ARCHETYPES,
     SUPERVISOR_ARCHETYPE,
     WRITE_CAPABLE_PHASES,
     get_archetype,
@@ -139,10 +141,26 @@ def _alias_thinking(provider: str, tier: str) -> str | None:
     return entry.get("thinking") if isinstance(entry, dict) else None
 
 
+def _providers_permitting(archetype: str) -> list[str]:
+    """Providers that may serve *archetype*.
+
+    `local` sits behind an archetype trust boundary (OpenSpec change
+    add-local-model-provider-tier, D3): only cheap-to-discard / downstream-
+    verified archetypes resolve there, so tiering assertions about planning
+    and implementation archetypes exclude it. The refusal itself is covered by
+    the trust-boundary tests in test_agents_config.py.
+    """
+    return [
+        provider
+        for provider in _raw()["model_aliases"]
+        if provider != LOCAL_PROVIDER or archetype in LOCAL_TRUSTED_ARCHETYPES
+    ]
+
+
 def test_architect_resolves_frontier_per_provider(_load_real_config: None) -> None:
     aliases = _raw()["model_aliases"]
 
-    for provider in aliases:
+    for provider in _providers_permitting("architect"):
         resolved = resolve_archetype_for_phase("PLAN", {}, provider=provider)
         # Providers without a frontier alias gracefully fall back to premium.
         tier = "frontier" if "frontier" in aliases[provider] else "premium"
@@ -153,7 +171,7 @@ def test_architect_resolves_frontier_per_provider(_load_real_config: None) -> No
 
 
 def test_implement_resolves_to_standard_not_frontier(_load_real_config: None) -> None:
-    for provider in _raw()["model_aliases"]:
+    for provider in _providers_permitting("implementer"):
         resolved = resolve_archetype_for_phase("IMPLEMENT", {}, provider=provider)
 
         assert resolved.archetype == "implementer"
@@ -193,7 +211,7 @@ def test_supervisor_resolves_frontier_per_provider(_load_real_config: None) -> N
     supervisor = get_archetype(SUPERVISOR_ARCHETYPE)
     assert supervisor is not None
 
-    for provider in aliases:
+    for provider in _providers_permitting(SUPERVISOR_ARCHETYPE):
         tier = "frontier" if "frontier" in aliases[provider] else "premium"
         spec = resolve_provider_model_spec(supervisor.model, provider=provider)
         assert spec.model == _alias_model(provider, tier)

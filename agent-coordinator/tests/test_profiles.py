@@ -264,3 +264,40 @@ class TestProfileDataClasses:
         """Test creating OperationCheck from dict."""
         check = OperationCheck.from_dict({"allowed": True})
         assert check.allowed is True
+
+
+class TestProfileCacheInvalidation:
+    """The startup registry sync drops cached lookups after it mutates rows."""
+
+    @pytest.mark.asyncio
+    async def test_invalidate_cache_forces_refetch(self, mock_supabase, db_client):
+        """A cached profile is re-read from the DB after invalidation."""
+        route = mock_supabase.post(
+            "https://test.supabase.co/rest/v1/rpc/get_agent_profile"
+        ).mock(
+            return_value=Response(
+                200,
+                json={
+                    "success": True,
+                    "profile": {
+                        "id": str(uuid4()),
+                        "name": "grok_local",
+                        "agent_type": "grok",
+                        "trust_level": 2,
+                    },
+                    "source": "default",
+                },
+            )
+        )
+
+        service = ProfilesService(db_client)
+        first = await service.get_profile(agent_id="grok-local", agent_type="grok")
+        assert first.source == "default"
+
+        cached = await service.get_profile(agent_id="grok-local", agent_type="grok")
+        assert cached.source == "cache"
+
+        service.invalidate_cache()
+        refetched = await service.get_profile(agent_id="grok-local", agent_type="grok")
+        assert refetched.source == "default"
+        assert route.call_count == 2

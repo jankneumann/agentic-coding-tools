@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-08-16 — derive-agent-identity-from-registry
+
+### Phase: Validate
+
+**One resolver, three call sites** — coordination_api, work_queue and policy_engine each carried a copy; two still failed open. Extracted to src/trust_resolution.py.
+
+- Status: `active`
+- Source: [openspec/changes/derive-agent-identity-from-registry/session-log.md](/openspec/changes/derive-agent-identity-from-registry/session-log.md) (D2)
+
+---
+
+## 2026-08-16 — derive-agent-identity-from-registry
+
+### Phase: Validate
+
+**Degraded security scanners reported as inconclusive, not pass** — Both scanners were unavailable; the gate's PASS was policy-granted degradation over zero scanning. Recording it as a pass would be the 'silence is not success' failure.
+
+- Status: `active`
+- Source: [openspec/changes/derive-agent-identity-from-registry/session-log.md](/openspec/changes/derive-agent-identity-from-registry/session-log.md) (D3)
+
+---
+
+## 2026-08-14 — derive-agent-identity-from-registry
+
+### Phase: Plan
+
+**Fail-loud scoped to registry-declared agents** — Known agent with missing/disabled profile = hard error + audit event (projection machinery failed); unknown principals keep the low default (registry cannot be authoritative for principals it does not name).
+
+- Status: `active`
+- Source: [openspec/changes/derive-agent-identity-from-registry/session-log.md](/openspec/changes/derive-agent-identity-from-registry/session-log.md) (D3)
+
+---
+
 ## 2026-07-24 — 2026-07-26-expose-fail-closed-semantic-code-search
 
 ### Phase: Implementation

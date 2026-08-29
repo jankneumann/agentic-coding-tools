@@ -21,6 +21,8 @@ artifacts:
       Include a policy section with default_action and preferred_vendor.
       Items should be scoped to single OpenSpec changes — split cross-cutting
       concerns into separate items with explicit dependencies.
+      Active-roadmap edits append structured provenance to the optional
+      refinements array; plan-roadmap leaves that array empty at creation.
     requires: []
 
   # Execution: resumable checkpoint state

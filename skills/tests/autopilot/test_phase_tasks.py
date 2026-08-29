@@ -52,7 +52,12 @@ def test_phase_task_instructions_returns_string_for_active_phase() -> None:
     text = phase_agent._phase_task_instructions("IMPLEMENT")
     assert isinstance(text, str)
     assert "implement" in text.lower() or "tasks.md" in text.lower()
-    assert "do not merge the feature branch" in text.lower()
+    # The prompt is hand-wrapped source, so a phrase that matters can be split
+    # across a newline at any time ("Do not merge the\nfeature branch ..."
+    # is the current wrapping). Collapse whitespace before matching, or this
+    # asserts the line wrapping rather than the instruction.
+    flat = " ".join(text.lower().split())
+    assert "do not merge the feature branch" in flat
 
 
 def test_phase_task_instructions_unknown_phase_falls_back() -> None:

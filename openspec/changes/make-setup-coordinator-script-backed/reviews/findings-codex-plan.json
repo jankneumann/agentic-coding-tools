@@ -1,0 +1,67 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The retained Profile-Aware Setup scenarios are not mapped to executable tasks. spec.md requires the script entrypoint to report local Docker/Podman, ParadeDB health, MCP registration/tool discovery, Railway health/API-key checks, coordination_bridge detection, and missing .secrets.yaml copy guidance (spec.md:9-41), but tasks.md only adds profile-precedence tests and implements `check` against YAML/roster resolution, with its sole listed spec scenario being \"Agents file resolved from configuration\". A plan-following implementation can ship `check` without the local, railway, or secrets behavior the spec still requires.",
+      "resolution": "Add failing tests before task 3.6 for Local profile setup, Railway profile setup, and Secrets file missing, then expand task 3.6 to implement those checks/reporting without performing the forbidden mutations. Add a work-package verification step that exercises both profiles with fixture profiles/secrets and asserts the required remediation commands and capability report fields.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/tasks.md",
+      "line_range": {
+        "start": 142,
+        "end": 163
+      }
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The round-1 degraded-report fix is expressible in the schema but not required by any task or gate. spec.md adds scenarios requiring `degraded=true` plus non-empty warnings when any detection layer fails, and `degraded=false` plus empty warnings when every layer succeeds (spec.md:90-99). tasks.md's harness-detection tests cover the four vendor states, roster resolution, and filtering, but never name the degraded or complete-run scenarios; the work-package schema gate validates only one successful `detect-harnesses --json` run with an explicit AGENTS_YAML. An implementation can set `degraded=false` unconditionally and still satisfy the planned tests.",
+      "resolution": "Add a dedicated failing-test task for `Degraded run is distinguishable from an empty one` and `Complete run asserts completeness`: cover unreadable roster under `--json`, unavailable `vendor_health`/PyYAML at point of use, and any intentionally skipped layer. Update the wp-core JSON validation gate to validate at least one degraded fixture and one complete fixture.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/tasks.md",
+      "line_range": {
+        "start": 24,
+        "end": 60
+      }
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: contracts/README.md says `summary.total == len(vendors)` and per-state summary counters are asserted in the test suite because JSON Schema cannot express them, but no task in tasks.md schedules that assertion and V.8 only validates schema shape. A bogus summary can therefore pass the declared contract gate.",
+      "resolution": "Extend the harness detection tests in task 1.3 to assert summary total and per-state counts, and mention that assertion explicitly in V.8 or the wp-core contract-validation step.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/contracts/README.md",
+      "line_range": {
+        "start": 51,
+        "end": 57
+      }
+    },
+    {
+      "id": 4,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The intentional `write_allow` overlap is justified: work-packages.yaml makes wp-integration depend on wp-core, documents the single overlapping file, and explicitly says wp-core must not create `test_skill_md.py`, so the packages are sequential rather than competing parallel writers.",
+      "resolution": "Keep this decomposition pattern; it is clear enough for both implementers and scope-compliance tooling.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/make-setup-coordinator-script-backed/work-packages.yaml",
+      "line_range": {
+        "start": 227,
+        "end": 231
+      }
+    }
+  ]
+}

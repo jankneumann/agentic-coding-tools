@@ -295,6 +295,7 @@ class Roadmap:
     updated_at: str | None = None
     status: RoadmapStatus = RoadmapStatus.PLANNING
     policy: Policy = field(default_factory=Policy)
+    refinements: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -309,6 +310,8 @@ class Roadmap:
             d["created_at"] = self.created_at
         if self.updated_at:
             d["updated_at"] = self.updated_at
+        if self.refinements:
+            d["refinements"] = [dict(record) for record in self.refinements]
         return d
 
     @classmethod
@@ -322,6 +325,7 @@ class Roadmap:
             updated_at=data.get("updated_at"),
             status=RoadmapStatus(data.get("status", "planning")),
             policy=Policy.from_dict(data["policy"]) if "policy" in data else Policy(),
+            refinements=[dict(record) for record in (data.get("refinements") or [])],
         )
 
     def get_item(self, item_id: str) -> RoadmapItem | None:
@@ -331,7 +335,10 @@ class Roadmap:
         return None
 
     def ready_items(
-        self, external_completed: set[str] | None = None
+        self,
+        external_completed: set[str] | None = None,
+        *,
+        include_in_progress: bool = False,
     ) -> list[RoadmapItem]:
         """Return items ready to execute.
 
@@ -342,6 +349,12 @@ class Roadmap:
         set produced by :func:`completed_external_refs`. When omitted, external
         prerequisites are treated as unmet, so an item carrying any
         ``external_depends_on`` edge is withheld until callers supply the set.
+
+        ``include_in_progress`` additionally admits ``in_progress`` items —
+        the view a status surface (e.g. the supervise digest) needs, where
+        "ready" means "in the executable frontier" rather than "awaiting
+        dispatch". This keeps consumers on one admission rule instead of
+        hand-rolling copies that drift.
 
         ``superseded`` items are never ready (their status is not ``approved``).
         Neither is an item carrying a non-empty ``superseded_by`` edge, whatever
@@ -354,10 +367,13 @@ class Roadmap:
         This method performs no file IO and does not mutate anything.
         """
         external_completed = external_completed or set()
+        admitted = {ItemStatus.APPROVED}
+        if include_in_progress:
+            admitted.add(ItemStatus.IN_PROGRESS)
         completed_ids = {i.item_id for i in self.items if i.status == ItemStatus.COMPLETED}
         return [
             i for i in self.items
-            if i.status == ItemStatus.APPROVED
+            if i.status in admitted
             and not i.superseded_by
             and all(dep in completed_ids for dep in i.depends_on)
             and all(ref in external_completed for ref in i.external_depends_on)

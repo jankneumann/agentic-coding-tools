@@ -751,6 +751,44 @@ def validate_flows(
 # CLI
 # ---------------------------------------------------------------------------
 
+#: The committed, full-scope artifact. Architecture provenance records its
+#: content digest, and `refresh-architecture` regenerates it from a full run.
+CANONICAL_OUTPUT = Path("docs/architecture-analysis/architecture.diagnostics.json")
+
+#: Where a scoped run writes instead. A scoped report describes only the files
+#: in scope, so writing it to CANONICAL_OUTPUT replaces a full analysis with a
+#: narrow one -- the file still parses and still looks like diagnostics, which
+#: is what made the overwrite easy to miss. Gitignored.
+SCOPED_OUTPUT = Path("docs/architecture-analysis/architecture.diagnostics.scoped.json")
+
+
+def resolve_output_path(
+    explicit: Path | None,
+    changed_files: list[str] | None,
+) -> Path:
+    """Pick the diagnostics destination for this run.
+
+    An explicit --output always wins; callers that want a scoped report in a
+    specific place (CI, a skill writing to a change directory) keep control.
+    Otherwise the default follows the scope, so the committed full-scope
+    artifact is only ever written by a full run.
+    """
+    scoped = changed_files is not None
+    if explicit is not None:
+        if scoped and explicit.resolve() == CANONICAL_OUTPUT.resolve():
+            logger.warning(
+                "WARNING: writing a scoped report over %s. That file is the "
+                "committed full-scope artifact -- this replaces a full analysis "
+                "with one covering %d file(s). Omit --output to write to %s "
+                "instead.",
+                CANONICAL_OUTPUT,
+                len(changed_files or []),
+                SCOPED_OUTPUT,
+            )
+        return explicit
+    return SCOPED_OUTPUT if scoped else CANONICAL_OUTPUT
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Validate architecture flows: reachability, test coverage, orphans, and pattern consistency.",
@@ -764,8 +802,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("docs/architecture-analysis/architecture.diagnostics.json"),
-        help="Path to write the diagnostics JSON (default: docs/architecture-analysis/architecture.diagnostics.json)",
+        default=None,
+        help=(
+            "Path to write the diagnostics JSON. Defaults to "
+            f"{CANONICAL_OUTPUT} for a full run and {SCOPED_OUTPUT} for a scoped "
+            "one (--files/--diff/--glob), so a scoped run never overwrites the "
+            "committed full-scope artifact."
+        ),
     )
     parser.add_argument(
         "--files",
@@ -799,8 +842,9 @@ def main() -> int:
         return 1
 
     changed_files = _resolve_changed_files(args.files, args.diff, args.glob)
+    output_path = resolve_output_path(args.output, changed_files)
 
-    report = validate_flows(args.graph, args.output, changed_files)
+    report = validate_flows(args.graph, output_path, changed_files)
 
     summary = report["summary"]
     scope_label = f" (scope: {len(report['changed_files'])} files)" if report["scope"] == "changed" else ""
@@ -810,7 +854,7 @@ def main() -> int:
     logger.info("  Flows without test coverage: %d", summary['flows_without_coverage'])
     logger.info("  Findings: %d total (%d errors, %d warnings, %d info)",
                 summary['total_findings'], summary['errors'], summary['warnings'], summary['info'])
-    logger.info("  Output: %s", args.output)
+    logger.info("  Output: %s", output_path)
 
     if summary["errors"] > 0:
         return 1

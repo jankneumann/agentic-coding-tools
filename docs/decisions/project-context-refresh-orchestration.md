@@ -5,55 +5,176 @@
 
 ---
 
-## 2026-07-26 — add-branch-local-context-checkpoints
+## 2026-08-29 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Cleanup
+
+**The context-impact finding was fixed, not overridden** — Widening write_allow without updating context_impact.surfaces created exactly the declaration-versus-reality gap the gates exist to find, and the gate found it -- attributed introduced, owned by the branch, reproducing identically in CI and locally. The same author made the same class of mistake earlier the same day on a different change; both were caught by the same deterministic check.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D2)
+
+---
+
+## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
+
+### Phase: Plan
+
+**The gate keeps checking the decision index** — This removes one cause, not the check. A hand-edited session log, a manual archive move, and any future writer bypassing PhaseRecord all still stale the index. Six firings with one cause and one fix is an argument for closing the cause, never for lowering the check that found it.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md](/openspec/changes/archive/2026-08-28-bind-decision-index-to-session-log-writes/session-log.md) (D4)
+
+---
+
+## 2026-08-28 — 2026-08-28-rescope-architecture-freshness-to-on-demand
+
+### Phase: Implementation
+
+**Architecture is reclassified through an existing keyword, not a new branch** — classify_degradation already accepts informational_producer_ids, which gate.py was defaulting. Passing a frozenset at the call site leaves the pure classifier and its structural purity pins untouched, and leaves the orchestrator's default describing only openspec.projection for every other caller.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md](/openspec/changes/archive/2026-08-28-rescope-architecture-freshness-to-on-demand/session-log.md) (D2)
+
+---
+
+## 2026-08-27 — 2026-08-28-rescope-context-drift-enforcement
+
+### Phase: Plan
+
+**Base reference resolves to one recorded revision, preferring the remote ref** — Verified on a branch byte-identical to origin/main: --base main exits 2 while --base origin/main exits 0, because _default_changed_files (gate.py:359) diffs the local ref while describe_tree (gate.py:735) compares against origin/<base>. The remote ref wins because CI's fresh checkout already effectively uses it; preferring local would make CI the outlier and leave the split unfixed.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md](/openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md) (D1)
+
+---
+
+## 2026-08-27 — 2026-08-28-rescope-context-drift-enforcement
+
+### Phase: Implementation
+
+**Telemetry emits from the gate's CI job, not the merge train** — The context_gate emitter shipped unreachable: CONTEXT_GATE_METRICS_PATH existed only where it was defined. Wiring it into main_convergence.dry_run was tried and reverted (2627f7c7) -- it contradicted that function's own contract, 'a dry run that dirties main is not a dry run', and observed only main, never a pull request. The gate's CI job writes to runner scratch, which the gate will accept because it is outside the checkout, and uploads the row as an artifact on all three events.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md](/openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md) (D1)
+
+---
+
+## 2026-08-27 — 2026-08-28-rescope-context-drift-enforcement
+
+### Phase: Plan
+
+**Attribution uses path-level ancestry rather than content fingerprints** — compute_input_fingerprint reads working-tree bytes only and takes no revision; making it revision-aware would change the hashed payload format and invalidate every recorded input_fingerprint. Path-level comparison is a sound over-approximation because attribution is coarser than freshness, and its only error mode -- a file that changed and changed back reading as inherited -- runs away from blame, which is the safe direction for the failure being fixed.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md](/openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md) (D2)
+
+---
+
+## 2026-08-27 — 2026-08-28-rescope-context-drift-enforcement
+
+### Phase: Implementation
+
+**A boundless write_allow glob is not a scope declaration** — package_files already filtered by scope.write_allow; PR #423's false blame survived because the archived wp-integration declares write_allow: ['**'], which matches everything. Matching a boundless glob is evidence only that a path was in the diff. Dropped when the diff carries a work-packages.yaml -- the spec's own 'SHALL NOT thereby acquire responsibility' wording.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md](/openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md) (D2)
+
+---
+
+## 2026-08-27 — 2026-08-28-rescope-context-drift-enforcement
+
+### Phase: Plan
+
+**Attribution is a separate axis, not a fifth classification group** — classify_degradation must stay pure: TestPurity asserts no IO by patching, and attribution shells out to git. test_classify_degradation.py:235 additionally hard-pins the informational set. Severity and ownership are independent questions and folding them together would conflate them.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md](/openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md) (D3)
+
+---
+
+## 2026-08-27 — 2026-08-28-rescope-context-drift-enforcement
+
+### Phase: Implementation
+
+**Absence of an event means the strict rule, and is distinct from an unknown event** — Defaulting to the permissive pull_request rule would have relaxed every local invocation and left the strict answer the one nobody sees. Absence is strict; an unrecognised name raises GateError rather than argparse's exit 2, which collides with the gate's own drift code.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md](/openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md) (D3)
+
+---
+
+## 2026-08-27 — 2026-08-28-rescope-context-drift-enforcement
+
+### Phase: Plan
+
+**Event behaviour lives inside one always-running CI job** — requirement-traceability-sweep (ci.yml:626, dispatch ci.yml:737-798) already does this and its comment rejects the job-level if: outright -- a required check that does not run on merge_group is not a check on the merge candidate, and a skipped required check reports success to branch protection.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md](/openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md) (D4)
+
+---
+
+## 2026-08-27 — 2026-08-28-rescope-context-drift-enforcement
+
+### Phase: Implementation
+
+**outcome describes the tree, exit_code answers for the event** — An inherited-only pull request reports drift with exit 0. Reporting outcome: fresh alongside a non-empty blocking_drift[] would put the unfalsifiable green inside the report itself.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md](/openspec/changes/archive/2026-08-28-rescope-context-drift-enforcement/session-log.md) (D4)
+
+---
+
+## 2026-07-26 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Implementation
 
 **The stale-delta invariant is encoded in the contract, not described** — Spec pcro.7 and D6 require a stale-artifact delta to be labelled non-authoritative, but the schema stated that only in a description -- {freshness: stale, delta_authoritative: true} validated. Encoded as an if/then following the precedent in context-refresh-types.schema.json, and verified failing against the pre-fix schema.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D1)
 
 ---
 
-## 2026-07-26 — add-branch-local-context-checkpoints
+## 2026-07-26 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Implementation
 
 **D3's read-only guarantee was downgraded from structural to asserted** — registry.run_producer does not forbid a check-mode adapter from writing; the invariant holds because the four landed adapters respect it. The wording was corrected so ri-10 asserts read-only-ness rather than inheriting an overclaim.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D4)
 
 ---
 
-## 2026-07-25 — add-branch-local-context-checkpoints
+## 2026-07-25 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Plan
 
 **A checkpoint never writes the ri-06 operation ledger** — ri-07 D9 makes a recorded producer result immutable for its revision and reused verbatim by later refreshes. A checkpoint result is scope-restricted and feature-namespaced, so admitting one into the canonical ledger would be unrecoverable within the existing contract rather than self-healing.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D1)
 
 ---
 
-## 2026-07-25 — add-branch-local-context-checkpoints
+## 2026-07-25 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Plan
 
 **Index isolation is enforced by namespace, not by convention** — Promotion into the canonical index is already gated on namespace_kind is MAIN and [REDACTED:env-var-value] 'main'. Passing work_package makes the checkpoint structurally unable to reach the promotion path, so isolation rests on tested existing machinery instead of on checkpoint discipline.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D2)
 
 ---
 
-## 2026-07-25 — add-branch-local-context-checkpoints
+## 2026-07-25 — 2026-08-26-add-branch-local-context-checkpoints
 
 ### Phase: Plan
 
 **Checkpoints are report-only within ri-09** — ri-10 owns turning deterministic drift into a CI or merge failure. Shipping a gate here would give ri-10 a gate to rework rather than a signal to consume.
 
 - Status: `active`
-- Source: [openspec/changes/add-branch-local-context-checkpoints/session-log.md](/openspec/changes/add-branch-local-context-checkpoints/session-log.md) (D6)
+- Source: [openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md](/openspec/changes/archive/2026-08-26-add-branch-local-context-checkpoints/session-log.md) (D6)

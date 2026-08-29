@@ -3216,11 +3216,13 @@ The `FileRef` sub-dataclass SHALL contain `path: str` and `description: str` (â‰
 
 ### Requirement: Phase Record Persistence Pipeline
 
-The `PhaseRecord.write_both()` method SHALL persist the record through a three-step pipeline in this fixed order: (1) append the rendered markdown to `openspec/changes/<change-id>/session-log.md`, (2) run `sanitize_session_log.py` in-place on the file, (3) write the structured payload to the coordinator via `HandoffService.write(...)` or fall back to a local file.
+The `PhaseRecord.write_both()` method SHALL persist the record through a four-step pipeline in this fixed order: (1) append the rendered markdown to `openspec/changes/<change-id>/session-log.md`, (2) run `sanitize_session_log.py` in-place on the file, (3) write the structured payload to the coordinator via `HandoffService.write(...)` or fall back to a local file, (4) regenerate the per-capability decision index that the appended markdown invalidates.
 
 Each step SHALL be best-effort with independent failure handling. A failure in any step SHALL log a warning to stderr and SHALL NOT raise an exception. The method SHALL return a `PhaseWriteResult` dataclass containing `markdown_path: Path | None`, `sanitized: bool`, `handoff_id: str | None`, `handoff_local_path: Path | None`, and `warnings: list[str]`.
 
 When the coordinator write fails (returns `success=False`, raises, or times out), `write_both()` SHALL write the same payload as JSON to `openspec/changes/<change-id>/handoffs/<phase-slug>-<N>.json` where `<phase-slug>` is `phase_name.lower().replace(" ", "-")` and `<N>` auto-increments per phase using the same counting logic as `count_phase_iterations`.
+
+Step four SHALL run unconditionally, with no flag or environment variable governing it. A session-log entry carries the capability-tagged decisions the index is derived from, so writing one without regenerating produces drift the writer created and the writer alone can prevent.
 
 #### Scenario: All three steps succeed
 - **WHEN** `PhaseRecord(...).write_both()` is called with coordinator available
@@ -3247,6 +3249,26 @@ When the coordinator write fails (returns `success=False`, raises, or times out)
 - **WHEN** `PhaseRecord(...).write_both()` is called and the markdown append fails (e.g., disk full, permission denied)
 - **THEN** the coordinator write SHALL still proceed
 - **AND** the result SHALL contain `markdown_path=None` and a warning describing the append failure
+
+#### Scenario: Regeneration leaves the decision index current
+- **GIVEN** a session-log entry carrying at least one capability-tagged decision
+- **WHEN** `PhaseRecord(...).write_both()` completes
+- **THEN** the per-capability decision index SHALL match what a fresh regeneration would produce
+- **AND** a subsequent regeneration SHALL produce no further change
+
+#### Scenario: Regeneration failure does not lose the session log
+- **WHEN** `PhaseRecord(...).write_both()` is called and the regeneration step raises or exits non-zero
+- **THEN** the appended markdown SHALL remain on disk unchanged
+- **AND** the result SHALL still report `markdown_path` and the handoff outcome
+- **AND** the result SHALL contain a warning describing the regeneration failure
+- **AND** no exception SHALL be raised
+
+#### Scenario: Regeneration is skipped when the generator is absent
+- **GIVEN** a checkout in which the decision-index generator cannot be resolved
+- **WHEN** `PhaseRecord(...).write_both()` is called
+- **THEN** the first three steps SHALL complete as before
+- **AND** the result SHALL contain a warning naming the missing generator
+- **AND** no exception SHALL be raised
 
 ### Requirement: Phase-Boundary Skill PhaseRecord Adoption
 
@@ -4329,20 +4351,35 @@ The eight adaptations SHALL be:
 
 ### Requirement: Review Findings Schema Extension
 
-The schema at `skills/parallel-infrastructure/schemas/review-findings.schema.json` (or the equivalent path used by `parallel-review-plan` and `parallel-review-implementation`) SHALL be extended to encode the 5-axis review categorization and the 5 severity prefixes.
+The schema at `openspec/schemas/review-findings.schema.json` (mirrored at
+`skills/parallel-infrastructure/install_assets/openspec/schemas/review-findings.schema.json`
+and inlined in `agent-coordinator/agents.yaml`) SHALL encode an 8-axis review
+categorization and the 5 severity prefixes.
 
-The schema SHALL add:
+The schema SHALL define:
 
-- An `axis` field on each finding with enum values: `correctness`, `readability`, `architecture`, `security`, `performance`
-- A `severity` field on each finding with enum values: `critical`, `nit`, `optional`, `fyi`, `none`
+- An `axis` field on each finding with enum values: `correctness`, `readability`,
+  `architecture`, `security`, `performance`, `observability`, `resilience`,
+  `compatibility`
+- A `severity` field on each finding with enum values: `critical`, `nit`, `optional`,
+  `fyi`, `none`
 
-Both fields SHALL be required for new findings. Findings produced before this change SHALL be migratable by setting `axis: "correctness"` and `severity: "fyi"` as defaults.
+Both fields SHALL be required for new findings. Findings produced before this change
+SHALL be migratable by setting `axis: "correctness"` and `severity: "fyi"` as defaults.
+All copies of the schema (canonical, install-assets mirror, `agents.yaml` inline) SHALL
+carry the identical enum.
 
 #### Scenario: New finding includes axis and severity
 
 **WHEN** a parallel-review skill produces a finding
 **THEN** the finding JSON SHALL include both `axis` and `severity` fields
 **AND** the values SHALL match the schema enums
+
+#### Scenario: NFR axes accepted by the schema
+
+**WHEN** a finding with `axis` set to `observability`, `resilience`, or `compatibility`
+is validated against the schema
+**THEN** validation SHALL pass
 
 #### Scenario: Schema validation rejects missing fields
 
@@ -4354,6 +4391,12 @@ Both fields SHALL be required for new findings. Findings produced before this ch
 **WHEN** the updated schema is loaded
 **THEN** all pre-existing required fields SHALL remain required
 **AND** all pre-existing enum values SHALL remain valid
+
+#### Scenario: Schema copies stay identical
+
+**WHEN** the canonical schema, the install-assets mirror, and the `agents.yaml` inline
+copy are compared
+**THEN** their `axis` and `severity` enums SHALL be identical
 
 ### Requirement: Priorities Run-ID Format
 
@@ -4817,4 +4860,91 @@ observation.
   scope and that a non-zero gate exit fails validation
 - **AND** they SHALL assert that an absent gate produces a printed SKIP and a
   passing validation
+
+### Requirement: Implementation dispatch triggers context checkpoints per work package
+
+The implementation workflow SHALL evaluate each completed work package for context impact
+and run a branch-local context checkpoint when the package's context-impact surfaces
+indicate that project context was invalidated.
+
+The trigger is derived from the package's declared or inferred context-impact surfaces,
+evaluated from the package's own changed-file list rather than from a git range, so the
+decision holds for uncommitted work inside a feature worktree.
+
+#### Scenario: A context-invalidating package produces a checkpoint
+
+- **WHEN** a work package completes
+- **AND** its context-impact surfaces include a context-invalidating surface
+- **THEN** a branch-local context checkpoint runs for that package
+- **AND** the checkpoint report is recorded against the change
+
+#### Scenario: A package with no context impact produces no checkpoint
+
+- **WHEN** a work package completes
+- **AND** its declared context-impact surfaces are explicitly empty
+- **THEN** no checkpoint runs for that package
+- **AND** the implementation summary records that the package asserted no impact
+
+#### Scenario: Checkpoint evaluation uses the package's changed-file list
+
+- **WHEN** the workflow evaluates a package for context impact
+- **THEN** it supplies the package's changed-file list directly
+- **AND** the evaluation succeeds without requiring the changes to be committed
+
+### Requirement: Unmigrated packages are reported as unmigrated rather than as impact-free
+
+The implementation workflow SHALL distinguish a work package that declares no
+context-impact block from one that declares an empty set of surfaces, and SHALL report the
+former as unmigrated.
+
+A missing declaration is absence of evidence; an explicit empty declaration is an
+assertion that nothing is affected. Collapsing the two would let an unmigrated package
+appear verified.
+
+#### Scenario: Missing declaration is reported as unmigrated
+
+- **WHEN** a work package completes and declares no context-impact block
+- **THEN** the implementation summary records the package as unmigrated
+- **AND** it does not record the package as having no context impact
+
+#### Scenario: Empty declaration is reported as an assertion
+
+- **WHEN** a work package completes and declares an empty context-impact surface list
+- **THEN** the implementation summary records the package as asserting no impact
+- **AND** it does not record the package as unmigrated
+
+### Requirement: Checkpoint execution honours the work package scope
+
+The implementation workflow SHALL pass the completed package's resolved read scope to the
+checkpoint, so that checkpoint execution cannot read files the package was not permitted
+to read.
+
+#### Scenario: Package scope is supplied to the checkpoint
+
+- **WHEN** the workflow runs a checkpoint for a package
+- **THEN** it supplies that package's read-allow and deny globs
+- **AND** the checkpoint restricts its execution to the resolved scope
+
+### Requirement: Session-log persistence is orchestrator-scoped
+
+`PhaseRecord.write_both()` SHALL be invoked only from orchestrator phase-boundary steps, never from a work-package worker.
+
+Step four writes the decision index at `docs/decisions/`, which lies outside the declared write scope of every work package. A worker that called `write_both()` would therefore write outside its `write_allow` and fail the deterministic scope check. The restriction is presently a convention of how the phase-boundary skills are written; this requirement makes it enforceable so the coupling cannot be broken silently by a future skill.
+
+#### Scenario: No worker call site invokes the persistence pipeline
+- **WHEN** the skill payload is inspected for `write_both()` call sites
+- **THEN** every call site SHALL belong to an orchestrator phase-boundary step
+- **AND** no work-package worker prompt SHALL invoke it
+
+### Requirement: Decision-index drift remains a gate finding
+
+Binding regeneration to session-log writes SHALL NOT remove, weaken, or make optional the drift gate's check on the decision index.
+
+The binding removes one cause of drift; other causes remain, including a hand-edited session log, a manual archive move, and any future writer that bypasses `PhaseRecord`. A check that stopped reporting those would trade a narrow convenience for the class of silent divergence the gate exists to prevent.
+
+#### Scenario: A hand-edited session log still reports drift
+- **GIVEN** a session-log file edited directly, without `PhaseRecord.write_both()`
+- **WHEN** the deterministic context drift gate runs
+- **THEN** the decision-index producer SHALL report drift
+- **AND** that finding SHALL contribute to the blocking exit code on every event where blocking drift counts
 

@@ -9,14 +9,21 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass, field
+from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from jsonschema import validate
 
 from src.profile_loader import _INTERPOLATION_RE, _load_secrets_file, interpolate
+from src.trust_levels import MAX_TRUST, MIN_TRUST, TrustLevel
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from src.audit import AuditService
+    from src.db import DatabaseClient
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +41,38 @@ LEGACY_CLAUDE_ALIAS_TO_TIER: dict[str, str] = {
     "sonnet": "standard",
     "haiku": "economy",
 }
+
+# ---------------------------------------------------------------------------
+# `local` provider (OpenSpec change add-local-model-provider-tier)
+#
+# The always-on host is bandwidth-bound, not capacity-bound, so its roster is
+# selected by ARCHITECTURE (small-active-parameter MoE) rather than by what
+# fits in memory. Roster entries rotate; the two rules below do not, which is
+# why they live in code and are enforced at startup instead of in comments.
+# ---------------------------------------------------------------------------
+LOCAL_PROVIDER = "local"
+# Tiers the local roster MUST define. Everything else degrades to the best
+# tier it does define (agent-archetypes: "Local roster omits a tier").
+LOCAL_REQUIRED_TIERS: tuple[str, ...] = ("standard", "economy")
+# Archetypes whose output is cheap to discard or verified downstream. This is
+# an allowlist, not a denylist: an archetype absent from it (architect,
+# reviewer, gatekeeper, implementer, ...) MUST NOT resolve to `local` (D3).
+LOCAL_TRUSTED_ARCHETYPES: frozenset[str] = frozenset({
+    "runner",
+    "analyst",
+    "documenter",
+    "validator",
+})
+# Host-class defaults used when archetypes.yaml omits `local_host_class`.
+# GB10 (128 GB unified LPDDR5x @ ~273 GB/s): decode throughput tracks ACTIVE
+# parameters, so a 30B-total/3B-active MoE runs ~9x faster than a dense 32B.
+DEFAULT_LOCAL_HOST_CLASS: dict[str, Any] = {
+    "name": "gb10",
+    "active_params_ceiling_b": 12,
+    "dense_params_limit_b": 30,
+}
+_REVIEWED_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
 # Tier entries are either a bare model-id string or {"model": ..., "thinking": ...}.
 # Thinking level is part of the model definition, not a dispatch afterthought:
 # it shifts both cost and capability enough that a standard model at xhigh
@@ -83,6 +122,16 @@ DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
             "standard": "qwen/qwen3-coder",
             "economy": "qwen/qwen3-coder-flash",
         },
+        # Always-on local host (GB10 class). This is the tier -> model-id view
+        # of `model_aliases.local` in archetypes.yaml; the parameter metadata
+        # and operator review date live there, where startup validation
+        # enforces the MoE-first hardware rule (D4). `frontier`/`premium` are
+        # deliberately omitted — they degrade to the best defined tier. Keep
+        # both in sync; a test asserts the two rosters agree.
+        "local": {
+            "standard": "gpt-oss-120b",
+            "economy": "qwen3-coder-30b-a3b",
+        },
     },
 }
 
@@ -117,6 +166,42 @@ _TIER_VALUE_SCHEMA: dict[str, Any] = {
             },
         },
     ],
+}
+
+# The `local` roster uses an extended entry form so the hardware-matching rule
+# is machine-checkable (contracts/local-roster-entry.schema.json). Only `model`
+# is required *here*; the remaining fields are checked by
+# :func:`_validate_local_roster` so every violation surfaces as one structured
+# LocalRosterConfigError naming the rule it broke, rather than a raw
+# jsonschema error for some rules and a config error for others.
+_LOCAL_TIER_VALUE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["model"],
+    "additionalProperties": False,
+    "properties": {
+        "model": {"type": "string", "minLength": 1, "maxLength": 128},
+        "total_params_b": {"type": "number", "exclusiveMinimum": 0},
+        "active_params_b": {"type": "number", "exclusiveMinimum": 0},
+        "reviewed": {"type": "string", "minLength": 1},
+    },
+}
+
+_LOCAL_ROSTER_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": list(LOCAL_REQUIRED_TIERS),
+    "additionalProperties": False,
+    "properties": dict.fromkeys(ALL_MODEL_TIERS, _LOCAL_TIER_VALUE_SCHEMA),
+}
+
+_LOCAL_HOST_CLASS_SCHEMA: dict[str, Any] = {
+    "type": ["object", "null"],
+    "required": ["name", "active_params_ceiling_b"],
+    "additionalProperties": False,
+    "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "active_params_ceiling_b": {"type": "number", "exclusiveMinimum": 0},
+        "dense_params_limit_b": {"type": "number", "exclusiveMinimum": 0},
+    },
 }
 
 # Autopilot phases that produce files, artifacts, or handoffs and therefore
@@ -171,8 +256,15 @@ ARCHETYPES_SCHEMA: dict[str, Any] = {
         # design D3 — no implicit default). A pre-existing v1 file that omits it must add
         # `write_capable` on migration; the version does NOT grandfather the field away.
         "schema_version": {"type": "integer", "enum": [1, 2, 3]},
+        # Host class of the machine serving the `local` provider. Optional:
+        # absent means the GB10 defaults apply (DEFAULT_LOCAL_HOST_CLASS).
+        "local_host_class": _LOCAL_HOST_CLASS_SCHEMA,
         "model_aliases": {
             "type": ["object", "null"],
+            # `local` carries parameter metadata and may omit frontier/premium
+            # (they degrade to its best defined tier); every other provider
+            # keeps the bare-slug form with all base tiers required.
+            "properties": {LOCAL_PROVIDER: _LOCAL_ROSTER_SCHEMA},
             "additionalProperties": {
                 "type": "object",
                 # Base tiers stay required; optional tiers (frontier) may be
@@ -306,7 +398,15 @@ AGENTS_SCHEMA: dict[str, Any] = {
                 "properties": {
                     "type": {"type": "string", "minLength": 1},
                     "profile": {"type": "string", "minLength": 1},
-                    "trust_level": {"type": "integer", "minimum": 1, "maximum": 5},
+                    # Bounds derive from the Unified Trust Scale (src/trust_levels.py,
+                    # design D4) rather than repeating integer literals. The former
+                    # 1–5 range was a bug: the agent_profiles CHECK constraint has
+                    # always been 0–4.
+                    "trust_level": {
+                        "type": "integer",
+                        "minimum": MIN_TRUST,
+                        "maximum": MAX_TRUST,
+                    },
                     "transport": {"type": "string", "enum": list(VALID_TRANSPORTS)},
                     "isolation": {
                         "type": "string",
@@ -607,6 +707,48 @@ class ProviderModelMappingError(ValueError):
         super().__init__(message)
 
 
+class LocalRosterConfigError(ValueError):
+    """Raised at startup when a `local` roster entry breaks a hardware rule.
+
+    Structured on purpose (``rule`` / ``tier`` / ``detail``): an unattended
+    loop must be able to say which rule was violated, not just that the config
+    is bad. Uses the same fail-fast mechanism as the undefined-archetype
+    ``ValueError`` in :func:`load_archetypes_config`.
+    """
+
+    def __init__(self, rule: str, detail: str, *, tier: str | None = None) -> None:
+        self.rule = rule
+        self.tier = tier
+        self.detail = detail
+        location = (
+            f"model_aliases.{LOCAL_PROVIDER}.{tier}"
+            if tier
+            else f"model_aliases.{LOCAL_PROVIDER}"
+        )
+        super().__init__(f"invalid local roster at {location}: {rule} — {detail}")
+
+
+class LocalProviderTrustBoundaryError(ValueError):
+    """Raised when an archetype outside the local trust boundary asks for `local`.
+
+    Design D3: the boundary is enforced in the resolver (the single decision
+    point every client goes through), not in the dispatching caller, and the
+    refusal happens before any dispatch is attempted.
+    """
+
+    def __init__(self, archetype: str, *, phase: str | None = None) -> None:
+        self.archetype = archetype
+        self.phase = phase
+        self.provider = LOCAL_PROVIDER
+        self.permitted: tuple[str, ...] = tuple(sorted(LOCAL_TRUSTED_ARCHETYPES))
+        where = f" (phase={phase})" if phase else ""
+        super().__init__(
+            f"local provider trust boundary: archetype {archetype!r}{where} may not "
+            f"resolve to provider {LOCAL_PROVIDER!r}; permitted archetypes: "
+            f"{', '.join(self.permitted)}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Loading + validation
 # ---------------------------------------------------------------------------
@@ -637,7 +779,7 @@ def load_agents_config(
     Raises:
         FileNotFoundError: If *path* does not exist.
         jsonschema.ValidationError: If the data fails schema validation.
-        ValueError: On duplicate agent names.
+        ValueError: On duplicate agent names or duplicate ``profile`` values.
     """
     if path is None:
         path = _default_agents_path()
@@ -655,11 +797,30 @@ def load_agents_config(
     secrets = _load_secrets_file(secrets_path)
     entries: list[AgentEntry] = []
     seen_names: set[str] = set()
+    #: profile name -> the agent that claimed it, so the second claimant can be
+    #: named in the error.
+    seen_profiles: dict[str, str] = {}
 
     for name, agent_data in raw["agents"].items():
         if name in seen_names:
             raise ValueError(f"Duplicate agent name: '{name}'")
         seen_names.add(name)
+
+        # Two agents sharing one `profile` is not a harmless alias: sync_profiles()
+        # upserts by profile name in file order, so the last entry silently
+        # overwrites the first one's trust level and operations. An agent could
+        # then be promoted to admin without its own trust_level line changing,
+        # and neither orphan disabling nor the registry invariant check would
+        # notice. One agent, one profile row.
+        profile_name = agent_data["profile"]
+        if profile_name in seen_profiles:
+            raise ValueError(
+                f"Duplicate profile: '{profile_name}' is declared by both "
+                f"'{seen_profiles[profile_name]}' and '{name}'. Each agent needs "
+                f"its own profile, or the later entry silently overwrites the "
+                f"earlier one's trust level and operations."
+            )
+        seen_profiles[profile_name] = name
 
         raw_key = agent_data.get("api_key")
         resolved_key: str | None = None
@@ -798,10 +959,33 @@ def _resolve_api_key_from_openbao(agent: AgentEntry) -> str | None:
         return agent.api_key
 
 
+class DuplicateApiKeyError(ValueError):
+    """Two registry agents resolve to the same API key (design D6).
+
+    A shared key is an identity-confusion bug: the coordinator would attribute
+    both principals' operations to whichever agent happened to win the map, so
+    the audit trail silently lies. Fail at load with both agent names instead.
+    """
+
+    def __init__(self, first_agent: str, second_agent: str) -> None:
+        self.first_agent = first_agent
+        self.second_agent = second_agent
+        super().__init__(
+            f"Duplicate resolved API key: agents '{first_agent}' and "
+            f"'{second_agent}' resolve to the same value. Every agent needs "
+            f"its own key — a shared key makes audit attribution ambiguous."
+        )
+
+
 def get_api_key_identities(
     agents: list[AgentEntry] | None = None,
 ) -> dict[str, dict[str, str]]:
-    """Generate ``COORDINATION_API_KEY_IDENTITIES`` from HTTP agents.
+    """Generate ``COORDINATION_API_KEY_IDENTITIES`` for the full agent roster.
+
+    Every agent with a resolvable ``api_key`` receives an identity entry,
+    regardless of declared ``transport`` (design D5): the MCP server's
+    HTTP-proxy fallback makes local agents HTTP principals in practice, so
+    ``transport`` is dispatch metadata only and does not gate identity.
 
     When OpenBao is enabled, attempts to resolve API keys from OpenBao
     for agents with ``openbao_role_id``. Falls back to static interpolation.
@@ -809,6 +993,9 @@ def get_api_key_identities(
     Returns:
         Dict mapping resolved API key values to
         ``{"agent_id": ..., "agent_type": ...}``.
+
+    Raises:
+        DuplicateApiKeyError: If two agents resolve to the same key.
     """
     if agents is None:
         agents = load_agents_config()
@@ -818,9 +1005,6 @@ def get_api_key_identities(
 
     identities: dict[str, dict[str, str]] = {}
     for agent in agents:
-        if agent.transport != "http":
-            continue
-
         key = agent.api_key
         if openbao_enabled and agent.openbao_role_id:
             resolved = _resolve_api_key_from_openbao(agent)
@@ -836,19 +1020,697 @@ def get_api_key_identities(
             continue
 
         if key in identities:
-            existing = identities[key]["agent_id"]
-            logger.warning(
-                "Duplicate API key: agents '%s' and '%s' share the same key — "
-                "'%s' will be used",
-                existing,
-                agent.name,
-                agent.name,
-            )
+            raise DuplicateApiKeyError(identities[key]["agent_id"], agent.name)
         identities[key] = {
             "agent_id": agent.name,
             "agent_type": agent.type,
         }
     return identities
+
+
+# ---------------------------------------------------------------------------
+# Registry → agent_profiles projection (design D1 / D2)
+# ---------------------------------------------------------------------------
+
+#: Operations every projected profile receives. Migration 007 granted
+#: ``get_my_profile`` to every seeded profile without exception: reading one's
+#: own profile is not a privilege, it is how an agent discovers its own limits.
+UNIVERSAL_OPERATIONS: tuple[str, ...] = ("get_my_profile",)
+
+#: ``agents.yaml`` capability → the coordination operations it authorizes.
+#: Derived from the operation lists the hand-written seeds granted (migrations
+#: 007 / 019 / 022 / 026); ``tests/test_profile_sync.py`` pins the mapping
+#: against the grants ``claude_code_local`` carries today.
+CAPABILITY_OPERATIONS: dict[str, tuple[str, ...]] = {
+    "lock": ("acquire_lock", "release_lock", "check_locks"),
+    "queue": ("get_work", "get_task", "complete_work", "submit_work"),
+    "memory": ("remember", "recall"),
+    "guardrails": ("check_guardrails",),
+    "handoff": ("write_handoff", "read_handoff"),
+    "discover": ("register_session", "discover_agents", "heartbeat"),
+    "audit": ("query_audit",),
+    "feature_registry": ("register_feature", "deregister_feature"),
+}
+
+#: Operations granted by *trust level* rather than by capability, as
+#: ``(minimum trust level, operations)`` pairs. Migration 022 granted the merge
+#: queue operations with ``WHERE trust_level >= 3`` — no capability in
+#: ``agents.yaml`` covers them, so the projection needs this second dimension
+#: to reproduce the grants the migrations made.
+TRUST_DERIVED_OPERATIONS: tuple[tuple[int, tuple[str, ...]], ...] = (
+    (
+        int(TrustLevel.ELEVATED),
+        (
+            "register_feature",
+            "deregister_feature",
+            "enqueue_merge",
+            "run_pre_merge_checks",
+            "mark_merged",
+            "remove_from_merge_queue",
+        ),
+    ),
+)
+
+#: Profile rows the registry deliberately does NOT own (design D2 amendment).
+#:
+#: ``agents.yaml`` describes *harness identities*: things that can be
+#: dispatched, that speak a transport, and that authenticate. Some profile rows
+#: describe a *role* instead — ``evaluator`` (migration 026_evaluator_profile)
+#: is the generator/evaluator split's read-only reviewer role, has no CLI and no
+#: transport, and could never be given an ``agents.yaml`` entry without the
+#: registry claiming to describe an agent it cannot dispatch. Orphan disabling
+#: skips these names, so a role profile is not collateral damage of enforcing
+#: the registry projection. Adding a name here is an explicit statement that
+#: some other mechanism owns that row.
+UNMANAGED_PROFILES: frozenset[str] = frozenset({"evaluator"})
+
+#: Fields the sync reconciles (and reports in ``changed_fields`` per the
+#: profile-sync audit contract). Everything else on the row — descriptions,
+#: resource limits, network policy — stays operator-owned.
+SYNC_TRACKED_FIELDS: tuple[str, ...] = (
+    "agent_type",
+    "trust_level",
+    "allowed_operations",
+    "enabled",
+)
+
+#: ``source`` value carried by every profile_sync audit event.
+PROFILE_SYNC_SOURCE = "agents.yaml"
+
+#: Audit ``operation`` name for registry projection mutations.
+PROFILE_SYNC_OPERATION = "profile_sync"
+
+#: ``assigned_by`` stamped on every ``agent_profile_assignments`` row the
+#: registry projection writes, so an operator can tell a projected assignment
+#: from a hand-written one (migration 018 wrote its rows with ``assigned_by``
+#: NULL).
+ASSIGNMENT_ASSIGNED_BY = "registry_sync"
+
+
+class ProfileSyncError(RuntimeError):
+    """The registry projection could not be materialized.
+
+    Raised (never swallowed) so that a coordinator whose authorization state
+    does not match ``agents.yaml`` fails boot instead of serving requests with
+    a stale or partial projection.
+    """
+
+
+@dataclass
+class ProfileSyncResult:
+    """Outcome of one :func:`sync_profiles` run."""
+
+    inserted: list[str] = field(default_factory=list)
+    updated: list[str] = field(default_factory=list)
+    disabled: list[str] = field(default_factory=list)
+    unchanged: list[str] = field(default_factory=list)
+    #: ``agent_profile_assignments`` outcomes (design D11), keyed by agent id
+    #: rather than profile name — an assignment is a per-agent pointer.
+    assigned: list[str] = field(default_factory=list)
+    reassigned: list[str] = field(default_factory=list)
+    unassigned: list[str] = field(default_factory=list)
+    assignments_unchanged: list[str] = field(default_factory=list)
+    #: ``None`` when the sync ran; otherwise why it performed no writes.
+    skipped_reason: str | None = None
+
+    @property
+    def mutations(self) -> int:
+        """Number of rows this run changed (profiles *and* assignments)."""
+        return (
+            len(self.inserted)
+            + len(self.updated)
+            + len(self.disabled)
+            + len(self.assigned)
+            + len(self.reassigned)
+            + len(self.unassigned)
+        )
+
+
+def derive_allowed_operations(
+    capabilities: list[str] | tuple[str, ...],
+    trust_level: int,
+) -> list[str]:
+    """Project a registry entry's capabilities + trust level to operations.
+
+    Two dimensions, because the hand-written migrations used two: capabilities
+    map to the operation families they name, and trust level independently
+    grants the merge-queue operations no capability covers (migration 022).
+
+    Raises:
+        ValueError: If a capability has no mapping — a half-onboarded harness
+            must fail loudly rather than materialize a profile missing grants.
+    """
+    operations: set[str] = set(UNIVERSAL_OPERATIONS)
+    for capability in capabilities:
+        mapped = CAPABILITY_OPERATIONS.get(capability)
+        if mapped is None:
+            raise ValueError(
+                f"Capability '{capability}' has no operation mapping; add it to "
+                f"CAPABILITY_OPERATIONS. Known capabilities: "
+                f"{sorted(CAPABILITY_OPERATIONS)}"
+            )
+        operations.update(mapped)
+
+    for minimum_trust, granted in TRUST_DERIVED_OPERATIONS:
+        if trust_level >= minimum_trust:
+            operations.update(granted)
+
+    return sorted(operations)
+
+
+#: Substring PostgreSQL puts in the message of every UNIQUE-constraint failure.
+#: The PostgREST/httpx backend surfaces the violation as text, so the string is
+#: the only signal available there.
+_UNIQUE_VIOLATION_TEXT = "duplicate key value violates unique constraint"
+
+#: SQLSTATE for unique_violation. asyncpg exposes it as ``sqlstate``.
+_UNIQUE_VIOLATION_SQLSTATE = "23505"
+
+
+def _is_unique_violation(exc: BaseException) -> bool:
+    """Is *exc* a genuine UNIQUE-constraint violation?
+
+    The insert→update fallbacks below exist for exactly one situation: a
+    concurrent worker won the race for the same unique key. Treating *every*
+    insert failure as that race is what let an RLS denial, an FK violation, or
+    a CHECK failure be retried as an UPDATE — which matches zero rows, raises
+    nothing (``return_data=False`` never inspects rowcount), and is then
+    recorded as a successful projection with an audit event for a row that
+    does not exist. Anything that is not a uniqueness collision must fail the
+    sync instead.
+    """
+    if type(exc).__name__ == "UniqueViolationError":  # asyncpg
+        return True
+    if getattr(exc, "sqlstate", None) == _UNIQUE_VIOLATION_SQLSTATE:
+        return True
+    return _UNIQUE_VIOLATION_TEXT in str(exc)
+
+
+def _registry_sync_timestamp() -> datetime:
+    """Value for ``agent_profiles.synced_from_registry_at`` on this write.
+
+    Migration 032 added the column so operators can tell registry-projected
+    rows from hand-maintained ones; it stays NULL unless the projection
+    actually stamps it.
+
+    Returns a ``datetime``, never an ISO string: asyncpg binds TIMESTAMPTZ
+    parameters from datetime objects only, and a str here fails every boot
+    whose sync needs a profile write (DataError at bind time) — which the
+    mocked-DB tests cannot see because ``FakeDb`` accepts any payload. This
+    took production down on 2026-08-22; the type is load-bearing.
+    """
+    return datetime.now(UTC)
+
+
+def _desired_profile_row(agent: AgentEntry) -> dict[str, Any]:
+    """Build the ``agent_profiles`` row a registry entry projects to."""
+    return {
+        "name": agent.profile,
+        "agent_type": agent.type,
+        "trust_level": agent.trust_level,
+        "allowed_operations": derive_allowed_operations(
+            agent.capabilities, agent.trust_level
+        ),
+        "enabled": True,
+    }
+
+
+def _profile_drift(
+    desired: dict[str, Any],
+    existing: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Return ``{field: {"from": old, "to": new}}`` for drifted tracked fields."""
+    changed: dict[str, dict[str, Any]] = {}
+    for name in SYNC_TRACKED_FIELDS:
+        current = existing.get(name)
+        target = desired[name]
+        if name == "allowed_operations":
+            current = sorted(current or [])
+        if name == "enabled":
+            current = bool(current)
+        if current != target:
+            changed[name] = {"from": current, "to": target}
+    return changed
+
+
+async def _emit_sync_audit(
+    audit: AuditService,
+    *,
+    action: str,
+    profile_name: str,
+    agent_type: str,
+    trust_level: int | None = None,
+    changed_fields: dict[str, dict[str, Any]] | None = None,
+    agent_id: str | None = None,
+    previous_profile_name: str | None = None,
+) -> None:
+    """Emit one profile-sync audit event (contract: profile-sync-audit.schema.json)."""
+    parameters: dict[str, Any] = {
+        "action": action,
+        "profile_name": profile_name,
+        "agent_type": agent_type,
+        "source": PROFILE_SYNC_SOURCE,
+    }
+    if trust_level is not None:
+        parameters["trust_level"] = trust_level
+    if changed_fields:
+        parameters["changed_fields"] = changed_fields
+    if agent_id is not None:
+        parameters["agent_id"] = agent_id
+    if previous_profile_name is not None:
+        parameters["previous_profile_name"] = previous_profile_name
+
+    try:
+        await audit.log_operation(
+            operation=PROFILE_SYNC_OPERATION,
+            parameters=parameters,
+            result={"profile_name": profile_name},
+            success=True,
+        )
+    except Exception:  # noqa: BLE001
+        # The projection itself succeeded; losing its audit event degrades
+        # observability but must not roll back or block boot.
+        logger.warning(
+            "Failed to audit profile_sync %s for profile '%s'",
+            action,
+            profile_name,
+            exc_info=True,
+        )
+
+
+async def _sync_assignments(
+    agents: list[AgentEntry],
+    *,
+    db: DatabaseClient,
+    audit: AuditService,
+    result: ProfileSyncResult,
+) -> None:
+    """Project ``agent_profile_assignments`` from the registry (design D11).
+
+    Profiles alone do not decide what an agent resolves to.
+    ``get_agent_profile()`` (migration 007) reads the assignment first and only
+    then falls back to ``agent_type`` + ``ORDER BY created_at ASC LIMIT 1``.
+    That fallback silently serves the *oldest* row of the type when two agents
+    share a type and neither is assigned — the bug migration 018 fixed by hand
+    for the roster of its day and for nobody added since. Writing one assignment
+    per registry agent makes the tiebreak unreachable rather than merely lucky.
+
+    Idempotent and convergent under concurrent worker boot, like the profile
+    phase: writes are keyed on ``agent_id`` (the table's UNIQUE column), so a
+    worker that loses the INSERT race reconciles with an UPDATE.
+    """
+    # Profile ids are not returned by the upsert path above, so re-query. This
+    # also picks up rows a concurrent worker inserted between our phases.
+    try:
+        profile_rows = await db.query("agent_profiles")
+    except Exception as exc:
+        raise ProfileSyncError(
+            f"Could not re-read agent_profiles for the assignment projection: {exc}"
+        ) from exc
+
+    id_by_name: dict[str, Any] = {}
+    row_by_id: dict[Any, dict[str, Any]] = {}
+    for row in profile_rows:
+        row_id = row.get("id")
+        if row_id is None:
+            continue
+        row_by_id[row_id] = row
+        name = row.get("name")
+        if name:
+            id_by_name[str(name)] = row_id
+
+    try:
+        assignment_rows = await db.query("agent_profile_assignments")
+    except Exception as exc:
+        raise ProfileSyncError(
+            f"Could not read agent_profile_assignments for the registry "
+            f"projection: {exc}"
+        ) from exc
+
+    existing: dict[str, dict[str, Any]] = {
+        str(row.get("agent_id")): row for row in assignment_rows if row.get("agent_id")
+    }
+
+    declared: set[str] = set()
+    for agent in agents:
+        declared.add(agent.name)
+        profile_id = id_by_name.get(agent.profile)
+        if profile_id is None:
+            raise ProfileSyncError(
+                f"Agent '{agent.name}' has no agent_profiles row named "
+                f"'{agent.profile}' after the profile phase, so its assignment "
+                f"cannot be projected — resolution would fall back to the oldest "
+                f"row of type '{agent.type}'."
+            )
+
+        current = existing.get(agent.name)
+        if current is not None and current.get("profile_id") == profile_id:
+            result.assignments_unchanged.append(agent.name)
+            continue
+
+        payload = {"profile_id": profile_id, "assigned_by": ASSIGNMENT_ASSIGNED_BY}
+
+        if current is None:
+            try:
+                await db.insert(
+                    "agent_profile_assignments",
+                    {"agent_id": agent.name, **payload},
+                    return_data=False,
+                )
+            except Exception as exc:
+                # A concurrent worker may have inserted the same agent_id
+                # between our read and our write (UNIQUE (agent_id)). Converge
+                # via update rather than failing the slower worker's boot; both
+                # workers project identical content. Narrowed to real
+                # uniqueness collisions: an RLS denial or FK violation means no
+                # row exists, so the retried UPDATE would match nothing, raise
+                # nothing, and leave the agent with no assignment while this
+                # run reported `assign`.
+                if not _is_unique_violation(exc):
+                    raise ProfileSyncError(
+                        f"Could not assign agent '{agent.name}' to profile "
+                        f"'{agent.profile}': {exc}"
+                    ) from exc
+                try:
+                    await db.update(
+                        "agent_profile_assignments",
+                        {"agent_id": agent.name},
+                        payload,
+                        return_data=False,
+                    )
+                except Exception as update_exc:
+                    raise ProfileSyncError(
+                        f"Could not assign agent '{agent.name}' to profile "
+                        f"'{agent.profile}': {update_exc}"
+                    ) from exc
+
+            result.assigned.append(agent.name)
+            await _emit_sync_audit(
+                audit,
+                action="assign",
+                profile_name=agent.profile,
+                agent_type=agent.type,
+                trust_level=agent.trust_level,
+                agent_id=agent.name,
+            )
+            continue
+
+        try:
+            await db.update(
+                "agent_profile_assignments",
+                {"agent_id": agent.name},
+                payload,
+                return_data=False,
+            )
+        except Exception as exc:
+            raise ProfileSyncError(
+                f"Could not reassign agent '{agent.name}' to profile "
+                f"'{agent.profile}': {exc}"
+            ) from exc
+
+        previous = row_by_id.get(current.get("profile_id"))
+        result.reassigned.append(agent.name)
+        await _emit_sync_audit(
+            audit,
+            action="reassign",
+            profile_name=agent.profile,
+            agent_type=agent.type,
+            trust_level=agent.trust_level,
+            agent_id=agent.name,
+            previous_profile_name=str(previous.get("name")) if previous else "unknown",
+        )
+
+    for agent_id, row in existing.items():
+        if agent_id in declared:
+            continue
+        # The sync garbage-collects only rows it wrote. `assigned_by` exists
+        # precisely to tell a projected assignment from everything else:
+        # migration 018's hand-written rows carry NULL, and per-host enrollment
+        # (scripts/add_agent_keys.py) stamps its own name. Those agent_ids are
+        # *instances* — deliberately not registry entries, because the registry
+        # declares vendor types, not machines — so treating "absent from
+        # agents.yaml" as "stale" would delete every enrolled host's assignment
+        # at each startup and drop resolution back to the oldest-row-of-type
+        # tiebreak that migration 018 was written to eliminate.
+        if row.get("assigned_by") != ASSIGNMENT_ASSIGNED_BY:
+            logger.debug(
+                "Retaining assignment for undeclared agent '%s' "
+                "(assigned_by=%r is not the registry projection's)",
+                agent_id,
+                row.get("assigned_by"),
+            )
+            continue
+        # Stale pointers are DELETEd, deliberately unlike D2's
+        # disable-don't-delete rule for profiles: this table has no `enabled`
+        # column, and an assignment is a *pointer*, not authorization state. The
+        # profile it referenced is retained (and disabled by the profile phase),
+        # and the audit event below records the name it pointed at, so the
+        # removal stays reconstructible from the audit trail alone.
+        pointed = row_by_id.get(row.get("profile_id"))
+        try:
+            await db.delete("agent_profile_assignments", {"agent_id": agent_id})
+        except Exception as exc:
+            raise ProfileSyncError(
+                f"Could not remove stale assignment for agent '{agent_id}': {exc}"
+            ) from exc
+
+        result.unassigned.append(agent_id)
+        await _emit_sync_audit(
+            audit,
+            action="unassign",
+            profile_name=str(pointed.get("name")) if pointed else "unknown",
+            agent_type=str(pointed.get("agent_type")) if pointed else "unknown",
+            agent_id=agent_id,
+        )
+
+
+async def sync_profiles(
+    agents: list[AgentEntry] | None = None,
+    *,
+    db: DatabaseClient | None = None,
+    audit: AuditService | None = None,
+) -> ProfileSyncResult:
+    """Project ``agents.yaml`` onto the profile tables (design D1 / D11).
+
+    For every registry agent, upserts the row named by its ``profile`` field
+    with the declared trust level and derived ``allowed_operations``. Enabled
+    rows that are neither declared by the registry nor listed in
+    :data:`UNMANAGED_PROFILES` are **disabled**, never deleted. Then projects
+    ``agent_profile_assignments`` (see :func:`_sync_assignments`), which is the
+    table resolution actually consults first. Every mutation emits a
+    ``profile_sync`` audit event; unchanged rows emit nothing.
+
+    Idempotent and safe under concurrent startup of multiple API workers
+    (design D9 as amended): all writes are keyed on the profile name and
+    converge on the same state, so two workers racing produce the same result.
+
+    Args:
+        agents: Registry entries; loaded from ``agents.yaml`` when omitted.
+        db: Database client; the global client when omitted.
+        audit: Audit service; the global service when omitted.
+
+    Returns:
+        A :class:`ProfileSyncResult` describing what changed.
+
+    Raises:
+        ProfileSyncError: On any failure to read or write the projection.
+            Callers must not swallow this — a coordinator whose authorization
+            state does not match the registry has to fail loudly.
+    """
+    from src.config import get_config
+
+    result = ProfileSyncResult()
+
+    if not get_config().profiles.sync_enabled:
+        logger.warning(
+            "PROFILE_SYNC_ENABLED=false — agent_profiles is NOT enforced as a "
+            "projection of agents.yaml. Profile rows may drift from the registry."
+        )
+        result.skipped_reason = "disabled"
+        return result
+
+    if agents is None:
+        try:
+            agents = load_agents_config()
+        except FileNotFoundError:
+            logger.warning(
+                "agents.yaml not found — skipping profile sync (nothing to project)."
+            )
+            result.skipped_reason = "no_registry"
+            return result
+
+    if not agents:
+        # Refusing to run on an empty registry is a safety property, not a
+        # convenience: orphan disabling against an empty roster would disable
+        # every profile in the table.
+        logger.warning("agents.yaml declares no agents — skipping profile sync.")
+        result.skipped_reason = "no_registry"
+        return result
+
+    if db is None:
+        from src.db import get_db
+
+        db = get_db()
+    if audit is None:
+        from src.audit import get_audit_service
+
+        audit = get_audit_service()
+
+    try:
+        rows = await db.query("agent_profiles")
+    except Exception as exc:
+        raise ProfileSyncError(
+            f"Could not read agent_profiles for the registry projection: {exc}"
+        ) from exc
+
+    existing: dict[str, dict[str, Any]] = {
+        str(row.get("name")): row for row in rows if row.get("name")
+    }
+
+    declared: set[str] = set()
+    for agent in agents:
+        try:
+            desired = _desired_profile_row(agent)
+        except ValueError as exc:
+            raise ProfileSyncError(
+                f"Agent '{agent.name}' cannot be projected to profile "
+                f"'{agent.profile}': {exc}"
+            ) from exc
+
+        name = desired["name"]
+        declared.add(name)
+        current = existing.get(name)
+
+        # Stamp every projected write so migration 032.s
+        # synced_from_registry_at column means what its comment claims.
+        row_payload = {**desired, "synced_from_registry_at": _registry_sync_timestamp()}
+        update_payload = {k: v for k, v in row_payload.items() if k != "name"}
+
+        if current is None:
+            try:
+                await db.insert("agent_profiles", row_payload, return_data=False)
+            except Exception as exc:
+                # A concurrent worker may have inserted the same name between
+                # our read and our write (UNIQUE (name)). Converge via update
+                # rather than failing the boot of the slower worker. ONLY for a
+                # real uniqueness collision: any other failure means the row was
+                # never written, and retrying it as an UPDATE would match zero
+                # rows, raise nothing, and be reported as a successful insert.
+                if not _is_unique_violation(exc):
+                    raise ProfileSyncError(
+                        f"Could not project agent '{agent.name}' onto profile "
+                        f"'{name}': {exc}"
+                    ) from exc
+                try:
+                    await db.update(
+                        "agent_profiles",
+                        {"name": name},
+                        update_payload,
+                        return_data=False,
+                    )
+                except Exception as update_exc:
+                    raise ProfileSyncError(
+                        f"Could not project agent '{agent.name}' onto profile "
+                        f"'{name}': {update_exc}"
+                    ) from exc
+                result.updated.append(name)
+                await _emit_sync_audit(
+                    audit,
+                    action="update",
+                    profile_name=name,
+                    agent_type=agent.type,
+                    trust_level=agent.trust_level,
+                )
+                continue
+
+            result.inserted.append(name)
+            await _emit_sync_audit(
+                audit,
+                action="insert",
+                profile_name=name,
+                agent_type=agent.type,
+                trust_level=agent.trust_level,
+            )
+            continue
+
+        changed = _profile_drift(desired, current)
+        if not changed:
+            result.unchanged.append(name)
+            continue
+
+        try:
+            await db.update(
+                "agent_profiles",
+                {"name": name},
+                update_payload,
+                return_data=False,
+            )
+        except Exception as exc:
+            raise ProfileSyncError(
+                f"Could not reconcile profile '{name}' for agent "
+                f"'{agent.name}': {exc}"
+            ) from exc
+
+        result.updated.append(name)
+        await _emit_sync_audit(
+            audit,
+            action="update",
+            profile_name=name,
+            agent_type=agent.type,
+            trust_level=agent.trust_level,
+            changed_fields=changed,
+        )
+
+    for name, row in existing.items():
+        if name in declared or name in UNMANAGED_PROFILES:
+            continue
+        if not row.get("enabled", True):
+            continue
+
+        try:
+            await db.update(
+                "agent_profiles",
+                {"name": name},
+                {"enabled": False},
+                return_data=False,
+            )
+        except Exception as exc:
+            raise ProfileSyncError(
+                f"Could not disable orphaned profile '{name}': {exc}"
+            ) from exc
+
+        result.disabled.append(name)
+        await _emit_sync_audit(
+            audit,
+            action="disable",
+            profile_name=name,
+            agent_type=str(row.get("agent_type") or "unknown"),
+        )
+
+    await _sync_assignments(agents, db=db, audit=audit, result=result)
+
+    if result.mutations:
+        # The profiles service caches lookups by agent_id:agent_type with a
+        # TTL. At boot the cache is empty and this is a no-op; on a re-sync in
+        # a live process it stops pre-sync trust levels from being served until
+        # the TTL expires.
+        from src.profiles import get_profiles_service
+
+        get_profiles_service().invalidate_cache()
+
+    logger.info(
+        "Profile sync: %d inserted, %d updated, %d disabled, %d unchanged; "
+        "assignments: %d assigned, %d reassigned, %d removed, %d unchanged.",
+        len(result.inserted),
+        len(result.updated),
+        len(result.disabled),
+        len(result.unchanged),
+        len(result.assigned),
+        len(result.reassigned),
+        len(result.unassigned),
+        len(result.assignments_unchanged),
+    )
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -1015,6 +1877,135 @@ def _default_archetypes_path() -> Path:
     return Path(__file__).resolve().parent.parent / "archetypes.yaml"
 
 
+def _as_positive_number(value: Any) -> float | None:
+    """Return *value* as a float when it is a positive, non-boolean number."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    return float(value) if value > 0 else None
+
+
+def _validate_local_roster(
+    raw_aliases: dict[str, Any] | None,
+    raw_host_class: dict[str, Any] | None,
+) -> None:
+    """Validate the `local` roster against its host class (design D4).
+
+    No-op unless ``model_aliases.local`` exists — nothing requires the local
+    provider to be configured. When it does exist, every entry must use the
+    extended form and satisfy both hardware rules, or startup fails with a
+    :class:`LocalRosterConfigError` naming the rule.
+
+    Contract: ``contracts/local-roster-entry.schema.json``.
+    """
+    if not raw_aliases:
+        return
+    roster = raw_aliases.get(LOCAL_PROVIDER)
+    if not roster:
+        return
+
+    host_class = {**DEFAULT_LOCAL_HOST_CLASS, **(raw_host_class or {})}
+    ceiling = _as_positive_number(host_class.get("active_params_ceiling_b"))
+    dense_limit = _as_positive_number(host_class.get("dense_params_limit_b"))
+    if ceiling is None or dense_limit is None:
+        raise LocalRosterConfigError(
+            "host-class-config",
+            f"local_host_class must define positive active_params_ceiling_b and "
+            f"dense_params_limit_b; got {host_class!r}",
+        )
+
+    # Defence in depth: on the load path jsonschema's `required` on
+    # _LOCAL_ROSTER_SCHEMA fires first, so this never triggers there. It guards
+    # direct callers of this function (tests, future programmatic loaders) that
+    # hand over a roster which never went through ARCHETYPES_SCHEMA.
+    missing_tiers = [tier for tier in LOCAL_REQUIRED_TIERS if tier not in roster]
+    if missing_tiers:
+        raise LocalRosterConfigError(
+            "required-tiers",
+            f"local roster must define {list(LOCAL_REQUIRED_TIERS)}; "
+            f"missing {missing_tiers}",
+        )
+
+    for tier, entry in roster.items():
+        if not isinstance(entry, dict):
+            raise LocalRosterConfigError(
+                "extended-entry-form",
+                "local roster entries must be objects of the form "
+                "{model, total_params_b, active_params_b, reviewed}; "
+                f"got {entry!r}",
+                tier=tier,
+            )
+
+        for required_field in ("model", "total_params_b", "active_params_b", "reviewed"):
+            if required_field not in entry:
+                raise LocalRosterConfigError(
+                    "extended-entry-form",
+                    f"local roster entry is missing required field "
+                    f"{required_field!r} (declared fields: {sorted(entry)})",
+                    tier=tier,
+                )
+
+        # Two checks, because neither alone is sufficient: the regex pins the
+        # dashed YYYY-MM-DD shape (``date.fromisoformat`` also accepts the ISO
+        # basic form "20260816"), and parsing rejects date-shaped strings that
+        # are not real dates ("2026-13-45", "2026-02-30").
+        reviewed = entry["reviewed"]
+        if not isinstance(reviewed, str) or not _REVIEWED_DATE_RE.match(reviewed):
+            raise LocalRosterConfigError(
+                "operator-review-date",
+                f"'reviewed' must be an operator-signed YYYY-MM-DD date "
+                f"(quote it in YAML); got {reviewed!r}",
+                tier=tier,
+            )
+        try:
+            date.fromisoformat(reviewed)
+        except ValueError as exc:
+            raise LocalRosterConfigError(
+                "operator-review-date",
+                f"'reviewed' must be an operator-signed YYYY-MM-DD date "
+                f"naming a real calendar day; got {reviewed!r}",
+                tier=tier,
+            ) from exc
+
+        total = _as_positive_number(entry["total_params_b"])
+        active = _as_positive_number(entry["active_params_b"])
+        if total is None or active is None:
+            raise LocalRosterConfigError(
+                "extended-entry-form",
+                f"total_params_b and active_params_b must be positive numbers; "
+                f"got total={entry['total_params_b']!r}, "
+                f"active={entry['active_params_b']!r}",
+                tier=tier,
+            )
+        if active > total:
+            raise LocalRosterConfigError(
+                "extended-entry-form",
+                f"active_params_b ({active}) exceeds total_params_b ({total})",
+                tier=tier,
+            )
+
+        # Dense first: a dense model violates both rules, and the dense rule is
+        # the one that explains *why* it can never be a roster entry here.
+        if active == total and total >= dense_limit:
+            raise LocalRosterConfigError(
+                "dense-model-hardware-matching",
+                f"{entry['model']!r} is dense ({total}B total == {active}B active) "
+                f"and at or above the {dense_limit}B dense limit for host class "
+                f"{host_class.get('name')!r}; this host is bandwidth-bound, so "
+                f"dense models at this size must not be roster entries even "
+                f"though they fit in memory",
+                tier=tier,
+            )
+        if active > ceiling:
+            raise LocalRosterConfigError(
+                "active-parameter-hardware-matching",
+                f"{entry['model']!r} declares {active}B active parameters, above "
+                f"the {ceiling}B active ceiling for host class "
+                f"{host_class.get('name')!r}; local rosters on bandwidth-bound "
+                f"hardware must be MoE-first",
+                tier=tier,
+            )
+
+
 def load_archetypes_config(
     path: Path | None = None,
 ) -> dict[str, ArchetypeConfig]:
@@ -1052,6 +2043,7 @@ def load_archetypes_config(
         raise ValueError("Empty archetypes.yaml file")
 
     validate(instance=raw, schema=ARCHETYPES_SCHEMA)
+    _validate_local_roster(raw.get("model_aliases"), raw.get("local_host_class"))
     _provider_model_map = _normalize_provider_model_map(raw.get("model_aliases"))
 
     result: dict[str, ArchetypeConfig] = {}
@@ -1146,6 +2138,49 @@ def reset_archetypes_config() -> None:
     _provider_model_map = None
 
 
+def _served_local_roster(roster: Any) -> Any:
+    """Reduce a `local` roster to the tier-entry shape the contract serves.
+
+    ``archetypes.yaml`` carries hardware metadata (``total_params_b``,
+    ``active_params_b``, ``reviewed``) on every `local` entry so
+    :func:`_validate_local_roster` can enforce the MoE-first rule at startup.
+    That metadata is load-time *validation input*, not part of the provider
+    model map: ``openspec/schemas/provider-model-map.schema.json`` admits only
+    a bare model id or ``{model, thinking}`` per tier, so it is dropped here
+    rather than leaking into every consumer of the served map.
+    """
+    if not isinstance(roster, dict):
+        return roster
+    served: dict[str, Any] = {}
+    for tier, entry in roster.items():
+        if isinstance(entry, dict):
+            model = entry.get("model")
+            thinking = entry.get("thinking")
+            if isinstance(model, str) and model:
+                served[tier] = (
+                    {"model": model, "thinking": thinking}
+                    if isinstance(thinking, str) and thinking
+                    else model
+                )
+                continue
+        served[tier] = entry
+    return served
+
+
+def _with_served_local_roster(providers: dict[str, Any]) -> dict[str, Any]:
+    """Return *providers* with the `local` roster stripped to tier entries.
+
+    Every other provider passes through untouched — resolution output for
+    pre-existing providers must stay byte-identical (design D6).
+    """
+    if LOCAL_PROVIDER not in providers:
+        return providers
+    return {
+        **providers,
+        LOCAL_PROVIDER: _served_local_roster(providers[LOCAL_PROVIDER]),
+    }
+
+
 def _normalize_provider_model_map(raw_map: dict[str, Any] | None) -> dict[str, Any]:
     """Return a schema-shaped provider model map.
 
@@ -1156,20 +2191,23 @@ def _normalize_provider_model_map(raw_map: dict[str, Any] | None) -> dict[str, A
         return {
             "schema_version": DEFAULT_PROVIDER_MODEL_MAP["schema_version"],
             "tiers": list(DEFAULT_PROVIDER_MODEL_MAP["tiers"]),
-            "providers": {
+            "providers": _with_served_local_roster({
                 provider: dict(mapping)
                 for provider, mapping in DEFAULT_PROVIDER_MODEL_MAP["providers"].items()
-            },
+            }),
         }
     if "providers" in raw_map:
-        return raw_map
+        providers = raw_map.get("providers")
+        if not isinstance(providers, dict) or LOCAL_PROVIDER not in providers:
+            return raw_map
+        return {**raw_map, "providers": _with_served_local_roster(providers)}
     return {
         "schema_version": 2,
         "tiers": list(ALL_MODEL_TIERS),
-        "providers": {
+        "providers": _with_served_local_roster({
             provider: dict(mapping)
             for provider, mapping in raw_map.items()
-        },
+        }),
     }
 
 
@@ -1195,11 +2233,21 @@ def _tier_entry_to_spec(entry: Any) -> ModelSpec | None:
     return None
 
 
+def _best_defined_tier(provider_map: dict[str, Any]) -> tuple[str, ModelSpec] | None:
+    """Return the highest tier this provider actually defines, if any."""
+    for candidate in ALL_MODEL_TIERS:
+        spec = _tier_entry_to_spec(provider_map.get(candidate))
+        if spec is not None:
+            return candidate, spec
+    return None
+
+
 def resolve_provider_model_spec(
     model: str,
     *,
     provider: str | None,
     model_map: dict[str, Any] | None = None,
+    reasons: list[str] | None = None,
 ) -> ModelSpec:
     """Resolve a logical/legacy model value for *provider* to a ModelSpec.
 
@@ -1208,6 +2256,9 @@ def resolve_provider_model_spec(
     translated through the provider map. Exact provider-specific model IDs
     already present in that provider's mapping are accepted as explicit
     aliases (their tier's thinking level applies).
+
+    When *reasons* is supplied, tier degradations beyond the pre-existing
+    optional-tier fallback are appended to it so callers can surface them.
     """
     if not provider:
         return ModelSpec(model=model)
@@ -1228,9 +2279,14 @@ def resolve_provider_model_spec(
         spec = _tier_entry_to_spec(provider_map.get(tier))
         if spec is not None:
             return spec
-        if tier in OPTIONAL_MODEL_TIERS:
+        if tier in OPTIONAL_MODEL_TIERS and provider != LOCAL_PROVIDER:
             # Optional tiers degrade gracefully: a provider without a
             # frontier model serves its premium model instead of failing.
+            # `local` is excluded on purpose: this path returns silently, and
+            # every local degradation must reach the caller's reasons. A local
+            # roster that defines premium but not frontier falls through to the
+            # best-defined-tier branch below, which resolves to the same
+            # premium entry *and* records why.
             fallback = _tier_entry_to_spec(provider_map.get("premium"))
             if fallback is not None:
                 logger.info(
@@ -1238,6 +2294,25 @@ def resolve_provider_model_spec(
                     provider, tier, fallback.model,
                 )
                 return fallback
+        # The `local` roster may omit base tiers (frontier/premium): those
+        # requests degrade to the best tier it does define. Scoped to `local`
+        # on purpose — for every other provider a missing base tier stays a
+        # structured mapping error, so their behavior is unchanged.
+        degraded = (
+            _best_defined_tier(provider_map) if provider == LOCAL_PROVIDER else None
+        )
+        if degraded is not None:
+            best_tier, best_spec = degraded
+            logger.info(
+                "Provider %r has no %r mapping; degrading to best defined tier "
+                "%r (%s)", provider, tier, best_tier, best_spec.model,
+            )
+            if reasons is not None:
+                reasons.append(
+                    f"provider={provider} roster omits tier {tier}; degraded to "
+                    f"best defined tier {best_tier}"
+                )
+            return best_spec
         raise ProviderModelMappingError(provider, model, tier)
 
     for entry in provider_map.values():
@@ -1352,11 +2427,15 @@ def _resolve_model_spec(
 ) -> tuple[ModelSpec, list[str]]:
     """Escalation pipeline returning the full ModelSpec (model + thinking)."""
     def _finalize(source_model: str, reasons: list[str]) -> tuple[ModelSpec, list[str]]:
+        degradation: list[str] = []
         spec = resolve_provider_model_spec(
             source_model,
             provider=provider,
             model_map=model_map,
+            reasons=degradation,
         )
+        if degradation:
+            reasons = [*reasons, *degradation]
         if provider and spec.model != source_model:
             suffix = f" (thinking={spec.thinking})" if spec.thinking else ""
             reasons = [
@@ -1434,6 +2513,9 @@ def resolve_archetype_for_phase(
         KeyError: If *phase* is not present in ``phase_mapping``.
         RuntimeError: If the cached archetypes config has been mutated such
             that the phase entry's archetype reference is no longer valid.
+        LocalProviderTrustBoundaryError: If *provider* is ``local`` and the
+            phase's archetype is outside :data:`LOCAL_TRUSTED_ARCHETYPES`
+            (design D3) — raised before any model resolution or dispatch.
     """
     if _phase_mapping is None:
         load_archetypes_config()
@@ -1453,6 +2535,20 @@ def resolve_archetype_for_phase(
             f"phase_mapping[{phase!r}] references undefined archetype "
             f"{entry.archetype!r} (cache may be stale; call "
             f"reset_archetypes_config() and reload)"
+        )
+
+    # Enforce the `local` provider trust boundary (design D3) before anything
+    # is resolved or dispatched: local models are permitted only where their
+    # output is cheap to discard or verified downstream. The coordinator is the
+    # single decision point, so no client can route around this check.
+    boundary_reasons: list[str] = []
+    if provider == LOCAL_PROVIDER:
+        if archetype.name not in LOCAL_TRUSTED_ARCHETYPES:
+            raise LocalProviderTrustBoundaryError(archetype.name, phase=phase)
+        boundary_reasons.append(
+            f"provider={LOCAL_PROVIDER} trust boundary checked: archetype="
+            f"{archetype.name} is permitted "
+            f"({', '.join(sorted(LOCAL_TRUSTED_ARCHETYPES))})"
         )
 
     # Enforce the write-capability contract at resolution time (design D3 /
@@ -1481,6 +2577,9 @@ def resolve_archetype_for_phase(
 
     reasons: list[str] = [
         f"phase={phase} maps to archetype={archetype.name}",
+        # Empty for every provider except `local`, so existing providers keep
+        # byte-identical reasons.
+        *boundary_reasons,
         *escalation_reasons,
     ]
     if not escalation_reasons:

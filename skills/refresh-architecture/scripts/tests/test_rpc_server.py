@@ -25,7 +25,9 @@ if str(SCRIPTS_DIR) not in sys.path:
 from rpc_server import (  # noqa: E402
     RefreshServer,
     RefreshStatus,
+    get_server,
     main as rpc_main,
+    reset_server,
 )
 
 
@@ -242,36 +244,48 @@ class TestMainEntryPoint:
 # ---------------------------------------------------------------------------
 
 
+def _make_repo_with_provenance(tmp_path: Path) -> Path:
+    """Build a git repo with architecture artifacts and matching provenance."""
+    import os
+    import subprocess
+
+    from arch_utils import provenance as prov
+
+    repo = tmp_path / "proj"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "app.py").write_text("print('x')\n")
+    arch = repo / prov.ARCH_DIR_DEFAULT
+    arch.mkdir(parents=True)
+    (arch / "architecture.graph.json").write_text('{"nodes": [], "edges": []}\n')
+    (arch / "architecture.summary.json").write_text('{"summary": "ok"}\n')
+    for args in (
+        ["git", "init", "-q"],
+        ["git", "config", "user.email", "t@e.com"],
+        ["git", "config", "user.name", "T"],
+        ["git", "config", "commit.gpgsign", "false"],
+        ["git", "add", "-A"],
+        ["git", "commit", "-q", "-m", "init"],
+    ):
+        subprocess.run(args, cwd=str(repo), check=True, capture_output=True)
+    rev = prov.analyzed_revision(repo)
+    os.environ["SOURCE_DATE_EPOCH"] = str(prov.deterministic_epoch(repo, rev))
+    try:
+        doc = prov.build_provenance(repo, mode="full", roots=["src"])
+        # Fixture data must satisfy the published schema. Until the producer
+        # emits schema 2 with per-artifact tiers, fill those in here; once it
+        # does, both statements are no-ops.
+        doc["schema_version"] = 2
+        for artifact in doc["artifacts"]:
+            artifact.setdefault("tier", "committed")
+        prov.write_provenance(repo, doc)
+    finally:
+        os.environ.pop("SOURCE_DATE_EPOCH", None)
+    return repo
+
+
 class TestProvenanceProjection:
     def _repo_with_provenance(self, tmp_path: Path) -> Path:
-        import os
-        import subprocess
-
-        from arch_utils import provenance as prov
-
-        repo = tmp_path / "proj"
-        (repo / "src").mkdir(parents=True)
-        (repo / "src" / "app.py").write_text("print('x')\n")
-        arch = repo / prov.ARCH_DIR_DEFAULT
-        arch.mkdir(parents=True)
-        (arch / "architecture.graph.json").write_text('{"nodes": [], "edges": []}\n')
-        (arch / "architecture.summary.json").write_text('{"summary": "ok"}\n')
-        for args in (
-            ["git", "init", "-q"],
-            ["git", "config", "user.email", "t@e.com"],
-            ["git", "config", "user.name", "T"],
-            ["git", "config", "commit.gpgsign", "false"],
-            ["git", "add", "-A"],
-            ["git", "commit", "-q", "-m", "init"],
-        ):
-            subprocess.run(args, cwd=str(repo), check=True, capture_output=True)
-        rev = prov.analyzed_revision(repo)
-        os.environ["SOURCE_DATE_EPOCH"] = str(prov.deterministic_epoch(repo, rev))
-        try:
-            prov.write_provenance(repo, prov.build_provenance(repo, mode="full", roots=["src"]))
-        finally:
-            os.environ.pop("SOURCE_DATE_EPOCH", None)
-        return repo
+        return _make_repo_with_provenance(tmp_path)
 
     def test_legacy_fields_remain_and_additive_fields_present(self, tmp_path: Path) -> None:
         # Scenario .14 — legacy fields remain; provenance fields are added.
@@ -319,3 +333,134 @@ class TestProvenanceProjection:
         assert result["source_revision"] is None
         assert result["operation_id"] is None
         assert result["reason"] == "mtime"
+
+
+# ---------------------------------------------------------------------------
+# Default entry point resolution (scenarios architecture-refresh.20/.21/.22)
+# ---------------------------------------------------------------------------
+
+
+class TestGetServerResolvesRepoRoot:
+    """``get_server()`` is the only path production callers use.
+
+    The merge train reaches ``is_graph_stale`` through ``main()`` →
+    ``get_server()``, so the freshness verdict every caller actually sees is
+    decided here. These tests pin that the default entry point resolves a
+    repository and therefore answers from provenance, not from file mtime.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _isolated_singleton(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.delenv("REFRESH_RPC_REPO_ROOT", raising=False)
+        monkeypatch.delenv("REFRESH_RPC_GRAPH_PATH", raising=False)
+        reset_server()
+        yield
+        reset_server()
+
+    def _graph(self, repo: Path) -> Path:
+        from arch_utils import provenance as prov
+
+        return repo / prov.ARCH_DIR_DEFAULT / "architecture.graph.json"
+
+    def test_default_entry_point_is_provenance_backed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Scenario .20 — reached via get_server(), every provenance field is
+        # populated and the verdict does not come from mtime.
+        repo = _make_repo_with_provenance(tmp_path)
+        monkeypatch.setenv("REFRESH_RPC_GRAPH_PATH", str(self._graph(repo)))
+        monkeypatch.chdir(tmp_path)
+
+        result = get_server().is_graph_stale()
+
+        assert result["reason"] != "mtime"
+        assert result["source_revision"] is not None
+        assert result["producer_version"] is not None
+        assert result["input_fingerprint"] is not None
+        assert result["provenance_path"] is not None
+        assert result["stale"] is False
+
+    def test_repo_root_env_override_wins(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # D4 step 1 — an explicit operator override short-circuits discovery.
+        repo = _make_repo_with_provenance(tmp_path)
+        monkeypatch.setenv("REFRESH_RPC_REPO_ROOT", str(repo))
+        monkeypatch.chdir(tmp_path)
+
+        server = get_server()
+
+        assert server.repo_root == repo
+        assert server.graph_path == self._graph(repo)
+
+    def test_elapsed_time_alone_never_flips_the_verdict(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Scenario .21 — inputs unchanged, graph backdated far past the age
+        # threshold: still fresh.
+        import os as _os
+
+        repo = _make_repo_with_provenance(tmp_path)
+        graph = self._graph(repo)
+        old = time.time() - 240 * 3600  # 10 days
+        _os.utime(graph, (old, old))
+        monkeypatch.setenv("REFRESH_RPC_GRAPH_PATH", str(graph))
+        monkeypatch.chdir(tmp_path)
+
+        result = get_server().is_graph_stale(max_age_hours=6)
+
+        assert result["stale"] is False
+        assert result["reason"] == "fresh"
+
+    def test_verdict_is_independent_of_working_directory(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Scenario .22 — same repo, two different working directories, one answer.
+        repo = _make_repo_with_provenance(tmp_path)
+        graph = self._graph(repo)
+        monkeypatch.setenv("REFRESH_RPC_GRAPH_PATH", str(graph))
+
+        monkeypatch.chdir(repo)
+        from_repo = get_server().is_graph_stale()
+
+        reset_server()
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        monkeypatch.chdir(elsewhere)
+        from_elsewhere = get_server().is_graph_stale()
+
+        assert from_repo == from_elsewhere
+        assert from_repo["stale"] is False
+        assert from_elsewhere["reason"] != "mtime"
+
+    def test_legacy_mtime_probe_stays_reachable_without_a_repo(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # D4 step 3 — a .git-less source export still resolves to legacy mode.
+        import subprocess as _subprocess
+
+        graph = tmp_path / "export" / "architecture.graph.json"
+        graph.parent.mkdir(parents=True)
+        graph.write_text(json.dumps({"nodes": [{"id": "x"}]}))
+        monkeypatch.setenv("REFRESH_RPC_GRAPH_PATH", str(graph))
+        monkeypatch.chdir(tmp_path)
+
+        probe = _subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=str(graph.parent),
+            capture_output=True,
+            text=True,
+        )
+        if probe.returncode == 0:
+            pytest.skip("tmp_path lives inside a git repository")
+
+        server = get_server()
+        assert server.repo_root is None
+        assert server.is_graph_stale()["reason"] == "mtime"
+
+    def test_reset_server_hands_out_a_new_instance(self) -> None:
+        # D5 — the seam tests use instead of poking rpc_server._SERVER.
+        first = get_server()
+        assert get_server() is first
+        reset_server()
+        assert get_server() is not first

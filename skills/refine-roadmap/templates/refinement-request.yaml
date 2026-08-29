@@ -1,0 +1,32 @@
+rationale: <why the active roadmap must change>
+actor: <operator-or-agent>
+source: <issue-review-learning-or-operator-request>
+
+operations:
+  # Add a new item. Use only one of before/after; omit both to append.
+  - op: add
+    after: ri-01
+    item:
+      item_id: ri-02
+      title: <new item title>
+      description: <what it delivers>
+      rationale: <why it belongs in the roadmap>
+      effort: S
+      depends_on: [ri-01]
+      acceptance_outcomes:
+        - <measurable outcome>
+
+  # Other supported operation shapes:
+  # - op: edit
+  #   item_id: ri-02
+  #   set: {description: <clarified description>, effort: M}
+  # - op: split
+  #   item_id: ri-02
+  #   strategy: chain
+  #   items: [<two or more complete item mappings>]
+  # - op: reorder
+  #   item_id: ri-02
+  #   before: ri-01
+  # - op: supersede
+  #   item_id: ri-02
+  #   by: [other-roadmap:ri-03]

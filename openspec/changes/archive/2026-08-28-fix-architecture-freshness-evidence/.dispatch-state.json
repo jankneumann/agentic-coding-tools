@@ -1,0 +1,7 @@
+{
+  "change_id": "fix-architecture-freshness-evidence",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

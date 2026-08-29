@@ -13,7 +13,8 @@ The tests are organised by the requirement they pin:
   "Projection drift does not mask blocking drift".
 * ``TestAdditive`` — "Existing outcome decision is unaffected", plus the enum and
   schema pins that make the word "additive" checkable rather than aspirational.
-* ``TestPurity`` — the classification performs no input or output.
+* ``TestPurity`` — the classification performs no input or output, and the
+  inherited/introduced attribution axis stays outside it (D3).
 """
 
 from __future__ import annotations
@@ -413,6 +414,36 @@ class TestPurity:
             raise error
         assert breakdown is not None
         assert _ids(breakdown.blocking_drift) == [DOCUMENTATION_INVENTORY]
+
+    def test_attribution_is_not_folded_into_the_classification(self) -> None:
+        """D3: attribution is a separate axis, not a fifth group.
+
+        Inherited-versus-introduced attribution answers *whose fault* a finding
+        is; these four groups answer *how severe* it is, and the two are
+        independent. It also shells out to git, which the purity pin above
+        forbids outright. So it lives in the gate's composition layer: the
+        breakdown carries no attribution field, this module exposes no
+        attribution vocabulary, and the gate is where both live.
+        """
+        assert set(orchestrator.DegradationBreakdown.__dataclass_fields__) == {
+            "blocking_drift",
+            "informational_drift",
+            "not_configured",
+            "failed",
+            "semantic_index",
+        }
+        assert not [
+            name for name in dir(orchestrator) if "attribut" in name.lower()
+        ]
+
+        import gate
+
+        assert gate.attribute_producer is not None
+        assert {
+            gate.ATTRIBUTION_INHERITED,
+            gate.ATTRIBUTION_INTRODUCED,
+            gate.ATTRIBUTION_INDETERMINATE,
+        } == {"inherited", "introduced", "indeterminate"}
 
     def test_classification_does_not_mutate_its_input(self) -> None:
         results = (

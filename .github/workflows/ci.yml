@@ -68,6 +68,80 @@ jobs:
       - name: Run infrastructure skill tests
         run: uv run pytest -v
 
+      # One process per directory, on purpose. Skills are standalone script
+      # directories that import siblings by flat module name, and twelve of
+      # those names are defined by more than one skill (`models` by five,
+      # `main` by four, `gate`, `cli`, `runner`, `orchestrator`, ... by two
+      # apiece). In a shared pytest session the first skill to import one wins
+      # sys.modules for every skill after it, so these directories were simply
+      # left out of testpaths -- taking the gate-logic, linter, GATEKEEPER,
+      # security-gate, consensus, merge-queue and transcript suites out of CI
+      # with them. A process boundary per skill is the isolation the
+      # architecture already implies.
+      #
+      # skills/tests/ci_coverage/test_ci_test_coverage.py fails if a test
+      # directory is reached by neither this step nor testpaths, so the gap
+      # cannot silently reopen. That guard resolves each pytest argument below
+      # against its step's working-directory; until 2026-08-24 it resolved every
+      # token against skills/, so the context-eval job's `pytest tests` (run from
+      # packages/context-eval) credited skills/tests and hid the 24 directories
+      # this list now names.
+      - name: Run in-skill test suites (isolated processes)
+        run: |
+          set -euo pipefail
+          status=0
+          for suite in \
+            validate-feature/scripts/tests \
+            autopilot/scripts/tests \
+            autopilot/tests \
+            security-review/tests \
+            parallel-infrastructure/tests \
+            parallel-infrastructure/scripts/tests \
+            agent-metrics/tests \
+            collect-transcripts/tests \
+            explore-feature/tests \
+            gen-eval-scenario/tests \
+            improve-harness/tests \
+            iterate-on-implementation/tests \
+            merge-pull-requests/scripts/tests \
+            quick-task/tests \
+            session-log/tests \
+            session-log/scripts \
+            tech-debt-analysis/tests \
+            tests/merge-pull-requests \
+            tests/shared \
+            tests/agent-coordinator \
+            tests/archive-roadmap \
+            tests/autopilot \
+            tests/autopilot-roadmap \
+            tests/coordinator-task-status-renderer \
+            tests/docs \
+            tests/githooks \
+            tests/integration \
+            tests/iterate-on-plan \
+            tests/langfuse \
+            tests/phase-record-compaction \
+            tests/plan-roadmap \
+            tests/playwright-validator \
+            tests/prioritize-proposals \
+            tests/prototype-feature \
+            tests/quick-task \
+            tests/refine-roadmap \
+            tests/refresh-architecture-contracts \
+            tests/review-artifacts \
+            tests/roadmap-runtime \
+            tests/session-bootstrap \
+            tests/session-log \
+            tests/supervise \
+            tests/vendor-neutral-autopilot \
+            tests/worktree
+          do
+            echo "::group::pytest $suite"
+            uv run pytest "$suite" -q || status=1
+            echo "::endgroup::"
+          done
+          exit $status
+
   test-skills:
     runs-on: ubuntu-latest
 
@@ -93,8 +167,27 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Pinned via `.openspec-version`, not `@latest` (issue #318). `--strict`
+      # semantics move between minor releases, so an unpinned install makes
+      # this gate's verdict a function of when the job ran rather than of the
+      # tree it validated — the same commit can flip green/red on an upstream
+      # publish. Bump the pin by editing that one file; every other install
+      # site (scripts/setup-cli.sh, the session-bootstrap scripts,
+      # skills/install.sh) reads it too, so local and CI cannot disagree.
       - name: Install openspec
-        run: npm install -g @fission-ai/openspec
+        run: npm install -g "@fission-ai/openspec@$(tr -d '[:space:]' < .openspec-version)"
+
+      # Makes the log self-describing after the fact, and stops a cached or
+      # pre-installed binary from silently substituting a different version.
+      - name: Verify openspec matches the pin
+        run: |
+          expected="$(tr -d '[:space:]' < .openspec-version)"
+          actual="$(openspec --version)"
+          echo "openspec pinned=${expected} running=${actual}"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::openspec version mismatch: pinned ${expected}, running ${actual}"
+            exit 1
+          fi
 
       - name: Validate specs
         run: openspec validate --strict --all
@@ -111,6 +204,22 @@ jobs:
   # add-deterministic-context-drift-gates; pinned by test_decision_index_orphan.py).
   #
   # Exit 2 is drift, exit 1 is an apparatus failure; both fail the job.
+  #
+  # ONE job on all three declared events (`push` to main, `pull_request`,
+  # `merge_group`) — deliberately NOT guarded by an `if:`, for the same reason
+  # `requirement-traceability-sweep` below is not: a required check that does not
+  # run on `merge_group` is not a check on the merge candidate, and a skipped
+  # required check reports SUCCESS to branch protection, which is precisely the
+  # unfalsifiable green this gate exists to prevent. The event set is normative
+  # in the spec delta ("Gate event coverage is normative"), not a CI detail.
+  #
+  # Event-dependent behaviour therefore lives INSIDE the step, as a `case` over
+  # `$EVENT_NAME` with an explicit `*)` arm that exits non-zero. What the event
+  # changes is only *which blocking findings contribute to the exit code*, never
+  # which are reported: `pull_request` blocks on drift the branch introduced and
+  # reports drift it inherited from `main`; `merge_group` and `push` block on all
+  # of it, because at those points there is no other branch to inherit from. The
+  # rule itself lives in gate.py, not here — this job selects it and nothing more.
   context-drift-gate:
     runs-on: ubuntu-latest
 
@@ -133,12 +242,159 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run deterministic context drift gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          # The gate's telemetry destination (D7 -- metrics). `gate.py` builds a
+          # `context_gate` row for every run and refuses to write it anywhere
+          # inside the checkout it grades: leaving that tree byte-identical is a
+          # ratified scenario, so the destination has to be supplied from
+          # outside. `runner.temp` is the runner's scratch directory, NOT under
+          # `github.workspace`, which is why the row can be written here without
+          # the gate having to relax that refusal.
+          #
+          # This is the repository's only destination for that row. Without it
+          # the event type is declared and never emitted, and a metrics pipeline
+          # that reports nothing while looking healthy is the same unfalsifiable
+          # green the event axis exists to prevent.
+          CONTEXT_GATE_METRICS_PATH: ${{ runner.temp }}/context-gate-metrics.jsonl
         run: |
-          if make context-drift-gate PYTHON=skills/.venv/bin/python; then
+          set -uo pipefail
+          # GitHub Actions runs a `run:` step with no `shell:` key as `bash -e {0}`,
+          # so errexit is ON here by default. Every arm below inspects the gate's
+          # status rather than dying on it: exit 2 (drift) and exit 1 (apparatus
+          # failure) both have to reach the annotation below, and under errexit
+          # they would abort the step before it is printed.
+          set +e
+
+          run_drift_gate() {
+            # $1: the triggering event, handed to the gate so exactly ONE place
+            # decides the verdict. `make context-drift-gate` is the same command
+            # a developer runs, so a CI failure reproduces verbatim (D1) --
+            # including which findings this event blocks on.
+            make context-drift-gate PYTHON=skills/.venv/bin/python \
+              CONTEXT_GATE_EVENT="$1"
+          }
+
+          case "$EVENT_NAME" in
+            pull_request)
+              # Introduced drift blocks. Drift the branch inherited from `main`
+              # is reported with `main` named as its owner and does NOT block:
+              # one stale artifact on the integration branch failing twelve
+              # unrelated pull requests, dependency bumps included, is the
+              # failure this rule fixes. It is not thereby forgiven -- the same
+              # tree is asked again below, on the merge candidate.
+              run_drift_gate pull_request
+              STATUS=$?
+              ;;
+            merge_group)
+              # Every blocking finding counts: a merge group IS the prospective
+              # integration branch, so there is no other branch to inherit from.
+              # This is the run that keeps the pull-request rule above honest,
+              # which is why the job must not be guarded off this event.
+              run_drift_gate merge_group
+              STATUS=$?
+              ;;
+            push)
+              # Restricted to `main` by the workflow-level `on:` block. The tree
+              # has already become the integration branch, so it owns all of it.
+              run_drift_gate push
+              STATUS=$?
+              ;;
+            *)
+              echo "::error::context drift gate: unhandled event '$EVENT_NAME' — no rule for this trigger"
+              exit 1
+              ;;
+          esac
+
+          if [ "$STATUS" -eq 0 ]; then
             exit 0
           fi
-          echo "::error::Deterministic context drift. The stale artifacts and their remediation commands are listed above. Reproduce locally with 'make context-drift-gate'."
+          echo "::error::Deterministic context drift. The stale artifacts and their remediation commands are listed above. Reproduce locally with 'make context-drift-gate CONTEXT_GATE_EVENT=$EVENT_NAME'."
           exit 1
+
+      # The row written above survives the runner only if it is uploaded, and it
+      # is most interesting on exactly the runs that fail: a gate that exits 2 is
+      # the population the inherited-versus-introduced split was built to
+      # describe. Hence `always()` rather than `success()`.
+      #
+      # Telemetry must never change the verdict, in either direction. The gate
+      # already swallows its own emission failures, and the two settings here
+      # close the other half: `always()` means a red gate still uploads, and
+      # `if-no-files-found: ignore` means a run that wrote no row at all -- an
+      # apparatus failure before the report, or the unhandled-event arm -- fails
+      # on the gate's own exit code and not on a missing artifact.
+      #
+      # No `permissions:` block: uploading an artifact needs none, and this job
+      # stays on the workflow-level `contents: read`.
+      - name: Upload context gate telemetry
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          # Artifact names are unique per run, and one run may retry: the event
+          # name keeps the three triggers distinguishable to a reader, and the
+          # run id and attempt keep two uploads from ever contending for one
+          # name.
+          name: context-gate-metrics-${{ github.event_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/context-gate-metrics.jsonl
+          if-no-files-found: ignore
+
+  # Coverage no-decrease ratchet (introduce-fitness-function-gates, design D5).
+  #
+  # Deliberately its own job rather than a `--cov` flag bolted onto `test` and
+  # `test-infra-skills`: those two are required contexts, and coupling a fresh
+  # ratchet to them would make the very first noisy measurement block merges.
+  # This job starts NON-REQUIRED — it runs on every PR and reports, but branch
+  # protection does not list it. The promotion command lives next to the
+  # context-drift-gate note in docs/guides/session-completion.md.
+  #
+  # A ratchet, not an absolute bar: an arbitrary threshold penalises legacy
+  # code, while a no-decrease check with a 0.5pp tolerance measures drift.
+  # Baseline percentages and their exact producing commands live in
+  # coverage-baseline.json at the repo root.
+  #
+  # pytest-cov is injected with `uv run --with` rather than added to either
+  # pyproject: coverage is a CI-only concern here, and neither package's
+  # dependency set should grow for it.
+  coverage-ratchet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install coordinator dependencies
+        working-directory: agent-coordinator
+        run: uv sync --all-extras
+
+      - name: Install skills dependencies
+        working-directory: skills
+        run: uv sync --all-extras
+
+      - name: Measure coordinator coverage
+        # Same marker exclusion as the `test` job above, so the measured tree is
+        # the tree CI actually exercises on a PR.
+        working-directory: agent-coordinator
+        run: |
+          uv run --with pytest-cov pytest -m "not e2e and not integration" -q \
+            --cov=src --cov-report=term --cov-report=xml:coverage.xml
+
+      - name: Measure skills coverage
+        working-directory: skills
+        run: |
+          uv run --with pytest-cov pytest -q \
+            --cov=. --cov-report=term --cov-report=xml:coverage.xml
+
+      - name: Coverage ratchet
+        run: |
+          agent-coordinator/.venv/bin/python scripts/coverage_ratchet.py \
+            --coverage-xml agent-coordinator=agent-coordinator/coverage.xml \
+            --coverage-xml skills=skills/coverage.xml
 
   # Static contract check: does every local package imported from src/
   # have a matching COPY statement in the Dockerfile runtime stage?
@@ -674,11 +930,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          # Pinned, like every tool below. `ci.yml` already carries one unpinned
-          # installer (`npm install -g @fission-ai/openspec`, issue #318) whose
-          # drift let a local 1.1.1 and CI's 1.6.0 disagree about the same tree
-          # and nearly produced a phantom defect report. This job adds no second
-          # one.
+          # Pinned, like every tool below and like the openspec CLI in
+          # validate-specs. That one used to float on `@latest`, which let a
+          # local 1.1.1 and CI's 1.6.0 disagree about the same tree and nearly
+          # produced a phantom defect report (issue #318); it now reads
+          # `.openspec-version`. No unpinned installer remains in this file.
           version: "0.9.18"
 
       - name: Set up Python 3.12
@@ -767,3 +1023,219 @@ jobs:
         # (2 = present evidence that does not authorize, 3 = absent or expired
         # evidence) to its own 2, printing the real one as `Error <n>`.
         run: make semantic-enablement-gate PYTHON=packages/context-eval/.venv/bin/python
+
+  # Dependency-update remediation servo (rescope-context-drift-enforcement, D5).
+  #
+  # THE REPOSITORY'S FIRST `contents: write` GRANT. Every other job in both
+  # workflows runs under the workflow-level `permissions: contents: read` at the
+  # top of this file; this job is the single exception, and the grant is declared
+  # HERE, on the job. Never at workflow level: a workflow-level grant applies to
+  # every job in the file, including the ones that run unguarded on human pull
+  # requests, which would hand a write token to the entire build to give it to
+  # one step. skills/tests/project-context-refresh/test_remediation_policy.py
+  # asserts both halves — no workflow-level grant anywhere, exactly one job
+  # declaring one — so the confinement is normative, not conventional.
+  #
+  # SCOPE: dependency-update pull requests only. That population opens up to 15
+  # pull requests every Monday (.github/dependabot.yml) and is provably never the
+  # cause of context drift — a one-line version bump cannot stale a decision
+  # index — so it is where an automatic fix is worth most and risks least. A
+  # servo on ALL pull requests was considered and rejected: a much larger blast
+  # radius for a first write escalation, and a human pull request already has an
+  # author who can run the one command themselves.
+  #
+  # The guard is at JOB level, so a human pull request never REACHES the write
+  # steps. A job that runs on a human branch and merely decides not to commit is
+  # a weaker confinement of the same grant: the decision would then live in bash,
+  # several steps after a checkout that already persisted a write-capable token
+  # into the working copy.
+  #
+  # AUTHORSHIP, not `github.actor`, is the gate. The actor is whoever initiated
+  # the run; a person who pushes to or re-runs a bot branch becomes the actor
+  # without becoming the author, and the spec's population is "pull requests
+  # opened by the dependency-update bot". The head-repository term excludes
+  # forks, whose GITHUB_TOKEN is read-only whatever `permissions:` requests;
+  # genuine dependency-update branches always live in this repository, so that
+  # term costs nothing here and stops the job from starting work it could not
+  # finish.
+  #
+  # Placed LAST rather than beside the drift gate it serves: every other job in
+  # this file is a check, and keeping the only job that WRITES outside that run
+  # makes the write surface of the workflow one contiguous block to review.
+  #
+  # This job is NOT a required status check and must not be promoted to one: it
+  # is skipped on every event but a bot pull request, and a skipped required
+  # check reports SUCCESS to branch protection — the unfalsifiable green the
+  # context-drift-gate note above exists to avoid.
+  dependency-update-remediation:
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.user.login == 'dependabot[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # The whole escalation, in two lines. A job-level block REPLACES the
+    # workflow-level one rather than adding to it, so every other scope is `none`
+    # for this job: the servo commits and pushes, and touches no other API.
+    permissions:
+      contents: write
+
+    env:
+      # The inexpensive, byte-deterministic producers, and only those.
+      #
+      # `architecture` is excluded by the spec requirement itself: it needs
+      # tree-sitter and writes megabytes, which is neither inexpensive nor
+      # something a bot should push onto a dependency bump.
+      #
+      # `openspec.projection` is excluded for a different reason — it rewrites
+      # the canonical spec tree under openspec/specs/, which is the archive's
+      # owned sync-point operation (cleanup-feature), not a servo's to perform
+      # as a side effect of a version bump.
+      PRODUCERS: "api.contracts decisions.timeline documentation.inventory"
+      # The declared outputs of exactly those three producers. Kept here rather
+      # than derived at run time so the commit's file scope is readable in the
+      # workflow; test_remediation_policy.py compares this list against the ri-05
+      # registry, so the two cannot drift apart silently.
+      OUTPUT_PATHS: >-
+        docs/architecture-analysis/contracts-inventory.md
+        docs/decisions
+        docs/architecture-analysis/skills-inventory.md
+
+    steps:
+      # The pull-request BRANCH, not the `refs/pull/N/merge` ref actions/checkout
+      # hands a `pull_request` event by default. That merge ref is detached — no
+      # branch to push — and it is precisely the stale replay
+      # docs/merge-logs/2026-08-24.md:29 calls "theatre": it is whatever GitHub
+      # last computed, not what `main` is now. The base is refreshed below from a
+      # fetch performed in this run instead.
+      #
+      # No `repository:` override is needed: the job guard already established
+      # that the head branch lives in this repository.
+      - name: Check out the dependency-update branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          # The merge below needs real history, not a shallow cone.
+          fetch-depth: 0
+          # Keeps the granted token on `origin` so the push at the end of the job
+          # needs no second credential path.
+          persist-credentials: true
+
+      - name: Refresh the base before regenerating
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Fetched HERE, in this run, so "current" means current now rather than
+          # whenever GitHub last recomputed the merge ref.
+          git fetch --no-tags origin "$BASE_REF"
+
+          # Artifacts regenerated on a stale base ARE drift. The decision index
+          # and the skills inventory are whole-tree projections: a tree missing
+          # the base's newest session logs and skills regenerates to something
+          # that is already stale the moment it merges, and the servo would have
+          # committed the very thing the gate is looking for.
+          if ! git merge --no-edit FETCH_HEAD; then
+            git merge --abort || true
+            echo "::error::Cannot refresh the base: merging origin/$BASE_REF into this branch conflicts. Regenerating on the unrefreshed branch would commit artifacts derived from a stale base, so nothing was written. Rebase the pull request and re-run."
+            exit 1
+          fi
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      # Installed AFTER the base refresh, so the environment matches the tree the
+      # producers are about to read.
+      - name: Install skills deps
+        working-directory: skills
+        run: uv sync --all-extras
+
+      - name: Regenerate the inexpensive deterministic producers
+        run: |
+          set -euo pipefail
+
+          run_producer() {
+            # $1 = mode (generate | check), $2 = producer id.
+            #
+            # ONE argv builder for both modes: the only difference between what
+            # this servo writes and what the gate checks is the subcommand word.
+            # generate_tool_descriptor.py:570-573 records why that matters —
+            # check mode asserts byte identity against what it would generate
+            # from its OWN argv, so a writer given flags the checker does not
+            # pass (or the reverse) reports drift on a perfectly up-to-date file
+            # and the two oscillate forever. `cli.py <mode> <producer-id>` takes
+            # no other argument, so there is nothing left for them to disagree
+            # about — and it is the same entry point the gate's deterministic arm
+            # reaches through orchestrator.check().
+            skills/.venv/bin/python skills/project-context-refresh/scripts/cli.py "$1" "$2"
+          }
+
+          for producer in $PRODUCERS; do
+            run_producer generate "$producer"
+          done
+
+          # Never emit a degenerate artifact (generate_tool_descriptor.py:296-304):
+          # a write path that can emit an EMPTY artifact "would make the
+          # byte-identity assertion compare empty against empty forever" — the
+          # check below would pass on nothing at all, and the servo would commit
+          # the erasure of a whole inventory as though it were a refresh.
+          for path in $OUTPUT_PATHS; do
+            if [ -d "$path" ]; then
+              if [ -z "$(find "$path" -type f -print -quit)" ]; then
+                echo "::error::Refusing to commit: the regenerated directory '$path' is empty. An empty artifact satisfies a byte-identity check against itself, so this would go green while erasing the inventory."
+                exit 1
+              fi
+            elif [ ! -s "$path" ]; then
+              echo "::error::Refusing to commit: the regenerated artifact '$path' is missing or empty. An empty artifact satisfies a byte-identity check against itself, so this would go green while erasing the inventory."
+              exit 1
+            fi
+          done
+
+          # The writer's own output, put to the checker, through the same argv.
+          # If this fails the producer is not byte-deterministic and the servo
+          # must not push: it would be committing drift under a fix's name.
+          for producer in $PRODUCERS; do
+            run_producer check "$producer"
+          done
+
+      - name: Commit and push the regenerated artifacts
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+
+          # Only the producers' declared outputs. The base refresh brought the
+          # whole of the base branch into this tree; staging everything would
+          # push unrelated files under a commit message claiming to be a
+          # regeneration.
+          git add -- $OUTPUT_PATHS
+
+          if git diff --cached --quiet; then
+            # Nothing regenerated differently, so there is nothing to remediate
+            # and the local base refresh is discarded with the runner. The push
+            # is skipped ENTIRELY here rather than pushing a bare merge commit:
+            # an unnecessary push takes the pull request out of the dependency
+            # bot's own rebase management for no gain.
+            echo "::notice::Deterministic context artifacts are already current on this branch; nothing pushed."
+            exit 0
+          fi
+
+          git commit --message "chore(context): regenerate deterministic context artifacts" \
+            --message "Regenerated by the dependency-update remediation servo against a refreshed base. Producers: $PRODUCERS."
+
+          # Deliberately NOT tolerant of a failed push. GITHUB_TOKEN can be
+          # read-only for reasons this job's `permissions:` block cannot raise,
+          # and a servo that swallows that error reports a green check for work
+          # it did not do.
+          if ! git push origin "HEAD:refs/heads/$HEAD_REF"; then
+            echo "::error::Could not push the regenerated context artifacts to '$HEAD_REF'. Either GITHUB_TOKEN is read-only for this run — an organisation default this job's grant cannot raise, or a head branch outside this repository — or the branch moved while the job ran. Nothing reached the pull request."
+            exit 1
+          fi

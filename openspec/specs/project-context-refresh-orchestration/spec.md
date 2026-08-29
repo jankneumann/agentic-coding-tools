@@ -83,18 +83,645 @@ aggregate never collapses per-producer identity or ownership.
 
 ### Requirement: Sync-point-only main writes
 
-No refresh path SHALL write canonical main outputs outside an authorized sync-point
-operation. The refresh command SHALL operate within a managed worktree, SHALL keep
-the OpenSpec projection read-only, and SHALL write the durable manifest to a location
-that never mutates the tracked working tree.
+No refresh path SHALL write canonical main outputs except from a managed worktree or from an explicitly authorized sync-point operation that has enforced its clean-tree, active-agent, and exclusive-lock guards.
+
+The refresh command SHALL keep the OpenSpec projection read-only, SHALL write the
+durable manifest to a location that never mutates the tracked working tree, and
+SHALL refuse an unauthorized shared or bare checkout exactly as before. Sync-point
+authorization SHALL be an explicit caller opt-in, never inferred from the
+environment, and canonical specification merges SHALL remain the responsibility of
+the cleanup operation.
 
 <!-- Scenario ID: project-context-refresh-orchestration.no-main-write -->
 #### Scenario: Refresh never writes main directly
 
-- **WHEN** the refresh command runs
+- **WHEN** the refresh command runs without sync-point authorization
 - **THEN** it SHALL refuse to run against a shared or bare checkout
 - **AND** it SHALL write only producer-managed outputs plus a durable manifest kept
   outside the tracked working tree
 - **AND** canonical specification merges SHALL remain the responsibility of the
   sync-point cleanup operation
+
+<!-- Scenario ID: project-context-refresh-orchestration.authorized-sync-point -->
+#### Scenario: An authorized sync point may refresh main in place
+
+- **WHEN** the refresh command is invoked with explicit sync-point authorization from
+  the main-synchronization skill
+- **THEN** it SHALL be permitted to write producer-managed outputs in the shared
+  checkout on the main branch
+- **AND** the caller SHALL have verified a clean working tree, no active agent
+  worktrees, and exclusive sync-point access before the write
+- **AND** the OpenSpec projection SHALL remain read-only in that mode
+
+<!-- Scenario ID: project-context-refresh-orchestration.deferred-semantic-index -->
+#### Scenario: Semantic indexing can be deferred to a later revision
+
+- **WHEN** the refresh command is invoked with the semantic index deferred
+- **THEN** it SHALL run every deterministic and architecture producer as usual
+- **AND** it SHALL record the semantic index as a pending reference carrying a bounded
+  exact-search fallback rather than attempting the index inline
+- **AND** the recorded deterministic results SHALL be identical to those of a run that
+  attempted the index
+
+### Requirement: Deterministic context drift gate
+
+The system SHALL provide a single composed drift gate that runs the deterministic context
+producers, architecture freshness, and work-package context-impact validation, and emits
+one structured report.
+
+The gate SHALL be invocable identically from a developer checkout and from CI, so that a
+CI failure is reproducible with one local command.
+
+The gate SHALL resolve the base reference to exactly one revision and record that revision
+in the report. Every comparison the gate performs SHALL use the recorded revision. A base
+name that could resolve to more than one revision SHALL NOT be resolved differently by
+different parts of the same run, because a report that compares against two bases describes
+no single tree.
+
+The report SHALL name every stale artifact by repository-relative path rather than
+reporting an aggregate count or status alone.
+
+The gate SHALL NOT write to the checkout, and SHALL NOT record a durable operation or
+manifest.
+
+#### Scenario: Stale artifacts are named individually
+- **GIVEN** a checkout where two managed documentation artifacts are stale
+- **WHEN** the drift gate runs
+- **THEN** the report SHALL list both artifact paths
+- **AND** the gate SHALL exit with the drift exit code
+
+#### Scenario: Gate reproduces locally
+- **GIVEN** a CI run that failed on deterministic drift
+- **WHEN** an operator runs the documented local gate command at the same revision
+- **THEN** the local report SHALL identify the same stale artifacts
+
+#### Scenario: Gate reproduces across environments in both directions
+- **GIVEN** one tree at one revision
+- **WHEN** the gate runs in a fresh clone and in a long-lived local checkout whose local
+  base branch is behind its remote
+- **THEN** both runs SHALL report the same outcome and the same exit code
+- **AND** both SHALL record the same resolved base revision
+
+#### Scenario: Resolved base is recorded
+- **GIVEN** any gate run
+- **WHEN** the report is emitted
+- **THEN** it SHALL record the revision the base name resolved to
+- **AND** a reader SHALL be able to determine that revision without re-running git
+
+#### Scenario: Gate leaves the checkout unchanged
+- **GIVEN** a checkout with uncommitted modifications
+- **WHEN** the drift gate runs
+- **THEN** tracked and untracked checkout state SHALL be byte-identical afterwards
+- **AND** no durable refresh operation or manifest SHALL be recorded
+
+### Requirement: Drift classification separates blocking drift from pending state and external degradation
+
+The system SHALL classify producer results into four disjoint groups: blocking drift,
+informational drift, absent optional owners, and failures.
+
+The system SHALL additionally attribute each drifted result as either inherited or
+introduced. Drift is inherited when the relevant producer inputs already differed from the
+producer's recorded revision at the merge base, and introduced otherwise. Attribution is a
+separate axis from the four groups: it describes who owns a finding, not how severe it is.
+
+Attribution MAY be determined from the paths that changed between the producer's recorded
+revision and the merge base, rather than from input content. Where the two disagree,
+attribution SHALL err toward inherited, because falsely blaming a branch for the
+integration branch's debt is the failure this attribution exists to prevent.
+
+The classification SHALL be a pure function of recorded producer results and the semantic
+index reference, performing no input or output.
+
+The classification SHALL be additive: the existing terminal-outcome decision, the
+`OperationState` enumeration, and the durable operation and manifest schemas SHALL remain
+unchanged.
+
+#### Scenario: Groups are disjoint
+- **GIVEN** producer results containing one drifted producer, one absent optional owner, and one failure
+- **WHEN** the classification runs
+- **THEN** each result SHALL appear in exactly one group
+
+#### Scenario: Inherited drift names the integration branch as owner
+- **GIVEN** a producer whose inputs already differed from its recorded revision at the merge base
+- **WHEN** the classification runs
+- **THEN** the finding SHALL be attributed as inherited
+- **AND** the report SHALL name the integration branch as its owner
+
+#### Scenario: Introduced drift is attributed to the branch
+- **GIVEN** a branch that changes a relevant producer input
+- **AND** a merge base at which that producer was fresh
+- **WHEN** the classification runs
+- **THEN** the finding SHALL be attributed as introduced
+
+#### Scenario: Ambiguous attribution errs toward inherited
+- **GIVEN** a finding whose ownership cannot be determined from the available evidence
+- **WHEN** the classification runs
+- **THEN** the finding SHALL be attributed as inherited
+- **AND** the report SHALL record that the attribution was indeterminate
+
+#### Scenario: Existing outcome decision is unaffected
+- **GIVEN** any set of producer results and semantic index reference
+- **WHEN** the terminal-outcome decision runs
+- **THEN** its result SHALL be identical to its result before this change
+
+### Requirement: Projection drift is informational and never blocks
+
+The OpenSpec projection producer's drift SHALL be classified as informational and SHALL
+NOT contribute to a failing gate exit code.
+
+Projection drift indicates that an active change carries an unmerged specification delta,
+which is the correct state for in-flight work; it does not indicate that committed output
+is stale. The canonical specification merge is owned by the archive sync point, not by the
+gate.
+
+The report SHALL still include projection findings so the pending-merge surface stays
+visible.
+
+#### Scenario: Pending merges do not fail the gate
+- **GIVEN** a repository with active changes carrying unmerged specification deltas
+- **AND** no other producer reporting drift
+- **WHEN** the drift gate runs
+- **THEN** the gate SHALL exit zero
+- **AND** the report SHALL list the projection findings as informational
+
+#### Scenario: Projection drift does not mask blocking drift
+- **GIVEN** projection drift and one stale documentation artifact
+- **WHEN** the drift gate runs
+- **THEN** the gate SHALL exit with the drift exit code
+- **AND** the documentation artifact SHALL be reported as blocking drift
+
+### Requirement: Gate exit codes derive from the classification
+
+The gate SHALL exit one when any producer failed or architecture provenance is
+unverifiable, two when blocking drift is present without failures, and zero when only
+informational drift or absent optional owners are present.
+
+On a pull-request event, inherited blocking drift SHALL NOT contribute to the drift exit
+code, and SHALL be reported instead. Introduced blocking drift SHALL contribute to the
+drift exit code on every event. On integration-branch and merge-queue events, all blocking
+drift SHALL contribute, because at those points there is no other branch to inherit from.
+
+A surviving absent-optional-owner result SHALL NOT fail the gate, because a required
+producer reporting no configuration is already rewritten to a failure by registry policy;
+only optional owners can remain, and an absent optional owner is external degradation.
+
+The gate's exit-code mapping SHALL NOT alter the exit codes of the existing per-producer
+or orchestrated check entry points.
+
+#### Scenario: Failure outranks drift
+- **GIVEN** one failed producer and one drifted producer
+- **WHEN** the drift gate runs
+- **THEN** the gate SHALL exit one
+
+#### Scenario: Inherited drift alone does not fail a pull request
+- **GIVEN** a pull request whose only blocking findings are attributed as inherited
+- **WHEN** the drift gate runs
+- **THEN** the gate SHALL exit zero
+- **AND** the report SHALL list the inherited findings with the integration branch as owner
+
+#### Scenario: Introduced drift fails a pull request
+- **GIVEN** a pull request with one blocking finding attributed as introduced
+- **WHEN** the drift gate runs
+- **THEN** the gate SHALL exit with the drift exit code
+
+#### Scenario: Inherited drift blocks on the integration branch
+- **GIVEN** an integration-branch or merge-queue event with inherited blocking drift
+- **WHEN** the drift gate runs
+- **THEN** the gate SHALL exit with the drift exit code
+
+#### Scenario: Absent optional owner alone passes
+- **GIVEN** one absent optional owner and no drift or failures
+- **WHEN** the drift gate runs
+- **THEN** the gate SHALL exit zero
+
+#### Scenario: Existing entry points keep their codes
+- **GIVEN** a checkout with deterministic drift
+- **WHEN** the existing orchestrated check entry point runs
+- **THEN** its exit code SHALL be unchanged from before this change
+
+### Requirement: Semantic index status is reported as not attempted
+
+The gate SHALL report the semantic index as not attempted, with an explicit reason, and
+SHALL NOT construct a semantic indexer or probe Postgres or an embedder.
+
+Reporting the index as not configured would assert that a probe found no configuration,
+which the gate never performs. Reporting it as not attempted makes no currency claim, so
+stale semantic results can never be presented as current.
+
+Semantic index status SHALL NOT contribute to the gate's exit code.
+
+#### Scenario: No probe is performed
+- **GIVEN** an environment with complete semantic index configuration present
+- **WHEN** the drift gate runs
+- **THEN** no semantic indexer SHALL be constructed
+- **AND** the report SHALL record the semantic status as not attempted with a reason
+
+#### Scenario: Semantic status never gates
+- **GIVEN** an environment with no semantic index configuration
+- **AND** no producer reporting drift or failure
+- **WHEN** the drift gate runs
+- **THEN** the gate SHALL exit zero
+
+### Requirement: Check-mode read-only behaviour is asserted for every registered producer
+
+The system SHALL assert, for every producer returned by the producer registry, that
+running it in check mode against a modified checkout leaves both tracked and untracked
+paths byte-identical.
+
+The assertion SHALL enumerate producers from the registry rather than from a fixed list,
+so that producers registered after this change are covered.
+
+The registry SHALL NOT be given a runtime filesystem guard; the assertion is the
+enforcement mechanism, and the absence of a runtime guard is deliberate rather than an
+omission.
+
+#### Scenario: A writing producer is caught
+- **GIVEN** a producer that writes to the checkout in check mode
+- **WHEN** the read-only assertion runs
+- **THEN** the assertion SHALL fail and name the producer
+
+#### Scenario: Untracked writes are caught
+- **GIVEN** a producer that writes an untracked scratch file in check mode
+- **WHEN** the read-only assertion runs
+- **THEN** the assertion SHALL fail
+
+#### Scenario: Newly registered producers are covered
+- **GIVEN** a producer registered after this change
+- **WHEN** the read-only assertion runs
+- **THEN** that producer SHALL be included without editing the assertion
+
+### Requirement: The gate is the single freshness authority for the decision index
+
+The drift gate SHALL be the only continuous-integration check that verifies decision index
+freshness, and the previous regenerate-and-compare job SHALL be removed.
+
+The gate SHALL detect an orphaned capability file whose content is unchanged but whose
+presence is stale, because the removed job could not detect it by comparing content alone.
+
+#### Scenario: Orphaned capability file is detected
+- **GIVEN** a decision index containing a capability file for a capability with no tagged decisions
+- **AND** that file's content is unchanged
+- **WHEN** the drift gate runs
+- **THEN** the file SHALL be reported as drift
+
+#### Scenario: Only one decision freshness check exists
+- **WHEN** the continuous-integration configuration is inspected
+- **THEN** exactly one check SHALL verify decision index freshness
+
+### Requirement: Context-impact validation is scoped to changed work-package declarations
+
+The gate SHALL validate work-package context-impact declarations only for work-package
+files present in the diff under test, and SHALL NOT enable strict legacy enforcement.
+
+A changed path SHALL be attributed to a work package only when that package's declared
+scope covers the path. A work-package file that is itself present in the diff SHALL NOT
+thereby acquire responsibility for unrelated changed paths in the same diff. Archiving a
+change moves its work-package file into the diff while the surrounding commit regenerates
+unrelated artifacts, so co-presence in a diff is not evidence of authorship.
+
+Strict legacy enforcement would fail on work-package files that predate the declaration
+contract; progressive enforcement keyed on whether a declaration block exists is the
+intended migration path, and closing it is a separate change.
+
+A usage or configuration error from the validator SHALL be reported as an apparatus
+failure rather than as drift, because the validator's usage error code collides with the
+drift exit code.
+
+#### Scenario: Unchanged packages are not reported
+- **GIVEN** a diff touching one work-package file
+- **WHEN** the drift gate runs
+- **THEN** only that work-package file SHALL be validated
+
+#### Scenario: Co-present work-package files are not blamed for unrelated paths
+- **GIVEN** a commit that both moves a work-package file and changes paths outside that package's declared scope
+- **WHEN** the drift gate runs
+- **THEN** the moved work-package file SHALL NOT be reported as undeclared for those paths
+
+#### Scenario: Legacy packages without declarations pass
+- **GIVEN** a changed work-package file with no context-impact declaration block
+- **WHEN** the drift gate runs
+- **THEN** the package SHALL be reported as unmigrated
+- **AND** the gate SHALL NOT fail on that basis
+
+#### Scenario: Validator usage error is an apparatus failure
+- **GIVEN** an unreadable context-impact rule table
+- **WHEN** the drift gate runs
+- **THEN** the gate SHALL exit one
+- **AND** the report SHALL record an apparatus failure rather than drift
+
+### Requirement: Branch-local checkpoint mode
+
+The refresh lifecycle SHALL provide a branch-local checkpoint mode that reports the
+project context a work package has invalidated, executed inside a feature worktree
+against that package's own changed-file list.
+
+The checkpoint reports affected capabilities, APIs, architecture nodes, decisions,
+documentation, and the semantic index revision. It is distinct from `generate` and
+`check`: it is scope-restricted to one work package and its results are never canonical.
+
+#### Scenario: Checkpoint runs for a work package inside a feature worktree
+
+- **WHEN** a checkpoint is invoked for a change and package inside a managed worktree,
+  supplied with that package's changed-file list
+- **THEN** it produces a checkpoint report covering all six context surfaces
+- **AND** the report records the exact revision the checkpoint was computed against
+
+#### Scenario: Checkpoint refuses to run against a shared checkout
+
+- **WHEN** a checkpoint is invoked from the shared checkout rather than a managed worktree
+- **THEN** it refuses to run and reports the checkout-policy violation
+- **AND** it writes no report
+
+### Requirement: Checkpoint operation-ledger isolation
+
+A checkpoint SHALL NOT create, modify, or finalize any durable refresh operation record,
+and SHALL NOT emit a refresh manifest.
+
+Recorded producer results are immutable for their revision and are reused verbatim by
+later refreshes. A checkpoint result is scope-restricted and feature-namespaced, so
+admitting one into the canonical ledger would be unrecoverable within the existing
+contract.
+
+#### Scenario: Checkpoint leaves the shared operation ledger untouched
+
+- **WHEN** a checkpoint completes for any package
+- **THEN** the refresh-operations directory under the repository's git common directory
+  contains exactly the entries it contained beforehand
+- **AND** no refresh manifest is written
+
+#### Scenario: A later canonical refresh is unaffected by a prior checkpoint
+
+- **WHEN** a checkpoint has run at a revision
+- **AND** a canonical refresh is subsequently invoked at that same revision
+- **THEN** the refresh computes its own producer results
+- **AND** it reuses nothing produced by the checkpoint
+
+### Requirement: Checkpoint semantic index namespace isolation
+
+Checkpoint semantic indexing SHALL target a non-canonical index namespace, so that a
+branch cannot mutate or promote into the canonical main index.
+
+The namespace kind is `work_package` and the namespace key identifies the change and
+package. Canonical promotion remains gated on the main namespace, so the isolation is
+enforced by the index runtime rather than by checkpoint convention.
+
+#### Scenario: Checkpoint indexing uses a work-package namespace
+
+- **WHEN** a checkpoint performs semantic indexing for a package
+- **THEN** the index request carries namespace kind `work_package`
+- **AND** the namespace key identifies both the change and the package
+
+#### Scenario: Checkpoint indexing cannot promote to the canonical index
+
+- **WHEN** a checkpoint completes semantic indexing
+- **THEN** no promotion into the canonical main index occurs
+- **AND** the canonical index content is unchanged
+
+#### Scenario: Canonical refresh indexing is unchanged
+
+- **WHEN** the canonical refresh performs semantic indexing
+- **THEN** it continues to use the main namespace kind and key
+
+### Requirement: Checkpoint read-scope enforcement
+
+Checkpoint execution SHALL be restricted to the work package's permitted read scope,
+resolved as the package's read-allow globs minus its deny globs, with deny taking
+precedence.
+
+#### Scenario: Denied paths are excluded from checkpoint indexing
+
+- **WHEN** a package declares a deny glob that overlaps its read-allow globs
+- **AND** a checkpoint indexes for that package
+- **THEN** paths matching the deny glob are excluded from indexing
+- **AND** the exclusion holds even though those paths also match a read-allow glob
+
+#### Scenario: Checkpoint does not read outside the permitted scope
+
+- **WHEN** a checkpoint runs for a package whose read-allow scope excludes a directory
+- **THEN** files in that directory are not indexed
+
+### Requirement: Checkpoint artifacts remain isolated from canonical outputs
+
+A checkpoint SHALL NOT modify any tracked producer output, and SHALL execute every
+context producer in read-only check mode.
+
+#### Scenario: Tracked producer outputs are unchanged by a checkpoint
+
+- **WHEN** a checkpoint completes for any package
+- **THEN** every tracked producer output in the working tree is byte-identical to its
+  state before the checkpoint ran
+
+#### Scenario: Producers are invoked in check mode
+
+- **WHEN** a checkpoint invokes a deterministic context producer
+- **THEN** the producer runs in check mode
+- **AND** the producer's generate path is not invoked
+
+### Requirement: Checkpoint report determinism and location
+
+The checkpoint report SHALL be written to a change-local, version-controlled path and
+SHALL be byte-stable for a fixed revision.
+
+The report excludes volatile content — wall-clock timestamps, attempt counters, absolute
+paths, and raw exception text — so that re-running a checkpoint at an unchanged revision
+produces no repository diff.
+
+#### Scenario: Repeated checkpoints at one revision produce no diff
+
+- **WHEN** a checkpoint runs twice for the same package at the same revision with no
+  intervening change
+- **THEN** the second run produces a report byte-identical to the first
+
+#### Scenario: Report validates against the checkpoint schema
+
+- **WHEN** a checkpoint report is written
+- **THEN** it validates against the published context-checkpoint schema
+
+### Requirement: Checkpoint architecture coverage reports freshness and delta separately
+
+A checkpoint SHALL report architecture freshness and the architecture delta as distinct
+findings, and SHALL label a delta computed from a stale artifact as non-authoritative.
+
+Freshness answers whether the branch's architecture artifact is current for the revision;
+the delta answers which architecture nodes changed relative to the merge base. A stale
+artifact can yield a misleading delta, so the two are never collapsed.
+
+#### Scenario: Stale architecture artifact yields a labelled delta
+
+- **WHEN** a checkpoint runs and the branch's architecture artifact is not fresh for the
+  current revision
+- **THEN** the report records the artifact as stale
+- **AND** the reported architecture delta is marked non-authoritative
+
+#### Scenario: Fresh architecture artifact yields an authoritative delta
+
+- **WHEN** a checkpoint runs and the architecture artifact is fresh for the revision
+- **THEN** the report lists the changed architecture nodes relative to the merge base
+
+### Requirement: Checkpoint semantic indexing degrades without failing
+
+Checkpoint semantic indexing SHALL degrade to a recorded fallback when the index is
+unavailable or unconfigured, and SHALL NOT fail the checkpoint.
+
+#### Scenario: Missing index configuration degrades the checkpoint
+
+- **WHEN** a checkpoint runs without semantic index configuration present
+- **THEN** the report records a not-configured semantic index status with a fallback
+- **AND** the deterministic producer findings are still reported in full
+
+#### Scenario: Index error does not discard deterministic findings
+
+- **WHEN** semantic indexing fails during a checkpoint
+- **THEN** the report records the failure as a bounded reason
+- **AND** every deterministic producer finding is retained
+
+### Requirement: Checkpoint reporting is advisory
+
+A checkpoint SHALL report context drift as data without failing, and SHALL signal failure
+only when it could not produce a valid report.
+
+Turning deterministic context drift into a build or merge failure is the responsibility of
+the drift-gate capability, which consumes this report.
+
+#### Scenario: Detected drift does not fail the checkpoint
+
+- **WHEN** a checkpoint detects that a context producer reports drift
+- **THEN** the drift is recorded in the report
+- **AND** the checkpoint reports success
+
+#### Scenario: Inability to produce a report is a failure
+
+- **WHEN** a checkpoint cannot produce a valid report
+- **THEN** it reports failure with a bounded reason
+
+### Requirement: Gate event coverage is normative
+
+The drift gate SHALL run as a single continuous-integration job on every declared event —
+pull requests, merge-queue events, and pushes to the integration branch — and SHALL NOT be
+guarded off any of them.
+
+Event-dependent behaviour SHALL be expressed inside the job rather than by preventing the
+job from running, because a required check that does not run on a merge-queue event is not
+a check on the merge candidate, and a job that reports success on an event it has no rule
+for is an unfalsifiable green.
+
+An event the gate has no rule for SHALL be treated as an error rather than as a pass.
+
+#### Scenario: Gate runs on every declared event
+- **GIVEN** the continuous-integration configuration
+- **WHEN** it is inspected for the drift gate job
+- **THEN** the job SHALL run on pull requests, merge-queue events, and integration-branch pushes
+- **AND** the job SHALL NOT be conditioned on the event name at the job level
+
+#### Scenario: Unknown event fails loudly
+- **GIVEN** the gate job triggered by an event it has no rule for
+- **WHEN** the job runs
+- **THEN** it SHALL fail
+- **AND** it SHALL NOT report success
+
+### Requirement: Automated remediation is confined to dependency-update pull requests
+
+Where the system automatically regenerates deterministic context artifacts and commits them
+back to a pull-request branch, that automation SHALL apply only to pull requests opened by
+the dependency-update bot, and SHALL cover only producers that are inexpensive and
+byte-deterministic. The architecture producer SHALL be excluded.
+
+The automation SHALL regenerate against a base that is current, because artifacts derived
+from a stale base are themselves drift.
+
+The command the automation runs to regenerate SHALL be the same command, with the same
+arguments, that the gate runs to check. A checker and a writer invoked differently will
+disagree permanently on an artifact that is in fact correct.
+
+Write permission SHALL be granted to that job alone and SHALL NOT be granted at the
+workflow level.
+
+#### Scenario: Dependency-update pull request is remediated
+- **GIVEN** a pull request opened by the dependency-update bot with inherited deterministic drift
+- **WHEN** the remediation job runs
+- **THEN** it SHALL regenerate the inexpensive deterministic artifacts
+- **AND** it SHALL commit them to the pull-request branch
+
+#### Scenario: Human pull request is not written to
+- **GIVEN** a pull request opened by a person
+- **WHEN** the remediation job runs
+- **THEN** it SHALL make no commit
+- **AND** it SHALL make no push
+
+#### Scenario: Write permission is scoped to the remediation job
+- **GIVEN** the continuous-integration configuration
+- **WHEN** its permissions are inspected
+- **THEN** no workflow-level grant of repository write access SHALL be present
+- **AND** only the remediation job SHALL declare it
+
+### Requirement: Architecture freshness is reported, not enforced
+
+The architecture producer SHALL determine freshness by comparing local provenance against
+recomputed artifact digests, and SHALL NOT report freshness by rebuilding provenance from
+the working tree.
+
+Missing, malformed, or schema-invalid provenance SHALL be reported as `unverifiable`, not
+as an absent optional owner, because unverifiable evidence is not the same as absent
+tooling. The distinction is retained for readers of the gate report.
+
+Architecture freshness SHALL be classified as informational drift and SHALL NOT contribute
+to `blocking_drift` or to the drift exit code. Architecture artifacts and their provenance
+are a regenerable local analysis cache whose freshness is a property of the checkout that
+last regenerated them; a gate evaluated on any other checkout cannot observe it, so
+blocking on it would block on a condition that is true of every clean clone.
+
+An architecture owner that is genuinely not importable SHALL remain an absent optional
+owner and SHALL NOT fail the gate.
+
+#### Scenario: Missing provenance is reported but does not block
+- **WHEN** the drift gate runs on a checkout with no local architecture provenance
+- **AND** no other producer reports blocking drift
+- **THEN** the report's `architecture.freshness` SHALL be `unverifiable`
+- **AND** `architecture` SHALL appear in `informational_drift`
+- **AND** the gate SHALL exit zero
+
+#### Scenario: Stale architecture is reported but does not block
+- **WHEN** local provenance digests do not match recomputed artifact digests
+- **AND** no other producer reports blocking drift
+- **THEN** the report's `architecture.freshness` SHALL be `stale`
+- **AND** the gate SHALL exit zero
+
+#### Scenario: Architecture drift never masks committed-artifact drift
+- **WHEN** architecture provenance is missing
+- **AND** the `decisions.timeline` producer reports drift
+- **THEN** the gate SHALL exit with the drift exit code
+- **AND** `blocking_drift` SHALL contain `decisions.timeline` and SHALL NOT contain `architecture`
+
+#### Scenario: Absent owner degrades without blocking
+- **WHEN** the drift gate runs on a checkout where the architecture refresh owner is not importable
+- **AND** no other producer reports drift
+- **THEN** architecture SHALL be reported as an absent optional owner
+- **AND** the gate SHALL exit zero
+
+### Requirement: Architecture freshness is ensured by consumers on demand
+
+A skill that reads architecture artifacts SHALL ensure they are fresh immediately before
+reading, by invoking the architecture runner's ensure mode against the checkout it is
+about to read from. Freshness SHALL NOT be assumed from a prior gate result, a prior
+convergence, or the recorded revision.
+
+The branch-local checkpoint SHALL NOT invoke ensure mode; it reports architecture
+freshness and delta as findings and remains read-only.
+
+#### Scenario: Consumer regenerates stale artifacts before reading
+- **WHEN** a consuming skill begins its artifact-reading step
+- **AND** the local provenance is stale or missing
+- **THEN** the skill SHALL invoke ensure mode before reading
+- **AND** the artifacts it reads SHALL carry provenance for the current working tree
+
+#### Scenario: Consumer reads fresh artifacts without regeneration
+- **WHEN** a consuming skill begins its artifact-reading step
+- **AND** the local provenance is fresh
+- **THEN** ensure mode SHALL write nothing
+- **AND** the skill SHALL proceed to read without delay beyond the check
+
+#### Scenario: Checkpoint reports rather than ensures
+- **WHEN** the branch-local checkpoint runs on a checkout with stale architecture provenance
+- **THEN** the checkpoint SHALL report architecture as stale
+- **AND** SHALL NOT regenerate artifacts or provenance
 
