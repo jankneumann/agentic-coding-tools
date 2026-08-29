@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-08-29 — add-prime-agent-harness
+
+### Phase: Plan Iteration 1
+
+**Make cleanup support generic and unconditional** — P7 decides whether `prime-local` populates cleanup, while the canonical parser, projection, and dispatcher support the lifecycle shape for any daemon-backed harness.
+
+- Status: `active`
+- Source: [openspec/changes/add-prime-agent-harness/session-log.md](/openspec/changes/add-prime-agent-harness/session-log.md) (D2)
+
+---
+
 ## 2026-08-13 — add-atomic-harness
 
 ### Phase: Plan

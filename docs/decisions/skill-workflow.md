@@ -27,6 +27,28 @@
 
 ---
 
+## 2026-08-29 — add-prime-agent-harness
+
+### Phase: Plan Iteration 1
+
+**Separate coordinator and provider credentials** — `prime_local_key` authenticates the coordinator identity through `COORDINATION_API_KEY`; operator-supplied `PRIME_API_KEY` authenticates only to Prime Inference.
+
+- Status: `active`
+- Source: [openspec/changes/add-prime-agent-harness/session-log.md](/openspec/changes/add-prime-agent-harness/session-log.md) (D1)
+
+---
+
+## 2026-08-29 — add-prime-agent-harness
+
+### Phase: Plan Iteration 1
+
+**Fail closed on cleanup failure** — A result that cannot satisfy its daemon-hygiene promise is unsuccessful and quorum-ineligible while preserving the primary dispatch error.
+
+- Status: `active`
+- Source: [openspec/changes/add-prime-agent-harness/session-log.md](/openspec/changes/add-prime-agent-harness/session-log.md) (D3)
+
+---
+
 ## 2026-08-28 — 2026-08-28-bind-decision-index-to-session-log-writes
 
 ### Phase: Plan

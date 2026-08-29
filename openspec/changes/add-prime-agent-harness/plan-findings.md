@@ -24,6 +24,8 @@ fixed in this iteration.
 | F2 | consistency/security | **high** | Task 2.7 treated `PRIME_API_KEY` as a setup-cloud coordinator key even though setup-cloud generically derives `prime_local_key` and exposes it as `COORDINATION_API_KEY`. This would conflate coordinator identity with the Prime Inference provider credential. | Make `PRIME_API_KEY` operator-supplied through `cli.api_key_env`; constrain setup-cloud work to regression tests for the generic `prime_local_key` / `--prime-local-key` / `cprime-agent` projection. Pin the separation in design, specs, roster, and tests. | **Fixed** |
 | F3 | completeness/testability/security | **high** | The cleanup plan covered only part of the producer round trip and did not define the consumer lifecycle, failure semantics, secret environment, timeout, shell behavior, or concurrent-session safety. | Define an unconditional typed cleanup capability, lossless canonical parser plus HTTP/MCP projection, argv-only `shell=False` execution, bounded timeout, minimal environment, exactly-once terminal cleanup, fail-closed quorum behavior, and per-session/concurrency safeguards with explicit tests. | **Fixed** |
 | F4 | parallelizability | **medium** | The proposal had more than five implementation tasks across several trees but no executable package DAG, leaving file ownership and convergence points ambiguous. | Decompose the implementation into ten dependency-ordered packages and validate parallel scopes and locks. | **Fixed** |
+| F5 | consistency | **medium** | The new session-log decisions made the generated configuration and skill-workflow timelines stale, and `wp-empirical` declared decisions/capabilities but omitted the documentation surface inferred from its proposal/design/task writes. | Add `documentation` to `wp-empirical.context_impact.surfaces` and regenerate the canonical decision indexes with `make decisions`. | **Fixed** |
+| F6 | feasibility | **medium** | The branch was 144 commits behind `main`; GitHub's pull-request merge ref consequently made the traceability sweep classify four change directories instead of the one actually owned by this PR. | Rebase the three PR commits onto current `main` and verify the exact CI derivation sees only `add-prime-agent-harness`. | **Fixed** |
 
 ### Triage decisions
 
@@ -44,5 +46,5 @@ fixed in this iteration.
 ### Termination
 
 All findings at or above the medium threshold are addressed. Strict OpenSpec,
-work-package schema/DAG, scope/lock overlap, context-impact, JSON schema, and
-OpenAPI YAML checks pass.
+work-package schema/DAG, scope/lock overlap, context-impact, decision-index drift,
+requirement traceability, JSON schema, and OpenAPI YAML checks pass.

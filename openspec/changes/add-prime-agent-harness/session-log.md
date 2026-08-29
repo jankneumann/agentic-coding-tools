@@ -28,10 +28,13 @@
 - Corrected task 2.7 and pinned the coordinator/provider credential boundary across proposal, design, specs, and contracts.
 - Specified producer and consumer cleanup behavior, edge cases, concurrency safety, and verification.
 - Recorded the iteration findings and confirmed strict OpenSpec validation.
+- Rebased onto current `main`, corrected `wp-empirical`'s inferred documentation
+  surface, regenerated the decision indexes, and reproduced both previously failing
+  CI gates successfully.
 
 ### Next Steps
 
-- After explicit authorization, commit and push the PR branch, update the PR description, and reply to and resolve the three addressed review threads.
+- Force-push the validated rebased branch, then require a green fresh CI run before merge.
 
 ### Relevant Files
 
