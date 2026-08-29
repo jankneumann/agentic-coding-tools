@@ -1,12 +1,14 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-08-28T20:41:52+00:00",
-      "git_sha": "e610553c21ffa4b5c92d99efd6efdf9196856db3",
+      "generated_at": "2026-08-29T00:44:33+00:00",
+      "git_sha": "68bbca4e0a1a0a93a92237ed0fe19aa1d6002f2c",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
-      "notes": []
+      "notes": [
+        "TypeScript analysis not available"
+      ]
     }
   ],
   "nodes": [
@@ -20527,1176 +20529,6 @@
       "signatures": {}
     },
     {
-      "id": "ts:kanban-viz/vite.config",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/vite.config",
-      "file": "kanban-viz/vite.config.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/App",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/App",
-      "file": "kanban-viz/src/App.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/main",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/main",
-      "file": "kanban-viz/src/main.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/vite-env.d",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/vite-env.d",
-      "file": "kanban-viz/src/vite-env.d.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/__tests__/fixtures",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/__tests__/fixtures",
-      "file": "kanban-viz/src/__tests__/fixtures.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/__tests__/setup",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/__tests__/setup",
-      "file": "kanban-viz/src/__tests__/setup.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/Board",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/Board",
-      "file": "kanban-viz/src/components/Board.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/Card",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/Card",
-      "file": "kanban-viz/src/components/Card.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/ClusterBadge",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/ClusterBadge",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/Column",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/Column",
-      "file": "kanban-viz/src/components/Column.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/ConsentPrompt",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/ConsentPrompt",
-      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/HiddenReposToggle",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/HiddenReposToggle",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/PRCardView",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/PRCardView",
-      "file": "kanban-viz/src/components/PRCardView.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/ProposalCardView",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/ProposalCardView",
-      "file": "kanban-viz/src/components/ProposalCardView.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/PROriginFilter",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/PROriginFilter",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/RefreshButton",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/RefreshButton",
-      "file": "kanban-viz/src/components/RefreshButton.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/RepoBadge",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/RepoBadge",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/SaveViewButton",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/SaveViewButton",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/SourceSwimlanes",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/SourceSwimlanes",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/SyncPointBanner",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/SyncPointBanner",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/components/VendorSwimlanes",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/components/VendorSwimlanes",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/hooks/useBoardCards",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/hooks/useBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/hooks/useCoordinator",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/hooks/useCoordinator",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/lib/coordinator-types",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/lib/coordinator-types",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/lib/reversibility",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/lib/reversibility",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/lib/runtime",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/lib/runtime",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:kanban-viz/src/lib/saveView",
-      "kind": "module",
-      "language": "typescript",
-      "name": "kanban-viz/src/lib/saveView",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:App",
-      "kind": "component",
-      "language": "typescript",
-      "name": "App",
-      "file": "kanban-viz/src/App.tsx",
-      "span": {
-        "start": 14,
-        "end": 109
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:Board",
-      "kind": "component",
-      "language": "typescript",
-      "name": "Board",
-      "file": "kanban-viz/src/components/Board.tsx",
-      "span": {
-        "start": 24,
-        "end": 81
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:Card",
-      "kind": "component",
-      "language": "typescript",
-      "name": "Card",
-      "file": "kanban-viz/src/components/Card.tsx",
-      "span": {
-        "start": 41,
-        "end": 206
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:ClusterBadge",
-      "kind": "component",
-      "language": "typescript",
-      "name": "ClusterBadge",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "span": {
-        "start": 72,
-        "end": 79
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:ClusterBadgeInner",
-      "kind": "component",
-      "language": "typescript",
-      "name": "ClusterBadgeInner",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "span": {
-        "start": 81,
-        "end": 124
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:ClusterHighlightWrapper",
-      "kind": "component",
-      "language": "typescript",
-      "name": "ClusterHighlightWrapper",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "span": {
-        "start": 130,
-        "end": 152
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:Column",
-      "kind": "component",
-      "language": "typescript",
-      "name": "Column",
-      "file": "kanban-viz/src/components/Column.tsx",
-      "span": {
-        "start": 25,
-        "end": 70
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:ConsentPrompt",
-      "kind": "component",
-      "language": "typescript",
-      "name": "ConsentPrompt",
-      "file": "kanban-viz/src/components/ConsentPrompt.tsx",
-      "span": {
-        "start": 12,
-        "end": 69
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:HiddenReposToggle",
-      "kind": "component",
-      "language": "typescript",
-      "name": "HiddenReposToggle",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
-      "span": {
-        "start": 30,
-        "end": 83
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:PRCardView",
-      "kind": "component",
-      "language": "typescript",
-      "name": "PRCardView",
-      "file": "kanban-viz/src/components/PRCardView.tsx",
-      "span": {
-        "start": 75,
-        "end": 226
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:ProposalCardView",
-      "kind": "component",
-      "language": "typescript",
-      "name": "ProposalCardView",
-      "file": "kanban-viz/src/components/ProposalCardView.tsx",
-      "span": {
-        "start": 22,
-        "end": 175
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:PROriginFilter",
-      "kind": "component",
-      "language": "typescript",
-      "name": "PROriginFilter",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "span": {
-        "start": 69,
-        "end": 131
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:RefreshButton",
-      "kind": "component",
-      "language": "typescript",
-      "name": "RefreshButton",
-      "file": "kanban-viz/src/components/RefreshButton.tsx",
-      "span": {
-        "start": 30,
-        "end": 132
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:RepoBadge",
-      "kind": "component",
-      "language": "typescript",
-      "name": "RepoBadge",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "span": {
-        "start": 53,
-        "end": 81
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:SaveViewButton",
-      "kind": "component",
-      "language": "typescript",
-      "name": "SaveViewButton",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx",
-      "span": {
-        "start": 53,
-        "end": 162
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:IssueSourceRow",
-      "kind": "component",
-      "language": "typescript",
-      "name": "IssueSourceRow",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 108,
-        "end": 229
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:PRSourceRow",
-      "kind": "component",
-      "language": "typescript",
-      "name": "PRSourceRow",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 245,
-        "end": 377
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:PartialResultChip",
-      "kind": "component",
-      "language": "typescript",
-      "name": "PartialResultChip",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 393,
-        "end": 440
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:ProposalSourceRow",
-      "kind": "component",
-      "language": "typescript",
-      "name": "ProposalSourceRow",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 442,
-        "end": 549
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:SourceSwimlanes",
-      "kind": "component",
-      "language": "typescript",
-      "name": "SourceSwimlanes",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 554,
-        "end": 645
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:SyncPointBanner",
-      "kind": "component",
-      "language": "typescript",
-      "name": "SyncPointBanner",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
-      "span": {
-        "start": 43,
-        "end": 302
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:VendorSwimlanes",
-      "kind": "component",
-      "language": "typescript",
-      "name": "VendorSwimlanes",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "span": {
-        "start": 64,
-        "end": 139
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:relativeTime",
-      "kind": "function",
-      "language": "typescript",
-      "name": "relativeTime",
-      "file": "kanban-viz/src/components/Card.tsx",
-      "span": {
-        "start": 28,
-        "end": 39
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:emitHighlight",
-      "kind": "function",
-      "language": "typescript",
-      "name": "emitHighlight",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "span": {
-        "start": 22,
-        "end": 26
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:useHighlightState",
-      "kind": "function",
-      "language": "typescript",
-      "name": "useHighlightState",
-      "file": "kanban-viz/src/components/ClusterBadge.tsx",
-      "span": {
-        "start": 32,
-        "end": 63
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:shortForm",
-      "kind": "function",
-      "language": "typescript",
-      "name": "shortForm",
-      "file": "kanban-viz/src/components/HiddenReposToggle.tsx",
-      "span": {
-        "start": 16,
-        "end": 19
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:loadFromStorage",
-      "kind": "function",
-      "language": "typescript",
-      "name": "loadFromStorage",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "span": {
-        "start": 28,
-        "end": 43
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:saveToStorage",
-      "kind": "function",
-      "language": "typescript",
-      "name": "saveToStorage",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "span": {
-        "start": 45,
-        "end": 51
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:filterByOrigin",
-      "kind": "function",
-      "language": "typescript",
-      "name": "filterByOrigin",
-      "file": "kanban-viz/src/components/PROriginFilter.tsx",
-      "span": {
-        "start": 137,
-        "end": 143
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:formatRelative",
-      "kind": "function",
-      "language": "typescript",
-      "name": "formatRelative",
-      "file": "kanban-viz/src/components/RefreshButton.tsx",
-      "span": {
-        "start": 134,
-        "end": 142
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:hashString",
-      "kind": "function",
-      "language": "typescript",
-      "name": "hashString",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "span": {
-        "start": 22,
-        "end": 30
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:repoToColor",
-      "kind": "function",
-      "language": "typescript",
-      "name": "repoToColor",
-      "file": "kanban-viz/src/components/RepoBadge.tsx",
-      "span": {
-        "start": 33,
-        "end": 40
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:slugify",
-      "kind": "function",
-      "language": "typescript",
-      "name": "slugify",
-      "file": "kanban-viz/src/components/SaveViewButton.tsx",
-      "span": {
-        "start": 43,
-        "end": 51
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:bucketIssues",
-      "kind": "function",
-      "language": "typescript",
-      "name": "bucketIssues",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 70,
-        "end": 76
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:bucketPRs",
-      "kind": "function",
-      "language": "typescript",
-      "name": "bucketPRs",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 79,
-        "end": 85
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:bucketProposals",
-      "kind": "function",
-      "language": "typescript",
-      "name": "bucketProposals",
-      "file": "kanban-viz/src/components/SourceSwimlanes.tsx",
-      "span": {
-        "start": 88,
-        "end": 94
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:fetchSyncStatus",
-      "kind": "function",
-      "language": "typescript",
-      "name": "fetchSyncStatus",
-      "file": "kanban-viz/src/components/SyncPointBanner.tsx",
-      "span": {
-        "start": 24,
-        "end": 33
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:extractVendor",
-      "kind": "function",
-      "language": "typescript",
-      "name": "extractVendor",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "span": {
-        "start": 29,
-        "end": 32
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:groupByVendor",
-      "kind": "function",
-      "language": "typescript",
-      "name": "groupByVendor",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "span": {
-        "start": 46,
-        "end": 57
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:determineConsensus",
-      "kind": "function",
-      "language": "typescript",
-      "name": "determineConsensus",
-      "file": "kanban-viz/src/components/VendorSwimlanes.tsx",
-      "span": {
-        "start": 60,
-        "end": 62
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:clusterBoardCards",
-      "kind": "function",
-      "language": "typescript",
-      "name": "clusterBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "span": {
-        "start": 57,
-        "end": 127
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:fetchPRs",
-      "kind": "function",
-      "language": "typescript",
-      "name": "fetchPRs",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "span": {
-        "start": 179,
-        "end": 188
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:fetchProposals",
-      "kind": "function",
-      "language": "typescript",
-      "name": "fetchProposals",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "span": {
-        "start": 190,
-        "end": 209
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:useBoardCards",
-      "kind": "function",
-      "language": "typescript",
-      "name": "useBoardCards",
-      "file": "kanban-viz/src/hooks/useBoardCards.ts",
-      "span": {
-        "start": 211,
-        "end": 360
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:fetchIssuesForSingleChange",
-      "kind": "function",
-      "language": "typescript",
-      "name": "fetchIssuesForSingleChange",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "span": {
-        "start": 64,
-        "end": 84
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:fetchIssuesUnioned",
-      "kind": "function",
-      "language": "typescript",
-      "name": "fetchIssuesUnioned",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "span": {
-        "start": 96,
-        "end": 112
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:mintEventsToken",
-      "kind": "function",
-      "language": "typescript",
-      "name": "mintEventsToken",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "span": {
-        "start": 114,
-        "end": 130
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:useCoordinator",
-      "kind": "function",
-      "language": "typescript",
-      "name": "useCoordinator",
-      "file": "kanban-viz/src/hooks/useCoordinator.ts",
-      "span": {
-        "start": 132,
-        "end": 321
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:assertNever",
-      "kind": "function",
-      "language": "typescript",
-      "name": "assertNever",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 208,
-        "end": 212
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:issueStatusToColumn",
-      "kind": "function",
-      "language": "typescript",
-      "name": "issueStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 218,
-        "end": 230
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:prStatusToColumn",
-      "kind": "function",
-      "language": "typescript",
-      "name": "prStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 236,
-        "end": 247
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:proposalStatusToColumn",
-      "kind": "function",
-      "language": "typescript",
-      "name": "proposalStatusToColumn",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 250,
-        "end": 257
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:toIssueCard",
-      "kind": "function",
-      "language": "typescript",
-      "name": "toIssueCard",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 295,
-        "end": 297
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:deriveIssueRepo",
-      "kind": "function",
-      "language": "typescript",
-      "name": "deriveIssueRepo",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 336,
-        "end": 352
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:getClusterKey",
-      "kind": "function",
-      "language": "typescript",
-      "name": "getClusterKey",
-      "file": "kanban-viz/src/lib/coordinator-types.ts",
-      "span": {
-        "start": 364,
-        "end": 374
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:classify",
-      "kind": "function",
-      "language": "typescript",
-      "name": "classify",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "span": {
-        "start": 46,
-        "end": 48
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:classifyOrDefault",
-      "kind": "function",
-      "language": "typescript",
-      "name": "classifyOrDefault",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "span": {
-        "start": 54,
-        "end": 56
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:requiresConsent",
-      "kind": "function",
-      "language": "typescript",
-      "name": "requiresConsent",
-      "file": "kanban-viz/src/lib/reversibility.ts",
-      "span": {
-        "start": 59,
-        "end": 61
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:isTauri",
-      "kind": "function",
-      "language": "typescript",
-      "name": "isTauri",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "span": {
-        "start": 12,
-        "end": 14
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:isBrowser",
-      "kind": "function",
-      "language": "typescript",
-      "name": "isBrowser",
-      "file": "kanban-viz/src/lib/runtime.ts",
-      "span": {
-        "start": 21,
-        "end": 23
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:saveView",
-      "kind": "function",
-      "language": "typescript",
-      "name": "saveView",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "span": {
-        "start": 35,
-        "end": 45
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:saveBrowser",
-      "kind": "function",
-      "language": "typescript",
-      "name": "saveBrowser",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "span": {
-        "start": 47,
-        "end": 66
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
-      "id": "ts:saveTauri",
-      "kind": "function",
-      "language": "typescript",
-      "name": "saveTauri",
-      "file": "kanban-viz/src/lib/saveView.ts",
-      "span": {
-        "start": 68,
-        "end": 90
-      },
-      "tags": [],
-      "signatures": {}
-    },
-    {
       "id": "pg:public.public.file_locks",
       "kind": "table",
       "language": "sql",
@@ -27950,6 +26782,827 @@
         "end": 1
       },
       "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestSchemaValidation",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 129,
+        "end": 213
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_well_formed_graph_passes",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_well_formed_graph_passes",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 132,
+        "end": 135
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_missing_confidence_on_edges_fails",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_missing_confidence_on_edges_fails",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 137,
+        "end": 155
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_invalid_node_id_pattern_fails",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_invalid_node_id_pattern_fails",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 157,
+        "end": 181
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_edges_referencing_nonexistent_nodes",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_edges_referencing_nonexistent_nodes",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 183,
+        "end": 201
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_entrypoint_referencing_nonexistent_node",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_entrypoint_referencing_nonexistent_node",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 203,
+        "end": 213
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestPythonAnalyzer",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 221,
+        "end": 392
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_analyze_directory_output_structure",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_analyze_directory_output_structure",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 278,
+        "end": 290
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_entry_point_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_entry_point_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 292,
+        "end": 308
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_call_graph_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_call_graph_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 310,
+        "end": 325
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_db_access_pattern_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_db_access_pattern_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 327,
+        "end": 337
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_dead_code_candidate_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_dead_code_candidate_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 339,
+        "end": 346
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_syntax_error_handling",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_syntax_error_handling",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 348,
+        "end": 358
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_include_exclude_filtering",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_include_exclude_filtering",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 360,
+        "end": 375
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_async_function_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_async_function_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 377,
+        "end": 383
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_class_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_class_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 385,
+        "end": 392
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestPostgresAnalyzer",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 400,
+        "end": 540
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_table_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_table_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 440,
+        "end": 462
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_fk_relationship_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_fk_relationship_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 464,
+        "end": 488
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_index_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_index_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 490,
+        "end": 508
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_summary_statistics",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_summary_statistics",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 510,
+        "end": 520
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_unparseable_sql_handling",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_unparseable_sql_handling",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 522,
+        "end": 540
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestGraphCompiler",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 548,
+        "end": 753
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_compile_graph_produces_output",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_compile_graph_produces_output",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 633,
+        "end": 644
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_node_id_normalization",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_node_id_normalization",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 646,
+        "end": 651
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_python_ingestion_creates_nodes_and_edges",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_python_ingestion_creates_nodes_and_edges",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 653,
+        "end": 674
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_cross_language_backend_db_edges",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_cross_language_backend_db_edges",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 676,
+        "end": 687
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_full_compilation_with_backend_db_linking",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_full_compilation_with_backend_db_linking",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 689,
+        "end": 708
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_summary_generation_adaptive_threshold",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_summary_generation_adaptive_threshold",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 710,
+        "end": 724
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_deduplication_helpers",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_deduplication_helpers",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 726,
+        "end": 743
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_validate_edges_drops_invalid",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_validate_edges_drops_invalid",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 745,
+        "end": 753
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestFlowValidator",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 761,
+        "end": 890
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_reachability_check",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_reachability_check",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 764,
+        "end": 783
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_disconnected_flow_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_disconnected_flow_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 785,
+        "end": 804
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_orphan_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_orphan_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 806,
+        "end": 833
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_diagnostics_output_format",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_diagnostics_output_format",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 835,
+        "end": 854
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_entrypoint_no_downstream",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_entrypoint_no_downstream",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 856,
+        "end": 890
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestViewGenerator",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 898,
+        "end": 1043
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_view_files_are_generated",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_view_files_are_generated",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 987,
+        "end": 1001
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_container_view_contents",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_container_view_contents",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1003,
+        "end": 1010
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_db_erd_contains_table_nodes",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_db_erd_contains_table_nodes",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1012,
+        "end": 1017
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_backend_component_view",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_backend_component_view",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1019,
+        "end": 1024
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_frontend_component_view",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_frontend_component_view",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1026,
+        "end": 1030
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_feature_slice_generation",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_feature_slice_generation",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1032,
+        "end": 1043
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestParallelZones",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1051,
+        "end": 1269
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_connected_component_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_connected_component_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1149,
+        "end": 1173
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_leaf_module_identification",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_leaf_module_identification",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1175,
+        "end": 1190
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_high_impact_module_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_high_impact_module_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1192,
+        "end": 1209
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_impact_radius",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_impact_radius",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1211,
+        "end": 1219
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_build_output_structure",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_build_output_structure",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1221,
+        "end": 1240
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_union_find_components",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_union_find_components",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1242,
+        "end": 1251
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_main_cli",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_main_cli",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1253,
+        "end": 1269
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
       "signatures": {}
     }
   ],
@@ -37312,94 +36965,5 @@
       "path": "start_work_session"
     }
   ],
-  "disconnected_frontend_calls": [
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    },
-    {
-      "node_id": "ts:",
-      "url": "<dynamic>"
-    }
-  ]
+  "disconnected_frontend_calls": []
 }
