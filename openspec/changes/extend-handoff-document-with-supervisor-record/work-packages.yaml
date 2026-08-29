@@ -1,0 +1,451 @@
+schema_version: 1
+
+feature:
+  id: extend-handoff-document-with-supervisor-record
+  title: "Extend handoff document with supervisor record"
+  plan_revision: 1
+  created_by: plan-feature
+  # The coordinator is a running service, but this change is exercised through
+  # its unit + e2e postgres suites, not a deploy; validate-feature must not derive
+  # a deployable surface from the changed paths (issue #432).
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/openapi/handoffs.yaml"
+    files:
+      - "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/openapi/handoffs.yaml"
+      - "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/schemas/supervisor-record.schema.json"
+      - "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/db/034_handoff_supervisor_record.sql"
+      - "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/README.md"
+
+defaults:
+  priority: 10
+  lock_ttl_minutes: 90
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Record schema and fixtures"
+    task_type: contracts
+    description: |
+      Phase 0, tasks 0.1-0.2. Validate supervisor-record.schema.json, pin its gate
+      enum to trust_posture.Gate, and land the fixtures every later package asserts
+      against. Root of the DAG so the three implementation packages start against a
+      frozen record shape.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/schemas/supervisor-record.schema.json"
+      keys:
+        - "feature:extend-handoff-document-with-supervisor-record:contracts"
+        - "contract:supervisor.record"
+      ttl_minutes: 60
+      reason: "Freeze the supervisor record shape"
+    scope:
+      write_allow:
+        - "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/**"
+        - "skills/tests/supervise/fixtures/supervisor-record/**"
+        - "skills/tests/supervise/test_supervisor_record_schema.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "apis"
+    worktree:
+      name: contracts
+      mode: shared
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Schema parses and fixtures validate"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_supervisor_record_schema.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["schema_suite"]
+    metadata:
+      loc_estimate: 60
+      complexity: low
+      package_kind: data_model
+    outputs:
+      result_keys: ["schema_suite"]
+
+  - package_id: wp-coordinator
+    title: "Column, RPC, and one key on every coordinator surface"
+    task_type: implementation
+    description: |
+      Phase 1, tasks 1.1-1.6. HandoffDocument.supervisor_record, HandoffService.write
+      parameter, migration 034 (drop the eight-arg overload, recreate with the
+      defaulted ninth), and the same one-key edit in coordination_api, coordination_mcp,
+      http_proxy, coordination_cli, help_service. Do not change proxy plumbing
+      (_request / get_client are top-5 high-impact nodes) — only the handoff
+      functions that call it. Rebase over axi-align-coordinator-output if it lands
+      first: it edits the read envelope in the same read-row builder.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    locks:
+      files:
+        - "agent-coordinator/src/handoffs.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
+      keys:
+        - "feature:extend-handoff-document-with-supervisor-record:coordinator"
+        - "db:schema:handoff_documents"
+        - "api:POST /handoffs/write"
+        - "api:POST /handoffs/read"
+      ttl_minutes: 120
+      reason: "Handoff column and surfaces"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/handoffs.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
+        - "agent-coordinator/src/coordination_cli.py"
+        - "agent-coordinator/src/help_service.py"
+        - "agent-coordinator/database/migrations/034_handoff_supervisor_record.sql"
+        - "agent-coordinator/tests/test_handoffs.py"
+        - "agent-coordinator/tests/test_handoff_supervisor_record.py"
+        - "agent-coordinator/tests/test_coordination_api.py"
+        - "agent-coordinator/tests/test_http_proxy.py"
+        - "agent-coordinator/tests/e2e/postgres/test_handoffs_live.py"
+        - "agent-coordinator/evaluation/scenarios/handoffs/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "skills/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+        - "apis"
+        - "architecture"
+    worktree:
+      name: coordinator
+      mode: isolated
+    timeout_minutes: 150
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Coordinator handoff suites pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_handoffs.py agent-coordinator/tests/test_handoff_supervisor_record.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_http_proxy.py agent-coordinator/tests/test_rpc_migration_alignment.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["coordinator_suite"]
+        - name: "Live postgres round-trip passes"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/e2e/postgres/test_handoffs_live.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["live_roundtrip"]
+        - name: "mypy strict clean on handoffs.py"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m mypy --strict agent-coordinator/src/handoffs.py"
+          evidence:
+            artifacts: []
+            result_keys: ["mypy_clean"]
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: data_model
+    outputs:
+      result_keys: ["coordinator_suite", "live_roundtrip", "mypy_clean"]
+
+  - package_id: wp-host-plumbing
+    title: "Bridge, PhaseRecord, hooks, fallback schema"
+    task_type: implementation
+    description: |
+      Phase 2, tasks 2.1-2.6. The conditional supervisor_record key in
+      coordination_bridge.try_handoff_write, the PhaseRecord field with a
+      conditional payload key, the optional property in
+      handoff-local-fallback.schema.json, and the pass-through in the PreCompact and
+      SessionEnd hooks (plus their agent-coordinator/scripts mirrors).
+      register_agent.py is deliberately NOT in write_allow (design D5). Runs in
+      parallel with wp-coordinator: the two sides only meet at the HTTP body, whose
+      key name is fixed by the contract.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    locks:
+      files:
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/session-log/scripts/phase_record.py"
+        - "skills/session-bootstrap/scripts/hooks/precompact_handoff.py"
+        - "skills/session-bootstrap/scripts/hooks/deregister_agent.py"
+      keys:
+        - "feature:extend-handoff-document-with-supervisor-record:plumbing"
+        - "contract:handoff.local.fallback"
+      ttl_minutes: 120
+      reason: "Host-side handoff writers"
+    scope:
+      write_allow:
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/session-log/scripts/phase_record.py"
+        - "skills/session-bootstrap/scripts/hooks/precompact_handoff.py"
+        - "skills/session-bootstrap/scripts/hooks/deregister_agent.py"
+        - "agent-coordinator/scripts/precompact_handoff.py"
+        - "agent-coordinator/scripts/deregister_agent.py"
+        - "openspec/contracts/phase-record/schemas/handoff-local-fallback.schema.json"
+        - "skills/tests/coordination-bridge/test_handoff_supervisor_record.py"
+        - "skills/tests/phase-record-compaction/test_phase_record_handoff.py"
+        - "skills/tests/phase-record-compaction/test_schema_fixtures.py"
+        - "skills/tests/session-bootstrap/test_precompact_handoff.py"
+        - "skills/tests/session-bootstrap/test_deregister_handoff.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "skills/session-bootstrap/scripts/hooks/register_agent.py"
+        - "agent-coordinator/scripts/register_agent.py"
+        - "agent-coordinator/src/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+        - "apis"
+    worktree:
+      name: plumbing
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Host plumbing suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/coordination-bridge skills/tests/phase-record-compaction skills/tests/session-bootstrap -q"
+          evidence:
+            artifacts: []
+            result_keys: ["plumbing_suite"]
+        - name: "Hook mirrors identical"
+          kind: command
+          command: "diff -q skills/session-bootstrap/scripts/hooks/precompact_handoff.py agent-coordinator/scripts/precompact_handoff.py && diff -q skills/session-bootstrap/scripts/hooks/deregister_agent.py agent-coordinator/scripts/deregister_agent.py"
+          evidence:
+            artifacts: []
+            result_keys: ["mirrors_synced"]
+        - name: "register_agent.py untouched"
+          kind: command
+          command: "git diff --quiet main -- skills/session-bootstrap/scripts/hooks/register_agent.py agent-coordinator/scripts/register_agent.py"
+          evidence:
+            artifacts: []
+            result_keys: ["hook_untouched"]
+    metadata:
+      loc_estimate: 140
+      complexity: low
+      package_kind: integration
+    outputs:
+      result_keys: ["plumbing_suite", "mirrors_synced", "hook_untouched"]
+
+  - package_id: wp-supervisor-builder
+    title: "cycle_state.py supervisor-record, mirror, rehydrate"
+    task_type: implementation
+    description: |
+      Phase 3, tasks 3.1-3.5. build_supervisor_record (derive active_changes from
+      loop-state.json + roadmap.yaml, carry the three non-derivable sections
+      forward, drop expired decisions), write_mirror (three sections only),
+      select_prior (newer written_at wins), and the supervisor-record / mirror /
+      rehydrate subcommands. Deterministic and host-assisted: TestHostAssistedInvariant
+      must stay green. Runs in parallel with both other implementation packages.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    locks:
+      files:
+        - "skills/supervise/scripts/cycle_state.py"
+      keys:
+        - "feature:extend-handoff-document-with-supervisor-record:builder"
+      ttl_minutes: 120
+      reason: "Supervisor record builder"
+    scope:
+      write_allow:
+        - "skills/supervise/scripts/cycle_state.py"
+        - "skills/tests/supervise/test_supervisor_record.py"
+        - "skills/tests/supervise/fixtures/supervisor-record/tree/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "skills/supervise/SKILL.md"
+        - "skills/roadmap-runtime/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: builder
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Supervise suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise -q"
+          evidence:
+            artifacts: []
+            result_keys: ["supervise_suite"]
+        - name: "Builder is byte-stable across two runs"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_supervisor_record.py -k deterministic -q"
+          evidence:
+            artifacts: []
+            result_keys: ["deterministic"]
+        - name: "Module is ruff-clean"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/supervise/scripts/cycle_state.py"
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_clean"]
+    metadata:
+      loc_estimate: 300
+      complexity: medium
+      package_kind: algorithm
+    outputs:
+      result_keys: ["supervise_suite", "deterministic", "ruff_clean"]
+
+  - package_id: wp-skill-docs
+    title: "Wire /supervise rehydrate and record writes"
+    task_type: documentation
+    description: |
+      Phase 4, tasks 4.1-4.3. Rewrite the rehydrate step and the INTAKE/CYCLE
+      closing steps in skills/supervise/SKILL.md around the shipped subcommands;
+      extend TestWorkflowContract; resync mirrors. Depends on the builder so the
+      documented subcommands are the shipped ones, and on the plumbing so the
+      bridge write it documents actually carries the key.
+    role: implementer
+    priority: 3
+    depends_on: ["wp-supervisor-builder", "wp-host-plumbing"]
+    locks:
+      files:
+        - "skills/supervise/SKILL.md"
+      keys:
+        - "feature:extend-handoff-document-with-supervisor-record:docs"
+      ttl_minutes: 60
+      reason: "supervise SKILL.md and mirrors"
+    scope:
+      write_allow:
+        - "skills/supervise/SKILL.md"
+        - "skills/tests/supervise/test_cycle_state.py"
+        - "docs/guides/workflow.md"
+        - ".claude/skills/supervise/SKILL.md"
+        - ".agents/skills/supervise/SKILL.md"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "skills/**/scripts/**"
+    context_impact:
+      surfaces:
+        - "documentation"
+    worktree:
+      name: skill-docs
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Workflow contract test passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_cycle_state.py -k WorkflowContract -q"
+          evidence:
+            artifacts: []
+            result_keys: ["workflow_contract"]
+        - name: "Mirrors in sync"
+          kind: command
+          command: "diff -q skills/supervise/SKILL.md .claude/skills/supervise/SKILL.md && diff -q skills/supervise/SKILL.md .agents/skills/supervise/SKILL.md"
+          evidence:
+            artifacts: []
+            result_keys: ["mirrors_synced"]
+    metadata:
+      loc_estimate: 120
+      complexity: low
+      package_kind: config
+    outputs:
+      result_keys: ["workflow_contract", "mirrors_synced"]
+
+  - package_id: wp-integration
+    title: "Full suites, contract promotion, phase record"
+    task_type: integration
+    description: |
+      Phase 5, tasks 5.1-5.3. Merge the isolated worktrees, run coordinator unit +
+      e2e and all skills suites, promote contracts/openapi/handoffs.yaml over the
+      canonical contract, run the context-drift gate, openspec validate --strict,
+      write the Implementation PhaseRecord, push.
+    role: integrator
+    priority: 4
+    depends_on: ["wp-coordinator", "wp-skill-docs"]
+    locks:
+      files: []
+      keys:
+        - "feature:extend-handoff-document-with-supervisor-record:integration"
+        - "contract:agent.coordinator.handoffs"
+      ttl_minutes: 60
+      reason: "Integration, contract promotion, verification"
+    scope:
+      write_allow:
+        - "openspec/contracts/agent-coordinator/openapi/handoffs.yaml"
+        - "openspec/changes/extend-handoff-document-with-supervisor-record/tasks.md"
+        - "openspec/changes/extend-handoff-document-with-supervisor-record/session-log.md"
+        - "openspec/changes/extend-handoff-document-with-supervisor-record/handoffs/**"
+        - "docs/api-contracts/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "capabilities"
+    worktree:
+      name: integration
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "All suites pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q && skills/.venv/bin/python -m pytest skills/tests -q"
+          evidence:
+            artifacts: []
+            result_keys: ["full_suite"]
+        - name: "Context drift gate green"
+          kind: command
+          command: "make context-drift-gate PYTHON=skills/.venv/bin/python"
+          evidence:
+            artifacts: []
+            result_keys: ["drift_gate"]
+        - name: "OpenSpec strict validation passes"
+          kind: command
+          command: "openspec validate extend-handoff-document-with-supervisor-record --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_valid"]
+    metadata:
+      loc_estimate: 20
+      complexity: low
+      package_kind: integration
+    outputs:
+      result_keys: ["full_suite", "drift_gate", "openspec_valid"]
