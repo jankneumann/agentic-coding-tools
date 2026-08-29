@@ -34,6 +34,7 @@ class TestGateIntegration:
         status = "pass" if all_pass else "fail"
         path.write_text(
             f"# Validation Report\n\n"
+            f"## Spec Compliance\n\n**Status**: {status}\n\n"
             f"## Smoke Tests\n\n**Status**: {status}\n\n"
             f"## Security\n\n**Status**: {status}\n\n"
             f"## E2E Tests\n\n**Status**: {status}\n\n"

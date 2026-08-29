@@ -39,18 +39,29 @@ Functions:
 from __future__ import annotations
 
 import re
+import subprocess
 import warnings
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-# Phases that must pass before merge is allowed.
-# Maps section heading -> human-readable name.
+# Container-dependent phases. Required only when the change has a deployable
+# surface (issue #432). Maps section heading -> human-readable name.
 REQUIRED_PHASES: dict[str, str] = {
     "Smoke Tests": "Smoke tests",
     "Security": "Security scan",
     "E2E Tests": "E2E tests",
 }
+
+# Required for every change, deployable or not. A missing validation-report.md
+# still fails because these headings are then "missing".
+ALWAYS_REQUIRED_PHASES: dict[str, str] = {
+    "Spec Compliance": "Spec compliance",
+}
+
+EVIDENCE_PHASE_HEADING = "Evidence"
+EVIDENCE_PHASE_LABEL = "Evidence completeness"
 
 # The Architecture phase joins the required set only in blocking mode (D4).
 ARCHITECTURE_PHASE_HEADING = "Architecture"
@@ -88,6 +99,57 @@ _KNOWN_ARCHITECTURE_KEYS = frozenset(DEFAULT_ARCHITECTURE_GATE) | {"severity_thr
 _BLOCK_ON_CATEGORIES: dict[str, str] = {"new_dependency_cycles": "new_cycle"}
 
 _DEFAULT_CATEGORY_SEVERITY = "minor"
+
+# Path prefixes that prove a running service is in scope (fail closed: any
+# match here requires the container phases).
+_DEPLOYABLE_PREFIXES: tuple[str, ...] = (
+    "agent-coordinator/",
+    "packages/",
+    "apps/",
+)
+_DEPLOYABLE_FILENAMES: frozenset[str] = frozenset(
+    {
+        "docker-compose.yml",
+        "docker-compose.yaml",
+        "Dockerfile",
+    }
+)
+# Path prefixes that cannot be a deployable service. A change whose every
+# path is in this set is proven non-deployable.
+_NON_DEPLOYABLE_PREFIXES: tuple[str, ...] = (
+    "skills/",
+    "docs/",
+    "openspec/",
+    ".agents/",
+    ".claude/",
+    ".codex/",
+    ".github/",
+    ".githooks/",
+)
+_NON_DEPLOYABLE_ROOT_FILES: frozenset[str] = frozenset(
+    {
+        "readme.md",
+        "license",
+        "claude.md",
+        "agents.md",
+        "changelog.md",
+        "architecture.config.yaml",
+    }
+)
+
+
+@dataclass(frozen=True)
+class DeployableSurface:
+    """How the required-phase set was resolved for this change.
+
+    ``source`` is ``declared`` (work-packages.yaml / proposal frontmatter),
+    ``derived`` (every changed path classified), or ``unknown`` (fail closed).
+    ``deployable`` is True whenever the surface is not proven absent.
+    """
+
+    deployable: bool
+    source: str
+    reason: str
 
 
 def _default_gate_config() -> dict[str, Any]:
@@ -226,19 +288,186 @@ def architecture_mode(
     return str(_resolved(config, config_path)["architecture"]["mode"])
 
 
+def _normalize_repo_path(path: str) -> str:
+    return path.replace("\\", "/").lstrip("./")
+
+
+def _classify_path(path: str) -> str:
+    """Return 'deployable', 'non_deployable', or 'ambiguous' for one path."""
+    normalized = _normalize_repo_path(path)
+    basename = normalized.rsplit("/", 1)[-1]
+    if basename in _DEPLOYABLE_FILENAMES:
+        return "deployable"
+    if any(
+        normalized == prefix.rstrip("/") or normalized.startswith(prefix)
+        for prefix in _DEPLOYABLE_PREFIXES
+    ):
+        return "deployable"
+    if any(
+        normalized == prefix.rstrip("/") or normalized.startswith(prefix)
+        for prefix in _NON_DEPLOYABLE_PREFIXES
+    ):
+        return "non_deployable"
+    if "/" not in normalized and basename.lower() in _NON_DEPLOYABLE_ROOT_FILES:
+        return "non_deployable"
+    return "ambiguous"
+
+
+def _parse_declared_deployable(change_dir: Path) -> bool | None:
+    """Read an explicit deployable flag from work-packages.yaml or proposal.md."""
+    wp = change_dir / "work-packages.yaml"
+    if wp.is_file():
+        try:
+            import yaml  # type: ignore[import-untyped]
+        except ImportError:
+            yaml = None  # type: ignore[assignment]
+        if yaml is not None:
+            try:
+                raw = yaml.safe_load(wp.read_text()) or {}
+            except (OSError, yaml.YAMLError):
+                raw = {}
+            if isinstance(raw, dict):
+                feature = raw.get("feature")
+                if isinstance(feature, dict) and "deployable" in feature:
+                    return bool(feature["deployable"])
+                if "deployable" in raw:
+                    return bool(raw["deployable"])
+
+    proposal = change_dir / "proposal.md"
+    if proposal.is_file():
+        try:
+            text = proposal.read_text()
+        except OSError:
+            text = ""
+        declared = _frontmatter_deployable(text)
+        if declared is not None:
+            return declared
+    return None
+
+
+def _frontmatter_deployable(text: str) -> bool | None:
+    if not text.startswith("---"):
+        return None
+    end = text.find("\n---", 3)
+    if end < 0:
+        return None
+    for line in text[3:end].splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("deployable:"):
+            continue
+        value = stripped.split(":", 1)[1].strip().lower()
+        if value in {"true", "yes", "1"}:
+            return True
+        if value in {"false", "no", "0"}:
+            return False
+    return None
+
+
+def collect_changed_files(*, repo: Path | None = None) -> list[str]:
+    """Best-effort ``git diff --name-only main...HEAD``. Empty on failure."""
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", "main...HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            cwd=repo,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def classify_deployable_surface(
+    *,
+    change_dir: str | Path | None = None,
+    changed_files: Sequence[str] | None = None,
+    deployable: bool | None = None,
+) -> DeployableSurface:
+    """Decide whether this change has a deployable surface.
+
+    Order: explicit ``deployable`` argument, then a declaration in the
+    change directory, then path derivation. Any remaining ambiguity fails
+    closed (treat as deployable) so a security scan is never skipped by
+    guesswork.
+    """
+    if deployable is not None:
+        return DeployableSurface(
+            deployable=bool(deployable),
+            source="declared",
+            reason="explicit deployable= argument",
+        )
+
+    directory = Path(change_dir) if change_dir is not None else None
+    if directory is not None:
+        declared = _parse_declared_deployable(directory)
+        if declared is not None:
+            return DeployableSurface(
+                deployable=declared,
+                source="declared",
+                reason=f"declared in {directory}",
+            )
+
+    files = list(changed_files) if changed_files is not None else []
+    if not files and directory is not None:
+        files = collect_changed_files(repo=directory)
+    if not files:
+        return DeployableSurface(
+            deployable=True,
+            source="unknown",
+            reason="no changed files and no declaration; fail closed",
+        )
+
+    classes = {_classify_path(path) for path in files}
+    if "deployable" in classes:
+        return DeployableSurface(
+            deployable=True,
+            source="derived",
+            reason="changed paths include a deployable service",
+        )
+    if classes == {"non_deployable"}:
+        return DeployableSurface(
+            deployable=False,
+            source="derived",
+            reason="all changed paths are skills/docs/openspec (no deployable surface)",
+        )
+    return DeployableSurface(
+        deployable=True,
+        source="unknown",
+        reason="changed paths include unclassified files; fail closed",
+    )
+
+
 def resolve_required_phases(
     config_path: str | Path | None = None,
     *,
     config: dict[str, Any] | None = None,
+    surface: DeployableSurface | None = None,
+    change_dir: str | Path | None = None,
+    changed_files: Sequence[str] | None = None,
+    deployable: bool | None = None,
 ) -> dict[str, str]:
     """Return the required phases for this run.
 
-    Identical to REQUIRED_PHASES in advisory mode (the shipped default), so
-    this change cannot alter the outcome of an existing validation run.
+    Spec compliance is always required. Smoke / Security / E2E join the set
+    only when the change has a deployable surface (or the surface cannot be
+    proven absent — fail closed). Architecture still joins only in blocking
+    mode (D4). Evidence joins when ``work-packages.yaml`` exists.
     """
-    phases = dict(REQUIRED_PHASES)
+    resolved_surface = surface or classify_deployable_surface(
+        change_dir=change_dir,
+        changed_files=changed_files,
+        deployable=deployable,
+    )
+    phases = dict(ALWAYS_REQUIRED_PHASES)
+    if resolved_surface.deployable:
+        phases.update(REQUIRED_PHASES)
     if architecture_mode(config_path, config=_resolved(config, config_path)) == "blocking":
         phases[ARCHITECTURE_PHASE_HEADING] = ARCHITECTURE_PHASE_LABEL
+    if change_dir is not None and (Path(change_dir) / "work-packages.yaml").is_file():
+        phases[EVIDENCE_PHASE_HEADING] = EVIDENCE_PHASE_LABEL
     return phases
 
 
@@ -310,6 +539,10 @@ def architecture_status(
 # contract writes it uppercase in the phase table).
 _LEGACY_STATUS_RE = re.compile(r"\*\*Status\*\*:\s*(pass|fail|skipped)")
 _DEGRADED_STATUS_RE = re.compile(r"\*\*Status\*\*:\s*degraded", re.IGNORECASE)
+_NOT_APPLICABLE_STATUS_RE = re.compile(
+    r"\*\*Status\*\*:\s*not[ _-]?applicable", re.IGNORECASE
+)
+NOT_APPLICABLE = "not_applicable"
 
 
 def check_phase_status(report_path: str, section_heading: str) -> str:
@@ -320,7 +553,7 @@ def check_phase_status(report_path: str, section_heading: str) -> str:
         section_heading: The ## heading to look for (e.g. "Smoke Tests")
 
     Returns:
-        'pass', 'fail', 'skipped', 'degraded', or 'missing'
+        'pass', 'fail', 'skipped', 'degraded', 'not_applicable', or 'missing'
     """
     p = Path(report_path)
     if not p.exists():
@@ -347,6 +580,9 @@ def check_phase_status(report_path: str, section_heading: str) -> str:
 
     if _DEGRADED_STATUS_RE.search(section_content):
         return DEGRADED
+
+    if _NOT_APPLICABLE_STATUS_RE.search(section_content):
+        return NOT_APPLICABLE
 
     return "missing"
 
@@ -459,6 +695,10 @@ def pre_merge_gate(
     force: bool = False,
     accept_degraded: Sequence[str] | None = None,
     config_path: str | Path | None = None,
+    change_dir: str | Path | None = None,
+    changed_files: Sequence[str] | None = None,
+    deployable: bool | None = None,
+    surface: DeployableSurface | None = None,
 ) -> tuple[str, str, dict[str, str]]:
     """Full pre-merge gate — checks all required phases.
 
@@ -472,12 +712,26 @@ def pre_merge_gate(
             explicitly accepts. Each accepted override is named in the summary.
         config_path: Optional path to architecture.config.yaml. Governs whether
             the Architecture phase is required (D4); defaults to advisory.
+        change_dir: OpenSpec change directory, used to read a declared
+            ``deployable`` flag and to require Evidence when work-packages.yaml
+            exists.
+        changed_files: Paths changed by this change. Used to derive the
+            deployable surface when it is not declared.
+        deployable: Explicit surface override (True/False).
+        surface: Precomputed ``DeployableSurface``. When omitted it is
+            classified from the arguments above.
 
     Returns:
         Tuple of (action, reason, phase_statuses).
         phase_statuses maps phase name -> status string.
     """
-    phases = resolve_required_phases(config_path)
+    phases = resolve_required_phases(
+        config_path,
+        change_dir=change_dir,
+        changed_files=changed_files,
+        deployable=deployable,
+        surface=surface,
+    )
     overrides = _normalise_overrides(accept_degraded)
 
     phase_statuses: dict[str, str] = {}
@@ -540,9 +794,10 @@ def main() -> None:
 
     Usage:
         python gate_logic.py <report_path> [--force] [--accept-degraded PHASE]...
+        python gate_logic.py --describe-surface --change-dir PATH
 
     Exit codes:
-        0 — merge allowed
+        0 — merge allowed (or surface described)
         1 — merge blocked
     """
     import argparse
@@ -552,7 +807,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Pre-merge gate: check all required validation phases.",
     )
-    parser.add_argument("report_path", help="Path to validation-report.md")
+    parser.add_argument(
+        "report_path",
+        nargs="?",
+        default=None,
+        help="Path to validation-report.md",
+    )
     parser.add_argument(
         "--force",
         action="store_true",
@@ -573,13 +833,73 @@ def main() -> None:
         default=None,
         help="Path to architecture.config.yaml (default: discovered upward)",
     )
+    parser.add_argument(
+        "--change-dir",
+        default=None,
+        help="OpenSpec change directory (declaration + evidence detection)",
+    )
+    parser.add_argument(
+        "--changed-file",
+        action="append",
+        default=[],
+        dest="changed_files",
+        metavar="PATH",
+        help="Changed path used to derive deployable surface. Repeatable.",
+    )
+    parser.add_argument(
+        "--deployable",
+        choices=("true", "false"),
+        default=None,
+        help="Explicit deployable-surface override.",
+    )
+    parser.add_argument(
+        "--describe-surface",
+        action="store_true",
+        help="Print the classified deployable surface as JSON and exit.",
+    )
     args = parser.parse_args()
+
+    deployable: bool | None = None
+    if args.deployable is not None:
+        deployable = args.deployable == "true"
+    changed_files = args.changed_files or None
+    surface = classify_deployable_surface(
+        change_dir=args.change_dir,
+        changed_files=changed_files,
+        deployable=deployable,
+    )
+
+    if args.describe_surface:
+        phases = resolve_required_phases(
+            args.config,
+            surface=surface,
+            change_dir=args.change_dir,
+        )
+        print(
+            json.dumps(
+                {
+                    "deployable": surface.deployable,
+                    "source": surface.source,
+                    "reason": surface.reason,
+                    "required_phases": list(phases),
+                },
+                indent=2,
+            )
+        )
+        sys.exit(0)
+
+    if not args.report_path:
+        parser.error("report_path is required unless --describe-surface is set")
 
     action, reason, statuses = pre_merge_gate(
         args.report_path,
         force=args.force,
         accept_degraded=args.accept_degraded,
         config_path=args.config,
+        change_dir=args.change_dir,
+        changed_files=changed_files,
+        deployable=deployable,
+        surface=surface,
     )
 
     result = {
@@ -589,6 +909,11 @@ def main() -> None:
         "force": args.force,
         "accept_degraded": args.accept_degraded,
         "architecture_gate_mode": architecture_mode(args.config),
+        "deployable_surface": {
+            "deployable": surface.deployable,
+            "source": surface.source,
+            "reason": surface.reason,
+        },
     }
     print(json.dumps(result, indent=2))
     sys.exit(0 if action == "continue" else 1)

@@ -245,6 +245,8 @@ class TestPreMergeGate:
 
     def _full_passing_report(self) -> str:
         return (
+            "## Spec Compliance\n\n"
+            "- **Status**: pass\n\n"
             "## Smoke Tests\n\n"
             "- **Status**: pass\n\n"
             "## Security\n\n"
@@ -268,6 +270,7 @@ class TestPreMergeGate:
         """Smoke tests fail -> halt."""
         report = tmp_path / "validation-report.md"
         report.write_text(
+            "## Spec Compliance\n\n- **Status**: pass\n\n"
             "## Smoke Tests\n\n- **Status**: fail\n\n"
             "## Security\n\n- **Status**: pass\n\n"
             "## E2E Tests\n\n- **Status**: pass\n"
@@ -281,6 +284,7 @@ class TestPreMergeGate:
         """Security section missing -> halt."""
         report = tmp_path / "validation-report.md"
         report.write_text(
+            "## Spec Compliance\n\n- **Status**: pass\n\n"
             "## Smoke Tests\n\n- **Status**: pass\n\n"
             "## E2E Tests\n\n- **Status**: pass\n"
         )
@@ -293,6 +297,7 @@ class TestPreMergeGate:
         """E2E skipped -> halt."""
         report = tmp_path / "validation-report.md"
         report.write_text(
+            "## Spec Compliance\n\n- **Status**: pass\n\n"
             "## Smoke Tests\n\n- **Status**: pass\n\n"
             "## Security\n\n- **Status**: pass\n\n"
             "## E2E Tests\n\n- **Status**: skipped\n"
@@ -306,6 +311,7 @@ class TestPreMergeGate:
         """Multiple failures are all reported."""
         report = tmp_path / "validation-report.md"
         report.write_text(
+            "## Spec Compliance\n\n- **Status**: pass\n\n"
             "## Smoke Tests\n\n- **Status**: fail\n\n"
             "## Security\n\n- **Status**: fail\n"
         )
@@ -326,6 +332,7 @@ class TestPreMergeGate:
         """--force allows merge despite failures."""
         report = tmp_path / "validation-report.md"
         report.write_text(
+            "## Spec Compliance\n\n- **Status**: pass\n\n"
             "## Smoke Tests\n\n- **Status**: fail\n\n"
             "## Security\n\n- **Status**: fail\n"
         )

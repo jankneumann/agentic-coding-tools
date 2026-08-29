@@ -543,6 +543,9 @@ def _check_pre_merge_gate(
         }
 
     cmd = [sys.executable, str(gate_script), report_path]
+    report = Path(report_path)
+    if report.name == "validation-report.md" and report.parent.is_dir():
+        cmd.extend(["--change-dir", str(report.parent)])
     if force:
         cmd.append("--force")
 

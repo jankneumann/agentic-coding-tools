@@ -62,6 +62,7 @@ def _report(tmp_path: Path, smoke: str = "pass", security: str = "pass",
             e2e: str = "pass") -> Path:
     report = tmp_path / "validation-report.md"
     report.write_text(
+        "## Spec Compliance\n\n- **Status**: pass\n\n"
         f"## Smoke Tests\n\n- **Status**: {smoke}\n\n"
         f"## Security\n\n- **Status**: {security}\n\n"
         f"## E2E Tests\n\n- **Status**: {e2e}\n"
