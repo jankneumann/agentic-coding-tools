@@ -669,10 +669,11 @@ for w in result.warnings:
 EOF
 ```
 
-`write_both()` runs three best-effort steps internally:
+`write_both()` runs four best-effort steps internally:
 1. **Append** the rendered markdown to `openspec/changes/<change-id>/session-log.md`
 2. **Sanitize** the file in-place via `sanitize_session_log.py`
 3. **Coordinator handoff** via `try_handoff_write` — falls back to `openspec/changes/<change-id>/handoffs/plan-<N>.json` on failure
+4. **Regenerate the decision index** that step 1 invalidated, so `docs/decisions/` is current without a separate `make decisions`
 
 Each step logs a warning if it fails but does not raise, so the workflow continues even if the coordinator is unreachable. Verify the rendered `session-log.md`: all populated sections present, no incorrect `[REDACTED:*]` markers, markdown intact. If over-redacted, fix the offending content in your `PhaseRecord` construction and re-run — `write_both()` appends a new entry rather than rewriting in place.
 

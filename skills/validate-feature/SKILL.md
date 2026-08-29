@@ -1113,7 +1113,9 @@ for w in result.warnings:
 EOF
 ```
 
-`write_both()` runs three best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/validation-<N>.json`). Each step logs warnings on failure but does not raise.
+`write_both()` runs four best-effort steps internally: append rendered markdown → sanitize in-place → coordinator handoff (or local fallback at `openspec/changes/<change-id>/handoffs/validation-<N>.json`) → regenerate the decision index that the append invalidated. Each step logs warnings on failure but does not raise.
+
+Step four means this skill's dedicated commit below may also carry `docs/decisions/` changes even though validation is otherwise read-only.
 
 **Commit and push** (validate-feature is read-only, so this needs a dedicated commit):
 
