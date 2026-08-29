@@ -105,6 +105,7 @@ packages:
       surfaces:
         - "capabilities"
         - "decisions"
+        - "documentation"
     worktree:
       name: prime-wp-empirical
       mode: isolated
