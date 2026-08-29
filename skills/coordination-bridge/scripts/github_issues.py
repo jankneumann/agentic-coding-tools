@@ -29,6 +29,20 @@ _METADATA_RE = re.compile(
 _TOKEN_ENV_KEYS = ("GITHUB_TOKEN", "GH_TOKEN", "GITHUB_PAT")
 _REPO_ENV_KEYS = ("COORDINATION_GITHUB_REPO", "GITHUB_REPOSITORY")
 
+_CANONICAL_ACTIVE_STATUSES = frozenset({"pending", "claimed", "running"})
+_CANONICAL_TERMINAL_STATUSES = frozenset({"completed", "failed", "cancelled"})
+_CANONICAL_STATUSES = _CANONICAL_ACTIVE_STATUSES | _CANONICAL_TERMINAL_STATUSES
+_FRIENDLY_STATUS_ALIASES = {
+    "open": "pending",
+    "in_progress": "running",
+    "closed": "completed",
+}
+
+
+def _canonical_status(status: str | None, *, fallback: str) -> str:
+    value = str(status or "").strip().lower()
+    return _FRIENDLY_STATUS_ALIASES.get(value, value if value in _CANONICAL_STATUSES else fallback)
+
 
 def _github_token() -> str | None:
     for key in _TOKEN_ENV_KEYS:
@@ -116,12 +130,14 @@ def _render_body(
     priority: int,
     depends_on: list[str] | None,
     parent_id: str | None,
+    status: str = "pending",
 ) -> str:
     deps = ",".join(depends_on or [])
     meta = (
         "<!-- coordinator-issue\n"
         f"issue_type: {issue_type}\n"
         f"priority: {priority}\n"
+        f"status: {status}\n"
         f"depends_on: {deps}\n"
         f"parent_id: {parent_id or ''}\n"
         "-->"
@@ -143,6 +159,7 @@ def _parse_metadata(body: str) -> dict[str, Any]:
         "depends_on": [],
         "parent_id": None,
         "description": body or "",
+        "status": None,
     }
     if match:
         for line in match.group("body").splitlines():
@@ -159,6 +176,8 @@ def _parse_metadata(body: str) -> dict[str, Any]:
                 parsed["depends_on"] = [part for part in value.split(",") if part]
             elif key == "parent_id":
                 parsed["parent_id"] = value or None
+            elif key == "status" and value in _CANONICAL_STATUSES:
+                parsed["status"] = value
         parsed["description"] = _METADATA_RE.sub("", body or "").strip()
         parsed["description"] = re.sub(
             r"^Depends on:\n(?:- \[[ x]\] .+\n?)*",
@@ -178,7 +197,12 @@ def _map_issue(raw: dict[str, Any]) -> dict[str, Any]:
         elif isinstance(label, str):
             labels.append(label)
     state = raw.get("state") or "open"
-    status = "pending" if state == "open" else "completed"
+    fallback_status = "pending" if state == "open" else "completed"
+    status = _canonical_status(meta.get("status"), fallback=fallback_status)
+    if state == "closed" and status in _CANONICAL_ACTIVE_STATUSES:
+        status = "completed"
+    elif state == "open" and status in _CANONICAL_TERMINAL_STATUSES:
+        status = "pending"
     assignee = None
     raw_assignee = raw.get("assignee")
     if isinstance(raw_assignee, dict):
@@ -292,6 +316,7 @@ class GitHubIssuesClient:
                 priority=priority,
                 depends_on=depends_on,
                 parent_id=parent_id,
+                status="pending",
             ),
             "labels": label_list,
         }
@@ -323,10 +348,11 @@ class GitHubIssuesClient:
         assignee: str | None = None,
         limit: int | None = None,
     ) -> dict[str, Any]:
+        requested_status = str(status or "").strip().lower()
         params: dict[str, str] = {"state": "all", "per_page": str(min(limit or 100, 100))}
-        if status in {"open", "in_progress"}:
+        if requested_status in _CANONICAL_ACTIVE_STATUSES | {"open", "in_progress"}:
             params["state"] = "open"
-        elif status == "closed":
+        elif requested_status in _CANONICAL_TERMINAL_STATUSES | {"closed"}:
             params["state"] = "closed"
         if labels:
             params["labels"] = ",".join(labels)
@@ -343,6 +369,10 @@ class GitHubIssuesClient:
         if not isinstance(raw_issues, list):
             raw_issues = []
         mapped = [_map_issue(item) for item in raw_issues if "pull_request" not in item]
+        if requested_status in _CANONICAL_STATUSES:
+            mapped = [
+                item for item in mapped if item.get("status") == requested_status
+            ]
         if issue_type:
             mapped = [item for item in mapped if item.get("issue_type") == issue_type]
         if parent_id:
@@ -397,6 +427,10 @@ class GitHubIssuesClient:
         new_description = (
             description if description is not None else existing.get("description")
         )
+        new_status = _canonical_status(
+            status,
+            fallback=str(existing.get("status") or "pending"),
+        )
         payload: dict[str, Any] = {}
         if title is not None:
             payload["title"] = title
@@ -406,10 +440,11 @@ class GitHubIssuesClient:
             priority=int(new_priority),
             depends_on=list(existing.get("depends_on") or []),
             parent_id=existing.get("parent_id"),
+            status=new_status,
         )
-        if status in {"closed"}:
+        if status is not None and new_status in _CANONICAL_TERMINAL_STATUSES:
             payload["state"] = "closed"
-        elif status in {"open", "in_progress"}:
+        elif status is not None and new_status in _CANONICAL_ACTIVE_STATUSES:
             payload["state"] = "open"
         if labels is not None:
             self._ensure_labels(labels)
@@ -445,20 +480,15 @@ class GitHubIssuesClient:
             ids.append(issue_id)
         closed = []
         for item_id in ids:
-            response = self._http(
-                "PATCH",
-                f"/repos/{self.repo}/issues/{item_id}",
-                {"state": "closed"},
-            )
-            if response["status_code"] == 200:
-                closed.append(_map_issue(response["data"]))
-            else:
+            updated = self.update(issue_id=item_id, status="completed")
+            if updated["status"] != "ok":
                 return _error(
                     "try_issue_close",
-                    status_code=response["status_code"],
-                    error=response.get("error") or "github_close_failed",
-                    data=response.get("data"),
+                    status_code=updated.get("status_code"),
+                    error=updated.get("error") or "github_close_failed",
+                    data=updated.get("data"),
                 )
+            closed.append(updated["data"])
         extra = {"success": True, "issues": closed, "count": len(closed)}
         return _ok("try_issue_close", status_code=200, data=extra, extra=extra)
 

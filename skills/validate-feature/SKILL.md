@@ -306,15 +306,15 @@ else
   AGENT_COORDINATOR_REST_PORT=${AGENT_COORDINATOR_REST_PORT:-8081} \
   AGENT_COORDINATOR_REALTIME_PORT=${AGENT_COORDINATOR_REALTIME_PORT:-4000} \
   COMPOSE_PROFILES=${COMPOSE_PROFILES:-api} \
-  LOG_LEVEL=DEBUG docker-compose -f "$COMPOSE_FILE" up -d --build 2>&1 | tee "$LOG_FILE"
+  LOG_LEVEL=DEBUG $RUNTIME compose -f "$COMPOSE_FILE" up -d --build 2>&1 | tee "$LOG_FILE"
 
   # Wait for health checks
   echo "Waiting for services to be healthy..."
-  docker-compose -f "$COMPOSE_FILE" ps
+  $RUNTIME compose -f "$COMPOSE_FILE" ps
 
   # Wait for PostgreSQL health check (up to 30 seconds)
   for i in $(seq 1 30); do
-    if docker-compose -f "$COMPOSE_FILE" exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
+    if $RUNTIME compose -f "$COMPOSE_FILE" exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
       echo "PostgreSQL is ready"
       break
     fi
@@ -332,7 +332,7 @@ else
   done
 
   # Collect running container logs in background
-  docker-compose -f "$COMPOSE_FILE" logs -f >> "$LOG_FILE" 2>&1 &
+  $RUNTIME compose -f "$COMPOSE_FILE" logs -f >> "$LOG_FILE" 2>&1 &
   LOG_PID=$!
 
   DEPLOY_RESULT="pass"
@@ -977,8 +977,8 @@ if [ "$DEPLOY_SKIPPED" != true ] && [ -n "$COMPOSE_FILE" ]; then
     kill $LOG_PID 2>/dev/null
   fi
 
-  # Stop docker-compose services
-  docker-compose -f "$COMPOSE_FILE" down
+  # Stop services through the runtime selected during prerequisite detection.
+  $RUNTIME compose -f "$COMPOSE_FILE" down
 
   echo "Services stopped"
 fi
