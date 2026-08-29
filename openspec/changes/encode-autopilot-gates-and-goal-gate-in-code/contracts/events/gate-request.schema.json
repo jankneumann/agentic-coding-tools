@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/events/gate-request.schema.json",
+  "title": "GateRequest",
+  "description": "A gate the autopilot loop is parked on, awaiting a host-recorded decision. Stored as LoopState.pending_gate and printed by `runner.py gate-check`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "change_id", "gate", "phase", "requested_at", "prompt"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "change_id": {"type": "string", "minLength": 1},
+    "gate": {
+      "type": "string",
+      "enum": [
+        "gatekeeper_escalation", "proposal_approval", "plan_review_convergence_failure",
+        "validation_failure", "escalate_resume", "replan_required", "pr_creation", "merge"
+      ]
+    },
+    "phase": {"type": "string", "description": "LoopState.current_phase at the time the gate was evaluated."},
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "target"],
+      "properties": {
+        "outcome": {"type": "string", "description": "The phase outcome that triggered the gate (e.g. created, max_iter)."},
+        "target": {"type": "string", "description": "The phase the loop will enter on approval."}
+      }
+    },
+    "requested_at": {"type": "string", "format": "date-time"},
+    "prompt": {"type": "string", "minLength": 1, "description": "Operator-facing question text the host renders verbatim."},
+    "context": {
+      "type": "object",
+      "description": "Gate-specific evidence the host may show: proposal path, PR URL, escalation reason, failing section.",
+      "additionalProperties": {"type": ["string", "number", "boolean", "null"]}
+    },
+    "posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disposition", "posture_present"],
+      "properties": {
+        "disposition": {"type": "string", "enum": ["auto", "notify_with_timeout", "block"]},
+        "posture_present": {"type": "boolean"}
+      }
+    }
+  }
+}

@@ -1,0 +1,440 @@
+schema_version: 1
+
+feature:
+  id: encode-autopilot-gates-and-goal-gate-in-code
+  title: "Encode autopilot gates and goal gate in code"
+  plan_revision: 1
+  created_by: plan-feature
+  # No running service: pure Python skill scripts + SKILL.md. validate-feature
+  # must not derive a deployable surface from the changed paths (issue #432).
+  deployable: false
+
+# No HTTP surface. The coordination boundary is three file-carried JSON records
+# (gate request, gate decision, replan request) under contracts/events/, described
+# in contracts/README.md.
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/README.md"
+    files:
+      - "openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/README.md"
+      - "openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/events/gate-request.schema.json"
+      - "openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/events/gate-decision.schema.json"
+      - "openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/events/replan-request.schema.json"
+
+defaults:
+  priority: 10
+  lock_ttl_minutes: 90
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Event schemas and fixtures"
+    task_type: contracts
+    description: |
+      Phase 0, tasks 0.1-0.2. Validate the three JSON Schemas as 2020-12 documents,
+      pin the gate-decision resolution enum to approval_gate.Resolution plus the two
+      console values, and land valid/invalid fixture instances every later package
+      asserts against. Root of the DAG so wp-goal-gate and wp-replan can start in
+      parallel against a frozen record shape.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/events/gate-request.schema.json"
+        - "openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/events/gate-decision.schema.json"
+        - "openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/events/replan-request.schema.json"
+      keys:
+        - "feature:encode-autopilot-gates-and-goal-gate-in-code:contracts"
+        - "event:gate.request"
+        - "event:gate.decision"
+        - "event:roadmap.replan.request"
+      ttl_minutes: 60
+      reason: "Freeze the three gate/replan record shapes"
+    scope:
+      write_allow:
+        - "openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/**"
+        - "skills/tests/autopilot/fixtures/gates/**"
+        - "skills/tests/autopilot/test_gate_schemas.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "capabilities"
+    worktree:
+      name: contracts
+      mode: shared
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Schemas parse and fixtures validate"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/test_gate_schemas.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["schema_suite"]
+    metadata:
+      loc_estimate: 80
+      complexity: low
+      package_kind: data_model
+    outputs:
+      result_keys: ["schema_suite"]
+
+  - package_id: wp-goal-gate
+    title: "Goal gate evidence check"
+    task_type: implementation
+    description: |
+      Phase 1, tasks 1.1-1.3. A pure function over validation-report.md (sections from
+      gate_logic.resolve_required_phases) and LoopState.phase_history. Separate package
+      because it has no dependency on the gate seam and its tests need no loop: the
+      wiring into _apply_transition belongs to wp-autopilot-gates (design D5, D6).
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    locks:
+      files:
+        - "skills/autopilot/scripts/goal_gate.py"
+      keys:
+        - "feature:encode-autopilot-gates-and-goal-gate-in-code:goalgate"
+      ttl_minutes: 90
+      reason: "New goal_gate module"
+    scope:
+      write_allow:
+        - "skills/autopilot/scripts/goal_gate.py"
+        - "skills/tests/autopilot/test_goal_gate.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "skills/autopilot/scripts/autopilot.py"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: goal-gate
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Goal-gate suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/test_goal_gate.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["goal_gate_suite"]
+        - name: "Module is ruff-clean"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/autopilot/scripts/goal_gate.py"
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_clean"]
+    metadata:
+      loc_estimate: 150
+      complexity: low
+      package_kind: algorithm
+    outputs:
+      result_keys: ["goal_gate_suite", "ruff_clean"]
+
+  - package_id: wp-autopilot-gates
+    title: "Gate seam, seven call sites, console protocol, DONE enforcement"
+    task_type: implementation
+    description: |
+      Phase 2, tasks 2.1-2.11. LoopState v5; the two console Resolution members in
+      skills/shared/approval_gate.py; the GateEvaluator seam and one call site per
+      autopilot Gate member; gate_pending handling; GatePending/GoalGateRefused in
+      _apply_transition; runner.py gate-check / gate-answer; the e2e posture test.
+
+      Kept as one package on purpose: every call site touches _run_phase, and the
+      D6 enforcement point is the same function the call sites feed. The AST-walk
+      test in 2.5 is the acceptance criterion "no gate whose only enforcement is
+      prose" made structural. Do not modify transition() — test_phase_transitions
+      guards it as the single centralised table.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts", "wp-goal-gate"]
+    locks:
+      files:
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/scripts/runner.py"
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/shared/approval_gate.py"
+      keys:
+        - "feature:encode-autopilot-gates-and-goal-gate-in-code:gates"
+      ttl_minutes: 120
+      reason: "Gate call sites and loop-state v5 in the autopilot loop"
+    scope:
+      write_allow:
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/scripts/runner.py"
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/scripts/handoff_builder.py"
+        - "skills/autopilot/scripts/tests/test_autopilot.py"
+        - "skills/shared/approval_gate.py"
+        - "skills/shared/tests/test_approval_gate.py"
+        - "skills/tests/autopilot/test_loop_state.py"
+        - "skills/tests/autopilot/test_apply_outcome_contract.py"
+        - "skills/tests/autopilot/test_gate_call_sites.py"
+        - "skills/tests/autopilot/test_console_interviewer.py"
+        - "skills/tests/autopilot/test_runner_cli.py"
+        - "skills/tests/autopilot/test_gate_e2e.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "skills/autopilot/SKILL.md"
+        - "skills/autopilot/scripts/goal_gate.py"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: autopilot-gates
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Autopilot suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot skills/autopilot/scripts/tests -q"
+          evidence:
+            artifacts: []
+            result_keys: ["autopilot_suite"]
+        - name: "Shared gate library suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/shared/tests -q"
+          evidence:
+            artifacts: []
+            result_keys: ["shared_suite"]
+        - name: "Every Gate member has exactly one call site"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/test_gate_call_sites.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["call_site_invariant"]
+        - name: "Touched modules are ruff-clean"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/autopilot/scripts skills/shared/approval_gate.py"
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_clean"]
+    metadata:
+      loc_estimate: 650
+      complexity: high
+      package_kind: integration
+    outputs:
+      result_keys: ["autopilot_suite", "shared_suite", "call_site_invariant", "ruff_clean"]
+
+  - package_id: wp-replan
+    title: "replan_required producer, gate, and replan scope"
+    task_type: implementation
+    description: |
+      Phase 3, tasks 3.1-3.7. fail_item(replan=...); Gate.REPLAN_REQUIRED evaluation
+      and replan-request.json in the autopilot-roadmap orchestrator; decomposer.py
+      replan-scope and --replan flag handling in plan-roadmap. Runs in parallel with
+      wp-goal-gate and wp-autopilot-gates: disjoint files, and the only shared
+      contract is the record shape frozen by wp-contracts. Must keep
+      test_host_assisted_invariant green — no LLM SDK, no network.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    locks:
+      files:
+        - "skills/roadmap-runtime/scripts/checkpoint.py"
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/plan-roadmap/scripts/decomposer.py"
+      keys:
+        - "feature:encode-autopilot-gates-and-goal-gate-in-code:replan"
+        - "event:roadmap.replan.request"
+      ttl_minutes: 120
+      reason: "replan_required producer and consumer path"
+    scope:
+      write_allow:
+        - "skills/roadmap-runtime/scripts/checkpoint.py"
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/plan-roadmap/scripts/decomposer.py"
+        - "skills/tests/roadmap-runtime/test_checkpoint_replan.py"
+        - "skills/tests/autopilot-roadmap/test_replan_gate.py"
+        - "skills/tests/plan-roadmap/test_replan_scope.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "skills/roadmap-runtime/scripts/models.py"
+        - "skills/autopilot-roadmap/SKILL.md"
+        - "skills/plan-roadmap/SKILL.md"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: replan
+      mode: isolated
+    timeout_minutes: 150
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Roadmap suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/roadmap-runtime skills/tests/autopilot-roadmap skills/tests/plan-roadmap -q"
+          evidence:
+            artifacts: []
+            result_keys: ["roadmap_suite"]
+        - name: "Host-assisted invariant holds"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot-roadmap/test_host_assisted_invariant.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["host_assisted_invariant"]
+        - name: "Touched modules are ruff-clean"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/roadmap-runtime/scripts/checkpoint.py skills/autopilot-roadmap/scripts/orchestrator.py skills/plan-roadmap/scripts/decomposer.py"
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_clean"]
+    metadata:
+      loc_estimate: 350
+      complexity: medium
+      package_kind: algorithm
+    outputs:
+      result_keys: ["roadmap_suite", "host_assisted_invariant", "ruff_clean"]
+
+  - package_id: wp-skill-docs
+    title: "De-prose the gates in SKILL.md and resync mirrors"
+    task_type: documentation
+    description: |
+      Phase 4, tasks 4.1-4.4. Replace the four prose gates in skills/autopilot/SKILL.md
+      with gate-check / gate-answer protocol blocks, fix the VALIDATE outcome
+      vocabulary, replace the deferred-replan section in autopilot-roadmap/SKILL.md,
+      document --replan in plan-roadmap/SKILL.md, run install.sh. Depends on both
+      implementation packages so the documented flags are the shipped flags; the
+      prose-free test (4.1) is what keeps the acceptance grep true after this change.
+    role: implementer
+    priority: 3
+    depends_on: ["wp-autopilot-gates", "wp-replan"]
+    locks:
+      files:
+        - "skills/autopilot/SKILL.md"
+        - "skills/autopilot-roadmap/SKILL.md"
+        - "skills/plan-roadmap/SKILL.md"
+      keys:
+        - "feature:encode-autopilot-gates-and-goal-gate-in-code:docs"
+      ttl_minutes: 60
+      reason: "Gate sections of three SKILL.md files plus mirrors"
+    scope:
+      write_allow:
+        - "skills/autopilot/SKILL.md"
+        - "skills/autopilot-roadmap/SKILL.md"
+        - "skills/plan-roadmap/SKILL.md"
+        - "skills/tests/autopilot/test_prose_free_gates.py"
+        - ".claude/skills/autopilot/SKILL.md"
+        - ".claude/skills/autopilot-roadmap/SKILL.md"
+        - ".claude/skills/plan-roadmap/SKILL.md"
+        - ".agents/skills/autopilot/SKILL.md"
+        - ".agents/skills/autopilot-roadmap/SKILL.md"
+        - ".agents/skills/plan-roadmap/SKILL.md"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "skills/**/scripts/**"
+    context_impact:
+      surfaces:
+        - "documentation"
+    worktree:
+      name: skill-docs
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Prose-free gate test passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/test_prose_free_gates.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["prose_free"]
+        - name: "Mirrors are in sync"
+          kind: command
+          command: "diff -q skills/autopilot/SKILL.md .claude/skills/autopilot/SKILL.md && diff -q skills/autopilot/SKILL.md .agents/skills/autopilot/SKILL.md"
+          evidence:
+            artifacts: []
+            result_keys: ["mirrors_synced"]
+    metadata:
+      loc_estimate: 200
+      complexity: low
+      package_kind: config
+    outputs:
+      result_keys: ["prose_free", "mirrors_synced"]
+
+  - package_id: wp-integration
+    title: "Full suites, spec validation, phase record"
+    task_type: integration
+    description: |
+      Phase 5, tasks 5.1-5.3. Merge the isolated worktrees, run the complete skills
+      suites and ruff, openspec validate --strict, confirm every SHALL scenario maps
+      to a test task, write the Implementation PhaseRecord, and push.
+    role: integrator
+    priority: 4
+    depends_on: ["wp-skill-docs"]
+    locks:
+      files: []
+      keys:
+        - "feature:encode-autopilot-gates-and-goal-gate-in-code:integration"
+      ttl_minutes: 60
+      reason: "Integration and verification"
+    scope:
+      write_allow:
+        - "openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/tasks.md"
+        - "openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/session-log.md"
+        - "openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/handoffs/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "capabilities"
+    worktree:
+      name: integration
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "All skills suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests skills/autopilot/scripts/tests skills/shared/tests -q"
+          evidence:
+            artifacts: []
+            result_keys: ["full_suite"]
+        - name: "OpenSpec strict validation passes"
+          kind: command
+          command: "openspec validate encode-autopilot-gates-and-goal-gate-in-code --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_valid"]
+    metadata:
+      loc_estimate: 20
+      complexity: low
+      package_kind: integration
+    outputs:
+      result_keys: ["full_suite", "openspec_valid"]
