@@ -75,6 +75,10 @@ packages:
     context_impact:
       surfaces:
         - "semantic_code"
+        # Added with the five SKILL.md corrections: those files feed the
+        # documentation inventory, so the package genuinely touches this
+        # surface. The context-impact gate caught the omission.
+        - "documentation"
     worktree:
       name: persistence
       mode: shared

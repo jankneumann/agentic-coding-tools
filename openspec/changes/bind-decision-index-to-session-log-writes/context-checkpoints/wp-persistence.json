@@ -9,6 +9,7 @@
   "context_impact": {
     "status": "declared",
     "surfaces": [
+      "documentation",
       "semantic_code"
     ]
   },
@@ -768,8 +769,8 @@
     "indexed_revision": null,
     "operation_id": null,
     "registry_record_id": null,
-    "requested_revision": "db80dfce01b75b54d287fbc7c6a710598cebc564",
+    "requested_revision": "60715f28752958c8b0614d6d146f29d1a9f6a01c",
     "status": "not-configured"
   },
-  "source_revision": "db80dfce01b75b54d287fbc7c6a710598cebc564"
+  "source_revision": "60715f28752958c8b0614d6d146f29d1a9f6a01c"
 }
