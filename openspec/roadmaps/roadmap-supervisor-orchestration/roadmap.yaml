@@ -29,7 +29,7 @@ items:
     no unwired team model remains.
 - item_id: ri-02
   title: Create supervise skill with conversational intake
-  status: approved
+  status: completed
   priority: 1
   effort: L
   depends_on:
@@ -361,7 +361,7 @@ items:
     the replanner query returns it in a test.
 - item_id: ri-16
   title: Add cross-roadmap readiness resolver
-  status: approved
+  status: completed
   priority: 2
   effort: S
   depends_on:
