@@ -69,17 +69,26 @@ reason and blocking findings, then run the gate protocol. The resume decision is
 recorded `ApprovalDecision`, never an inference from the conversation:
 
 ```bash
-python3 "<skill-base-dir>/scripts/runner.py" gate-check <change-id>
+python3 "<skill-base-dir>/scripts/runner.py" gate-check <change-id> \
+  --gate escalate_resume \
+  --context escalation_reason="<escalation_reason from loop-state.json>" \
+  --context previous_phase="<previous_phase from loop-state.json>"
 # exit 0 → ask the operator the printed `prompt` verbatim (AskUserQuestion), then:
 python3 "<skill-base-dir>/scripts/runner.py" gate-answer <change-id> \
   --gate escalate_resume --decision <approved|rejected> [--note "<operator note>"]
-# exit 3 → no gate pending; continue
+# exit 3 → nothing to ask; continue
+# exit 4 → parked (see stderr for the recorded reason); stop the run here
 ```
 
-`--decision approved` resumes the loop at `previous_phase`; `--decision rejected`
-leaves it parked in ESCALATE with the note recorded as the reason. The loop cannot
-be advanced around this: `apply-outcome` refuses to record anything while a gate is
-pending.
+`gate-check --gate` **evaluates** the gate against `TRUST_POSTURE.md` and records
+the decision before returning: exit 3 means the posture authorized the resume and
+the run continues from `previous_phase`; exit 0 means a person has to answer first;
+exit 4 means the gate was blocked in a way no console answer resolves (a rejection
+already recorded, a timeout that defaulted to block, or an unreachable coordinator)
+and the run stays parked in ESCALATE. `--decision approved` records the resume
+authorization; `--decision rejected` leaves it parked with the note as the reason.
+The loop cannot be advanced around this: `apply-outcome` refuses to record anything
+while a gate is pending.
 
 ### 1. INIT Phase
 
@@ -248,17 +257,23 @@ evaluates the proposal-approval gate on both PLAN outcomes (`created` and `exist
 so a pre-existing change is approved on this run's terms, not on a previous run's:
 
 ```bash
-python3 "<skill-base-dir>/scripts/runner.py" gate-check <change-id>
+python3 "<skill-base-dir>/scripts/runner.py" gate-check <change-id> \
+  --gate proposal_approval \
+  --context proposal_path="openspec/changes/<change-id>/proposal.md" \
+  --context approach="<created|exists>"
 # exit 0 → ask the operator the printed `prompt` verbatim (AskUserQuestion), then:
 python3 "<skill-base-dir>/scripts/runner.py" gate-answer <change-id> \
   --gate proposal_approval --decision <approved|rejected> [--note "<operator note>"]
-# exit 3 → no gate pending; continue
+# exit 3 → nothing to ask; continue
+# exit 4 → parked (see stderr for the recorded reason); stop the run here
 ```
 
-`--decision approved` applies the PLAN edge and the loop moves on; `--decision
-rejected` enters ESCALATE naming the gate and the note. Whether the gate parks at
-all is the trust posture's call (`TRUST_POSTURE.md`) — under an `auto` disposition
-`gate-check` exits 3 and there is nothing to ask.
+`--decision approved` records the approval and the loop moves on to PLAN_ITERATE;
+`--decision rejected` enters ESCALATE naming the gate and the note. Whether the gate
+parks at all is the trust posture's call (`TRUST_POSTURE.md`) — under an `auto`
+disposition `gate-check` records the decision, exits 3, and there is nothing to ask.
+An exit of 4 is not a "continue": the decision was blocked in a way no console answer
+resolves, the run is in ESCALATE, and this run stops.
 
 ### Per-Phase Sub-Agent Dispatch Protocol
 
@@ -685,16 +700,21 @@ first externally visible act of the run, so the authorization for it is recorded
 not assumed:
 
 ```bash
-python3 "<skill-base-dir>/scripts/runner.py" gate-check <change-id>
+python3 "<skill-base-dir>/scripts/runner.py" gate-check <change-id> \
+  --gate pr_creation \
+  --context branch="openspec/<change-id>" \
+  --context change_id="<change-id>"
 # exit 0 → ask the operator the printed `prompt` verbatim (AskUserQuestion), then:
 python3 "<skill-base-dir>/scripts/runner.py" gate-answer <change-id> \
   --gate pr_creation --decision <approved|rejected> [--note "<operator note>"]
-# exit 3 → no gate pending; continue
+# exit 3 → nothing to ask; continue
+# exit 4 → parked (see stderr for the recorded reason); stop the run here
 ```
 
 This gate authorizes work inside the phase rather than an edge, so an approval
 records the decision and leaves the loop in SUBMIT_PR; a rejection enters ESCALATE
-with the note. Do not run `gh pr create` until `gate-check` exits 3.
+with the note. **Do not run `gh pr create` until this exits 3** — exit 0 means an
+unanswered question, and exit 4 means the run is parked.
 
 Create a pull request with full evidence trail:
 
@@ -736,17 +756,23 @@ Then run the merge-authorization gate. It guards the SUBMIT_PR → DONE edge, so
 loop cannot report DONE until it is answered:
 
 ```bash
-python3 "<skill-base-dir>/scripts/runner.py" gate-check <change-id>
+python3 "<skill-base-dir>/scripts/runner.py" gate-check <change-id> \
+  --gate merge \
+  --context pr_url="<the PR URL from step 8>" \
+  --context branch="openspec/<change-id>" \
+  --context change_id="<change-id>"
 # exit 0 → ask the operator the printed `prompt` verbatim (AskUserQuestion), then:
 python3 "<skill-base-dir>/scripts/runner.py" gate-answer <change-id> \
   --gate merge --decision <approved|rejected> [--note "<operator note>"]
-# exit 3 → no gate pending; continue
+# exit 3 → nothing to ask; continue
+# exit 4 → parked (see stderr for the recorded reason); stop the run here
 ```
 
 **Autopilot never merges.** `--decision approved` records the authorization
-(`goal_gate.evidence.merge_authorized`, with the PR URL) and transitions to DONE;
+(`goal_gate.evidence.merge_authorized`, with the PR URL) and the run reports DONE;
 the pull request is merged by `/cleanup-feature <change-id>`, which remains the only
-executor. `--decision rejected` enters ESCALATE with the note.
+executor. `--decision rejected` enters ESCALATE with the note. Do not report DONE on
+an exit of 4 — that is a parked run, not an authorized one.
 
 DONE is also where the goal gate applies: the transition is refused unless the
 validation report's required sections read `pass` and this run's own VALIDATE
