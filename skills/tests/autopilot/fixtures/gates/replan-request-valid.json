@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "roadmap_id": "roadmap-always-on-agent-automation",
+  "failed_item_id": "ri-03",
+  "failure_reason": "dependency can be worked around; re-decompose the subgraph",
+  "replan_required_items": ["ri-07", "ri-08"],
+  "learning_entry": "openspec/roadmaps/roadmap-always-on-agent-automation/learnings/ri-03.md",
+  "gate_decision": {
+    "gate": "replan_required",
+    "outcome": "proceed",
+    "resolution": "auto",
+    "disposition": "auto",
+    "reason": "posture says auto",
+    "posture_present": true,
+    "recorded_at": "2026-08-30T12:10:00Z"
+  },
+  "requested_at": "2026-08-30T12:10:00Z"
+}

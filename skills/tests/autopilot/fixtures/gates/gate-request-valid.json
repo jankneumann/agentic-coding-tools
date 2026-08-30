@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "change_id": "encode-autopilot-gates-and-goal-gate-in-code",
+  "gate": "proposal_approval",
+  "phase": "PLAN",
+  "edge": {"outcome": "created", "target": "PLAN_ITERATE"},
+  "requested_at": "2026-08-30T12:00:00Z",
+  "prompt": "The proposal is written. Approve to continue to PLAN_ITERATE?",
+  "context": {"proposal_path": "openspec/changes/x/proposal.md", "approach": "Approach 1"},
+  "posture": {"disposition": "block", "posture_present": false}
+}

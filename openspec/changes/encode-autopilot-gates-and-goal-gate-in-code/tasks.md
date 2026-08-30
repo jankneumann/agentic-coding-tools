@@ -10,7 +10,7 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
 
 ## Phase 0 — wp-contracts: schemas are the coordination boundary
 
-- [ ] 0.1 Test: each of the three event schemas is a valid JSON Schema 2020-12 document and
+- [x] 0.1 Test: each of the three event schemas is a valid JSON Schema 2020-12 document and
       the `gate-decision` `resolution` enum equals `approval_gate.Resolution` values plus the
       two console values — **XS**
       **Spec scenarios**: sw *Gate records survive the dataclass round-trip*
@@ -18,12 +18,12 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
       **Design decisions**: D4
       **Dependencies**: None
 
-- [ ] 0.2 Fixtures: one valid and one invalid instance per schema under
+- [x] 0.2 Fixtures: one valid and one invalid instance per schema under
       `skills/tests/autopilot/fixtures/gates/`, asserted by 0.1 — **XS**
       **Contracts**: all three schemas
       **Dependencies**: 0.1
 
-- [ ] Checkpoint: run `skills/tests/autopilot -k schema`, review the diff, confirm only the
+- [x] Checkpoint: run `skills/tests/autopilot -k schema`, review the diff, confirm only the
       change directory and the fixtures directory changed
 
 ## Phase 1 — wp-goal-gate: the pure evidence check

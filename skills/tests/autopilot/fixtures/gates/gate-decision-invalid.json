@@ -1,0 +1,9 @@
+{
+  "gate": "merge",
+  "outcome": "blocked",
+  "resolution": "console_maybe",
+  "disposition": "block",
+  "reason": "resolution is not a member of approval_gate.Resolution",
+  "posture_present": false,
+  "recorded_at": "2026-08-30T12:05:00Z"
+}
