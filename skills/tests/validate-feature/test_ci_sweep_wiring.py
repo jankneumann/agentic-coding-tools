@@ -99,8 +99,9 @@ if [ ! -f "$TRACE_PYTHON" ]; then TRACE_PYTHON="python3"; fi
 # directory matching openspec/changes/<id>/" literally. Without it the
 # sed leaves a path with no `/` after the changes/ segment untouched, so
 # a file sitting directly under openspec/changes/ is emitted verbatim as
-# though it were a change id, and alongside a real change it trips the
-# ambiguity rule and hard-blocks a single-change pull request.
+# though it were a change id, and the loop below then spends a whole gate
+# invocation on `--change openspec/changes/README.md`, whose result is
+# meaningless and whose failure would block the pull request.
 #
 # -z (NUL-delimited) because git otherwise C-quotes the WHOLE path when
 # it contains non-ASCII bytes, newlines, tabs, backslashes, or double
@@ -470,10 +471,14 @@ def test_file_directly_under_changes_is_not_a_change_id(tmp_path: Path) -> None:
     assert "--change" not in result.stdout
 
 
-def test_file_directly_under_changes_does_not_trip_ambiguity(tmp_path: Path) -> None:
+def test_file_directly_under_changes_does_not_add_a_second_invocation(tmp_path: Path) -> None:
     """The same defect's worse half: alongside one real change directory, the
-    stray path became a second derived 'id' and the pull request was hard-failed
-    as ambiguous despite touching exactly one change."""
+    stray path became a second derived 'id'. Under the old ambiguity rule that
+    hard-failed the pull request; under the per-change loop it instead spends a
+    whole gate invocation on `--change openspec/changes/README.md`, whose result
+    is meaningless. Assert the invocation COUNT, not just the absence of a
+    failure — a count-blind assertion passes with the anchor deleted, because
+    the stray invocation exits 0 and leaves OVERALL at 0."""
     repo = _init_repo(tmp_path)
     base_sha = _git(repo, "rev-parse", "HEAD")
     changes = repo / "openspec" / "changes"
@@ -488,8 +493,10 @@ def test_file_directly_under_changes_does_not_trip_ambiguity(tmp_path: Path) -> 
         {"EVENT_NAME": "pull_request", "PR_BASE_SHA": base_sha, "PR_HEAD_REF": "openspec/real-change"},
     )
     assert result.returncode == 0, result.stdout
-    assert "ambiguous" not in result.stdout
     assert "argv: --scope capability --change real-change" in result.stdout
+    # The load-bearing assertion: exactly one gate invocation. Without the
+    # `grep -E '^openspec/changes/[^/]+/'` anchor in derive_change_ids this is 2.
+    assert result.stdout.count("argv: ") == 1, result.stdout
 
 
 def test_non_ascii_filename_still_derives_its_change_id(tmp_path: Path) -> None:

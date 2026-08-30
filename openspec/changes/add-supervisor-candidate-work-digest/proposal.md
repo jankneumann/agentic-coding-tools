@@ -167,7 +167,10 @@ periodic checkpoint. The digest logic lands in a new `scripts/digest.py` so
 - `ri-02` create-supervise-skill-with-conversational-intake — completed
 - `ri-05` extend-handoff-document-with-supervisor-record — planned (this branch); provides `back_edge`
 - `ri-11` define-canonical-candidate-work-schema — completed
-- `ri-16` add-cross-roadmap-readiness-resolver — completed (`39cb6a3e`)
+- `ri-16` add-cross-roadmap-readiness-resolver — **not started**. Declared by the
+  roadmap as a dependency, but this plan does not need the resolver itself: its
+  mechanical readiness signal reads `cycle_state.ready_across_roadmaps`, which
+  ri-02 shipped. Sequence after ri-16 only if the roadmap ordering is enforced.
 - `refine-roadmap` skill — on main (`e610553c`)
 
 ## Acceptance Outcomes

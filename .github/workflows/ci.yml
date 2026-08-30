@@ -785,8 +785,9 @@ jobs:
           # directory matching openspec/changes/<id>/" literally. Without it the
           # sed leaves a path with no `/` after the changes/ segment untouched, so
           # a file sitting directly under openspec/changes/ is emitted verbatim as
-          # though it were a change id, and alongside a real change it trips the
-          # ambiguity rule and hard-blocks a single-change pull request.
+          # though it were a change id, and the loop below then spends a whole gate
+          # invocation on `--change openspec/changes/README.md`, whose result is
+          # meaningless and whose failure would block the pull request.
           #
           # -z (NUL-delimited) because git otherwise C-quotes the WHOLE path when
           # it contains non-ASCII bytes, newlines, tabs, backslashes, or double

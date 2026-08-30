@@ -361,7 +361,7 @@ items:
     the replanner query returns it in a test.
 - item_id: ri-16
   title: Add cross-roadmap readiness resolver
-  status: completed
+  status: approved
   priority: 2
   effort: S
   depends_on:
