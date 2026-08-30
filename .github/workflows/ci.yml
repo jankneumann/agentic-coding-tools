@@ -855,13 +855,18 @@ jobs:
                 echo "SKIP: requirement-traceability sweep — no openspec/changes/<id>/ directory touched on ${PR_HEAD_REF:-this branch}"
                 exit 0
               fi
-              COUNT=$(printf '%s\n' "$CHANGE_IDS" | grep -c .)
-              if [ "$COUNT" -gt 1 ]; then
-                echo "::error::requirement-traceability sweep: ambiguous — pull request touches multiple change directories: $(printf '%s' "$CHANGE_IDS" | tr '\n' ' ')"
-                exit 1
-              fi
-              run_gate "$CHANGE_IDS"
-              exit $?
+              # A pull request may carry several change directories (a scaffold of
+              # sibling changes, or a batch of plans). Iterate and block if any
+              # invocation fails — the same rule merge_group applies below; the gate
+              # is scoped per --change either way.
+              OVERALL=0
+              while IFS= read -r id; do
+                [ -z "$id" ] && continue
+                echo "requirement-traceability sweep: evaluating change '$id' on ${PR_HEAD_REF:-this branch}"
+                run_gate "$id"
+                [ $? -ne 0 ] && OVERALL=1
+              done <<< "$CHANGE_IDS"
+              exit "$OVERALL"
               ;;
             merge_group)
               if [ -z "${MERGE_GROUP_BASE_SHA:-}" ]; then

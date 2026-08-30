@@ -17,8 +17,8 @@ reports the rest"):
 - "A pull request that was not planned through OpenSpec skips"
   (non-openspec-pr-skips)
 - "An archive pull request derives no change id" (archive-pull-requests-skip)
-- "A pull request touching two change directories fails as ambiguous"
-  (ambiguous-change-fails)
+- "A pull request touching two change directories is evaluated once per change"
+  (pull-request-iterates-over-touched-changes)
 - "An unresolvable base fails rather than skipping"
   (unresolvable-base-fails-not-skips) — both `pull_request` and `merge_group`
 - "A merge group batching two changes is evaluated once per change"
@@ -169,13 +169,18 @@ case "$EVENT_NAME" in
       echo "SKIP: requirement-traceability sweep — no openspec/changes/<id>/ directory touched on ${PR_HEAD_REF:-this branch}"
       exit 0
     fi
-    COUNT=$(printf '%s\\n' "$CHANGE_IDS" | grep -c .)
-    if [ "$COUNT" -gt 1 ]; then
-      echo "::error::requirement-traceability sweep: ambiguous — pull request touches multiple change directories: $(printf '%s' "$CHANGE_IDS" | tr '\\n' ' ')"
-      exit 1
-    fi
-    run_gate "$CHANGE_IDS"
-    exit $?
+    # A pull request may carry several change directories (a scaffold of
+    # sibling changes, or a batch of plans). Iterate and block if any
+    # invocation fails — the same rule merge_group applies below; the gate
+    # is scoped per --change either way.
+    OVERALL=0
+    while IFS= read -r id; do
+      [ -z "$id" ] && continue
+      echo "requirement-traceability sweep: evaluating change '$id' on ${PR_HEAD_REF:-this branch}"
+      run_gate "$id"
+      [ $? -ne 0 ] && OVERALL=1
+    done <<< "$CHANGE_IDS"
+    exit "$OVERALL"
     ;;
   merge_group)
     if [ -z "${MERGE_GROUP_BASE_SHA:-}" ]; then
@@ -384,9 +389,10 @@ def test_archive_pull_request_derives_no_change_id(tmp_path: Path) -> None:
     assert "ambiguous" not in result.stdout
 
 
-def test_ambiguous_change_fails_on_pull_request(tmp_path: Path) -> None:
-    """Spec: 'A pull request touching two change directories fails as
-    ambiguous' — fail naming both candidates, do not choose."""
+def test_multi_change_pull_request_iterates_once_per_change(tmp_path: Path) -> None:
+    """Spec: 'A pull request touching two change directories is evaluated
+    once per change' — invoke the gate twice, once per derived change id,
+    each with --change <id>; never fail as ambiguous."""
     repo = _init_repo(tmp_path)
     base_sha = _git(repo, "rev-parse", "HEAD")
     for change_id in ("change-a", "change-b"):
@@ -394,6 +400,35 @@ def test_ambiguous_change_fails_on_pull_request(tmp_path: Path) -> None:
         change_dir.mkdir(parents=True)
         (change_dir / "spec.md").write_text(f"# {change_id}\n")
     _commit_all(repo, "add two changes")
+    _make_stub_gate(repo)
+
+    result = _run(
+        repo,
+        {
+            "EVENT_NAME": "pull_request",
+            "PR_BASE_SHA": base_sha,
+            "PR_HEAD_REF": "some-branch",
+        },
+    )
+    assert result.returncode == 0, result.stdout
+    assert "argv: --scope capability --change change-a" in result.stdout
+    assert "argv: --scope capability --change change-b" in result.stdout
+    assert "ambiguous" not in result.stdout
+    assert "SKIP" not in result.stdout
+
+
+def test_multi_change_pull_request_blocks_if_any_invocation_fails(tmp_path: Path) -> None:
+    """Same two-change pull request, but one change's invocation fails — the
+    pull request must block (non-zero exit) after visiting BOTH ids, so the
+    loop does not stop at the first failure."""
+    repo = _init_repo(tmp_path)
+    base_sha = _git(repo, "rev-parse", "HEAD")
+    for change_id in ("change-a", "change-b"):
+        change_dir = repo / "openspec" / "changes" / change_id
+        change_dir.mkdir(parents=True)
+        (change_dir / "spec.md").write_text(f"# {change_id}\n")
+    _commit_all(repo, "add two changes")
+    _make_stub_gate(repo, fail_ids=("change-a",), violation_text="change-a: cites no requirement")
 
     result = _run(
         repo,
@@ -404,11 +439,9 @@ def test_ambiguous_change_fails_on_pull_request(tmp_path: Path) -> None:
         },
     )
     assert result.returncode == 1, result.stdout
-    assert "::error::" in result.stdout
-    assert "ambiguous" in result.stdout
-    assert "change-a" in result.stdout
-    assert "change-b" in result.stdout
-    assert "SKIP" not in result.stdout
+    assert "change-a: cites no requirement" in result.stdout
+    assert "argv: --scope capability --change change-b" in result.stdout
+    assert "ambiguous" not in result.stdout
 
 
 def test_file_directly_under_changes_is_not_a_change_id(tmp_path: Path) -> None:
@@ -537,7 +570,7 @@ def test_single_change_pull_request_blocks_when_the_gate_fails(tmp_path: Path) -
 
     This is the primary blocking event, and until this test existed nothing
     covered it: the other pull_request cases all return before `run_gate` is
-    ever reached (SKIP, SKIP, ambiguous, unresolvable base), so rewriting the
+    ever reached (SKIP, SKIP, unresolvable base), so rewriting the
     arm's `exit $?` to `exit 0` left the whole suite green while the gate
     stopped gating. Both halves are asserted here — the argv built, and the
     non-zero status propagated."""
