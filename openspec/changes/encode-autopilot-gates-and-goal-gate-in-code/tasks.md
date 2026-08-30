@@ -249,14 +249,14 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
 
 ## Phase 5 — wp-integration
 
-- [ ] 5.1 Run the full skills suite (`skills/tests`, `skills/autopilot/scripts/tests`,
+- [x] 5.1 Run the full skills suite (`skills/tests`, `skills/autopilot/scripts/tests`,
       `skills/shared/tests`) and `ruff check` on the touched packages — **S**
       **Dependencies**: all Phase 1–4 tasks
 
-- [ ] 5.2 `openspec validate encode-autopilot-gates-and-goal-gate-in-code --strict`; confirm
+- [x] 5.2 `openspec validate encode-autopilot-gates-and-goal-gate-in-code --strict`; confirm
       every SHALL scenario above maps to at least one test task — **XS**
       **Dependencies**: 5.1
 
-- [ ] 5.3 Append the Implementation `PhaseRecord` via `write_both()`; update this file's
+- [x] 5.3 Append the Implementation `PhaseRecord` via `write_both()`; update this file's
       checkboxes; commit and push — **XS**
       **Dependencies**: 5.2
