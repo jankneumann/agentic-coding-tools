@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-30T16:46:56.063939+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "external coordinator write not authorized",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "PR #360 merged the reviewed planning artifacts by rebase. All 33 unchecked implementation tasks were migrated to followup-add-prime-agent-harness with their design, contracts, spec deltas, dependencies, and file scopes intact. The original change is approved for archival without canonical spec promotion because no implementation or production rollout occurred.",
+    "completed_work": [
+      "verified PR #360 merged via rebase",
+      "refreshed architecture artifacts and provenance",
+      "migrated 33 open tasks to followup-add-prime-agent-harness",
+      "preserved PR #360 merge metrics"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Migrate all open work to a follow-up OpenSpec proposal",
+        "rationale": "The entire implementation remained open, so a follow-up proposal preserves executable planning context better than flattening the work into issue summaries.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Archive without canonical spec promotion",
+        "rationale": "The copied deltas describe unimplemented behavior and remain owned by the follow-up proposal; promoting them during cleanup would misstate implementation reality.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Treat staged rollout as not applicable",
+        "rationale": "PR #360 contained planning artifacts only and deployed no runtime behavior, feature flag, traffic shift, or production artifact.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "archive add-prime-agent-harness with spec promotion skipped",
+      "implement followup-add-prime-agent-harness when scheduled"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/followup-add-prime-agent-harness/",
+        "description": "Approved successor proposal containing all unimplemented work"
+      }
+    ]
+  }
+}

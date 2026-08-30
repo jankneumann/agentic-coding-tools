@@ -216,3 +216,9 @@ checkpoint 1.5 passes.
   `add-adaptive-model-router` (design D7); ACP adapter spike (design D3); review-mode
   unblock work if 1.3 withheld it (XS)
   **Dependencies**: 6.2
+
+## Migration Notes
+
+All 33 open tasks were migrated to follow-up proposal
+`followup-add-prime-agent-harness` on 2026-08-30. The follow-up preserves the
+reviewed design, contracts, spec deltas, dependency DAG, and file scopes.

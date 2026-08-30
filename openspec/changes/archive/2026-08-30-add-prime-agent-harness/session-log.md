@@ -47,3 +47,38 @@
 Addressed all three unresolved PR review themes and a parallelizability gap.
 The plan now has executable contracts and work packages, a strict coordinator/provider
 credential boundary, and a typed fail-closed producer/consumer cleanup contract.
+
+---
+
+## Phase: Cleanup (2026-08-30)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Migrate all open work to a follow-up OpenSpec proposal** — The entire implementation remained open, so a follow-up proposal preserves executable planning context better than flattening the work into issue summaries.
+2. **Archive without canonical spec promotion** — The copied deltas describe unimplemented behavior and remain owned by the follow-up proposal; promoting them during cleanup would misstate implementation reality.
+3. **Treat staged rollout as not applicable** — PR #360 contained planning artifacts only and deployed no runtime behavior, feature flag, traffic shift, or production artifact.
+
+### Alternatives Considered
+- Coordinator issues: rejected because seven phase issues would lose the detailed reviewed design, contracts, and package DAG
+- Merge spec deltas while archiving: rejected because canonical specs must not claim behavior that has not been implemented
+
+### Trade-offs
+- Accepted a new active follow-up proposal over a fully closed feature record because implementation traceability and truthful canonical specs outweigh having no active successor
+
+### Completed Work
+- verified PR #360 merged via rebase
+- refreshed architecture artifacts and provenance
+- migrated 33 open tasks to followup-add-prime-agent-harness
+- preserved PR #360 merge metrics
+
+### Next Steps
+- archive add-prime-agent-harness with spec promotion skipped
+- implement followup-add-prime-agent-harness when scheduled
+
+### Relevant Files
+- `openspec/changes/followup-add-prime-agent-harness/` — Approved successor proposal containing all unimplemented work
+
+### Context
+PR #360 merged the reviewed planning artifacts by rebase. All 33 unchecked implementation tasks were migrated to followup-add-prime-agent-harness with their design, contracts, spec deltas, dependencies, and file scopes intact. The original change is approved for archival without canonical spec promotion because no implementation or production rollout occurred.
+
