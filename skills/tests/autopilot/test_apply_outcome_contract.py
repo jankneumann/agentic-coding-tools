@@ -199,3 +199,58 @@ def test_apply_outcome_success_does_not_escalate(chdir_tmp: Path) -> None:
     assert rc == 0
     state = json.loads(state_path.read_text())
     assert state["current_phase"] == "IMPLEMENT"
+
+
+# ---------------------------------------------------------------------------
+# v5 pass-through (encode-autopilot-gates-and-goal-gate-in-code, D7)
+# ---------------------------------------------------------------------------
+
+
+def test_escalate_wrapper_carries_the_v5_gate_keys_through(chdir_tmp: Path) -> None:
+    """A v4 file escalated by the wrapper comes back out as a complete v5 file.
+
+    The wrapper edits raw JSON rather than a LoopState, so the new keys have to
+    be added explicitly — otherwise the next load_state would bump the version
+    while the fields it names were never actually written.
+    """
+    state_path = _seed_state(chdir_tmp, "demo", current_phase="IMPLEMENT")
+
+    autopilot.apply_outcome_or_escalate(
+        change_id="demo", phase="IMPLEMENT", outcome="complete",
+        handoff_id="h-v5", state_path=state_path,
+        apply_runner=lambda **_kwargs: 1,
+    )
+
+    state = json.loads(state_path.read_text())
+    assert state["schema_version"] == 5
+    assert state["gate_decisions"] == []
+    assert state["pending_gate"] is None
+    assert state["goal_gate"] is None
+    # The pre-existing v4 fields still survive the raw-dict round-trip.
+    assert state["current_phase"] == "ESCALATE"
+    assert state["phase_history"]
+
+
+def test_escalate_wrapper_preserves_existing_gate_records(chdir_tmp: Path) -> None:
+    """setdefault, not overwrite: an escalation must not erase the audit trail."""
+    decisions = [{
+        "gate": "proposal_approval",
+        "outcome": "proceed",
+        "resolution": "console_approved",
+        "disposition": "block",
+        "reason": "operator approved",
+        "posture_present": False,
+        "recorded_at": "2026-08-30T00:00:00+00:00",
+    }]
+    state_path = _seed_state(
+        chdir_tmp, "demo", schema_version=5, gate_decisions=decisions,
+        pending_gate=None, goal_gate=None,
+    )
+
+    autopilot.apply_outcome_or_escalate(
+        change_id="demo", phase="IMPLEMENT", outcome="complete",
+        handoff_id="h-v5", state_path=state_path,
+        apply_runner=lambda **_kwargs: 1,
+    )
+
+    assert json.loads(state_path.read_text())["gate_decisions"] == decisions

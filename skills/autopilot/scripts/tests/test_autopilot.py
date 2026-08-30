@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -30,6 +31,93 @@ from autopilot import (
     save_state,
     transition,
 )
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from shared.approval_gate import ApprovalDecision, Outcome, Resolution  # noqa: E402
+from shared.trust_posture import Disposition, Gate  # noqa: E402
+
+
+# ---------------------------------------------------------------------------
+# Gate seam test doubles
+#
+# The tests in this module exercise the PHASE MACHINERY (transition table,
+# escalation, convergence, callbacks), not the trust-posture gates — those have
+# their own suites under skills/tests/autopilot/test_gate_*.py. Production
+# defaults to a fail-closed evaluator (no TRUST_POSTURE.md => every gate blocks),
+# which would park each of these runs at its first gate and tell us nothing about
+# the machinery. So they inject a double instead of weakening the default.
+#
+# The double is deliberately NOT all-auto: escalate_resume blocks, mirroring the
+# pre-gate `check_escalation_resolved` stub that returned False. An all-auto
+# escalate_resume would make ESCALATE self-resolving and turn every "the loop
+# parks at ESCALATE" test into an infinite resume loop.
+# ---------------------------------------------------------------------------
+
+
+class MachineryGateEvaluator:
+    """Auto-approves every gate except escalate_resume, which parks."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict]] = []
+
+    def evaluate(self, gate: Gate, context: dict | None = None) -> ApprovalDecision:
+        self.calls.append((gate.value, dict(context or {})))
+        if gate is Gate.ESCALATE_RESUME:
+            return ApprovalDecision(
+                gate=gate,
+                outcome=Outcome.BLOCKED,
+                resolution=Resolution.POSTURE_BLOCK,
+                disposition=Disposition.BLOCK,
+                reason="escalation not resolved",
+                posture_present=False,
+            )
+        return ApprovalDecision(
+            gate=gate,
+            outcome=Outcome.PROCEED,
+            resolution=Resolution.AUTO,
+            disposition=Disposition.AUTO,
+            reason="auto",
+            posture_present=True,
+        )
+
+
+@pytest.fixture(autouse=True)
+def machinery_gates(monkeypatch: pytest.MonkeyPatch) -> MachineryGateEvaluator:
+    """Inject the machinery double wherever this module's runs build a default.
+
+    Patches the lazy default *builder*, not the fail-closed posture logic, so
+    production still defaults to block.
+    """
+    evaluator = MachineryGateEvaluator()
+    monkeypatch.setattr(
+        "autopilot._build_gate_evaluator", lambda change_id, repo_root: evaluator
+    )
+    return evaluator
+
+
+_PASSING_REPORT = (
+    "# Validation Report\n\n"
+    "## Spec Compliance\n\n**Status**: pass\n\n"
+    "## Validation Review\n\n**Status**: pass\n"
+)
+
+
+def make_change_dir(tmp_path: Path, *, evidence: bool = True) -> Path:
+    """An OpenSpec change dir carrying the evidence the goal gate needs for DONE.
+
+    Reaching DONE now requires a passing validation report plus a VALIDATE
+    history entry that postdates it (design D5), so a run that wants to finish
+    has to supply the artifact. `deployable: false` keeps the required-section
+    set deterministic instead of deriving it from git.
+    """
+    change_dir = tmp_path / "change"
+    change_dir.mkdir()
+    (change_dir / "proposal.md").write_text(
+        "---\ndeployable: false\n---\n\n# Proposal\n"
+    )
+    if evidence:
+        (change_dir / "validation-report.md").write_text(_PASSING_REPORT)
+    return change_dir
 
 # ---------------------------------------------------------------------------
 # State persistence
@@ -63,7 +151,7 @@ def test_state_save_load_roundtrip(tmp_path: Path) -> None:
 def test_initial_state_defaults() -> None:
     """A fresh LoopState has the expected default values."""
     state = LoopState()
-    assert state.schema_version == 4  # bumped 3->4 by the GATEKEEPER judge gate
+    assert state.schema_version == 5  # bumped 4->5 by the trust-posture gate fields
     assert state.change_id == ""
     assert state.current_phase == "INIT"
     assert state.iteration == 0
@@ -83,6 +171,10 @@ def test_initial_state_defaults() -> None:
     assert state.escalation_reason is None
     assert state.val_review_enabled is False
     assert state.error is None
+    # v5 gate fields default empty — never to an invented decision.
+    assert state.gate_decisions == []
+    assert state.pending_gate is None
+    assert state.goal_gate is None
 
 
 # ---------------------------------------------------------------------------
@@ -241,18 +333,24 @@ def test_check_escalation_resolved_with_callback() -> None:
 
 def test_resume_from_saved_state(tmp_path: Path) -> None:
     """Load state from file, run_loop continues from saved phase."""
+    change_dir = make_change_dir(tmp_path)
+    wt = tmp_path / "wt"
+    wt.mkdir()
+
     state = LoopState(
         change_id="resume-1",
         current_phase="SUBMIT_PR",
         total_iterations=10,
+        # Resuming straight into SUBMIT_PR skips VALIDATE, so the evidence the
+        # goal gate needs has to come from the earlier run that produced it.
+        phase_history=[{
+            "phase": "VALIDATE",
+            "outcome": "passed",
+            "at": datetime.now(timezone.utc).isoformat(),
+        }],
     )
     state_path = tmp_path / "state.json"
     save_state(state, state_path)
-
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
-    wt = tmp_path / "wt"
-    wt.mkdir()
 
     result = run_loop(
         "resume-1",
@@ -271,8 +369,7 @@ def test_resume_from_saved_state(tmp_path: Path) -> None:
 
 def test_full_happy_path(tmp_path: Path) -> None:
     """Mock all callbacks — run from INIT to DONE without findings."""
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
+    change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 
@@ -301,8 +398,7 @@ def test_full_happy_path(tmp_path: Path) -> None:
 
 def test_full_happy_path_no_cli_review(tmp_path: Path) -> None:
     """With cli_review_enabled=False, review phases are skipped."""
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
+    change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 
@@ -339,8 +435,7 @@ def test_full_happy_path_no_cli_review(tmp_path: Path) -> None:
 
 def test_plan_review_fix_loop(tmp_path: Path) -> None:
     """Convergence fails round 1, succeeds round 2."""
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
+    change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 
@@ -376,8 +471,7 @@ def test_plan_review_fix_loop(tmp_path: Path) -> None:
 
 def test_complexity_gate_blocks(tmp_path: Path) -> None:
     """assess_complexity returns force_required -> ESCALATE."""
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
+    change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 
@@ -402,8 +496,7 @@ def test_complexity_gate_blocks(tmp_path: Path) -> None:
 
 def test_gatekeeper_escalate_stops_loop(tmp_path: Path) -> None:
     """A judge verdict of 'escalate' halts the loop at ESCALATE."""
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
+    change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 
@@ -429,8 +522,7 @@ def test_gatekeeper_escalate_stops_loop(tmp_path: Path) -> None:
 
 def test_force_bypasses_scope_safety_floor_in_init(tmp_path: Path) -> None:
     """--force overrides the deterministic scope-safety floor at INIT."""
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
+    change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 
@@ -462,8 +554,7 @@ def test_force_bypasses_scope_safety_floor_in_init(tmp_path: Path) -> None:
 
 def test_gatekeeper_proceed_with_review_enables_val_review(tmp_path: Path) -> None:
     """'proceed_with_review' flips val_review_enabled and continues to DONE."""
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
+    change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 
@@ -490,8 +581,7 @@ def test_gatekeeper_proceed_with_review_enables_val_review(tmp_path: Path) -> No
 
 def test_gatekeeper_permissive_fallback_without_judge(tmp_path: Path) -> None:
     """No gatekeeper_fn -> permissive verdict derived from signals."""
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
+    change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 
@@ -520,8 +610,7 @@ def test_gatekeeper_permissive_fallback_without_judge(tmp_path: Path) -> None:
 
 def test_force_skips_gatekeeper(tmp_path: Path) -> None:
     """--force bypasses the judge entirely (it is never called)."""
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
+    change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 
@@ -548,8 +637,7 @@ def test_force_skips_gatekeeper(tmp_path: Path) -> None:
 
 def test_iterate_callbacks_called(tmp_path: Path) -> None:
     """iterate_plan_fn and iterate_impl_fn are called in the loop."""
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
+    change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 
@@ -578,8 +666,7 @@ def test_iterate_callbacks_called(tmp_path: Path) -> None:
 
 def test_iterate_plan_failure_escalates(tmp_path: Path) -> None:
     """iterate_plan_fn returning 'failed' leads to ESCALATE."""
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
+    change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 
@@ -613,8 +700,7 @@ def test_cli_review_enabled_persisted(tmp_path: Path) -> None:
 
 def test_complexity_gate_enables_val_review(tmp_path: Path) -> None:
     """assess_complexity with val_review_enabled -> state reflects it."""
-    change_dir = tmp_path / "change"
-    change_dir.mkdir()
+    change_dir = make_change_dir(tmp_path)
     wt = tmp_path / "wt"
     wt.mkdir()
 

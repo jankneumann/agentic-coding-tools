@@ -56,7 +56,7 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
 
 ## Phase 2 — wp-autopilot-gates: seam, call sites, console protocol
 
-- [ ] 2.1 Test: a v4 `loop-state.json` loads as v5 with `gate_decisions=[]`,
+- [x] 2.1 Test: a v4 `loop-state.json` loads as v5 with `gate_decisions=[]`,
       `pending_gate=None`, `goal_gate=None`, all v4 fields intact; v5 round-trips
       byte-identically — **S**
       **Spec scenarios**: sw *v4 loop state loads with empty gate fields*, *Gate records
@@ -65,27 +65,27 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
       **Design decisions**: D7
       **Dependencies**: None
 
-- [ ] 2.2 Implement `LoopState` v5 fields, migration in `load_state`, and pass-through of the
+- [x] 2.2 Implement `LoopState` v5 fields, migration in `load_state`, and pass-through of the
       three keys in `apply_outcome_or_escalate` — **S**
       **Design decisions**: D7
       **Dependencies**: 2.1
 
-- [ ] 2.3 Test: `Resolution.CONSOLE_APPROVED` is a proceed resolution,
+- [x] 2.3 Test: `Resolution.CONSOLE_APPROVED` is a proceed resolution,
       `Resolution.CONSOLE_REJECTED` is not, and `ApprovalGate.evaluate()` never returns
       either — **XS**
       **Contracts**: gate-decision
       **Design decisions**: D4
       **Dependencies**: None
 
-- [ ] 2.4 Add the two console members to `approval_gate.Resolution` and
+- [x] 2.4 Add the two console members to `approval_gate.Resolution` and
       `_PROCEED_RESOLUTIONS` — **XS**
       **Design decisions**: D4
       **Dependencies**: 2.3
 
-- [ ] Checkpoint: `skills/shared/tests` and `skills/tests/autopilot/test_loop_state.py`
+- [x] Checkpoint: `skills/shared/tests` and `skills/tests/autopilot/test_loop_state.py`
       green, review the diff, confirm no handler logic changed yet
 
-- [ ] 2.5 Test: with a `FakeGateEvaluator`, each of the seven autopilot gates is evaluated at
+- [x] 2.5 Test: with a `FakeGateEvaluator`, each of the seven autopilot gates is evaluated at
       exactly its D2 site with the documented context keys; an AST walk over `autopilot.py`
       and `orchestrator.py` finds exactly one `evaluate(Gate.<X>` per `Gate` member; an
       all-`auto` evaluator runs the happy path to `SUBMIT_PR` with zero `gate_pending`; every
@@ -96,17 +96,17 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
       **Design decisions**: D1, D2
       **Dependencies**: 2.2, 2.4
 
-- [ ] 2.6 Implement the `GateEvaluator` protocol, the lazy default, and the seven call sites
+- [x] 2.6 Implement the `GateEvaluator` protocol, the lazy default, and the seven call sites
       in `_phase_gatekeeper`, `_phase_plan`, `_run_phase`, `_phase_escalate`,
       `_phase_submit_pr` — **M**
       **Design decisions**: D1, D2
       **Dependencies**: 2.5
 
-- [ ] Checkpoint: `skills/autopilot/scripts/tests/test_autopilot.py` still green with no
+- [x] Checkpoint: `skills/autopilot/scripts/tests/test_autopilot.py` still green with no
       evaluator injected (lazy default must not be built when no gate is reached), review the
       diff, confirm `transition()` is unchanged
 
-- [ ] 2.7 Test: `posture_block` sets `pending_gate` and returns `gate_pending` without
+- [x] 2.7 Test: `posture_block` sets `pending_gate` and returns `gate_pending` without
       exiting; `notify`-family BLOCKED resolutions park like ESCALATE; `_apply_transition`
       raises `GatePending` while a gate is pending; a DONE-targeted edge with refused evidence
       raises `GoalGateRefused` and `run_loop` lands in ESCALATE with the reason;
@@ -120,16 +120,16 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
       **Design decisions**: D3, D6
       **Dependencies**: 1.3, 2.6
 
-- [ ] 2.8 Implement `gate_pending` handling in `_run_phase`/`run_loop`, the `GatePending` and
+- [x] 2.8 Implement `gate_pending` handling in `_run_phase`/`run_loop`, the `GatePending` and
       `GoalGateRefused` checks in `_apply_transition`, and the `abandoned` record — **S**
       **Design decisions**: D3, D6
       **Dependencies**: 2.7
 
-- [ ] Checkpoint: full `skills/tests/autopilot` + `skills/autopilot/scripts/tests` green,
+- [x] Checkpoint: full `skills/tests/autopilot` + `skills/autopilot/scripts/tests` green,
       review the diff, confirm `phase_agent.apply_phase_outcome` still routes through
       `_apply_transition`
 
-- [ ] 2.9 Test: `runner.py gate-check` prints schema-valid JSON and exits 0/3;
+- [x] 2.9 Test: `runner.py gate-check` prints schema-valid JSON and exits 0/3;
       `gate-answer --decision approved` records `console_approved`, clears `pending_gate`,
       applies the edge; `rejected` enters ESCALATE with the note; a mismatched `--gate` exits
       2 and mutates nothing; `apply-outcome` refuses while a gate is pending — **S**
@@ -140,12 +140,12 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
       **Design decisions**: D3, D4
       **Dependencies**: 2.8
 
-- [ ] 2.10 Implement `gate-check` and `gate-answer` subcommands in `runner.py` and the
+- [x] 2.10 Implement `gate-check` and `gate-answer` subcommands in `runner.py` and the
       pending-gate refusal in `apply-outcome` — **S**
       **Design decisions**: D3
       **Dependencies**: 2.9
 
-- [ ] 2.11 Test (e2e, `test_gate_e2e.py`): with a temp `TRUST_POSTURE.md` of all `auto`, a
+- [x] 2.11 Test (e2e, `test_gate_e2e.py`): with a temp `TRUST_POSTURE.md` of all `auto`, a
       scripted happy path reaches `SUBMIT_PR` with no interaction and eight `auto` records;
       with no posture file the same path stops at PLAN with `pending_gate.gate ==
       "proposal_approval"`; with `merge: notify_with_timeout` and a client raising
@@ -156,7 +156,7 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
       **Design decisions**: D1, D3
       **Dependencies**: 2.10
 
-- [ ] Checkpoint: e2e green, review the cumulative Phase 2 diff against `write_allow`, update
+- [x] Checkpoint: e2e green, review the cumulative Phase 2 diff against `write_allow`, update
       these checkboxes
 
 ## Phase 3 — wp-replan: producer, gate, and replan scope

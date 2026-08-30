@@ -48,6 +48,24 @@ try:
 except ImportError:
     select_strategies = None  # type: ignore[assignment]
 
+# The trust-posture gate contract (ri-04) and the interviewer that executes it
+# (ri-05) live under skills/shared/. They are imported eagerly and unguarded:
+# a gate the loop cannot evaluate must be a loud import error, never a silently
+# skipped human checkpoint. Constructing the *default* evaluator stays lazy
+# (see _build_gate_evaluator) so importing this module never needs a coordinator.
+_SKILLS_ROOT = _SCRIPTS_DIR.parent.parent
+if str(_SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SKILLS_ROOT))
+
+from shared.approval_gate import (  # noqa: E402
+    ApprovalDecision,
+    Resolution,
+    build_default_gate,
+)
+from shared.trust_posture import Gate  # noqa: E402
+
+LOOP_STATE_SCHEMA_VERSION = 5
+
 
 # ---------------------------------------------------------------------------
 # LoopState dataclass  (mirrors convergence-state.schema.json)
@@ -64,9 +82,12 @@ class LoopState:
             add-per-phase-archetype-resolution; design decision D7)
         4 — adds force, gate_signals, gate_verdict (GATEKEEPER judge gate —
             replaces deterministic complexity blocking)
+        5 — adds gate_decisions, pending_gate, goal_gate (trust-posture gates
+            and the DONE evidence check; OpenSpec
+            encode-autopilot-gates-and-goal-gate-in-code, design D7)
     """
 
-    schema_version: int = 4
+    schema_version: int = LOOP_STATE_SCHEMA_VERSION
     change_id: str = ""
     current_phase: str = "INIT"
     iteration: int = 0
@@ -110,6 +131,18 @@ class LoopState:
     force: bool = False
     gate_signals: dict[str, Any] = field(default_factory=dict)
     gate_verdict: str | None = None
+    # NEW (v5): trust-posture gate records.
+    # `gate_decisions` is the append-only audit log of every ApprovalDecision
+    # the loop acted on (contracts/events/gate-decision.schema.json). It is
+    # written BEFORE the loop acts on a decision so a crash can never lose the
+    # authorization for a transition that already happened.
+    # `pending_gate` is a GateRequest (contracts/events/gate-request.schema.json)
+    # the host must answer via `runner.py gate-answer`; while it is set the loop
+    # refuses to transition at all (`_apply_transition` raises GatePending).
+    # `goal_gate` records the DONE evidence verdict (goal_gate.check_goal_gate).
+    gate_decisions: list[dict[str, Any]] = field(default_factory=list)
+    pending_gate: dict[str, Any] | None = None
+    goal_gate: dict[str, Any] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -126,9 +159,10 @@ def save_state(state: LoopState, path: str | Path) -> None:
 def load_state(path: str | Path) -> LoopState:
     """Deserialize a LoopState from the JSON file at *path*.
 
-    Migrates older snapshots forward (D7): v2 files load with
-    ``phase_archetype = None`` and ``schema_version = 3``; the migration is
-    persisted on the next ``save_state`` call.
+    Migrates older snapshots forward (D7): a v4 file loads with
+    ``gate_decisions = []``, ``pending_gate = None`` and ``goal_gate = None``
+    while every field it did carry (``phase_history`` included) is preserved;
+    the migration is persisted on the next ``save_state`` call.
     """
     data = json.loads(Path(path).read_text())
     state = LoopState(
@@ -136,9 +170,10 @@ def load_state(path: str | Path) -> LoopState:
     )
     # Forward migration: bump schema_version on load so callers see the current
     # shape immediately. New fields (phase_archetype, force, gate_signals,
-    # gate_verdict) default via the dataclass; the bump persists on next save.
-    if state.schema_version < 4:
-        state.schema_version = 4
+    # gate_verdict, gate_decisions, pending_gate, goal_gate) default via the
+    # dataclass; the bump persists on next save.
+    if state.schema_version < LOOP_STATE_SCHEMA_VERSION:
+        state.schema_version = LOOP_STATE_SCHEMA_VERSION
     return state
 
 
@@ -198,6 +233,231 @@ def transition(state: LoopState, outcome: str) -> str:
             raise ValueError("ESCALATE resolved but previous_phase is None")
         return state.previous_phase
     return target
+
+
+# ---------------------------------------------------------------------------
+# Gate seam (design D1) — one injected evaluator, lazily defaulted
+# ---------------------------------------------------------------------------
+
+# The outcome a phase handler returns when a gate parked the loop awaiting a
+# host-recorded answer. It is deliberately NOT a member of any TRANSITIONS
+# table: `gate_pending` never moves a phase, it stops the loop where it stands.
+GATE_PENDING = "gate_pending"
+
+GATE_REQUEST_SCHEMA_VERSION = 1
+
+
+class GateEvaluator(Protocol):
+    """The approval-gate surface the loop depends on (``ApprovalGate``)."""
+
+    def evaluate(
+        self, gate: Gate, context: dict[str, Any] | None = None
+    ) -> ApprovalDecision:
+        """Resolve *gate* against the trust posture and return a decision."""
+        ...
+
+
+class GatePending(RuntimeError):
+    """Raised by ``_apply_transition`` while ``state.pending_gate`` is set.
+
+    The single enforcement point (D6): no path — run_loop, ``gate-answer``, or a
+    hand-edited ``current_phase`` — may move a phase while a gate is unanswered.
+    """
+
+    def __init__(self, gate: str) -> None:
+        self.gate = gate
+        super().__init__(f"gate {gate!r} is pending; the loop cannot transition")
+
+
+class GoalGateRefused(RuntimeError):
+    """Raised by ``_apply_transition`` when the DONE evidence check refuses."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(f"goal gate refused: {reason}")
+
+
+# Operator-facing question per gate. The host renders `prompt` verbatim
+# (AskUserQuestion), so each one has to be answerable without reading the code.
+_GATE_PROMPTS: dict[Gate, str] = {
+    Gate.GATEKEEPER_ESCALATION: (
+        "The GATEKEEPER judged this change too risky or unverifiable to automate. "
+        "Escalate it for human handling?"
+    ),
+    Gate.PROPOSAL_APPROVAL: "Approve this OpenSpec proposal and begin implementation?",
+    Gate.PLAN_REVIEW_CONVERGENCE_FAILURE: (
+        "Plan review did not converge. Escalate for human handling?"
+    ),
+    Gate.VALIDATION_FAILURE: "Validation failed. Continue into the fix loop?",
+    Gate.ESCALATE_RESUME: "Has this escalation been resolved? Resume the loop?",
+    Gate.PR_CREATION: "Create the pull request for this change?",
+    Gate.MERGE: (
+        "Authorize merging this pull request? "
+        "(autopilot records the authorization only; /cleanup-feature merges)"
+    ),
+    Gate.REPLAN_REQUIRED: "Re-decompose the roadmap around the failed item?",
+}
+
+
+def _fallback_gate_session(state: LoopState) -> "_GateSession":
+    """A gate session for callers that reach a phase handler without run_loop.
+
+    Only the direct-helper unit tests do that. The fallback is strictly more
+    conservative than the injected one — same fail-closed evaluator, but no
+    state file to persist to — so it can never turn a gate off.
+    """
+    return _GateSession(
+        change_id=state.change_id, state_path=None, repo_root=Path.cwd(),
+    )
+
+
+def _build_gate_evaluator(change_id: str, repo_root: Path) -> GateEvaluator:
+    """Construct the production evaluator. Called on FIRST gate, not at import.
+
+    ``repo_root`` is the worktree the loop is driving, so the posture in effect
+    is the one committed on this change's branch.
+    """
+    return build_default_gate(
+        agent_id=f"autopilot:{change_id}" if change_id else "autopilot",
+        repo_root=str(repo_root),
+    )
+
+
+def _scalar_context(context: dict[str, Any]) -> dict[str, Any]:
+    """Coerce a gate context to the scalars gate-request.schema.json allows."""
+    coerced: dict[str, Any] = {}
+    for key, value in context.items():
+        coerced[key] = value if isinstance(value, (str, int, float, bool, type(None))) else str(value)
+    return coerced
+
+
+def build_gate_request(
+    *,
+    change_id: str,
+    gate: Gate,
+    phase: str,
+    decision: ApprovalDecision,
+    context: dict[str, Any],
+    edge: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Build the GateRequest persisted as ``LoopState.pending_gate``.
+
+    Conforms to ``contracts/events/gate-request.schema.json``. ``edge`` is
+    omitted for gates whose approval does not itself move a phase (PR creation),
+    so ``gate-answer`` knows to record the answer without transitioning.
+    """
+    request: dict[str, Any] = {
+        "schema_version": GATE_REQUEST_SCHEMA_VERSION,
+        "change_id": change_id,
+        "gate": gate.value,
+        "phase": phase,
+        "requested_at": _now_iso(),
+        "prompt": _GATE_PROMPTS.get(gate, f"Approve gate {gate.value}?"),
+        "context": _scalar_context(context),
+        "posture": {
+            "disposition": decision.disposition.value,
+            "posture_present": decision.posture_present,
+        },
+    }
+    if edge is not None:
+        request["edge"] = dict(edge)
+    return request
+
+
+@dataclass
+class _GateSession:
+    """Owns the gate seam for one ``run_loop`` invocation.
+
+    Satisfies :class:`GateEvaluator` itself, so the call sites read
+    ``gates.evaluate(Gate.X, ...)`` whether the evaluator was injected or built
+    lazily. Also owns *persistence*: every decision is appended to
+    ``LoopState.gate_decisions`` and flushed to disk BEFORE the loop acts on it,
+    so a crash between "human said yes" and "phase moved" loses the phase move,
+    never the authorization.
+    """
+
+    change_id: str
+    state_path: Path | None
+    repo_root: Path
+    evaluator: GateEvaluator | None = None
+
+    def evaluate(
+        self, gate: Gate, context: dict[str, Any] | None = None
+    ) -> ApprovalDecision:
+        if self.evaluator is None:
+            self.evaluator = _build_gate_evaluator(self.change_id, self.repo_root)
+        return self.evaluator.evaluate(gate, dict(context or {}))
+
+    def record(
+        self,
+        state: LoopState,
+        decision: ApprovalDecision,
+        *,
+        phase: str,
+        extra: dict[str, Any] | None = None,
+    ) -> None:
+        state.gate_decisions.append(
+            build_gate_decision_record(decision, phase=phase, extra=extra)
+        )
+        self._flush(state)
+
+    def park(
+        self,
+        state: LoopState,
+        decision: ApprovalDecision,
+        *,
+        phase: str,
+        context: dict[str, Any],
+        edge: dict[str, str] | None = None,
+    ) -> str | None:
+        """Park the loop on a BLOCKED decision; return the phase outcome.
+
+        ``posture_block`` means nobody has been asked yet — that is the
+        interactive case, so it raises a GateRequest the host can answer and
+        returns ``gate_pending``. The other BLOCKED resolutions
+        (``timeout_default_block``, ``rejected``, ``coordinator_unreachable``)
+        mean a human WAS consulted or could not be reached; those park exactly
+        as an unresolved ESCALATE does today — return None, save, stop.
+        """
+        if decision.resolution is Resolution.POSTURE_BLOCK:
+            state.pending_gate = build_gate_request(
+                change_id=self.change_id,
+                gate=decision.gate,
+                phase=phase,
+                decision=decision,
+                context=context,
+                edge=edge,
+            )
+            self._flush(state)
+            return GATE_PENDING
+        return None
+
+    def _flush(self, state: LoopState) -> None:
+        if self.state_path is None:
+            # Only the direct-helper callers (unit tests calling a phase
+            # handler on its own) have no state file; run_loop always supplies
+            # one, which is what makes "recorded before the loop acts" true.
+            logger.debug("gate session has no state_path; decision not persisted")
+            return
+        save_state(state, self.state_path)
+
+
+def build_gate_decision_record(
+    decision: ApprovalDecision,
+    *,
+    phase: str,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Flatten an ApprovalDecision to a gate-decision.schema.json record."""
+    record = decision.to_audit_record()
+    # The schema names `disposition`; to_audit_record() calls the same value
+    # `authorizing_disposition`. Carry both so neither reader has to translate.
+    record["disposition"] = record.get("authorizing_disposition")
+    record["phase"] = phase
+    record["recorded_at"] = _now_iso()
+    if extra:
+        record.update(extra)
+    return record
 
 
 # ---------------------------------------------------------------------------
@@ -338,6 +598,13 @@ def apply_outcome_or_escalate(
             ),
         })
         raw["phase_history"] = history
+        # v5 pass-through (D7): a v4 file being escalated must come back out as
+        # a v5 file, or the next load_state migration would silently invent the
+        # gate fields at a point where nobody can tell they were never recorded.
+        raw.setdefault("gate_decisions", [])
+        raw.setdefault("pending_gate", None)
+        raw.setdefault("goal_gate", None)
+        raw["schema_version"] = LOOP_STATE_SCHEMA_VERSION
         raw["previous_phase"] = phase
         raw["current_phase"] = "ESCALATE"
         raw["escalation_reason"] = (
@@ -443,14 +710,45 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _resolve_change_dir(state: LoopState, change_dir: str | Path | None) -> Path:
+    """The change directory to read DONE evidence from.
+
+    Callers that already know it (run_loop) pass it; the cross-process callers
+    (``runner.py gate-answer``) fall back to the canonical layout, which is the
+    same one ``phase_agent`` uses to find loop-state.json.
+    """
+    if change_dir is not None:
+        return Path(change_dir)
+    return Path("openspec") / "changes" / state.change_id
+
+
 def _apply_transition(
     state: LoopState,
     outcome: str,
     status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
+    *,
+    change_dir: str | Path | None = None,
 ) -> LoopState:
-    """Compute and apply the transition, updating bookkeeping fields."""
+    """Compute and apply the transition, updating bookkeeping fields.
+
+    The single enforcement point for both code-level gates (design D6). Every
+    path into DONE — run_loop, ``gate-answer``, a hand-edited ``current_phase``
+    — comes through here, so this is the only place the two checks need to live:
+
+    1. ``state.pending_gate`` set → ``GatePending``. No phase moves while a
+       human question is outstanding.
+    2. resolved target is DONE (and the edge is not ESCALATE/abandoned) → the
+       goal gate must find its evidence, or ``GoalGateRefused``.
+    """
+    if state.pending_gate:
+        raise GatePending(str(state.pending_gate.get("gate", "unknown")))
+
     old_phase = state.current_phase
     next_phase = transition(state, outcome)
+
+    if next_phase == "DONE":
+        _check_done_evidence(state, old_phase, outcome, change_dir)
+
     state.current_phase = next_phase
     state.phase_started_at = _now_iso()
     state.total_iterations += 1
@@ -459,6 +757,43 @@ def _apply_transition(
         f"Phase {old_phase} -> {next_phase}", urgent=False,
     )
     return state
+
+
+def _check_done_evidence(
+    state: LoopState,
+    from_phase: str,
+    outcome: str,
+    change_dir: str | Path | None,
+) -> None:
+    """Run the goal gate for a DONE-targeted edge; record the verdict either way.
+
+    ``ESCALATE`` → ``abandoned`` is the one edge that reaches DONE without
+    evidence: abandoning a change is a decision not to validate it, so demanding
+    a passing validation report would make abandonment impossible.
+    """
+    if from_phase == "ESCALATE" and outcome == "abandoned":
+        state.goal_gate = {"verdict": "abandoned"}
+        return
+
+    # Imported here rather than at module scope: goal_gate imports validate-
+    # feature's gate_logic, and this keeps `import autopilot` from pulling in
+    # another skill's dependency tree for runs that never reach DONE.
+    import goal_gate as goal_gate_module  # type: ignore[import-not-found]
+
+    verdict = goal_gate_module.check_goal_gate(
+        state, _resolve_change_dir(state, change_dir)
+    )
+    # Merge rather than replace: the merge gate records its authorization into
+    # goal_gate.evidence before SUBMIT_PR -> DONE is applied (design D2).
+    prior_evidence = dict((state.goal_gate or {}).get("evidence") or {})
+    prior_evidence.update(verdict.evidence)
+    state.goal_gate = {
+        "verdict": verdict.verdict,
+        "reason": verdict.reason,
+        "evidence": prior_evidence,
+    }
+    if verdict.verdict != "passed":
+        raise GoalGateRefused(verdict.reason)
 
 
 def _is_review_phase(phase: str) -> bool:
@@ -530,6 +865,7 @@ def run_loop(
     gatekeeper_fn: Callable[[LoopState], str] | None = None,
     post_fix_validator_fn: Callable[[Path], list[str]] | None = None,
     status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
+    gate_evaluator: GateEvaluator | None = None,
     cli_review_enabled: bool = True,
     force: bool = False,
     max_global_iterations: int = 50,
@@ -574,6 +910,13 @@ def run_loop(
         Called on phase transitions and escalations to report status.
         Signature: ``(state, event_type, message, urgent) -> None``.
         Wrapped in try/except with 5s timeout — never crashes the loop.
+    gate_evaluator:
+        Executes the trust-posture human gates (design D1). Defaults to
+        ``approval_gate.build_default_gate()``, built lazily on the first gate
+        so a run that never reaches one needs no coordinator. With no
+        ``TRUST_POSTURE.md`` present every gate resolves to ``block`` — the
+        fail-closed ri-04 contract, which is what makes an un-postured repo
+        behave exactly as it did before gates existed.
     cli_review_enabled:
         Whether multi-vendor review phases (PLAN_REVIEW, IMPL_REVIEW)
         should run.  True when vendor CLIs are available (CLI mode),
@@ -615,6 +958,25 @@ def run_loop(
     # resume honors the flag the operator passed this time.
     state.force = force
 
+    gates = _GateSession(
+        change_id=change_id,
+        state_path=state_path,
+        repo_root=worktree_path,
+        evaluator=gate_evaluator,
+    )
+
+    # Re-entry with an unanswered gate: report and return rather than run a
+    # phase whose transition _apply_transition would refuse anyway.
+    if state.pending_gate:
+        pending = str(state.pending_gate.get("gate", "unknown"))
+        logger.info("Gate %s is pending for %s; not advancing", pending, change_id)
+        _safe_status_call(
+            status_fn, state, "gate.pending",
+            f"Gate {pending} awaiting a decision (runner.py gate-check {change_id})",
+            urgent=True,
+        )
+        return state
+
     # ---- Main loop ----
     while state.current_phase != "DONE" and state.total_iterations < max_global_iterations:
         phase = state.current_phase
@@ -638,6 +1000,7 @@ def run_loop(
                 assess_complexity_fn=_assess,
                 gatekeeper_fn=gatekeeper_fn,
                 post_fix_validator_fn=post_fix_validator_fn,
+                gates=gates,
             )
         except Exception as exc:
             logger.error("Phase %s raised: %s", phase, exc)
@@ -646,8 +1009,20 @@ def run_loop(
             save_state(state, state_path)
             break
 
+        if outcome == GATE_PENDING:
+            # A gate raised a question for the host. Park in place — the answer
+            # arrives out of band via `runner.py gate-answer`.
+            pending = str((state.pending_gate or {}).get("gate", "unknown"))
+            save_state(state, state_path)
+            _safe_status_call(
+                status_fn, state, "gate.pending",
+                f"Gate {pending} awaiting a decision at {phase}", urgent=True,
+            )
+            break
+
         if outcome is None:
-            # Phase signalled "stay" (e.g. unresolved escalation)
+            # Phase signalled "stay" (e.g. unresolved escalation, or a gate that
+            # blocked after a human was consulted or the coordinator was down)
             save_state(state, state_path)
             break
 
@@ -658,7 +1033,25 @@ def run_loop(
             continue
 
         prev_phase = state.current_phase
-        _apply_transition(state, outcome, status_fn=status_fn)
+        try:
+            _apply_transition(
+                state, outcome, status_fn=status_fn, change_dir=change_dir,
+            )
+        except GoalGateRefused as exc:
+            # A refusal is never a silent stop: it lands as an ESCALATE whose
+            # reason names the missing evidence.
+            enter_escalate(
+                state, f"goal gate refused: {exc.reason}", status_fn=status_fn,
+            )
+            save_state(state, state_path)
+            break
+        except GatePending as exc:
+            save_state(state, state_path)
+            _safe_status_call(
+                status_fn, state, "gate.pending",
+                f"Gate {exc.gate} awaiting a decision at {phase}", urgent=True,
+            )
+            break
 
         # Write handoff at major boundaries (with optional token instrumentation)
         _maybe_handoff(
@@ -707,32 +1100,37 @@ def _run_phase(
     assess_complexity_fn: Callable[..., Any] | None,
     post_fix_validator_fn: Callable[[Path], list[str]] | None,
     gatekeeper_fn: Callable[[LoopState], str] | None = None,
+    gates: _GateSession | None = None,
 ) -> str | None:
     """Run a single phase and return the outcome string, or None to pause."""
     phase = state.current_phase
+    gates = gates or _fallback_gate_session(state)
 
     if phase == "INIT":
         return _phase_init(state, change_dir, assess_complexity_fn)
 
     if phase == "GATEKEEPER":
-        return _phase_gatekeeper(state, gatekeeper_fn)
+        return _phase_gatekeeper(state, gatekeeper_fn, gates)
 
     if phase == "PLAN":
-        return _phase_plan(state, change_dir, plan_fn)
+        return _phase_plan(state, change_dir, plan_fn, gates)
 
     if phase == "PLAN_ITERATE":
         return _phase_iterate(state, iterate_plan_fn)
 
     if phase == "PLAN_REVIEW":
-        return _phase_review(
-            state, change_dir, worktree_path, converge_fn,
-            fix_mode="inline", post_fix_validator_fn=post_fix_validator_fn,
+        return _gate_convergence_failure(
+            state, gates, phase,
+            _phase_review(
+                state, change_dir, worktree_path, converge_fn,
+                fix_mode="inline", post_fix_validator_fn=post_fix_validator_fn,
+            ),
         )
 
     if phase == "PLAN_FIX":
         # Plan fixes are handled inline by the convergence loop; if we land
         # here the prior convergence round did not converge — retry review.
-        return "fixed"
+        return _gate_convergence_failure(state, gates, phase, "fixed")
 
     if phase == "IMPLEMENT":
         return _phase_implement(state, implement_fn)
@@ -750,7 +1148,9 @@ def _run_phase(
         return "fixed"
 
     if phase == "VALIDATE":
-        return _phase_validate(state, validate_fn)
+        return _gate_validation_failure(
+            state, gates, phase, _phase_validate(state, validate_fn),
+        )
 
     if phase == "VAL_REVIEW":
         return _phase_review(
@@ -759,18 +1159,79 @@ def _run_phase(
         )
 
     if phase == "VAL_FIX":
-        return "fixed"
+        return _gate_validation_failure(state, gates, phase, "fixed")
 
     if phase == "SUBMIT_PR":
-        return _phase_submit_pr(state, submit_pr_fn)
+        return _phase_submit_pr(state, submit_pr_fn, gates)
 
     if phase == "ESCALATE":
-        return _phase_escalate(state, gate_check_fn)
+        return _phase_escalate(state, gate_check_fn, gates)
 
     if phase == "DONE":
         return None
 
     raise ValueError(f"Unknown phase {phase!r}")
+
+
+# ---------------------------------------------------------------------------
+# Gate call sites owned by _run_phase (design D2)
+# ---------------------------------------------------------------------------
+
+# The (phase, outcome) pairs each _run_phase-owned gate wraps. Keeping them in
+# one place is what lets each gate keep exactly one `evaluate(Gate.X` call site
+# while covering two phases.
+_CONVERGENCE_FAILURE_EDGES = {("PLAN_REVIEW", "max_iter"), ("PLAN_FIX", "stuck")}
+_VALIDATION_FAILURE_EDGES = {("VALIDATE", "failed"), ("VAL_FIX", "stuck")}
+
+
+def _gate_convergence_failure(
+    state: LoopState, gates: _GateSession, phase: str, outcome: str
+) -> str | None:
+    """Gate the plan-review convergence-failure edge (PLAN_REVIEW / PLAN_FIX)."""
+    if (phase, outcome) not in _CONVERGENCE_FAILURE_EDGES:
+        return outcome
+    context = {
+        "convergence_reason": outcome,
+        "rounds": state.max_phase_iterations,
+        "findings_trend": ", ".join(str(n) for n in state.findings_trend),
+    }
+    decision = gates.evaluate(Gate.PLAN_REVIEW_CONVERGENCE_FAILURE, context)
+    gates.record(state, decision, phase=phase)
+    if not decision.proceed:
+        return gates.park(
+            state, decision, phase=phase, context=context,
+            edge={"outcome": outcome, "target": "ESCALATE"},
+        )
+    return outcome
+
+
+def _gate_validation_failure(
+    state: LoopState, gates: _GateSession, phase: str, outcome: str
+) -> str | None:
+    """Gate the validation-failure edge (VALIDATE failed / VAL_FIX stuck)."""
+    if (phase, outcome) not in _VALIDATION_FAILURE_EDGES:
+        return outcome
+    context = {
+        "failing_section": _failing_validation_section(state),
+        "outcome": outcome,
+    }
+    decision = gates.evaluate(Gate.VALIDATION_FAILURE, context)
+    gates.record(state, decision, phase=phase)
+    if not decision.proceed:
+        return gates.park(
+            state, decision, phase=phase, context=context,
+            edge={"outcome": outcome, "target": TRANSITIONS[phase][outcome]},
+        )
+    return outcome
+
+
+def _failing_validation_section(state: LoopState) -> str:
+    """Best-effort name of what failed, for the operator-facing gate context."""
+    titles = [
+        f.get("title") for f in state.blocking_findings
+        if isinstance(f, dict) and f.get("title")
+    ]
+    return "; ".join(str(t) for t in titles) if titles else "unspecified"
 
 
 # ---------------------------------------------------------------------------
@@ -877,7 +1338,8 @@ def _default_gate_verdict(signals: dict[str, Any]) -> str:
 def _phase_gatekeeper(
     state: LoopState,
     gatekeeper_fn: Callable[[LoopState], str] | None,
-) -> str:
+    gates: _GateSession | None = None,
+) -> str | None:
     """Judge whether the change is verifiable and low-risk enough to automate.
 
     The judge sub-agent reads ``state.gate_signals`` plus the plan artifacts and
@@ -885,6 +1347,7 @@ def _phase_gatekeeper(
     is wired (headless CI, coordinator down, unit tests) the gate falls back to
     a permissive signal-only verdict rather than blocking.
     """
+    gates = gates or _fallback_gate_session(state)
     state.phase_started_at = _now_iso()
 
     outcome: str | None = None
@@ -911,6 +1374,19 @@ def _phase_gatekeeper(
     if outcome == "proceed_with_review":
         state.val_review_enabled = True
     elif outcome == "escalate":
+        # The escalation itself is gated: BLOCKED means a human wants to look
+        # before the loop even parks the change as escalated.
+        context = {
+            "gate_verdict": outcome,
+            "gate_signals": _signal_summary(state.gate_signals),
+        }
+        decision = gates.evaluate(Gate.GATEKEEPER_ESCALATION, context)
+        gates.record(state, decision, phase="GATEKEEPER")
+        if not decision.proceed:
+            return gates.park(
+                state, decision, phase="GATEKEEPER", context=context,
+                edge={"outcome": outcome, "target": "ESCALATE"},
+            )
         # Route through the escalation helper so previous_phase and
         # escalation_reason are populated. The bare table transition
         # (GATEKEEPER -> ESCALATE) would leave both unset, making the saved
@@ -924,21 +1400,49 @@ def _phase_gatekeeper(
     return outcome
 
 
+def _signal_summary(signals: dict[str, Any]) -> str:
+    """The risk signals that are set, as one operator-readable line."""
+    present = sorted(k for k, v in signals.items() if v)
+    return ", ".join(present) if present else "none"
+
+
 def _phase_plan(
     state: LoopState,
     change_dir: Path,
     plan_fn: Callable[[LoopState], str] | None,
-) -> str:
-    """Check for existing proposal or delegate to plan callback."""
+    gates: _GateSession | None = None,
+) -> str | None:
+    """Check for existing proposal or delegate to plan callback, then gate it."""
+    gates = gates or _fallback_gate_session(state)
     proposal_path = change_dir / "proposal.md"
     if proposal_path.exists():
-        return "exists"
+        outcome = "exists"
+    elif plan_fn is not None:
+        outcome = plan_fn(state)
+    else:
+        # No callback and no existing proposal — stub returns "created"
+        outcome = "created"
 
-    if plan_fn is not None:
-        return plan_fn(state)
+    if outcome not in ("exists", "created"):
+        return outcome
 
-    # No callback and no existing proposal — stub returns "created"
-    return "created"
+    # A proposal now exists; leaving PLAN commits the run to implementing it,
+    # so this is the human's approve-the-plan checkpoint.
+    context = {
+        "proposal_path": str(proposal_path),
+        # Which way the proposal arrived: pre-existing on disk, or authored by
+        # this run's plan callback. The operator needs to know which they are
+        # approving.
+        "approach": outcome,
+    }
+    decision = gates.evaluate(Gate.PROPOSAL_APPROVAL, context)
+    gates.record(state, decision, phase="PLAN")
+    if not decision.proceed:
+        return gates.park(
+            state, decision, phase="PLAN", context=context,
+            edge={"outcome": outcome, "target": "PLAN_ITERATE"},
+        )
+    return outcome
 
 
 def _phase_iterate(
@@ -1031,35 +1535,131 @@ def _phase_validate(
     state: LoopState,
     validate_fn: Callable[[LoopState], str] | None,
 ) -> str:
-    """Delegate to validation callback (stub if absent)."""
+    """Delegate to validation callback (stub if absent) and record the evidence."""
     state.phase_started_at = _now_iso()
-    if validate_fn is not None:
-        return validate_fn(state)
-    return "passed"
+    outcome = validate_fn(state) if validate_fn is not None else "passed"
+    # The goal gate at DONE needs a VALIDATE record from THIS run to bind the
+    # validation report to it (design D5 condition b). Cross-process runs get
+    # that record from `runner.py apply-outcome`; an in-process run_loop has no
+    # other writer, so without this line the goal gate could never pass and DONE
+    # would be unreachable for the in-process driver.
+    state.phase_history.append(
+        {"phase": "VALIDATE", "outcome": outcome, "at": _now_iso()}
+    )
+    return outcome
 
 
 def _phase_submit_pr(
     state: LoopState,
     submit_pr_fn: Callable[[LoopState], str] | None,
-) -> str:
-    """Delegate to PR submission callback (stub if absent)."""
+    gates: _GateSession | None = None,
+) -> str | None:
+    """Gate PR creation, delegate to the callback, then gate merge authorization."""
+    gates = gates or _fallback_gate_session(state)
     state.phase_started_at = _now_iso()
     # D7: state-only phases must still record phase_archetype.
     _resolve_phase_archetype_for_state_only(state, "SUBMIT_PR")
-    if submit_pr_fn is not None:
-        return submit_pr_fn(state)
-    return "created"
+
+    branch = f"openspec/{state.change_id}" if state.change_id else ""
+    pr_context = {"branch": branch, "change_id": state.change_id}
+    # Before the side effect, not after: a blocked pr_creation gate must mean no
+    # PR exists.
+    pr_decision = gates.evaluate(Gate.PR_CREATION, pr_context)
+    gates.record(state, pr_decision, phase="SUBMIT_PR")
+    if not pr_decision.proceed:
+        # No `edge`: approving PR creation authorizes work *inside* SUBMIT_PR,
+        # it does not move a phase, so gate-answer records it and stops there.
+        return gates.park(state, pr_decision, phase="SUBMIT_PR", context=pr_context)
+
+    outcome = submit_pr_fn(state) if submit_pr_fn is not None else "created"
+    if outcome != "created":
+        return outcome
+
+    # The loop NEVER merges (ri-12 owns headless merge; /cleanup-feature is the
+    # merge executor). This gate records the authorization and nothing else.
+    merge_context = {
+        "pr_url": _pr_url(state),
+        "branch": branch,
+        "change_id": state.change_id,
+    }
+    merge_decision = gates.evaluate(Gate.MERGE, merge_context)
+    gates.record(
+        state, merge_decision, phase="SUBMIT_PR",
+        extra=(
+            {"merge_authorized": True, "pr_url": merge_context["pr_url"]}
+            if merge_decision.proceed
+            else None
+        ),
+    )
+    if not merge_decision.proceed:
+        return gates.park(
+            state, merge_decision, phase="SUBMIT_PR", context=merge_context,
+            edge={"outcome": outcome, "target": "DONE"},
+        )
+    record_merge_authorization(state, merge_context["pr_url"])
+    return outcome
+
+
+def record_merge_authorization(state: LoopState, pr_url: str | None) -> None:
+    """Record that merge was authorized — the loop never merges (design D2).
+
+    Written into ``goal_gate.evidence`` so the authorization travels with the
+    DONE verdict; ``_check_done_evidence`` merges the goal gate's own evidence
+    on top rather than replacing it.
+    """
+    state.goal_gate = {
+        "verdict": "pending",
+        "reason": "merge authorized; DONE evidence not yet checked",
+        "evidence": {"merge_authorized": True, "pr_url": pr_url},
+    }
+
+
+def _pr_url(state: LoopState) -> str | None:
+    """The PR URL, when this run recorded one.
+
+    ``submit_pr_fn`` returns an outcome string, not a URL, so the loop only
+    knows the URL if a phase_history entry carried it (the cross-process path
+    writes one via `apply-outcome --note`). None is a legitimate answer and the
+    gate context/audit record keep the key either way so the shape is stable.
+    """
+    for entry in reversed(state.phase_history):
+        if not isinstance(entry, dict) or entry.get("phase") != "SUBMIT_PR":
+            continue
+        note = entry.get("note")
+        if isinstance(note, str) and "http" in note:
+            return note[note.index("http"):].split()[0]
+    return None
 
 
 def _phase_escalate(
     state: LoopState,
     gate_check_fn: Callable[[LoopState], bool] | None,
+    gates: _GateSession | None = None,
 ) -> str | None:
-    """Check whether escalation has been resolved. Return None to pause."""
-    if check_escalation_resolved(state, gate_check_fn):
-        return "resolved"
-    # Stay in ESCALATE — caller should save and break
-    return None
+    """Gate the ESCALATE resume edge. Return None to pause.
+
+    ``gate_check_fn`` (the coordinator poll) stays a pre-condition: an explicit
+    "not resolved yet" means there is nothing to ask a human about. With no
+    poller wired, the approval gate IS the resolution signal — which is the
+    point of replacing the old ``return False`` stub.
+    """
+    gates = gates or _fallback_gate_session(state)
+    if gate_check_fn is not None and not check_escalation_resolved(state, gate_check_fn):
+        return None
+
+    context = {
+        "escalation_reason": state.escalation_reason or "",
+        "previous_phase": state.previous_phase or "",
+    }
+    decision = gates.evaluate(Gate.ESCALATE_RESUME, context)
+    gates.record(state, decision, phase="ESCALATE")
+    if not decision.proceed:
+        # Stay in ESCALATE — caller saves and breaks
+        return gates.park(
+            state, decision, phase="ESCALATE", context=context,
+            edge={"outcome": "resolved", "target": state.previous_phase or ""},
+        )
+    return "resolved"
 
 
 # ---------------------------------------------------------------------------

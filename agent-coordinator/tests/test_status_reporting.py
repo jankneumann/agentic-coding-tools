@@ -376,8 +376,42 @@ def test_status_fn_callback_in_autopilot(tmp_path: Path) -> None:
         worktree_path = tmp_path / "worktree"
         worktree_path.mkdir()
 
-        # Create a proposal so PLAN returns "exists"
-        (change_dir / "proposal.md").write_text("# Test Proposal\n")
+        # `deployable: false` keeps the goal gate's required-section set
+        # deterministic instead of deriving it from git.
+        (change_dir / "proposal.md").write_text(
+            "---\ndeployable: false\n---\n\n# Test Proposal\n"
+        )
+        # This test is about status_fn callbacks, not about gates, so it supplies
+        # what a finishing run must now supply: an auto-approving evaluator, and
+        # the passing validation report the goal gate demands before DONE
+        # (encode-autopilot-gates-and-goal-gate-in-code, design D5/D6). Without
+        # both, the loop correctly parks at PLAN on proposal_approval — the
+        # fail-closed default when no TRUST_POSTURE.md exists — and never emits
+        # the later transitions this test asserts on.
+        (change_dir / "validation-report.md").write_text(
+            "# Validation Report\n\n"
+            "## Spec Compliance\n\n**Status**: pass\n\n"
+            "## Validation Review\n\n**Status**: pass\n"
+        )
+
+        sys.path.insert(0, str(scripts_dir.parent.parent / "shared"))
+        from shared.approval_gate import ApprovalDecision, Outcome, Resolution
+        from shared.trust_posture import Disposition, Gate
+
+        class _AutoGateEvaluator:
+            """Approves every gate; this suite exercises status reporting."""
+
+            def evaluate(
+                self, gate: Gate, context: dict[str, Any] | None = None
+            ) -> ApprovalDecision:
+                return ApprovalDecision(
+                    gate=gate,
+                    outcome=Outcome.PROCEED,
+                    resolution=Resolution.AUTO,
+                    disposition=Disposition.AUTO,
+                    reason="test double",
+                    posture_present=True,
+                )
 
         status_calls: list[tuple[str, str, bool]] = []
 
@@ -401,6 +435,7 @@ def test_status_fn_callback_in_autopilot(tmp_path: Path) -> None:
             status_fn=mock_status_fn,
             assess_complexity_fn=mock_assess,
             converge_fn=mock_converge,
+            gate_evaluator=_AutoGateEvaluator(),
             max_global_iterations=20,
         )
 

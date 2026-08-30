@@ -150,3 +150,74 @@ def test_runner_help_lists_subcommands(workspace: Path) -> None:
     assert result.returncode == 0
     assert "build-dispatch" in result.stdout
     assert "apply-outcome" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# Console interviewer subcommands across the real process boundary
+# (encode-autopilot-gates-and-goal-gate-in-code, D3)
+# ---------------------------------------------------------------------------
+
+
+def _pending_gate(change_id: str = "demo") -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "change_id": change_id,
+        "gate": "proposal_approval",
+        "phase": "PLAN",
+        "requested_at": "2026-08-30T00:00:00+00:00",
+        "prompt": "Approve this OpenSpec proposal and begin implementation?",
+        "context": {"proposal_path": "proposal.md", "approach": "exists"},
+        "posture": {"disposition": "block", "posture_present": False},
+        "edge": {"outcome": "exists", "target": "PLAN_ITERATE"},
+    }
+
+
+def test_runner_gate_check_prints_the_pending_request(workspace: Path) -> None:
+    _seed_state(
+        workspace, "demo", current_phase="PLAN", pending_gate=_pending_gate(),
+    )
+
+    result = _run_cli(workspace, "gate-check", "demo")
+
+    assert result.returncode == 0, f"stderr: {result.stderr}"
+    assert json.loads(result.stdout)["gate"] == "proposal_approval"
+
+
+def test_runner_gate_check_exits_three_when_nothing_is_pending(
+    workspace: Path,
+) -> None:
+    _seed_state(workspace, "demo", current_phase="PLAN", pending_gate=None)
+
+    result = _run_cli(workspace, "gate-check", "demo")
+
+    assert result.returncode == 3
+    assert result.stdout.strip() == ""
+
+
+def test_runner_gate_answer_applies_the_edge(workspace: Path) -> None:
+    state_path = _seed_state(
+        workspace, "demo", current_phase="PLAN", pending_gate=_pending_gate(),
+    )
+
+    result = _run_cli(
+        workspace, "gate-answer", "demo",
+        "--gate", "proposal_approval", "--decision", "approved",
+    )
+
+    assert result.returncode == 0, f"stderr: {result.stderr}"
+    state = json.loads(state_path.read_text())
+    assert state["current_phase"] == "PLAN_ITERATE"
+    assert state["pending_gate"] is None
+    assert state["gate_decisions"][-1]["resolution"] == "console_approved"
+
+
+def test_runner_gate_answer_rejects_an_unknown_gate_name(workspace: Path) -> None:
+    """argparse choices come from the Gate enum, so a typo cannot be recorded."""
+    _seed_state(workspace, "demo", current_phase="PLAN", pending_gate=_pending_gate())
+
+    result = _run_cli(
+        workspace, "gate-answer", "demo",
+        "--gate", "propsal_aproval", "--decision", "approved",
+    )
+
+    assert result.returncode != 0
