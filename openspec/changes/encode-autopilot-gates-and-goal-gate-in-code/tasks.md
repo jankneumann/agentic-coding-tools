@@ -28,7 +28,7 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
 
 ## Phase 1 — wp-goal-gate: the pure evidence check
 
-- [ ] 1.1 Test: `check_goal_gate` returns `passed` only when every required section reads
+- [x] 1.1 Test: `check_goal_gate` returns `passed` only when every required section reads
       `pass` AND the latest `VALIDATE` history entry is `passed` with `at >= report mtime`;
       returns `refused` naming the failing condition for: no history entry, `failed` entry,
       stale entry, a `fail` section, a `skipped` section, missing report — **S**
@@ -38,20 +38,20 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
       **Design decisions**: D5
       **Dependencies**: None
 
-- [ ] 1.2 Test: when `state.val_review_enabled`, the Validation Review section is required
+- [x] 1.2 Test: when `state.val_review_enabled`, the Validation Review section is required
       too; when not, its absence is ignored — **XS**
       **Spec scenarios**: sw *Passing evidence reaches DONE*
       **Design decisions**: D5
       **Dependencies**: None
 
-- [ ] 1.3 Implement `skills/autopilot/scripts/goal_gate.py` — `GoalGateVerdict`,
+- [x] 1.3 Implement `skills/autopilot/scripts/goal_gate.py` — `GoalGateVerdict`,
       `check_goal_gate()`, required sections from `gate_logic.resolve_required_phases`,
       mtime comparison with an injected `now` — **S**
       **Spec scenarios**: all five *Goal Gate at DONE* scenarios
       **Design decisions**: D5
       **Dependencies**: 1.1, 1.2
 
-- [ ] Checkpoint: goal-gate tests green, review the diff, confirm `goal_gate.py` imports
+- [x] Checkpoint: goal-gate tests green, review the diff, confirm `goal_gate.py` imports
       `gate_logic` and nothing from `autopilot.py` except `LoopState`
 
 ## Phase 2 — wp-autopilot-gates: seam, call sites, console protocol
