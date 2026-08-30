@@ -1,0 +1,7 @@
+{
+  "change_id": "encode-autopilot-gates-and-goal-gate-in-code",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "gate": "merge",
+  "outcome": "blocked",
+  "resolution": "posture_block",
+  "disposition": "block",
+  "reason": "no TRUST_POSTURE.md; every gate resolves to block",
+  "approval_id": null,
+  "default_action": null,
+  "posture_present": false,
+  "phase": "SUBMIT_PR",
+  "note": null,
+  "recorded_at": "2026-08-30T12:05:00Z"
+}

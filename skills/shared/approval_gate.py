@@ -92,9 +92,17 @@ class Outcome(str, enum.Enum):
 class Resolution(str, enum.Enum):
     """*How* the outcome was reached — the audit-grade detail behind :class:`Outcome`.
 
-    ``PROCEED`` outcomes: ``AUTO``, ``APPROVED``, ``TIMEOUT_PROCEED``.
+    ``PROCEED`` outcomes: ``AUTO``, ``APPROVED``, ``TIMEOUT_PROCEED``,
+    ``CONSOLE_APPROVED``.
     ``BLOCKED`` outcomes: ``REJECTED``, ``TIMEOUT_BLOCK``, ``POSTURE_BLOCK``,
-    ``COORDINATOR_UNREACHABLE``.
+    ``COORDINATOR_UNREACHABLE``, ``CONSOLE_REJECTED``.
+
+    The two ``CONSOLE_*`` members are never returned by :meth:`ApprovalGate.evaluate`.
+    They exist so a decision an operator gave in-conversation — recorded by
+    ``autopilot/scripts/runner.py gate-answer`` when a ``posture_block`` parks a
+    host-assisted run — lands in the SAME audit-record shape as a coordinator
+    decision. A separate record type would give every downstream reader (the
+    supervisor handoff, the merge log) two shapes to parse for one concept.
     """
 
     AUTO = "auto"                                    # posture said auto
@@ -104,10 +112,17 @@ class Resolution(str, enum.Enum):
     TIMEOUT_BLOCK = "timeout_default_block"          # timer expired, default_action=block
     POSTURE_BLOCK = "posture_block"                  # posture said block
     COORDINATOR_UNREACHABLE = "coordinator_unreachable"  # fail-closed degradation
+    CONSOLE_APPROVED = "console_approved"            # operator approved in-conversation
+    CONSOLE_REJECTED = "console_rejected"            # operator declined in-conversation
 
 
 _PROCEED_RESOLUTIONS = frozenset(
-    {Resolution.AUTO, Resolution.APPROVED, Resolution.TIMEOUT_PROCEED}
+    {
+        Resolution.AUTO,
+        Resolution.APPROVED,
+        Resolution.TIMEOUT_PROCEED,
+        Resolution.CONSOLE_APPROVED,
+    }
 )
 
 

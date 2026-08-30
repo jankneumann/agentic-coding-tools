@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "roadmap_id": "roadmap-always-on-agent-automation",
+  "failed_item_id": "ri-03",
+  "replan_required_items": [],
+  "gate_decision": {
+    "gate": "replan_required",
+    "outcome": "proceed",
+    "resolution": "auto",
+    "disposition": "auto",
+    "reason": "replan_required_items must have at least one entry",
+    "posture_present": true,
+    "recorded_at": "2026-08-30T12:10:00Z"
+  },
+  "requested_at": "2026-08-30T12:10:00Z"
+}
