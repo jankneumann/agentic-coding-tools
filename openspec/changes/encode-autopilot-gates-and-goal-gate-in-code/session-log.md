@@ -42,3 +42,50 @@
 ### Context
 Refined the ri-06 roadmap sketch into a full plan: wire all eight trust_posture.Gate members into autopilot.py through an injected GateEvaluator, add a runner.py gate-check/gate-answer console protocol so interactive runs keep asking in-conversation, gate DONE structurally on validation-report.md plus a VALIDATE:passed phase_history entry, and give replan_required an explicit-signal producer and a /plan-roadmap --replan consumer. Tier: coordinated. Gate 1 selected Approach 1 (thin call sites).
 
+---
+
+## Phase: Implementation (2026-08-30)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **gate-check gained --gate so gates evaluate on the host-driven path** `architectural: autopilot-gates` — run_loop has no non-test callers; production autopilot is the model shelling to runner.py. Without this the seven call sites were unreachable in production and the acceptance criterion was false. Exit codes: 0 ask, 3 proceed, 4 parked.
+2. **The console Resolution members moved from task 2.4 into wp-contracts** `architectural: autopilot-gates` — The gate-decision schema pins its resolution enum to approval_gate.Resolution in code; leaving the members for phase 2 would have committed a red test mid-branch, breaking Rule 2.
+3. **_phase_validate now writes its own VALIDATE phase_history entry** `architectural: autopilot-goal-gate` — Making validation evidence mandatory exposed that nothing on the in-process path wrote the entry the goal gate needs — only cross-process apply-outcome did — so DONE was structurally unreachable for that driver.
+4. **Existing loop tests inject a machinery gate double via an autouse fixture patching the lazy builder** `architectural: autopilot-gates` — Wiring gates fail-closed parks every existing test at the first gate. The double patches the BUILDER, never the posture logic, so the production default stays fail-closed with no TRUST_POSTURE.md. It deliberately blocks escalate_resume: an all-auto one makes ESCALATE self-resolving and livelocks the park tests.
+5. **Replan scope excludes every preserved status, and preserved items are traversal barriers** `architectural: roadmap-replan` — The spec delta said 'non-completed dependents' while the preservation scenario required in_progress items byte-identical — a contradiction. Corrected in the delta during implementation.
+
+### Alternatives Considered
+- Treat 'no evaluator injected' as 'no gates' to keep existing tests green: rejected because That is the fail-open this change exists to remove — the same shape as the GATEKEEPER degraded path the repo already warns about. The churn belongs in the tests, not the production default.
+- A separate gate-evaluate verb rather than extending gate-check: rejected because The SKILL.md protocol already reads 'run gate-check; exit 0 ask, exit 3 continue'. Extending it kept one verb in the docs and preserved both exit-code meanings.
+- Isolated worktrees per work package (coordinated tier default): rejected because The packages' write_allow sets were provably disjoint and agents do not commit, so isolated worktrees would have added a merge step with no conflict to resolve.
+
+### Trade-offs
+- Accepted CLI-built GateRequests carry no edge over Re-encoding per-gate edge knowledge in runner.py because It would duplicate what the transition table owns, and on the host path the orchestrator is the sole phase-mover anyway.
+- Accepted wp-autopilot-gates stayed one 11-task package over Splitting state/seam from enforcement because Call sites and gate_pending handling must land together or the suite is red between them.
+
+### Open Questions
+- [ ] The goal gate's DONE enforcement lives in _apply_transition, reachable from run_loop and gate-answer. The same 'does production reach it?' question that this change had to fix for the gates deserves a second look for DONE on the host-driven path.
+- [ ] pr_creation's console answer is not consumed by the in-process loop (its request carries no edge), so an in-process re-entry re-asks. Acceptable under the host-assisted model; worth confirming during review.
+
+### Completed Work
+- wp-contracts: three JSON Schemas pinned to Gate/Resolution in code, six fixtures, 14 tests
+- wp-goal-gate: goal_gate.py pure evidence check over validation-report.md + phase_history, 22 tests
+- wp-replan: fail_item(replan=), gate + replan-request.json, decomposer replan-scope/replan-finish, 33 tests
+- wp-autopilot-gates: LoopState v5, GateEvaluator seam, seven call sites, AST invariant, console protocol, e2e
+- wp-skill-docs: four prose gates replaced by the protocol in three SKILL.md files, 25 tests, mirrors resynced
+- Host-path fix: gate-check --gate evaluates; verified end-to-end against the real CLI under both postures
+
+### Next Steps
+- validate-feature: confirm the goal gate's DONE path is reachable in a real host-driven run, not only via run_loop.
+- Review focus: the AST call-site test proves call sites exist, not that production reaches them — that gap is what the seventh commit fixes.
+
+### Relevant Files
+- `skills/autopilot/scripts/autopilot.py` — LoopState v5, GateEvaluator seam, seven call sites, _apply_transition enforcement
+- `skills/autopilot/scripts/runner.py` — gate-check --gate evaluation, gate-answer console protocol
+- `skills/autopilot/scripts/goal_gate.py` — the DONE evidence check
+- `skills/tests/autopilot/test_gate_call_sites.py` — AST invariant over the Gate enum
+
+### Context
+All six work packages landed across six commits. The eight trust_posture gates now have one code call site each, the goal gate makes validation evidence structurally required before DONE, replan_required gained its first producer and consumer, and the prose gates in three SKILL.md files became a runner.py gate-check/gate-answer protocol. A seventh commit closes a gap found late: the gates were wired only into run_loop, which has zero non-test callers, so they would never have fired in production.
+
