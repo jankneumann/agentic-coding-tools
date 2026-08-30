@@ -58,7 +58,7 @@ AND the host-assisted invariant test SHALL continue to pass.
 
 ### Requirement: Proposal Decomposition into Roadmap Changes
 
-The system SHALL provide a `plan-roadmap` workflow that decomposes long markdown proposals into prioritized OpenSpec change candidates with explicit dependencies and acceptance outcomes. The workflow SHALL additionally provide a replan mode, `/plan-roadmap --replan <roadmap-id>`, driven by `<workspace>/replan-request.json`. In replan mode the deterministic helper `decomposer.py replan-scope <workspace>` SHALL emit the affected subgraph: every `replan_required` item plus its transitive non-completed dependents, and nothing else. The host SHALL re-decompose only that subgraph against the source proposal and the failed item's learning entry; items in `completed`, `superseded`, or `in_progress` status, and all existing `learnings/` entries, SHALL be preserved verbatim. On success the workflow SHALL set the re-decomposed items to `approved`, delete `replan-request.json`, and pass `decomposer.py validate`.
+The system SHALL provide a `plan-roadmap` workflow that decomposes long markdown proposals into prioritized OpenSpec change candidates with explicit dependencies and acceptance outcomes. The workflow SHALL additionally provide a replan mode, `/plan-roadmap --replan <roadmap-id>`, driven by `<workspace>/replan-request.json`. In replan mode the deterministic helper `decomposer.py replan-scope <workspace>` SHALL emit the affected subgraph: every `replan_required` item plus its transitive dependents, excluding any item in a preserved status (`completed`, `superseded`, `in_progress`), and nothing else. A preserved item SHALL also act as a traversal barrier, so dependents reachable only through one are outside the scope. The host SHALL re-decompose only that subgraph against the source proposal and the failed item's learning entry; items in a preserved status, and all existing `learnings/` entries, SHALL be preserved verbatim. On success the workflow SHALL set the re-decomposed items to `approved`, delete `replan-request.json`, and pass `decomposer.py validate`.
 
 #### Scenario: Decompose markdown proposal into roadmap candidates
 WHEN a user provides a long markdown proposal to `plan-roadmap`
@@ -88,7 +88,7 @@ AND it SHALL add dependency edges between the resulting items where ordering mat
 
 #### Scenario: Replan scope is the affected subgraph only
 WHEN `decomposer.py replan-scope <workspace>` runs against a roadmap where `ri-03` failed with a replan signal and `ri-04`, `ri-06` depend on it while `ri-05` is completed
-THEN the output SHALL list exactly `ri-04` and `ri-06` (and their non-completed transitive dependents)
+THEN the output SHALL list exactly `ri-04` and `ri-06` (and their transitive dependents that are not in a preserved status)
 AND it SHALL NOT list `ri-05` or any completed item.
 
 #### Scenario: Replan preserves completed items and learnings

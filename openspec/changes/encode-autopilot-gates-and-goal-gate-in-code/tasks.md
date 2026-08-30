@@ -161,7 +161,7 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
 
 ## Phase 3 — wp-replan: producer, gate, and replan scope
 
-- [ ] 3.1 Test: `fail_item(..., replan=True)` moves `approved`/`candidate` dependents to
+- [x] 3.1 Test: `fail_item(..., replan=True)` moves `approved`/`candidate` dependents to
       `replan_required` with `blocked_by` set; default keeps today's `blocked` behaviour;
       completed dependents are untouched — **S**
       **Spec scenarios**: ro *Explicit replan signal produces replan_required*, *Handle
@@ -169,11 +169,11 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
       **Design decisions**: D8
       **Dependencies**: None
 
-- [ ] 3.2 Implement the `replan` keyword in `CheckpointManager.fail_item` — **XS**
+- [x] 3.2 Implement the `replan` keyword in `CheckpointManager.fail_item` — **XS**
       **Design decisions**: D8
       **Dependencies**: 3.1
 
-- [ ] 3.3 Test: after a failure with `replan: true`, the orchestrator evaluates
+- [x] 3.3 Test: after a failure with `replan: true`, the orchestrator evaluates
       `Gate.REPLAN_REQUIRED` once; PROCEED writes a schema-valid `replan-request.json` and
       returns status `replan_requested` without dispatching the parked items; BLOCKED writes
       nothing, records the decision in the checkpoint, and continues; the host-assisted
@@ -184,15 +184,15 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
       **Design decisions**: D1, D8
       **Dependencies**: 3.2
 
-- [ ] 3.4 Implement the gate evaluation, request writer, `Checkpoint.gate_decisions`, and
+- [x] 3.4 Implement the gate evaluation, request writer, `Checkpoint.gate_decisions`, and
       the `replan_requested` summary status in `orchestrator.py` — **S**
       **Design decisions**: D8
       **Dependencies**: 3.3
 
-- [ ] Checkpoint: `skills/tests/roadmap-runtime` + `skills/tests/autopilot-roadmap` green,
+- [x] Checkpoint: `skills/tests/roadmap-runtime` + `skills/tests/autopilot-roadmap` green,
       review the diff, confirm `models.py` is untouched
 
-- [ ] 3.5 Test: `decomposer.py replan-scope <workspace>` lists exactly the `replan_required`
+- [x] 3.5 Test: `decomposer.py replan-scope <workspace>` lists exactly the `replan_required`
       items plus transitive non-completed dependents; excludes completed, superseded, and
       unrelated items; errors clearly when no request file exists — **S**
       **Spec scenarios**: ro *Replan scope is the affected subgraph only*, *Replan without a
@@ -201,20 +201,20 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
       **Design decisions**: D8
       **Dependencies**: None
 
-- [ ] 3.6 Implement `replan-scope` in `decomposer.py` and the `--replan <roadmap-id>` flag
+- [x] 3.6 Implement `replan-scope` in `decomposer.py` and the `--replan <roadmap-id>` flag
       handling (request-file check, scope emission, post-replan `validate`, request-file
       deletion) — **M**
       **Design decisions**: D8
       **Dependencies**: 3.5
 
-- [ ] 3.7 Test: a scripted replan leaves completed/superseded/in_progress items and every
+- [x] 3.7 Test: a scripted replan leaves completed/superseded/in_progress items and every
       `learnings/` file byte-identical, sets re-decomposed items to `approved`, deletes the
       request file — **S**
       **Spec scenarios**: ro *Replan preserves completed items and learnings*
       **Design decisions**: D8
       **Dependencies**: 3.6
 
-- [ ] Checkpoint: `skills/tests/plan-roadmap` green, review the diff, verify scope
+- [x] Checkpoint: `skills/tests/plan-roadmap` green, review the diff, verify scope
 
 ## Phase 4 — wp-skill-docs: de-prose the gates
 
