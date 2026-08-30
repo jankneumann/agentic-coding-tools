@@ -565,3 +565,61 @@ def test_build_default_gate_wires_bridge_defaults() -> None:
     assert isinstance(gate.coordinator, ag.BridgeCoordinatorClient)
     assert isinstance(gate.audit, ag.BridgeAuditSink)
     assert gate.agent_id == "a1"
+
+
+# --------------------------------------------------------------------------- #
+# Console resolutions (D4) — the shape a decision given in-conversation takes
+# --------------------------------------------------------------------------- #
+
+def test_console_approved_is_a_proceed_resolution() -> None:
+    decision = ag.ApprovalDecision(
+        gate=Gate.PROPOSAL_APPROVAL,
+        outcome=Outcome.PROCEED,
+        resolution=Resolution.CONSOLE_APPROVED,
+        disposition=Disposition.BLOCK,
+        reason="operator approved in conversation",
+    )
+    assert Resolution.CONSOLE_APPROVED in ag._PROCEED_RESOLUTIONS
+    assert decision.proceed is True
+    assert decision.to_audit_record()["resolution"] == "console_approved"
+
+
+def test_console_rejected_is_not_a_proceed_resolution() -> None:
+    decision = ag.ApprovalDecision(
+        gate=Gate.PROPOSAL_APPROVAL,
+        outcome=Outcome.BLOCKED,
+        resolution=Resolution.CONSOLE_REJECTED,
+        disposition=Disposition.BLOCK,
+        reason="operator declined",
+    )
+    assert Resolution.CONSOLE_REJECTED not in ag._PROCEED_RESOLUTIONS
+    assert decision.blocked is True
+    assert decision.to_audit_record()["resolution"] == "console_rejected"
+
+
+@pytest.mark.parametrize(
+    "gd",
+    [
+        GateDisposition(disposition=Disposition.AUTO),
+        GateDisposition(disposition=Disposition.BLOCK),
+        NOTIFY_PROCEED,
+    ],
+)
+def test_evaluate_never_returns_a_console_resolution(gd: GateDisposition) -> None:
+    """Only `runner.py gate-answer` constructs one — the gate service never does.
+
+    Pinned across every disposition so a future branch cannot start emitting a
+    console resolution from the coordinator path, where nobody was asked in a
+    console at all.
+    """
+    coord = FakeCoordinator(statuses=["approved"])
+    gate, _coord, _audit, _clock = make_gate(
+        posture=posture_with(Gate.MERGE, gd), coordinator=coord
+    )
+
+    decision = gate.evaluate(Gate.MERGE)
+
+    assert decision.resolution not in (
+        Resolution.CONSOLE_APPROVED,
+        Resolution.CONSOLE_REJECTED,
+    )
