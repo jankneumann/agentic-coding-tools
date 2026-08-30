@@ -17,6 +17,7 @@ mapping is crisp.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -52,6 +53,17 @@ _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$", re.MULTILINE)
 #: `skipped` and `superseded` are how a roadmap hands a change to another
 #: roadmap's item, so the duplicate-change_id check must not count them.
 _CEDED_STATUSES = frozenset({ItemStatus.SKIPPED, ItemStatus.SUPERSEDED})
+
+#: Filename of the handoff `autopilot-roadmap` writes when its replan gate proceeds.
+REPLAN_REQUEST_FILENAME = "replan-request.json"
+
+#: Statuses the replan contract preserves verbatim. An item in one of these has
+#: either already been built, been handed to another roadmap, or is being worked
+#: on right now — re-decomposing it would rewrite history or race a running
+#: agent, so it can never enter the replan scope, and traversal stops there.
+_PRESERVED_STATUSES = frozenset(
+    {ItemStatus.COMPLETED, ItemStatus.SUPERSEDED, ItemStatus.IN_PROGRESS}
+)
 
 
 # ---------------------------------------------------------------------------
@@ -449,6 +461,113 @@ def make_repo_relative(path: str, repo_root: Path) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Replan mode (the deterministic half of `/plan-roadmap --replan <roadmap-id>`)
+# ---------------------------------------------------------------------------
+def compute_replan_scope(roadmap: Roadmap, seeds: list[str]) -> list[str]:
+    """Return the affected subgraph: ``seeds`` + their non-preserved dependents.
+
+    Walks *forward* along dependency edges (``A depends_on B`` means A is a
+    dependent of B) from every seed. An item in a preserved status
+    (:data:`_PRESERVED_STATUSES`) is neither included nor traversed through: a
+    completed item is a barrier, because everything downstream of it depends on
+    work that still exists and was not invalidated by the failure. Read-only.
+    """
+    dependents: dict[str, list[str]] = {item.item_id: [] for item in roadmap.items}
+    for item in roadmap.items:
+        for dep in item.depends_on:
+            if dep in dependents:
+                dependents[dep].append(item.item_id)
+
+    by_id = {item.item_id: item for item in roadmap.items}
+
+    def _preserved(item_id: str) -> bool:
+        item = by_id.get(item_id)
+        if item is None:
+            return True
+        return item.status in _PRESERVED_STATUSES or bool(item.superseded_by)
+
+    scope: set[str] = set()
+    queue = [s for s in seeds if s in by_id and not _preserved(s)]
+    while queue:
+        current = queue.pop()
+        if current in scope:
+            continue
+        scope.add(current)
+        for child in dependents.get(current, []):
+            if child not in scope and not _preserved(child):
+                queue.append(child)
+    return sorted(scope)
+
+
+def load_replan_request(workspace: Path) -> dict[str, Any]:
+    """Load ``<workspace>/replan-request.json``.
+
+    Raises ``FileNotFoundError`` when it is absent — replan mode is driven by
+    that file, and running without one would re-decompose a roadmap nobody
+    asked to re-decompose.
+    """
+    path = workspace / REPLAN_REQUEST_FILENAME
+    if not path.exists():
+        raise FileNotFoundError(
+            f"No replan request at {path}. Replan mode is driven by a "
+            f"{REPLAN_REQUEST_FILENAME} written by autopilot-roadmap when its "
+            f"replan gate proceeds; without one there is nothing to replan."
+        )
+    return json.loads(path.read_text())  # type: ignore[no-any-return]
+
+
+def _load_roadmap_mapping(workspace: Path) -> tuple[dict[str, Any], Roadmap]:
+    data = yaml.safe_load((workspace / "roadmap.yaml").read_text())
+    return data, Roadmap.from_dict(data)
+
+
+def _replan_seeds(roadmap: Roadmap, request: dict[str, Any]) -> list[str]:
+    """Seed items for the scope walk.
+
+    ``replan_required`` on the roadmap is authoritative — it is what the
+    orchestrator actually wrote. The request's list is the fallback for a
+    roadmap whose statuses were hand-edited after the request was written.
+    """
+    seeds = sorted(
+        item.item_id
+        for item in roadmap.items
+        if item.status == ItemStatus.REPLAN_REQUIRED
+    )
+    if seeds:
+        return seeds
+    known = {item.item_id for item in roadmap.items}
+    return sorted(i for i in request.get("replan_required_items", []) if i in known)
+
+
+#: Matches the status line of an item parked for replanning, in the block style
+#: `save_roadmap` emits (optionally quoted).
+_REPLAN_STATUS_LINE = re.compile(
+    r"^(?P<indent>\s*)status:\s*(?P<q>['\"]?)replan_required(?P=q)\s*$"
+)
+
+
+def flip_replan_required_to_approved(text: str) -> tuple[str, int]:
+    """Rewrite ``status: replan_required`` -> ``status: approved`` in YAML text.
+
+    A line edit rather than a load/dump round-trip: the replan contract requires
+    every preserved item to stay *byte-identical*, and re-serializing the whole
+    roadmap would renormalize quoting, key order, and empty collections across
+    items the replan never touched. Returns ``(new_text, lines_changed)``.
+    """
+    out: list[str] = []
+    changed = 0
+    for line in text.splitlines(keepends=True):
+        match = _REPLAN_STATUS_LINE.match(line.rstrip("\n"))
+        if match:
+            newline = "\n" if line.endswith("\n") else ""
+            out.append(f"{match.group('indent')}status: approved{newline}")
+            changed += 1
+        else:
+            out.append(line)
+    return "".join(out), changed
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 def _find_repo_root(start: Path) -> Path:
@@ -501,6 +620,132 @@ def _cmd_validate_repo(args: argparse.Namespace) -> int:
     return 0
 
 
+def _resolve_workspace(target: str, repo_root: Path) -> Path:
+    """Accept either a workspace path or a bare ``<roadmap-id>``.
+
+    ``/plan-roadmap --replan <roadmap-id>`` names the roadmap, not the
+    directory, so the id form resolves under ``openspec/roadmaps/``.
+    """
+    candidate = Path(target)
+    if candidate.is_dir():
+        return candidate.resolve()
+    return (repo_root / "openspec" / "roadmaps" / target).resolve()
+
+
+def _replan_workspace(args: argparse.Namespace) -> tuple[Path, Path, dict[str, Any]] | int:
+    """Shared preamble: resolve the workspace and load the request file."""
+    repo_root = (
+        Path(args.repo_root).resolve() if args.repo_root else _find_repo_root(Path.cwd())
+    )
+    workspace = _resolve_workspace(args.workspace, repo_root)
+    if not (workspace / "roadmap.yaml").exists():
+        print(
+            f"error: no roadmap.yaml in {workspace} — pass a roadmap workspace "
+            f"directory or a roadmap-id under openspec/roadmaps/.",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        request = load_replan_request(workspace)
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except json.JSONDecodeError as exc:
+        print(
+            f"error: {workspace / REPLAN_REQUEST_FILENAME} is not valid JSON: {exc}",
+            file=sys.stderr,
+        )
+        return 2
+    return repo_root, workspace, request
+
+
+def _cmd_replan_scope(args: argparse.Namespace) -> int:
+    resolved = _replan_workspace(args)
+    if isinstance(resolved, int):
+        return resolved
+    _repo_root, workspace, request = resolved
+
+    _data, roadmap = _load_roadmap_mapping(workspace)
+    seeds = _replan_seeds(roadmap, request)
+    scope = compute_replan_scope(roadmap, seeds)
+    by_id = {item.item_id: item for item in roadmap.items}
+
+    payload = {
+        "roadmap_id": roadmap.roadmap_id,
+        "source_proposal": roadmap.source_proposal,
+        "failed_item_id": request.get("failed_item_id"),
+        "failure_reason": request.get("failure_reason"),
+        "learning_entry": request.get("learning_entry"),
+        "seed_items": seeds,
+        "scope_items": scope,
+        # Everything the host must copy through untouched.
+        "preserved_items": sorted(
+            item.item_id
+            for item in roadmap.items
+            if item.status in _PRESERVED_STATUSES or item.superseded_by
+        ),
+        "items": [
+            {
+                "item_id": item_id,
+                "title": by_id[item_id].title,
+                "status": by_id[item_id].status.value,
+                "effort": by_id[item_id].effort.value,
+                "depends_on": list(by_id[item_id].depends_on),
+                "change_id": by_id[item_id].change_id,
+            }
+            for item_id in scope
+        ],
+    }
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_replan_finish(args: argparse.Namespace) -> int:
+    resolved = _replan_workspace(args)
+    if isinstance(resolved, int):
+        return resolved
+    repo_root, workspace, _request = resolved
+
+    roadmap_path = workspace / "roadmap.yaml"
+    original = roadmap_path.read_text()
+    _data, roadmap = _load_roadmap_mapping(workspace)
+    expected = sum(
+        1 for item in roadmap.items if item.status == ItemStatus.REPLAN_REQUIRED
+    )
+
+    updated, changed = flip_replan_required_to_approved(original)
+    if changed != expected:
+        print(
+            f"error: expected to approve {expected} replan_required item(s) but "
+            f"matched {changed} status line(s) — roadmap.yaml is not in the block "
+            f"style this rewrite understands. Roadmap left unchanged.",
+            file=sys.stderr,
+        )
+        return 1
+
+    roadmap_path.write_text(updated)
+    errors = validate_roadmap(yaml.safe_load(updated), repo_root)
+    if errors:
+        # Restore and keep the request file: a broken re-decomposition must stay
+        # retryable rather than silently consuming its own trigger.
+        roadmap_path.write_text(original)
+        print(
+            f"INVALID: replan left {roadmap_path} invalid ({len(errors)} error(s)) — "
+            f"roadmap restored, {REPLAN_REQUEST_FILENAME} kept.",
+            file=sys.stderr,
+        )
+        for err in errors:
+            print(f"  - {err}", file=sys.stderr)
+        return 1
+
+    (workspace / REPLAN_REQUEST_FILENAME).unlink()
+    print(
+        f"OK: {changed} item(s) approved, {REPLAN_REQUEST_FILENAME} removed, "
+        f"{roadmap_path} is a valid roadmap."
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="decomposer",
@@ -529,6 +774,40 @@ def main(argv: list[str] | None = None) -> int:
         help="Repository root to scan (default: auto-detect from cwd).",
     )
     p_validate_repo.set_defaults(func=_cmd_validate_repo)
+
+    p_replan_scope = sub.add_parser(
+        "replan-scope",
+        help=(
+            "Print the affected subgraph for a replan: every replan_required "
+            "item plus its transitive non-preserved dependents."
+        ),
+    )
+    p_replan_scope.add_argument(
+        "workspace", help="Roadmap workspace directory, or a bare <roadmap-id>."
+    )
+    p_replan_scope.add_argument(
+        "--repo-root",
+        default=None,
+        help="Repository root for <roadmap-id> resolution (default: auto-detect).",
+    )
+    p_replan_scope.set_defaults(func=_cmd_replan_scope)
+
+    p_replan_finish = sub.add_parser(
+        "replan-finish",
+        help=(
+            "Close out a replan: approve the re-decomposed items, validate the "
+            "roadmap, and delete the replan request."
+        ),
+    )
+    p_replan_finish.add_argument(
+        "workspace", help="Roadmap workspace directory, or a bare <roadmap-id>."
+    )
+    p_replan_finish.add_argument(
+        "--repo-root",
+        default=None,
+        help="Repository root for schema resolution (default: auto-detect).",
+    )
+    p_replan_finish.set_defaults(func=_cmd_replan_finish)
 
     args = parser.parse_args(argv)
     return int(args.func(args))

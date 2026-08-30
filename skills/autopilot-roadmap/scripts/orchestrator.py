@@ -12,15 +12,22 @@ the SKILL.md prompt layer provides the dispatch_fn that invokes
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Protocol, Union
 
-_RUNTIME_DIR = Path(__file__).resolve().parent.parent.parent / "roadmap-runtime" / "scripts"
+_SKILLS_ROOT = Path(__file__).resolve().parent.parent.parent
+_RUNTIME_DIR = _SKILLS_ROOT / "roadmap-runtime" / "scripts"
 if str(_RUNTIME_DIR) not in sys.path:
     sys.path.insert(0, str(_RUNTIME_DIR))
+# `shared.trust_posture` is imported as a package module, so the PARENT of
+# `shared/` must be importable, not `shared/` itself.
+if str(_SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SKILLS_ROOT))
 
 from checkpoint import CheckpointManager  # type: ignore[import-untyped]
 from learning import write_entry  # type: ignore[import-untyped]
@@ -43,8 +50,15 @@ if str(_SCRIPTS_DIR) not in sys.path:
 
 from policy import PolicyDecision, VendorLimit, evaluate_policy  # type: ignore[import-untyped]
 from replanner import replan  # type: ignore[import-untyped]
+from shared.trust_posture import Gate  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+#: Filename of the replan handoff written into the workspace on a proceed.
+REPLAN_REQUEST_FILENAME = "replan-request.json"
+
+#: Summary status returned when a replan request was emitted.
+REPLAN_REQUESTED_STATUS = "replan_requested"
 
 
 # Phase progression for a single item
@@ -61,15 +75,58 @@ _ITEM_PHASES = [
 # Dispatch callback type
 # ---------------------------------------------------------------------------
 
-# dispatch_fn(item_id, phase, context) -> outcome string
+# dispatch_fn(item_id, phase, context) -> outcome string OR result payload
 # Outcomes: "success", "failed:<reason>", "vendor_limit:<vendor>:<reason>"
-DispatchFn = Callable[[str, str, dict[str, Any]], str]
+#
+# A dispatcher may instead return a mapping ``{"outcome": <outcome string>,
+# "replan": <bool>}``. The mapping form exists solely so the agent that saw the
+# failure can say whether the roadmap needs re-planning; nothing here infers
+# that from the reason text.
+DispatchResult = Union[str, Mapping[str, Any]]
+DispatchFn = Callable[[str, str, dict[str, Any]], DispatchResult]
 
 
 def _default_dispatch(item_id: str, phase: str, context: dict[str, Any]) -> str:
     """Default dispatch that auto-succeeds (for testing / dry-run)."""
     logger.info("dispatch.default: item=%s phase=%s (auto-success)", item_id, phase)
     return "success"
+
+
+def _normalize_outcome(result: DispatchResult) -> tuple[str, bool]:
+    """Split a dispatch result into ``(outcome string, replan signal)``.
+
+    A bare string is the historical contract and never requests a replan.
+    """
+    if isinstance(result, Mapping):
+        return str(result.get("outcome", "")), bool(result.get("replan", False))
+    return str(result), False
+
+
+# ---------------------------------------------------------------------------
+# Gate evaluation seam
+# ---------------------------------------------------------------------------
+
+class GateEvaluator(Protocol):
+    """The slice of ``shared.approval_gate.ApprovalGate`` this module uses.
+
+    Injecting it is what keeps ``skills/autopilot-roadmap/scripts/`` free of any
+    network or LLM call: the production evaluator (which talks to the
+    coordinator) is constructed by the host, and tests pass a fake.
+    """
+
+    def evaluate(self, gate: Gate, context: dict[str, Any]) -> Any: ...
+
+
+def _build_default_gate_evaluator() -> GateEvaluator:
+    """Lazily construct the production gate.
+
+    Imported inside the function, and called only once a gate is actually
+    reached, so an ordinary run never opens a coordinator transport it does not
+    need — and importing this module stays free of that dependency.
+    """
+    from shared.approval_gate import build_default_gate
+
+    return build_default_gate(agent_id="autopilot-roadmap")
 
 
 # ---------------------------------------------------------------------------
@@ -81,6 +138,7 @@ def execute_roadmap(
     repo_root: Path | None = None,
     dispatch_fn: DispatchFn | None = None,
     on_policy_decision: Callable[[PolicyDecision], None] | None = None,
+    gate_evaluator: GateEvaluator | None = None,
 ) -> dict[str, Any]:
     """Execute a roadmap from the given workspace.
 
@@ -92,17 +150,29 @@ def execute_roadmap(
         Repository root for schema validation. None skips validation.
     dispatch_fn:
         Callback invoked for each item phase. Receives (item_id, phase, context)
-        and returns an outcome string. Defaults to auto-success stub.
+        and returns an outcome string, or a ``{"outcome": ..., "replan": ...}``
+        payload. Defaults to auto-success stub.
     on_policy_decision:
         Optional callback notified when a policy decision is made.
+    gate_evaluator:
+        Object with ``evaluate(gate, context)`` used for ``Gate.REPLAN_REQUIRED``.
+        Defaults to ``shared.approval_gate.build_default_gate()``, built lazily
+        the first time a gate is actually reached.
 
     Returns
     -------
     Summary dict with completed_count, failed_count, blocked_count,
-    skipped_count, superseded_count, status, and policy_decisions list.
+    skipped_count, superseded_count, status, policy_decisions, and
+    gate_decisions. When a replan request was emitted the status is
+    ``replan_requested`` and ``replan_request`` describes the handoff file.
     """
     dispatch = dispatch_fn or _default_dispatch
     policy_decisions: list[dict[str, Any]] = []
+    gate_decisions: list[dict[str, Any]] = []
+    # Mutable because _execute_item_phases reports "the run must stop and hand
+    # off to the host" the same way it reports policy decisions — by filling a
+    # container the caller owns — rather than by widening its bool return.
+    replan_state: dict[str, Any] = {}
 
     # Load roadmap
     roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
@@ -172,8 +242,19 @@ def execute_roadmap(
             policy_decisions=policy_decisions,
             switch_attempts=switch_attempts,
             workspace=workspace,
+            repo_root=repo_root,
             on_policy_decision=on_policy_decision,
+            gate_evaluator=gate_evaluator,
+            gate_decisions=gate_decisions,
+            replan_state=replan_state,
         )
+
+        if replan_state.get("requested"):
+            # The gate said proceed: the roadmap's remaining shape is now the
+            # host's to decide (`/plan-roadmap --replan`). Dispatching anything
+            # else first would build on a plan we just declared stale.
+            save_roadmap(roadmap, workspace / "roadmap.yaml", overwrite=True)
+            break
 
         if item_succeeded:
             # Complete the item
@@ -193,7 +274,7 @@ def execute_roadmap(
         save_roadmap(roadmap, workspace / "roadmap.yaml", overwrite=True)
 
     # Build summary
-    return _build_summary(roadmap, checkpoint, policy_decisions)
+    return _build_summary(roadmap, checkpoint, policy_decisions, gate_decisions, replan_state)
 
 
 # ---------------------------------------------------------------------------
@@ -211,10 +292,29 @@ def _execute_item_phases(
     policy_decisions: list[dict[str, Any]],
     switch_attempts: dict[str, int],
     workspace: Path,
+    repo_root: Path | None,
     on_policy_decision: Callable[[PolicyDecision], None] | None,
+    gate_evaluator: GateEvaluator | None,
+    gate_decisions: list[dict[str, Any]],
+    replan_state: dict[str, Any],
 ) -> bool:
     """Walk an item through its phases. Returns True if item completed."""
     start_idx = _ITEM_PHASES.index(start_phase) if start_phase in _ITEM_PHASES else 0
+
+    def _fail(reason: str, *, replan: bool = False) -> None:
+        _handle_failure(
+            item_id=item_id,
+            reason=reason,
+            replan=replan,
+            roadmap=roadmap,
+            checkpoint=checkpoint,
+            mgr=mgr,
+            workspace=workspace,
+            repo_root=repo_root,
+            gate_evaluator=gate_evaluator,
+            gate_decisions=gate_decisions,
+            replan_state=replan_state,
+        )
 
     for phase in _ITEM_PHASES[start_idx:]:
         if phase == CheckpointPhase.COMPLETED:
@@ -229,7 +329,7 @@ def _execute_item_phases(
             "completed_items": list(checkpoint.completed_items),
         }
 
-        outcome = dispatch(item_id, phase.value, context)
+        outcome, replan_signal = _normalize_outcome(dispatch(item_id, phase.value, context))
 
         if outcome == "success":
             logger.info("item.phase_success: item=%s phase=%s", item_id, phase.value)
@@ -238,7 +338,7 @@ def _execute_item_phases(
         if outcome.startswith("failed:"):
             reason = outcome[len("failed:"):]
             logger.warning("item.phase_failed: item=%s phase=%s reason=%s", item_id, phase.value, reason)
-            mgr.fail_item(checkpoint, item_id, reason, roadmap)
+            _fail(reason, replan=replan_signal)
             return False
 
         if outcome.startswith("vendor_limit:"):
@@ -267,7 +367,8 @@ def _execute_item_phases(
                 on_policy_decision(decision)
 
             if decision.action == "fail_closed":
-                mgr.fail_item(checkpoint, item_id, f"Policy fail_closed: {decision.reason}", roadmap)
+                # A vendor-policy stop is not a plan problem — no replan signal.
+                _fail(f"Policy fail_closed: {decision.reason}")
                 return False
 
             # For "wait" and "switch" — the orchestrator records the decision
@@ -282,10 +383,149 @@ def _execute_item_phases(
 
         # Unknown outcome — treat as failure
         logger.warning("item.unknown_outcome: item=%s outcome=%s", item_id, outcome)
-        mgr.fail_item(checkpoint, item_id, f"Unknown dispatch outcome: {outcome}", roadmap)
+        _fail(f"Unknown dispatch outcome: {outcome}")
         return False
 
     return True
+
+
+# ---------------------------------------------------------------------------
+# Failure handling and the replan gate
+# ---------------------------------------------------------------------------
+
+def _handle_failure(
+    *,
+    item_id: str,
+    reason: str,
+    replan: bool,
+    roadmap: Roadmap,
+    checkpoint: Any,
+    mgr: CheckpointManager,
+    workspace: Path,
+    repo_root: Path | None,
+    gate_evaluator: GateEvaluator | None,
+    gate_decisions: list[dict[str, Any]],
+    replan_state: dict[str, Any],
+) -> None:
+    """Record the failure and, when a replan was signalled, run the gate once.
+
+    The gate is evaluated **once per failure, not once per parked dependent**:
+    one failure produces one re-planning question ("should the host re-decompose
+    the subgraph this item was holding up?"). Asking it per dependent would put
+    the same question to a human N times for one event, and N-1 of those answers
+    could contradict the first.
+    """
+    mgr.fail_item(checkpoint, item_id, reason, roadmap, replan=replan)
+    if not replan:
+        return
+
+    parked = sorted(
+        i.item_id for i in roadmap.items if i.status == ItemStatus.REPLAN_REQUIRED
+    )
+    if not parked:
+        # Nothing depended on the failed item, so there is no subgraph to
+        # re-decompose and nothing to ask about.
+        logger.info("replan.no_dependents: item=%s — gate not evaluated", item_id)
+        return
+
+    evaluator = gate_evaluator or _build_default_gate_evaluator()
+    decision = evaluator.evaluate(
+        Gate.REPLAN_REQUIRED,
+        {
+            "roadmap_id": roadmap.roadmap_id,
+            "failed_item_id": item_id,
+            "failure_reason": reason,
+            "replan_required_items": parked,
+            "workspace": str(workspace),
+        },
+    )
+    record = _gate_decision_record(decision)
+    gate_decisions.append(record)
+    mgr.record_gate_decision(checkpoint, record)
+
+    if not decision.proceed:
+        # Fail closed: the items stay in replan_required (so they are not ready
+        # and will not be dispatched), no request is written, and the run keeps
+        # going with whatever else is ready.
+        logger.info(
+            "replan.gate_blocked: item=%s resolution=%s parked=%s",
+            item_id, record.get("resolution"), ",".join(parked),
+        )
+        return
+
+    request_path = _write_replan_request(
+        workspace=workspace,
+        repo_root=repo_root,
+        roadmap=roadmap,
+        failed_item_id=item_id,
+        reason=reason,
+        parked=parked,
+        gate_decision=record,
+    )
+    replan_state["requested"] = True
+    replan_state["items"] = parked
+    replan_state["path"] = str(request_path)
+    replan_state["failed_item_id"] = item_id
+    logger.info("replan.requested: item=%s request=%s", item_id, request_path)
+
+
+def _gate_decision_record(decision: Any) -> dict[str, Any]:
+    """Flatten an ``ApprovalDecision`` to a ``gate-decision.schema.json`` record.
+
+    ``to_audit_record()`` names the authorizing posture value
+    ``authorizing_disposition``; the contract calls it ``disposition``. Both are
+    emitted (the schema allows additional properties) so an audit reader that
+    already parses the coordinator's records keeps working.
+    """
+    record = dict(decision.to_audit_record())
+    record["disposition"] = decision.disposition.value
+    record["recorded_at"] = datetime.now(timezone.utc).isoformat()
+    return record
+
+
+def _write_replan_request(
+    *,
+    workspace: Path,
+    repo_root: Path | None,
+    roadmap: Roadmap,
+    failed_item_id: str,
+    reason: str,
+    parked: list[str],
+    gate_decision: dict[str, Any],
+) -> Path:
+    """Write the ``ReplanRequest`` handoff file.
+
+    A *file*, not a coordinator issue or an LLM call: the host-assisted
+    invariant forbids network access from this package, and the workspace is
+    already the durable handoff medium (roadmap.yaml, checkpoint.json,
+    learnings/). ``/plan-roadmap --replan`` consumes and deletes it.
+    """
+    request: dict[str, Any] = {
+        "schema_version": 1,
+        "roadmap_id": roadmap.roadmap_id,
+        "failed_item_id": failed_item_id,
+        "failure_reason": reason,
+        "replan_required_items": parked,
+        "gate_decision": gate_decision,
+        "requested_at": datetime.now(timezone.utc).isoformat(),
+    }
+    learning_path = workspace / "learnings" / f"{failed_item_id}.md"
+    if learning_path.exists():
+        request["learning_entry"] = _repo_relative(learning_path, repo_root)
+
+    path = workspace / REPLAN_REQUEST_FILENAME
+    path.write_text(json.dumps(request, indent=2) + "\n")
+    return path
+
+
+def _repo_relative(path: Path, repo_root: Path | None) -> str:
+    """Repo-relative path when it can be computed, absolute otherwise."""
+    if repo_root:
+        try:
+            return str(path.resolve().relative_to(Path(repo_root).resolve()))
+        except ValueError:
+            pass
+    return str(path)
 
 
 # ---------------------------------------------------------------------------
@@ -386,6 +626,8 @@ def _build_summary(
     roadmap: Roadmap,
     checkpoint: Any,
     policy_decisions: list[dict[str, Any]],
+    gate_decisions: list[dict[str, Any]] | None = None,
+    replan_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the execution summary dict."""
     completed_count = len(checkpoint.completed_items)
@@ -425,12 +667,29 @@ def _build_summary(
     else:
         status = "blocked_all"
 
-    return {
+    replan_required_count = sum(
+        1 for item in roadmap.items
+        if item.status == ItemStatus.REPLAN_REQUIRED
+    )
+    replan_state = replan_state or {}
+    summary: dict[str, Any] = {
         "completed_count": completed_count,
         "failed_count": failed_count,
         "blocked_count": blocked_count,
         "skipped_count": skipped_count,
         "superseded_count": superseded_count,
+        "replan_required_count": replan_required_count,
         "status": status,
         "policy_decisions": policy_decisions,
+        "gate_decisions": list(gate_decisions or []),
     }
+    if replan_state.get("requested"):
+        # The run stopped deliberately to hand off to the host; that is a
+        # different outcome from "blocked_all" and the host branches on it.
+        summary["status"] = REPLAN_REQUESTED_STATUS
+        summary["replan_request"] = {
+            "path": replan_state.get("path"),
+            "failed_item_id": replan_state.get("failed_item_id"),
+            "replan_required_items": list(replan_state.get("items", [])),
+        }
+    return summary
