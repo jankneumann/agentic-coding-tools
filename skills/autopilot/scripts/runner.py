@@ -53,9 +53,18 @@ from shared.trust_posture import Disposition, Gate  # noqa: E402
 
 logger = logging.getLogger("autopilot.runner")
 
-# Exit code for "no gate is pending" — distinct from 2 (usage/refusal) so a
-# host can branch on "nothing to ask" without parsing stderr.
+# Exit code for "no gate is pending, continue" — distinct from 2 (usage/refusal)
+# so a host can branch on "nothing to ask" without parsing stderr. It is also
+# what an evaluated gate returns on PROCEED: the decision was recorded, and the
+# caller has nothing to ask anybody.
 EXIT_NO_PENDING_GATE = 3
+
+# Exit code for "the run is parked; stop". Reached when an evaluated gate comes
+# back BLOCKED for a reason a console answer cannot resolve (rejected, timeout
+# default-block, coordinator unreachable): the decision is recorded, the loop is
+# in ESCALATE, and there is no question to put to the operator. Distinct from 0
+# ("ask, then gate-answer") because the caller must NOT continue.
+EXIT_GATE_PARKED = 4
 
 
 def _change_dir(change_id: str) -> Path:
@@ -79,19 +88,107 @@ def _load_pending(change_id: str) -> dict | None:
     return pending if isinstance(pending, dict) else None
 
 
+def _parse_context(pairs: list[str] | None) -> dict[str, str]:
+    """Assemble the gate context from repeated ``--context KEY=VALUE`` pairs."""
+    context: dict[str, str] = {}
+    for item in pairs or []:
+        key, sep, value = item.partition("=")
+        if not sep or not key.strip():
+            raise ValueError(f"--context expects KEY=VALUE, got {item!r}")
+        context[key.strip()] = value
+    return context
+
+
 def _cmd_gate_check(args: argparse.Namespace) -> int:
-    """Print the pending GateRequest as JSON. Exit 0 pending / 3 none."""
+    """Report the outstanding gate, or evaluate ``--gate`` when none is.
+
+    Precedence is deliberate: an already-pending gate is a question the operator
+    has not answered yet, so it is printed unchanged and nothing is re-evaluated.
+    Only when nothing is pending does ``--gate`` mean "evaluate this one now" —
+    which is what makes the gates enforceable on the host-driven path, where the
+    orchestrator (not ``run_loop``) owns the phase sequence.
+    """
     try:
         phase_agent._validate_change_id(args.change_id)
     except ValueError as exc:
         sys.stderr.write(f"runner: {exc}\n")
         return 2
     pending = _load_pending(args.change_id)
-    if pending is None:
+    if pending is not None:
+        sys.stdout.write(json.dumps(pending, indent=2, sort_keys=True) + "\n")
+        return 0
+    if getattr(args, "gate", None) is None:
         sys.stderr.write(f"runner: no gate pending for {args.change_id}\n")
         return EXIT_NO_PENDING_GATE
-    sys.stdout.write(json.dumps(pending, indent=2, sort_keys=True) + "\n")
-    return 0
+    return _evaluate_gate(args)
+
+
+def _evaluate_gate(args: argparse.Namespace) -> int:
+    """Evaluate one gate through the loop's own fail-closed default evaluator.
+
+    Uses ``autopilot._GateSession`` rather than a second copy of the posture
+    logic, so the CLI and ``run_loop`` cannot disagree about what a gate decides,
+    where the decision is recorded, or when it is flushed to disk.
+    """
+    try:
+        context = _parse_context(args.context)
+    except ValueError as exc:
+        sys.stderr.write(f"runner: {exc}\n")
+        return 2
+
+    state_path = _state_path(args.change_id)
+    if not state_path.exists():
+        sys.stderr.write(
+            f"runner: no loop state at {state_path}; cannot evaluate a gate "
+            f"before the run has state to record it in\n"
+        )
+        return 2
+    try:
+        state = autopilot.load_state(state_path)
+    except (OSError, ValueError) as exc:
+        sys.stderr.write(f"runner: cannot read {state_path}: {exc}\n")
+        return 2
+
+    gate = Gate(args.gate)
+    phase = state.current_phase
+    session = autopilot._GateSession(
+        change_id=args.change_id,
+        state_path=state_path,
+        # The worktree the caller is driving: the posture in effect is the one
+        # committed on this change's branch.
+        repo_root=Path.cwd(),
+    )
+    try:
+        decision = session.evaluate(gate, context)
+    except Exception as exc:  # noqa: BLE001
+        sys.stderr.write(f"runner: gate {gate.value!r} evaluation failed: {exc}\n")
+        return 1
+
+    # Recorded and flushed BEFORE anything acts on it (design D1): a crash here
+    # loses the action, never the authorization.
+    session.record(state, decision, phase=phase)
+    record = state.gate_decisions[-1]
+
+    if decision.proceed:
+        sys.stdout.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
+        return EXIT_NO_PENDING_GATE
+
+    # No `edge`: on this path the orchestrator owns current_phase (apply-outcome
+    # never moves it), so gate-answer records the answer and the caller resumes.
+    if session.park(state, decision, phase=phase, context=context) == autopilot.GATE_PENDING:
+        sys.stdout.write(
+            json.dumps(state.pending_gate, indent=2, sort_keys=True) + "\n"
+        )
+        return 0
+
+    # rejected / timeout_default_block / coordinator_unreachable: a human was
+    # consulted or could not be reached, so there is no question left to ask.
+    reason = f"{gate.value}: {decision.resolution.value} — {decision.reason}"
+    autopilot.enter_escalate(state, reason)
+    autopilot.save_state(state, state_path)
+    sys.stdout.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
+    sys.stderr.write(f"runner: {reason}; run parked in ESCALATE\n")
+    return EXIT_GATE_PARKED
 
 
 def _console_decision(
@@ -292,7 +389,8 @@ def _build_parser() -> argparse.ArgumentParser:
         description=(
             "Autopilot per-phase dispatch and human-gate CLI. Subcommands: "
             "build-dispatch, apply-outcome, record-state-only-archetype, "
-            "gate-check, gate-answer."
+            "gate-check, gate-answer. Gate exit codes: 0 ask, 3 continue, "
+            "4 parked."
         ),
     )
     sub = parser.add_subparsers(dest="command", required=True)
@@ -353,15 +451,44 @@ def _build_parser() -> argparse.ArgumentParser:
 
     gc = sub.add_parser(
         "gate-check",
-        help="Print the pending GateRequest as JSON (exit 0 pending, 3 none).",
+        help="Report or evaluate a gate (exit 0 ask, 3 continue, 4 parked).",
         description=(
-            "Print loop-state's pending_gate as JSON conforming to "
-            "contracts/events/gate-request.schema.json. Exit 0 when a gate is "
-            "pending, 3 when none is. The host renders the printed `prompt` "
-            "verbatim to the operator and answers with gate-answer."
+            "Report the pending gate, or evaluate one. With a gate already "
+            "pending, prints loop-state's pending_gate as JSON conforming to "
+            "contracts/events/gate-request.schema.json and exits 0 — the "
+            "outstanding question is never re-evaluated. With nothing pending "
+            "and --gate NAME, evaluates that gate against the trust posture "
+            "(TRUST_POSTURE.md in the current worktree; absent means block) "
+            "using the same fail-closed evaluator the loop uses, and records "
+            "the decision in loop-state's gate_decisions. Exit codes: 0 — a "
+            "gate is pending, ask the operator the printed `prompt` verbatim "
+            "and answer with gate-answer; 3 — nothing to ask, continue "
+            "(no gate pending, or the gate resolved PROCEED); 4 — the gate "
+            "was BLOCKED for a reason no console answer resolves (rejected, "
+            "timeout default-block, coordinator unreachable), the run is "
+            "parked in ESCALATE and the caller must stop."
         ),
     )
     gc.add_argument("change_id", help="OpenSpec change identifier.")
+    gc.add_argument(
+        "--gate",
+        default=None,
+        choices=[g.value for g in Gate],
+        help=(
+            "Evaluate this gate when none is pending. Omit to only report an "
+            "already-pending gate."
+        ),
+    )
+    gc.add_argument(
+        "--context",
+        action="append",
+        default=None,
+        metavar="KEY=VALUE",
+        help=(
+            "Gate-specific evidence for the operator (repeatable), e.g. "
+            "--context proposal_path=openspec/changes/x/proposal.md."
+        ),
+    )
     gc.set_defaults(func=_cmd_gate_check)
 
     ga = sub.add_parser(

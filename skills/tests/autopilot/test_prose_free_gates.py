@@ -63,8 +63,9 @@ _GATE_SECTIONS = {
 }
 
 #: Every line a gate protocol block must carry, so that a block cannot degrade
-#: into a decorative `gate-check` with no way to answer it. `exit 0` / `exit 3`
-#: are runner.py's contract: 0 means a gate is pending, 3 means none is.
+#: into a decorative `gate-check` with no way to answer it. `exit 0` / `exit 3` /
+#: `exit 4` are runner.py's contract: 0 means a gate is pending (ask), 3 means
+#: there is nothing to ask (continue), 4 means the run is parked (stop).
 _PROTOCOL_REQUIREMENTS = (
     "runner.py",
     "gate-check",
@@ -72,6 +73,7 @@ _PROTOCOL_REQUIREMENTS = (
     "--decision",
     "exit 0",
     "exit 3",
+    "exit 4",
 )
 
 
@@ -149,6 +151,29 @@ def _strip_fences(text: str) -> str:
             if out[i] != "\n":
                 out[i] = " "
     return "".join(out)
+
+
+def _shell_commands(text: str) -> list[str]:
+    """The block's shell commands, with backslash line-continuations joined.
+
+    A documented `gate-check` spans several lines once it carries `--gate` and
+    `--context`; joining them is what lets a test ask "does this invocation pass
+    a gate?" rather than "does the word appear somewhere nearby?".
+    """
+    commands: list[str] = []
+    buffer = ""
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            continue
+        if stripped.endswith("\\"):
+            buffer += stripped[:-1].strip() + " "
+            continue
+        commands.append((buffer + stripped).strip())
+        buffer = ""
+    if buffer:
+        commands.append(buffer.strip())
+    return [c for c in commands if c]
 
 
 def _line_of(text: str, offset: int) -> str:
@@ -262,6 +287,40 @@ def test_host_facing_gate_section_runs_the_protocol(
         f"the {gate.value!r} protocol block in section {heading!r} is missing "
         f"{missing} — a gate-check with no documented answer path or exit-code "
         f"semantics is prose with a command in it"
+    )
+
+
+@pytest.mark.parametrize(
+    "gate,heading_fragment",
+    sorted(_GATE_SECTIONS.items(), key=lambda kv: kv[0].value),
+    ids=lambda v: v.value if isinstance(v, Gate) else str(v),
+)
+def test_host_facing_gate_section_evaluates_the_gate(
+    gate: Gate, heading_fragment: str
+) -> None:
+    """The documented `gate-check` must EVALUATE the gate, not only report it.
+
+    `run_loop` — where the seven `gates.evaluate(...)` call sites live — has no
+    non-test callers; this document *is* the production loop. A `gate-check` with
+    no `--gate` can only ever print an already-pending request, so on this path it
+    would always exit 3 and the run would sail past every gate.
+    """
+    text = _AUTOPILOT_MD.read_text(encoding="utf-8")
+    section = next(s for h, s in _sections(text) if heading_fragment in h)
+    checks = [
+        cmd
+        for block in _protocol_blocks(section.text)
+        for cmd in _shell_commands(block.text)
+        if "gate-check" in cmd
+    ]
+    assert checks, f"no gate-check invocation in the {gate.value!r} section"
+    evaluating = [c for c in checks if f"--gate {gate.value}" in c]
+    assert evaluating, (
+        f"the {gate.value!r} section runs `gate-check` without "
+        f"`--gate {gate.value}`, so it can only report a gate somebody else "
+        f"evaluated. On the host-driven path nobody else does: it would exit 3 "
+        f"every time and the gate would never fire. Invocations found:\n  "
+        + "\n  ".join(checks)
     )
 
 
