@@ -64,10 +64,22 @@ if [ -f "$LOOP_STATE" ]; then
 fi
 ```
 
-If `loop-state.json` exists and `current_phase == "ESCALATE"`:
-- Report the escalation reason and blocking findings
-- Ask if the issue has been resolved
-- If yes: re-evaluate the gate check for `previous_phase`
+If `loop-state.json` exists and `current_phase == "ESCALATE"`, report the escalation
+reason and blocking findings, then run the gate protocol. The resume decision is a
+recorded `ApprovalDecision`, never an inference from the conversation:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" gate-check <change-id>
+# exit 0 → ask the operator the printed `prompt` verbatim (AskUserQuestion), then:
+python3 "<skill-base-dir>/scripts/runner.py" gate-answer <change-id> \
+  --gate escalate_resume --decision <approved|rejected> [--note "<operator note>"]
+# exit 3 → no gate pending; continue
+```
+
+`--decision approved` resumes the loop at `previous_phase`; `--decision rejected`
+leaves it parked in ESCALATE with the note recorded as the reason. The loop cannot
+be advanced around this: `apply-outcome` refuses to record anything while a gate is
+pending.
 
 ### 1. INIT Phase
 
@@ -226,11 +238,27 @@ Failure here is non-fatal — the helper logs a warning and writes
 If argument was a description (no existing change-id):
 - Invoke `/plan-feature <description>` (tier auto-detected based on coordinator availability)
 - **Before showing/answering the proposal approval gate prompt**, **best-effort** invoke `/review-artifacts <change-id>` to open proposal/design/spec/tasks artifacts in a new VS Code review session. The helper is local-only (depends on the VS Code CLI / a desktop environment) and will be unavailable in cloud harnesses — treat its failure as non-fatal: log a short notice (`[autopilot] /review-artifacts unavailable — skipping artifact pre-open`) and continue to the approval gate.
-- Wait for proposal approval before continuing
 
 If argument was an existing change-id:
 - Verify proposal artifacts exist (proposal.md, design.md, specs/, tasks.md)
 - Skip to PLAN_REVIEW
+
+**Either way, run the gate protocol before acting on the proposal.** The loop
+evaluates the proposal-approval gate on both PLAN outcomes (`created` and `exists`),
+so a pre-existing change is approved on this run's terms, not on a previous run's:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" gate-check <change-id>
+# exit 0 → ask the operator the printed `prompt` verbatim (AskUserQuestion), then:
+python3 "<skill-base-dir>/scripts/runner.py" gate-answer <change-id> \
+  --gate proposal_approval --decision <approved|rejected> [--note "<operator note>"]
+# exit 3 → no gate pending; continue
+```
+
+`--decision approved` applies the PLAN edge and the loop moves on; `--decision
+rejected` enters ESCALATE naming the gate and the note. Whether the gate parks at
+all is the trust posture's call (`TRUST_POSTURE.md`) — under an `auto` disposition
+`gate-check` exits 3 and there is nothing to ask.
 
 ### Per-Phase Sub-Agent Dispatch Protocol
 
@@ -578,7 +606,8 @@ scoped to the package's `write_allow` paths. IMPL_FIX inherits
 
 Run validation phases (spec, evidence, deploy, smoke, security, e2e)
 per validate-feature. Aggregate results into a PhaseRecord. Outcome is
-`"continue"` on PASS, `"escalate"` on FAIL.
+`passed` on PASS, `failed` on FAIL — the only two outcomes the transition
+table accepts for this phase.
 
 Dispatch protocol (3 steps):
 
@@ -603,8 +632,9 @@ Dispatch protocol (3 steps):
 inline path — invoke `/validate-feature <change-id>` (tier
 auto-detected). Then run `apply-outcome` to record `phase_archetype = null`.
 
-**If passed**: Check `val_review_enabled` — if true, go to VAL_REVIEW; otherwise skip to SUBMIT_PR.
-**If failed**: Transition to VAL_FIX.
+**If `passed`**: Check `val_review_enabled` — if true, go to VAL_REVIEW; otherwise skip to SUBMIT_PR.
+**If `failed`**: Transition to VAL_FIX. The validation-failure gate is evaluated by
+the loop on that edge; if it parks, `gate-check` reports it at the next step.
 
 ### 7. VAL_REVIEW Phase (Optional)
 
@@ -650,6 +680,22 @@ python3 "<skill-base-dir>/scripts/runner.py" record-state-only-archetype \
 
 Failure here is non-fatal (writes `phase_archetype = null` and continues).
 
+**Then run the PR-creation gate before `gh pr create`** — creating the PR is the
+first externally visible act of the run, so the authorization for it is recorded,
+not assumed:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" gate-check <change-id>
+# exit 0 → ask the operator the printed `prompt` verbatim (AskUserQuestion), then:
+python3 "<skill-base-dir>/scripts/runner.py" gate-answer <change-id> \
+  --gate pr_creation --decision <approved|rejected> [--note "<operator note>"]
+# exit 3 → no gate pending; continue
+```
+
+This gate authorizes work inside the phase rather than an edge, so an approval
+records the decision and leaves the loop in SUBMIT_PR; a rejection enters ESCALATE
+with the note. Do not run `gh pr create` until `gate-check` exits 3.
+
 Create a pull request with full evidence trail:
 
 ```bash
@@ -684,9 +730,28 @@ Write final strategic memory summarizing:
 
 Write final handoff document.
 
-**STOP — Await human approval for merge via `/cleanup-feature <change-id>`.**
-
 Before presenting merge-approval questions, **best-effort** invoke `/review-artifacts <change-id>` so the reviewer has the relevant artifacts open prior to choosing gate outcomes. The helper is local-only (VS Code CLI dependency) — when it's unavailable (cloud harness, headless CI), log a short notice and proceed to the approval prompt without it; do not block the gate on artifact pre-opening.
+
+Then run the merge-authorization gate. It guards the SUBMIT_PR → DONE edge, so the
+loop cannot report DONE until it is answered:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" gate-check <change-id>
+# exit 0 → ask the operator the printed `prompt` verbatim (AskUserQuestion), then:
+python3 "<skill-base-dir>/scripts/runner.py" gate-answer <change-id> \
+  --gate merge --decision <approved|rejected> [--note "<operator note>"]
+# exit 3 → no gate pending; continue
+```
+
+**Autopilot never merges.** `--decision approved` records the authorization
+(`goal_gate.evidence.merge_authorized`, with the PR URL) and transitions to DONE;
+the pull request is merged by `/cleanup-feature <change-id>`, which remains the only
+executor. `--decision rejected` enters ESCALATE with the note.
+
+DONE is also where the goal gate applies: the transition is refused unless the
+validation report's required sections read `pass` and this run's own VALIDATE
+history entry is `passed` and postdates that report. A refusal is not a silent stop —
+the loop lands in ESCALATE with `goal gate refused: <reason>`.
 
 ## Progress Reporting
 

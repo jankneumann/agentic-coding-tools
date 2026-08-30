@@ -218,7 +218,7 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
 
 ## Phase 4 — wp-skill-docs: de-prose the gates
 
-- [ ] 4.1 Test (`test_prose_free_gates.py`): none of the three retired phrases appears in
+- [x] 4.1 Test (`test_prose_free_gates.py`): none of the three retired phrases appears in
       `skills/autopilot/SKILL.md`; every `Gate` value mentioned appears inside a
       `gate-check`/`gate-answer` block; documented VALIDATE outcomes equal
       `TRANSITIONS["VALIDATE"].keys()`; the three mirrors are byte-identical — **S**
@@ -227,24 +227,24 @@ Contracts: `contracts/events/{gate-request,gate-decision,replan-request}.schema.
       **Design decisions**: D9
       **Dependencies**: None
 
-- [ ] 4.2 Rewrite the proposal-approval (§2), ESCALATE-resume (§0), PR-creation (§8), and
+- [x] 4.2 Rewrite the proposal-approval (§2), ESCALATE-resume (§0), PR-creation (§8), and
       merge-handoff (§9) sections of `skills/autopilot/SKILL.md` as `gate-check`/`gate-answer`
       protocol blocks; fix the VALIDATE outcome vocabulary in §6 — **M**
       **Design decisions**: D3, D9
       **Dependencies**: 4.1
 
-- [ ] 4.3 Replace the "Deferred: automated re-decomposition" section of
+- [x] 4.3 Replace the "Deferred: automated re-decomposition" section of
       `skills/autopilot-roadmap/SKILL.md` with the replan protocol; document `--replan` in
       `skills/plan-roadmap/SKILL.md` — **S**
       **Spec scenarios**: ro *Replan gate proceeds and emits a request*
       **Design decisions**: D8, D9
       **Dependencies**: 4.1
 
-- [ ] 4.4 Run `install.sh` to resync `.claude/skills/` and `.agents/skills/` — **XS**
+- [x] 4.4 Run `install.sh` to resync `.claude/skills/` and `.agents/skills/` — **XS**
       **Design decisions**: D9
       **Dependencies**: 4.2, 4.3
 
-- [ ] Checkpoint: `test_prose_free_gates.py` green, review the diff, confirm only the three
+- [x] Checkpoint: `test_prose_free_gates.py` green, review the diff, confirm only the three
       SKILL.md files and their mirrors changed
 
 ## Phase 5 — wp-integration
