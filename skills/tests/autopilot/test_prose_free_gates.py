@@ -383,8 +383,29 @@ def test_plan_roadmap_skill_documents_replan_mode() -> None:
 @pytest.mark.parametrize("mirror_root", _MIRROR_ROOTS)
 @pytest.mark.parametrize("skill", _MIRRORED_SKILLS)
 def test_mirror_is_byte_identical(skill: str, mirror_root: str) -> None:
+    """Catch mirror drift in a working checkout; skip where mirrors do not exist.
+
+    `.claude/skills/` and `.agents/skills/` are gitignored (.gitignore:277-278) —
+    they are install-time artifacts produced by `skills/install.sh`, not tracked
+    files. A fresh CI checkout therefore has no mirrors at all, so asserting they
+    exist there fails for a reason that has nothing to do with drift. Skipping
+    when the root is absent keeps this test doing its real job (a developer who
+    edits SKILL.md without resyncing is told so) without failing every CI run.
+
+    That does mean CI does not currently gate mirror drift. It cannot, while the
+    mirrors are untracked; the in-flight `gate-drift-with-mirrors-hooks-and-\
+    blocking-ci` change is what makes that possible. Skipping is honest about the
+    gap; asserting would only have hidden it behind a red build with a misleading
+    message.
+    """
+    mirror_dir = _REPO_ROOT / mirror_root
+    if not mirror_dir.is_dir():
+        pytest.skip(
+            f"{mirror_root}/ is absent — gitignored install artifact, not present "
+            "in a fresh checkout. Run ./skills/install.sh to populate it locally."
+        )
     source = _SKILLS_DIR / skill / "SKILL.md"
-    mirror = _REPO_ROOT / mirror_root / skill / "SKILL.md"
+    mirror = mirror_dir / skill / "SKILL.md"
     assert mirror.exists(), f"{mirror} is missing — run ./skills/install.sh"
     assert mirror.read_bytes() == source.read_bytes(), (
         f"{mirror} has drifted from {source} — run ./skills/install.sh to resync"

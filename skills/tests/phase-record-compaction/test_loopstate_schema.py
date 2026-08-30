@@ -20,7 +20,12 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "skills/autopilot/scripts"))
 
-from autopilot import LoopState, load_state, save_state  # noqa: E402
+from autopilot import (  # noqa: E402
+    LOOP_STATE_SCHEMA_VERSION,
+    LoopState,
+    load_state,
+    save_state,
+)
 
 
 class TestLoopStateFieldShape:
@@ -35,8 +40,17 @@ class TestLoopStateFieldShape:
         assert state.last_handoff_id is None
 
     def test_schema_version_is_current(self) -> None:
+        """Pinned to the module constant, not a literal.
+
+        This assertion has been hand-edited on every schema bump (1 -> 2 -> 3 ->
+        4 -> 5) and each time it failed in CI rather than at the point of change.
+        Reading the current version from the same place `LoopState` does keeps it
+        honest about what this test is actually for: that a default instance is
+        stamped with the CURRENT version, not with any particular number. The
+        migration tests below still pin real historical versions, which is where
+        a literal belongs."""
         state = LoopState()
-        assert state.schema_version == 4
+        assert state.schema_version == LOOP_STATE_SCHEMA_VERSION
 
     def test_handoff_ids_still_present(self) -> None:
         # Don't break the existing handoff_ids list — both fields coexist.
@@ -117,7 +131,7 @@ class TestRoundTrip:
         loaded = load_state(path)
         assert loaded.last_handoff_id == "h-2"
         assert loaded.handoff_ids == ["h-1", "h-2"]
-        assert loaded.schema_version == 4
+        assert loaded.schema_version == LOOP_STATE_SCHEMA_VERSION
 
     def test_roundtrip_with_none(self, tmp_path: Path) -> None:
         original = LoopState(change_id="rt", last_handoff_id=None)
@@ -136,4 +150,4 @@ class TestRoundTrip:
         body = json.loads(path.read_text())
         assert "last_handoff_id" in body
         assert body["last_handoff_id"] == "h-99"
-        assert body["schema_version"] == 4
+        assert body["schema_version"] == LOOP_STATE_SCHEMA_VERSION
