@@ -103,6 +103,9 @@ On item failure:
 - Record the failure in the checkpoint via `CheckpointManager.fail_item()`
 - Propagate blocked status to dependent items
 - Continue to the next available item (if any)
+- If the dispatch result carried `{"replan": true}`, dependents are parked in
+  `replan_required` instead and the replan gate runs — see
+  "Re-decomposition on `replan_required`" below
 
 ### 6. Apply Vendor Policy on Limits
 
@@ -128,16 +131,23 @@ The `execute_roadmap()` function returns a summary dict:
     "failed_count": 1,
     "blocked_count": 2,
     "skipped_count": 0,
-    "status": "completed" | "blocked_all" | "partial",
-    "policy_decisions": [...]
+    "superseded_count": 0,
+    "replan_required_count": 0,
+    "status": "completed" | "blocked_all" | "partial" | "replan_requested",
+    "policy_decisions": [...],
+    "gate_decisions": [...],
+    # present only when status == "replan_requested"
+    "replan_request": {"path": ..., "failed_item_id": ..., "replan_required_items": [...]},
 }
 ```
 
 Workspace artifacts updated:
-- `checkpoint.json` - Final execution state
+- `checkpoint.json` - Final execution state (including `gate_decisions`)
 - `roadmap.yaml` - Updated item statuses
 - `learnings/<item-id>.md` - Per-item learning entries
 - `learning-log.md` - Index of all learning entries
+- `replan-request.json` - Written only when the replan gate proceeds; consumed and
+  deleted by `/plan-roadmap --replan`
 
 ## Shared Runtime
 
@@ -160,16 +170,48 @@ The same principle applies to `<skill-base-dir>/../autopilot/scripts/`. The inva
 
 The one intentional exception elsewhere in the installed payload is `<skill-base-dir>/../parallel-infrastructure/scripts/review_dispatcher.py` (used by `parallel-review-plan` and `parallel-review-implementation`), where vendor diversity is the feature — multi-vendor review requires calling *different* models to get independent findings. That's not host-assistable by construction.
 
-## Deferred: automated re-decomposition on `replan_required`
+## Re-decomposition on `replan_required`
 
-The roadmap item status enum includes `replan_required`, but autopilot **does not act on it today** — `replanner.replan()` only nudges priorities of existing items (regex over learning entries), and the orchestrator never re-reads the source proposal. An item that genuinely needs re-decomposition currently requires a human to re-run `/plan-roadmap`.
+An item whose failure the executing agent judges workaround-able returns
+`{"outcome": "failed:<reason>", "replan": true}` from `dispatch_fn` instead of the
+bare `"failed:<reason>"` string. That explicit signal — not a classifier — is what
+makes the failure a re-planning event; the agent that saw the failure is the one that
+knows. A vendor-policy `fail_closed` or an unrecognised outcome never carries it.
 
-If we later want autopilot to re-decompose automatically when an item is flagged `replan_required`, that is the point at which a headless generation entry point in `plan-roadmap` earns its keep. The shape that respects this invariant:
+What the orchestrator does with it:
 
-- A `<skill-base-dir>/../plan-roadmap/scripts/generate.py` that drives the deterministic loop — fill `templates/generation-prompt.md`, dispatch, run `decomposer.validate_roadmap()`, and re-dispatch with the error list up to a bounded retry — but takes an **injected runner callback** rather than calling any model itself (mirror `<skill-base-dir>/../autopilot/scripts/provider_dispatch.py::dispatch_phase(payload, runner=...)`).
-- Autopilot supplies that runner the same way it supplies `dispatch_fn`: the host agent (or a CLI dispatch via `review_dispatcher.py`) does the actual generation. No LLM SDK enters `<skill-base-dir>/scripts/`.
+1. `CheckpointManager.fail_item(..., replan=True)` parks the failed item's
+   `approved` / `candidate` dependents in `replan_required` (rather than `blocked`),
+   with `blocked_by` set. Completed dependents are untouched.
+2. The `replan_required` gate is evaluated **once per failure**, not once per parked
+   dependent — one failure is one question. The disposition comes from
+   `TRUST_POSTURE.md`; the decision is appended to `checkpoint.gate_decisions`. If
+   nothing was parked (the failed item had no dependents) there is no subgraph to
+   re-decompose, so the gate is not evaluated at all.
+3. **BLOCKED** → nothing is written. The parked items stay in `replan_required`, so
+   they are not ready and will not be dispatched, and the run continues with whatever
+   else is ready. Fail closed.
+4. **PROCEED** → the orchestrator writes `<workspace>/replan-request.json`
+   (`contracts/events/replan-request.schema.json`: `roadmap_id`, `failed_item_id`,
+   `failure_reason`, `replan_required_items`, the `gate_decision`, and the failed
+   item's `learning_entry` path), saves `roadmap.yaml`, and **stops the run** with
+   summary `status: "replan_requested"` plus a `replan_request` block naming the
+   file. Dispatching anything else first would build on a plan just declared stale.
 
-Until that automation exists, `generate.py` would be solving for a caller that doesn't exist — decomposition stays interactive in `/plan-roadmap`, where the agent is already the control flow.
+**The orchestrator never performs the replan itself.** Re-decomposition is semantic
+work, so it belongs to the host under the host-assisted invariant above. On seeing
+`replan_requested`, the host runs:
+
+```
+/plan-roadmap --replan <roadmap-id>
+```
+
+which reads the request file, re-decomposes only the affected subgraph, approves the
+result, and deletes the request. See `plan-roadmap/SKILL.md` § "Replan Mode". The
+file is the handoff medium — no network call leaves this package.
+
+`replanner.replan()` is unrelated and unchanged: it nudges priorities of existing
+items after a *success*, and never re-reads the source proposal.
 
 ## Next Step
 
