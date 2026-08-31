@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-31T23:30:00Z",
+  "written_by": {"agent_name": "supervisor", "session_id": "sess-supervisor-01"},
+  "active_changes": [{
+    "change_id": "extend-handoff-document-with-supervisor-record",
+    "current_phase": "IMPLEMENT",
+    "phase_since": "2026-08-31T23:00:00Z",
+    "branch": "openspec/extend-handoff-document-with-supervisor-record",
+    "worktree": ".git-worktrees/extend-handoff-document-with-supervisor-record",
+    "pending_gate": {"gate": "proposal_approval", "requested_at": "2026-08-31T22:45:00Z"},
+    "roadmap_ref": "roadmap-supervisor-orchestration:ri-05",
+    "last_handoff_id": "handoff-plan-review"
+  }],
+  "pending_gates": [{
+    "gate": "validation_failure",
+    "change_id": "extend-handoff-document-with-supervisor-record",
+    "requested_at": "2026-08-31T23:05:00Z",
+    "deadline": "2026-09-01T00:05:00Z",
+    "disposition": "notify_with_timeout",
+    "approval_id": "approval-validation-01",
+    "source": "autopilot"
+  }],
+  "standing_decisions": [{
+    "id": "decision-supervisor-record-envelope",
+    "decided_at": "2026-08-29T18:00:00Z",
+    "scope": "roadmap-supervisor-orchestration:ri-05",
+    "decision": "Use one versioned supervisor_record envelope.",
+    "rationale": "Keep the hand-written coordinator surfaces backward compatible.",
+    "expires_at": "2027-08-29T18:00:00Z"
+  }],
+  "back_edge": {
+    "last_digest_at": "2026-08-31T23:15:00Z",
+    "last_fingerprint": "sha256:supervisor-record-fixture",
+    "digested_stubs": [{
+      "stub_key": "change:extend-handoff-document-with-supervisor-record",
+      "rank": 1,
+      "decision": "approved",
+      "decided_at": "2026-08-31T23:20:00Z",
+      "suggested_change_id": "extend-handoff-document-with-supervisor-record"
+    }]
+  }
+}
