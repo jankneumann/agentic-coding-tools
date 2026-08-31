@@ -114,3 +114,57 @@ All six work packages landed across six commits. The eight trust_posture gates n
 ### Context
 Ran --phase spec,evidence. Spec Compliance passes: 7/7 requirements verified by running their mapped tests (220 tests, 0 failures). Deploy/smoke/security/e2e are not applicable — the change declares deployable: false and gate_logic resolves the same, so the required phase set is Spec Compliance alone. Pre-merge gate exits 0.
 
+---
+
+## Phase: Cleanup (2026-08-31)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Merged via `gh pr merge --rebase` rather than `merge_pr.py`** — `merge_pr.py`'s
+   `_check_pre_merge_gate` invokes `gate_logic.py` without `--change-dir`, so it cannot read
+   this change's `deployable: false` declaration and fails closed to `deployable: true`,
+   demanding Smoke/Security/E2E that do not apply. The gate had already passed in Step 2.5a
+   when given `--change-dir` (exit 0, `action: continue`), which is exactly the condition
+   under which the skill sanctions the direct `gh pr merge` path. Filed as issue #449.
+2. **`--force` was NOT used** — nothing was being waived. Forcing would have trained the
+   wrong reflex and would also waive the gate for changes where those phases genuinely apply.
+   The skill documents `--force` as user-requested-only, never autonomous.
+3. **Ran `/validate-feature --phase spec,evidence` during cleanup** — the pre-merge gate
+   halted on a missing `validation-report.md` because implement-feature step 6.5 was skipped
+   in the implementation run. Ran the validation that was owed rather than overriding the gate.
+4. **Deploy/smoke/security/e2e recorded as not applicable, not skipped** — the change declares
+   `deployable: false` and `gate_logic --change-dir` resolves the same. "Skipped" would imply
+   validation is owed; it is not.
+5. **Rebase-merge** — agent-authored commits follow conventional format and encode design
+   intent (contracts -> goal gate -> replan -> gates -> docs -> host-path fix -> integration),
+   so preserving them individually keeps `git blame` and `git bisect` useful.
+
+### Alternatives Considered
+- `merge_pr.py ... --force`: rejected — it would have masked issue #449 rather than surfacing
+  it, and waives a gate that was passing.
+- Fixing `merge_pr.py` inline during cleanup: rejected — the defect is pre-existing and not
+  caused by this change (this was merely the first non-deployable change to traverse that
+  path), so fixing it here would widen cleanup into unrelated territory. Filed instead.
+
+### Trade-offs
+- Accepted a `validation-report.md` covering only spec+evidence over a full-phase report,
+  because the remaining phases are structurally inapplicable to a non-deployable change.
+- Accepted that no per-package `work-queue-result.json` artifacts exist (packages were
+  dispatched as sub-agents directly rather than through the coordinator work queue); scope was
+  verified against each `write_allow` before every commit instead. Recorded in the validation
+  report rather than omitted.
+
+### Open Questions
+- [ ] Is the goal gate's DONE enforcement reachable on the host-driven path? `_apply_transition`
+      is reached from `run_loop` and `gate-answer`; the same "does production reach it?" question
+      that the host-path fix had to answer for the gates deserves a second look here.
+- [ ] Should direct sub-agent dispatch produce work-queue-result.json artifacts, or is that
+      contract only for coordinator-dispatched packages?
+
+### Context
+Merged PR #441 (rebase, 9 commits) after running the spec+evidence validation the pre-merge
+gate required. Zero open tasks, so no migration was needed. Archived to
+`archive/2026-08-31-encode-autopilot-gates-and-goal-gate-in-code` with 5 requirements added and
+2 modified; `make decisions` regenerated the index in the same commit; `openspec validate
+--strict --all` reports 94 passed, 0 failed. Issue #449 filed for the merge_pr.py gate defect.
