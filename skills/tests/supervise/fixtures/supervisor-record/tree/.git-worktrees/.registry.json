@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "entries": [
+    {"change_id":"alpha-v4","agent_id":"stale-child","branch":"openspec/alpha-v4--child","worktree_path":".git-worktrees/alpha-v4/child","last_heartbeat":"2026-01-01T00:00:00Z"},
+    {"change_id":"alpha-v4","agent_id":null,"branch":"openspec/alpha-v4","worktree_path":".git-worktrees/alpha-v4","last_heartbeat":"2026-08-31T23:00:00Z"},
+    {"change_id":"beta-v5","agent_id":null,"branch":"openspec/beta-v5","worktree_path":".git-worktrees/beta-v5","last_heartbeat":"2026-08-31T23:00:00Z"},
+    {"change_id":"ambiguous-registry","agent_id":null,"branch":"openspec/ambiguous-registry","worktree_path":".git-worktrees/ambiguous-registry","last_heartbeat":"2026-08-31T23:00:00Z"},
+    {"change_id":"ambiguous-registry","agent_id":null,"branch":"openspec/ambiguous-registry-two","worktree_path":".git-worktrees/ambiguous-registry-two","last_heartbeat":"2026-08-31T23:00:00Z"},
+    "malformed-entry"
+  ]
+}
