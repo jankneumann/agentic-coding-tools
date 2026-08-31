@@ -119,3 +119,14 @@ class TestHandoffFallbackFixtures:
         for decision in fixture["payload"]["decisions"]:
             assert "title" in decision
             assert "rationale" in decision
+
+    def test_fallback_payload_accepts_supervisor_record(
+        self, handoff_fallback_schema: dict
+    ) -> None:
+        fixture = _load_json(FIXTURE_DIR / "handoff_local_fallback.json")
+        record_path = (
+            REPO_ROOT
+            / "skills/tests/supervise/fixtures/supervisor-record/full.json"
+        )
+        fixture["payload"]["supervisor_record"] = _load_json(record_path)
+        jsonschema.validate(fixture, handoff_fallback_schema)

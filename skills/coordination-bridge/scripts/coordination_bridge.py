@@ -765,6 +765,8 @@ def try_handoff_write(
         "next_steps": structured.get("next_steps"),
         "relevant_files": structured.get("relevant_files"),
     }
+    if "supervisor_record" in structured:
+        payload["supervisor_record"] = structured["supervisor_record"]
     # When the bridge authenticates via an API key, the server's
     # resolve_identity() uses the principal's bound identity and 403s
     # on a mismatched request agent_id. Omit the identity fields so
@@ -790,6 +792,7 @@ def try_handoff_read(
     agent_id: str | None = None,
     session_id: str | None = None,
     limit: int = 1,
+    supervisor_only: bool = False,
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
@@ -802,6 +805,7 @@ def try_handoff_read(
             "agent_id": agent_id,
             "session_id": session_id,
             "limit": limit,
+            "supervisor_only": supervisor_only,
         },
         http_url=http_url,
         api_key=api_key,
