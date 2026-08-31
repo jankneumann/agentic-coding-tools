@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "extend-handoff-document-with-supervisor-record",
+  "reviewers": [
+    {
+      "vendor": "codex-gpt-5",
+      "agent_id": "codex-gpt-5",
+      "success": true,
+      "findings_count": 3,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "agent_id": "Google DeepMind / Gemini 3.6 Flash",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "codex-gpt-5",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "Google DeepMind / Gemini 3.6 Flash",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "description": "Nit: The proposal's non-functional requirements still promise a byte-identical supervisor_record after a JSONB round trip, while the refined spec and tasks correctly require structural equality after JSON decoding; JSONB does not preserve source-byte formatting or object-key order."
+    },
+    {
+      "id": 2,
+      "status": "confirmed",
+      "primary_vendor": "codex-gpt-5",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "Google DeepMind / Gemini 3.6 Flash",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The design cleanly separates repository-derived active_changes from the non-derivable durable state, avoiding two competing sources of truth while preserving offline rehydration."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "codex-gpt-5",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The plan explicitly preserves legacy handoff defaults and read ordering, removes conflicting PostgreSQL overloads, and adds pre-migration/null behavior coverage across the service and public surfaces."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The migration explicitly replaces legacy RPC overloads while retaining defaulted call behavior and descending read order."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The rehydration fallback chain degrades safely to the tracked mirror plus fresh repository derivation when the coordinator is unavailable."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The object-or-null SQL constraint preserves structural safety while delegating rich inner-schema validation to the writer."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Idempotent mirror writes and fingerprint exclusion prevent self-triggering supervisor-cycle churn."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Supervisor-only retrieval is propagated across every named surface so ordinary handoffs cannot mask supervisor state."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "A single top-level supervisor_record key avoids API parameter inflation and supports inner-contract versioning."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 9,
+    "confirmed_count": 2,
+    "unconfirmed_count": 7,
+    "disagreement_count": 0,
+    "blocking_count": 1
+  }
+}

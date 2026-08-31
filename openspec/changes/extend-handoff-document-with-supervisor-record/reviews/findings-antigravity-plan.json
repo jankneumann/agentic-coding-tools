@@ -1,0 +1,103 @@
+{
+  "review_type": "plan",
+  "target": "extend-handoff-document-with-supervisor-record",
+  "reviewer_vendor": "Google DeepMind / Gemini 3.6 Flash",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: The proposal non-functional requirements matrix promises byte-identical supervisor_record round-trip fidelity, whereas design.md, spec.md, and tasks.md correctly specify structural equality after JSON decoding; PostgreSQL JSONB normalizes key order and formatting so byte-level equality cannot be guaranteed.",
+      "resolution": "Update the NFR matrix in proposal.md line 163 to specify structural equality after JSON decoding, aligning proposal.md with design.md and spec.md.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/proposal.md",
+      "line_range": {"start": 163, "end": 163},
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The plan cleanly decouples repository-derived volatile state from non-derivable durable state, preserving git as source of truth without state drift.",
+      "resolution": "Maintain the derivable/non-derivable seam and dedicated mirror schema during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/design.md",
+      "line_range": {"start": 35, "end": 54},
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The migration explicitly replaces legacy RPC overloads while retaining defaulted call behavior and descending read order.",
+      "resolution": "Retain the explicit DROP FUNCTION statements and compatibility coverage.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/db/034_handoff_supervisor_record.sql",
+      "line_range": {"start": 15, "end": 75},
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The rehydration fallback chain degrades safely to the tracked mirror plus fresh repository derivation when the coordinator is unavailable.",
+      "resolution": "Preserve fallback order and degraded reporting.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/specs/supervise/spec.md",
+      "line_range": {"start": 7, "end": 46},
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "The object-or-null SQL constraint preserves structural safety while delegating rich inner-schema validation to the writer.",
+      "resolution": "Keep inner-schema validation in writer software and the lightweight SQL constraint.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/specs/agent-coordinator/spec.md",
+      "line_range": {"start": 57, "end": 60},
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 6,
+      "type": "performance",
+      "criticality": "low",
+      "description": "Idempotent mirror writes and fingerprint exclusion prevent self-triggering supervisor-cycle churn.",
+      "resolution": "Preserve mirror fingerprint exclusion.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/specs/supervise/spec.md",
+      "line_range": {"start": 62, "end": 67},
+      "axis": "performance",
+      "severity": "none"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Supervisor-only retrieval is propagated across every named surface so ordinary handoffs cannot mask supervisor state.",
+      "resolution": "Keep supervisor_only exposed across all named surfaces.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/specs/agent-coordinator/spec.md",
+      "line_range": {"start": 71, "end": 76},
+      "axis": "observability",
+      "severity": "none"
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "A single top-level supervisor_record key avoids API parameter inflation and supports inner-contract versioning.",
+      "resolution": "Maintain the single-key surface strategy.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/design.md",
+      "line_range": {"start": 14, "end": 24},
+      "axis": "readability",
+      "severity": "none"
+    }
+  ]
+}

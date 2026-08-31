@@ -157,7 +157,7 @@ modified — `/supervise` rehydrates via the bridge read; (d) the builder lives 
 | Attribute | Metric | Target | Verifying phase |
 |---|---|---|---|
 | Compatibility | Existing handoff writers/readers | All current tests pass unchanged; a write without `supervisor_record` stores `NULL`; `from_dict` of a pre-034 row yields `None` | VALIDATE (unit + live) |
-| Correctness | Round-trip fidelity | `supervisor_record` byte-identical after write → read through service, HTTP, MCP, bridge, and `PhaseRecord` | VALIDATE (unit) |
+| Correctness | Round-trip fidelity | `supervisor_record` structurally equal after JSON decoding through service, HTTP, MCP, bridge, and `PhaseRecord` | VALIDATE (unit) |
 | Determinism | Builder output | Two builder runs over an unchanged tree produce identical JSON | VALIDATE (unit) |
 | Resilience | Coordinator unreachable at rehydrate | `/supervise` rehydrates from mirror + derivation; reports `Degraded: handoff` | VALIDATE (unit) |
 | Operability | SessionStart cost | `register_agent.py` wall-clock unchanged (record is not rendered there) | VALIDATE (measure) |

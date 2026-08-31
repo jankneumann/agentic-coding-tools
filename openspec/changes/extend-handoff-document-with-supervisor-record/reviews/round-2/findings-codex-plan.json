@@ -1,0 +1,31 @@
+{
+  "review_type": "plan",
+  "target": "extend-handoff-document-with-supervisor-record",
+  "reviewer_vendor": "codex-gpt-5",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The proposal now consistently specifies structural equality after JSON decoding for JSONB round trips, while reserving byte identity for deterministic builder output under a fixed timestamp.",
+      "resolution": "Retain the corrected round-trip contract.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/proposal.md",
+      "line_range": {"start": 163, "end": 163},
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The refined plan preserves legacy RPC defaults and behavior while adding supervisor-only retrieval and the optional supervisor record across every named surface.",
+      "resolution": "Proceed with the planned compatibility tests.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/specs/agent-coordinator/spec.md",
+      "line_range": {"start": 56, "end": 80},
+      "axis": "compatibility",
+      "severity": "none"
+    }
+  ]
+}
