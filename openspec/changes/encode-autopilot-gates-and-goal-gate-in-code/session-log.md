@@ -89,3 +89,28 @@ Refined the ri-06 roadmap sketch into a full plan: wire all eight trust_posture.
 ### Context
 All six work packages landed across six commits. The eight trust_posture gates now have one code call site each, the goal gate makes validation evidence structurally required before DONE, replan_required gained its first producer and consumer, and the prose gates in three SKILL.md files became a runner.py gate-check/gate-answer protocol. A seventh commit closes a gap found late: the gates were wired only into run_loop, which has zero non-test callers, so they would never have fired in production.
 
+---
+
+## Phase: Validation (2026-08-31)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Ran only the environment-safe phases, and recorded the non-deployable surface as n/a rather than skipped** `architectural: autopilot-gates` — The change is skill scripts and SKILL.md prose with no service. gate_logic --change-dir reads the declaration and drops smoke/security/e2e from the required set. Docker being unavailable on this host does not affect the outcome because no required phase needs it.
+2. **change-context.md generated at validation time rather than during implementation** — implement-feature step 3a was skipped during the run; the matrix is reconstructed from the spec deltas and git diff. Recorded as a gap in that run rather than presented as an incremental artifact.
+3. **Evidence phase recorded as pass-with-note: no per-package work-queue-result.json exists** — The six packages were dispatched as sub-agents directly, not through the coordinator work queue, so the queue's result contract was never the medium. Scope was verified by inspecting git status against each write_allow before each commit. That is weaker than schema-validated per-package results and is stated in the report rather than omitted.
+
+### Open Questions
+- [ ] Whether the goal gate's DONE enforcement is reachable on the host-driven path — the same question the host-path fix had to answer for the gates themselves.
+- [ ] No per-package work-queue-result.json artifacts: is the direct sub-agent dispatch path expected to produce them, or is the queue contract only for coordinator-dispatched packages?
+
+### Completed Work
+- spec
+- evidence
+
+### Next Steps
+- /cleanup-feature encode-autopilot-gates-and-goal-gate-in-code
+
+### Context
+Ran --phase spec,evidence. Spec Compliance passes: 7/7 requirements verified by running their mapped tests (220 tests, 0 failures). Deploy/smoke/security/e2e are not applicable — the change declares deployable: false and gate_logic resolves the same, so the required phase set is Spec Compliance alone. Pre-merge gate exits 0.
+
