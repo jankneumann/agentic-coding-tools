@@ -474,6 +474,10 @@ class TestHostAssistedInvariant:
 
 
 class TestWorkflowContract:
+    @staticmethod
+    def _section(text: str, start: str, end: str) -> str:
+        return text.split(start, 1)[1].split(end, 1)[0]
+
     def test_cycle_wires_fingerprint_record_and_write_audit(self) -> None:
         text = _SKILL_MD.read_text(encoding="utf-8")
         assert "snapshot-writes" in text
@@ -487,6 +491,51 @@ class TestWorkflowContract:
         assert "/bug-scrub" in text
         assert "/explore-feature" in text
         assert "/prioritize-proposals" in text
+
+    def test_rehydrate_restores_the_latest_durable_supervisor_record(self) -> None:
+        text = _SKILL_MD.read_text(encoding="utf-8")
+        rehydrate = self._section(text, "### 1. Rehydrate", "### 2. Sense")
+        normalized = " ".join(rehydrate.split())
+
+        assert "try_handoff_read(limit=1, supervisor_only=true)" in rehydrate
+        assert "supervisor-record" in rehydrate
+        assert "newer ordinary handoff" in normalized
+        assert "Coordinator unreachable" in rehydrate
+        assert "newer `written_at`" in rehydrate
+        assert "Degraded: handoff" in rehydrate
+
+    def test_digest_renders_supervisor_pending_gates_with_deadlines(self) -> None:
+        text = _SKILL_MD.read_text(encoding="utf-8")
+        digest = self._section(text, "### 5. Digest, then stop", "On approval")
+
+        assert "pending_gates" in digest
+        assert "deadline" in digest
+        assert "Needs a decision" in digest
+        assert "active_changes" in digest
+        assert "Ready now" in digest
+
+    def test_intake_writes_mirror_before_audit_then_handoff(self) -> None:
+        text = _SKILL_MD.read_text(encoding="utf-8")
+        intake = self._section(text, "## Verb: `intake`", "## Verb: `cycle`")
+
+        assert intake.index("supervisor-record") < intake.index("mirror --record")
+        assert intake.index("mirror --record") < intake.index("audit-since")
+        assert intake.index("audit-since") < intake.index("try_handoff_write(")
+
+    def test_non_dry_run_cycle_writes_mirror_before_audit_then_handoff(self) -> None:
+        text = _SKILL_MD.read_text(encoding="utf-8")
+        closing = self._section(text, "### 5. Digest, then stop", "On approval")
+
+        assert "non-`--dry-run`" in closing
+        assert closing.index("supervisor-record") < closing.index("mirror --record")
+        assert closing.index("mirror --record") < closing.index("audit-since")
+        assert closing.index("audit-since") < closing.index("try_handoff_write(")
+
+    def test_dry_run_writes_neither_supervisor_store(self) -> None:
+        text = _SKILL_MD.read_text(encoding="utf-8")
+        closing = self._section(text, "### 5. Digest, then stop", "On approval")
+
+        assert "Under `--dry-run`, write neither the mirror nor a supervisor handoff." in closing
 
 
 # --------------------------------------------------------------------------- #
