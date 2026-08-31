@@ -179,7 +179,8 @@ _register(HelpTopic(
     ),
     tools=["write_handoff", "read_handoff"],
     workflow=[
-        "1. read_handoff() at session start to get previous context",
+        "1. read_handoff() at session start to get previous context; "
+        "supervisors use supervisor_only=True",
         "2. Do your work throughout the session",
         "3. write_handoff(summary, completed_work, next_steps, ...) before ending",
     ],
@@ -188,6 +189,7 @@ _register(HelpTopic(
         "Include completed_work, in_progress, and next_steps for full context",
         "List relevant_files so the next session knows where to look",
         "Record key decisions so they aren't re-debated in the next session",
+        "Use supervisor_record for versioned supervisor state; ordinary handoffs leave it unset",
         "Read handoffs at session start even if you're the same agent — context may have compacted",
     ],
     examples=[
@@ -200,7 +202,8 @@ _register(HelpTopic(
                 '    in_progress=["E2E test for login flow"],\n'
                 '    decisions=["Chose PKCE over implicit grant for security"],\n'
                 '    next_steps=["Finish E2E tests", "Update API docs"],\n'
-                '    relevant_files=["src/auth/", "tests/test_auth.py"]\n'
+                '    relevant_files=["src/auth/", "tests/test_auth.py"],\n'
+                '    supervisor_record={"schema_version": 1, "active_changes": []}\n'
                 ')'
             ),
         },

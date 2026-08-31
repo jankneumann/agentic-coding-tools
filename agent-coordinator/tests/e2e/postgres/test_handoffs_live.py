@@ -75,6 +75,55 @@ class TestHandoffWriteLive:
         # Empty summary should fail at the DB level
         assert data["success"] is False
 
+    def test_supervisor_record_round_trip_and_null_default(
+        self, api_client, auth_headers
+    ) -> None:
+        supervisor_record = {
+            "schema_version": 1,
+            "written_at": "2026-08-29T03:00:00Z",
+            "written_by": {"agent_name": "supervisor", "session_id": None},
+            "active_changes": [],
+            "pending_gates": [],
+            "standing_decisions": [],
+            "back_edge": {
+                "last_digest_at": None,
+                "last_fingerprint": None,
+                "digested_stubs": [],
+            },
+        }
+        with_record = api_client.post(
+            "/handoffs/write",
+            headers=auth_headers,
+            json={
+                "summary": "Supervisor state",
+                "supervisor_record": supervisor_record,
+            },
+        )
+        without_record = api_client.post(
+            "/handoffs/write",
+            headers=auth_headers,
+            json={"summary": "Ordinary handoff"},
+        )
+
+        assert response_ok(with_record)
+        assert response_ok(without_record)
+
+        supervisor_read = api_client.post(
+            "/handoffs/read",
+            headers=auth_headers,
+            json={"limit": 1, "supervisor_only": True},
+        )
+        ordinary_read = api_client.post(
+            "/handoffs/read",
+            headers=auth_headers,
+            json={"limit": 1},
+        )
+
+        assert supervisor_read.status_code == 200
+        assert supervisor_read.json()["handoffs"][0]["supervisor_record"] == supervisor_record
+        assert ordinary_read.status_code == 200
+        assert ordinary_read.json()["handoffs"][0]["supervisor_record"] is None
+
 
 def response_ok(resp) -> bool:
     """Check response is 200 and success."""

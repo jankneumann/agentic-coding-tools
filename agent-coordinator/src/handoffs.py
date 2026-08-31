@@ -31,6 +31,7 @@ class HandoffDocument:
     decisions: list[Any] = field(default_factory=list)
     next_steps: list[Any] = field(default_factory=list)
     relevant_files: list[Any] = field(default_factory=list)
+    supervisor_record: dict[str, Any] | None = None
     created_at: datetime | None = None
 
     @classmethod
@@ -51,6 +52,7 @@ class HandoffDocument:
             decisions=data.get("decisions", []),
             next_steps=data.get("next_steps", []),
             relevant_files=data.get("relevant_files", []),
+            supervisor_record=data.get("supervisor_record"),
             created_at=created_at,
         )
 
@@ -115,6 +117,7 @@ class HandoffService:
         decisions: list[Any] | None = None,
         next_steps: list[Any] | None = None,
         relevant_files: list[Any] | None = None,
+        supervisor_record: dict[str, Any] | None = None,
     ) -> WriteHandoffResult:
         """Write a handoff document for session continuity.
 
@@ -127,6 +130,7 @@ class HandoffService:
             decisions: List of decisions made
             next_steps: List of next steps
             relevant_files: List of relevant file paths
+            supervisor_record: Optional versioned supervisor state record
 
         Returns:
             WriteHandoffResult with handoff_id on success
@@ -161,6 +165,7 @@ class HandoffService:
                     "p_decisions": json.dumps(decisions or []),
                     "p_next_steps": json.dumps(next_steps or []),
                     "p_relevant_files": json.dumps(relevant_files or []),
+                    "p_supervisor_record": supervisor_record,
                 },
             )
         except Exception as exc:
@@ -193,6 +198,7 @@ class HandoffService:
         agent_name: str | None = None,
         limit: int = 1,
         detect_truncation: bool = False,
+        supervisor_only: bool = False,
     ) -> ReadHandoffResult:
         """Read recent handoff documents.
 
@@ -205,6 +211,7 @@ class HandoffService:
                 back to ``limit``. The over-fetch is contained here so the audit
                 trail records the caller-facing ``limit`` and the trimmed count,
                 never the sentinel row.
+            supervisor_only: When True, exclude handoffs without a supervisor record.
 
         Returns:
             ReadHandoffResult with list of handoff documents
@@ -215,6 +222,7 @@ class HandoffService:
             {
                 "p_agent_name": agent_name,
                 "p_limit": fetch_limit,
+                "p_supervisor_only": supervisor_only,
             },
         )
 
@@ -229,6 +237,7 @@ class HandoffService:
                 parameters={
                     "agent_name": agent_name,
                     "limit": limit,
+                    "supervisor_only": supervisor_only,
                 },
                 result={"count": len(read_result.handoffs)},
                 success=True,
