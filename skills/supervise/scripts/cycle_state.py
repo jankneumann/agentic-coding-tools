@@ -27,11 +27,15 @@ import hashlib
 import importlib.util
 import json
 import posixpath
+import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Sequence
+
+import yaml
 
 _RUNTIME = Path(__file__).resolve().parents[2] / "roadmap-runtime" / "scripts"
 
@@ -67,7 +71,23 @@ load_all_roadmaps = _models.load_all_roadmaps
 #: been surfaced. The supervisor is a rehydratable role, not a resident process.
 LEDGER_PATH = "openspec/supervise/cycle-ledger.json"
 
+#: Tracked durable subset of the supervisor handoff record. Active changes are
+#: deliberately absent: they are a projection of loop state and are rebuilt.
+MIRROR_PATH = "openspec/supervise/supervisor-record.json"
+
 LEDGER_SCHEMA_VERSION = 1
+SUPERVISOR_RECORD_SCHEMA_VERSION = 1
+
+_GATES = frozenset({
+    "gatekeeper_escalation", "proposal_approval",
+    "plan_review_convergence_failure", "validation_failure",
+    "escalate_resume", "replan_required", "pr_creation", "merge",
+})
+_DISPOSITIONS = frozenset({"auto", "notify_with_timeout", "block"})
+_GATE_SOURCES = frozenset({"autopilot", "supervise", "escalation"})
+_STUB_DECISIONS = frozenset({"approved", "deferred", "rejected", "pending"})
+_CHANGE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_ROADMAP_REF_RE = re.compile(r"^[a-z0-9-]+:ri-[0-9]{2,}$")
 
 #: Statuses in which an item no longer owns its change_id (mirrors decomposer's
 #: ceded-status rule): a stub naming such a change is NOT considered a duplicate.
@@ -92,15 +112,15 @@ _FORBIDDEN_WRITE_SUFFIXES = ("/specs/",)
 # Git / repository facts
 # --------------------------------------------------------------------------- #
 def _tree_listing(repo_root: Path) -> str:
-    """Committed blobs plus staged/unstaged tracked changes, minus the ledger.
+    """Committed blobs plus tracked changes, minus supervisor-owned state.
 
     Deliberately NOT the HEAD commit sha. The ledger under ``openspec/supervise/``
     is tracked, so recording a cycle and committing it advances HEAD; a fingerprint
     over the commit sha would therefore differ on every cycle-after-a-cycle and the
     unchanged-tree early exit could never fire once a recorded ledger was pushed.
-    Hashing the tree *content* and the binary-safe diff from HEAD, excluding only
-    :data:`LEDGER_PATH`, makes a ledger-only commit or edit invisible while any
-    real committed, staged, or unstaged tracked change still lands in it.
+    Hashing the tree *content* and the binary-safe diff from HEAD, excluding
+    :data:`LEDGER_PATH` and :data:`MIRROR_PATH`, makes a supervisor-state-only
+    commit or edit invisible while any real tracked change still lands in it.
     """
     completed = subprocess.run(
         ["git", "-C", str(repo_root), "ls-tree", "-r", "HEAD"],
@@ -114,7 +134,8 @@ def _tree_listing(repo_root: Path) -> str:
         line
         for line in completed.stdout.splitlines()
         # ls-tree format: "<mode> <type> <object>\t<path>"
-        if "\t" in line and line.split("\t", 1)[1] != LEDGER_PATH
+        if "\t" in line
+        and line.split("\t", 1)[1] not in {LEDGER_PATH, MIRROR_PATH}
     ]
     worktree = subprocess.run(
         [
@@ -128,6 +149,7 @@ def _tree_listing(repo_root: Path) -> str:
             "--",
             ".",
             f":(exclude){LEDGER_PATH}",
+            f":(exclude){MIRROR_PATH}",
         ],
         capture_output=True,
         text=True,
@@ -155,6 +177,421 @@ def claimed_change_ids(roadmaps: dict[str, Roadmap]) -> set[str]:
         for item in roadmap.items
         if item.change_id and item.status not in _CEDED
     }
+
+
+# --------------------------------------------------------------------------- #
+# Supervisor handoff record
+# --------------------------------------------------------------------------- #
+def _parse_datetime(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else None
+
+
+def _now_value(now: str | datetime | None) -> tuple[str, datetime]:
+    if now is None:
+        current = datetime.now(timezone.utc).replace(microsecond=0)
+        return current.isoformat().replace("+00:00", "Z"), current
+    if isinstance(now, datetime):
+        if now.tzinfo is None:
+            raise ValueError("now must include a timezone")
+        return now.isoformat().replace("+00:00", "Z"), now
+    parsed = _parse_datetime(now)
+    if parsed is None:
+        raise ValueError("now must be an RFC3339 date-time with a timezone")
+    return now, parsed
+
+
+def _sanitize_text(value: str) -> str:
+    return "".join(char for char in value if ord(char) >= 32 or char in "\n\r\t")
+
+
+def _clean_optional_text(value: Any) -> str | None:
+    return _sanitize_text(value) if isinstance(value, str) else None
+
+
+def _clean_pending_gate(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    gate = value.get("gate")
+    change_id = value.get("change_id")
+    requested_at = value.get("requested_at")
+    deadline = value.get("deadline")
+    if (
+        gate not in _GATES
+        or not isinstance(change_id, str)
+        or _CHANGE_ID_RE.fullmatch(change_id) is None
+        or _parse_datetime(requested_at) is None
+        or _parse_datetime(deadline) is None
+    ):
+        return None
+    cleaned: dict[str, Any] = {
+        "gate": gate, "change_id": change_id,
+        "requested_at": requested_at, "deadline": deadline,
+    }
+    disposition = value.get("disposition")
+    if disposition is None or disposition in _DISPOSITIONS:
+        if "disposition" in value:
+            cleaned["disposition"] = disposition
+    approval_id = value.get("approval_id")
+    if approval_id is None or isinstance(approval_id, str):
+        if "approval_id" in value:
+            cleaned["approval_id"] = _clean_optional_text(approval_id)
+    source = value.get("source", "supervise")
+    cleaned["source"] = source if source in _GATE_SOURCES else "supervise"
+    return cleaned
+
+
+def _clean_standing_decision(value: Any, *, now: datetime) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    required = ("id", "decided_at", "scope", "decision")
+    if not all(isinstance(value.get(key), str) and value[key] for key in required):
+        return None
+    if _parse_datetime(value["decided_at"]) is None:
+        return None
+    expires_at = value.get("expires_at")
+    expiry = _parse_datetime(expires_at) if expires_at is not None else None
+    if expires_at is not None and expiry is None:
+        return None
+    if expiry is not None and expiry <= now:
+        return None
+    cleaned: dict[str, Any] = {
+        "id": _sanitize_text(value["id"]),
+        "decided_at": value["decided_at"],
+        "scope": _sanitize_text(value["scope"]),
+        "decision": _sanitize_text(value["decision"]),
+    }
+    rationale = value.get("rationale")
+    if rationale is None or isinstance(rationale, str):
+        if "rationale" in value:
+            cleaned["rationale"] = _clean_optional_text(rationale)
+    if "expires_at" in value:
+        cleaned["expires_at"] = expires_at
+    return cleaned
+
+
+def _clean_digested_stub(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    stub_key_value = value.get("stub_key")
+    rank = value.get("rank")
+    decision = value.get("decision")
+    decided_at = value.get("decided_at")
+    if (
+        not isinstance(stub_key_value, str)
+        or not stub_key_value.startswith(("change:", "prov:"))
+        or not isinstance(rank, int) or isinstance(rank, bool) or rank < 1
+        or decision not in _STUB_DECISIONS
+        or _parse_datetime(decided_at) is None
+    ):
+        return None
+    cleaned: dict[str, Any] = {
+        "stub_key": _sanitize_text(stub_key_value), "rank": rank,
+        "decision": decision, "decided_at": decided_at,
+    }
+    suggested = value.get("suggested_change_id")
+    if suggested is None or isinstance(suggested, str):
+        if "suggested_change_id" in value:
+            cleaned["suggested_change_id"] = _clean_optional_text(suggested)
+    return cleaned
+
+
+def _clean_back_edge(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        value = {}
+    last_digest = value.get("last_digest_at")
+    if _parse_datetime(last_digest) is None:
+        last_digest = None
+    fingerprint = value.get("last_fingerprint")
+    if not isinstance(fingerprint, str):
+        fingerprint = None
+    stubs = value.get("digested_stubs")
+    cleaned_stubs = (
+        [cleaned for item in stubs if (cleaned := _clean_digested_stub(item))]
+        if isinstance(stubs, list) else []
+    )
+    return {
+        "last_digest_at": last_digest,
+        "last_fingerprint": _clean_optional_text(fingerprint),
+        "digested_stubs": cleaned_stubs,
+    }
+
+
+def _extract_supervisor_record(value: Any) -> dict[str, Any] | None:
+    """Normalize a full record, mirror, handoff row, or bridge read envelope."""
+    if not isinstance(value, dict):
+        return None
+    embedded = value.get("supervisor_record")
+    if isinstance(embedded, dict):
+        return embedded
+    data = value.get("data")
+    if isinstance(data, dict):
+        handoffs = data.get("handoffs")
+        if isinstance(handoffs, list):
+            for handoff in handoffs:
+                extracted = _extract_supervisor_record(handoff)
+                if extracted is not None:
+                    return extracted
+    if all(key in value for key in ("written_at", "pending_gates", "standing_decisions", "back_edge")):
+        return value
+    return None
+
+
+def _durable_sections(prior: Any, *, now: datetime) -> dict[str, Any]:
+    normalized = _extract_supervisor_record(prior) or {}
+    gates = normalized.get("pending_gates")
+    decisions = normalized.get("standing_decisions")
+    return {
+        "pending_gates": (
+            [cleaned for item in gates if (cleaned := _clean_pending_gate(item))]
+            if isinstance(gates, list) else []
+        ),
+        "standing_decisions": (
+            [cleaned for item in decisions if (cleaned := _clean_standing_decision(item, now=now))]
+            if isinstance(decisions, list) else []
+        ),
+        "back_edge": _clean_back_edge(normalized.get("back_edge")),
+    }
+
+
+def _roadmap_refs(repo_root: Path, degraded: list[str]) -> dict[str, str | None]:
+    matches: dict[str, list[str]] = {}
+    roadmaps = repo_root / "openspec" / "roadmaps"
+    if not roadmaps.is_dir():
+        return {}
+    for path in sorted(roadmaps.glob("*/roadmap.yaml")):
+        try:
+            payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError) as exc:
+            degraded.append(f"malformed roadmap {path.relative_to(repo_root)}: {exc}")
+            continue
+        if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
+            degraded.append(f"malformed roadmap {path.relative_to(repo_root)}")
+            continue
+        roadmap_id = payload.get("roadmap_id")
+        if not isinstance(roadmap_id, str):
+            degraded.append(f"malformed roadmap id in {path.relative_to(repo_root)}")
+            continue
+        for item in payload["items"]:
+            if not isinstance(item, dict):
+                degraded.append(f"malformed roadmap item in {path.relative_to(repo_root)}")
+                continue
+            change_id = item.get("change_id")
+            item_id = item.get("item_id")
+            if not isinstance(change_id, str) or not isinstance(item_id, str):
+                continue
+            ref = f"{roadmap_id}:{item_id}"
+            if _ROADMAP_REF_RE.fullmatch(ref) is None:
+                degraded.append(f"malformed roadmap reference {ref} for {change_id}")
+                continue
+            matches.setdefault(change_id, []).append(ref)
+    resolved: dict[str, str | None] = {}
+    for change_id, refs in matches.items():
+        unique = sorted(set(refs))
+        if len(unique) == 1:
+            resolved[change_id] = unique[0]
+        else:
+            resolved[change_id] = None
+            degraded.append(f"ambiguous roadmap matches for {change_id}: {', '.join(unique)}")
+    return resolved
+
+
+def _registry_location(repo_root: Path) -> tuple[Path, Path]:
+    direct = repo_root / ".git-worktrees" / ".registry.json"
+    if direct.is_file():
+        return direct, repo_root
+    completed = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        capture_output=True, text=True, check=False,
+    )
+    if completed.returncode == 0:
+        common = Path(completed.stdout.strip()).resolve()
+        main_repo = common.parent
+        return main_repo / ".git-worktrees" / ".registry.json", main_repo
+    return direct, repo_root
+
+
+def _registry_entries(repo_root: Path, degraded: list[str]) -> tuple[dict[str, list[dict[str, Any]]], Path]:
+    path, registry_root = _registry_location(repo_root)
+    if not path.is_file():
+        return {}, registry_root
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        degraded.append(f"malformed worktree registry: {exc}")
+        return {}, registry_root
+    entries = payload.get("entries") if isinstance(payload, dict) else None
+    if not isinstance(entries, list):
+        degraded.append("malformed worktree registry entries")
+        return {}, registry_root
+    by_change: dict[str, list[dict[str, Any]]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get("change_id"), str):
+            degraded.append("malformed worktree registry entry")
+            continue
+        if entry.get("agent_id") is not None:
+            continue
+        by_change.setdefault(entry["change_id"], []).append(entry)
+    return by_change, registry_root
+
+
+def _relative_worktree(raw: Any, *, registry_root: Path, change_id: str, degraded: list[str]) -> str | None:
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    candidate = Path(raw)
+    if candidate.is_absolute():
+        try:
+            return candidate.resolve().relative_to(registry_root.resolve()).as_posix()
+        except ValueError:
+            degraded.append(f"worktree for {change_id} is outside the repository")
+            return None
+    normalized = posixpath.normpath(raw.replace("\\", "/"))
+    if normalized in {".", ".."} or normalized.startswith("../"):
+        degraded.append(f"worktree for {change_id} is not repository-relative")
+        return None
+    return normalized
+
+
+def _active_changes(repo_root: Path, degraded: list[str]) -> list[dict[str, Any]]:
+    roadmap_refs = _roadmap_refs(repo_root, degraded)
+    registry, registry_root = _registry_entries(repo_root, degraded)
+    changes_root = repo_root / "openspec" / "changes"
+    if not changes_root.is_dir():
+        return []
+    active: list[dict[str, Any]] = []
+    for change_dir in sorted(changes_root.iterdir(), key=lambda path: path.name):
+        if not change_dir.is_dir() or change_dir.name == "archive":
+            continue
+        change_id = change_dir.name
+        if _CHANGE_ID_RE.fullmatch(change_id) is None:
+            degraded.append(f"malformed change id {change_id}")
+            continue
+        state_path = change_dir / "loop-state.json"
+        if not state_path.is_file():
+            degraded.append(f"missing loop-state for {change_id}")
+            continue
+        try:
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            degraded.append(f"malformed loop-state for {change_id}: {exc}")
+            continue
+        phase = state.get("current_phase") if isinstance(state, dict) else None
+        if not isinstance(phase, str) or not phase:
+            degraded.append(f"malformed loop-state phase for {change_id}")
+            continue
+        if phase == "DONE":
+            continue
+        phase_since = state.get("phase_started_at")
+        if phase_since is not None and _parse_datetime(phase_since) is None:
+            degraded.append(f"malformed phase_started_at for {change_id}")
+            phase_since = None
+        pending = state.get("pending_gate")
+        active_pending = None
+        if pending is not None:
+            if (isinstance(pending, dict) and pending.get("gate") in _GATES
+                    and _parse_datetime(pending.get("requested_at")) is not None):
+                active_pending = {"gate": pending["gate"], "requested_at": pending["requested_at"]}
+            else:
+                degraded.append(f"malformed pending gate for {change_id}")
+        entries = registry.get(change_id, [])
+        branch = None
+        worktree = None
+        if len(entries) > 1:
+            degraded.append(f"ambiguous-registry entries for {change_id}")
+        elif entries:
+            selected = entries[0]
+            if isinstance(selected.get("branch"), str):
+                branch = _sanitize_text(selected["branch"])
+            elif selected.get("branch") is not None:
+                degraded.append(f"malformed registry branch for {change_id}")
+            worktree = _relative_worktree(
+                selected.get("worktree_path"), registry_root=registry_root,
+                change_id=change_id, degraded=degraded,
+            )
+        last_handoff = state.get("last_handoff_id")
+        if not isinstance(last_handoff, str):
+            last_handoff = None
+        active.append({
+            "change_id": change_id, "current_phase": phase,
+            "phase_since": phase_since, "branch": branch, "worktree": worktree,
+            "pending_gate": active_pending, "roadmap_ref": roadmap_refs.get(change_id),
+            "last_handoff_id": last_handoff,
+        })
+    return active
+
+
+def build_supervisor_record(repo_root: Path, prior: dict[str, Any] | None = None, *, now: str | datetime | None = None) -> dict[str, Any]:
+    """Build a full record from fresh repository facts plus durable prior state."""
+    root = Path(repo_root).resolve()
+    written_at, current = _now_value(now)
+    degraded: list[str] = []
+    record = {
+        "schema_version": SUPERVISOR_RECORD_SCHEMA_VERSION,
+        "written_at": written_at,
+        "written_by": {"agent_name": "supervisor", "session_id": None},
+        "active_changes": _active_changes(root, degraded),
+        **_durable_sections(prior, now=current),
+    }
+    for message in sorted(set(degraded)):
+        print(f"Degraded: {message}", file=sys.stderr)
+    return record
+
+
+def select_prior(handoff: Any, mirror: Any) -> dict[str, Any] | None:
+    """Choose the newer normalized durable source; ties prefer the handoff."""
+    handoff_record = _extract_supervisor_record(handoff)
+    mirror_record = _extract_supervisor_record(mirror)
+    if handoff_record is None:
+        return mirror_record
+    if mirror_record is None:
+        return handoff_record
+    handoff_time = _parse_datetime(handoff_record.get("written_at"))
+    mirror_time = _parse_datetime(mirror_record.get("written_at"))
+    if handoff_time is None:
+        return mirror_record
+    if mirror_time is not None and mirror_time > handoff_time:
+        return mirror_record
+    return handoff_record
+
+
+def write_mirror(repo_root: Path, record: dict[str, Any], *, now: str | datetime | None = None) -> dict[str, Any]:
+    """Persist the sanitized durable subset, preserving time on a no-op write."""
+    root = Path(repo_root).resolve()
+    source = _extract_supervisor_record(record) or {}
+    clock_input: str | datetime | None = now
+    if clock_input is None and isinstance(source.get("written_at"), str):
+        clock_input = source["written_at"]
+    written_at, current = _now_value(clock_input)
+    candidate = {
+        "schema_version": SUPERVISOR_RECORD_SCHEMA_VERSION,
+        "written_at": written_at,
+        **_durable_sections(source, now=current),
+    }
+    path = root / MIRROR_PATH
+    existing_raw: Any = None
+    try:
+        existing_raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pass
+    existing = _extract_supervisor_record(existing_raw)
+    if existing is not None and _parse_datetime(existing.get("written_at")) is not None:
+        sanitized_existing = {
+            "schema_version": SUPERVISOR_RECORD_SCHEMA_VERSION,
+            "written_at": existing["written_at"],
+            **_durable_sections(existing, now=current),
+        }
+        old = {k: v for k, v in sanitized_existing.items() if k != "written_at"}
+        new = {k: v for k, v in candidate.items() if k != "written_at"}
+        if old == new and existing_raw == sanitized_existing:
+            return sanitized_existing
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(candidate, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return candidate
 
 
 # --------------------------------------------------------------------------- #
@@ -550,6 +987,46 @@ def _cmd_audit_since(args: argparse.Namespace) -> int:
     return 1 if violations else 0
 
 
+def _read_json_file(path: str | None) -> dict[str, Any] | None:
+    if not path:
+        return None
+    try:
+        value = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _cmd_supervisor_record(args: argparse.Namespace) -> int:
+    record = build_supervisor_record(
+        Path(args.repo_root).resolve(), _read_json_file(args.prior), now=args.now
+    )
+    print(json.dumps(record, indent=2, sort_keys=True))
+    return 0
+
+
+def _cmd_mirror(args: argparse.Namespace) -> int:
+    record = _read_json_file(args.record)
+    if record is None:
+        raise ValueError("--record must name a JSON object")
+    mirror = write_mirror(Path(args.repo_root).resolve(), record, now=args.now)
+    print(json.dumps(mirror, indent=2, sort_keys=True))
+    return 0
+
+
+def _cmd_rehydrate(args: argparse.Namespace) -> int:
+    repo = Path(args.repo_root).resolve()
+    handoff = _read_json_file(args.handoff)
+    mirror_path = Path(args.mirror) if args.mirror else repo / MIRROR_PATH
+    mirror = _read_json_file(str(mirror_path))
+    if _extract_supervisor_record(handoff) is None and mirror is not None:
+        print("Degraded: handoff", file=sys.stderr)
+    prior = select_prior(handoff, mirror)
+    record = build_supervisor_record(repo, prior, now=args.now)
+    print(json.dumps(record, indent=2, sort_keys=True))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Deterministic supervise-cycle state.")
     parser.add_argument("--repo-root", default=".")
@@ -570,6 +1047,19 @@ def main(argv: list[str] | None = None) -> int:
     p_since = sub.add_parser("audit-since", help="Fail on forbidden writes made after a snapshot.")
     p_since.add_argument("--snapshot", required=True)
 
+    p_supervisor = sub.add_parser("supervisor-record", help="Build a supervisor handoff record.")
+    p_supervisor.add_argument("--prior", help="Prior handoff response, record, or mirror JSON.")
+    p_supervisor.add_argument("--now", help="Explicit RFC3339 clock input (tests/replay).")
+
+    p_mirror = sub.add_parser("mirror", help="Write the tracked non-derivable mirror.")
+    p_mirror.add_argument("--record", required=True, help="Full supervisor record JSON.")
+    p_mirror.add_argument("--now", help="Explicit RFC3339 clock input (tests/replay).")
+
+    p_rehydrate = sub.add_parser("rehydrate", help="Select durable state and freshly derive active changes.")
+    p_rehydrate.add_argument("--handoff", help="Bridge handoff-read JSON response.")
+    p_rehydrate.add_argument("--mirror", help=f"Mirror JSON (default: {MIRROR_PATH}).")
+    p_rehydrate.add_argument("--now", help="Explicit RFC3339 clock input (tests/replay).")
+
     args = parser.parse_args(argv)
     return {
         "fingerprint": _cmd_fingerprint,
@@ -579,6 +1069,9 @@ def main(argv: list[str] | None = None) -> int:
         "audit-writes": _cmd_audit_writes,
         "snapshot-writes": _cmd_snapshot_writes,
         "audit-since": _cmd_audit_since,
+        "supervisor-record": _cmd_supervisor_record,
+        "mirror": _cmd_mirror,
+        "rehydrate": _cmd_rehydrate,
     }[args.command](args)
 
 
