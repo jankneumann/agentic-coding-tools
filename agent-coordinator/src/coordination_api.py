@@ -215,11 +215,13 @@ class HandoffWriteRequest(BaseModel):
     decisions: list[Any] | None = None
     next_steps: list[Any] | None = None
     relevant_files: list[Any] | None = None
+    supervisor_record: dict[str, Any] | None = None
 
 
 class HandoffReadRequest(BaseModel):
     agent_name: str | None = None
     limit: int = 1
+    supervisor_only: bool = False
 
 
 class PolicyCheckRequest(BaseModel):
@@ -1466,17 +1468,20 @@ def create_coordination_api() -> FastAPI:
 
         from .handoffs import get_handoff_service
 
-        result = await get_handoff_service().write(
-            summary=request.summary,
-            agent_name=agent_id,
-            agent_type=agent_type,
-            session_id=request.session_id,
-            completed_work=request.completed_work,
-            in_progress=request.in_progress,
-            decisions=request.decisions,
-            next_steps=request.next_steps,
-            relevant_files=request.relevant_files,
-        )
+        write_kwargs: dict[str, Any] = {
+            "summary": request.summary,
+            "agent_name": agent_id,
+            "agent_type": agent_type,
+            "session_id": request.session_id,
+            "completed_work": request.completed_work,
+            "in_progress": request.in_progress,
+            "decisions": request.decisions,
+            "next_steps": request.next_steps,
+            "relevant_files": request.relevant_files,
+        }
+        if "supervisor_record" in request.model_fields_set:
+            write_kwargs["supervisor_record"] = request.supervisor_record
+        result = await get_handoff_service().write(**write_kwargs)
         return {
             "success": result.success,
             "handoff_id": str(result.handoff_id) if result.handoff_id else None,
@@ -1497,6 +1502,7 @@ def create_coordination_api() -> FastAPI:
             agent_name=request.agent_name,
             limit=request.limit,
             detect_truncation=True,
+            supervisor_only=request.supervisor_only,
         )
         rows = [
             {
@@ -1509,6 +1515,7 @@ def create_coordination_api() -> FastAPI:
                 "decisions": h.decisions,
                 "next_steps": h.next_steps,
                 "relevant_files": h.relevant_files,
+                "supervisor_record": h.supervisor_record,
                 "created_at": h.created_at.isoformat() if h.created_at else None,
             }
             for h in result.handoffs

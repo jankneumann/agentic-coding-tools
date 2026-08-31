@@ -17,6 +17,7 @@ Usage (standalone for testing):
     python -m src.coordination_mcp --transport http --port 8082
 """
 
+import json
 import logging
 import os
 import sys
@@ -878,6 +879,7 @@ async def write_handoff(
     decisions: list[str] | None = None,
     next_steps: list[str] | None = None,
     relevant_files: list[str] | None = None,
+    supervisor_record: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Write a handoff document to preserve session context.
@@ -892,6 +894,7 @@ async def write_handoff(
         decisions: Key decisions made during the session
         next_steps: What should be done next
         relevant_files: File paths relevant to the work
+        supervisor_record: Optional versioned supervisor state record
 
     Returns:
         success: Whether the handoff was written
@@ -915,6 +918,7 @@ async def write_handoff(
             decisions=decisions,
             next_steps=next_steps,
             relevant_files=relevant_files,
+            supervisor_record=supervisor_record,
         )
     service = get_handoff_service()
     result = await service.write(
@@ -924,6 +928,7 @@ async def write_handoff(
         decisions=decisions,
         next_steps=next_steps,
         relevant_files=relevant_files,
+        supervisor_record=supervisor_record,
     )
 
     return {
@@ -937,6 +942,7 @@ async def write_handoff(
 async def read_handoff(
     agent_name: str | None = None,
     limit: int = 1,
+    supervisor_only: bool = False,
 ) -> dict[str, Any]:
     """
     Read previous handoff documents for session continuity.
@@ -947,6 +953,7 @@ async def read_handoff(
     Args:
         agent_name: Filter by agent name (None for current agent's handoffs)
         limit: Number of handoffs to retrieve (default: 1, most recent)
+        supervisor_only: Exclude ordinary handoffs without supervisor state
 
     Returns:
         handoffs: List of handoff documents with summary, completed work, etc.
@@ -962,6 +969,7 @@ async def read_handoff(
         return await http_proxy.proxy_read_handoff(
             agent_name=agent_name,
             limit=limit,
+            supervisor_only=supervisor_only,
         )
     service = get_handoff_service()
 
@@ -972,6 +980,7 @@ async def read_handoff(
     result = await service.read(
         agent_name=agent_name,
         limit=limit,
+        supervisor_only=supervisor_only,
     )
 
     return {
@@ -986,6 +995,7 @@ async def read_handoff(
                 "decisions": h.decisions,
                 "next_steps": h.next_steps,
                 "relevant_files": h.relevant_files,
+                "supervisor_record": h.supervisor_record,
                 "created_at": h.created_at.isoformat() if h.created_at else None,
             }
             for h in result.handoffs
@@ -2612,6 +2622,12 @@ async def get_recent_handoffs() -> str:
             lines.append("**Next Steps:**")
             for item in h.next_steps:
                 lines.append(f"- {item}")
+            lines.append("")
+        if h.supervisor_record is not None:
+            lines.append("**Supervisor Record:**")
+            lines.append("```json")
+            lines.append(json.dumps(h.supervisor_record, indent=2, sort_keys=True))
+            lines.append("```")
             lines.append("")
         lines.append("---\n")
 

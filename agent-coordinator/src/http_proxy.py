@@ -706,6 +706,7 @@ async def proxy_write_handoff(
     decisions: list[str] | None = None,
     next_steps: list[str] | None = None,
     relevant_files: list[str] | None = None,
+    supervisor_record: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Proxy write_handoff to POST /handoffs/write."""
     body = {
@@ -716,6 +717,7 @@ async def proxy_write_handoff(
         "decisions": decisions,
         "next_steps": next_steps,
         "relevant_files": relevant_files,
+        "supervisor_record": supervisor_record,
     }
     return await _request("POST", "/handoffs/write", json_body=body)
 
@@ -723,12 +725,14 @@ async def proxy_write_handoff(
 async def proxy_read_handoff(
     agent_name: str | None = None,
     limit: int = 1,
+    supervisor_only: bool = False,
 ) -> dict[str, Any]:
     """Proxy read_handoff to POST /handoffs/read."""
     body = {
         **_agent_identity(),
         "agent_name": agent_name,
         "limit": limit,
+        "supervisor_only": supervisor_only,
     }
     return await _request("POST", "/handoffs/read", json_body=body)
 

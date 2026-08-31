@@ -538,12 +538,14 @@ def cmd_handoff_read(args: argparse.Namespace) -> int:
         agent_name=args.agent_name,
         limit=args.limit,
         detect_truncation=True,
+        supervisor_only=args.supervisor_only,
     ))
     data = [
         {
             "id": str(h.id),
             "agent_name": h.agent_name,
             "summary": h.summary,
+            "supervisor_record": h.supervisor_record,
             "created_at": h.created_at.isoformat() if h.created_at else None,
         }
         for h in result.handoffs
@@ -882,6 +884,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = handoff_subs.add_parser("read", help="Read handoff documents")
     p.add_argument("--agent-name")
     p.add_argument("--limit", type=int, default=5)
+    p.add_argument(
+        "--supervisor-only",
+        action="store_true",
+        help="Return only handoffs carrying a supervisor record",
+    )
     p.set_defaults(func=cmd_handoff_read)
 
     # -- memory --------------------------------------------------------------
