@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "change_id": "extend-handoff-document-with-supervisor-record",
+  "review_type": "plan",
+  "created_at": "2026-08-31T23:05:56Z",
+  "target": "extend-handoff-document-with-supervisor-record",
+  "dispatches": [
+    {"vendor": "claude_code", "success": false, "model_used": null, "models_attempted": ["(default)"], "elapsed_seconds": 480.0, "error": "Stalled and stopped to preserve the bounded round.", "error_class": "transient"},
+    {"vendor": "antigravity", "success": true, "model_used": "gemini-3.6-flash-medium", "models_attempted": ["gemini-3.6-flash-medium"], "elapsed_seconds": 69.60150293796323, "error": null, "error_class": null},
+    {"vendor": "grok", "success": false, "model_used": null, "models_attempted": ["grok-4.5"], "elapsed_seconds": 180.0201244680211, "error": "Timeout after 180s", "error_class": "transient"},
+    {"vendor": "pi", "success": false, "model_used": "qwen/qwen3-coder", "models_attempted": ["qwen/qwen3-coder"], "elapsed_seconds": 106.94405208295211, "error": "Findings failed schema validation due to unsupported completeness/testability values.", "error_class": null}
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 1,
+  "vendors": [
+    {"name": "antigravity", "findings_path": "findings-antigravity-plan.json", "finding_count": 8}
+  ]
+}

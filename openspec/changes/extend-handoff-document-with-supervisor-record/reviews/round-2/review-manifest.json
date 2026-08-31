@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "change_id": "extend-handoff-document-with-supervisor-record",
+  "review_type": "plan",
+  "created_at": "2026-08-31T23:08:00Z",
+  "target": "extend-handoff-document-with-supervisor-record",
+  "dispatches": [
+    {"vendor": "codex", "success": true, "model_used": "gpt-5", "models_attempted": ["gpt-5"], "elapsed_seconds": 0.0, "error": null, "error_class": null},
+    {"vendor": "antigravity", "success": true, "model_used": "gemini-3.6-flash-medium", "models_attempted": ["gemini-3.6-flash-medium"], "elapsed_seconds": 50.36273982399143, "error": null, "error_class": null}
+  ],
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "vendors": [
+    {"name": "codex", "findings_path": "findings-codex-plan.json", "finding_count": 2},
+    {"name": "antigravity", "findings_path": "findings-antigravity-plan.json", "finding_count": 8}
+  ]
+}

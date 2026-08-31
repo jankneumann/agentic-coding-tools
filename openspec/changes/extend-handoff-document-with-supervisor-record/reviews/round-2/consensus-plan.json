@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "extend-handoff-document-with-supervisor-record",
+  "reviewers": [
+    {
+      "vendor": "codex-gpt-5",
+      "agent_id": "codex-gpt-5",
+      "success": true,
+      "findings_count": 2,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "agent_id": "Google DeepMind / Gemini 3.6 Flash",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "codex-gpt-5",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The proposal now consistently specifies structural equality after JSON decoding for JSONB round trips, while reserving byte identity for deterministic builder output under a fixed timestamp."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "codex-gpt-5",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The refined plan preserves legacy RPC defaults and behavior while adding supervisor-only retrieval and the optional supervisor record across every named surface."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The PostgreSQL migration explicitly replaces legacy RPC overloads while preserving caller defaults, security context, and descending read order."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The plan cleanly splits supervisor state along the derivable and non-derivable boundary."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Supervisor-only retrieval is consistently propagated across every named layer, preventing ordinary handoffs from masking supervisor state."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The fallback rehydration mechanism uses the tracked mirror and fresh derivation when the coordinator is unreachable."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The builder plan pins deterministic sorting, timestamp injection for byte-stable tests, and idempotent mirror writes."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Boundary object validation and the inner schema prevent malformed supervisor records without coupling SQL to inner versions."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Fingerprint exclusion and unchanged mirror no-ops prevent self-triggering supervisor-cycle churn."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "Google DeepMind / Gemini 3.6 Flash",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "A single supervisor_record JSONB key avoids parameter proliferation while allowing inner versioning."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 10,
+    "confirmed_count": 0,
+    "unconfirmed_count": 10,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}

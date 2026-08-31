@@ -1,0 +1,43 @@
+{
+  "review_type": "plan",
+  "target": "extend-handoff-document-with-supervisor-record",
+  "reviewer_vendor": "codex-gpt-5",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: The proposal's non-functional requirements still promise a byte-identical supervisor_record after a JSONB round trip, while the refined spec and tasks correctly require structural equality after JSON decoding; JSONB does not preserve source-byte formatting or object-key order.",
+      "resolution": "Change the proposal NFR wording from byte-identical to structurally equal after JSON decoding so every acceptance surface uses the same achievable contract.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/proposal.md",
+      "line_range": {"start": 163, "end": 163},
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The design cleanly separates repository-derived active_changes from the non-derivable durable state, avoiding two competing sources of truth while preserving offline rehydration.",
+      "resolution": "Preserve the derivable/non-derivable seam and its dedicated mirror schema during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/design.md",
+      "line_range": {"start": 36, "end": 55},
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The plan explicitly preserves legacy handoff defaults and read ordering, removes conflicting PostgreSQL overloads, and adds pre-migration/null behavior coverage across the service and public surfaces.",
+      "resolution": "Retain the compatibility tests and supervisor_only=false default as planned.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/specs/agent-coordinator/spec.md",
+      "line_range": {"start": 56, "end": 80},
+      "axis": "compatibility",
+      "severity": "none"
+    }
+  ]
+}
