@@ -1,0 +1,21 @@
+schema_version: 1
+roadmap_id: roadmap-one
+source_proposal: docs/proposals/roadmap-one.md
+status: planning
+items:
+  - item_id: ri-01
+    title: Alpha
+    status: in_progress
+    priority: 1
+    effort: M
+    depends_on: []
+    change_id: alpha-v4
+    acceptance_outcomes: [done]
+  - item_id: ri-02
+    title: Beta
+    status: in_progress
+    priority: 2
+    effort: M
+    depends_on: []
+    change_id: beta-v5
+    acceptance_outcomes: [done]

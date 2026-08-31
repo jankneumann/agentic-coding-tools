@@ -1,0 +1,13 @@
+schema_version: 1
+roadmap_id: roadmap-two
+source_proposal: docs/proposals/roadmap-two.md
+status: planning
+items:
+  - item_id: ri-09
+    title: Duplicate beta claim
+    status: approved
+    priority: 1
+    effort: S
+    depends_on: []
+    change_id: beta-v5
+    acceptance_outcomes: [done]
