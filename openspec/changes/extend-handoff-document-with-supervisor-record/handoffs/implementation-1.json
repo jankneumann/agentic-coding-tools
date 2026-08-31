@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-31T23:55:18.941600+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "external coordinator transmission disabled; local fallback required",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implemented the nullable supervisor_record contract end to end across coordinator persistence and surfaces, host plumbing, deterministic supervisor state building, tracked mirror recovery, and /supervise workflow documentation. All package gates and merged feature-relevant suites pass; live PostgreSQL and monolithic repository-suite infrastructure remain environment or pre-existing limitations rather than feature failures.",
+    "completed_work": [
+      "Frozen full and mirror supervisor record schemas with validating fixtures.",
+      "Added coordinator migration, model, API, MCP, proxy, CLI, and read-filter support.",
+      "Added bridge and PhaseRecord conditional payload plumbing without changing generic hooks.",
+      "Added deterministic supervisor record derivation, prior selection, mirror writes, and rehydration CLI.",
+      "Updated /supervise intake and cycle workflow contracts; synchronized runtime mirrors.",
+      "Promoted canonical OpenAPI and schemas; passed context drift, OpenSpec strict, Ruff, and 426 merged feature-relevant tests."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Preserve the one-key compatibility boundary",
+        "rationale": "All coordinator and host surfaces carry one optional supervisor_record object so ordinary handoffs remain unchanged.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Keep active state derivable and durable state mirrored",
+        "rationale": "cycle_state rebuilds active_changes from repository truth while carrying only non-derivable sections through the tracked mirror.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Validate the live PostgreSQL migration and byte-identical supervisor_record round-trip.",
+      "Review implementation evidence and proceed through autopilot validation and PR submission."
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/handoffs.py",
+        "description": "Coordinator handoff data model and service persistence"
+      },
+      {
+        "path": "skills/supervise/scripts/cycle_state.py",
+        "description": "Deterministic supervisor record builder, mirror, and rehydrator"
+      },
+      {
+        "path": "skills/supervise/SKILL.md",
+        "description": "Supervisor rehydration and durable write workflow"
+      },
+      {
+        "path": "openspec/schemas/supervisor-record.schema.json",
+        "description": "Canonical full supervisor record contract"
+      },
+      {
+        "path": "openspec/contracts/agent-coordinator/openapi/handoffs.yaml",
+        "description": "Canonical handoff HTTP contract"
+      }
+    ]
+  }
+}

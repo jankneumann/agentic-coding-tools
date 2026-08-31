@@ -73,3 +73,45 @@ Refined the supervisor-roadmap ri-05 sketch into a full plan: one nullable super
 ### Context
 Refined the supervisor-record plan to preserve legacy SQL semantics, make supervisor handoff retrieval reliable, and make record/mirror determinism and lifecycle testable. Added canonical full and mirror schema contracts, executable rehydration edge cases, and aligned task/package verification.
 
+---
+
+## Phase: Implementation (2026-08-31)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Preserve the one-key compatibility boundary** — All coordinator and host surfaces carry one optional supervisor_record object so ordinary handoffs remain unchanged.
+2. **Keep active state derivable and durable state mirrored** — cycle_state rebuilds active_changes from repository truth while carrying only non-derivable sections through the tracked mirror.
+
+### Alternatives Considered
+- Extend generic SessionStart hooks: rejected because The approved design keeps generic hooks unchanged and makes /supervise explicitly own rehydration and writes.
+
+### Trade-offs
+- Accepted deterministic host-assisted record construction over LLM-authored persisted state because explicit clocks, schemas, and mirror idempotency make recovery reproducible and testable
+
+### Open Questions
+- [ ] Validation should rerun the live PostgreSQL round-trip when a local database is available.
+- [ ] Repository owners should isolate generic Python module names in the monolithic skills test command to remove cross-package collection collisions.
+
+### Completed Work
+- Frozen full and mirror supervisor record schemas with validating fixtures.
+- Added coordinator migration, model, API, MCP, proxy, CLI, and read-filter support.
+- Added bridge and PhaseRecord conditional payload plumbing without changing generic hooks.
+- Added deterministic supervisor record derivation, prior selection, mirror writes, and rehydration CLI.
+- Updated /supervise intake and cycle workflow contracts; synchronized runtime mirrors.
+- Promoted canonical OpenAPI and schemas; passed context drift, OpenSpec strict, Ruff, and 426 merged feature-relevant tests.
+
+### Next Steps
+- Validate the live PostgreSQL migration and byte-identical supervisor_record round-trip.
+- Review implementation evidence and proceed through autopilot validation and PR submission.
+
+### Relevant Files
+- `agent-coordinator/src/handoffs.py` — Coordinator handoff data model and service persistence
+- `skills/supervise/scripts/cycle_state.py` — Deterministic supervisor record builder, mirror, and rehydrator
+- `skills/supervise/SKILL.md` — Supervisor rehydration and durable write workflow
+- `openspec/schemas/supervisor-record.schema.json` — Canonical full supervisor record contract
+- `openspec/contracts/agent-coordinator/openapi/handoffs.yaml` — Canonical handoff HTTP contract
+
+### Context
+Implemented the nullable supervisor_record contract end to end across coordinator persistence and surfaces, host plumbing, deterministic supervisor state building, tracked mirror recovery, and /supervise workflow documentation. All package gates and merged feature-relevant suites pass; live PostgreSQL and monolithic repository-suite infrastructure remain environment or pre-existing limitations rather than feature failures.
+
