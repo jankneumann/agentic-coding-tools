@@ -77,6 +77,35 @@ class TestToHandoffPayloadShape:
         assert payload["completed_work"] == []
         assert payload["relevant_files"] == []
 
+    def test_supervisor_record_is_omitted_by_default(self) -> None:
+        rec = PhaseRecord(change_id="c", phase_name="P", agent_type="x", summary="s")
+        assert "supervisor_record" not in rec.to_handoff_payload()
+
+    def test_supervisor_record_round_trips_when_present(self) -> None:
+        record = {
+            "schema_version": 1,
+            "active_changes": [],
+            "pending_gates": [],
+            "standing_decisions": [],
+            "back_edge": {},
+        }
+        original = PhaseRecord(
+            change_id="c",
+            phase_name="P",
+            agent_type="supervisor",
+            summary="s",
+            supervisor_record=record,
+        )
+
+        payload = original.to_handoff_payload()
+        restored = PhaseRecord.from_handoff_payload(
+            payload, change_id="c", phase_name="P"
+        )
+
+        assert payload["supervisor_record"] is record
+        assert restored.supervisor_record == record
+        assert restored == original
+
 
 class TestFromHandoffPayload:
     def test_minimal_payload(self) -> None:

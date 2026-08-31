@@ -90,7 +90,8 @@
             }
           },
           "default": []
-        }
+        },
+        "supervisor_record": {"type": ["object", "null"]}
       }
     }
   }
