@@ -73,11 +73,14 @@ Before either verb does any work, capture its write baseline outside the reposit
 
 ```bash
 SUPERVISE_WRITE_SNAPSHOT="$(mktemp)"
+SUPERVISE_HANDOFF="$(mktemp)"
+SUPERVISE_RECORD="$(mktemp)"
+SUPERVISE_FINAL_RECORD="$(mktemp)"
 python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
   snapshot-writes > "$SUPERVISE_WRITE_SNAPSHOT"
 ```
 
-Keep that file until the verb's final write audit. A dry run takes the same snapshot:
+Keep these temporary files until the verb's final write audit and handoff. A dry run takes the same snapshot:
 read-only is a checked outcome, not an exemption from the boundary.
 
 ---
@@ -95,7 +98,18 @@ Turn a natural-language request into tracked work, without the operator invoking
    work spanning several changes → write a proposal and hand it to `/plan-roadmap`.
 4. **Slot it.** Add the item to the appropriate roadmap with dependencies, including a
    typed `external_depends_on` (ri-17) when the prerequisite lives in another roadmap.
-5. **Audit the verb's writes.** Before reporting success, run:
+5. **Build and mirror the supervisor record.** Rebuild `active_changes` from the
+   post-intake repository while carrying the rehydrated durable sections forward, then
+   write the tracked mirror:
+
+   ```bash
+   python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
+     supervisor-record --prior "$SUPERVISE_RECORD" > "$SUPERVISE_FINAL_RECORD"
+   python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
+     mirror --record "$SUPERVISE_FINAL_RECORD"
+   ```
+
+6. **Audit the verb's writes.** After the mirror and before the coordinator handoff, run:
 
    ```bash
    python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
@@ -104,7 +118,11 @@ Turn a natural-language request into tracked work, without the operator invoking
 
    A non-zero exit is a stop-the-line violation: preserve the worktree and report the
    forbidden paths. Do not claim intake completed.
-6. **Report** what was created and what it is blocked on. Do not begin implementation.
+7. **Write the supervisor handoff, then report.** Only after the audit succeeds, load
+   `$SUPERVISE_FINAL_RECORD` and call the bridge as
+   `try_handoff_write(..., content={"supervisor_record": record})`. If the coordinator
+   is unavailable, report `Degraded: handoff`; the tracked mirror remains the durable
+   fallback. Report what was created and what it is blocked on. Do not begin implementation.
 
 ## Verb: `cycle`
 
@@ -113,11 +131,28 @@ The recurring operating loop. Runs SENSE → RANK → digest, and **stops**.
 ### 1. Rehydrate
 
 The supervisor is a rehydratable role, not a resident process: any fresh session that
-loads durable state becomes the supervisor. Read, in order:
+loads durable state becomes the supervisor. Read durable state in this order:
 
-1. The SessionStart handoff (active changes, pending gates, standing decisions).
-2. Every `openspec/roadmaps/*/roadmap.yaml`.
-3. `openspec/supervise/cycle-ledger.json` — what the last cycle already surfaced.
+1. Through the host bridge, call
+   `try_handoff_read(limit=1, supervisor_only=true)`. The filter is required: a newer
+   ordinary handoff must not mask the newest supervisor handoff. Save the complete bridge
+   response to a temporary JSON file outside the repository.
+2. Run the deterministic rehydrator, which also reads
+   `openspec/supervise/supervisor-record.json` when present:
+
+   ```bash
+   python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
+     rehydrate --handoff "$SUPERVISE_HANDOFF" > "$SUPERVISE_RECORD"
+   ```
+
+   The `rehydrate` subcommand selects the handoff or mirror with the newer `written_at`,
+   then invokes the `supervisor-record` builder so `active_changes` is freshly derived.
+   **Coordinator unreachable.** When the bridge yields no supervisor handoff, it falls back to
+   the mirror and the digest must report `Degraded: handoff`. This one path therefore
+   covers handoff-only state, a stale handoff with a newer mirror, and coordinator-down
+   mirror recovery.
+3. Read every `openspec/roadmaps/*/roadmap.yaml` and
+   `openspec/supervise/cycle-ledger.json` — what the last cycle already surfaced.
 
 Then compute the cross-roadmap picture:
 
@@ -174,10 +209,14 @@ Rank the in-memory inputs in the host session and print that ephemeral result in
 
 ### 5. Digest, then stop
 
-Report to the operator, decision-first:
+Report to the operator, decision-first, rendering durable supervisor state explicitly:
 
-- **Needs a decision** — approvals, escalations, PRs awaiting review or merge.
-- **Ready now** — per roadmap, priority order, and what each unblocks.
+- **Needs a decision** — render every `pending_gates` entry with its gate, change,
+  disposition, and `deadline`, then other approvals, escalations, and PRs awaiting review
+  or merge. Do not flatten away the deadline.
+- **Ready now** — reconcile freshly derived `active_changes` (including current phase and
+  pending gate) with ready roadmap items; list per roadmap in priority order and say what
+  each unblocks.
 - **New this cycle** — ranked candidate work with provenance.
 - **Blocked** — and on what, distinguishing an external prerequisite (auto-clears) from
   a human decision (does not).
@@ -188,8 +227,8 @@ or open PRs.
 
 Before stopping, enforce state and write boundaries in this order:
 
-1. For a normal cycle, write a temporary JSON array containing the stable keys of every
-   newly surfaced stub, then record the completed cycle:
+1. For a normal, non-`--dry-run` cycle, write a temporary JSON array containing the
+   stable keys of every newly surfaced stub, then record the completed cycle:
 
    ```bash
    python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
@@ -197,7 +236,17 @@ Before stopping, enforce state and write boundaries in this order:
    ```
 
    Do not run `record` under `--dry-run`.
-2. For every cycle, including `--dry-run`, audit all repository changes made since the
+2. Still only for a non-`--dry-run` cycle, rebuild the full record from the rehydrated
+   prior and write its non-derivable mirror:
+
+   ```bash
+   python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
+     supervisor-record --prior "$SUPERVISE_RECORD" > "$SUPERVISE_FINAL_RECORD"
+   python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
+     mirror --record "$SUPERVISE_FINAL_RECORD"
+   ```
+
+3. For every cycle, including `--dry-run`, audit all repository changes made since the
    entry snapshot:
 
    ```bash
@@ -207,6 +256,13 @@ Before stopping, enforce state and write boundaries in this order:
 
    A non-zero exit is a stop-the-line violation. Preserve the worktree and report the
    forbidden paths instead of claiming the cycle completed.
+4. For a non-`--dry-run` cycle, only after that final audit succeeds, load
+   `$SUPERVISE_FINAL_RECORD` and call
+   `try_handoff_write(..., content={"supervisor_record": record})`. Coordinator failure
+   is reported as `Degraded: handoff`; the mirror already records the durable subset.
+
+Under `--dry-run`, write neither the mirror nor a supervisor handoff. The audit still runs
+and proves the read-only boundary.
 
 > **Why the gate sits here.** The operator approves a *roadmap*, not fifteen items:
 > one decision at roadmap altitude authorizes a DAG of work. Human attention goes to
@@ -226,8 +282,9 @@ A scheduled cycle fires on whatever tree it finds, including an unchanged one. T
 mechanisms keep a re-run from duplicating work:
 
 1. **Cycle fingerprint.** A deterministic digest over committed tree content plus staged
-   and unstaged tracked changes (excluding only `openspec/supervise/cycle-ledger.json`,
-   so recording the ledger never changes the fingerprint), active change-ids, and every
+   and unstaged tracked changes (excluding `openspec/supervise/cycle-ledger.json` and
+   `openspec/supervise/supervisor-record.json`, so durable-state writes never change the
+   fingerprint), active change-ids, and every
    `(roadmap_id, item_id, status, change_id)` tuple. No wall clock and no mtime — the
    same repository state always fingerprints the same. When it matches the last ledger
    entry, `cycle` reports the prior digest and exits without re-sensing (override with
@@ -246,6 +303,8 @@ session on another machine inherits what has already been surfaced.
 |---|---|---|
 | Digest (chat) | `cycle` | The operator-facing decision surface |
 | `openspec/supervise/cycle-ledger.json` | `cycle` | Fingerprint + surfaced stub keys, for idempotency |
+| `openspec/supervise/supervisor-record.json` | `intake`, non-dry-run `cycle` | Tracked mirror of non-derivable supervisor state |
+| Coordinator handoff `supervisor_record` | `intake`, non-dry-run `cycle` | Cross-session transport for full supervisor state |
 | `openspec/priorities/<date>/…` | `/prioritize-proposals` | The ranking report |
 | Roadmap items / change scaffolds | `intake` (on approval) | Tracked work |
 
@@ -253,7 +312,7 @@ session on another machine inherits what has already been surfaced.
 
 | Script | Role |
 |---|---|
-| `scripts/cycle_state.py` | Deterministic only: cycle fingerprint, ledger read/write, stub keying and dedupe, ready-set assembly across roadmaps, and the write-boundary audit. No LLM calls, no network. |
+| `scripts/cycle_state.py` | Deterministic only: supervisor-record build/rehydration, mirror selection/write, cycle fingerprint, ledger read/write, stub dedupe, cross-roadmap ready set, and write audit. No LLM calls, no network. |
 
 ## Design principle: host-assisted only
 
