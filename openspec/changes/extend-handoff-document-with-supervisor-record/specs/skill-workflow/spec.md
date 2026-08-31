@@ -4,7 +4,7 @@
 
 ### Requirement: Session Handoff Hooks
 
-Creative lifecycle skills (`/plan-feature`, `/implement-feature`, `/iterate-on-plan`, `/iterate-on-implementation`, `/cleanup-feature`, `/supervise`) SHALL use handoff hooks when `CAN_HANDOFF=true`. Host-side handoff writers (`coordination_bridge.try_handoff_write`, `PhaseRecord.to_handoff_payload()`, the SessionEnd and PreCompact hooks) SHALL pass an optional `supervisor_record` key through unchanged when the caller supplies one, and SHALL omit it otherwise. The local-fallback envelope schema (`handoff-local-fallback.schema.json`) SHALL accept the optional key.
+Creative lifecycle skills (`/plan-feature`, `/implement-feature`, `/iterate-on-plan`, `/iterate-on-implementation`, `/cleanup-feature`, `/supervise`) SHALL use handoff hooks when `CAN_HANDOFF=true`. Host-side handoff writers (`coordination_bridge.try_handoff_write`, `PhaseRecord.to_handoff_payload()`) SHALL pass an optional `supervisor_record` key through unchanged when the caller supplies one, and SHALL omit it otherwise. Ordinary SessionStart, SessionEnd, and PreCompact hooks SHALL remain unchanged; supervisor rehydration SHALL use a supervisor-only read so their ordinary handoffs cannot mask the record. The local-fallback envelope schema (`handoff-local-fallback.schema.json`) SHALL accept the optional key.
 
 #### Scenario: Read handoff context at skill start
 - **WHEN** a lifecycle skill starts
@@ -29,13 +29,7 @@ Creative lifecycle skills (`/plan-feature`, `/implement-feature`, `/iterate-on-p
 - **WHEN** a `PhaseRecord` with `supervisor_record=None` calls `to_handoff_payload()`
 - **THEN** the payload SHALL equal the pre-change payload key-for-key
 - **WHEN** `supervisor_record` is set
-- **THEN** `to_handoff_payload()` → `from_handoff_payload()` SHALL preserve it byte-identically
-
-#### Scenario: Compaction and session end do not drop the record
-- **WHEN** the PreCompact hook or the SessionEnd hook builds its `/handoffs/write` body from the latest phase record
-- **AND** that record carries a `supervisor_record`
-- **THEN** the body SHALL include it
-- **AND** when none is present the body SHALL be identical to today's
+- **THEN** `to_handoff_payload()` → `from_handoff_payload()` SHALL preserve it by deep equality
 
 #### Scenario: Local fallback file validates with the record present
 - **WHEN** `write_both()` falls back to `openspec/changes/<id>/handoffs/<phase-slug>-<N>.json` for a record carrying `supervisor_record`

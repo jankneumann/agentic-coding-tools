@@ -11,16 +11,16 @@ Capability short names: `ac` = `agent-coordinator`, `sw` = `skill-workflow`,
 
 ## Phase 0 — wp-contracts: the record shape is frozen first
 
-- [ ] 0.1 Test: `supervisor-record.schema.json` is a valid 2020-12 schema; a full fixture
-      validates; a `pending_gates` entry without `deadline` fails; an unknown `gate` fails;
-      the `gate` enum equals `trust_posture.Gate` values — **XS**
+- [ ] 0.1 Test: both supervisor record schemas are valid 2020-12 schemas under a `FormatChecker`; full and mirror fixtures validate; a `pending_gates` entry without `deadline` fails; an unknown `gate` fails;
+      the `gate` enum equals `trust_posture.Gate` values; root `written_by` and all
+      `back_edge` members are required — **XS**
       **Spec scenarios**: sv *Pending gate carries the deadline downstream writers need*
       **Contracts**: supervisor-record.schema.json
       **Design decisions**: D7
       **Dependencies**: None
 
 - [ ] 0.2 Fixtures: `skills/tests/supervise/fixtures/supervisor-record/{full,minimal,invalid-*}.json`
-      plus a matching `handoff-with-record.json` row fixture — **XS**
+      plus a matching `handoff-with-record.json` row fixture and mirror fixture — **XS**
       **Contracts**: supervisor-record.schema.json
       **Dependencies**: 0.1
 
@@ -44,8 +44,9 @@ Capability short names: `ac` = `agent-coordinator`, `sw` = `skill-workflow`,
       **Design decisions**: D1
       **Dependencies**: 1.1
 
-- [ ] 1.3 Test: arity — `write_handoff` in migrations has exactly one definition with nine
-      parameters; `test_rpc_migration_alignment` still passes — **XS**
+- [ ] 1.3 Test: compatibility — `write_handoff` in migrations has exactly one definition with nine
+      parameters; the legacy defaults, empty-summary behavior, execution mode, and
+      descending read order are unchanged; `test_rpc_migration_alignment` still passes — **S**
       **Spec scenarios**: ac *RPC name alignment holds*, *Migration is additive and
       forward-only*
       **Design decisions**: D1
@@ -57,21 +58,22 @@ Capability short names: `ac` = `agent-coordinator`, `sw` = `skill-workflow`,
 - [ ] 1.4 Test: `POST /handoffs/write` accepts `supervisor_record` (object or null), 422s
       on a non-object; `POST /handoffs/read` rows carry the key; MCP `write_handoff` /
       `read_handoff` plus `handoffs://recent` round-trip it; `proxy_write_handoff` forwards
-      it; `coordination_cli handoff read` prints it — **S**
+      it; `coordination_cli handoff read` prints it; a newer ordinary handoff cannot mask
+      the supervisor row when `supervisor_only=true` — **S**
       **Spec scenarios**: ac *Supervisor record round-trips through every surface*,
       *Non-object record is rejected at the HTTP boundary*
       **Contracts**: openapi/handoffs.yaml
       **Design decisions**: D1
       **Dependencies**: 1.2
 
-- [ ] 1.5 Implement the one-key edit in `coordination_api.py` (`HandoffWriteRequest`, read
+- [ ] 1.5 Implement the one-key edit and `supervisor_only` read filter in `coordination_api.py` (`HandoffWriteRequest`, read
       row), `coordination_mcp.py` (both tools + resource), `http_proxy.py`,
       `coordination_cli.py`, `help_service.py` — **M**
       **Design decisions**: D1
       **Dependencies**: 1.4
 
 - [ ] 1.6 Test (live, `tests/e2e/postgres/test_handoffs_live.py`): write with a full fixture
-      record, read back byte-identical; write without → `null` — **S**
+      record, read back structurally equal after JSON decoding; write without → `null` — **S**
       **Spec scenarios**: ac *Supervisor record round-trips through every surface*
       **Dependencies**: 1.5
 
@@ -107,34 +109,33 @@ Capability short names: `ac` = `agent-coordinator`, `sw` = `skill-workflow`,
 - [ ] Checkpoint: `skills/tests/phase-record-compaction` green, review the diff, confirm
       fixture files unchanged
 
-- [ ] 2.5 Test: the PreCompact hook plus the SessionEnd hook include `supervisor_record` in
-      the `/handoffs/write` body when the latest phase record has one, otherwise produce
-      today's body; source vs `agent-coordinator/scripts/` mirror copies are identical — **S**
-      **Spec scenarios**: sw *Compaction and session end do not drop the record*
-      **Design decisions**: D5
+- [ ] 2.5 Test: `try_handoff_read(supervisor_only=true)` forwards the filter and returns
+      the newest record-bearing handoff even when a newer ordinary handoff exists — **S**
+      **Spec scenarios**: ac *Supervisor-only read is not masked by ordinary handoffs*
+      **Design decisions**: D7A
       **Dependencies**: None
 
-- [ ] 2.6 Implement the pass-through in `precompact_handoff.py` plus `deregister_agent.py`,
-      sync the mirror copies; leave `register_agent.py` untouched — **XS**
-      **Design decisions**: D5
+- [ ] 2.6 Implement bridge support for the `supervisor_only` read parameter; leave all three
+      generic session hooks untouched — **XS**
+      **Design decisions**: D5, D7A
       **Dependencies**: 2.5
 
-- [ ] Checkpoint: `skills/tests/session-bootstrap` green, `git diff --stat` shows no
-      `register_agent.py` change
+- [ ] Checkpoint: bridge + PhaseRecord suites green; `git diff --stat` shows no session-hook change
 
 ## Phase 3 — wp-supervisor-builder: `cycle_state.py supervisor-record`
 
-- [ ] 3.1 Test: builder derives `active_changes` from a fixture tree (two changes with
-      loop-state v4 vs v5, one with a roadmap match); sorted by `change_id`; v4 state
-      yields `pending_gate: null`; a change absent from disk is absent from output — **S**
+- [ ] 3.1 Test: builder derives `active_changes` from a fixture tree (v4/v5, DONE, ESCALATE,
+      malformed and missing loop-state, duplicate roadmap matches, parent plus child registry
+      entries); sorted by `change_id`; v4 yields `pending_gate: null`; DONE/invalid changes
+      are absent and degraded inputs are reported — **S**
       **Spec scenarios**: sv *Derivable section is recomputed, not carried*
       **Design decisions**: D2, D3
       **Dependencies**: None
 
 - [ ] 3.2 Test: with `--prior`, `pending_gates` / `standing_decisions` / `back_edge` carry
-      forward; a decision past `expires_at` is dropped; prior may be a handoff JSON or the
-      mirror; two runs over an unchanged tree are byte-identical; output validates against
-      the record schema — **S**
+      forward; a decision past `expires_at` is dropped; prior may be a normalized handoff record extracted from
+      `data.handoffs[0].supervisor_record` or the mirror; two runs over an unchanged tree
+      with the same explicit `--now` value are byte-identical; output validates with a format checker against the canonical full-record schema — **S**
       **Spec scenarios**: sv *Non-derivable sections are carried forward*, *Builder is
       deterministic*
       **Contracts**: supervisor-record.schema.json
@@ -142,22 +143,24 @@ Capability short names: `ac` = `agent-coordinator`, `sw` = `skill-workflow`,
       **Dependencies**: None
 
 - [ ] 3.3 Implement `build_supervisor_record(repo_root, prior=None, *, now=...)` plus the
-      `supervisor-record` subcommand in `cycle_state.py` — **M**
+      `supervisor-record` subcommand with an optional `--now` test hook in `cycle_state.py` — **M**
       **Design decisions**: D2, D3
       **Dependencies**: 3.1, 3.2
 
 - [ ] Checkpoint: `skills/tests/supervise` green including `TestHostAssistedInvariant`,
       review the diff
 
-- [ ] 3.4 Test: `write_mirror()` writes only the three non-derivable sections plus
-      `schema_version`/`written_at`; passes `audit-writes`; `select_prior(handoff, mirror)`
+- [ ] 3.4 Test: `write_mirror()` writes only the three sanitized non-derivable sections plus
+      `schema_version`/`written_at`; validates against the dedicated mirror schema; is a
+      no-op preserving `written_at` for unchanged content; passes `audit-writes`; the mirror
+      is excluded from cycle fingerprinting; `select_prior(handoff, mirror)`
       returns the newer by `written_at`, the mirror when the handoff is missing — **S**
       **Spec scenarios**: sv *Mirror holds only the non-derivable sections*, *Newer mirror
       wins over a stale handoff*, *Coordinator unreachable falls back to the mirror*
       **Design decisions**: D4
       **Dependencies**: None
 
-- [ ] 3.5 Implement `write_mirror`, `select_prior`, plus the `mirror` / `rehydrate`
+- [ ] 3.5 Implement `write_mirror`, `select_prior`, mirror sanitization, fingerprint exclusion, plus the `mirror` / `rehydrate`
       subcommands — **S**
       **Design decisions**: D4
       **Dependencies**: 3.4
@@ -166,11 +169,13 @@ Capability short names: `ac` = `agent-coordinator`, `sw` = `skill-workflow`,
 
 ## Phase 4 — wp-skill-docs: wire /supervise
 
-- [ ] 4.1 Test: `TestWorkflowContract` extended — rehydrate step 1 names
-      `supervisor-record` plus `try_handoff_read`; INTAKE/CYCLE end with the record write;
+- [ ] 4.1 Test: rehydrate behavior covers handoff-only, a newer ordinary handoff, coordinator-down
+      mirror fallback, newer mirror, and rendered pending gates; `TestWorkflowContract` names
+      `supervisor-record` plus `try_handoff_read(supervisor_only=true)`; INTAKE and non-dry-run
+      CYCLE write the mirror before final audit and handoff afterward; dry-run writes neither;
       the existing string assertions (`snapshot-writes`, `audit-since`, `record --keys`,
       dry-run block) still hold — **XS**
-      **Spec scenarios**: sv *Fresh session lists state from the handoff alone*
+      **Spec scenarios**: sv *Fresh session restores durable state and re-derives active changes*
       **Design decisions**: D4, D5
       **Dependencies**: None
 
@@ -192,7 +197,8 @@ Capability short names: `ac` = `agent-coordinator`, `sw` = `skill-workflow`,
       --strict` on `agent-coordinator/src` — **S**
       **Dependencies**: all Phase 1–4 tasks
 
-- [ ] 5.2 Promote `contracts/openapi/handoffs.yaml` over the canonical contract; run
+- [ ] 5.2 Promote `contracts/openapi/handoffs.yaml` over the canonical contract and both record
+      schemas to `openspec/schemas/`; run
       `make context-drift-gate` — **XS**
       **Dependencies**: 5.1
 

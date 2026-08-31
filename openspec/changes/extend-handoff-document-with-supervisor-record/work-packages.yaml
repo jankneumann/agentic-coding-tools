@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: extend-handoff-document-with-supervisor-record
   title: "Extend handoff document with supervisor record"
-  plan_revision: 1
+  plan_revision: 2
   created_by: plan-feature
   # The coordinator is a running service, but this change is exercised through
   # its unit + e2e postgres suites, not a deploy; validate-feature must not derive
@@ -17,6 +17,7 @@ contracts:
     files:
       - "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/openapi/handoffs.yaml"
       - "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/schemas/supervisor-record.schema.json"
+      - "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/schemas/supervisor-record-mirror.schema.json"
       - "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/db/034_handoff_supervisor_record.sql"
       - "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/README.md"
 
@@ -90,8 +91,8 @@ packages:
     description: |
       Phase 1, tasks 1.1-1.6. HandoffDocument.supervisor_record, HandoffService.write
       parameter, migration 034 (drop the eight-arg overload, recreate with the
-      defaulted ninth), and the same one-key edit in coordination_api, coordination_mcp,
-      http_proxy, coordination_cli, help_service. Do not change proxy plumbing
+      defaulted ninth), and the same one-key edit plus backward-compatible `supervisor_only` read filter in
+      coordination_api, coordination_mcp, http_proxy, coordination_cli, help_service. Do not change proxy plumbing
       (_request / get_client are top-5 high-impact nodes) — only the handoff
       functions that call it. Rebase over axi-align-coordinator-output if it lands
       first: it edits the read envelope in the same read-row builder.
@@ -171,15 +172,13 @@ packages:
       result_keys: ["coordinator_suite", "live_roundtrip", "mypy_clean"]
 
   - package_id: wp-host-plumbing
-    title: "Bridge, PhaseRecord, hooks, fallback schema"
+    title: "Bridge, PhaseRecord, read filter, fallback schema"
     task_type: implementation
     description: |
       Phase 2, tasks 2.1-2.6. The conditional supervisor_record key in
-      coordination_bridge.try_handoff_write, the PhaseRecord field with a
-      conditional payload key, the optional property in
-      handoff-local-fallback.schema.json, and the pass-through in the PreCompact and
-      SessionEnd hooks (plus their agent-coordinator/scripts mirrors).
-      register_agent.py is deliberately NOT in write_allow (design D5). Runs in
+      coordination_bridge.try_handoff_write, the `supervisor_only` read parameter, the
+      PhaseRecord field with a conditional payload key, and the optional property in
+      handoff-local-fallback.schema.json. Generic session hooks remain unchanged. Runs in
       parallel with wp-coordinator: the two sides only meet at the HTTP body, whose
       key name is fixed by the contract.
     role: implementer
@@ -189,8 +188,6 @@ packages:
       files:
         - "skills/coordination-bridge/scripts/coordination_bridge.py"
         - "skills/session-log/scripts/phase_record.py"
-        - "skills/session-bootstrap/scripts/hooks/precompact_handoff.py"
-        - "skills/session-bootstrap/scripts/hooks/deregister_agent.py"
       keys:
         - "feature:extend-handoff-document-with-supervisor-record:plumbing"
         - "contract:handoff.local.fallback"
@@ -200,16 +197,10 @@ packages:
       write_allow:
         - "skills/coordination-bridge/scripts/coordination_bridge.py"
         - "skills/session-log/scripts/phase_record.py"
-        - "skills/session-bootstrap/scripts/hooks/precompact_handoff.py"
-        - "skills/session-bootstrap/scripts/hooks/deregister_agent.py"
-        - "agent-coordinator/scripts/precompact_handoff.py"
-        - "agent-coordinator/scripts/deregister_agent.py"
         - "openspec/contracts/phase-record/schemas/handoff-local-fallback.schema.json"
         - "skills/tests/coordination-bridge/test_handoff_supervisor_record.py"
         - "skills/tests/phase-record-compaction/test_phase_record_handoff.py"
         - "skills/tests/phase-record-compaction/test_schema_fixtures.py"
-        - "skills/tests/session-bootstrap/test_precompact_handoff.py"
-        - "skills/tests/session-bootstrap/test_deregister_handoff.py"
       read_allow:
         - "**"
       deny:
@@ -236,24 +227,12 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["plumbing_suite"]
-        - name: "Hook mirrors identical"
-          kind: command
-          command: "diff -q skills/session-bootstrap/scripts/hooks/precompact_handoff.py agent-coordinator/scripts/precompact_handoff.py && diff -q skills/session-bootstrap/scripts/hooks/deregister_agent.py agent-coordinator/scripts/deregister_agent.py"
-          evidence:
-            artifacts: []
-            result_keys: ["mirrors_synced"]
-        - name: "register_agent.py untouched"
-          kind: command
-          command: "git diff --quiet main -- skills/session-bootstrap/scripts/hooks/register_agent.py agent-coordinator/scripts/register_agent.py"
-          evidence:
-            artifacts: []
-            result_keys: ["hook_untouched"]
     metadata:
       loc_estimate: 140
       complexity: low
       package_kind: integration
     outputs:
-      result_keys: ["plumbing_suite", "mirrors_synced", "hook_untouched"]
+      result_keys: ["plumbing_suite"]
 
   - package_id: wp-supervisor-builder
     title: "cycle_state.py supervisor-record, mirror, rehydrate"
@@ -406,6 +385,8 @@ packages:
     scope:
       write_allow:
         - "openspec/contracts/agent-coordinator/openapi/handoffs.yaml"
+        - "openspec/schemas/supervisor-record.schema.json"
+        - "openspec/schemas/supervisor-record-mirror.schema.json"
         - "openspec/changes/extend-handoff-document-with-supervisor-record/tasks.md"
         - "openspec/changes/extend-handoff-document-with-supervisor-record/session-log.md"
         - "openspec/changes/extend-handoff-document-with-supervisor-record/handoffs/**"
@@ -430,7 +411,7 @@ packages:
       steps:
         - name: "All suites pass"
           kind: command
-          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q && skills/.venv/bin/python -m pytest skills/tests -q"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q && skills/.venv/bin/python -m pytest skills/tests -q && agent-coordinator/.venv/bin/python -m mypy --strict agent-coordinator/src && skills/.venv/bin/python -m ruff check agent-coordinator/src skills"
           evidence:
             artifacts: []
             result_keys: ["full_suite"]

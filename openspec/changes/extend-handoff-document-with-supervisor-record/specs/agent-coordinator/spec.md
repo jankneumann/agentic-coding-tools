@@ -44,7 +44,7 @@ The system SHALL support session continuity through handoff documents that prese
 
 #### Scenario: Supervisor record round-trips through every surface
 - **WHEN** a handoff is written with a schema-valid `supervisor_record` via the service, `POST /handoffs/write`, the MCP `write_handoff` tool, or `http_proxy.proxy_write_handoff`
-- **THEN** reading it back through the service, `POST /handoffs/read`, the MCP `read_handoff` tool, `handoffs://recent`, and `coordination_cli handoff read` SHALL return a byte-identical `supervisor_record`
+- **THEN** reading it back through the service, `POST /handoffs/read`, the MCP `read_handoff` tool, `handoffs://recent`, and `coordination_cli handoff read` SHALL return a structurally equal `supervisor_record` after JSON decoding
 - **AND** all four sections (`active_changes`, `pending_gates`, `standing_decisions`, `back_edge`) SHALL be intact
 
 #### Scenario: Pre-migration rows load with a null record
@@ -56,16 +56,23 @@ The system SHALL support session continuity through handoff documents that prese
 
 ### Requirement: Supervisor Record Storage
 
-The `handoff_documents` table SHALL carry a nullable `supervisor_record JSONB` column added by migration `034_handoff_supervisor_record.sql`. The `write_handoff` stored function SHALL accept a trailing `p_supervisor_record JSONB DEFAULT NULL` parameter, and the migration SHALL drop the previous eight-argument overload so RPC calls stay unambiguous. The `read_handoff` stored function SHALL select the column. The coordinator SHALL NOT validate the inner document beyond requiring it to be a JSON object or null; inner-schema validation is the writer's responsibility.
+The `handoff_documents` table SHALL carry a nullable `supervisor_record JSONB` column added by migration `034_handoff_supervisor_record.sql`. The `write_handoff` stored function SHALL accept a trailing `p_supervisor_record JSONB DEFAULT NULL` parameter, and the migration SHALL drop the previous eight-argument overload so RPC calls stay unambiguous. The `read_handoff` stored function SHALL select the column and accept a trailing `p_supervisor_only BOOLEAN DEFAULT FALSE`; when true, ordinary rows SHALL be filtered out before ordering and limiting. Migration 034 SHALL drop the prior two-argument read overload before recreating it. The coordinator SHALL NOT validate the inner document beyond requiring it to be a JSON object or null; inner-schema validation is the writer's responsibility.
 
 #### Scenario: Migration is additive and forward-only
 - **WHEN** migration 034 runs against a database at 033
 - **THEN** existing `handoff_documents` rows SHALL be readable with `supervisor_record IS NULL`
-- **AND** `SELECT write_handoff(...)` with eight arguments SHALL resolve to the new function with `p_supervisor_record = NULL`
+- **AND** legacy one-, two-, and eight-argument `write_handoff` calls SHALL retain migration 002 defaults and behavior
+- **AND** read ordering and function security mode SHALL be unchanged from migration 002
 
 #### Scenario: RPC name alignment holds
 - **WHEN** `test_rpc_migration_alignment` runs
 - **THEN** every `.rpc()` name in `handoffs.py` SHALL exist as a `CREATE FUNCTION` in migrations
+
+#### Scenario: Supervisor-only read is not masked by ordinary handoffs
+- **GIVEN** a supervisor-record handoff followed by a newer ordinary handoff
+- **WHEN** `read_handoff(supervisor_only=true, limit=1)` is called through service, HTTP, MCP, proxy, or bridge
+- **THEN** the supervisor-record handoff SHALL be returned
+- **AND** `supervisor_only=false` SHALL preserve the existing newest-first behavior
 
 #### Scenario: Non-object record is rejected at the HTTP boundary
 - **WHEN** `POST /handoffs/write` receives `supervisor_record` that is not a JSON object or null

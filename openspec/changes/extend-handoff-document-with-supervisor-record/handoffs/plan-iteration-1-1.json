@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-08-31T22:47:40.335245+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "external coordinator write not authorized; local fallback required",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Refined the supervisor-record plan to preserve legacy SQL semantics, make supervisor handoff retrieval reliable, and make record/mirror determinism and lifecycle testable. Added canonical full and mirror schema contracts, executable rehydration edge cases, and aligned task/package verification.",
+    "completed_work": [
+      "Preserved migration 002 defaults, invoker security, summary semantics, and ordering in the frozen SQL contract.",
+      "Added supervisor_only read filtering and interleaving coverage across contracts/specs/tasks.",
+      "Specified explicit clock injection, mirror no-op/idempotency, dry-run and audit ordering.",
+      "Added full-record and mirror schemas with canonical promotion and nested required fields.",
+      "Aligned acceptance outcomes with repo-derived active changes and durable handoff/mirror state.",
+      "Validated OpenSpec and work-package schema/DAG/overlap checks."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use an explicit supervisor-only read filter",
+        "rationale": "A global newest-handoff read can be masked by ordinary lifecycle handoffs; a backward-compatible filter preserves existing callers and makes rehydration addressable.",
+        "capability": "supervisor-record",
+        "supersedes": null
+      },
+      {
+        "title": "Keep generic session hooks unchanged",
+        "rationale": "The supervisor writes its record explicitly and supervisor-only reads prevent masking, eliminating an unreliable hook-copy path.",
+        "capability": "supervisor-record",
+        "supersedes": null
+      },
+      {
+        "title": "Promote separate full-record and mirror schemas",
+        "rationale": "Runtime validation must survive change archival and the tracked mirror intentionally omits active_changes.",
+        "capability": "supervisor-record",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Proceed to multi-vendor PLAN_REVIEW, then implement the validated work-package DAG."
+    ],
+    "relevant_files": []
+  }
+}

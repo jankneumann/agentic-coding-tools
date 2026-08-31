@@ -39,7 +39,7 @@ truth for the parts git cannot derive.
 1. **One `supervisor_record` JSONB column** on `handoff_documents` (migration
    `034_handoff_supervisor_record.sql`), nullable, default `NULL`; `write_handoff`
    gains a trailing `p_supervisor_record JSONB DEFAULT NULL` (old overload dropped
-   explicitly), `read_handoff` selects it. `HandoffDocument.supervisor_record:
+   explicitly), `read_handoff` selects it and gains a backward-compatible `supervisor_only` filter so newer ordinary handoffs cannot mask supervisor state. `HandoffDocument.supervisor_record:
    dict[str, Any] | None`. Non-supervisor handoffs never set it.
 
 2. **A versioned inner contract**, `contracts/schemas/supervisor-record.schema.json`
@@ -62,22 +62,20 @@ truth for the parts git cannot derive.
    and `handoff-local-fallback.schema.json` (bumped to accept the optional key).
 
 4. **Deterministic builder, host-assisted.** `cycle_state.py supervisor-record
-   [--prior PATH]` composes the record: derivable sections recomputed from the repo;
+   [--prior PATH] [--now RFC3339]` composes the record: derivable sections recomputed from the repo;
    non-derivable sections carried forward from the prior record (handoff or mirror)
    and merged with new inputs. No LLM, no network — `TestHostAssistedInvariant`
    keeps applying.
 
 5. **Tracked mirror for the non-derivable half.** `openspec/supervise/supervisor-record.json`
-   holds `pending_gates`, `standing_decisions`, `back_edge` (never `active_changes`,
+   holds and validates against a dedicated mirror schema `pending_gates`, `standing_decisions`, `back_edge` (never `active_changes`,
    which would churn on every phase). `/supervise` rehydrate reads the handoff via
    `try_handoff_read`; if the coordinator is unreachable or the handoff predates the
    mirror, it rehydrates from the mirror plus a fresh derivation. Handoff is the
-   transport; the mirror is the truth for what git cannot derive. The path is already
+   transport; the mirror is the truth for what git cannot derive. Unchanged content is a no-op that preserves `written_at`, and the mirror is excluded from cycle fingerprinting. The path is already
    inside the supervisor's `_ALLOWED_WRITE_PREFIXES`.
 
-6. **Hooks unchanged except pass-through.** `register_agent.py` is not modified.
-   `deregister_agent.py` and `precompact_handoff.py` copy `supervisor_record` from
-   the latest source when present, so a session end or compaction never drops it.
+6. **Hooks unchanged.** SessionStart, SessionEnd, and PreCompact remain generic. `/supervise` writes the record explicitly and reads it with `supervisor_only=true`, so newer ordinary hook handoffs cannot mask it.
 
 7. **`/supervise` wired.** SKILL.md rehydrate step 1 becomes the bridge read + builder
    call; INTAKE step 6 and CYCLE step 5 end by writing the record (handoff + mirror).
@@ -87,7 +85,7 @@ truth for the parts git cannot derive.
 
 ### Approach 1: JSONB envelope + repo-derived builder + tracked mirror (Recommended)
 
-One nullable JSONB column carrying a self-versioned document; a deterministic
+One nullable JSONB column carrying a self-versioned document plus a backward-compatible `supervisor_only` read filter; a deterministic
 builder in `cycle_state.py` derives the volatile half from git-tracked state and
 carries the durable half forward; the durable half is mirrored to a tracked file.
 
@@ -168,9 +166,8 @@ modified — `/supervise` rehydrates via the bridge read; (d) the builder lives 
 
 - `agent-coordinator/src/{handoffs.py, coordination_api.py, coordination_mcp.py, http_proxy.py, coordination_cli.py, help_service.py}`, migration `034`
 - `skills/coordination-bridge/scripts/coordination_bridge.py`, `skills/session-log/scripts/phase_record.py`
-- `skills/session-bootstrap/scripts/hooks/{deregister_agent.py, precompact_handoff.py}` (+ mirror under `agent-coordinator/scripts/`)
 - `skills/supervise/scripts/cycle_state.py`, `skills/supervise/SKILL.md`
-- Contracts: `openspec/contracts/agent-coordinator/openapi/handoffs.yaml`, `openspec/contracts/phase-record/schemas/handoff-local-fallback.schema.json`
+- Contracts: `openspec/contracts/agent-coordinator/openapi/handoffs.yaml`, `openspec/contracts/phase-record/schemas/handoff-local-fallback.schema.json`, and canonical `openspec/schemas/supervisor-record{,-mirror}.schema.json`
 - Specs: `agent-coordinator` (MODIFIED Session Continuity; ADDED Supervisor Record), `skill-workflow` (MODIFIED Session Handoff Hooks), new `supervise` capability (ADDED Rehydration)
 - Tests: `agent-coordinator/tests/test_handoffs.py`, e2e `test_handoffs_live.py`, `skills/tests/supervise/`, `skills/tests/phase-record-compaction/`, `skills/tests/session-bootstrap/`
 
@@ -187,6 +184,6 @@ modified — `/supervise` rehydrates via the bridge read; (d) the builder lives 
 
 ## Acceptance Outcomes
 
-- Killing the supervisor session mid-roadmap and starting a fresh one loses no state; the new session lists active changes, pending gates, and next actions from the handoff alone.
+- Killing the supervisor session mid-roadmap and starting a fresh `/supervise` session loses no state: active changes and phases are freshly derived from repository state, while pending gates, standing decisions, and back-edge state are restored from the newest handoff or tracked mirror.
 - The supervisor record round-trips through serialization with all four sections (active changes, pending gates, standing decisions, back-edge digest state) intact, covered by unit tests.
-- The SessionStart hook loads the supervisor record without changes beyond the schema extension.
+- The existing SessionStart hook remains unchanged and continues fetching the latest handoff; `/supervise` reads and renders the full `supervisor_record` through the bridge.

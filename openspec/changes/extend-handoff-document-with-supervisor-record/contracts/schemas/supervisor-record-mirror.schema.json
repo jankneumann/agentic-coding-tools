@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agentic-coding-tools.dev/schemas/supervisor-record.schema.json",
-  "title": "SupervisorRecord",
-  "description": "Supervisor-scoped rehydration record carried in handoff_documents.supervisor_record and (non-derivable sections only) in openspec/supervise/supervisor-record.json.",
+  "$id": "https://agentic-coding-tools.dev/schemas/supervisor-record-mirror.schema.json",
+  "title": "SupervisorRecordMirror",
+  "description": "Tracked non-derivable subset of SupervisorRecord stored in openspec/supervise/supervisor-record.json.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "written_at", "written_by", "active_changes", "pending_gates", "standing_decisions", "back_edge"],
+  "required": ["schema_version", "written_at", "pending_gates", "standing_decisions", "back_edge"],
   "$defs": {
     "gate": {
       "type": "string",
@@ -76,13 +76,6 @@
   "properties": {
     "schema_version": {"const": 1},
     "written_at": {"type": "string", "format": "date-time"},
-    "written_by": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["agent_name", "session_id"],
-      "properties": {"agent_name": {"type": "string"}, "session_id": {"type": ["string", "null"]}}
-    },
-    "active_changes": {"type": "array", "items": {"$ref": "#/$defs/activeChange"}},
     "pending_gates": {"type": "array", "items": {"$ref": "#/$defs/pendingGate"}},
     "standing_decisions": {"type": "array", "items": {"$ref": "#/$defs/standingDecision"}},
     "back_edge": {
