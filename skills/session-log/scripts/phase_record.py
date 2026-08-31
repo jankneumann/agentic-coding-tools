@@ -198,6 +198,7 @@ class PhaseRecord:
     in_progress: list[str] = field(default_factory=list)
     next_steps: list[str] = field(default_factory=list)
     relevant_files: list[FileRef] = field(default_factory=list)
+    supervisor_record: dict[str, Any] | None = None
 
     # ─── Rendering ────────────────────────────────────────────────────────
 
@@ -298,7 +299,7 @@ class PhaseRecord:
         coordinator API treats them as "no entries" without distinction
         from absent fields.
         """
-        return {
+        payload: dict[str, Any] = {
             "agent_name": self.agent_type,
             "session_id": self.session_id,
             "summary": self.summary,
@@ -308,6 +309,9 @@ class PhaseRecord:
             "next_steps": list(self.next_steps),
             "relevant_files": [asdict(fr) for fr in self.relevant_files],
         }
+        if self.supervisor_record is not None:
+            payload["supervisor_record"] = self.supervisor_record
+        return payload
 
     @classmethod
     def from_handoff_payload(
@@ -343,6 +347,7 @@ class PhaseRecord:
             in_progress=list(payload.get("in_progress", [])),
             next_steps=list(payload.get("next_steps", [])),
             relevant_files=[FileRef(**fr) for fr in payload.get("relevant_files", [])],
+            supervisor_record=payload.get("supervisor_record"),
         )
 
     # ─── Persistence pipeline ─────────────────────────────────────────────
