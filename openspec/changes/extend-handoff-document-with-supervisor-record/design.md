@@ -28,6 +28,9 @@ defaulted ninth parameter creates a second overload and makes eight-argument cal
 ambiguous. The migration does `DROP FUNCTION write_handoff(TEXT, TEXT, TEXT, JSONB, JSONB,
 JSONB, JSONB, JSONB)` then `CREATE FUNCTION` with the ninth defaulted parameter.
 `test_rpc_migration_alignment` (name-level) keeps passing; a new test asserts the arity.
+The replacement function otherwise preserves migration 002 behavior: the
+`p_session_id` and `p_summary` defaults, empty-summary check, non-`SECURITY DEFINER`
+execution mode, and descending aggregate ordering do not change.
 
 ## D2 — Derivable vs non-derivable: the seam the record is split on
 
@@ -50,18 +53,21 @@ unreviewable and constantly conflict.
 
 ## D3 — The builder lives in `cycle_state.py` and is deterministic
 
-**Decision.** `cycle_state.py supervisor-record [--prior PATH] [--repo-root PATH]` prints the
+**Decision.** `cycle_state.py supervisor-record [--prior PATH] [--repo-root PATH] [--now RFC3339]` prints the
 record as JSON (`indent=2, sort_keys=True`). It reads, per change directory: `loop-state.json`
 (`current_phase`, `phase_started_at`, `pending_gate`, `last_handoff_id`), the worktree registry
 for `branch`/`worktree`, and `roadmap.yaml` for `roadmap_ref` (`<roadmap-id>:<item-id>` when
 an item's `change_id` matches). `--prior` may point at a handoff JSON (uses
-`.supervisor_record`) or at the mirror; the carry-forward merges by section, drops
+the normalized handoff object extracted from `try_handoff_read` at
+`data.handoffs[0].supervisor_record`) or at the mirror; the carry-forward merges by section, drops
 `standing_decisions` past `expires_at`, and never invents a `pending_gates` entry.
 
 **Why here.** `cycle_state.py` already owns the supervisor's deterministic questions
 (fingerprint, ready set, dedupe, write audit) and is covered by `TestHostAssistedInvariant`
-(no LLM SDK, no network). The builder is the same kind of function. Determinism is asserted
-the same way the fingerprint's is: two runs over an unchanged tree are byte-identical.
+(no LLM SDK, no network). The builder is the same kind of function. Determinism is asserted with identical explicit inputs: tests pass the same `--now` value
+to two runs over an unchanged tree and require byte-identical output. Production omits
+`--now`, so `written_at` records the actual write time; time is an explicit input rather
+than hidden nondeterminism.
 
 **`loop-state.json` schema coupling.** `pending_gate` is a v5 field introduced by
 `encode-autopilot-gates-and-goal-gate-in-code`; the builder reads it with `.get()` so a v4
@@ -70,7 +76,8 @@ landing first.
 
 ## D4 — Handoff is the transport; the mirror is the truth for what git cannot derive
 
-**Decision.** Rehydrate order in `/supervise`: (1) `try_handoff_read(limit=1)`; (2) read the
+**Decision.** Rehydrate order in `/supervise`: (1) `try_handoff_read(limit=1, supervisor_only=true)` and normalize
+`data.handoffs[0].supervisor_record` when present; (2) read the
 mirror if present; (3) pick the non-derivable sections from whichever has the newer
 `written_at`; (4) run the builder with that as `--prior`. Coordinator unreachable → step 1
 yields nothing, the digest reports `Degraded: handoff`, and rehydration proceeds from the
@@ -90,16 +97,11 @@ remove.
 record rides along in the payload the hook already fetches; `/supervise` step 1 reads the
 full document through the bridge and renders it.
 
-**Why.** Acceptance outcome three says "without changes beyond the schema extension". The
-hook swallows all exceptions and must never slow startup (`record-doctor-context-cost-baseline`
+**Why.** The roadmap outcome is satisfied by the existing hook fetching a handoff whose schema now
+permits the record; `/supervise` owns interpretation and rendering. The hook swallows all exceptions and must never slow startup (`record-doctor-context-cost-baseline`
 is measuring it). Rendering a multi-section record there would grow every session's startup
 output, supervisor or not.
 
-**Pass-through in the other two hooks.** `deregister_agent.py` and `precompact_handoff.py`
-copy list fields from the latest phase record; they gain `supervisor_record` in that copy
-loop so compaction and session end never drop a record a supervisor session wrote. Both
-have mirrored copies under `agent-coordinator/scripts/`; the mirror is updated in the same
-package.
 
 ## D6 — One key through the host-side plumbing
 
@@ -129,6 +131,34 @@ supervisor_record
 `gate` values are the eight `trust_posture.Gate` members. `deadline` is required on
 `pending_gates` so ri-06 cannot file an escalation without one. `back_edge.digested_stubs`
 uses `cycle_state.stub_key` as identity so ri-13 can join it to the ledger's `seen_keys`.
+
+## D7A — Reliable retrieval, idempotent mirror, and bounded derivation
+
+**Supervisor lookup.** `read_handoff` gains a trailing `p_supervisor_only BOOLEAN DEFAULT
+FALSE`; migration 034 drops the old two-argument overload before recreating it. The
+service, HTTP request, MCP/proxy surfaces, and bridge expose `supervisor_only`. `/supervise`
+always reads with `supervisor_only=true`, so a newer ordinary handoff cannot mask the
+latest supervisor record. Ordinary callers retain the existing default and behavior.
+
+**Mirror lifecycle and idempotency.** A dedicated
+`supervisor-record-mirror.schema.json` validates the tracked subset. Integration promotes
+both schemas to `openspec/schemas/` so runtime validation survives change archival.
+`write_mirror` sanitizes free-form content, writes repo-relative paths only, and is a no-op
+that preserves `written_at` when the non-derivable content is unchanged. The mirror joins
+`cycle-ledger.json` in the fingerprint exclusion list, so a record write cannot make an
+otherwise unchanged next cycle appear new. Dry-run never writes either store; non-dry-run
+writes the mirror before the final write audit and the handoff afterward.
+
+**Derivation policy.** A change is active when it has a parseable loop state whose phase is
+not `DONE`; `ESCALATE` remains active. Missing or malformed states are skipped and reported
+as degraded inputs. Registry selection prefers the non-agent feature entry, ignores stale
+child entries, and emits repo-relative worktree paths. Roadmap items are pre-indexed by
+`change_id`; duplicate matches are reported as degraded rather than selected arbitrarily.
+
+**Hook behavior.** PreCompact, SessionEnd, and SessionStart remain generic and unchanged.
+They may write newer ordinary handoffs, but `supervisor_only=true` prevents masking; the
+supervisor record is written explicitly by `/supervise`, so copying it through unrelated
+hooks is unnecessary.
 
 ## D8 — Sequencing
 

@@ -51,6 +51,7 @@ paths:
                   example:
                     schema_version: 1
                     written_at: "2026-08-29T03:00:00Z"
+                    written_by: {agent_name: supervisor, session_id: null}
                     active_changes: [{change_id: encode-autopilot-gates-and-goal-gate-in-code, current_phase: PLAN}]
                     pending_gates: []
                     standing_decisions: []
@@ -64,7 +65,7 @@ paths:
       summary: Read previous handoff documents
       description: >-
         Returns the most recent handoff documents matching the criteria, ordered by
-        creation time descending. Each row carries supervisor_record (object or null).
+        creation time descending. Each row carries supervisor_record (object or null). When supervisor_only is true, ordinary handoffs are excluded before ordering and limiting.
       security:
         - coordinatorApiKey: []
       x-traceability:
@@ -80,6 +81,7 @@ paths:
               properties:
                 agent_name: {type: string}
                 limit: {type: integer}
+                supervisor_only: {type: boolean, default: false}
       responses:
         "200":
           description: Most recent matching handoffs, newest first

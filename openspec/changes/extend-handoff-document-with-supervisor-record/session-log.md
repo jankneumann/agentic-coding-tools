@@ -40,3 +40,36 @@
 ### Context
 Refined the supervisor-roadmap ri-05 sketch into a full plan: one nullable supervisor_record JSONB column on handoff_documents carrying a self-versioned four-section record; a deterministic builder in cycle_state.py that derives active_changes from git-tracked state and carries pending gates, standing decisions and back-edge digest state forward; a tracked mirror for the non-derivable sections; register_agent.py untouched. Tier: coordinated. Gate 1 selected Approach 1.
 
+---
+
+## Phase: Plan Iteration 1 (2026-08-31)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Use an explicit supervisor-only read filter** `architectural: supervisor-record` — A global newest-handoff read can be masked by ordinary lifecycle handoffs; a backward-compatible filter preserves existing callers and makes rehydration addressable.
+2. **Keep generic session hooks unchanged** `architectural: supervisor-record` — The supervisor writes its record explicitly and supervisor-only reads prevent masking, eliminating an unreliable hook-copy path.
+3. **Promote separate full-record and mirror schemas** `architectural: supervisor-record` — Runtime validation must survive change archival and the tracked mirror intentionally omits active_changes.
+
+### Alternatives Considered
+- Scan a bounded number of global handoffs for the first record-bearing row: rejected because A bounded scan is not correctness-preserving when ordinary handoffs can interleave without limit.
+- Propagate supervisor records through generic session hooks: rejected because Those hooks lack a reliable source record and supervisor-only retrieval makes propagation unnecessary.
+
+### Trade-offs
+- Accepted one additional backward-compatible read parameter over keeping the read API unchanged because reliable supervisor rehydration requires addressable record-bearing rows.
+- Accepted two canonical schemas over one schema for both payload shapes because the mirror is intentionally a strict subset and must validate independently.
+
+### Completed Work
+- Preserved migration 002 defaults, invoker security, summary semantics, and ordering in the frozen SQL contract.
+- Added supervisor_only read filtering and interleaving coverage across contracts/specs/tasks.
+- Specified explicit clock injection, mirror no-op/idempotency, dry-run and audit ordering.
+- Added full-record and mirror schemas with canonical promotion and nested required fields.
+- Aligned acceptance outcomes with repo-derived active changes and durable handoff/mirror state.
+- Validated OpenSpec and work-package schema/DAG/overlap checks.
+
+### Next Steps
+- Proceed to multi-vendor PLAN_REVIEW, then implement the validated work-package DAG.
+
+### Context
+Refined the supervisor-record plan to preserve legacy SQL semantics, make supervisor handoff retrieval reliable, and make record/mirror determinism and lifecycle testable. Added canonical full and mirror schema contracts, executable rehydration edge cases, and aligned task/package verification.
+
