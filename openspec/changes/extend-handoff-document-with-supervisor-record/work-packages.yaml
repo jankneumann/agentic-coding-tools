@@ -336,6 +336,7 @@ packages:
     context_impact:
       surfaces:
         - "documentation"
+        - "semantic_code"
     worktree:
       name: skill-docs
       mode: shared
