@@ -28,7 +28,7 @@ The renderer SHALL be invoked with a single argument: the `<change-id>` of the O
 **AND** when an issue's `depends_on` contains UUIDs whose referenced issues are not yet `completed`, the rendered line SHALL be suffixed with ` — blocked on <comma-separated-task_keys>`, with task_keys read from the `task:<key>` label of each referenced issue and sorted in the same natural-numeric order as the main list
 **AND** lines SHALL be sorted by task key using the natural-numeric comparator defined in `contracts/README.md` (handles dotted, alphanumeric-suffixed, and letter-prefixed keys deterministically)
 **AND** issues lacking a `task:<task_key>` label SHALL be skipped and a single-line warning per skipped issue SHALL be written to stderr
-**AND** if the `try_issue_list` response contains exactly 100 results (the `MAX_PAGE_SIZE` cap), the renderer SHALL exit 1 with a hard ERROR rather than silently rendering a possibly-truncated set (the same guard applies to the seeder; see contracts/README.md). Coordinator pagination is tracked as the follow-up `query-issues-by-change-label-server-side`.
+**AND** if the `try_issue_list` response contains exactly 100 results (the `MAX_PAGE_SIZE` cap), the renderer SHALL exit 1 with a hard ERROR rather than silently rendering a possibly-truncated set (the same guard applies to the seeder; see contracts/README.md). The coordinator SHALL apply the `change:<id>` label filter server-side (`labels=cs.{...}`) before `LIMIT`, so a new issue is visible to list-by-label even when `work_queue` already holds ≥100 rows.
 
 #### Scenario: Hand-authored content outside the block is preserved
 
