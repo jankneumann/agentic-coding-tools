@@ -46,11 +46,7 @@ from shared.trust_posture import Disposition, Gate  # noqa: E402
 
 _CONTRACTS = (
     _REPO_ROOT
-    / "openspec"
-    / "changes"
-    / "encode-autopilot-gates-and-goal-gate-in-code"
-    / "contracts"
-    / "events"
+    / "openspec" / "schemas"
 )
 
 

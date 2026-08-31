@@ -622,8 +622,7 @@ def test_pending_gate_produced_by_the_loop_validates_against_the_contract(
 
     contracts = (
         Path(__file__).resolve().parents[3]
-        / "openspec" / "changes" / "encode-autopilot-gates-and-goal-gate-in-code"
-        / "contracts" / "events"
+        / "openspec" / "schemas"
     )
     schema = json.loads((contracts / "gate-request.schema.json").read_text())
     decision_schema = json.loads((contracts / "gate-decision.schema.json").read_text())
@@ -640,8 +639,7 @@ def test_every_recorded_decision_validates_on_the_happy_path(tmp_path: Path) -> 
 
     contracts = (
         Path(__file__).resolve().parents[3]
-        / "openspec" / "changes" / "encode-autopilot-gates-and-goal-gate-in-code"
-        / "contracts" / "events"
+        / "openspec" / "schemas"
     )
     schema = json.loads((contracts / "gate-decision.schema.json").read_text())
 

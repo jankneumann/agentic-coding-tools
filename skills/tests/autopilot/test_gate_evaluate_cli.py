@@ -35,8 +35,7 @@ from shared.trust_posture import Gate  # noqa: E402
 
 _CONTRACTS = (
     Path(__file__).resolve().parents[3]
-    / "openspec" / "changes" / "encode-autopilot-gates-and-goal-gate-in-code"
-    / "contracts" / "events"
+    / "openspec" / "schemas"
 )
 
 

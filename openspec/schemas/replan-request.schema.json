@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/events/replan-request.schema.json",
+  "title": "ReplanRequest",
+  "description": "Written by autopilot-roadmap to <workspace>/replan-request.json when Gate.REPLAN_REQUIRED proceeds; consumed and deleted by `/plan-roadmap --replan`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "roadmap_id", "failed_item_id", "replan_required_items", "gate_decision", "requested_at"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "roadmap_id": {"type": "string", "minLength": 1},
+    "failed_item_id": {"type": "string", "pattern": "^ri-[0-9]{2,}$"},
+    "failure_reason": {"type": "string"},
+    "replan_required_items": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^ri-[0-9]{2,}$"}
+    },
+    "learning_entry": {"type": "string", "description": "Repo-relative path to learnings/<failed-item-id>.md."},
+    "gate_decision": {"$ref": "gate-decision.schema.json"},
+    "requested_at": {"type": "string", "format": "date-time"}
+  }
+}

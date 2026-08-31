@@ -23,11 +23,7 @@ from referencing.jsonschema import DRAFT202012
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _CONTRACTS = (
     _REPO_ROOT
-    / "openspec"
-    / "changes"
-    / "encode-autopilot-gates-and-goal-gate-in-code"
-    / "contracts"
-    / "events"
+    / "openspec" / "schemas"
 )
 _FIXTURES = Path(__file__).resolve().parent / "fixtures" / "gates"
 
