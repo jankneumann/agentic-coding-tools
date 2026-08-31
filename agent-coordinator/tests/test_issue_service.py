@@ -186,16 +186,51 @@ class TestIssueList:
 
     @pytest.mark.asyncio
     async def test_list_by_labels(self, service, mock_db):
-        """Filter by labels uses post-filtering."""
+        """Filter by labels is pushed into the query (PostgREST cs)."""
         mock_db.query.return_value = [
             _make_issue_row(title="Match", labels=["api", "followup"]),
-            _make_issue_row(title="No match", labels=["api"]),
         ]
 
         issues = await service.list_issues(labels=["api", "followup"])
 
         assert len(issues) == 1
         assert issues[0].title == "Match"
+        query = mock_db.query.call_args[0][1]
+        assert "labels=cs." in query
+        assert "api" in query
+        assert "followup" in query
+
+    @pytest.mark.asyncio
+    async def test_list_by_labels_does_not_post_filter_after_limit(
+        self, service, mock_db
+    ):
+        """#429: LIMIT before label filter hid newly inserted rows.
+
+        work_queue already has >= MAX_PAGE_SIZE issue rows. New writes persist
+        (show-by-id works) but list-by-label returned empty because the query
+        fetched the oldest 100 rows, then discarded them in Python. The label
+        filter MUST be in the PostgREST/SQL query so LIMIT applies after it.
+        """
+        mock_db.query.return_value = [
+            _make_issue_row(
+                title="just created",
+                labels=["change:__probe__"],
+                priority=5,
+            )
+        ]
+
+        issues = await service.list_issues(labels=["change:__probe__"], limit=100)
+
+        assert len(issues) == 1
+        query = mock_db.query.call_args[0][1]
+        assert "labels=cs." in query
+        assert "change:__probe__" in query
+        # The page cap is still present, but it is no longer the only filter.
+        assert "limit=100" in query
+        cs_pos = query.index("labels=cs.")
+        limit_pos = query.index("limit=")
+        # Filter before limit is the property that makes new rows visible.
+        assert cs_pos < limit_pos
 
     @pytest.mark.asyncio
     async def test_list_by_parent(self, service, mock_db):

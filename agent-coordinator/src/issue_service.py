@@ -43,6 +43,22 @@ STATUS_WRITE_MAP: dict[str, str] = {
 VALID_ISSUE_TYPES = {"task", "epic", "bug", "feature"}
 
 
+def _postgrest_array_literal(values: list[str]) -> str:
+    """Render a PostgREST array literal for the ``cs`` (contains) operator.
+
+    Values that are not bare identifiers are double-quoted so labels such as
+    ``change:foo`` survive the filter parser.
+    """
+    parts: list[str] = []
+    for value in values:
+        if value.isascii() and value.replace("-", "").replace("_", "").isalnum():
+            parts.append(value)
+        else:
+            escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+            parts.append(f'"{escaped}"')
+    return "{" + ",".join(parts) + "}"
+
+
 @dataclass
 class Issue:
     """Represents an issue in the tracker."""
@@ -269,12 +285,12 @@ class IssueService:
         """
         limit = min(limit, MAX_PAGE_SIZE)
 
-        # Build PostgREST-style query
-        parts = [
-            "task_type=eq.issue",
-            "order=priority.asc,created_at.asc",
-            f"limit={limit}",
-        ]
+        # Filters first, then order/limit. Label matching used to be a Python
+        # post-filter after LIMIT, which hid newly inserted rows once
+        # work_queue had >= 100 issue rows (#429). PostgREST `cs` is
+        # array-contains; the GIN index on work_queue.labels (migration 017)
+        # covers it.
+        parts = ["task_type=eq.issue"]
 
         if status and status != "all":
             statuses = STATUS_MAP.get(status, [status])
@@ -289,12 +305,17 @@ class IssueService:
         if assignee:
             parts.append(f"assignee=eq.{assignee}")
 
+        if labels:
+            parts.append(f"labels=cs.{_postgrest_array_literal(list(labels))}")
+
+        parts.append("order=priority.asc,created_at.asc")
+        parts.append(f"limit={limit}")
+
         query = "&".join(parts)
         rows = await self.db.query("work_queue", query)
 
         issues = [Issue.from_row(r) for r in rows]
 
-        # Post-filter by labels (array containment not in PostgREST syntax)
         if labels:
             issues = [
                 i for i in issues
