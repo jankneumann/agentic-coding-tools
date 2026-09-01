@@ -38,3 +38,46 @@
 ### Context
 Planned roadmap item ri-03 as an outcome-only supervisor execution path over the existing synchronous dispatch_fn result seam. The approved design uses scope-safe prepared batches, isolated background Autopilot children, an acknowledgement/go lease protocol, and bounded structured outcomes.
 
+---
+
+## Phase: Implementation (2026-09-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Keep Autopilot as the sole delegated phase owner** `architectural: roadmap-orchestration` — The supervisor launches isolated child sessions while deterministic orchestration remains in the existing per-change phase machine.
+2. **Require durable generation-specific acknowledgement before child entry** `architectural: roadmap-orchestration` — The prepare, claim, acknowledge, go, and enter sequence closes launch crash windows and prevents stale owners from entering.
+3. **Keep child transcripts outside parent and durable result state** `architectural: supervise` — Closed schemas, bounded context, temporary result files, and sentinel scans preserve the outcome-only supervision boundary.
+
+### Alternatives Considered
+- Launch delegated items directly from the deterministic scheduler or vendor SDKs: rejected because The host harness owns background task creation, worktree isolation, and provider routing.
+- Infer safe concurrency from dependency independence alone: rejected because Dependencies do not prove disjoint write scope; ambiguous scope must serialize.
+
+### Trade-offs
+- Accepted quarantine for unknown post-go liveness over absence-based automatic takeover because preventing duplicate writers is more important than speculative progress
+
+### Completed Work
+- wp-contracts: closed supervised request, result, context, and attempt schemas
+- wp-runtime-state: durable delegated-attempt checkpoint ledger
+- wp-scheduler: fail-closed disjoint-scope batch selection
+- wp-orchestrator: opt-in prepare and apply lifecycle through dispatch_fn
+- wp-host-adapter: managed isolation and leased claim, acknowledge, go, enter, reconcile, resume, and apply protocol
+- wp-supervise: execute workflow contract and host protocol documentation
+- wp-integration: concurrent isolation, overlap serialization, runtime mirrors, and child transcript sentinel proof
+- Implementation-time spec and evidence validation with 342 passing tests and 8 of 8 requirements verified
+
+### Next Steps
+- Review and approve the pull request
+- Run merge-time cleanup validation, then archive only after approval
+
+### Relevant Files
+- `skills/roadmap-runtime/scripts/dispatch_scheduler.py` — neutral scope-safe scheduler
+- `skills/autopilot-roadmap/scripts/orchestrator.py` — delegated item lifecycle
+- `skills/supervise/scripts/execution.py` — leased host execution adapter
+- `skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py` — parent-session isolation and transcript boundary proof
+- `openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/change-context.md` — final requirement and review evidence
+- `openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/validation-report.md` — implementation-time spec/evidence validation
+
+### Context
+Implemented supervised roadmap execution through the existing dispatch_fn seam across six coordinated work packages. Scope-safe scheduling, durable prepare/ack/go/apply state, isolated host execution, bounded outcome-only results, and end-to-end transcript exclusion are implemented and verified; external review dispatch fell back to documented self-review after all configured vendors timed out or were unavailable.
+
