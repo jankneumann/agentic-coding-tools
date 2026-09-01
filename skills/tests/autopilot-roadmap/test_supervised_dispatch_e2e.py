@@ -141,6 +141,8 @@ class FakeHostCapture:
     def __init__(self, sentinels: dict[str, str]) -> None:
         self.sentinels = sentinels
         self.events: list[dict[str, Any]] = []
+        self.child_transcripts: dict[str, str] = {}
+        self.result_files: list[str] = []
         self.max_live = 0
         self._live = 0
         self._lock = threading.Lock()
@@ -149,18 +151,26 @@ class FakeHostCapture:
 
     def child_entry(self, change_id: str, request: dict[str, Any]) -> str:
         worker = self._workers[request["dispatch_id"]]
+        transcript = (
+            f"private child transcript for {change_id}: "
+            f"{self.sentinels[change_id]}"
+        )
         with self._lock:
+            self.child_transcripts[change_id] = transcript
             self._live += 1
             self.max_live = max(self.max_live, self._live)
         worker["entered"].set()
         try:
             if self._barrier is not None:
                 self._barrier.wait(timeout=5)
-            assert self.sentinels[change_id]
+            assert self.sentinels[change_id] in transcript
             return "entered"
         finally:
             with self._lock:
                 self._live -= 1
+
+    def observe_result_file(self, path: Path) -> None:
+        self.result_files.append(path.read_text(encoding="utf-8"))
 
     def run_batch(
         self,
@@ -288,6 +298,7 @@ def _run_scenario(
         liveness_probe=lambda _: "live",
         host_entry=host.child_entry,
         temp_dir=tmp_path / "results",
+        result_file_observer=host.observe_result_file,
     )
     def isolate(item: RoadmapItem) -> dict[str, str]:
         return {
@@ -343,6 +354,11 @@ def _run_scenario(
 
 def _assert_outcome_only(result: dict[str, Any]) -> None:
     events = result["host"].events
+    child_transcripts = result["host"].child_transcripts
+    assert len(child_transcripts) == len(result["sentinels"])
+    for sentinel in result["sentinels"]:
+        assert sum(sentinel in transcript for transcript in child_transcripts.values()) == 1
+    assert result["host"].result_files
     assert {event["kind"] for event in events} == {
         "request", "task_handle", "lease_event", "result_await", "result"
     }
@@ -355,6 +371,7 @@ def _assert_outcome_only(result: dict[str, Any]) -> None:
     for sentinel in result["sentinels"]:
         assert sentinel not in parent_text
         assert sentinel not in durable_text
+        assert all(sentinel not in content for content in result["host"].result_files)
     checkpoint = json.loads((result["workspace"] / "checkpoint.json").read_text())
     expected_context = {
         "router_vendor": "fixture-router",
