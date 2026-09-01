@@ -134,6 +134,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "kind",
         "approval_ref"
       ],
       "properties": {
@@ -141,6 +142,12 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 256
+        },
+        "kind": {
+          "enum": [
+            "pending_gate",
+            "policy_pause"
+          ]
         }
       }
     },

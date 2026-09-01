@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "dispatch_id": "roadmap-alpha:item-1:attempt-1",
+  "roadmap_id": "roadmap-alpha",
+  "item_id": "item-1",
+  "change_id": "add-alpha-capability",
+  "phase": "autopilot",
+  "attempt": 1,
+  "launch_token": "launch-token-0001",
+  "lease_generation": 2,
+  "launch_marker_path": ".git/autopilot/roadmap-alpha-item-1.marker",
+  "scope": {
+    "proof": "proven_disjoint",
+    "write_allow": ["skills/alpha/**"],
+    "lock_keys": ["feature:add-alpha-capability"]
+  },
+  "isolation": {
+    "mode": "managed_worktree",
+    "worktree_path": "/workspace/.git-worktrees/add-alpha-capability",
+    "branch": "openspec/add-alpha-capability"
+  },
+  "context": {},
+  "continuation": {
+    "approval_ref": "approval-ri04-001"
+  }
+}
