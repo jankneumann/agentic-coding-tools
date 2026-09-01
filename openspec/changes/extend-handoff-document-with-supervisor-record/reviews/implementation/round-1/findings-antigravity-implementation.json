@@ -1,0 +1,87 @@
+{
+  "review_type": "implementation",
+  "target": "whole-branch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `_extract_supervisor_record` fails to extract `supervisor_record` from standard handoff read responses where the `handoffs` array sits at the root of the response dictionary (`{\"handoffs\": [...]}` or `{\"success\": true, \"handoffs\": [...]}`). Because `_extract_supervisor_record` only checks `value.get(\"data\")`, top-level response payloads fail extraction and return `None`. Consequently, `/supervise` rehydration from `--handoff` responses always falls back to the mirror and reports `Degraded: handoff` even when the coordinator read succeeded.",
+      "resolution": "Update `_extract_supervisor_record` in `skills/supervise/scripts/cycle_state.py` to inspect `value.get(\"handoffs\")` at top level as well as `(value.get(\"data\") or {}).get(\"handoffs\")`.",
+      "disposition": "fix",
+      "package_id": "wp-supervisor-builder",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 352,
+        "end": 374
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: `precompact_handoff.py` and `deregister_agent.py` hooks fail to pass through `supervisor_record` when building `/handoffs/write` payloads, violating `specs/skill-workflow/spec.md` and work package tasks 2.5/2.6. `precompact_handoff.py` explicitly iterates only over `(\"completed_work\", \"in_progress\", \"next_steps\", \"decisions\", \"relevant_files\")`, omitting `supervisor_record`. `deregister_agent.py` sends a fixed handoff payload without extracting the latest phase record. Any compaction or session end event strips the supervisor record, dropping supervisor state across session transitions.",
+      "resolution": "Update `precompact_handoff.py` and `deregister_agent.py` (and mirror copy `agent-coordinator/scripts/deregister_agent.py`) to extract `supervisor_record` from the latest phase record when present and include it in the `/handoffs/write` payload.",
+      "disposition": "fix",
+      "package_id": "wp-host-plumbing",
+      "file_path": "skills/session-bootstrap/scripts/hooks/precompact_handoff.py",
+      "line_range": {
+        "start": 183,
+        "end": 189
+      },
+      "axis": "resilience",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Migration 034 cleanly drops the 8-argument `write_handoff` overload before adding the defaulted 9-argument function, preventing Postgres RPC resolution ambiguity, and includes a check constraint enforcing that `supervisor_record` is a JSON object or NULL.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/database/migrations/034_handoff_supervisor_record.sql",
+      "line_range": {
+        "start": 8,
+        "end": 51
+      },
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: `supervisor-record.schema.json` defines a strict versioned inner contract (`schema_version: 1`) with `additionalProperties: false` across all sections, validating required fields such as pending gate deadlines while allowing schema evolution without DB migration.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/schemas/supervisor-record.schema.json",
+      "line_range": {
+        "start": 1,
+        "end": 98
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "description": "none: `_safe_mirror_path` and `_atomic_write_text` in `cycle_state.py` provide clear, well-structured helper logic for verifying repository boundaries and performing atomic file updates.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "package_id": "wp-supervisor-builder",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 601,
+        "end": 630
+      },
+      "axis": "readability",
+      "severity": "none"
+    }
+  ]
+}

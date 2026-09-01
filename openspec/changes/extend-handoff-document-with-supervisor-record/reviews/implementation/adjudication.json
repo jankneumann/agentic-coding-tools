@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "change_id": "extend-handoff-document-with-supervisor-record",
+  "review_type": "implementation",
+  "reviewed_commit": "0ef9da84339c3cc7f34f77b368d3a78efe3e124f",
+  "outcome": "converged",
+  "canonical_round": 1,
+  "canonical_consensus": "round-1/consensus-implementation.json",
+  "summary": {
+    "reviewers": [
+      "codex",
+      "antigravity"
+    ],
+    "quorum_met": true,
+    "unique_findings": 8,
+    "confirmed_findings": 0,
+    "unconfirmed_findings": 8,
+    "disagreements": 0,
+    "consensus_blockers": 0,
+    "targeted_fixes_applied": 0
+  },
+  "unconfirmed_adjudications": [
+    {
+      "finding": "roadmap_ref accepts only ri-NN item IDs",
+      "decision": "warning",
+      "reason": "The issue is supported by repository evidence, but no second schema-valid vendor finding matched it. The round-2 Antigravity error excerpt independently described the same defect, but its truncated/invalid JSON was rejected by the canonical validator and cannot authorize a fix."
+    },
+    {
+      "finding": "top-level handoffs envelopes are not extracted",
+      "decision": "not_actionable",
+      "reason": "The approved D3/D4 flow saves the complete coordination-bridge response and reads data.handoffs[0].supervisor_record. The real bridge normalizer returns that data envelope, which the implementation supports."
+    },
+    {
+      "finding": "generic lifecycle hooks must propagate supervisor_record",
+      "decision": "not_actionable",
+      "reason": "Design D5 and D7A explicitly keep SessionStart, PreCompact, and SessionEnd generic and unchanged; supervisor_only=true prevents newer ordinary handoffs from masking supervisor state."
+    }
+  ],
+  "supplemental_round_2": {
+    "manifest": "round-2/review-manifest.json",
+    "quorum_met": false,
+    "antigravity": "invalid_json_output",
+    "codex": "transient_timeout_240s",
+    "effect_on_outcome": "none; schema-invalid and timed-out responses were excluded"
+  },
+  "verification": {
+    "focused_host_tests": "121 passed",
+    "focused_coordinator_tests": "106 passed",
+    "live_postgres_tests": "4 skipped; local service unavailable",
+    "mypy": "passed",
+    "ruff": "passed",
+    "openspec_strict_all": "94 passed, 0 failed"
+  },
+  "created_at": "2026-09-01T00:41:32Z"
+}
