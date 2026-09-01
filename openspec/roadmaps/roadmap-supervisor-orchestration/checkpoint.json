@@ -2,9 +2,9 @@
   "schema_version": 1,
   "roadmap_id": "roadmap-supervisor-orchestration",
   "current_item_id": "ri-03",
-  "phase": "reviewing",
+  "phase": "validating",
   "created_at": "2026-09-01T02:35:00.134952+00:00",
-  "updated_at": "2026-09-01T06:34:44.209762+00:00",
+  "updated_at": "2026-09-01T07:32:00.360293+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
