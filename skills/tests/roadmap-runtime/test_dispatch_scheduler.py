@@ -82,6 +82,13 @@ def test_scope_relationship_is_conservative_and_tri_state(
     assert classify_scope_relationship(first, second) is expected
 
 
+def test_schema_invalid_but_scope_shaped_document_fails_closed() -> None:
+    scope = aggregate_change_scope(_FIXTURE_ROOT, "schema-invalid-shaped")
+
+    assert scope.proof == "serial_indeterminate"
+    assert scope.reason == "work_packages_invalid"
+
+
 @pytest.mark.parametrize(
     "change_id",
     ["missing-work-packages", "invalid-work-packages", "empty-scope", "boundless-scope"],
