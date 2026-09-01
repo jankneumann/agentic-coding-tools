@@ -16,12 +16,13 @@ The single conversational counterpart the operator talks to. This skill does not
 add an orchestration layer — it *names* one that already exists: the host harness
 session, playing the `supervisor` archetype, driving the skills below it.
 
-Two verbs:
+Three verbs:
 
 | Verb | Question it answers |
 |---|---|
 | `intake` | "Here is a thing I want." → an OpenSpec change or proposal, slotted into a roadmap |
 | `cycle` | "What should we work on?" → a ranked digest of remaining work, stopped at the operator's approval gate |
+| `execute` | "Run the approved roadmap." -> isolated background Autopilot outcomes through the delegated callback |
 
 ## Role contract
 
@@ -30,11 +31,9 @@ and resolves at the `frontier` tier. That is not advisory:
 
 - **The supervisor decomposes, delegates, and adjudicates gates. It does not implement.**
   Implementation work is dispatched to a write-capable archetype in its own worktree.
-- The only writes a supervise run may perform are *coordination artifacts*: roadmaps,
-  proposal/tasks scaffolds, priorities reports, the cycle ledger, and handoffs.
-  `scripts/cycle_state.py snapshot-writes` plus `audit-since` capture the checkout
-  before a verb and fail if that verb changes source code, so the boundary is
-  enforced without mistaking pre-existing operator edits for supervisor writes.
+- For `intake` and `cycle`, the only permitted writes are coordination artifacts: roadmaps, proposal/tasks scaffolds, priorities reports, the cycle ledger, and handoffs.
+  Their `cycle_state.py snapshot-writes` plus `audit-since` checks capture the checkout before the verb and reject source-code changes without mistaking pre-existing operator edits for supervisor writes.
+- During `execute`, the supervisor itself still never writes implementation source. It delegates deterministic roadmap checkpoint, dispatch-attempt, learning, and item-status mutations to `ExecutionAdapter` and the roadmap orchestrator; write-capable children own implementation only in their verified worktrees.
 - Judgment stays in the session. This skill's Python is deterministic plumbing only —
   see **Design principle** below.
 
@@ -43,6 +42,7 @@ and resolves at the `frontier` tier. That is not advisory:
 ```
 /supervise intake "<natural-language request>"
 /supervise cycle [--dry-run] [--force]
+/supervise execute <roadmap-path>
 ```
 
 - `--dry-run` — compute and print the digest; write nothing (not even the ledger).
@@ -274,6 +274,61 @@ On approval, the operator's "yes" flows into `/plan-roadmap`, and execution proc
 through `/autopilot-roadmap` — dispatching to archetype workers under the routing cost
 policy (ri-18: subscription+local → subscription+cloud → metered).
 
+## Verb: `execute`
+
+Host an approved roadmap through the delegated callback seam. This verb is provider-neutral:
+the supervisor coordinates deterministic requests and bounded outcomes while Autopilot
+remains the sole owner of each change's phase machine.
+
+### Approval gate
+
+Accept only durable roadmap-altitude approval established by either a direct `/autopilot-roadmap` invocation or an approved `/supervise` roadmap batch.
+The supervisor inherits that approval for every dependency-ready item and continues without discovery, direction, plan, or per-item approval questions.
+
+If neither durable approval is present, report the missing approval and stop before `ExecutionAdapter.prepare`, before any implementation dispatch, and before any roadmap checkpoint or execution-state mutation.
+
+### Prepare and launch
+
+1. Call `ExecutionAdapter.prepare` with each item's exact `change_id`.
+   Preserve every router-owned context key and value unchanged. When router context is absent, use the existing archetype/provider resolution path; the supervisor must not invent a vendor, must not invent a model, must not invent a location, and must not invent a cost policy.
+2. Admit only requests carrying a distinct verified worktree path and branch for the requested change.
+   An independent isolation or verification error becomes a bounded correlated `failed` result before `/autopilot` starts.
+   Independently isolated batch members may still complete, but must not share or reuse that failed worktree.
+3. Start every admitted request as a provider-neutral background host task.
+4. Record every durable task handle before beginning to await any child.
+   Do not serialize launch merely because result collection is ordered.
+
+### Child lifecycle
+
+For each request, run `child-start` to claim its exact generation and establish the exclusive marker.
+Persist the host task handle with `acknowledge`; that atomic acknowledgement performs the go release.
+The child must not enter Autopilot before the durable handle acknowledgement.
+It revalidates generation, owner, and go immediately before `enter`, then invokes `/autopilot <change-id>` in the verified isolation.
+
+### Collect and apply
+
+Collect only a schema-valid `success`, `parked`, or `failed` result with its exact correlation fields.
+A success requires `handoff_id`; parked and failed outcomes carry a bounded reason and optional `handoff_id`.
+Discard the child transcript after extracting that public result.
+Keep an outcome-only parent session and no transcript in the supervisor record or any durable execution artifact.
+
+A `pending_gate` or `policy_pause` result is a parked nonfailure: retain its bounded next action, leave the roadmap item incomplete, and do not failure-block dependents.
+Validate exact identity, generation, worktree, branch, realpath, and loop-state evidence before application.
+Pass the collected set to the orchestrator through an in-memory result lookup so it invokes the synchronous `dispatch_fn` exactly once per returned generation.
+
+### Reconcile and resume
+
+Reconcile durable task evidence conservatively:
+
+- `live`: retain ownership and await or observe the same task.
+- `terminal`: collect and validate its structured result.
+- `dead`: only positive task-death evidence permits a generation CAS takeover.
+- `unknown`: quarantine the post-go attempt with its uncertain lease unreleased.
+
+After go, never infer death from an absent or expired post-go heartbeat.
+Quarantine is not an approval gate and cannot be approval-resumed.
+Only a parked `pending_gate` or `policy_pause` may resume with a durable `approval_ref`; the authorized CAS performs a generation increment while preserving the same dispatch ID, attempt, launch token, worktree, and branch, then repeats the normal child lifecycle.
+
 ---
 
 ## Idempotency
@@ -307,12 +362,15 @@ session on another machine inherits what has already been surfaced.
 | Coordinator handoff `supervisor_record` | `intake`, non-dry-run `cycle` | Cross-session transport for full supervisor state |
 | `openspec/priorities/<date>/…` | `/prioritize-proposals` | The ranking report |
 | Roadmap items / change scaffolds | `intake` (on approval) | Tracked work |
+| Structured dispatch outcomes and handoff IDs | `execute` host collection | Outcome-only parent-session evidence; child transcripts are discarded |
+| Roadmap checkpoint, dispatch-attempt, learning, and item state | `ExecutionAdapter` / roadmap orchestrator | Durable execution state with no transcript content |
 
 ## Scripts
 
 | Script | Role |
 |---|---|
 | `scripts/cycle_state.py` | Deterministic only: supervisor-record build/rehydration, mirror selection/write, cycle fingerprint, ledger read/write, stub dedupe, cross-roadmap ready set, and write audit. No LLM calls, no network. |
+| `scripts/execution.py` | Deterministic execute adapter: prepare, child claim, acknowledgement/go, entry, reconciliation, parked resume, and exact-result apply. No model or provider calls. |
 
 ## Design principle: host-assisted only
 
