@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-01 — implement-idempotent-queue-submission-and-outbox-ordering
+
+### Phase: Plan
+
+**Enforce projection identity in PostgreSQL** — A partial unique expression index plus ON CONFLICT is the only considered approach that atomically arbitrates concurrent submitters.
+
+- Status: `active`
+- Source: [openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D1)
+
+---
+
 ## 2026-08-16 — derive-agent-identity-from-registry
 
 ### Phase: Validate

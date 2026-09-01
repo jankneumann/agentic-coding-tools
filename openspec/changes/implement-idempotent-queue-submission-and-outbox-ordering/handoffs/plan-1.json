@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-01T22:45:43.515225+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "external coordinator write disabled by egress policy",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Authored the approved ri-08 plan around an atomic PostgreSQL projection key, a short reconciliation transaction, and an optional persist-first autopilot seam. Discovery, direction, and plan approval were inherited from the approved roadmap batch; ri-09 live mirroring remains explicitly out of scope.",
+    "completed_work": [
+      "Created proposal, design, three delta specs, SQL/OpenAPI contracts, TDD-ordered tasks, and a four-package coordinated DAG.",
+      "Passed strict OpenSpec, work-package schema, DAG, lock, scope-overlap, and parallel-zone validation."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Enforce projection identity in PostgreSQL",
+        "rationale": "A partial unique expression index plus ON CONFLICT is the only considered approach that atomically arbitrates concurrent submitters.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Keep loop-state authoritative through an optional outbox seam",
+        "rationale": "Projection runs only after state persistence and resume reconciliation derives queue rows from loaded LoopState without feeding results back.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Preserve coordinator-free fallback tiers",
+        "rationale": "The projection callback defaults to absent; local-parallel and sequential execution import or call no coordinator queue surface.",
+        "capability": "coordination-bridge",
+        "supersedes": null
+      },
+      {
+        "title": "Treat roadmap approval as both planning gates",
+        "rationale": "The user approved the roadmap batch and the parent explicitly fixed the atomic PostgreSQL direction, so no interactive discovery or approval questions were reopened.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement wp-contracts first, then dispatch wp-coordinator-queue and wp-bridge-projection in parallel.",
+      "Run real PostgreSQL concurrency tests before accepting the unique-index/RPC behavior.",
+      "Keep live phase transition registration and kanban latency checks for ri-09."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/proposal.md",
+        "description": "Approved scope and selected approach"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/design.md",
+        "description": "Database, reconciliation, outbox, and tier decisions"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/tasks.md",
+        "description": "TDD-ordered implementation plan"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/work-packages.yaml",
+        "description": "Coordinated execution DAG"
+      }
+    ]
+  }
+}
