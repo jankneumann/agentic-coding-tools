@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "dispatch_id": "batch-0123456789abcdef01234567:ri-01:attempt-1",
+  "change_id": "change-alpha",
+  "attempt": 1,
+  "lease_generation": 1,
+  "outcome": "success",
+  "handoff_id": "handoff-alpha-001",
+  "worktree_path": "__WORKTREE__",
+  "branch": "openspec/change-alpha",
+  "evidence": {
+    "loop_state_path": ".git/autopilot/loop-state.json"
+  }
+}

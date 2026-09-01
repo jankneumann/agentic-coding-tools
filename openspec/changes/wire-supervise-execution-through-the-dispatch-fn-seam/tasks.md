@@ -60,14 +60,14 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
 
 ## 3. Build the leased host adapter
 
-- [ ] 3.1 Write host-adapter lifecycle tests (M)
+- [x] 3.1 Write host-adapter lifecycle tests (M)
   **Spec scenarios**: roadmap-orchestration.4a (persist prepared), roadmap-orchestration.4b (resume unresolved), roadmap-orchestration.4c (lease crash-window reconciliation), roadmap-orchestration.4d (authorized parked continuation), roadmap-orchestration.4e (unknown-liveness quarantine), roadmap-orchestration.3a (exact isolation evidence), roadmap-orchestration.3b (reject mismatches), supervise.2b (preflight isolation failure), supervise.2c (parked result), supervise.3c (reject unsafe context)
   **Contracts**: `contracts/schemas/supervised-dispatch-request.schema.json`, `contracts/schemas/supervised-dispatch-result.schema.json`, `contracts/schemas/delegated-dispatch-attempt.schema.json`
   **Design decisions**: D4, D5, D6, D8
   **Dependencies**: 0.4, 1.2, 2.2
   **Files**: `skills/tests/supervise/test_execution.py`, `skills/tests/supervise/fixtures/execution/lifecycle/**`
 
-- [ ] 3.2 Implement the host prepare/launch/heartbeat/resume/apply adapter (M)
+- [x] 3.2 Implement the host prepare/launch/heartbeat/resume/apply adapter (M)
   **Dependencies**: 3.1
   **Files**: `skills/supervise/scripts/execution.py`
 
