@@ -148,3 +148,26 @@ Implemented the nullable supervisor_record contract end to end across coordinato
 ### Context
 Reviewed the supervisor-record implementation across coordinator, host plumbing, builder, contracts, and tests. Fixed seven compatibility, validation, resilience, security-boundary, and documentation findings; all feature-adjacent gates pass.
 
+---
+
+## Phase: Validation (2026-09-01)
+
+**Agent**: validator | **Session**: N/A
+
+### Decisions
+1. **Honor declared non-deployable surface** — work-packages.yaml explicitly declares deployable: false, so deployment-dependent phases are not applicable.
+2. **Do not treat environment gaps as code failures** — Focused changed-surface suites pass; absent PostgreSQL, missing import stubs, and flat-module collection collisions are repository environment/isolation gaps.
+
+### Completed Work
+- spec
+- traceability
+- focused unit/integration
+- static analysis
+- architecture diagnostics
+
+### Next Steps
+- Continue autopilot to SUBMIT_PR for extend-handoff-document-with-supervisor-record
+
+### Context
+Validated commit cf1522bd at tier B. Spec compliance and every changed-surface unit/static gate passed; deploy, smoke, live security, and browser E2E were not applicable, while repository-wide environment and import-isolation gaps were recorded separately.
+
