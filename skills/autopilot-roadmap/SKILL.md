@@ -89,6 +89,12 @@ result = execute_roadmap(
 
 The `dispatch_fn` receives `(item_id, phase, context)` and returns an outcome string. The SKILL.md layer implements this by invoking `/implement-feature`, `/validate-feature`, etc.
 
+#### Opt-in delegated lifecycle
+
+Supervised execution uses the additive two-stage API; ordinary `execute_roadmap()` callers retain the four historical phases exactly. `prepare_delegated_batch(workspace, repo_root=..., isolation_resolver=..., context=...)` selects the deterministic scope-safe ready batch, resolves each item's isolation envelope, and persists every `prepared` generation before returning any request. It never invokes `dispatch_fn`. Invalid exact change IDs are returned as non-dispatched failures without failing the roadmap item.
+
+The host owns child launch and the acknowledgement/go protocol. After it has advanced the persisted attempts to `launched` and collected schema-valid results, it calls `apply_delegated_batch(workspace, batch_id, results, dispatch_fn, repo_root=...)`. Apply rejects incomplete, duplicate, stale, or mismatched result sets before invoking the callback. Each unresolved generation is then presented exactly once as `dispatch_fn(item_id, "autopilot", context)`, where `context["dispatch_result"]` is the exact correlated result and the remaining context preserves router-owned keys plus dispatch, scope, and isolation identity. Success reuses the existing checkpoint and learning seam; a gate or policy `parked` result remains nonterminal and does not unblock dependents.
+
 ### 4. Handle Success
 
 On item completion:

@@ -12,13 +12,18 @@ the SKILL.md prompt layer provides the dispatch_fn that invokes
 
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
 import logging
+import re
+import secrets
 import sys
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Protocol, Union
+from typing import Any, Callable, Protocol, Sequence, Union
+
 
 _SKILLS_ROOT = Path(__file__).resolve().parent.parent.parent
 _RUNTIME_DIR = _SKILLS_ROOT / "roadmap-runtime" / "scripts"
@@ -30,6 +35,10 @@ if str(_SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(_SKILLS_ROOT))
 
 from checkpoint import CheckpointManager  # type: ignore[import-untyped]
+from dispatch_scheduler import (  # type: ignore[import-untyped]
+    ReadyDispatchItem,
+    select_safe_ready_batch,
+)
 from learning import write_entry  # type: ignore[import-untyped]
 from models import (  # type: ignore[import-untyped]
     CheckpointPhase,
@@ -42,6 +51,7 @@ from models import (  # type: ignore[import-untyped]
     completed_external_refs,
     load_roadmap,
     save_roadmap,
+    validate_delegated_dispatch_attempt,
 )
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -100,6 +110,478 @@ def _normalize_outcome(result: DispatchResult) -> tuple[str, bool]:
     if isinstance(result, Mapping):
         return str(result.get("outcome", "")), bool(result.get("replan", False))
     return str(result), False
+
+
+IsolationResolver = Callable[[RoadmapItem], Mapping[str, Any]]
+_RESULT_REQUIRED = {
+    "schema_version",
+    "dispatch_id",
+    "change_id",
+    "attempt",
+    "lease_generation",
+    "outcome",
+}
+_RESULT_ALLOWED = _RESULT_REQUIRED | {
+    "replan",
+    "handoff_id",
+    "worktree_path",
+    "branch",
+    "parked",
+    "evidence",
+}
+_EXACT_CHANGE_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_BATCH_ID = re.compile(r"^batch-[0-9a-f]{24}$")
+_RESULT_OUTCOME = re.compile(r"^(success|failed:.+|vendor_limit:[^:]+:.+|parked)$")
+_DATE_TIME = re.compile(
+    r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$"
+)
+_HEX_40 = re.compile(r"^[0-9a-f]{40}$")
+_HEX_64 = re.compile(r"^[0-9a-f]{64}$")
+_TERMINAL_ATTEMPT_STATUSES = {"completed", "failed", "parked"}
+_UNRESOLVED_ATTEMPT_STATUSES = {
+    "prepared",
+    "claimed",
+    "acknowledged",
+    "launched",
+    "quarantined",
+    "parked",
+}
+
+
+def _load_or_create_execution_state(
+    workspace: Path,
+    repo_root: Path,
+) -> tuple[Roadmap, CheckpointManager, Any]:
+    roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
+    manager = CheckpointManager(workspace, repo_root)
+    checkpoint = manager.load() if manager.exists() else manager.create(roadmap)
+    return roadmap, manager, checkpoint
+
+
+def _copy_context(context: Mapping[str, Any] | None) -> dict[str, Any]:
+    return copy.deepcopy(dict(context or {}))
+
+
+def _validated_isolation(value: Mapping[str, Any]) -> dict[str, str]:
+    isolation = dict(value)
+    if set(isolation) != {"mode", "worktree_path", "branch"}:
+        raise ValueError("isolation must contain exactly mode, worktree_path, and branch")
+    if isolation["mode"] not in {"managed_worktree", "harness_provided"}:
+        raise ValueError("unsupported isolation mode")
+    if not isinstance(isolation["worktree_path"], str) or not isolation["worktree_path"]:
+        raise ValueError("isolation worktree_path must be non-empty")
+    if not isinstance(isolation["branch"], str) or not isolation["branch"]:
+        raise ValueError("isolation branch must be non-empty")
+    return isolation  # type: ignore[return-value]
+
+
+def _next_attempt_number(checkpoint: Any, item_id: str) -> int:
+    return 1 + max(
+        (
+            int(attempt["attempt"])
+            for attempt in checkpoint.dispatch_attempts
+            if attempt.get("item_id") == item_id
+        ),
+        default=0,
+    )
+
+
+def _request_from_attempt(
+    roadmap_id: str,
+    attempt: Mapping[str, Any],
+) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "dispatch_id": attempt["dispatch_id"],
+        "roadmap_id": roadmap_id,
+        "item_id": attempt["item_id"],
+        "change_id": attempt["change_id"],
+        "phase": attempt["phase"],
+        "attempt": attempt["attempt"],
+        "launch_token": attempt["launch_token"],
+        "lease_generation": attempt["lease_generation"],
+        "launch_marker_path": attempt["launch_marker_path"],
+        "scope": copy.deepcopy(attempt["scope"]),
+        "isolation": copy.deepcopy(attempt["isolation"]),
+        "context": copy.deepcopy(attempt["context"]),
+    }
+
+
+def prepare_delegated_batch(
+    workspace: Path,
+    *,
+    repo_root: Path,
+    isolation_resolver: IsolationResolver,
+    context: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Persist one scope-safe generation batch without invoking ``dispatch_fn``."""
+    roadmap, manager, checkpoint = _load_or_create_execution_state(workspace, repo_root)
+    unresolved_items = {
+        attempt["item_id"]
+        for attempt in checkpoint.dispatch_attempts
+        if attempt.get("status") in _UNRESOLVED_ATTEMPT_STATUSES
+    }
+    ready = [
+        item
+        for item in _get_ready_items(
+            roadmap,
+            checkpoint,
+            completed_external_refs(repo_root),
+        )
+        if item.item_id not in unresolved_items
+    ]
+    plan = select_safe_ready_batch(
+        repo_root,
+        [
+            ReadyDispatchItem(item.item_id, item.change_id, item.priority)
+            for item in ready
+        ],
+    )
+    failures = [
+        {"item_id": failure.item_id, "reason": failure.reason}
+        for failure in plan.failures
+    ]
+    if not plan.items:
+        return {
+            "batch_id": None,
+            "requests": [],
+            "failures": failures,
+            "deferred_item_ids": list(plan.deferred_item_ids),
+        }
+
+    by_id = {item.item_id: item for item in roadmap.items}
+    base_context = _copy_context(context)
+    generation_specs = [
+        (selected, by_id[selected.item_id], _next_attempt_number(checkpoint, selected.item_id))
+        for selected in plan.items
+    ]
+    digest_input = json.dumps(
+        [
+            [roadmap.roadmap_id, item.item_id, attempt_number]
+            for _, item, attempt_number in generation_specs
+        ],
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+    batch_id = f"batch-{hashlib.sha256(digest_input.encode()).hexdigest()[:24]}"
+    prepared: list[dict[str, Any]] = []
+    dispatch_ids: list[str] = []
+    for selected, item, attempt_number in generation_specs:
+        dispatch_id = f"{batch_id}:{item.item_id}:attempt-{attempt_number}"
+        dispatch_ids.append(dispatch_id)
+        prepared.append(
+            {
+                "dispatch_id": dispatch_id,
+                "item_id": item.item_id,
+                "change_id": selected.change_id,
+                "phase": "autopilot",
+                "attempt": attempt_number,
+                "status": "prepared",
+                "prepared_at": datetime.now(timezone.utc).isoformat(),
+                "launch_token": secrets.token_urlsafe(24),
+                "launch_marker_path": f".git/autopilot/{item.item_id}-attempt-{attempt_number}.marker",
+                "lease_generation": 1,
+                "launch_history": [],
+                "scope": selected.scope.to_request_scope(),
+                "isolation": _validated_isolation(isolation_resolver(item)),
+                "context": copy.deepcopy(base_context),
+            }
+        )
+
+    for attempt in prepared:
+        validate_delegated_dispatch_attempt(attempt)
+
+    existing_ids = {attempt["dispatch_id"] for attempt in checkpoint.dispatch_attempts}
+    if existing_ids.intersection(dispatch_ids):
+        raise ValueError("duplicate delegated dispatch generation")
+    checkpoint.dispatch_attempts.extend(copy.deepcopy(prepared))
+    manager.save(checkpoint)
+    for attempt in prepared:
+        by_id[attempt["item_id"]].status = ItemStatus.IN_PROGRESS
+    save_roadmap(roadmap, workspace / "roadmap.yaml", overwrite=True)
+
+    return {
+        "batch_id": batch_id,
+        "requests": [
+            _request_from_attempt(roadmap.roadmap_id, attempt) for attempt in prepared
+        ],
+        "failures": failures,
+        "deferred_item_ids": list(plan.deferred_item_ids),
+    }
+
+
+def _validate_dispatch_result(result: Mapping[str, Any]) -> dict[str, Any]:
+    value = copy.deepcopy(dict(result))
+    missing = _RESULT_REQUIRED - value.keys()
+    extra = value.keys() - _RESULT_ALLOWED
+    if missing or extra:
+        raise ValueError(
+            "invalid supervised dispatch result fields: "
+            f"missing={sorted(missing)} extra={sorted(extra)}"
+        )
+    if value["schema_version"] != 1:
+        raise ValueError("invalid supervised dispatch result schema_version")
+    if not isinstance(value["dispatch_id"], str) or not 1 <= len(value["dispatch_id"]) <= 256:
+        raise ValueError("invalid supervised dispatch result dispatch_id")
+    change_id = value["change_id"]
+    if (
+        not isinstance(change_id, str)
+        or len(change_id) > 160
+        or _EXACT_CHANGE_ID.fullmatch(change_id) is None
+    ):
+        raise ValueError("invalid supervised dispatch result change_id")
+    for field in ("attempt", "lease_generation"):
+        number = value[field]
+        if isinstance(number, bool) or not isinstance(number, int) or number < 1:
+            raise ValueError(f"invalid supervised dispatch result {field}")
+    outcome = value["outcome"]
+    if (
+        not isinstance(outcome, str)
+        or len(outcome) > 1024
+        or _RESULT_OUTCOME.fullmatch(outcome) is None
+    ):
+        raise ValueError("invalid supervised dispatch result outcome")
+    if "replan" in value and not isinstance(value["replan"], bool):
+        raise ValueError("invalid supervised dispatch result replan")
+    if "handoff_id" in value and (
+        value["handoff_id"] is not None
+        and (
+            not isinstance(value["handoff_id"], str)
+            or len(value["handoff_id"]) > 256
+        )
+    ):
+        raise ValueError("invalid supervised dispatch result handoff_id")
+    for field in ("worktree_path", "branch"):
+        if field in value and (
+            not isinstance(value[field], str) or not value[field]
+        ):
+            raise ValueError(f"invalid supervised dispatch result {field}")
+    if "evidence" in value:
+        evidence = value["evidence"]
+        if not isinstance(evidence, dict) or set(evidence) - {
+            "loop_state_path",
+            "commit",
+            "loop_state_digest",
+        }:
+            raise ValueError("invalid supervised dispatch result evidence")
+        if not isinstance(evidence.get("loop_state_path"), str) or not evidence["loop_state_path"]:
+            raise ValueError("invalid supervised dispatch result loop_state_path")
+        if "commit" in evidence and (
+            not isinstance(evidence["commit"], str)
+            or _HEX_40.fullmatch(evidence["commit"]) is None
+        ):
+            raise ValueError("invalid supervised dispatch result commit")
+        if "loop_state_digest" in evidence and (
+            not isinstance(evidence["loop_state_digest"], str)
+            or _HEX_64.fullmatch(evidence["loop_state_digest"]) is None
+        ):
+            raise ValueError("invalid supervised dispatch result loop_state_digest")
+    if outcome in {"success", "parked"}:
+        required = {"worktree_path", "branch", "evidence"}
+        if not required <= value.keys():
+            raise ValueError(f"invalid {outcome} dispatch result evidence")
+    if outcome == "success" and (
+        not isinstance(value.get("handoff_id"), str) or not value["handoff_id"]
+    ):
+        raise ValueError("invalid success dispatch result handoff_id")
+    if outcome == "parked":
+        parked = value.get("parked")
+        if (
+            not isinstance(parked, dict)
+            or set(parked) - {"kind", "reason", "gate", "deadline", "resume_hint"}
+            or parked.get("kind") not in {"pending_gate", "policy_pause"}
+            or not isinstance(parked.get("reason"), str)
+            or not parked["reason"]
+            or len(parked["reason"]) > 1024
+            or not _valid_nullable_string(parked, "gate", 128)
+            or not _valid_nullable_string(parked, "resume_hint", 512)
+            or not _valid_nullable_date_time(parked, "deadline")
+        ):
+            raise ValueError("invalid parked dispatch result")
+    elif "parked" in value:
+        raise ValueError("non-parked dispatch result cannot contain parked state")
+    return value
+
+
+def _valid_nullable_string(value: Mapping[str, Any], field: str, limit: int) -> bool:
+    candidate = value.get(field)
+    return field not in value or candidate is None or (
+        isinstance(candidate, str) and len(candidate) <= limit
+    )
+
+
+def _valid_nullable_date_time(value: Mapping[str, Any], field: str) -> bool:
+    candidate = value.get(field)
+    if field not in value or candidate is None:
+        return True
+    if not isinstance(candidate, str) or _DATE_TIME.fullmatch(candidate) is None:
+        return False
+    try:
+        datetime.fromisoformat(candidate.replace("Z", "+00:00").replace("z", "+00:00"))
+    except ValueError:
+        return False
+    return True
+
+
+def _batch_attempts(checkpoint: Any, batch_id: str) -> list[dict[str, Any]]:
+    if not isinstance(batch_id, str) or _BATCH_ID.fullmatch(batch_id) is None:
+        raise ValueError(f"invalid delegated batch id: {batch_id}")
+    prefix = f"{batch_id}:"
+    attempts = [
+        attempt
+        for attempt in checkpoint.dispatch_attempts
+        if str(attempt.get("dispatch_id", "")).startswith(prefix)
+    ]
+    if not attempts:
+        raise ValueError(f"unknown delegated batch: {batch_id}")
+    return attempts
+
+
+def _validate_exact_result(
+    attempt: Mapping[str, Any],
+    result: Mapping[str, Any],
+) -> None:
+    for field in ("change_id", "attempt", "lease_generation"):
+        if result[field] != attempt[field]:
+            raise ValueError(f"{field} mismatch for dispatch {attempt['dispatch_id']}")
+    isolation = attempt["isolation"]
+    for field in ("worktree_path", "branch"):
+        if field in result and result[field] != isolation[field]:
+            raise ValueError(f"{field} mismatch for dispatch {attempt['dispatch_id']}")
+
+
+def _dispatch_context(
+    roadmap_id: str,
+    attempt: Mapping[str, Any],
+    result: Mapping[str, Any],
+) -> dict[str, Any]:
+    context = copy.deepcopy(attempt["context"])
+    context.update(
+        {
+            "item_id": attempt["item_id"],
+            "roadmap_id": roadmap_id,
+            "change_id": attempt["change_id"],
+            "dispatch_id": attempt["dispatch_id"],
+            "attempt": attempt["attempt"],
+            "lease_generation": attempt["lease_generation"],
+            "scope": copy.deepcopy(attempt["scope"]),
+            "isolation": copy.deepcopy(attempt["isolation"]),
+            "execution_mode": "delegated_lifecycle",
+            "dispatch_result": copy.deepcopy(result),
+        }
+    )
+    return context
+
+
+def _terminal_attempt(
+    attempt: Mapping[str, Any],
+    result: Mapping[str, Any],
+) -> dict[str, Any]:
+    terminal = copy.deepcopy(dict(attempt))
+    now = datetime.now(timezone.utc).isoformat()
+    if "lease" in terminal:
+        terminal["lease"]["state"] = "released"
+    outcome = result["outcome"]
+    terminal.update(outcome=outcome, resolved_at=now)
+    if outcome == "success":
+        terminal.update(status="completed", handoff_id=result["handoff_id"])
+    elif outcome == "parked":
+        terminal.update(status="parked", parked=copy.deepcopy(result["parked"]))
+    else:
+        terminal["status"] = "failed"
+    validate_delegated_dispatch_attempt(terminal)
+    return terminal
+
+
+def apply_delegated_batch(
+    workspace: Path,
+    batch_id: str,
+    results: Sequence[Mapping[str, Any]],
+    dispatch_fn: DispatchFn,
+    *,
+    repo_root: Path,
+    gate_evaluator: GateEvaluator | None = None,
+) -> dict[str, Any]:
+    """Validate and apply one exact persisted batch through ``dispatch_fn`` once."""
+    roadmap, manager, checkpoint = _load_or_create_execution_state(workspace, repo_root)
+    attempts = _batch_attempts(checkpoint, batch_id)
+    if all(attempt["status"] in _TERMINAL_ATTEMPT_STATUSES for attempt in attempts):
+        raise ValueError(f"delegated batch already applied: {batch_id}")
+
+    validated = [_validate_dispatch_result(result) for result in results]
+    dispatch_ids = [result["dispatch_id"] for result in validated]
+    if len(dispatch_ids) != len(set(dispatch_ids)):
+        raise ValueError("duplicate dispatch result")
+    expected_ids = {attempt["dispatch_id"] for attempt in attempts}
+    if set(dispatch_ids) != expected_ids:
+        raise ValueError("result membership mismatch for delegated batch")
+    result_by_id = {result["dispatch_id"]: result for result in validated}
+    for attempt in attempts:
+        result = result_by_id[attempt["dispatch_id"]]
+        _validate_exact_result(attempt, result)
+        if attempt["status"] in _TERMINAL_ATTEMPT_STATUSES:
+            if attempt.get("outcome") != result["outcome"]:
+                raise ValueError(f"terminal outcome mismatch for {attempt['dispatch_id']}")
+        elif attempt["status"] != "launched":
+            raise ValueError(f"dispatch attempt not launched: {attempt['dispatch_id']}")
+
+    completed: list[str] = []
+    failed: list[str] = []
+    parked: list[str] = []
+    gate_decisions: list[dict[str, Any]] = []
+    replan_state: dict[str, Any] = {}
+    by_id = {item.item_id: item for item in roadmap.items}
+    for attempt in attempts:
+        if attempt["status"] in _TERMINAL_ATTEMPT_STATUSES:
+            continue
+        result = result_by_id[attempt["dispatch_id"]]
+        context = _dispatch_context(roadmap.roadmap_id, attempt, result)
+        dispatched_outcome, replan_signal = _normalize_outcome(
+            dispatch_fn(attempt["item_id"], "autopilot", context)
+        )
+        if dispatched_outcome != result["outcome"]:
+            raise ValueError(f"dispatch outcome mismatch for {attempt['dispatch_id']}")
+        if replan_signal != bool(result.get("replan", False)):
+            raise ValueError(f"dispatch replan mismatch for {attempt['dispatch_id']}")
+
+        terminal = _terminal_attempt(attempt, result)
+        attempt.clear()
+        attempt.update(terminal)
+        manager.save(checkpoint)
+        item_id = attempt["item_id"]
+        if dispatched_outcome == "success":
+            manager.complete_item(checkpoint, item_id)
+            by_id[item_id].status = ItemStatus.COMPLETED
+            _write_success_learning(workspace, item_id)
+            completed.append(item_id)
+        elif dispatched_outcome == "parked":
+            by_id[item_id].status = ItemStatus.IN_PROGRESS
+            parked.append(item_id)
+        else:
+            reason = dispatched_outcome.split(":", 1)[1] if ":" in dispatched_outcome else dispatched_outcome
+            _handle_failure(
+                item_id=item_id,
+                reason=reason,
+                replan=replan_signal,
+                roadmap=roadmap,
+                checkpoint=checkpoint,
+                mgr=manager,
+                workspace=workspace,
+                repo_root=repo_root,
+                gate_evaluator=gate_evaluator,
+                gate_decisions=gate_decisions,
+                replan_state=replan_state,
+            )
+            failed.append(item_id)
+        save_roadmap(roadmap, workspace / "roadmap.yaml", overwrite=True)
+
+    return {
+        "batch_id": batch_id,
+        "completed_item_ids": completed,
+        "failed_item_ids": failed,
+        "parked_item_ids": parked,
+        "gate_decisions": gate_decisions,
+    }
 
 
 # ---------------------------------------------------------------------------
