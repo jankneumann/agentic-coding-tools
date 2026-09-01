@@ -1,0 +1,67 @@
+{
+  "review_type": "plan",
+  "target": "implement-idempotent-queue-submission-and-outbox-ordering",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The remediated database contract binds the per-change head to the full phase and transition_sequence generation, accepts only exact-generation submit retries, and rejects equal-sequence/different-phase submissions before they can create a second active generation.",
+      "resolution": "Preserve the forced reconcile-first/equal-sequence-different-phase PostgreSQL test during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/db/schema.sql",
+      "line_range": {"start": 3, "end": 38},
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Both projection mutation endpoints now publish explicit RFC 7807 409 responses, aligning the OpenAPI contract with stale, future, and generation-mismatch conflict behavior in the design and tasks.",
+      "resolution": "Preserve machine-readable 409 reason assertions in the HTTP tests.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml",
+      "line_range": {"start": 15, "end": 43},
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: The final integration plan correctly runs test_mcp_work_projection.py in the coordinator-venv transport suite, but redundantly lists the same coordinator test in the subsequent skills-venv command, imposing an unnecessary cross-environment dependency.",
+      "resolution": "Remove the duplicate from the skills-venv command during implementation housekeeping while retaining the correct coordinator-venv gate; this does not block implementation.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/work-packages.yaml",
+      "line_range": {"start": 237, "end": 252},
+      "axis": "observability",
+      "severity": "nit"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "low",
+      "description": "The plan pins reconciliation authorization to the existing submit_work policy action with mode=reconcile and requires denial parity across HTTP, direct MCP, proxy MCP, and CLI.",
+      "resolution": "Preserve the authorization-context and denial-envelope tests.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/specs/agent-coordinator/spec.md",
+      "line_range": {"start": 96, "end": 101},
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Persist-first callback ordering, no rollback on projection failure, and resume reconciliation derived only from loaded loop-state preserve one-way authoritative truth across the filesystem/database crash window.",
+      "resolution": "Preserve the save-before-project, failed-save short-circuit, response non-authority, and resume-before-phase tests.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/design.md",
+      "line_range": {"start": 45, "end": 64},
+      "axis": "resilience",
+      "severity": "none"
+    }
+  ]
+}
