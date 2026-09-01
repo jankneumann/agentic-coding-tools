@@ -71,7 +71,7 @@ items:
     audit check over the session file writes.
 - item_id: ri-03
   title: Wire supervise execution through the dispatch_fn seam
-  status: approved
+  status: in_progress
   priority: 1
   effort: L
   depends_on:
@@ -446,4 +446,4 @@ items:
     spend is auditable after a run.'
   external_depends_on:
   - dispatch-governance:dg-04
-updated_at: '2026-09-01T02:35:50.553353+00:00'
+updated_at: '2026-09-01T03:49:38.331072+00:00'
