@@ -1,27 +1,34 @@
--- Contract for ri-08 work-queue projection identity and reconciliation.
--- Source: https://www.postgresql.org/docs/current/sql-insert.html#SQL-ON-CONFLICT
-
+-- ri-08 projection identity contract. Public callers provide projection_key;
+-- the service alone materializes these reserved fields in input_data.
 CREATE UNIQUE INDEX work_queue_projection_key_uidx
 ON work_queue (
     (input_data ->> 'change_id'),
     (input_data ->> 'phase'),
-    ((input_data ->> 'iteration')::integer)
+    (input_data ->> 'transition_sequence')
 )
 WHERE input_data ? 'change_id'
   AND input_data ? 'phase'
-  AND input_data ? 'iteration'
-  AND jsonb_typeof(input_data -> 'iteration') = 'number';
+  AND input_data ? 'transition_sequence'
+  AND jsonb_typeof(input_data -> 'transition_sequence') = 'number';
 
--- Existing submit_task signature remains callable. Its JSON result gains:
---   created boolean
---   deduplicated boolean
--- A complete projection key is insert-if-absent; incomplete/unkeyed payloads insert normally.
+-- Keyed submit_task and reconcile_work_projection MUST first execute:
+-- SELECT pg_advisory_xact_lock(hashtextextended(p_change_id, 0));
+-- Keyed insertion MUST use this exact arbiter:
+-- ON CONFLICT ((input_data ->> 'change_id'),
+--              (input_data ->> 'phase'),
+--              (input_data ->> 'transition_sequence'))
+-- WHERE input_data ? 'change_id'
+--   AND input_data ? 'phase'
+--   AND input_data ? 'transition_sequence'
+--   AND jsonb_typeof(input_data -> 'transition_sequence') = 'number'
+-- DO NOTHING;
+-- Canonical lookup MUST repeat the same expressions/predicate and compare the
+-- validated change_id, phase, and transition_sequence::text values.
 
--- New RPC contract (body implemented in migration 035_work_queue_projection.sql):
 CREATE OR REPLACE FUNCTION reconcile_work_projection(
     p_change_id TEXT,
     p_phase TEXT,
-    p_iteration INTEGER,
+    p_transition_sequence INTEGER,
     p_task_type TEXT,
     p_description TEXT,
     p_input_data JSONB,
@@ -29,11 +36,9 @@ CREATE OR REPLACE FUNCTION reconcile_work_projection(
     p_agent_requirements JSONB DEFAULT NULL
 ) RETURNS JSONB;
 
--- Result object:
--- {
---   "success": true,
---   "task_id": "uuid",
---   "created": true|false,
---   "deduplicated": false|true,
---   "cancelled_task_ids": ["uuid", ...]
--- }
+-- Migration 035 runs in one transaction under SHARE ROW EXCLUSIVE lock. Before
+-- index creation it rejects partial/malformed/out-of-range keys (SQLSTATE 23514)
+-- and duplicate valid complete keys (23505), reporting offending task IDs.
+-- Failure rolls back; operators quarantine/normalize those rows and retry the
+-- unchanged migration. Terminal current rows, including cancelled, are already
+-- satisfied and are returned rather than replaced.

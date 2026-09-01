@@ -16,6 +16,17 @@
 
 ---
 
+## 2026-09-01 — implement-idempotent-queue-submission-and-outbox-ordering
+
+### Phase: Plan Iteration 1
+
+**Keep failure shapes transport-appropriate** — HTTP uses RFC 7807 4xx errors while MCP and CLI use discriminated no-raise envelopes, so success-only fields remain truthful.
+
+- Status: `active`
+- Source: [openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D3)
+
+---
+
 ## 2026-04-25 — 2026-05-03-add-per-phase-archetype-resolution
 
 ### Phase: Implementation

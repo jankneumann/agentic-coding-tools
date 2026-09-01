@@ -6,9 +6,10 @@
 
 ## What Changes
 
-- Make projection submissions with a complete `(change_id, phase, iteration)` key atomic and submit-if-absent in PostgreSQL while preserving ordinary queue submission behavior.
-- Return the canonical task ID plus whether the call created or deduplicated the task through the service, HTTP API, and coordination bridge.
-- Add an atomic reconciliation operation that cancels stale active projection entries for a change and ensures the current loop-state key exists.
+- Make projection submissions with a complete `(change_id, phase, transition_sequence)` key atomic and submit-if-absent in PostgreSQL while preserving ordinary queue submission behavior.
+- Return the canonical task ID plus whether the call created or deduplicated the task through the service, HTTP API, coordination bridge, direct MCP, HTTP-proxy MCP, and CLI.
+- Accept one explicit `projection_key`; validate bounded identity fields and reject reserved key fields in arbitrary `input_data`.
+- Add a per-change serialized reconciliation operation that cancels stale active projection entries for a change and ensures the current loop-state key exists.
 - Add an optional autopilot persistence/reconciliation seam whose ordering is always `save_state` first, projection second, including resume re-derivation from the loaded loop-state.
 - Keep the default/local-parallel/sequential path coordinator-free; no caller registers live transition mirroring in this change.
 - Extend the truth/projection guide with the implemented interfaces and the explicit ri-09 boundary.
@@ -18,7 +19,7 @@
 ### In scope
 
 - PostgreSQL migration and RPC behavior for projection-key uniqueness, submit-if-absent, and reconciliation.
-- Coordinator service/API and script bridge contracts.
+- Coordinator service, HTTP, direct/proxy MCP, CLI, and script bridge contracts.
 - Optional autopilot outbox/reconciliation seam and failure-tolerant ordering.
 - Concurrency, crash-window, resume, and coordinator-free regression tests.
 
@@ -34,6 +35,7 @@
 | Attribute | Metric | Target | Verification |
 |---|---|---|---|
 | Concurrency correctness | Rows for one complete projection key after concurrent submissions | Exactly 1 row and one canonical task ID | PostgreSQL integration test |
+| Cross-key serialization | Active rows after different-tuple submit/reconcile races | Per-change operations serialize and stale active rows are cancelled | PostgreSQL integration test |
 | Crash safety | Durable loop-state after a projection callback fails | State transition remains persisted; resume converges to one current row | Autopilot crash-window test |
 | Availability | Coordinator calls in default/local-parallel/sequential paths | 0 | Existing tier tests plus explicit no-call regression |
 | Compatibility | Existing unkeyed `/work/submit` behavior | Continues to create independent tasks | API and service regression tests |
@@ -42,11 +44,11 @@
 
 ### Approach 1 — Atomic PostgreSQL submit-if-absent (Recommended)
 
-Create a partial unique expression index over the three JSONB key fields and use one database-side insert-or-conflict operation, followed by canonical-row lookup, inside the RPC. Reconciliation executes in one database transaction and the filesystem-to-queue ordering remains an injected application seam.
+Create a non-throwing partial unique text-expression index over the three reserved JSONB key fields and use the published database-side conflict target plus canonical lookup inside the RPC. Keyed submit and reconciliation share a transaction advisory lock per `change_id`; reconciliation executes in one short transaction and the filesystem-to-queue ordering remains an injected application seam.
 
 **Pros**
 
-- The unique index arbitrates concurrent writers at the only shared authority for queue rows.
+- The unique index arbitrates same-key writers and the shared per-change lock serializes different-key writers.
 - `INSERT ... ON CONFLICT` is documented by PostgreSQL as atomic under concurrency.
 - Preserves the existing JSONB payload and unkeyed queue API.
 - Makes retry and resume convergence testable against real PostgreSQL.

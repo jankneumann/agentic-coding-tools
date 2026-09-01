@@ -42,3 +42,39 @@
 ### Context
 Authored the approved ri-08 plan around an atomic PostgreSQL projection key, a short reconciliation transaction, and an optional persist-first autopilot seam. Discovery, direction, and plan approval were inherited from the approved roadmap batch; ri-09 live mirroring remains explicitly out of scope.
 
+---
+
+## Phase: Plan Iteration 1 (2026-09-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Use one bounded monotonic projection identity** `architectural: agent-coordinator` — A single explicit projection_key with transition_sequence copied from LoopState.total_iterations removes ambiguous iteration sources and reserved embedded fields.
+2. **Serialize keyed mutations per change** `architectural: agent-coordinator` — A shared transaction advisory lock closes different-tuple submit/reconcile races while the unique text-expression index arbitrates same-key concurrency.
+3. **Keep failure shapes transport-appropriate** `architectural: coordination-bridge` — HTTP uses RFC 7807 4xx errors while MCP and CLI use discriminated no-raise envelopes, so success-only fields remain truthful.
+
+### Alternatives Considered
+- Cast JSON transition values to PostgreSQL integer in the index: rejected because legacy fractional or huge values can abort index evaluation
+- Treat arbitrary input_data as a second identity source: rejected because mismatches make the canonical key ambiguous
+
+### Trade-offs
+- Accepted short per-change advisory serialization over fully concurrent different-sequence writes because reconciliation correctness is more important than same-change mutation throughput
+
+### Completed Work
+- Addressed all ten plan-review findings and recorded dispositions in plan-findings.md.
+- Published OpenAPI 3.1 and SQL contracts for one validated projection key, exact conflict arbitration, terminal generations, and migration preflight.
+- Added direct/proxy MCP and CLI tasks/spec scenarios and real PostgreSQL plus semantic OpenAPI validation gates.
+- Passed strict OpenSpec, work-package schema/DAG/overlap, DAG scheduler, and semantic OpenAPI validation.
+
+### Next Steps
+- Run the PLAN_REVIEW phase against plan revision 2.
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/design.md` — Revised identity, locking, migration, and transport decisions
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml` — Validated public projection API contract
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/db/schema.sql` — Exact database arbitration and preflight contract
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/work-packages.yaml` — Validated implementation DAG and executable gates
+
+### Context
+Resolved seven high and three medium review findings across the projection identity, database serialization, terminal semantics, migration safety, transport parity, boundary validation, and executable verification gates. Plan and contract revisions are now 2; strict OpenSpec and package DAG/overlap validation pass.
+

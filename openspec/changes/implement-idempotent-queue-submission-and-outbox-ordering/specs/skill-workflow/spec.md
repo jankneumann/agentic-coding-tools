@@ -17,7 +17,8 @@ The autopilot state machine SHALL provide an optional queue-projection callback 
 - **GIVEN** a process terminates after loop-state persistence but before queue submission
 - **WHEN** autopilot resumes with a coordinated reconciliation callback
 - **THEN** it SHALL load the authoritative loop-state first
-- **AND** it SHALL request reconciliation for the loaded `(change_id, phase, iteration)` before phase execution
+- **AND** it SHALL request reconciliation for the loaded `(change_id, phase, transition_sequence=total_iterations)` before phase execution
+- **AND** it SHALL set `transition_sequence` from `LoopState.total_iterations`, not `LoopState.iteration`
 - **AND** it SHALL NOT derive any loop-state field from the queue response
 
 #### Scenario: Fallback tiers remain coordinator-free

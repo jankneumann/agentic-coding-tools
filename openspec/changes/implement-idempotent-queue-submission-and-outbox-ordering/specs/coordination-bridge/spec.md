@@ -2,7 +2,7 @@
 
 ### Requirement: Work Projection Helper Envelope
 
-The coordination bridge SHALL expose submit and reconcile helpers for loop-state-derived queue projections. Helpers SHALL preserve the uniform no-raise transport envelope, include the canonical task ID plus creation/deduplication outcome, and SHALL accept authoritative phase fields only from their caller. A reconciliation response MUST NOT be used to update loop-state.
+The coordination bridge SHALL expose submit and reconcile helpers for loop-state-derived queue projections. Helpers SHALL accept one explicit bounded `projection_key`, reject reserved identity fields in `input_data`, preserve the uniform no-raise transport envelope, include the canonical task ID plus creation/deduplication outcome, and SHALL accept authoritative phase fields only from their caller. A reconciliation response MUST NOT be used to update loop-state.
 
 #### Scenario: Bridge reports a deduplicated replay
 
