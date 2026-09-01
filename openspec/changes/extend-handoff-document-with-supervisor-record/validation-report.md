@@ -93,3 +93,22 @@ No pull request exists for the feature branch and no branch workflow run was ret
 ## Result
 
 **PASS** — The only required phase, Spec Compliance, passes, and every changed-surface test/static check passes. Non-applicable deployment phases and explicitly classified repository environment/isolation gaps do not block SUBMIT_PR.
+
+## Validation Review
+
+**Status**: fail
+
+**Outcome**: not_converged
+**Reviewed commit**: `d96212b7d5b7d33f07f291236bc9d5915311152d`
+**Reviewer participation**: 2/2 independent Codex critics returned valid findings; no timeout, authentication, or JSON Schema failure occurred.
+
+Confirmed blockers:
+
+1. `VAL-SPEC-001`: generated `.agents` and `.claude` supervise skill copies are stale and omit the supervisor-record rehydrate, mirror, and handoff workflow; both exact mirror-sync checks fail.
+2. `VAL-SPEC-002`: the modified Session Continuity spec requires `database_unavailable`, while implementation and tests require an error beginning with `rpc_failed:`.
+3. `VAL-EVID-003`: the required live PostgreSQL migration/RPC acceptance remains unverified because all 4 live tests skipped.
+4. `VAL-ACCEPT-004`: the integration package requires its conjunctive full-suite command to pass, but validation records 7 coordinator failures and 36 skills collection errors.
+
+The explicit `deployable: false` declaration remains authoritative under validate-feature policy, so deployment-dependent phases being not applicable is not a blocker. Architecture findings, absent package-result JSON, comparative SessionStart timing, and pre-PR CI status remain advisory.
+
+Focused evidence reproduced successfully: 106 coordinator tests, 432 skills tests, strict mypy, Ruff, strict OpenSpec, and change-scoped traceability. That evidence does not close the four blockers. The autopilot goal gate is not ready; run VAL_FIX and revalidate before SUBMIT_PR.

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-01T01:00:34Z",
+  "coordinator_error": {"error_type": "not_attempted", "message": "VAL_REVIEW worker persisted the local handoff; runner.py apply-outcome is owned by the parent orchestrator.", "http_status": null},
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "VAL_REVIEW did not converge at d96212b7. Two independent critics confirmed four blockers with no timeout or schema failures, so the goal gate is not ready.",
+    "completed_work": ["reviewed validation classifications", "reproduced focused evidence", "persisted canonical findings and consensus"],
+    "in_progress": [],
+    "decisions": [{"title": "Return not_converged", "rationale": "Four evidence and contract blockers remain.", "capability": "autopilot", "supersedes": null}],
+    "next_steps": ["Run VAL_FIX for the four confirmed blockers.", "Re-run VALIDATE and VAL_REVIEW before SUBMIT_PR."],
+    "relevant_files": [
+      {"path": "openspec/changes/extend-handoff-document-with-supervisor-record/reviews/validation/round-1/consensus-validation.json", "description": "Validation-review consensus"},
+      {"path": "openspec/changes/extend-handoff-document-with-supervisor-record/reviews/validation/adjudication.json", "description": "Final adjudication"}
+    ]
+  }
+}

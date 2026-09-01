@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "change_id": "extend-handoff-document-with-supervisor-record",
+  "phase": "VAL_REVIEW",
+  "reviewed_commit": "d96212b7d5b7d33f07f291236bc9d5915311152d",
+  "outcome": "not_converged",
+  "reviewer_participation": {"requested": 2, "valid": 2, "providers": ["codex"], "independent_agents": ["evidence_critic", "spec_critic"], "timeout_failures": 0, "schema_failures": 0},
+  "confirmed_blocking_findings": ["VAL-SPEC-001", "VAL-SPEC-002", "VAL-EVID-003", "VAL-ACCEPT-004"],
+  "independent_evidence": {"focused_coordinator": "106 passed", "focused_skills": "432 passed", "live_postgresql": "4 skipped", "mypy": "pass", "ruff": "pass", "openspec_strict": "pass", "traceability": "pass", "runtime_skill_mirrors": "fail"},
+  "classification_adjudication": {"deployable_false": "accepted under explicit validate-feature declaration", "architecture": "advisory", "package_result_provenance": "advisory", "ci_before_pr": "advisory"},
+  "goal_gate_ready": false,
+  "next_phase": "VAL_FIX"
+}
