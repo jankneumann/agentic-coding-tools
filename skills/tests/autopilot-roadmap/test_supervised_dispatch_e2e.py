@@ -453,6 +453,10 @@ def test_overlapping_children_are_serialized_with_maximum_one_live_handle(
     result = _run_scenario(tmp_path, fixture["overlapping"], fixture["router_context"])
 
     assert [len(batch) for batch in result["batches"]] == [1, 1]
+    assert [
+        [request["scope"]["proof"] for request in batch]
+        for batch in result["batches"]
+    ] == [["serial_indeterminate"], ["serial_indeterminate"]]
     assert result["live_counts"] == [1, 1]
     assert result["host"].max_live == 1
     assert result["calls"] == ["ri-01", "ri-02"]
