@@ -5,33 +5,33 @@
 
 ---
 
-## 2026-09-01 — wire-supervise-execution-through-the-dispatch-fn-seam
+## 2026-09-01 — 2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam
 
 ### Phase: Implementation
 
 **Keep Autopilot as the sole delegated phase owner** — The supervisor launches isolated child sessions while deterministic orchestration remains in the existing per-change phase machine.
 
 - Status: `active`
-- Source: [openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md](/openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md](/openspec/changes/archive/2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md) (D1)
 
 ---
 
-## 2026-09-01 — wire-supervise-execution-through-the-dispatch-fn-seam
+## 2026-09-01 — 2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam
 
 ### Phase: Plan
 
 **Separate prepare from synchronous result application** — prepare_delegated_batch persists exact envelopes without invoking dispatch_fn; apply_delegated_batch invokes the existing synchronous callback once per collected generation result, keeping Autopilot as the sole phase-machine owner.
 
 - Status: `active`
-- Source: [openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md](/openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md](/openspec/changes/archive/2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md) (D2)
 
 ---
 
-## 2026-09-01 — wire-supervise-execution-through-the-dispatch-fn-seam
+## 2026-09-01 — 2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam
 
 ### Phase: Implementation
 
 **Require durable generation-specific acknowledgement before child entry** — The prepare, claim, acknowledge, go, and enter sequence closes launch crash windows and prevents stale owners from entering.
 
 - Status: `active`
-- Source: [openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md](/openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md](/openspec/changes/archive/2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md) (D2)

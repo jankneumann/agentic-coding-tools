@@ -5,11 +5,11 @@
 
 ---
 
-## 2026-09-01 — wire-supervise-execution-through-the-dispatch-fn-seam
+## 2026-09-01 — 2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam
 
 ### Phase: Implementation
 
 **Keep child transcripts outside parent and durable result state** — Closed schemas, bounded context, temporary result files, and sentinel scans preserve the outcome-only supervision boundary.
 
 - Status: `active`
-- Source: [openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md](/openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md](/openspec/changes/archive/2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md) (D3)
