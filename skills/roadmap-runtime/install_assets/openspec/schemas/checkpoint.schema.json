@@ -96,6 +96,11 @@
         "expected_resume_at": { "type": "string", "format": "date-time" },
         "blocked_vendor": { "type": "string" }
       }
+    },
+    "dispatch_attempts": {
+      "type": "array",
+      "items": { "type": "object" },
+      "default": []
     }
   }
 }
