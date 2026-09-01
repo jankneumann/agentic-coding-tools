@@ -45,7 +45,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
 
 ## 2. Delegate item lifecycles through the callback
 
-- [ ] 2.1 Write delegated-lifecycle characterization tests (M)
+- [x] 2.1 Write delegated-lifecycle characterization tests (M)
   **Spec scenarios**: roadmap-orchestration.1a (delegated generation), roadmap-orchestration.1b (non-dispatched invalid ID), roadmap-orchestration.3a (apply exact-match result), roadmap-orchestration.3b (reject mismatch), roadmap-orchestration.3c (park pending gate)
   **Contracts**: `contracts/schemas/supervised-dispatch-request.schema.json`, `contracts/schemas/supervised-dispatch-result.schema.json`
   **Design decisions**: D1, D2, D6
