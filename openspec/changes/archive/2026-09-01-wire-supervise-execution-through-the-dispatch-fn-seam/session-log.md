@@ -208,3 +208,41 @@ Resolved all four mandatory validation rework items and one evidence-gate contra
 
 ### Context
 Revalidated PR #451 at exact code head 7e4ffa08. The prior overlap-proof, seven-package evidence, eight exact-SHA row, and prescribed traceability failures are resolved; all required hard-gate phases and exact-head CI pass without override.
+
+---
+
+## Phase: Cleanup (2026-09-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Use rebase merge for the agent-authored PR** — Preserves the conventional implementation and review history for blame and bisect.
+2. **Do not migrate tasks** — All 20 OpenSpec tasks were checked complete before archive.
+3. **Treat rollout as not applicable** — The validated feature surface is explicitly nondeployable, so traffic stages, dashboards, and rollback controls do not apply.
+
+### Alternatives Considered
+- Squash merge: rejected because Would discard the reviewed package and remediation history without reducing operational risk.
+
+### Trade-offs
+- Accepted preserved commit history over a compact single commit because the repository policy prefers rebase merges for agent-authored OpenSpec changes
+
+### Completed Work
+- recorded explicit merge authorization
+- merged PR #451
+- refreshed architecture artifacts
+- verified all tasks complete
+- archived the OpenSpec change
+- promoted three capability spec deltas
+- regenerated the decision index
+
+### Next Steps
+- record the ri-03 roadmap learning and mark the item complete
+- replan and select the next approved ready roadmap item
+
+### Relevant Files
+- `openspec/changes/archive/2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md` — durable cleanup and lifecycle record
+- `openspec/specs/roadmap-orchestration/spec.md` — promoted roadmap orchestration requirements
+- `openspec/specs/supervise/spec.md` — promoted supervisor requirements
+
+### Context
+PR #451 was rebase-merged into the roadmap branch after explicit console authorization and a no-override validation gate. All 20 tasks were complete, the nondeployable change required no staged rollout, and the OpenSpec proposal was archived with its spec deltas promoted.
