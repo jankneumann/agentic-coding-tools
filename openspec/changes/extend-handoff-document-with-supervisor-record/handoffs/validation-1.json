@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-01T00:52:00.068156+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "validator",
+    "session_id": null,
+    "summary": "Validated commit cf1522bd at tier B. Spec compliance and every changed-surface unit/static gate passed; deploy, smoke, live security, and browser E2E were not applicable, while repository-wide environment and import-isolation gaps were recorded separately.",
+    "completed_work": [
+      "spec",
+      "traceability",
+      "focused unit/integration",
+      "static analysis",
+      "architecture diagnostics"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Honor declared non-deployable surface",
+        "rationale": "work-packages.yaml explicitly declares deployable: false, so deployment-dependent phases are not applicable.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Do not treat environment gaps as code failures",
+        "rationale": "Focused changed-surface suites pass; absent PostgreSQL, missing import stubs, and flat-module collection collisions are repository environment/isolation gaps.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Continue autopilot to SUBMIT_PR for extend-handoff-document-with-supervisor-record"
+    ],
+    "relevant_files": []
+  }
+}

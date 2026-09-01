@@ -348,6 +348,12 @@
           "type": "UNKNOWN",
           "nullable": true,
           "default": null
+        },
+        {
+          "name": "supervisor_record",
+          "type": "JSONB",
+          "nullable": true,
+          "default": "NULL"
         }
       ],
       "primary_key": [
@@ -2949,72 +2955,6 @@
       ]
     },
     {
-      "name": "public.write_handoff",
-      "file": "002_handoff_documents.sql",
-      "line": 22,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_AGENT_NAME TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_SESSION_ID TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_SUMMARY TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_COMPLETED_WORK JSONB DEFAULT '[]'"
-        },
-        {
-          "name": "",
-          "type": "P_IN_PROGRESS JSONB DEFAULT '[]'"
-        },
-        {
-          "name": "",
-          "type": "P_DECISIONS JSONB DEFAULT '[]'"
-        },
-        {
-          "name": "",
-          "type": "P_NEXT_STEPS JSONB DEFAULT '[]'"
-        },
-        {
-          "name": "",
-          "type": "P_RELEVANT_FILES JSONB DEFAULT '[]'"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.handoff_documents",
-        "public.v_handoff_id"
-      ]
-    },
-    {
-      "name": "public.read_handoff",
-      "file": "002_handoff_documents.sql",
-      "line": 65,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_AGENT_NAME TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_LIMIT INTEGER DEFAULT 1"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.handoff_documents",
-        "public.v_handoffs"
-      ]
-    },
-    {
       "name": "public.register_agent_session",
       "file": "003_agent_discovery.sql",
       "line": 16,
@@ -3569,6 +3509,80 @@
       "referenced_tables": [
         "public.code_search_indexes"
       ]
+    },
+    {
+      "name": "public.write_handoff",
+      "file": "034_handoff_supervisor_record.sql",
+      "line": 18,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_NAME TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_SESSION_ID TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_SUMMARY TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_COMPLETED_WORK JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_IN_PROGRESS JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_DECISIONS JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_NEXT_STEPS JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_RELEVANT_FILES JSONB DEFAULT '[]'"
+        },
+        {
+          "name": "",
+          "type": "P_SUPERVISOR_RECORD JSONB DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.handoff_documents",
+        "public.v_handoff_id"
+      ]
+    },
+    {
+      "name": "public.read_handoff",
+      "file": "034_handoff_supervisor_record.sql",
+      "line": 51,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_AGENT_NAME TEXT DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_LIMIT INT DEFAULT 1"
+        },
+        {
+          "name": "",
+          "type": "P_SUPERVISOR_ONLY BOOLEAN DEFAULT FALSE"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.handoff_documents",
+        "public.v_handoffs"
+      ]
     }
   ],
   "triggers": [
@@ -3717,7 +3731,7 @@
   ],
   "summary": {
     "total_tables": 27,
-    "total_columns": 294,
+    "total_columns": 295,
     "total_foreign_keys": 11,
     "total_indexes": 69,
     "most_referenced_tables": [
@@ -3776,6 +3790,10 @@
         "column_count": 12
       },
       {
+        "table": "public.handoff_documents",
+        "column_count": 12
+      },
+      {
         "table": "public.memory_episodic",
         "column_count": 12
       },
@@ -3785,10 +3803,6 @@
       },
       {
         "table": "public.audit_log",
-        "column_count": 11
-      },
-      {
-        "table": "public.changesets",
         "column_count": 11
       }
     ]
