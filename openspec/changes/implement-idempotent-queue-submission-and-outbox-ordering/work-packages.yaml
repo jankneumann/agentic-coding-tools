@@ -3,12 +3,12 @@ schema_version: 1
 feature:
   id: implement-idempotent-queue-submission-and-outbox-ordering
   title: Idempotent queue submission and outbox ordering
-  plan_revision: 1
+  plan_revision: 2
   created_by: codex
   deployable: true
 
 contracts:
-  revision: 1
+  revision: 2
   openapi:
     primary: openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml
     files:
@@ -56,7 +56,7 @@ packages:
       steps:
         - name: Parse OpenAPI contract
           kind: command
-          command: skills/.venv/bin/python -c "import yaml; yaml.safe_load(open('openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml'))"
+          command: uvx --from openapi-spec-validator openapi-spec-validator openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml
           cwd: .
           expect_exit_code: 0
           evidence:
@@ -76,7 +76,7 @@ packages:
   - package_id: wp-coordinator-queue
     title: Atomic coordinator queue persistence
     task_type: backend
-    description: Implement migration, queue service, and HTTP behavior for tasks 1.1 through 1.6.
+    description: Implement migration, queue service, HTTP, direct/proxy MCP, and CLI behavior for tasks 1.1 through 1.8.
     role: implementer
     priority: 2
     depends_on: [wp-contracts]
@@ -85,6 +85,9 @@ packages:
         - agent-coordinator/database/migrations/035_work_queue_projection.sql
         - agent-coordinator/src/work_queue.py
         - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/src/coordination_mcp.py
+        - agent-coordinator/src/coordination_cli.py
+        - agent-coordinator/src/http_proxy.py
       keys:
         - db:schema:work_queue_projection
         - api:POST /work/submit
@@ -95,6 +98,9 @@ packages:
         - agent-coordinator/database/migrations/035_work_queue_projection.sql
         - agent-coordinator/src/work_queue.py
         - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/src/coordination_mcp.py
+        - agent-coordinator/src/coordination_cli.py
+        - agent-coordinator/src/http_proxy.py
         - agent-coordinator/tests/**
       read_allow:
         - agent-coordinator/**
@@ -115,7 +121,7 @@ packages:
       steps:
         - name: Run queue tests
           kind: command
-          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py -q
+          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_http_proxy.py agent-coordinator/tests/test_coordination_cli_axi.py agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py -q
           cwd: .
           expect_exit_code: 0
           evidence:
@@ -220,6 +226,22 @@ packages:
     verification:
       tier_required: A
       steps:
+        - name: Validate OpenAPI contract
+          kind: command
+          command: uvx --from openapi-spec-validator openapi-spec-validator openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [openapi_valid]
+        - name: Run real PostgreSQL and coordinator transport suites
+          kind: command
+          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_http_proxy.py agent-coordinator/tests/test_coordination_cli_axi.py agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [coordinator_integration_tests_pass]
         - name: Run affected suites
           kind: command
           command: skills/.venv/bin/python -m pytest skills/tests/coordination-bridge skills/tests/autopilot -q
@@ -242,6 +264,6 @@ packages:
       package_kind: integration
     inputs: {}
     outputs:
-      result_keys: [integration_tests_pass, openspec_valid]
+      result_keys: [openapi_valid, coordinator_integration_tests_pass, integration_tests_pass, openspec_valid]
       artifacts:
         - docs/guides/work-queue-truth-projection.md
