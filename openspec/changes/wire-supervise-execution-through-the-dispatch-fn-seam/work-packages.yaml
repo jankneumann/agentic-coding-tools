@@ -1,0 +1,485 @@
+schema_version: 1
+
+feature:
+  id: wire-supervise-execution-through-the-dispatch-fn-seam
+  title: "Wire supervise execution through the dispatch_fn seam"
+  plan_revision: 1
+  created_by: plan-feature
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/README.md"
+    files:
+      - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/README.md"
+      - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/schemas/bounded-dispatch-context.schema.json"
+      - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/schemas/supervised-dispatch-request.schema.json"
+      - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/schemas/supervised-dispatch-result.schema.json"
+      - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/schemas/delegated-dispatch-attempt.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Freeze supervised dispatch contracts"
+    task_type: contracts
+    description: |
+      Tasks 0.1-0.2. Add failing fixture validation first, then freeze the
+      request/result schemas. The result contract structurally excludes transcripts and adds the bounded
+      parked outcome required for pending approval or policy pauses.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/schemas/bounded-dispatch-context.schema.json"
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/schemas/supervised-dispatch-request.schema.json"
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/schemas/supervised-dispatch-result.schema.json"
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/schemas/delegated-dispatch-attempt.schema.json"
+      keys:
+        - "feature:wire-supervise-execution-through-the-dispatch-fn-seam:contracts"
+        - "contract:supervised.dispatch"
+      ttl_minutes: 60
+      reason: "Freeze the callback request and result shape"
+    scope:
+      write_allow:
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/**"
+        - "skills/tests/supervise/test_execution_contract.py"
+        - "skills/tests/supervise/fixtures/execution/contracts/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: contracts
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Dispatch schemas validate fixtures"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_execution_contract.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["contract_suite"]
+    metadata:
+      loc_estimate: 140
+      complexity: low
+      package_kind: data_model
+    outputs:
+      result_keys: ["contract_suite"]
+
+  - package_id: wp-runtime-state
+    title: "Persist delegated dispatch attempts"
+    task_type: implementation
+    description: |
+      Tasks 0.3-0.4. Add the optional dispatch_attempts checkpoint collection,
+      persist prepared attempts plus ack/go state, lease generations, launch history,
+      claimed/acknowledged/launched/quarantined invariants, and gate-only parked transitions before requests leave deterministic code;
+      preserve unresolved entries and keep old checkpoint fixtures valid.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    locks:
+      files:
+        - "skills/roadmap-runtime/scripts/models.py"
+        - "skills/roadmap-runtime/scripts/checkpoint.py"
+        - "openspec/schemas/checkpoint.schema.json"
+      keys:
+        - "feature:wire-supervise-execution-through-the-dispatch-fn-seam:checkpoint"
+        - "contract:roadmap.checkpoint"
+      ttl_minutes: 120
+      reason: "Own durable delegated-attempt state"
+    scope:
+      write_allow:
+        - "skills/roadmap-runtime/scripts/models.py"
+        - "skills/roadmap-runtime/scripts/checkpoint.py"
+        - "skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json"
+        - "openspec/schemas/checkpoint.schema.json"
+        - "skills/tests/roadmap-runtime/test_delegated_checkpoint.py"
+      read_allow:
+        - "skills/roadmap-runtime/**"
+        - "skills/tests/roadmap-runtime/**"
+        - "openspec/schemas/**"
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/**"
+      deny:
+        - "**/.venv/**"
+        - "skills/supervise/**"
+        - "skills/autopilot-roadmap/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: runtime-state
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Checkpoint compatibility suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/roadmap-runtime/test_delegated_checkpoint.py skills/tests/roadmap-runtime/test_models.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["checkpoint_suite"]
+    metadata:
+      loc_estimate: 220
+      complexity: medium
+      package_kind: data_model
+    outputs:
+      result_keys: ["checkpoint_suite"]
+
+  - package_id: wp-scheduler
+    title: "Select scope-safe ready batches"
+    task_type: implementation
+    description: |
+      Tasks 1.1-1.2. Build the neutral roadmap-runtime request/scope helper after its tests. It does not import or invoke the orchestrator or host adapter.
+      Classify the effective writes of every package, including integration and
+      runtime-mirror writes, as proven disjoint or serial/indeterminate. Missing or
+      invalid work packages, empty or boundless scope, and ambiguous glob relationships fail closed to a
+      schema-valid singleton request.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts", "wp-runtime-state"]
+    locks:
+      files:
+        - "skills/roadmap-runtime/scripts/dispatch_scheduler.py"
+      keys:
+        - "feature:wire-supervise-execution-through-the-dispatch-fn-seam:scheduler"
+      ttl_minutes: 120
+      reason: "Own deterministic supervised execution planning"
+    scope:
+      write_allow:
+        - "skills/roadmap-runtime/scripts/dispatch_scheduler.py"
+        - "skills/tests/roadmap-runtime/test_dispatch_scheduler.py"
+        - "skills/tests/roadmap-runtime/fixtures/dispatch-scopes/**"
+      read_allow:
+        - "skills/roadmap-runtime/**"
+        - "skills/supervise/**"
+        - "skills/tests/supervise/**"
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/**"
+      deny:
+        - "**/.venv/**"
+        - "skills/supervise/SKILL.md"
+        - "skills/autopilot-roadmap/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: scheduler
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Scope-safe batching suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/roadmap-runtime/test_dispatch_scheduler.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["scheduler_suite"]
+
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: algorithm
+    outputs:
+      result_keys: ["scheduler_suite"]
+
+  - package_id: wp-orchestrator
+    title: "Delegate item lifecycles through dispatch_fn"
+    task_type: implementation
+    description: |
+      Tasks 2.1-2.2. Characterize legacy behavior first, then add opt-in item-level
+      delegated execution, safe-batch fan-out, correlation, and serialized result
+      application. Preserve arbitrary router-owned context keys and park pending-gate
+      children without treating them as failures or unblocking their dependents.
+    role: implementer
+    priority: 3
+    depends_on: ["wp-contracts", "wp-runtime-state", "wp-scheduler"]
+    locks:
+      files:
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/autopilot-roadmap/SKILL.md"
+      keys:
+        - "feature:wire-supervise-execution-through-the-dispatch-fn-seam:orchestrator"
+      ttl_minutes: 150
+      reason: "Own the dispatch_fn lifecycle and checkpoint changes"
+    scope:
+      write_allow:
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/autopilot-roadmap/SKILL.md"
+        - "skills/tests/autopilot-roadmap/test_supervised_dispatch.py"
+        - "skills/tests/autopilot-roadmap/test_orchestrator.py"
+      read_allow:
+        - "skills/autopilot-roadmap/**"
+        - "skills/autopilot/**"
+        - "skills/roadmap-runtime/**"
+        - "skills/roadmap-runtime/scripts/dispatch_scheduler.py"
+        - "skills/tests/autopilot-roadmap/**"
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/**"
+      deny:
+        - "**/.venv/**"
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/scripts/provider_dispatch.py"
+        - "skills/supervise/SKILL.md"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+        - "documentation"
+    worktree:
+      name: orchestrator
+      mode: isolated
+    timeout_minutes: 150
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Delegated and legacy orchestrator suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot-roadmap/test_orchestrator.py skills/tests/autopilot-roadmap/test_supervised_dispatch.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["orchestrator_suite"]
+        - name: "Autopilot roadmap host invariant passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot-roadmap/test_host_assisted_invariant.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["host_invariant"]
+    metadata:
+      loc_estimate: 360
+      complexity: medium
+      package_kind: algorithm
+    outputs:
+      result_keys: ["orchestrator_suite", "host_invariant"]
+
+  - package_id: wp-host-adapter
+    title: "Implement leased host dispatch adapter"
+    task_type: implementation
+    description: |
+      Tasks 3.1-3.2. Test first, then implement two-stage prepare/apply, child-start, the durable
+      acknowledgement/go barrier, child-owned wait heartbeat, positive-death-only
+      takeover, unknown-liveness quarantine, parked resume, and exact-evidence apply. Sanitize bounded context before checkpoint persistence.
+    role: implementer
+    priority: 4
+    depends_on: ["wp-contracts", "wp-runtime-state", "wp-scheduler", "wp-orchestrator"]
+    locks:
+      files:
+        - "skills/supervise/scripts/execution.py"
+      keys:
+        - "feature:wire-supervise-execution-through-the-dispatch-fn-seam:hostadapter"
+      ttl_minutes: 150
+      reason: "Own the downstream host prepare/launch/resume/apply adapter"
+    scope:
+      write_allow:
+        - "skills/supervise/scripts/execution.py"
+        - "skills/tests/supervise/test_execution.py"
+        - "skills/tests/supervise/fixtures/execution/lifecycle/**"
+      read_allow:
+        - "skills/supervise/**"
+        - "skills/autopilot-roadmap/**"
+        - "skills/roadmap-runtime/**"
+        - "skills/worktree/**"
+        - "skills/tests/supervise/**"
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/**"
+      deny:
+        - "**/.venv/**"
+        - "skills/supervise/SKILL.md"
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+        - "apis"
+    worktree:
+      name: host-adapter
+      mode: isolated
+    timeout_minutes: 150
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Leased host adapter suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_execution.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["host_adapter_suite"]
+    metadata:
+      loc_estimate: 360
+      complexity: medium
+      package_kind: algorithm
+    outputs:
+      result_keys: ["host_adapter_suite"]
+
+  - package_id: wp-supervise
+    title: "Document the supervisor execution protocol"
+    task_type: documentation
+    description: |
+      Tasks 4.1-4.2. Pin inherited approval, provider-neutral background dispatch,
+      worktree verification, router context pass-through, outcome collection, and
+      transcript exclusion in the supervise workflow and behavioral contract tests.
+    role: implementer
+    priority: 3
+    depends_on: ["wp-contracts", "wp-host-adapter"]
+    locks:
+      files:
+        - "skills/supervise/SKILL.md"
+      keys:
+        - "feature:wire-supervise-execution-through-the-dispatch-fn-seam:supervise"
+      ttl_minutes: 120
+      reason: "Own the host-facing execute verb"
+    scope:
+      write_allow:
+        - "skills/supervise/SKILL.md"
+        - "skills/tests/supervise/test_workflow_contract.py"
+      read_allow:
+        - "skills/supervise/**"
+        - "skills/autopilot-roadmap/**"
+        - "skills/autopilot/**"
+        - "skills/worktree/**"
+        - "skills/tests/supervise/**"
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/**"
+      deny:
+        - "**/.venv/**"
+        - "skills/supervise/scripts/execution.py"
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+    context_impact:
+      surfaces:
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: supervise
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Supervise workflow contract passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_workflow_contract.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["workflow_suite"]
+    metadata:
+      loc_estimate: 180
+      complexity: low
+      package_kind: config
+    outputs:
+      result_keys: ["workflow_suite"]
+
+  - package_id: wp-integration
+    title: "Prove concurrent isolation and bounded outcomes"
+    task_type: integration
+    description: |
+      Tasks 5.1-5.2. Exercise two disjoint changes concurrently and an overlapping
+      control pair sequentially. A fake host-event capture adapter drives two background child sessions with unique
+      transcript sentinels, then inspect captured supervisor context and every durable
+      output for absence of both sentinels. Verify worktree/branch separation,
+      synchronize runtime mirrors, and run all strict feature gates.
+    role: integrator
+    priority: 4
+    depends_on: ["wp-contracts", "wp-runtime-state", "wp-scheduler", "wp-orchestrator", "wp-host-adapter", "wp-supervise"]
+    locks:
+      files:
+        - "skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py"
+      keys:
+        - "feature:wire-supervise-execution-through-the-dispatch-fn-seam:integration"
+      ttl_minutes: 150
+      reason: "Own cross-package convergence and runtime mirror sync"
+    scope:
+      write_allow:
+        - "skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py"
+        - "skills/tests/autopilot-roadmap/fixtures/supervised-dispatch/**"
+        - ".agents/skills/autopilot-roadmap/**"
+        - ".agents/skills/supervise/**"
+        - ".agents/skills/roadmap-runtime/**"
+        - ".claude/skills/autopilot-roadmap/**"
+        - ".claude/skills/supervise/**"
+        - ".claude/skills/roadmap-runtime/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/supervise/scripts/execution.py"
+        - "skills/supervise/SKILL.md"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+        - "documentation"
+    worktree:
+      name: integration
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Two-item supervised dispatch integration passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["e2e_suite"]
+        - name: "Feature skill suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot-roadmap skills/tests/supervise -q"
+          evidence:
+            artifacts: []
+            result_keys: ["feature_suites"]
+        - name: "Strict OpenSpec validation passes"
+          kind: command
+          command: "openspec validate wire-supervise-execution-through-the-dispatch-fn-seam --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict"]
+        - name: "Work packages validate"
+          kind: command
+          command: "python3 .agents/skills/validate-packages/scripts/validate_work_packages.py openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/work-packages.yaml --check-overlap"
+          evidence:
+            artifacts: []
+            result_keys: ["packages_valid"]
+        - name: "Parallel zones package check passes"
+          kind: command
+          command: "python3 .agents/skills/refresh-architecture/scripts/parallel_zones.py --validate-packages openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/work-packages.yaml --json"
+          evidence:
+            artifacts: []
+            result_keys: ["scope_validation"]
+        - name: "Runtime skill mirrors match canonical source"
+          kind: command
+          command: "diff -qr --exclude=__pycache__ skills/supervise .agents/skills/supervise && diff -qr --exclude=__pycache__ skills/supervise .claude/skills/supervise && diff -qr --exclude=__pycache__ skills/autopilot-roadmap .agents/skills/autopilot-roadmap && diff -qr --exclude=__pycache__ skills/autopilot-roadmap .claude/skills/autopilot-roadmap && diff -qr --exclude=__pycache__ skills/roadmap-runtime .agents/skills/roadmap-runtime && diff -qr --exclude=__pycache__ skills/roadmap-runtime .claude/skills/roadmap-runtime"
+          evidence:
+            artifacts: []
+            result_keys: ["runtime_mirrors"]
+    metadata:
+      loc_estimate: 220
+      complexity: medium
+      package_kind: integration
+    outputs:
+      result_keys: ["e2e_suite", "feature_suites", "openspec_strict", "packages_valid", "scope_validation", "runtime_mirrors"]
