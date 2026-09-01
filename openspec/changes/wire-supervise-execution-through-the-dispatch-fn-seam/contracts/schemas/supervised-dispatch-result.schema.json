@@ -110,7 +110,9 @@
         }
       },
       "required": [
-        "loop_state_path"
+        "loop_state_path",
+        "commit",
+        "loop_state_digest"
       ]
     },
     "attempt": {

@@ -12,8 +12,8 @@ import re
 from dataclasses import dataclass, replace
 from enum import Enum
 from functools import lru_cache
-from pathlib import Path
-from typing import Literal, Sequence
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import Any, Literal, Sequence
 
 import yaml
 from jsonschema import Draft202012Validator
@@ -124,6 +124,81 @@ def _serial_scope(
     )
 
 
+def _is_canonical_repo_pattern(value: str) -> bool:
+    """Return whether a path/glob has one unambiguous repo-relative identity."""
+    if "\\" in value or value.strip() != value:
+        return False
+    posix_path = PurePosixPath(value)
+    windows_path = PureWindowsPath(value)
+    if posix_path.is_absolute() or windows_path.is_absolute() or windows_path.drive:
+        return False
+    return all(component not in {"", ".", ".."} for component in value.split("/"))
+
+
+def _work_packages_semantically_valid(packages: list[dict[str, Any]]) -> bool:
+    """Validate identity, dependency, DAG, and parallel lock invariants."""
+    package_ids = [package["package_id"] for package in packages]
+    if len(package_ids) != len(set(package_ids)):
+        return False
+
+    package_by_id = {
+        package["package_id"]: package
+        for package in packages
+    }
+    package_id_set = set(package_ids)
+    direct_dependencies = {
+        package_id: set(package_by_id[package_id].get("depends_on", []))
+        for package_id in package_ids
+    }
+    if any(
+        not dependencies <= package_id_set
+        for dependencies in direct_dependencies.values()
+    ):
+        return False
+
+    transitive_dependencies: dict[str, set[str]] = {}
+    for package_id in package_ids:
+        visited: set[str] = set()
+        pending = list(direct_dependencies[package_id])
+        while pending:
+            dependency = pending.pop()
+            if dependency in visited:
+                continue
+            visited.add(dependency)
+            pending.extend(direct_dependencies[dependency] - visited)
+        if package_id in visited:
+            return False
+        transitive_dependencies[package_id] = visited
+
+    for package in packages:
+        locks = package["locks"]
+        if not all(_is_canonical_repo_pattern(path) for path in locks["files"]):
+            return False
+
+    for index, first_id in enumerate(package_ids):
+        for second_id in package_ids[index + 1 :]:
+            if (
+                second_id in transitive_dependencies[first_id]
+                or first_id in transitive_dependencies[second_id]
+                or "wp-integration" in {first_id, second_id}
+            ):
+                continue
+            first_writes = package_by_id[first_id]["scope"]["write_allow"]
+            second_writes = package_by_id[second_id]["scope"]["write_allow"]
+            if write_write_overlap(
+                list(first_writes),
+                list(second_writes),
+            ):
+                return False
+            first_locks = package_by_id[first_id]["locks"]
+            second_locks = package_by_id[second_id]["locks"]
+            if set(first_locks["keys"]) & set(second_locks["keys"]):
+                return False
+            if set(first_locks["files"]) & set(second_locks["files"]):
+                return False
+    return True
+
+
 def _literal_prefix(glob: str) -> tuple[str, ...]:
     prefix: list[str] = []
     for component in glob.split("/"):
@@ -167,6 +242,8 @@ def aggregate_change_scope(repo_root: Path, change_id: str) -> ScopeEvidence:
         or not packages
     ):
         return _serial_scope(change_id, "work_packages_invalid")
+    if not _work_packages_semantically_valid(packages):
+        return _serial_scope(change_id, "work_packages_semantically_invalid")
 
     writes: list[str] = []
     lock_keys: list[str] = []
@@ -200,6 +277,14 @@ def aggregate_change_scope(repo_root: Path, change_id: str) -> ScopeEvidence:
     exact_writes = tuple(sorted(set(writes)))
     exact_locks = tuple(sorted(set(lock_keys)))
     exact_packages = tuple(package_ids)
+    if any(not _is_canonical_repo_pattern(glob) for glob in exact_writes):
+        return _serial_scope(
+            change_id,
+            "write_scope_noncanonical",
+            write_allow=exact_writes,
+            lock_keys=exact_locks,
+            package_ids=exact_packages,
+        )
     if not exact_writes:
         return _serial_scope(
             change_id,
@@ -243,6 +328,11 @@ def classify_scope_relationship(
 ) -> ScopeRelation:
     """Classify a pair without treating absence of overlap as independence."""
     if first.proof != "proven_disjoint" or second.proof != "proven_disjoint":
+        return ScopeRelation.AMBIGUOUS
+    if any(
+        not _is_canonical_repo_pattern(glob)
+        for glob in (*first.write_allow, *second.write_allow)
+    ):
         return ScopeRelation.AMBIGUOUS
     if lock_key_overlap(list(first.lock_keys), list(second.lock_keys)):
         return ScopeRelation.OVERLAP

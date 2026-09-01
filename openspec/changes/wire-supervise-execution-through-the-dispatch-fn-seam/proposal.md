@@ -12,7 +12,7 @@ This change makes the supervisor the outcome-only host of roadmap execution: it 
 
 ## What Changes
 
-- Add opt-in `prepare_delegated_batch` and `apply_delegated_batch` entry points around `execute_roadmap()`: Autopilot remains the sole per-change phase owner, while apply feeds each collected result through the existing synchronous `dispatch_fn` normalization seam exactly once.
+- Add opt-in `prepare_delegated_batch` and `apply_delegated_batch` entry points alongside unchanged `execute_roadmap()` behavior: Autopilot remains the sole per-change phase owner, while apply feeds each collected result through the existing synchronous `dispatch_fn` normalization seam exactly once.
 - Enrich the `dispatch_fn(item_id, phase, context)` contract with the roadmap item's exact `change_id`, declared write scope, dispatch identity, execution mode, and parent worktree provenance while preserving the existing string and mapping result forms.
 - Select a deterministic maximal ready batch only when a conservative tri-state scope classifier proves every pair disjoint across all packages, including integration and runtime-mirror writes; emit a schema-valid serial-indeterminate request otherwise.
 - Persist every prepared generation and a generation-specific ack/go barrier before exposing it to the host. Pre-go stale claims are CAS-reclaimable; after go, only positive task-death evidence permits takeover, while unknown liveness becomes non-resumable quarantine rather than gate parking.

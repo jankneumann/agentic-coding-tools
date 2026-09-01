@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 from pathlib import Path
 
 import pytest
+import yaml
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
@@ -33,6 +35,14 @@ _SCHEMA_ROOT = (
 _REQUEST_SCHEMA = _SCHEMA_ROOT / "supervised-dispatch-request.schema.json"
 _CONTEXT_SCHEMA = _SCHEMA_ROOT / "bounded-dispatch-context.schema.json"
 _INVALID_WORK_PACKAGES = _FIXTURE_ROOT / "invalid-work-packages.invalid.yaml"
+_WORK_PACKAGE_SCHEMA = _REPO_ROOT / "openspec" / "schemas" / "work-packages.schema.json"
+_VALID_WORK_PACKAGES = (
+    _FIXTURE_ROOT
+    / "openspec"
+    / "changes"
+    / "disjoint-beta"
+    / "work-packages.yaml"
+)
 
 
 def _scenario_root(tmp_path: Path, change_id: str) -> Path:
@@ -59,6 +69,46 @@ def _scope(*writes: str, locks: tuple[str, ...] = ()) -> ScopeEvidence:
         lock_keys=locks,
         package_ids=("wp-scope",),
     )
+
+
+def _write_schema_valid_scenario(
+    tmp_path: Path,
+    change_id: str,
+    *,
+    package_ids: tuple[str, ...] = ("wp-scope",),
+    dependencies: tuple[tuple[str, ...], ...] = ((),),
+    writes: tuple[str, ...] | None = None,
+    lock_keys: tuple[tuple[str, ...], ...] | None = None,
+    lock_files: tuple[tuple[str, ...], ...] | None = None,
+) -> Path:
+    document = yaml.safe_load(_VALID_WORK_PACKAGES.read_text(encoding="utf-8"))
+    document["feature"]["id"] = change_id
+    template = document["packages"][0]
+    packages = []
+    for index, (package_id, depends_on) in enumerate(
+        zip(package_ids, dependencies, strict=True)
+    ):
+        package = deepcopy(template)
+        package["package_id"] = package_id
+        package["description"] = f"Semantic scheduler fixture {index}"
+        package["depends_on"] = list(depends_on)
+        package["worktree"]["name"] = f"semantic-{index}"
+        package["scope"]["write_allow"] = [
+            writes[index] if writes is not None else f"src/semantic-{index}/**"
+        ]
+        package["locks"]["keys"] = list(lock_keys[index] if lock_keys else ())
+        package["locks"]["files"] = list(lock_files[index] if lock_files else ())
+        packages.append(package)
+    document["packages"] = packages
+
+    schema = json.loads(_WORK_PACKAGE_SCHEMA.read_text(encoding="utf-8"))
+    assert Draft202012Validator(schema).is_valid(document)
+
+    repo_root = tmp_path / change_id
+    target = repo_root / "openspec" / "changes" / change_id / "work-packages.yaml"
+    target.parent.mkdir(parents=True)
+    target.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    return repo_root
 
 
 def test_aggregate_change_scope_includes_integration_and_runtime_mirror_packages() -> None:
@@ -97,6 +147,127 @@ def test_scope_relationship_is_conservative_and_tri_state(
     expected: ScopeRelation,
 ) -> None:
     assert classify_scope_relationship(first, second) is expected
+
+
+@pytest.mark.parametrize(
+    ("write", "canonical_alias"),
+    [
+        ("foo/../shared.py", "shared.py"),
+        ("/absolute.py", "absolute.py"),
+        ("foo//shared.py", "foo/shared.py"),
+        ("foo/./shared.py", "foo/shared.py"),
+        (r"foo\shared.py", "foo/shared.py"),
+    ],
+    ids=["parent", "absolute", "empty-component", "dot-component", "backslash"],
+)
+def test_noncanonical_write_scope_never_proves_disjoint(
+    tmp_path: Path,
+    write: str,
+    canonical_alias: str,
+) -> None:
+    change_id = "noncanonical-scope"
+    repo_root = _write_schema_valid_scenario(
+        tmp_path,
+        change_id,
+        writes=(write,),
+    )
+
+    scope = aggregate_change_scope(repo_root, change_id)
+
+    assert scope.proof == "serial_indeterminate"
+    assert scope.reason == "write_scope_noncanonical"
+    assert (
+        classify_scope_relationship(_scope(write), _scope(canonical_alias))
+        is ScopeRelation.AMBIGUOUS
+    )
+
+
+@pytest.mark.parametrize(
+    ("change_id", "package_ids", "dependencies", "lock_keys", "lock_files"),
+    [
+        (
+            "semantic-dag-cycle",
+            ("wp-a", "wp-b"),
+            (("wp-b",), ("wp-a",)),
+            None,
+            None,
+        ),
+        (
+            "semantic-missing-dependency",
+            ("wp-a",),
+            (("wp-missing",),),
+            None,
+            None,
+        ),
+        (
+            "semantic-duplicate-identity",
+            ("wp-duplicate", "wp-duplicate"),
+            ((), ()),
+            None,
+            None,
+        ),
+        (
+            "semantic-parallel-key-lock",
+            ("wp-a", "wp-b"),
+            ((), ()),
+            (("contract:shared",), ("contract:shared",)),
+            None,
+        ),
+        (
+            "semantic-parallel-file-lock",
+            ("wp-a", "wp-b"),
+            ((), ()),
+            None,
+            (("src/shared.py",), ("src/shared.py",)),
+        ),
+    ],
+    ids=[
+        "dag-cycle",
+        "missing-dependency",
+        "duplicate-package-identity",
+        "parallel-key-lock-overlap",
+        "parallel-file-lock-overlap",
+    ],
+)
+def test_schema_valid_semantically_invalid_work_packages_fail_closed(
+    tmp_path: Path,
+    change_id: str,
+    package_ids: tuple[str, ...],
+    dependencies: tuple[tuple[str, ...], ...],
+    lock_keys: tuple[tuple[str, ...], ...] | None,
+    lock_files: tuple[tuple[str, ...], ...] | None,
+) -> None:
+    repo_root = _write_schema_valid_scenario(
+        tmp_path,
+        change_id,
+        package_ids=package_ids,
+        dependencies=dependencies,
+        lock_keys=lock_keys,
+        lock_files=lock_files,
+    )
+
+    scope = aggregate_change_scope(repo_root, change_id)
+
+    assert scope.proof == "serial_indeterminate"
+    assert scope.reason == "work_packages_semantically_invalid"
+
+
+def test_schema_valid_parallel_write_scope_overlap_fails_closed(
+    tmp_path: Path,
+) -> None:
+    change_id = "semantic-parallel-write-overlap"
+    repo_root = _write_schema_valid_scenario(
+        tmp_path,
+        change_id,
+        package_ids=("wp-a", "wp-b"),
+        dependencies=((), ()),
+        writes=("src/shared/**", "src/shared/generated/**"),
+    )
+
+    scope = aggregate_change_scope(repo_root, change_id)
+
+    assert scope.proof == "serial_indeterminate"
+    assert scope.reason == "work_packages_semantically_invalid"
 
 
 def test_schema_invalid_but_scope_shaped_document_fails_closed() -> None:

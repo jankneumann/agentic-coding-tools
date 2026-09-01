@@ -33,7 +33,7 @@ The committed architecture analysis could not be refreshed because its configure
 
 ### D1. Add an opt-in delegated item lifecycle
 
-`execute_roadmap()` gains an explicit delegated-lifecycle option. In this mode, the lifecycle phase presented to `dispatch_fn` is `autopilot`. The two-stage orchestrator API prepares a generation without invoking the callback; after host collection, `apply_delegated_batch` invokes the synchronous callback exactly once for that generation using an exact result lookup. Every generation result is correlated and applied exactly once while the dispatch ID, attempt number, and launch token remain stable. The background child runs `/autopilot <change-id>` and therefore remains the only writer of the per-change phase machine. Legacy mode and its four phase callbacks remain the default.
+Legacy `execute_roadmap()` remains unchanged. A separate opt-in two-stage API, `prepare_delegated_batch` and `apply_delegated_batch`, reuses its established state-transition and synchronous `dispatch_fn` result-normalization seam without entering the legacy four-phase loop. The lifecycle phase presented to `dispatch_fn` is `autopilot`: prepare persists a generation without invoking the callback, and apply later invokes the callback exactly once for that generation using an exact result lookup. Every generation result is correlated and applied exactly once while the dispatch ID, attempt number, and launch token remain stable. The background child runs `/autopilot <change-id>` and therefore remains the only writer of the per-change phase machine.
 
 Alternative rejected: map the existing roadmap phases to individual lifecycle skills. That would duplicate Autopilot's transitions, retry rules, gates, and handoff semantics.
 
@@ -175,4 +175,4 @@ The proposal compares delegated item lifecycle, per-roadmap-phase dispatch, and 
 6. Exercise a fixture roadmap with disjoint and overlapping pairs, including resume and transcript sentinel checks.
 7. Keep existing `/autopilot-roadmap` callers on legacy mode until `/supervise` opts in.
 
-Rollback is additive: remove the `/supervise execute` prompt path or stop passing the delegated-lifecycle option. Legacy phase-by-phase execution remains intact, and no data migration or coordinator schema rollback is required.
+Rollback is additive: remove the `/supervise execute` prompt path or stop calling the separate delegated prepare/apply entry points. Legacy phase-by-phase `execute_roadmap()` remains intact, and no data migration or coordinator schema rollback is required.

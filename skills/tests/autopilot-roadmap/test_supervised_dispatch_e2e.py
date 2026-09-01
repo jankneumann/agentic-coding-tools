@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import threading
@@ -113,14 +114,46 @@ def _build_runtime(
     for entry in scenario:
         _write_work_packages(repo, entry)
         worktree = managed_root / entry["change_id"]
-        loop_state = worktree / ".git" / "autopilot" / "loop-state.json"
+        worktree.mkdir(parents=True)
+        (worktree / ".git").write_text(
+            f"gitdir: /tmp/fake-{entry['change_id']}-gitdir\n",
+            encoding="utf-8",
+        )
+        loop_state = (
+            worktree
+            / "openspec"
+            / "changes"
+            / entry["change_id"]
+            / "loop-state.json"
+        )
         loop_state.parent.mkdir(parents=True)
-        loop_state.write_text('{"status":"completed"}\n', encoding="utf-8")
+        handoff_id = f"handoff-{entry['item_id']}"
+        loop_state.write_text(
+            json.dumps(
+                {
+                    "schema_version": 5,
+                    "change_id": entry["change_id"],
+                    "current_phase": "DONE",
+                    "handoff_ids": [handoff_id],
+                    "last_handoff_id": handoff_id,
+                    "pending_gate": None,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
         branches[str(worktree.resolve())] = f"openspec/{entry['change_id']}"
     return repo, workspace, managed_root, branches
 
 
 def _result(request: dict[str, Any]) -> dict[str, Any]:
+    loop_state_path = (
+        Path(request["isolation"]["worktree_path"])
+        / "openspec"
+        / "changes"
+        / request["change_id"]
+        / "loop-state.json"
+    )
     return {
         "schema_version": 1,
         "dispatch_id": request["dispatch_id"],
@@ -131,7 +164,11 @@ def _result(request: dict[str, Any]) -> dict[str, Any]:
         "handoff_id": f"handoff-{request['item_id']}",
         "worktree_path": request["isolation"]["worktree_path"],
         "branch": request["isolation"]["branch"],
-        "evidence": {"loop_state_path": ".git/autopilot/loop-state.json"},
+        "evidence": {
+            "loop_state_path": f"openspec/changes/{request['change_id']}/loop-state.json",
+            "commit": "a" * 40,
+            "loop_state_digest": hashlib.sha256(loop_state_path.read_bytes()).hexdigest(),
+        },
     }
 
 
@@ -295,6 +332,7 @@ def _run_scenario(
     adapter = ExecutionAdapter(
         managed_worktree_root=managed_root,
         branch_resolver=lambda path: branches[str(path.resolve())],
+        commit_resolver=lambda _: "a" * 40,
         liveness_probe=lambda _: "live",
         host_entry=host.child_entry,
         temp_dir=tmp_path / "results",

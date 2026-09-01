@@ -130,6 +130,36 @@
       "$ref": "./bounded-dispatch-context.schema.json",
       "description": "Exact shared recursively bounded sanitized context from the request; runtime also enforces canonical JSON at most 16 KiB."
     },
+    "application_journal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "state",
+        "result",
+        "result_digest",
+        "bound_at"
+      ],
+      "properties": {
+        "schema_version": {"const": 1},
+        "state": {
+          "enum": [
+            "result_bound",
+            "callback_started",
+            "callback_acknowledged",
+            "terminal_persisted",
+            "effects_applied"
+          ]
+        },
+        "result": {"$ref": "./supervised-dispatch-result.schema.json"},
+        "result_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "bound_at": {"type": "string", "format": "date-time"},
+        "callback_started_at": {"type": "string", "format": "date-time"},
+        "callback_acknowledged_at": {"type": "string", "format": "date-time"},
+        "terminal_persisted_at": {"type": "string", "format": "date-time"},
+        "effects_applied_at": {"type": "string", "format": "date-time"}
+      }
+    },
     "continuation": {
       "type": "object",
       "additionalProperties": false,
@@ -944,7 +974,13 @@
       "then": {
         "properties": {
           "status": {
-            "const": "prepared"
+            "enum": [
+              "prepared",
+              "claimed",
+              "acknowledged",
+              "launched",
+              "quarantined"
+            ]
           },
           "lease_generation": {
             "minimum": 2

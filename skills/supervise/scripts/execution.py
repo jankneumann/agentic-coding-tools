@@ -7,7 +7,10 @@ selects a provider or starts a model client.
 
 from __future__ import annotations
 
+import contextlib
 import copy
+import fcntl
+import functools
 import hashlib
 import json
 import math
@@ -15,7 +18,7 @@ import os
 import re
 import sys
 import tempfile
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal, Protocol
@@ -37,6 +40,7 @@ from orchestrator import (  # type: ignore[import-untyped]  # noqa: E402
 
 Clock = Callable[[], datetime]
 BranchResolver = Callable[[Path], str]
+CommitResolver = Callable[[Path], str]
 HostEntry = Callable[[str, dict[str, Any]], Any]
 Liveness = Literal["live", "dead", "terminal", "unknown"]
 LivenessProbe = Callable[[str], Liveness | Mapping[str, Any]]
@@ -99,6 +103,34 @@ def _contains(root: Path, candidate: Path) -> bool:
     except ValueError:
         return False
     return True
+
+
+@contextlib.contextmanager
+def _state_lock(workspace: Path) -> Iterator[None]:
+    """Serialize checkpoint read-modify-write transitions across host tasks."""
+    identity = hashlib.sha256(str(workspace.resolve()).encode()).hexdigest()
+    lock_dir = Path(tempfile.gettempdir()) / "supervised-dispatch-state-locks"
+    lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    lock_path = lock_dir / f"{identity}.lock"
+    descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        with contextlib.suppress(OSError):
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+
+def _serialized_transition(method: Callable[..., Any]) -> Callable[..., Any]:
+    """Run one workspace state transition under the shared advisory lock."""
+
+    @functools.wraps(method)
+    def wrapped(self: Any, workspace: Path, *args: Any, **kwargs: Any) -> Any:
+        with _state_lock(workspace):
+            return method(self, workspace, *args, **kwargs)
+
+    return wrapped
 
 
 def _bounded_context(value: Mapping[str, Any]) -> dict[str, Any]:
@@ -238,6 +270,7 @@ def _write_marker_exclusive(
     descriptor = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
         os.write(descriptor, (json.dumps(record, sort_keys=True) + "\n").encode())
+        os.fsync(descriptor)
     finally:
         os.close(descriptor)
 
@@ -370,6 +403,8 @@ def _validate_result(value: Mapping[str, Any]) -> dict[str, Any]:
             raise ValueError("result is not schema-valid")
         if not all(isinstance(result[field], str) and result[field] for field in ("worktree_path", "branch")):
             raise ValueError("result is not schema-valid")
+        if not isinstance(evidence, dict) or not {"commit", "loop_state_digest"} <= evidence.keys():
+            raise ValueError("result is not schema-valid")
     if outcome == "success" and (
         not isinstance(result.get("handoff_id"), str) or not result["handoff_id"]
     ):
@@ -405,6 +440,7 @@ class ExecutionAdapter:
         managed_worktree_root: Path,
         clock: Clock = _utcnow,
         branch_resolver: BranchResolver,
+        commit_resolver: CommitResolver,
         liveness_probe: LivenessProbe,
         host_entry: HostEntry,
         temp_dir: Path | None = None,
@@ -413,11 +449,13 @@ class ExecutionAdapter:
         self.managed_worktree_root = managed_worktree_root.resolve()
         self.clock = clock
         self.branch_resolver = branch_resolver
+        self.commit_resolver = commit_resolver
         self.liveness_probe = liveness_probe
         self.host_entry = host_entry
         self.temp_dir = temp_dir
         self.result_file_observer = result_file_observer
 
+    @_serialized_transition
     def prepare(
         self,
         workspace: Path,
@@ -472,6 +510,7 @@ class ExecutionAdapter:
             context=sanitized,
         )
 
+    @_serialized_transition
     def child_start(
         self,
         workspace: Path,
@@ -483,8 +522,11 @@ class ExecutionAdapter:
         lease_seconds: int = 60,
     ) -> dict[str, Any]:
         """CAS-claim a generation, create its marker, and wait for host ack."""
-        if not isinstance(owner_nonce, str) or len(owner_nonce) < 16:
-            raise ValueError("lease owner nonce must contain at least 16 characters")
+        if (
+            not isinstance(owner_nonce, str)
+            or re.fullmatch(r"[A-Za-z0-9._~-]{16,256}", owner_nonce) is None
+        ):
+            raise ValueError("lease owner nonce must be an opaque 16-256 character identifier")
         if isinstance(lease_seconds, bool) or not isinstance(lease_seconds, int) or lease_seconds < 1:
             raise ValueError("lease_seconds must be positive")
         manager, checkpoint, attempt = _load_attempt(workspace, dispatch_id)
@@ -521,7 +563,7 @@ class ExecutionAdapter:
         else:
             raise ExecutionStateError(f"dispatch attempt is not claimable: {attempt['status']}")
 
-        continuation = candidate.pop("continuation", None)
+        continuation = copy.deepcopy(candidate.get("continuation"))
         expires_text = _iso(now + timedelta(seconds=lease_seconds))
         candidate.update(
             status="claimed",
@@ -549,21 +591,25 @@ class ExecutionAdapter:
         )
         _history(candidate, state="claimed", observed_at=now_text)
         validate_delegated_dispatch_attempt(candidate)
-        _write_marker_exclusive(
-            candidate,
-            generation=generation,
-            owner_nonce=owner_nonce,
-            continuation=continuation,
-        )
+        original = copy.deepcopy(attempt)
+        attempt.clear()
+        attempt.update(candidate)
+        manager.save(checkpoint)
         try:
+            _write_marker_exclusive(
+                candidate,
+                generation=generation,
+                owner_nonce=owner_nonce,
+                continuation=continuation,
+            )
+        except BaseException:
             attempt.clear()
-            attempt.update(candidate)
+            attempt.update(original)
             manager.save(checkpoint)
-        except Exception:
-            _marker(candidate).unlink(missing_ok=True)
             raise
         return copy.deepcopy(attempt)
 
+    @_serialized_transition
     def heartbeat_waiting(
         self,
         workspace: Path,
@@ -591,6 +637,7 @@ class ExecutionAdapter:
         manager.save(checkpoint)
         return copy.deepcopy(attempt)
 
+    @_serialized_transition
     def acknowledge(
         self,
         workspace: Path,
@@ -630,6 +677,26 @@ class ExecutionAdapter:
         manager.save(checkpoint)
         return copy.deepcopy(attempt)
 
+    def _verify_current_isolation(self, attempt: Mapping[str, Any]) -> Path:
+        isolation = attempt["isolation"]
+        worktree = Path(isolation["worktree_path"])
+        if not worktree.is_dir():
+            raise ExecutionStateError("isolation worktree path no longer exists")
+        resolved = worktree.resolve()
+        if str(resolved) != isolation["worktree_path"]:
+            raise ExecutionStateError("isolation worktree realpath changed")
+        branch = isolation["branch"]
+        actual_branch = self.branch_resolver(resolved)
+        if isolation["mode"] == "managed_worktree":
+            if not _contains(self.managed_worktree_root, resolved):
+                raise ExecutionStateError("managed worktree containment verification failed")
+            expected_branch = f"openspec/{attempt['change_id']}"
+            if branch != expected_branch or actual_branch != expected_branch:
+                raise ExecutionStateError("managed worktree branch does not match exact change_id")
+        elif actual_branch != branch:
+            raise ExecutionStateError("harness-provided isolation branch mismatch")
+        return resolved
+
     def enter(
         self,
         workspace: Path,
@@ -639,33 +706,41 @@ class ExecutionAdapter:
         owner_nonce: str,
     ) -> dict[str, Any]:
         """Revalidate ownership and durable go immediately before host entry."""
-        manager, checkpoint, attempt = _load_attempt(workspace, dispatch_id)
-        lease = attempt.get("lease", {})
-        gate = attempt.get("launch_gate", {})
-        if attempt["status"] != "acknowledged" or gate.get("state") != "go_released":
-            raise ExecutionStateError("go has not been released for this generation")
-        if attempt["lease_generation"] != lease_generation or lease.get("generation") != lease_generation:
-            raise ExecutionStateError("stale lease generation")
-        if lease.get("owner_nonce") != owner_nonce or lease.get("state") != "active":
-            raise ExecutionStateError("lease owner mismatch")
-        marker_record = _marker_record(
-            attempt,
-            generation=lease_generation,
-            owner_nonce=owner_nonce,
-        )
-        now_text = _iso(self.clock())
-        attempt["status"] = "launched"
-        gate["state"] = "entered"
-        gate["entered_at"] = now_text
-        _history(attempt, state="entered", observed_at=now_text, handle=gate["handle"])
-        validate_delegated_dispatch_attempt(attempt)
-        manager.save(checkpoint)
-        request = _request(checkpoint, attempt)
-        if "continuation" in marker_record:
-            request["continuation"] = copy.deepcopy(marker_record["continuation"])
-        self.host_entry(attempt["change_id"], request)
-        return copy.deepcopy(attempt)
+        with _state_lock(workspace):
+            manager, checkpoint, attempt = _load_attempt(workspace, dispatch_id)
+            lease = attempt.get("lease", {})
+            gate = attempt.get("launch_gate", {})
+            if attempt["status"] != "acknowledged" or gate.get("state") != "go_released":
+                raise ExecutionStateError("go has not been released for this generation")
+            if (
+                attempt["lease_generation"] != lease_generation
+                or lease.get("generation") != lease_generation
+            ):
+                raise ExecutionStateError("stale lease generation")
+            if lease.get("owner_nonce") != owner_nonce or lease.get("state") != "active":
+                raise ExecutionStateError("lease owner mismatch")
+            self._verify_current_isolation(attempt)
+            marker_record = _marker_record(
+                attempt,
+                generation=lease_generation,
+                owner_nonce=owner_nonce,
+            )
+            now_text = _iso(self.clock())
+            attempt["status"] = "launched"
+            gate["state"] = "entered"
+            gate["entered_at"] = now_text
+            _history(attempt, state="entered", observed_at=now_text, handle=gate["handle"])
+            validate_delegated_dispatch_attempt(attempt)
+            manager.save(checkpoint)
+            request = _request(checkpoint, attempt)
+            if "continuation" in marker_record:
+                request["continuation"] = copy.deepcopy(marker_record["continuation"])
+            change_id = attempt["change_id"]
+            entered_attempt = copy.deepcopy(attempt)
+        self.host_entry(change_id, request)
+        return entered_attempt
 
+    @_serialized_transition
     def reconcile(
         self,
         workspace: Path,
@@ -736,6 +811,7 @@ class ExecutionAdapter:
         manager.save(checkpoint)
         return copy.deepcopy(attempt)
 
+    @_serialized_transition
     def resume(
         self,
         workspace: Path,
@@ -775,6 +851,7 @@ class ExecutionAdapter:
         manager.save(checkpoint)
         return _request(checkpoint, attempt)
 
+    @_serialized_transition
     def apply(
         self,
         workspace: Path,
@@ -837,22 +914,51 @@ class ExecutionAdapter:
             raise ValueError("worktree mismatch")
         if result["branch"] != isolation["branch"]:
             raise ValueError("branch mismatch")
-        worktree = Path(isolation["worktree_path"]).resolve()
+        worktree = self._verify_current_isolation(attempt)
         result_worktree = Path(result["worktree_path"]).resolve()
         if result_worktree != worktree:
             raise ValueError("worktree realpath mismatch")
-        if self.branch_resolver(worktree) != isolation["branch"]:
-            raise ValueError("branch mismatch")
-        loop_path = Path(result["evidence"]["loop_state_path"])
-        if loop_path.as_posix() != ".git/autopilot/loop-state.json":
-            raise ValueError("exact loop-state path mismatch; loop-state containment failed")
-        if loop_path.is_absolute():
-            raise ValueError("loop-state containment mismatch")
-        resolved_loop = (worktree / loop_path).resolve(strict=False)
-        if not _contains(worktree, resolved_loop):
-            raise ValueError("loop-state containment mismatch")
+
+        evidence = result["evidence"]
+        expected_loop_path = (
+            Path("openspec") / "changes" / attempt["change_id"] / "loop-state.json"
+        )
+        supplied_loop_path = Path(evidence["loop_state_path"])
+        resolved_loop = (
+            supplied_loop_path.resolve(strict=False)
+            if supplied_loop_path.is_absolute()
+            else (worktree / supplied_loop_path).resolve(strict=False)
+        )
+        expected_resolved = (worktree / expected_loop_path).resolve(strict=False)
+        if resolved_loop != expected_resolved or not _contains(worktree, resolved_loop):
+            raise ValueError("exact loop-state path mismatch; loop-state containment failure")
         if not resolved_loop.is_file():
             raise ValueError("loop-state evidence is missing")
-        digest = result["evidence"].get("loop_state_digest")
-        if digest is not None and hashlib.sha256(resolved_loop.read_bytes()).hexdigest() != digest:
+
+        commit = evidence.get("commit")
+        if commit != self.commit_resolver(worktree):
+            raise ValueError("commit evidence mismatch")
+        digest = evidence.get("loop_state_digest")
+        if digest != hashlib.sha256(resolved_loop.read_bytes()).hexdigest():
             raise ValueError("loop-state digest mismatch")
+        try:
+            loop_state = json.loads(resolved_loop.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise ValueError("loop-state evidence is invalid") from exc
+        if not isinstance(loop_state, dict) or loop_state.get("change_id") != attempt["change_id"]:
+            raise ValueError("loop-state change identity mismatch")
+
+        if result["outcome"] == "success":
+            handoff_id = result["handoff_id"]
+            handoff_ids = loop_state.get("handoff_ids", [])
+            if loop_state.get("current_phase") != "DONE":
+                raise ValueError("loop-state phase is not terminal success")
+            if loop_state.get("last_handoff_id") != handoff_id and (
+                not isinstance(handoff_ids, list) or handoff_id not in handoff_ids
+            ):
+                raise ValueError("loop-state handoff evidence mismatch")
+        elif result["parked"]["kind"] == "pending_gate":
+            if not isinstance(loop_state.get("pending_gate"), dict):
+                raise ValueError("loop-state pending gate evidence is missing")
+        elif loop_state.get("current_phase") != "ESCALATE":
+            raise ValueError("loop-state policy pause evidence is missing")

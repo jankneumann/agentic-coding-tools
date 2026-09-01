@@ -92,6 +92,14 @@ def test_execute_collects_only_bounded_outcomes_and_applies_each_once() -> None:
     assert "nonfailure" in collection
 
 
+def test_execute_requires_canonical_committed_loop_state_evidence() -> None:
+    collection = _section(_execute_section(), "### Collect and apply", "### Reconcile and resume")
+
+    assert "openspec/changes/<change-id>/loop-state.json" in collection
+    assert "current worktree commit" in collection
+    assert "SHA-256 digest" in collection
+
+
 def test_execute_documents_safe_reconciliation_and_authorized_resume() -> None:
     reconciliation = _section(_execute_section(), "### Reconcile and resume", "---")
 

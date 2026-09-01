@@ -5,7 +5,9 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import shutil
 import sys
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -22,6 +24,7 @@ for script_dir in (_RUNTIME_SCRIPTS, _SCRIPTS):
         sys.path.insert(0, str(script_dir))
 
 from models import Effort, ItemStatus, Roadmap, RoadmapItem  # noqa: E402
+import execution  # noqa: E402
 from execution import ExecutionAdapter  # noqa: E402
 
 
@@ -114,10 +117,45 @@ def _workspace(tmp_path: Path) -> tuple[Path, Path, Path]:
     _write_work_packages(repo, "change-alpha")
     managed_root = repo / ".git-worktrees"
     worktree = managed_root / "change-alpha"
-    loop_state = worktree / ".git" / "autopilot" / "loop-state.json"
-    loop_state.parent.mkdir(parents=True)
-    loop_state.write_text('{"status":"running"}\n')
+    (worktree / ".git").mkdir(parents=True)
+    loop_state = worktree / "openspec" / "changes" / "change-alpha" / "loop-state.json"
+    loop_state.parent.mkdir(parents=True, exist_ok=True)
+    loop_state.write_text(
+        json.dumps(
+            {
+                "schema_version": 5,
+                "change_id": "change-alpha",
+                "current_phase": "INIT",
+                "handoff_ids": [],
+                "last_handoff_id": None,
+                "pending_gate": None,
+            }
+        )
+        + "\n"
+    )
     return repo, workspace, managed_root
+
+
+def _use_linked_worktree_layout(managed_root: Path) -> Path:
+    worktree = managed_root / "change-alpha"
+    git_entry = worktree / ".git"
+    shutil.rmtree(git_entry)
+    git_entry.write_text("gitdir: /tmp/fake-linked-worktree-gitdir\n")
+    loop_state = worktree / "openspec" / "changes" / "change-alpha" / "loop-state.json"
+    loop_state.parent.mkdir(parents=True, exist_ok=True)
+    loop_state.write_text(
+        json.dumps(
+            {
+                "schema_version": 5,
+                "change_id": "change-alpha",
+                "current_phase": "DONE",
+                "last_handoff_id": "handoff-alpha-001",
+                "handoff_ids": ["handoff-alpha-001"],
+            }
+        )
+        + "\n"
+    )
+    return loop_state
 
 
 def _adapter(
@@ -132,6 +170,7 @@ def _adapter(
         managed_worktree_root=managed_root,
         clock=clock,
         branch_resolver=lambda _: "openspec/change-alpha",
+        commit_resolver=lambda _: "a" * 40,
         liveness_probe=lambda _: liveness,
         host_entry=lambda change_id, request: calls.append((change_id, request)) or "entered",
     )
@@ -176,6 +215,37 @@ def _result(name: str, request: dict[str, Any]) -> dict[str, Any]:
         worktree_path=request["isolation"]["worktree_path"],
         branch=request["isolation"]["branch"],
     )
+    loop_state_path = (
+        Path(request["isolation"]["worktree_path"])
+        / "openspec"
+        / "changes"
+        / request["change_id"]
+        / "loop-state.json"
+    )
+    if value["outcome"] == "success":
+        loop_state = {
+            "schema_version": 5,
+            "change_id": request["change_id"],
+            "current_phase": "DONE",
+            "handoff_ids": [value["handoff_id"]],
+            "last_handoff_id": value["handoff_id"],
+            "pending_gate": None,
+        }
+    else:
+        loop_state = {
+            "schema_version": 5,
+            "change_id": request["change_id"],
+            "current_phase": "VALIDATE",
+            "handoff_ids": [],
+            "last_handoff_id": None,
+            "pending_gate": {"gate": value["parked"].get("gate")},
+        }
+    loop_state_path.write_text(json.dumps(loop_state) + "\n")
+    value["evidence"] = {
+        "loop_state_path": f"openspec/changes/{request['change_id']}/loop-state.json",
+        "commit": "a" * 40,
+        "loop_state_digest": hashlib.sha256(loop_state_path.read_bytes()).hexdigest(),
+    }
     return value
 
 
@@ -273,17 +343,20 @@ def test_prepare_rejects_managed_isolation_before_launch_or_attempt_persistence(
     outside.mkdir()
     adapter = _adapter(managed_root, FakeClock())
 
-    with pytest.raises(ValueError, match="managed worktree containment"):
-        adapter.prepare(
-            workspace,
-            repo_root=repo,
-            isolation_resolver=lambda _: {
-                "mode": "managed_worktree",
-                "worktree_path": str(outside),
-                "branch": "openspec/change-alpha",
-            },
-        )
+    prepared = adapter.prepare(
+        workspace,
+        repo_root=repo,
+        isolation_resolver=lambda _: {
+            "mode": "managed_worktree",
+            "worktree_path": str(outside),
+            "branch": "openspec/change-alpha",
+        },
+    )
 
+    assert prepared["requests"] == []
+    assert prepared["failures"] == [
+        {"item_id": "ri-01", "reason": "isolation_resolution_failed:ValueError"}
+    ]
     assert json.loads((workspace / "checkpoint.json").read_text()).get(
         "dispatch_attempts", []
     ) == []
@@ -295,13 +368,17 @@ def test_prepare_rejects_exact_managed_branch_mismatch(tmp_path: Path) -> None:
         managed_worktree_root=managed_root,
         clock=FakeClock(),
         branch_resolver=lambda _: "openspec/wrong-change",
+        commit_resolver=lambda _: "a" * 40,
         liveness_probe=lambda _: "live",
         host_entry=lambda *_: pytest.fail("host entry must not run"),
     )
 
-    with pytest.raises(ValueError, match="managed worktree branch"):
-        _prepare(adapter, workspace, repo, managed_root)
+    prepared = _prepare(adapter, workspace, repo, managed_root)
 
+    assert prepared["requests"] == []
+    assert prepared["failures"] == [
+        {"item_id": "ri-01", "reason": "isolation_resolution_failed:ValueError"}
+    ]
     assert _attempt_count(workspace) == 0
 
 
@@ -360,6 +437,7 @@ def test_marker_collision_refuses_duplicate_owner_without_state_change(tmp_path:
     adapter = _adapter(managed_root, FakeClock())
     request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
     marker = Path(request["isolation"]["worktree_path"], request["launch_marker_path"])
+    marker.parent.mkdir(parents=True, exist_ok=True)
     marker.write_text("other-owner\n")
 
     with pytest.raises(FileExistsError):
@@ -372,6 +450,83 @@ def test_marker_collision_refuses_duplicate_owner_without_state_change(tmp_path:
         )
 
     assert _attempt(workspace)["status"] == "prepared"
+
+
+def test_child_start_supports_real_linked_worktree_gitfile(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    _use_linked_worktree_layout(managed_root)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+
+    claimed = adapter.child_start(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        launch_token=request["launch_token"],
+        lease_generation=1,
+        owner_nonce="owner-nonce-0001",
+    )
+
+    marker = Path(request["isolation"]["worktree_path"], request["launch_marker_path"])
+    assert claimed["status"] == "claimed"
+    assert not request["launch_marker_path"].startswith(".git/")
+    assert marker.is_file()
+
+
+def test_child_start_rejects_unbounded_owner_nonce_before_persistence(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+
+    with pytest.raises(ValueError, match="owner nonce"):
+        adapter.child_start(
+            workspace,
+            dispatch_id=request["dispatch_id"],
+            launch_token=request["launch_token"],
+            lease_generation=1,
+            owner_nonce="x" * 257,
+        )
+
+    assert _attempt(workspace)["status"] == "prepared"
+
+
+def test_enter_revalidates_managed_branch_before_host_entry(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    host_calls: list[tuple[str, dict[str, Any]]] = []
+    branch = {"value": "openspec/change-alpha"}
+    adapter = ExecutionAdapter(
+        managed_worktree_root=managed_root,
+        clock=FakeClock(),
+        branch_resolver=lambda _: branch["value"],
+        commit_resolver=lambda _: "a" * 40,
+        liveness_probe=lambda _: "live",
+        host_entry=lambda change_id, request: host_calls.append((change_id, request)),
+    )
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    adapter.child_start(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        launch_token=request["launch_token"],
+        lease_generation=1,
+        owner_nonce="owner-nonce-0001",
+    )
+    adapter.acknowledge(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        lease_generation=1,
+        handle="task-alpha-001",
+    )
+    branch["value"] = "openspec/wrong-change"
+
+    with pytest.raises(ValueError, match="branch"):
+        adapter.enter(
+            workspace,
+            dispatch_id=request["dispatch_id"],
+            lease_generation=1,
+            owner_nonce="owner-nonce-0001",
+        )
+
+    assert host_calls == []
+    assert _attempt(workspace)["status"] == "acknowledged"
 
 
 def test_waiting_heartbeat_is_child_owned_and_generation_bound(tmp_path: Path) -> None:
@@ -403,6 +558,109 @@ def test_waiting_heartbeat_is_child_owned_and_generation_bound(tmp_path: Path) -
             lease_generation=1,
             owner_nonce="owner-nonce-other",
         )
+
+
+
+def test_waiting_heartbeat_and_acknowledgement_serialize_checkpoint_mutations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    adapter.child_start(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        launch_token=request["launch_token"],
+        lease_generation=1,
+        owner_nonce="owner-nonce-0001",
+    )
+
+    original_save = execution.CheckpointManager.save
+    heartbeat_at_save = threading.Event()
+    acknowledge_at_save = threading.Event()
+    release_heartbeat = threading.Event()
+    errors: list[BaseException] = []
+
+    def delayed_save(manager: Any, checkpoint: Any) -> None:
+        if threading.current_thread().name == "heartbeat-writer":
+            heartbeat_at_save.set()
+            assert release_heartbeat.wait(timeout=5)
+        elif threading.current_thread().name == "acknowledgement-writer":
+            acknowledge_at_save.set()
+        original_save(manager, checkpoint)
+
+    monkeypatch.setattr(execution.CheckpointManager, "save", delayed_save)
+
+    def heartbeat() -> None:
+        try:
+            adapter.heartbeat_waiting(
+                workspace,
+                dispatch_id=request["dispatch_id"],
+                lease_generation=1,
+                owner_nonce="owner-nonce-0001",
+            )
+        except BaseException as error:  # pragma: no cover - surfaced below
+            errors.append(error)
+
+    def acknowledge() -> None:
+        try:
+            adapter.acknowledge(
+                workspace,
+                dispatch_id=request["dispatch_id"],
+                lease_generation=1,
+                handle="task-alpha-001",
+            )
+        except BaseException as error:  # pragma: no cover - surfaced below
+            errors.append(error)
+
+    heartbeat_thread = threading.Thread(target=heartbeat, name="heartbeat-writer")
+    acknowledge_thread = threading.Thread(
+        target=acknowledge,
+        name="acknowledgement-writer",
+    )
+    heartbeat_thread.start()
+    assert heartbeat_at_save.wait(timeout=5)
+    acknowledge_thread.start()
+    serialized = not acknowledge_at_save.wait(timeout=0.2)
+    release_heartbeat.set()
+    heartbeat_thread.join(timeout=5)
+    acknowledge_thread.join(timeout=5)
+
+    assert serialized, "acknowledgement raced a waiting-heartbeat checkpoint write"
+    assert not errors
+    assert _attempt(workspace)["status"] == "acknowledged"
+
+
+def test_hard_termination_before_claim_persistence_cannot_orphan_marker(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    marker = Path(request["isolation"]["worktree_path"], request["launch_marker_path"])
+
+    def terminate_before_persistence(*_args: Any, **_kwargs: Any) -> None:
+        raise SystemExit("simulated hard termination")
+
+    monkeypatch.setattr(
+        execution.CheckpointManager,
+        "save",
+        terminate_before_persistence,
+    )
+
+    with pytest.raises(SystemExit, match="simulated hard termination"):
+        adapter.child_start(
+            workspace,
+            dispatch_id=request["dispatch_id"],
+            launch_token=request["launch_token"],
+            lease_generation=1,
+            owner_nonce="owner-nonce-0001",
+        )
+
+    assert not marker.exists()
+    assert _attempt(workspace)["status"] == "prepared"
 
 
 def test_expired_pre_go_claim_allows_generation_cas_takeover(tmp_path: Path) -> None:
@@ -469,6 +727,7 @@ def test_harness_provided_isolation_preserves_exact_external_path_and_branch(
         branch_resolver=lambda path: "harness/session-123"
         if path == harness_path.resolve()
         else "unexpected",
+        commit_resolver=lambda _: "a" * 40,
         liveness_probe=lambda _: "live",
         host_entry=lambda *_: "entered",
     )
@@ -645,6 +904,59 @@ def test_resumed_parked_generation_runs_normal_ack_go_with_exact_continuation(
     assert marker_record["owner_nonce"] == "owner-nonce-0002"
 
 
+def test_pre_go_stale_takeover_preserves_parked_continuation(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    clock = FakeClock()
+    host_calls: list[tuple[str, dict[str, Any]]] = []
+    adapter = _adapter(managed_root, clock, host_calls=host_calls)
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[_result("parked-result.json", request)],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+    resumed = adapter.resume(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        approval_ref="approval-001",
+        kind="pending_gate",
+    )
+    adapter.child_start(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        launch_token=request["launch_token"],
+        lease_generation=2,
+        owner_nonce="owner-nonce-0002",
+        lease_seconds=5,
+    )
+    clock.advance(6)
+
+    reclaimed = adapter.child_start(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        launch_token=request["launch_token"],
+        lease_generation=2,
+        owner_nonce="owner-nonce-0003",
+    )
+    adapter.acknowledge(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        lease_generation=reclaimed["lease_generation"],
+        handle="task-alpha-003",
+    )
+    adapter.enter(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        lease_generation=reclaimed["lease_generation"],
+        owner_nonce="owner-nonce-0003",
+    )
+
+    assert host_calls[-1][1]["continuation"] == resumed["continuation"]
+
+
 def test_failed_child_start_never_creates_an_orphan_marker(tmp_path: Path) -> None:
     repo, workspace, managed_root = _workspace(tmp_path)
     adapter = _adapter(managed_root, FakeClock())
@@ -662,6 +974,70 @@ def test_failed_child_start_never_creates_an_orphan_marker(tmp_path: Path) -> No
 
     assert not marker.exists()
     assert _attempt(workspace)["status"] == "prepared"
+
+
+def test_apply_rejects_stale_unbound_loop_state_evidence(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    result = _result("success-result.json", request)
+    loop_state = (
+        Path(request["isolation"]["worktree_path"])
+        / result["evidence"]["loop_state_path"]
+    )
+    loop_state.write_text(
+        json.dumps(
+            {
+                "schema_version": 5,
+                "change_id": request["change_id"],
+                "current_phase": "INIT",
+                "handoff_ids": [],
+                "last_handoff_id": None,
+            }
+        )
+        + "\n"
+    )
+    result["evidence"]["loop_state_digest"] = hashlib.sha256(
+        loop_state.read_bytes()
+    ).hexdigest()
+    calls: list[str] = []
+
+    with pytest.raises(ValueError, match="loop-state"):
+        adapter.apply(
+            workspace,
+            batch_id=request["dispatch_id"].split(":", 1)[0],
+            results=[result],
+            dispatch_fn=lambda item, _phase, _context: calls.append(item) or "success",
+            repo_root=repo,
+        )
+
+    assert calls == []
+    assert _attempt(workspace)["status"] == "launched"
+
+
+def test_apply_accepts_real_autopilot_loop_state_in_linked_worktree(tmp_path: Path) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    loop_state = _use_linked_worktree_layout(managed_root)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    result = _result("success-result.json", request)
+    result["evidence"] = {
+        "loop_state_path": "openspec/changes/change-alpha/loop-state.json",
+        "commit": "a" * 40,
+        "loop_state_digest": hashlib.sha256(loop_state.read_bytes()).hexdigest(),
+    }
+
+    applied = adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[result],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+
+    assert applied["completed_item_ids"] == ["ri-01"]
 
 
 @pytest.mark.parametrize(
@@ -713,9 +1089,17 @@ def test_apply_rejects_noncanonical_inside_worktree_evidence_before_callback(
     request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
     _launch(adapter, workspace, request)
     result = _result("success-result.json", request)
-    other = Path(request["isolation"]["worktree_path"]) / ".git" / "autopilot" / "other.json"
+    other = (
+        Path(request["isolation"]["worktree_path"])
+        / "openspec"
+        / "changes"
+        / "change-alpha"
+        / "other.json"
+    )
     other.write_text('{"status":"other"}\n')
-    result["evidence"]["loop_state_path"] = ".git/autopilot/other.json"
+    result["evidence"]["loop_state_path"] = (
+        "openspec/changes/change-alpha/other.json"
+    )
     calls: list[str] = []
 
     with pytest.raises(ValueError, match="exact loop-state path"):
@@ -749,6 +1133,7 @@ def test_invalid_optional_parked_fields_never_reach_temp_result_file(
         managed_worktree_root=managed_root,
         clock=FakeClock(),
         branch_resolver=lambda _: "openspec/change-alpha",
+        commit_resolver=lambda _: "a" * 40,
         liveness_probe=lambda _: "live",
         host_entry=lambda *_: "entered",
         result_file_observer=observed.append,
@@ -789,6 +1174,7 @@ def test_invalid_result_scalar_types_never_reach_temp_result_file(
         managed_worktree_root=managed_root,
         clock=FakeClock(),
         branch_resolver=lambda _: "openspec/change-alpha",
+        commit_resolver=lambda _: "a" * 40,
         liveness_probe=lambda _: "live",
         host_entry=lambda *_: "entered",
         result_file_observer=observed.append,
@@ -820,7 +1206,7 @@ def test_apply_rejects_symlinked_loop_state_escape_before_callback(tmp_path: Pat
     worktree = Path(request["isolation"]["worktree_path"])
     outside = repo / "outside-loop-state.json"
     outside.write_text('{"status":"outside"}\n')
-    link = worktree / ".git" / "autopilot" / "loop-state.json"
+    link = worktree / result["evidence"]["loop_state_path"]
     link.unlink()
     link.symlink_to(outside)
     calls: list[str] = []

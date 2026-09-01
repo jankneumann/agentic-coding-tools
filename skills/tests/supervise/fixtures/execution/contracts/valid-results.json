@@ -33,6 +33,7 @@
     },
     "evidence": {
       "loop_state_path": "/workspace/.git-worktrees/add-alpha-capability/openspec/changes/add-alpha-capability/loop-state.json",
+      "commit": "abcdef0123456789abcdef0123456789abcdef01",
       "loop_state_digest": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
     }
   }

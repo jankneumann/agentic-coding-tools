@@ -8,7 +8,7 @@
   "attempt": 1,
   "launch_token": "launch-token-0001",
   "lease_generation": 2,
-  "launch_marker_path": ".git/autopilot/roadmap-alpha-item-1.marker",
+  "launch_marker_path": ".supervised-dispatch/add-alpha-capability/item-1-attempt-1.marker",
   "scope": {
     "proof": "proven_disjoint",
     "write_allow": ["skills/alpha/**"],

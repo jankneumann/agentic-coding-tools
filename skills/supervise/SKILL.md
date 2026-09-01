@@ -300,7 +300,7 @@ If neither durable approval is present, report the missing approval and stop bef
 
 ### Child lifecycle
 
-For each request, run `child-start` to claim its exact generation and establish the exclusive marker.
+For each request, run `child-start` to claim its exact generation and establish the exclusive marker at `<verified-worktree>/.supervised-dispatch/<change-id>/<item-id>-attempt-<attempt>.marker`.
 Persist the host task handle with `acknowledge`; that atomic acknowledgement performs the go release.
 The child must not enter Autopilot before the durable handle acknowledgement.
 It revalidates generation, owner, and go immediately before `enter`, then invokes `/autopilot <change-id>` in the verified isolation.
@@ -313,7 +313,7 @@ Discard the child transcript after extracting that public result.
 Keep an outcome-only parent session and no transcript in the supervisor record or any durable execution artifact.
 
 A `pending_gate` or `policy_pause` result is a parked nonfailure: retain its bounded next action, leave the roadmap item incomplete, and do not failure-block dependents.
-Validate exact identity, generation, worktree, branch, realpath, and loop-state evidence before application.
+Validate exact identity, generation, worktree, branch, and realpath before application. For every successful or parked result, require the canonical `openspec/changes/<change-id>/loop-state.json` from that verified worktree, the current worktree commit, and the file SHA-256 digest; reject stale, alternate-path, or semantically inconsistent loop state.
 Pass the collected set to the orchestrator through an in-memory result lookup so it invokes the synchronous `dispatch_fn` exactly once per returned generation.
 
 ### Reconcile and resume

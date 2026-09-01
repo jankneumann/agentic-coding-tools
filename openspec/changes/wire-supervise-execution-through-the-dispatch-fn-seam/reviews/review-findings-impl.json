@@ -1,0 +1,29 @@
+{
+  "review_type": "implementation",
+  "target": "wire-supervise-execution-through-the-dispatch-fn-seam",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "none: The final delegated-dispatch implementation now has TDD coverage for linked-worktree markers, concurrent checkpoint transitions, crash-window recovery, result evidence, continuation takeover, and per-item isolation failures.",
+      "resolution": "Keep the regression matrix and fail-closed validation boundaries.",
+      "disposition": "accept",
+      "package_id": "whole-branch"
+    },
+    {
+      "id": 2,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "none",
+      "description": "none: Legacy execute_roadmap behavior remains unchanged while the separate prepare/apply entry points reuse the synchronous dispatch_fn result-normalization seam.",
+      "resolution": "Keep the additive API and corrected OpenSpec wording aligned.",
+      "disposition": "accept",
+      "package_id": "whole-branch"
+    }
+  ]
+}

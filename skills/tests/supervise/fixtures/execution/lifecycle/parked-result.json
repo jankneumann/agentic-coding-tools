@@ -14,6 +14,8 @@
     "resume_hint": "continue after approval"
   },
   "evidence": {
-    "loop_state_path": ".git/autopilot/loop-state.json"
+    "loop_state_path": "openspec/changes/change-alpha/loop-state.json",
+    "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "loop_state_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   }
 }

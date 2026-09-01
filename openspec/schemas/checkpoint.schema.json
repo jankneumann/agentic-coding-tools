@@ -2,9 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools.dev/schemas/checkpoint.schema.json",
   "title": "Roadmap Checkpoint",
-  "description": "Defines the structure of checkpoint.json — resumable execution state for autopilot-roadmap.",
+  "description": "Defines the structure of checkpoint.json \u2014 resumable execution state for autopilot-roadmap.",
   "type": "object",
-  "required": ["schema_version", "roadmap_id", "current_item_id", "phase", "created_at"],
+  "required": [
+    "schema_version",
+    "roadmap_id",
+    "current_item_id",
+    "phase",
+    "created_at"
+  ],
   "properties": {
     "schema_version": {
       "type": "integer",
@@ -20,7 +26,15 @@
     },
     "phase": {
       "type": "string",
-      "enum": ["planning", "implementing", "reviewing", "validating", "completed", "failed", "blocked"],
+      "enum": [
+        "planning",
+        "implementing",
+        "reviewing",
+        "validating",
+        "completed",
+        "failed",
+        "blocked"
+      ],
       "description": "Current execution phase within the active item."
     },
     "created_at": {
@@ -33,19 +47,35 @@
     },
     "completed_items": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Item IDs that have successfully completed."
     },
     "failed_items": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["item_id", "reason", "failed_at"],
+        "required": [
+          "item_id",
+          "reason",
+          "failed_at"
+        ],
         "properties": {
-          "item_id": { "type": "string" },
-          "reason": { "type": "string" },
-          "failed_at": { "type": "string", "format": "date-time" },
-          "retry_count": { "type": "integer", "default": 0 }
+          "item_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "failed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "retry_count": {
+            "type": "integer",
+            "default": 0
+          }
         }
       },
       "description": "Items that failed with reasons and retry counts."
@@ -54,21 +84,45 @@
       "type": "object",
       "description": "Tracks vendor availability and switch history for policy decisions.",
       "properties": {
-        "active_vendor": { "type": "string" },
+        "active_vendor": {
+          "type": "string"
+        },
         "switch_history": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["from_vendor", "to_vendor", "reason", "timestamp"],
+            "required": [
+              "from_vendor",
+              "to_vendor",
+              "reason",
+              "timestamp"
+            ],
             "properties": {
-              "from_vendor": { "type": "string" },
-              "to_vendor": { "type": "string" },
-              "reason": { "type": "string" },
-              "timestamp": { "type": "string", "format": "date-time" },
-              "expected_cost_delta_usd": { "type": "number" },
-              "observed_cost_delta_usd": { "type": "number" },
-              "expected_latency_delta_seconds": { "type": "number" },
-              "observed_latency_delta_seconds": { "type": "number" }
+              "from_vendor": {
+                "type": "string"
+              },
+              "to_vendor": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "expected_cost_delta_usd": {
+                "type": "number"
+              },
+              "observed_cost_delta_usd": {
+                "type": "number"
+              },
+              "expected_latency_delta_seconds": {
+                "type": "number"
+              },
+              "observed_latency_delta_seconds": {
+                "type": "number"
+              }
             }
           }
         },
@@ -77,10 +131,20 @@
           "items": {
             "type": "object",
             "properties": {
-              "vendor": { "type": "string" },
-              "reason": { "type": "string" },
-              "blocked_since": { "type": "string", "format": "date-time" },
-              "expected_resume": { "type": "string", "format": "date-time" }
+              "vendor": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "blocked_since": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "expected_resume": {
+                "type": "string",
+                "format": "date-time"
+              }
             }
           }
         }
@@ -90,17 +154,1476 @@
       "type": "object",
       "description": "Populated when execution is paused (e.g., waiting for vendor reset).",
       "properties": {
-        "paused": { "type": "boolean" },
-        "reason": { "type": "string" },
-        "paused_at": { "type": "string", "format": "date-time" },
-        "expected_resume_at": { "type": "string", "format": "date-time" },
-        "blocked_vendor": { "type": "string" }
+        "paused": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "paused_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expected_resume_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "blocked_vendor": {
+          "type": "string"
+        }
       }
     },
     "dispatch_attempts": {
       "type": "array",
-      "items": { "type": "object" },
+      "items": {
+        "$ref": "#/$defs/delegated_dispatch_attempt"
+      },
       "default": []
+    }
+  },
+  "$defs": {
+    "delegated_dispatch_attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dispatch_id",
+        "item_id",
+        "change_id",
+        "phase",
+        "attempt",
+        "status",
+        "prepared_at",
+        "launch_token",
+        "launch_marker_path",
+        "lease_generation",
+        "launch_history",
+        "scope",
+        "isolation",
+        "context"
+      ],
+      "properties": {
+        "dispatch_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "item_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "change_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "maxLength": 160
+        },
+        "phase": {
+          "const": "autopilot"
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "enum": [
+            "prepared",
+            "claimed",
+            "acknowledged",
+            "launched",
+            "quarantined",
+            "parked",
+            "completed",
+            "failed"
+          ]
+        },
+        "launch_token": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 256
+        },
+        "launch_marker_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lease_generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "proof",
+            "write_allow",
+            "lock_keys"
+          ],
+          "properties": {
+            "proof": {
+              "enum": [
+                "proven_disjoint",
+                "serial_indeterminate"
+              ]
+            },
+            "write_allow": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "lock_keys": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "worktree_path",
+            "branch"
+          ],
+          "properties": {
+            "mode": {
+              "enum": [
+                "managed_worktree",
+                "harness_provided"
+              ]
+            },
+            "worktree_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "branch": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "context": {
+          "$ref": "#/$defs/contextLevel1"
+        },
+        "application_journal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "state",
+            "result",
+            "result_digest",
+            "bound_at"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "state": {
+              "enum": [
+                "result_bound",
+                "callback_started",
+                "callback_acknowledged",
+                "terminal_persisted",
+                "effects_applied"
+              ]
+            },
+            "result": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schema_version",
+                "dispatch_id",
+                "change_id",
+                "attempt",
+                "lease_generation",
+                "outcome"
+              ],
+              "properties": {
+                "schema_version": {
+                  "const": 1
+                },
+                "dispatch_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "change_id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                  "maxLength": 160
+                },
+                "outcome": {
+                  "type": "string",
+                  "pattern": "^(success|failed:.+|vendor_limit:[^:]+:.+|parked)$",
+                  "maxLength": 1024
+                },
+                "replan": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "handoff_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 256
+                },
+                "worktree_path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "branch": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "parked": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "reason"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "pending_gate",
+                        "policy_pause"
+                      ]
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    },
+                    "gate": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "maxLength": 128
+                    },
+                    "deadline": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "resume_hint": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "maxLength": 512
+                    }
+                  }
+                },
+                "evidence": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "loop_state_path": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "commit": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{40}$"
+                    },
+                    "loop_state_digest": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    }
+                  },
+                  "required": [
+                    "loop_state_path",
+                    "commit",
+                    "loop_state_digest"
+                  ]
+                },
+                "attempt": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "lease_generation": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "outcome": {
+                        "const": "success"
+                      }
+                    },
+                    "required": [
+                      "outcome"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "handoff_id",
+                      "worktree_path",
+                      "branch",
+                      "evidence"
+                    ],
+                    "properties": {
+                      "handoff_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "outcome": {
+                        "const": "parked"
+                      }
+                    },
+                    "required": [
+                      "outcome"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "parked",
+                      "worktree_path",
+                      "branch",
+                      "evidence"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "outcome": {
+                        "not": {
+                          "const": "parked"
+                        }
+                      }
+                    },
+                    "required": [
+                      "outcome"
+                    ]
+                  },
+                  "then": {
+                    "not": {
+                      "required": [
+                        "parked"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "result_digest": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "bound_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "callback_started_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "callback_acknowledged_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "terminal_persisted_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "effects_applied_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "continuation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "approval_ref"
+          ],
+          "properties": {
+            "approval_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "kind": {
+              "enum": [
+                "pending_gate",
+                "policy_pause"
+              ]
+            }
+          }
+        },
+        "lease": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "generation",
+            "owner_nonce",
+            "state",
+            "acquired_at",
+            "heartbeat_at",
+            "expires_at"
+          ],
+          "properties": {
+            "generation": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "owner_nonce": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 256
+            },
+            "state": {
+              "enum": [
+                "active",
+                "released",
+                "expired",
+                "uncertain"
+              ]
+            },
+            "acquired_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "heartbeat_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "expires_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "launch_history": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "generation",
+              "owner_nonce",
+              "state",
+              "marker_path",
+              "observed_at"
+            ],
+            "properties": {
+              "generation": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "owner_nonce": {
+                "type": "string",
+                "minLength": 16,
+                "maxLength": 256
+              },
+              "state": {
+                "enum": [
+                  "claimed",
+                  "acknowledged",
+                  "go_released",
+                  "entered",
+                  "heartbeat",
+                  "parked",
+                  "quarantined",
+                  "terminal",
+                  "stale_takeover"
+                ]
+              },
+              "marker_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "handle": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 256
+              },
+              "observed_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "launch_evidence": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "generation",
+                "handle",
+                "observed_at"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "host_ack"
+                },
+                "generation": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "handle": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "observed_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "generation",
+                "marker_path",
+                "observed_at"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "child_marker"
+                },
+                "generation": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "marker_path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "observed_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          ]
+        },
+        "parked": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "reason"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "pending_gate",
+                "policy_pause"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            "gate": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 128
+            },
+            "deadline": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          }
+        },
+        "handoff_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        },
+        "outcome": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^(success|failed:.+|vendor_limit:[^:]+:.+|parked)$",
+          "maxLength": 1024
+        },
+        "prepared_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "resolved_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "quarantine": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "reason"
+          ],
+          "properties": {
+            "kind": {
+              "const": "unknown_liveness"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            "observed_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "launch_gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "generation",
+            "state"
+          ],
+          "properties": {
+            "generation": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "state": {
+              "enum": [
+                "waiting_ack",
+                "go_released",
+                "entered"
+              ]
+            },
+            "handle": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 256
+            },
+            "go_released_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "entered_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "scope": {
+                "properties": {
+                  "proof": {
+                    "const": "proven_disjoint"
+                  }
+                },
+                "required": [
+                  "proof"
+                ]
+              }
+            },
+            "required": [
+              "scope"
+            ]
+          },
+          "then": {
+            "properties": {
+              "scope": {
+                "properties": {
+                  "write_allow": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "prepared"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "type": "null"
+              },
+              "resolved_at": {
+                "type": "null"
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "parked"
+                  ]
+                },
+                {
+                  "required": [
+                    "lease"
+                  ]
+                },
+                {
+                  "required": [
+                    "launch_evidence"
+                  ]
+                },
+                {
+                  "required": [
+                    "launch_gate"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "claimed"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "launch_evidence",
+              "lease",
+              "launch_gate"
+            ],
+            "properties": {
+              "lease": {
+                "properties": {
+                  "state": {
+                    "const": "active"
+                  }
+                }
+              },
+              "launch_gate": {
+                "properties": {
+                  "state": {
+                    "const": "waiting_ack"
+                  },
+                  "handle": {
+                    "type": "null"
+                  },
+                  "go_released_at": {
+                    "type": "null"
+                  },
+                  "entered_at": {
+                    "type": "null"
+                  }
+                }
+              },
+              "outcome": {
+                "type": "null"
+              },
+              "resolved_at": {
+                "type": "null"
+              },
+              "launch_evidence": {
+                "properties": {
+                  "kind": {
+                    "const": "child_marker"
+                  }
+                }
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "parked"
+                  ]
+                },
+                {
+                  "required": [
+                    "quarantine"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "launched"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "launch_evidence",
+              "lease",
+              "launch_gate"
+            ],
+            "properties": {
+              "lease": {
+                "properties": {
+                  "state": {
+                    "const": "active"
+                  }
+                }
+              },
+              "launch_gate": {
+                "properties": {
+                  "state": {
+                    "const": "entered"
+                  },
+                  "handle": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "go_released_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "entered_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "handle",
+                  "go_released_at",
+                  "entered_at"
+                ]
+              },
+              "outcome": {
+                "type": "null"
+              },
+              "resolved_at": {
+                "type": "null"
+              },
+              "launch_evidence": {
+                "properties": {
+                  "kind": {
+                    "const": "host_ack"
+                  }
+                }
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "parked"
+                  ]
+                },
+                {
+                  "required": [
+                    "quarantine"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "quarantined"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "launch_evidence",
+              "lease",
+              "launch_gate",
+              "quarantine"
+            ],
+            "properties": {
+              "lease": {
+                "properties": {
+                  "state": {
+                    "const": "uncertain"
+                  }
+                }
+              },
+              "outcome": {
+                "type": "null"
+              },
+              "resolved_at": {
+                "type": "null"
+              },
+              "launch_evidence": {
+                "properties": {
+                  "kind": {
+                    "const": "host_ack"
+                  }
+                }
+              },
+              "launch_gate": {
+                "required": [
+                  "handle",
+                  "go_released_at"
+                ],
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "go_released",
+                      "entered"
+                    ]
+                  },
+                  "handle": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "go_released_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            },
+            "not": {
+              "required": [
+                "parked"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "parked"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "parked",
+              "outcome",
+              "resolved_at",
+              "launch_evidence",
+              "lease",
+              "launch_gate"
+            ],
+            "properties": {
+              "outcome": {
+                "const": "parked"
+              },
+              "lease": {
+                "properties": {
+                  "state": {
+                    "const": "released"
+                  }
+                }
+              },
+              "launch_gate": {
+                "properties": {
+                  "state": {
+                    "const": "entered"
+                  },
+                  "handle": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "go_released_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "entered_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "handle",
+                  "go_released_at",
+                  "entered_at"
+                ]
+              },
+              "launch_evidence": {
+                "properties": {
+                  "kind": {
+                    "const": "host_ack"
+                  }
+                }
+              }
+            },
+            "not": {
+              "required": [
+                "quarantine"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "completed"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "outcome",
+              "resolved_at",
+              "handoff_id",
+              "launch_evidence",
+              "lease",
+              "launch_gate"
+            ],
+            "properties": {
+              "outcome": {
+                "const": "success"
+              },
+              "handoff_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "lease": {
+                "properties": {
+                  "state": {
+                    "const": "released"
+                  }
+                }
+              },
+              "launch_gate": {
+                "properties": {
+                  "state": {
+                    "const": "entered"
+                  },
+                  "handle": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "go_released_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "entered_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "handle",
+                  "go_released_at",
+                  "entered_at"
+                ]
+              },
+              "launch_evidence": {
+                "properties": {
+                  "kind": {
+                    "const": "host_ack"
+                  }
+                }
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "parked"
+                  ]
+                },
+                {
+                  "required": [
+                    "quarantine"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "failed"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "outcome",
+              "resolved_at"
+            ],
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "pattern": "^(failed:.+|vendor_limit:[^:]+:.+)$"
+              },
+              "lease": {
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "released",
+                      "expired"
+                    ]
+                  }
+                }
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "parked"
+                  ]
+                },
+                {
+                  "required": [
+                    "quarantine"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "continuation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "prepared",
+                  "claimed",
+                  "acknowledged",
+                  "launched",
+                  "quarantined"
+                ]
+              },
+              "lease_generation": {
+                "minimum": 2
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "not": {
+                  "const": "quarantined"
+                }
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "quarantine"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "acknowledged"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "launch_evidence",
+              "lease",
+              "launch_gate"
+            ],
+            "properties": {
+              "launch_evidence": {
+                "properties": {
+                  "kind": {
+                    "const": "host_ack"
+                  }
+                }
+              },
+              "lease": {
+                "properties": {
+                  "state": {
+                    "const": "active"
+                  }
+                }
+              },
+              "launch_gate": {
+                "required": [
+                  "handle",
+                  "go_released_at"
+                ],
+                "properties": {
+                  "state": {
+                    "const": "go_released"
+                  },
+                  "handle": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "go_released_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "entered_at": {
+                    "type": "null"
+                  }
+                }
+              },
+              "outcome": {
+                "type": "null"
+              },
+              "resolved_at": {
+                "type": "null"
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "parked"
+                  ]
+                },
+                {
+                  "required": [
+                    "quarantine"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "launch_gate": {
+                "properties": {
+                  "state": {
+                    "const": "entered"
+                  }
+                },
+                "required": [
+                  "state"
+                ]
+              }
+            },
+            "required": [
+              "launch_gate"
+            ]
+          },
+          "then": {
+            "properties": {
+              "launch_gate": {
+                "required": [
+                  "entered_at"
+                ],
+                "properties": {
+                  "entered_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "not": {
+        "pattern": "([Ss][Ee][Cc][Rr][Ee][Tt]|[Tt][Oo][Kk][Ee][Nn]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Cc][Rr][Ee][Dd][Ee][Nn][Tt][Ii][Aa][Ll]|[Aa][Pp][Ii][_-]?[Kk][Ee][Yy]|[Pp][Rr][Ii][Vv][Aa][Tt][Ee][_-]?[Kk][Ee][Yy]|[Aa][Uu][Tt][Hh]|[Cc][Oo][Oo][Kk][Ii][Ee]|[Rr][Aa][Ww][_-]?[Rr][Ee][Ss][Pp][Oo][Nn][Ss][Ee]|[Tt][Rr][Aa][Nn][Ss][Cc][Rr][Ii][Pp][Tt])"
+      }
+    },
+    "scalar": {
+      "oneOf": [
+        {
+          "type": "string",
+          "maxLength": 4096
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "scalarArray": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/scalar"
+      }
+    },
+    "contextLevel4": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "$ref": "#/$defs/key"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/scalar"
+          },
+          {
+            "$ref": "#/$defs/scalarArray"
+          }
+        ]
+      }
+    },
+    "contextLevel3": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "$ref": "#/$defs/key"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/scalar"
+          },
+          {
+            "$ref": "#/$defs/scalarArray"
+          },
+          {
+            "$ref": "#/$defs/contextLevel4"
+          }
+        ]
+      }
+    },
+    "contextLevel2": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "$ref": "#/$defs/key"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/scalar"
+          },
+          {
+            "$ref": "#/$defs/scalarArray"
+          },
+          {
+            "$ref": "#/$defs/contextLevel3"
+          }
+        ]
+      }
+    },
+    "contextLevel1": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "$ref": "#/$defs/key"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/scalar"
+          },
+          {
+            "$ref": "#/$defs/scalarArray"
+          },
+          {
+            "$ref": "#/$defs/contextLevel2"
+          }
+        ]
+      }
     }
   }
 }
