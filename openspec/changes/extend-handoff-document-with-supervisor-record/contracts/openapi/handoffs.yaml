@@ -20,7 +20,7 @@ paths:
       description: >-
         Writing a handoff returns success with a handoff_id and the document is
         persisted for future sessions; list fields round-trip as JSONB. The optional
-        supervisor_record object round-trips byte-identically and is stored as null
+        supervisor_record object round-trips structurally equal after JSON decoding and is stored as null
         when omitted.
       security:
         - coordinatorApiKey: []

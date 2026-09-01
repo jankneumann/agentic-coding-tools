@@ -115,3 +115,36 @@ Refined the supervisor-record plan to preserve legacy SQL semantics, make superv
 ### Context
 Implemented the nullable supervisor_record contract end to end across coordinator persistence and surfaces, host plumbing, deterministic supervisor state building, tracked mirror recovery, and /supervise workflow documentation. All package gates and merged feature-relevant suites pass; live PostgreSQL and monolithic repository-suite infrastructure remain environment or pre-existing limitations rather than feature failures.
 
+---
+
+## Phase: Implementation Iteration 1 (2026-09-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Preserve the legacy positional handoff constructor ABI** — Appending the new optional field avoids silently reinterpreting existing positional created_at arguments.
+2. **Fail closed for future record versions and unsafe mirror paths** — Silent version downgrades and symlink-following writes can lose durable state or escape the repository audit boundary.
+
+### Alternatives Considered
+- Continue best-effort sanitization of any input version: rejected because it could rewrite an unknown future contract as v1 and discard fields
+
+### Trade-offs
+- Accepted canonical schema validation before record return or mirror persistence over schema-free fixture repositories because runtime writers must prove their own output; isolated tests can install the canonical schemas explicitly
+
+### Completed Work
+- Restored HandoffDocument constructor compatibility and corrected the help contract.
+- Made schema consumers archival-safe and validated full and mirror records canonically.
+- Added complete degradation reporting, unsupported-version rejection, and symlink-safe atomic mirror writes.
+- Added seven regression findings with focused tests and validation evidence.
+
+### Next Steps
+- Run the autopilot VALIDATE phase.
+
+### Relevant Files
+- `skills/supervise/scripts/cycle_state.py` — Validated and hardened supervisor record builder
+- `agent-coordinator/src/handoffs.py` — Backward-compatible handoff dataclass
+- `openspec/changes/extend-handoff-document-with-supervisor-record/impl-findings.md` — Iteration findings and quality evidence
+
+### Context
+Reviewed the supervisor-record implementation across coordinator, host plumbing, builder, contracts, and tests. Fixed seven compatibility, validation, resilience, security-boundary, and documentation findings; all feature-adjacent gates pass.
+

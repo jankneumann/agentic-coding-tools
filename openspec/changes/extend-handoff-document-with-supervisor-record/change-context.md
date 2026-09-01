@@ -27,11 +27,19 @@
 
 | Finding ID | Package | Type | Criticality | Disposition | Resolution |
 |------------|---------|------|-------------|-------------|------------|
+| II-001 | wp-coordinator | compatibility | medium | fixed | Restored the pre-extension positional `HandoffDocument` constructor ABI and added a regression test. |
+| II-002 | wp-coordinator | correctness | medium | fixed | Replaced the schema-invalid help example with a complete v1 record and pinned its required keys. |
+| II-003 | wp-contracts | contract_mismatch | low | fixed | Aligned both OpenAPI copies with structural JSON equality. |
+| II-004 | wp-contracts | compatibility | high | fixed | Moved runtime schema consumers to canonical paths that survive change archival. |
+| II-005 | wp-supervisor-builder | resilience | medium | fixed | Reported degraded handoff state for cold-start and newer-mirror recovery. |
+| II-006 | wp-supervisor-builder | correctness | medium | fixed | Sanitized before validation, validated final documents, and rejected future versions. |
+| II-007 | wp-supervisor-builder | security | medium | fixed | Rejected symlinked mirror destinations and used atomic replacement. |
 
 ## Coverage Summary
 
 - **Requirements traced**: 4/4
 - **Tests mapped**: 4 requirements have at least one planned test
 - **Evidence collected**: 4/4 requirements have pass/fail evidence
+- **Implementation iteration evidence**: 30 focused coordinator tests and 121 feature-adjacent skills tests passed; changed coordinator files passed strict mypy and all changed Python surfaces passed Ruff.
 - **Gaps identified**: live PostgreSQL round-trip awaits an environment with the local service available
 - **Deferred items**: repository-wide skills collection collisions and missing optional mypy stubs are pre-existing infrastructure findings outside this change

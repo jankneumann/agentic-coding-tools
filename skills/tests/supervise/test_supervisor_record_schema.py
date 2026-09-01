@@ -11,10 +11,7 @@ import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SCHEMA_DIR = (
-    REPO_ROOT
-    / "openspec/changes/extend-handoff-document-with-supervisor-record/contracts/schemas"
-)
+SCHEMA_DIR = REPO_ROOT / "openspec" / "schemas"
 FIXTURE_DIR = Path(__file__).parent / "fixtures/supervisor-record"
 
 SHARED_SKILLS = REPO_ROOT / "skills/shared"
@@ -92,3 +89,9 @@ class TestSupervisorRecordFixtures:
         full_record = _load_json(FIXTURE_DIR / "full.json")
         assert handoff["supervisor_record"] == full_record
         _validator(full_schema).validate(handoff["supervisor_record"])
+
+
+def test_runtime_schema_source_survives_change_archival() -> None:
+    assert SCHEMA_DIR == REPO_ROOT / "openspec" / "schemas"
+    assert (SCHEMA_DIR / "supervisor-record.schema.json").is_file()
+    assert (SCHEMA_DIR / "supervisor-record-mirror.schema.json").is_file()

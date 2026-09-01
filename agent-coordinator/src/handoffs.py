@@ -31,8 +31,8 @@ class HandoffDocument:
     decisions: list[Any] = field(default_factory=list)
     next_steps: list[Any] = field(default_factory=list)
     relevant_files: list[Any] = field(default_factory=list)
-    supervisor_record: dict[str, Any] | None = None
     created_at: datetime | None = None
+    supervisor_record: dict[str, Any] | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "HandoffDocument":
