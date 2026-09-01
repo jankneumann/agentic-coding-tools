@@ -119,7 +119,7 @@ items:
   - roadmap-always-on-agent-automation:ri-06
 - item_id: ri-05
   title: Extend handoff document with supervisor record
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on:
@@ -446,4 +446,4 @@ items:
     spend is auditable after a run.'
   external_depends_on:
   - dispatch-governance:dg-04
-updated_at: '2026-08-16T20:16:35.880832+00:00'
+updated_at: '2026-09-01T02:35:50.553353+00:00'
