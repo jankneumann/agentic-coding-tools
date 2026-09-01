@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: wire-supervise-execution-through-the-dispatch-fn-seam
   title: "Wire supervise execution through the dispatch_fn seam"
-  plan_revision: 1
+  plan_revision: 2
   created_by: plan-feature
   deployable: false
 
@@ -50,6 +50,7 @@ packages:
       reason: "Freeze the callback request and result shape"
     scope:
       write_allow:
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md"
         - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/**"
         - "skills/tests/supervise/test_execution_contract.py"
         - "skills/tests/supervise/fixtures/execution/contracts/**"
@@ -107,6 +108,7 @@ packages:
       reason: "Own durable delegated-attempt state"
     scope:
       write_allow:
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md"
         - "skills/roadmap-runtime/scripts/models.py"
         - "skills/roadmap-runtime/scripts/checkpoint.py"
         - "skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json"
@@ -168,6 +170,7 @@ packages:
       reason: "Own deterministic supervised execution planning"
     scope:
       write_allow:
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md"
         - "skills/roadmap-runtime/scripts/dispatch_scheduler.py"
         - "skills/tests/roadmap-runtime/test_dispatch_scheduler.py"
         - "skills/tests/roadmap-runtime/fixtures/dispatch-scopes/**"
@@ -227,6 +230,7 @@ packages:
       reason: "Own the dispatch_fn lifecycle and checkpoint changes"
     scope:
       write_allow:
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md"
         - "skills/autopilot-roadmap/scripts/orchestrator.py"
         - "skills/autopilot-roadmap/SKILL.md"
         - "skills/tests/autopilot-roadmap/test_supervised_dispatch.py"
@@ -294,6 +298,7 @@ packages:
       reason: "Own the downstream host prepare/launch/resume/apply adapter"
     scope:
       write_allow:
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md"
         - "skills/supervise/scripts/execution.py"
         - "skills/tests/supervise/test_execution.py"
         - "skills/tests/supervise/fixtures/execution/lifecycle/**"
@@ -353,6 +358,7 @@ packages:
       reason: "Own the host-facing execute verb"
     scope:
       write_allow:
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md"
         - "skills/supervise/SKILL.md"
         - "skills/tests/supervise/test_workflow_contract.py"
       read_allow:
@@ -413,6 +419,7 @@ packages:
       reason: "Own cross-package convergence and runtime mirror sync"
     scope:
       write_allow:
+        - "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md"
         - "skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py"
         - "skills/tests/autopilot-roadmap/fixtures/supervised-dispatch/**"
         - ".agents/skills/autopilot-roadmap/**"
