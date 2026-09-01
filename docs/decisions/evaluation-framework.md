@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-09-01 — add-harbor-benchmark-routing
+
+### Phase: Plan
+
+**Harbor as pinned package-local dependency (D1)** — Isolation, built-in claude-code/codex adapters, per-trial metrics; blast radius confined to packages/harbor-bench
+
+- Status: `active`
+- Source: [openspec/changes/add-harbor-benchmark-routing/session-log.md](/openspec/changes/add-harbor-benchmark-routing/session-log.md) (D1)
+
+---
+
+## 2026-09-01 — add-harbor-benchmark-routing
+
+### Phase: Plan
+
+**'combo' = {vendor, model, thinking, harness}; 'arm' reserved for rightsizing A/B (D2)** — Resolves the semantic clash with the skill-rightsizing roadmap scorecards
+
+- Status: `active`
+- Source: [openspec/changes/add-harbor-benchmark-routing/session-log.md](/openspec/changes/add-harbor-benchmark-routing/session-log.md) (D2)
+
+---
+
+## 2026-09-01 — add-harbor-benchmark-routing
+
+### Phase: Plan
+
+**Container runtime is podman via Docker-compatible socket (D10)** — User directive: repo uses podman, not Docker; smoke trial is the acceptance check
+
+- Status: `active`
+- Source: [openspec/changes/add-harbor-benchmark-routing/session-log.md](/openspec/changes/add-harbor-benchmark-routing/session-log.md) (D5)
+
+---
+
 ## 2026-07-22 — 2026-07-24-add-agy-grok-pi-harnesses
 
 ### Phase: Plan
