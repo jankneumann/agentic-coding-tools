@@ -2,12 +2,53 @@
   "schema_version": 1,
   "change_id": "extend-handoff-document-with-supervisor-record",
   "phase": "VAL_REVIEW",
-  "reviewed_commit": "d96212b7d5b7d33f07f291236bc9d5915311152d",
-  "outcome": "not_converged",
-  "reviewer_participation": {"requested": 2, "valid": 2, "providers": ["codex"], "independent_agents": ["evidence_critic", "spec_critic"], "timeout_failures": 0, "schema_failures": 0},
-  "confirmed_blocking_findings": ["VAL-SPEC-001", "VAL-SPEC-002", "VAL-EVID-003", "VAL-ACCEPT-004"],
-  "independent_evidence": {"focused_coordinator": "106 passed", "focused_skills": "432 passed", "live_postgresql": "4 skipped", "mypy": "pass", "ruff": "pass", "openspec_strict": "pass", "traceability": "pass", "runtime_skill_mirrors": "fail"},
-  "classification_adjudication": {"deployable_false": "accepted under explicit validate-feature declaration", "architecture": "advisory", "package_result_provenance": "advisory", "ci_before_pr": "advisory"},
-  "goal_gate_ready": false,
-  "next_phase": "VAL_FIX"
+  "reviewed_commit": "fdb9b5015a360f9009ce03f4a75665f75d908c61",
+  "outcome": "converged",
+  "reviewer_participation": {
+    "final_round_requested": 1,
+    "final_round_valid": 1,
+    "cumulative_valid": 3,
+    "providers": [
+      "codex"
+    ],
+    "independent_agents": [
+      "evidence_critic",
+      "spec_critic",
+      "val_review_2"
+    ],
+    "timeout_failures": 0,
+    "schema_failures": 0
+  },
+  "confirmed_blocking_findings": [],
+  "independent_evidence": {
+    "focused_coordinator": "106 passed",
+    "focused_skills": "432 passed",
+    "live_postgresql": "4 passed, 0 skipped",
+    "postgresql_rpc_arities": {
+      "read_handoff": 3,
+      "write_handoff": 9
+    },
+    "mypy": "pass",
+    "ruff": "pass",
+    "openspec_strict": "pass",
+    "work_packages": "pass",
+    "traceability": "pass",
+    "context_drift": "fresh",
+    "runtime_skill_mirrors": "exact",
+    "rpc_failed_contract": "consistent"
+  },
+  "classification_adjudication": {
+    "deployable_false": "accepted under explicit validate-feature declaration",
+    "architecture": "advisory",
+    "package_result_provenance": "advisory",
+    "ci_before_pr": "advisory"
+  },
+  "goal_gate_ready": "validation-goal-binding-1 postdates report; pending loop-state bind",
+  "next_phase": "SUBMIT_PR",
+  "resolved_prior_findings": [
+    "VAL-SPEC-001",
+    "VAL-SPEC-002",
+    "VAL-EVID-003",
+    "VAL-ACCEPT-004"
+  ]
 }
