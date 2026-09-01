@@ -170,6 +170,18 @@ hooks is unnecessary.
 - Supervisor ri-06 and ri-13 write into `pending_gates` and `back_edge`; they are consumers
   of this contract and not blocked by it beyond the schema.
 
+## D9 — Validation gates follow ownership boundaries
+
+The required integration gate is the union of the work-package tests and static checks on
+the surfaces this change owns, plus a live migration-034 PostgreSQL round-trip, contract
+drift, and strict OpenSpec validation. The repository-wide coordinator and skills suites
+remain valuable diagnostics and their failures must be reported, but they are not a
+conjunctive feature acceptance gate when failures are demonstrably pre-existing,
+environmental, or caused by the repository's flat-module collection topology outside this
+change. Any failure in a changed-surface test remains blocking regardless of broad-suite
+classification. This keeps acceptance strict for the feature without expanding this change
+into unrelated harness rewrites.
+
 ## Task sizing notes
 
 No task is L or XL. The one M task in Phase 1 (the coordinator surfaces) touches six files

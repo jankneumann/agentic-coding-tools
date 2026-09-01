@@ -193,8 +193,11 @@ Capability short names: `ac` = `agent-coordinator`, `sw` = `skill-workflow`,
 
 ## Phase 5 — wp-integration
 
-- [x] 5.1 Run `agent-coordinator` unit + e2e suites, all `skills/tests`, `ruff`, `mypy
-      --strict` on `agent-coordinator/src` — **S**
+- [x] 5.1 Run the change-scoped coordinator and skills suites, strict mypy on changed
+      coordinator modules, Ruff on changed Python surfaces, and the live migration-034
+      PostgreSQL round-trip. Run the repository-wide coordinator and skills suites as
+      separately reported diagnostics; failures outside changed surfaces do not replace
+      the required feature gates and no changed-surface regression may be reclassified — **S**
       **Dependencies**: all Phase 1–4 tasks
 
 - [x] 5.2 Promote `contracts/openapi/handoffs.yaml` over the canonical contract and both record

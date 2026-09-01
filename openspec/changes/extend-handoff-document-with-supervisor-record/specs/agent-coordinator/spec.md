@@ -27,9 +27,10 @@ The system SHALL support session continuity through handoff documents that prese
 - **WHEN** agent calls `read_handoff` and no handoff documents exist for the agent
 - **THEN** system returns `{handoffs: []}`
 
-#### Scenario: Handoff write fails due to database error
-- **WHEN** agent calls `write_handoff` and the coordination database is unreachable
-- **THEN** system returns `{success: false, error: "database_unavailable"}`
+#### Scenario: Handoff write RPC fails
+- **WHEN** agent calls `write_handoff` and the coordination database RPC raises
+- **THEN** system returns `{success: false}`
+- **AND** `error` starts with `rpc_failed:` and includes the exception type and message
 
 #### Scenario: Session start context loading
 - **WHEN** a new agent session begins

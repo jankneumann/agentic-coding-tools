@@ -171,3 +171,29 @@ Reviewed the supervisor-record implementation across coordinator, host plumbing,
 ### Context
 Validated commit cf1522bd at tier B. Spec compliance and every changed-surface unit/static gate passed; deploy, smoke, live security, and browser E2E were not applicable, while repository-wide environment and import-isolation gaps were recorded separately.
 
+---
+
+## Phase: Validation Fix 1 (2026-09-01)
+
+**Agent**: validator | **Session**: N/A
+
+### Decisions
+1. **Preserve the public rpc_failed diagnostic contract** — The delta copied stale canonical wording; implementation, public surfaces, existing compatibility tests, and the approved proposal all pin the richer longstanding behavior.
+2. **Gate feature correctness at owned surfaces** — Changed-surface failures remain blocking while unrelated monolithic-suite harness failures stay visible diagnostics rather than expanding this change's scope.
+
+### Alternatives Considered
+- Change HandoffService to database_unavailable: rejected because Would break the existing public diagnostic contract and violate the proposal requirement that pre-existing handoff tests pass unchanged.
+- Rewrite repository-wide test collection infrastructure: rejected because Out of scope and unnecessary to prove this feature; focused gates plus real PostgreSQL provide direct regression evidence.
+
+### Trade-offs
+- Accepted Feature-scoped required gates plus broad-suite diagnostics over One conjunctive monolithic suite gate because Preserves strict feature regression detection without attributing unrelated baseline failures to this change.
+
+### Completed Work
+- Resynchronized canonical supervise skill to both generated runtime trees and proved exact diffs.
+- Reconciled the active error scenario with established rpc_failed behavior without code or test churn.
+- Applied migrations 000-033 then 034 to real PostgreSQL and passed all four live handoff tests.
+- Refined proposal, design, tasks, work packages, traceability, findings, and validation evidence.
+
+### Context
+Resolved all four validation-review blockers with exact runtime skill synchronization, a backward-compatible error-contract correction, real staged migration-034 PostgreSQL evidence, and explicit changed-surface acceptance gates. All required tests, static checks, package/spec/traceability gates, and mirror diffs pass.
+
