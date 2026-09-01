@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -46,7 +47,7 @@ def _prepared_attempt() -> dict:
         "status": "prepared",
         "prepared_at": "2026-09-01T00:01:00Z",
         "launch_token": "launch-token-0001",
-        "launch_marker_path": ".git/autopilot/roadmap-alpha-ri-03.marker",
+        "launch_marker_path": ".supervised-dispatch/add-alpha-capability/ri-03-attempt-1.marker",
         "lease_generation": 1,
         "launch_history": [],
         "scope": {
@@ -93,7 +94,7 @@ def _launched_attempt() -> dict:
                 "generation": 1,
                 "owner_nonce": "owner-nonce-0001",
                 "state": "entered",
-                "marker_path": ".git/autopilot/roadmap-alpha-ri-03.marker",
+                "marker_path": ".supervised-dispatch/add-alpha-capability/ri-03-attempt-1.marker",
                 "handle": "task-alpha-1",
                 "observed_at": "2026-09-01T00:03:00Z",
             }
@@ -168,6 +169,11 @@ def test_checkpoint_manager_rejects_duplicate_dispatch_identity(tmp_path: Path) 
             id="launched-requires-generation-match",
         ),
         pytest.param(
+            lambda attempt: attempt.update(launch_gate=None),
+            "launch_gate",
+            id="launched-requires-mapping-launch-state",
+        ),
+        pytest.param(
             lambda attempt: attempt.update(
                 status="quarantined",
                 quarantine={
@@ -206,6 +212,35 @@ def test_checkpoint_rejects_attempt_state_contradictions(mutate, message: str) -
         Checkpoint.from_dict({**_legacy_checkpoint(), "dispatch_attempts": [attempt]})
 
 
+def test_checkpoint_rejects_unknown_unbounded_attempt_fields() -> None:
+    attempt = _prepared_attempt()
+    attempt["transcript"] = "private child transcript" * 1024
+
+    with pytest.raises(ValueError, match="unknown.*transcript"):
+        Checkpoint.from_dict({**_legacy_checkpoint(), "dispatch_attempts": [attempt]})
+
+
+def test_checkpoint_save_uses_atomic_replace_and_preserves_previous_bytes_on_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manager = CheckpointManager(tmp_path)
+    checkpoint = Checkpoint.from_dict(_legacy_checkpoint())
+    manager.save(checkpoint)
+    previous = manager.checkpoint_path.read_bytes()
+    checkpoint.current_item_id = "ri-04"
+
+    def fail_replace(*_args, **_kwargs) -> None:
+        raise OSError("simulated replace failure")
+
+    monkeypatch.setattr(os, "replace", fail_replace)
+
+    with pytest.raises(OSError, match="simulated replace failure"):
+        manager.save(checkpoint)
+
+    assert manager.checkpoint_path.read_bytes() == previous
+
+
 def test_checkpoint_schemas_publish_the_optional_attempt_ledger() -> None:
     canonical = json.loads(_CANONICAL_SCHEMA.read_text())
     installed = json.loads(_INSTALLED_SCHEMA.read_text())
@@ -214,8 +249,20 @@ def test_checkpoint_schemas_publish_the_optional_attempt_ledger() -> None:
     assert "dispatch_attempts" not in canonical["required"]
     assert canonical["properties"]["dispatch_attempts"] == {
         "type": "array",
-        "items": {"type": "object"},
+        "items": {"$ref": "#/$defs/delegated_dispatch_attempt"},
         "default": [],
     }
     Draft202012Validator.check_schema(canonical)
-    Draft202012Validator(canonical).validate(_legacy_checkpoint())
+    validator = Draft202012Validator(canonical)
+    validator.validate(_legacy_checkpoint())
+    validator.validate(
+        {**_legacy_checkpoint(), "dispatch_attempts": [_prepared_attempt()]}
+    )
+    invalid = _prepared_attempt()
+    invalid["transcript"] = "private child transcript"
+    assert any(
+        "Additional properties" in error.message
+        for error in validator.iter_errors(
+            {**_legacy_checkpoint(), "dispatch_attempts": [invalid]}
+        )
+    )

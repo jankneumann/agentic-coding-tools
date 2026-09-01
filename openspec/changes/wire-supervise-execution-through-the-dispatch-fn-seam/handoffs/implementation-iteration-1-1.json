@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-01T07:28:53.285741+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Resolved 15 critical-to-medium implementation-review findings across delegated scheduling, checkpoint durability, linked-worktree isolation, result evidence, and application recovery. The focused and broad suites are green; external vendor quorum remained unavailable and is recorded explicitly.",
+    "completed_work": [
+      "Hardened scheduler scope semantics and per-item isolation failure handling.",
+      "Added checkpoint locks, atomic persistence, strict attempt/journal schemas, and crash recovery.",
+      "Verified canonical worktree branch, commit, loop-state path, digest, and semantics at entry/application.",
+      "Corrected OpenSpec API drift and documented exact host evidence/marker paths.",
+      "Passed 145 focused tests and 370 broad tests plus all package/spec/mirror gates."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use worktree-owned markers and serialized durable checkpoint transitions",
+        "rationale": "Linked worktrees expose .git as a file and concurrent host updates require one durable transition order.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Require canonical committed loop-state evidence",
+        "rationale": "A path alone cannot prove that a returned success or parked state belongs to the exact child generation.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Keep delegated execution as separate prepare/apply entry points",
+        "rationale": "This preserves legacy execute_roadmap behavior while reusing the established synchronous dispatch result seam.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Keep PR #451 open for validation/approval; do not merge or archive during this iteration."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/impl-findings.md",
+        "description": "Structured iteration findings and gate evidence"
+      },
+      {
+        "path": "skills/supervise/scripts/execution.py",
+        "description": "Host lifecycle, checkpoint concurrency, and exact evidence validation"
+      },
+      {
+        "path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+        "description": "Two-stage batch preparation and journaled result application"
+      },
+      {
+        "path": "skills/roadmap-runtime/scripts/models.py",
+        "description": "Strict durable attempt and atomic checkpoint model"
+      },
+      {
+        "path": "skills/roadmap-runtime/scripts/dispatch_scheduler.py",
+        "description": "Fail-closed scope and package semantic validation"
+      }
+    ]
+  }
+}

@@ -6,9 +6,13 @@ entries, plus load/save helpers that validate against the contract schemas.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import math
+import os
 import re
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -480,6 +484,18 @@ _ATTEMPT_REQUIRED = {
     "isolation",
     "context",
 }
+_ATTEMPT_ALLOWED = _ATTEMPT_REQUIRED | {
+    "application_journal",
+    "continuation",
+    "handoff_id",
+    "launch_evidence",
+    "launch_gate",
+    "lease",
+    "outcome",
+    "parked",
+    "quarantine",
+    "resolved_at",
+}
 _SECRET_CONTEXT_KEY = re.compile(
     r"secret|token|password|credential|api[_-]?key|private[_-]?key|auth|cookie|"
     r"raw[_-]?response|transcript",
@@ -508,6 +524,8 @@ def _validate_dispatch_context(value: Any, *, depth: int = 1) -> None:
                 raise ValueError("dispatch context arrays must contain at most 64 scalars")
         elif not isinstance(child, (str, int, float, bool, type(None))):
             raise ValueError("dispatch context values must be JSON scalars")
+        elif isinstance(child, float) and not math.isfinite(child):
+            raise ValueError("dispatch context numeric values must be finite")
         elif isinstance(child, str) and len(child) > 4096:
             raise ValueError("dispatch context strings must not exceed 4096 characters")
     if depth == 1:
@@ -516,15 +534,105 @@ def _validate_dispatch_context(value: Any, *, depth: int = 1) -> None:
             raise ValueError("dispatch context canonical JSON must not exceed 16 KiB")
 
 
+def _validate_application_journal(value: Any) -> None:
+    if not isinstance(value, dict):
+        raise ValueError("dispatch application journal must be an object")
+    allowed = {
+        "schema_version",
+        "state",
+        "result",
+        "result_digest",
+        "bound_at",
+        "callback_started_at",
+        "callback_acknowledged_at",
+        "terminal_persisted_at",
+        "effects_applied_at",
+    }
+    unknown = sorted(value.keys() - allowed)
+    if unknown:
+        raise ValueError(
+            f"dispatch application journal contains unknown fields: {', '.join(unknown)}"
+        )
+    required = {"schema_version", "state", "result", "result_digest", "bound_at"}
+    missing = sorted(required - value.keys())
+    if missing:
+        raise ValueError(
+            f"dispatch application journal missing fields: {', '.join(missing)}"
+        )
+    if isinstance(value["schema_version"], bool) or value["schema_version"] != 1:
+        raise ValueError("dispatch application journal schema_version must be 1")
+    states = [
+        "result_bound",
+        "callback_started",
+        "callback_acknowledged",
+        "terminal_persisted",
+        "effects_applied",
+    ]
+    if value["state"] not in states:
+        raise ValueError("dispatch application journal state is invalid")
+    result = value["result"]
+    if not isinstance(result, dict) or _SECRET_CONTEXT_KEY.search(" ".join(result.keys())):
+        raise ValueError("dispatch application journal result is not outcome-only")
+    canonical = json.dumps(
+        result,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    if len(canonical) > 16 * 1024:
+        raise ValueError("dispatch application journal result exceeds 16 KiB")
+    if value["result_digest"] != hashlib.sha256(canonical).hexdigest():
+        raise ValueError("dispatch application journal result digest mismatch")
+    timestamps = [
+        "bound_at",
+        "callback_started_at",
+        "callback_acknowledged_at",
+        "terminal_persisted_at",
+        "effects_applied_at",
+    ]
+    for timestamp in timestamps:
+        if timestamp in value and (
+            not isinstance(value[timestamp], str) or not value[timestamp]
+        ):
+            raise ValueError(f"dispatch application journal {timestamp} is invalid")
+    state_index = states.index(value["state"])
+    for index, timestamp in enumerate(timestamps[1:], start=1):
+        if state_index >= index and timestamp not in value:
+            raise ValueError(
+                f"dispatch application journal {value['state']} requires {timestamp}"
+            )
+        if state_index < index and timestamp in value:
+            raise ValueError(
+                f"dispatch application journal {value['state']} cannot contain {timestamp}"
+            )
+
+
 def validate_delegated_dispatch_attempt(attempt: dict[str, Any]) -> None:
     """Validate one delegated attempt before it enters durable state."""
     if not isinstance(attempt, dict):
         raise ValueError("dispatch attempt must be an object")
     _require_attempt_fields(attempt, _ATTEMPT_REQUIRED, "delegated")
+    unknown = sorted(attempt.keys() - _ATTEMPT_ALLOWED)
+    if unknown:
+        raise ValueError(f"dispatch attempt contains unknown fields: {', '.join(unknown)}")
+    for field_name, limit in (("dispatch_id", 256), ("item_id", 128), ("change_id", 160)):
+        value = attempt[field_name]
+        if not isinstance(value, str) or not 1 <= len(value) <= limit:
+            raise ValueError(f"dispatch attempt {field_name} must be a bounded string")
+    attempt_number = attempt["attempt"]
+    if isinstance(attempt_number, bool) or not isinstance(attempt_number, int) or attempt_number < 1:
+        raise ValueError("dispatch attempt number must be positive")
+    launch_token = attempt["launch_token"]
+    if not isinstance(launch_token, str) or not 16 <= len(launch_token) <= 256:
+        raise ValueError("dispatch attempt launch token must be bounded")
+    marker_path = attempt["launch_marker_path"]
+    if not isinstance(marker_path, str) or not marker_path:
+        raise ValueError("dispatch attempt launch marker path must be non-empty")
     if attempt["phase"] != "autopilot":
         raise ValueError("dispatch attempt phase must be autopilot")
     generation = attempt["lease_generation"]
-    if not isinstance(generation, int) or generation < 1:
+    if isinstance(generation, bool) or not isinstance(generation, int) or generation < 1:
         raise ValueError("dispatch attempt generation must be positive")
     history = attempt["launch_history"]
     if not isinstance(history, list) or len(history) > 64:
@@ -535,6 +643,8 @@ def validate_delegated_dispatch_attempt(attempt: dict[str, Any]) -> None:
         if entry["generation"] > generation:
             raise ValueError("dispatch attempt launch_history generation is future")
     _validate_dispatch_context(attempt["context"])
+    if "application_journal" in attempt:
+        _validate_application_journal(attempt["application_journal"])
 
     status = attempt["status"]
     allowed = {
@@ -553,15 +663,18 @@ def validate_delegated_dispatch_attempt(attempt: dict[str, Any]) -> None:
     evidence = attempt.get("launch_evidence")
     gate = attempt.get("launch_gate")
     for label, value in (("lease", lease), ("launch_evidence", evidence), ("launch_gate", gate)):
-        if value is not None and (
+        if label in attempt and (
             not isinstance(value, dict) or value.get("generation") != generation
         ):
             raise ValueError(f"dispatch attempt generation mismatch in {label}")
+    lease_state = lease if isinstance(lease, dict) else {}
+    evidence_state = evidence if isinstance(evidence, dict) else {}
+    gate_state = gate if isinstance(gate, dict) else {}
     if (
-        evidence
-        and gate
-        and evidence.get("kind") == "host_ack"
-        and evidence.get("handle") != gate.get("handle")
+        evidence_state
+        and gate_state
+        and evidence_state.get("kind") == "host_ack"
+        and evidence_state.get("handle") != gate_state.get("handle")
     ):
         raise ValueError("dispatch attempt host acknowledgement handle mismatch")
 
@@ -577,40 +690,40 @@ def validate_delegated_dispatch_attempt(attempt: dict[str, Any]) -> None:
     elif status == "claimed":
         _require_attempt_fields(attempt, launch_fields, status)
         if (
-            lease.get("state") != "active"
-            or evidence.get("kind") != "child_marker"
-            or gate.get("state") != "waiting_ack"
-            or any(gate.get(key) is not None for key in ("handle", "go_released_at", "entered_at"))
+            lease_state.get("state") != "active"
+            or evidence_state.get("kind") != "child_marker"
+            or gate_state.get("state") != "waiting_ack"
+            or any(gate_state.get(key) is not None for key in ("handle", "go_released_at", "entered_at"))
         ):
             raise ValueError("claimed dispatch attempt must hold an active pre-ack marker lease")
     elif status == "acknowledged":
         _require_attempt_fields(attempt, launch_fields, status)
         if (
-            lease.get("state") != "active"
-            or evidence.get("kind") != "host_ack"
-            or gate.get("state") != "go_released"
-            or not gate.get("handle")
-            or not gate.get("go_released_at")
-            or gate.get("entered_at") is not None
+            lease_state.get("state") != "active"
+            or evidence_state.get("kind") != "host_ack"
+            or gate_state.get("state") != "go_released"
+            or not gate_state.get("handle")
+            or not gate_state.get("go_released_at")
+            or gate_state.get("entered_at") is not None
         ):
             raise ValueError("acknowledged dispatch attempt must release go before entry")
     elif status == "launched":
         _require_attempt_fields(attempt, launch_fields, status)
         if (
-            lease.get("state") != "active"
-            or evidence.get("kind") != "host_ack"
-            or gate.get("state") != "entered"
-            or not all(gate.get(key) for key in ("handle", "go_released_at", "entered_at"))
+            lease_state.get("state") != "active"
+            or evidence_state.get("kind") != "host_ack"
+            or gate_state.get("state") != "entered"
+            or not all(gate_state.get(key) for key in ("handle", "go_released_at", "entered_at"))
         ):
             raise ValueError("launched dispatch attempt must record entry with an active lease")
     elif status == "quarantined":
         _require_attempt_fields(attempt, launch_fields | {"quarantine"}, status)
         if (
-            lease.get("state") != "uncertain"
-            or evidence.get("kind") != "host_ack"
-            or gate.get("state") not in {"go_released", "entered"}
-            or not gate.get("handle")
-            or not gate.get("go_released_at")
+            lease_state.get("state") != "uncertain"
+            or evidence_state.get("kind") != "host_ack"
+            or gate_state.get("state") not in {"go_released", "entered"}
+            or not gate_state.get("handle")
+            or not gate_state.get("go_released_at")
             or attempt["quarantine"].get("kind") != "unknown_liveness"
         ):
             raise ValueError("quarantined dispatch attempt must retain an uncertain post-go lease")
@@ -619,10 +732,10 @@ def validate_delegated_dispatch_attempt(attempt: dict[str, Any]) -> None:
             attempt, launch_fields | {"parked", "outcome", "resolved_at"}, status
         )
         if (
-            lease.get("state") != "released"
-            or evidence.get("kind") != "host_ack"
-            or gate.get("state") != "entered"
-            or not all(gate.get(key) for key in ("handle", "go_released_at", "entered_at"))
+            lease_state.get("state") != "released"
+            or evidence_state.get("kind") != "host_ack"
+            or gate_state.get("state") != "entered"
+            or not all(gate_state.get(key) for key in ("handle", "go_released_at", "entered_at"))
             or outcome != "parked"
             or attempt["parked"].get("kind") not in {"pending_gate", "policy_pause"}
         ):
@@ -631,7 +744,7 @@ def validate_delegated_dispatch_attempt(attempt: dict[str, Any]) -> None:
         _require_attempt_fields(
             attempt, launch_fields | {"handoff_id", "outcome", "resolved_at"}, status
         )
-        if lease.get("state") != "released" or outcome != "success" or not attempt["handoff_id"]:
+        if lease_state.get("state") != "released" or outcome != "success" or not attempt["handoff_id"]:
             raise ValueError("completed dispatch attempt requires success and handoff")
     elif status == "failed":
         _require_attempt_fields(attempt, {"outcome", "resolved_at"}, status)
@@ -639,7 +752,7 @@ def validate_delegated_dispatch_attempt(attempt: dict[str, Any]) -> None:
             outcome.startswith("failed:") or outcome.startswith("vendor_limit:")
         ):
             raise ValueError("failed dispatch attempt requires failure outcome")
-        if lease is not None and lease.get("state") not in {"released", "expired"}:
+        if lease is not None and lease_state.get("state") not in {"released", "expired"}:
             raise ValueError("failed dispatch attempt must release or expire its lease")
 
     if status != "parked" and "parked" in attempt:
@@ -648,12 +761,17 @@ def validate_delegated_dispatch_attempt(attempt: dict[str, Any]) -> None:
         raise ValueError(f"{status} dispatch attempt cannot contain quarantine state")
     continuation = attempt.get("continuation")
     if continuation is not None and (
-        status != "prepared"
+        status not in {"prepared", "claimed", "acknowledged", "launched", "quarantined"}
         or generation < 2
+        or not isinstance(continuation, dict)
+        or set(continuation) != {"kind", "approval_ref"}
         or continuation.get("kind") not in {"pending_gate", "policy_pause"}
-        or not continuation.get("approval_ref")
+        or not isinstance(continuation.get("approval_ref"), str)
+        or not 1 <= len(continuation["approval_ref"]) <= 256
     ):
-        raise ValueError("prepared continuation requires parked kind and approval reference")
+        raise ValueError(
+            "active continuation requires parked kind and bounded approval reference"
+        )
 
 
 @dataclass
@@ -991,6 +1109,29 @@ def load_checkpoint(path: Path, repo_root: Path | None = None) -> Checkpoint:
 
 
 def save_checkpoint(checkpoint: Checkpoint, path: Path) -> None:
-    """Save a checkpoint to JSON."""
+    """Atomically and durably save a checkpoint to JSON."""
     checkpoint.updated_at = datetime.now(timezone.utc).isoformat()
-    path.write_text(json.dumps(checkpoint.to_dict(), indent=2) + "\n")
+    payload = (json.dumps(checkpoint.to_dict(), indent=2) + "\n").encode("utf-8")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        dir=str(path.parent),
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        except OSError:
+            pass
+        finally:
+            os.close(directory_fd)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise

@@ -253,6 +253,9 @@ docs/security-review/*.json
 artifacts/
 .status-cache.json
 
+# Per-worktree supervised-dispatch generation markers (runtime arbitration only)
+.supervised-dispatch/
+
 # Per-run autopilot phase-resolution cache (wire-autopilot-phase-subagents D4)
 openspec/changes/*/.phase-resolution-cache.json
 
