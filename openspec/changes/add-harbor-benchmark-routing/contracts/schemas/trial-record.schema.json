@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trial-record.schema.json",
+  "title": "TrialRecord",
+  "description": "One benchmark trial: a single combo attempt on one converted task. The importer's sole input.",
+  "type": "object",
+  "required": ["job_id", "trial_id", "task_id", "task_type", "combo", "attempt", "reward", "graded_by", "duration_seconds", "tokens"],
+  "additionalProperties": false,
+  "properties": {
+    "job_id": { "type": "string" },
+    "trial_id": { "type": "string" },
+    "task_id": { "type": "string", "description": "Archived change id, e.g. 2026-08-26-introduce-fitness-function-gates" },
+    "task_type": {
+      "type": "string",
+      "enum": ["algorithm", "data_model", "crud", "config", "migration", "integration"],
+      "description": "package_kind vocabulary (design.md D7)"
+    },
+    "task_type_source": { "type": "string", "enum": ["declared", "inferred"] },
+    "combo": { "$ref": "combo.schema.json" },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "reward": { "type": "number", "minimum": 0, "maximum": 1 },
+    "graded_by": { "type": "string", "enum": ["deterministic", "judge"] },
+    "success": { "type": "boolean", "description": "reward >= task success threshold" },
+    "duration_seconds": { "type": "number", "minimum": 0 },
+    "tokens": {
+      "type": "object",
+      "required": ["input", "output"],
+      "additionalProperties": false,
+      "properties": {
+        "input": { "type": "integer", "minimum": 0 },
+        "output": { "type": "integer", "minimum": 0 },
+        "cache_read": { "type": "integer", "minimum": 0 },
+        "cache_creation": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "cost_usd": {
+      "type": ["number", "null"],
+      "description": "Actual USD for metered vendors; null for subscription vendors (design.md D4)"
+    },
+    "split": { "type": "string", "enum": ["dev", "holdout"] },
+    "decision_run": { "type": "boolean", "description": "true only when holdout was explicitly unlocked" },
+    "trajectory_ref": { "type": "string", "description": "Path/URI of the Harbor ATIF trajectory for this trial" }
+  }
+}

@@ -1,0 +1,512 @@
+schema_version: 1
+
+feature:
+  id: add-harbor-benchmark-routing
+  title: "Harbor archive-replay benchmark feeding combo priors into adaptive routing"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-harbor-benchmark-routing/contracts/README.md"
+    files:
+      - "openspec/changes/add-harbor-benchmark-routing/contracts/db/schema.sql"
+      - "openspec/changes/add-harbor-benchmark-routing/contracts/schemas/combo.schema.json"
+      - "openspec/changes/add-harbor-benchmark-routing/contracts/schemas/trial-record.schema.json"
+      - "openspec/changes/add-harbor-benchmark-routing/contracts/schemas/corpus-manifest.schema.json"
+      - "openspec/changes/add-harbor-benchmark-routing/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ── wp-contracts — validate contract set (task 1.1)
+  - package_id: wp-contracts
+    title: "Contracts — DB contract + JSON schemas validated"
+    task_type: contracts
+    description: |
+      Task 1.1: validate the three JSON schemas as Draft 2020-12 and the DB
+      contract as parseable SQL. Coordination boundary for all downstream packages.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "contract:harbor-bench-db"
+        - "contract:harbor-bench-schemas"
+      ttl_minutes: 60
+      reason: "Contract definitions for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/changes/add-harbor-benchmark-routing/contracts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: harbor-bench-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "JSON schemas validate as Draft 2020-12"
+          kind: command
+          command: "skills/.venv/bin/python -c \"import json, jsonschema, glob; [jsonschema.Draft202012Validator.check_schema(json.load(open(p))) for p in glob.glob('openspec/changes/add-harbor-benchmark-routing/contracts/schemas/*.json')]\""
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contracts_valid"
+    metadata:
+      loc_estimate: 100
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "contracts_valid"
+
+  # ── wp-corpus — package scaffold + sealed manifest (tasks 1.2–1.4)
+  - package_id: wp-corpus
+    title: "harbor-bench scaffold + sealed corpus manifest"
+    task_type: backend
+    description: |
+      Tasks 1.2–1.4: uv package scaffold with pinned harbor dependency; manifest
+      generator over openspec/changes/archive with dev/holdout split, checksum,
+      fail-closed tamper check. Design D1, D5.
+    role: backend-implementer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "packages/harbor-bench/pyproject.toml"
+      keys:
+        - "feature:harbor-bench:scaffold"
+      ttl_minutes: 120
+      reason: "Package root and corpus tooling"
+    scope:
+      write_allow:
+        - "packages/harbor-bench/pyproject.toml"
+        - "packages/harbor-bench/uv.lock"
+        - "packages/harbor-bench/README.md"
+        - "packages/harbor-bench/src/harbor_bench/__init__.py"
+        - "packages/harbor-bench/src/harbor_bench/corpus/**"
+        - "packages/harbor-bench/tests/corpus/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: harbor-bench-wp-corpus
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Corpus tests pass"
+          kind: command
+          command: "uv run --project packages/harbor-bench pytest packages/harbor-bench/tests/corpus -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "corpus_tests_green"
+    metadata:
+      loc_estimate: 600
+      complexity: medium
+      package_kind: data_model
+    inputs: {}
+    outputs:
+      result_keys:
+        - "corpus_tests_green"
+
+  # ── wp-converter — archive → Harbor task conversion (tasks 2.1–2.6)
+  - package_id: wp-converter
+    title: "Converter — instruction/environment/verifier emission"
+    task_type: backend
+    description: |
+      Tasks 2.1–2.6: instruction extraction with diff withholding; environment
+      emission pinned to pre-implementation commit (OCI-compatible subset);
+      deterministic-first verifier ladder with blind judge path behind per-task
+      flag. Design D1, D6, D7, D10.
+    role: backend-implementer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-corpus]
+    locks:
+      files: []
+      keys:
+        - "feature:harbor-bench:converter"
+      ttl_minutes: 180
+      reason: "Converter implementation"
+    scope:
+      write_allow:
+        - "packages/harbor-bench/src/harbor_bench/converter/**"
+        - "packages/harbor-bench/tests/converter/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: harbor-bench-wp-converter
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Converter tests pass"
+          kind: command
+          command: "uv run --project packages/harbor-bench pytest packages/harbor-bench/tests/converter -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "converter_tests_green"
+    metadata:
+      loc_estimate: 1200
+      complexity: high
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys:
+        - "converter_tests_green"
+
+  # ── wp-adapters — custom BaseAgent adapters (tasks 3.1–3.4)
+  - package_id: wp-adapters
+    title: "Adapters — grok, antigravity, pi/OpenRouter BaseAgent adapters"
+    task_type: backend
+    description: |
+      Tasks 3.1–3.4: shared adapter conformance tests; grok, antigravity, and
+      pi/OpenRouter adapters (pi captures per-trial USD cost). claude-code and
+      codex use Harbor built-ins. Design D2, D4.
+    role: backend-implementer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-corpus]
+    locks:
+      files: []
+      keys:
+        - "feature:harbor-bench:adapters"
+      ttl_minutes: 180
+      reason: "Vendor adapter implementations"
+    scope:
+      write_allow:
+        - "packages/harbor-bench/src/harbor_bench/adapters/**"
+        - "packages/harbor-bench/tests/adapters/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: harbor-bench-wp-adapters
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Adapter conformance tests pass"
+          kind: command
+          command: "uv run --project packages/harbor-bench pytest packages/harbor-bench/tests/adapters -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "adapter_tests_green"
+    metadata:
+      loc_estimate: 900
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "adapter_tests_green"
+
+  # ── wp-sweep — runner core + budget policy (tasks 3.5–3.8)
+  - package_id: wp-sweep
+    title: "Sweep runner — matrix execution + budget/throttle policy"
+    task_type: backend
+    description: |
+      Tasks 3.5–3.8: matrix expansion, attempt fan-out, trial-record emission,
+      holdout refusal; podman socket wiring; metered USD cap and subscription
+      window throttle. Design D2, D4, D10.
+    role: backend-implementer
+    archetype: implementer
+    priority: 4
+    depends_on: [wp-corpus, wp-converter, wp-adapters]
+    locks:
+      files: []
+      keys:
+        - "feature:harbor-bench:sweep"
+      ttl_minutes: 180
+      reason: "Sweep runner implementation"
+    scope:
+      write_allow:
+        - "packages/harbor-bench/src/harbor_bench/sweep/**"
+        - "packages/harbor-bench/tests/sweep/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: harbor-bench-wp-sweep
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Sweep tests pass (unit, no container required)"
+          kind: command
+          command: "uv run --project packages/harbor-bench pytest packages/harbor-bench/tests/sweep -q -m 'not integration'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "sweep_tests_green"
+    metadata:
+      loc_estimate: 900
+      complexity: high
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys:
+        - "sweep_tests_green"
+
+  # ── wp-db-import — migration 035, feedback re-keying, importer (tasks 4.1–4.6)
+  - package_id: wp-db-import
+    title: "Data plane — migration 035, feedback re-keying, prior importer"
+    task_type: backend
+    description: |
+      Tasks 4.1–4.6: migration 035 (model_catalog + model_posteriors with thinking
+      and provenance); re-key feedback normalizers to (vendor, model, thinking)
+      with compat shim; idempotent importer from trial records. Design D3, D7, D9.
+      Migration authorship is serialized via the db:schema lock (next free: 035).
+    role: backend-implementer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/src/model_routing/feedback.py"
+      keys:
+        - "db:schema:model_routing"
+      ttl_minutes: 180
+      reason: "Routing data plane and importer"
+    scope:
+      write_allow:
+        - "agent-coordinator/database/migrations/035_model_routing.sql"
+        - "agent-coordinator/src/model_routing/**"
+        - "agent-coordinator/tests/model_routing/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: harbor-bench-wp-db-import
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "model_routing tests pass"
+          kind: command
+          command: "uv run --project agent-coordinator pytest agent-coordinator/tests/model_routing -q -m 'not integration'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "model_routing_tests_green"
+    metadata:
+      loc_estimate: 800
+      complexity: medium
+      package_kind: migration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "model_routing_tests_green"
+
+  # ── wp-readpath — flagged adaptive resolution (tasks 5.1–5.3)
+  - package_id: wp-readpath
+    title: "Read-path — ROUTING_ADAPTIVE mode in resolve_for_phase"
+    task_type: backend
+    description: |
+      Tasks 5.1–5.3: golden test of static resolution for all 15 phases; adaptive
+      ranking via score_and_rank with constraint filtering and empty-catalog
+      fallback. coordination_api.py is a high-coupling module — serialized after
+      wp-db-import, file-locked. Design D8.
+    role: backend-implementer
+    archetype: implementer
+    priority: 5
+    depends_on: [wp-db-import]
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_api.py"
+      keys:
+        - "api:POST /archetypes/resolve_for_phase"
+      ttl_minutes: 120
+      reason: "Flagged adaptive read-path"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/tests/test_resolve_for_phase*.py"
+      read_allow:
+        - "**"
+    worktree:
+      name: harbor-bench-wp-readpath
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Golden + adaptive resolution tests pass"
+          kind: command
+          command: "uv run --project agent-coordinator pytest agent-coordinator/tests -q -k resolve_for_phase"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "readpath_tests_green"
+    metadata:
+      loc_estimate: 500
+      complexity: medium
+      package_kind: crud
+    inputs: {}
+    outputs:
+      result_keys:
+        - "readpath_tests_green"
+
+  # ── wp-scorecard — per-combo report (tasks 6.1–6.2)
+  - package_id: wp-scorecard
+    title: "Scorecard — per-combo × task_type aggregation report"
+    task_type: backend
+    description: |
+      Tasks 6.1–6.2: aggregates trials into per-cell quality/cost/latency with
+      sample size, variance, low-confidence marking, cost-unit split. Design D4.
+    role: backend-implementer
+    archetype: implementer
+    priority: 5
+    depends_on: [wp-sweep]
+    locks:
+      files: []
+      keys:
+        - "feature:harbor-bench:scorecard"
+      ttl_minutes: 120
+      reason: "Scorecard implementation"
+    scope:
+      write_allow:
+        - "packages/harbor-bench/src/harbor_bench/scorecard/**"
+        - "packages/harbor-bench/tests/scorecard/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: harbor-bench-wp-scorecard
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Scorecard tests pass"
+          kind: command
+          command: "uv run --project packages/harbor-bench pytest packages/harbor-bench/tests/scorecard -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "scorecard_tests_green"
+    metadata:
+      loc_estimate: 400
+      complexity: low
+      package_kind: data_model
+    inputs: {}
+    outputs:
+      result_keys:
+        - "scorecard_tests_green"
+
+  # ── wp-integration — smoke, pilot, prior import, cross-change annotations (tasks 6.3–6.7)
+  - package_id: wp-integration
+    title: "Integration — podman smoke, pilot sweep, prior import, annotations"
+    task_type: integration
+    description: |
+      Tasks 6.3–6.7: 1×1 podman smoke trial (D10 acceptance); pilot sweep over
+      15–20 dev tasks × 5-vendor matrix under budget policy; failure triage and
+      manifest pruning; first prior import + scorecard; annotate
+      add-adaptive-model-router tasks.md, mark ri-05 superseded and ri-02
+      absorbed. Requires podman and vendor credentials — runs on the operator
+      host, not CI.
+    role: integrator
+    archetype: implementer
+    priority: 6
+    depends_on: [wp-contracts, wp-corpus, wp-converter, wp-adapters, wp-sweep, wp-db-import, wp-readpath, wp-scorecard]
+    locks:
+      files: []
+      keys:
+        - "feature:harbor-bench:pilot"
+      ttl_minutes: 240
+      reason: "End-to-end pilot and cross-change annotations"
+    scope:
+      write_allow:
+        - "packages/harbor-bench/**"
+        - "openspec/changes/add-adaptive-model-router/tasks.md"
+        - "openspec/changes/build-task-replay-runner/proposal.md"
+        - "openspec/changes/seal-archive-benchmark-corpus-split/proposal.md"
+        - "openspec/roadmaps/skill-rightsizing/roadmap.md"
+        - "docs/benchmarks/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: harbor-bench-wp-integration
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Full harbor-bench suite green"
+          kind: command
+          command: "uv run --project packages/harbor-bench pytest packages/harbor-bench/tests -q -m 'not integration'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "suite_green"
+        - name: "Pilot scorecard artifact exists"
+          kind: command
+          command: "test -s docs/benchmarks/pilot-scorecard.md"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "docs/benchmarks/pilot-scorecard.md"
+            result_keys:
+              - "pilot_scorecard_present"
+    metadata:
+      loc_estimate: 300
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "suite_green"
+        - "pilot_scorecard_present"
