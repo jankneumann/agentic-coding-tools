@@ -15,14 +15,14 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: 0.1
   **Files**: `openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/**`
 
-- [ ] 0.3 Write delegated-attempt checkpoint tests (S)
+- [x] 0.3 Write delegated-attempt checkpoint tests (S)
   **Spec scenarios**: roadmap-orchestration.4a (persist prepared batch), roadmap-orchestration.4b (resume unresolved attempt)
   **Contracts**: `openspec/schemas/checkpoint.schema.json`, `contracts/schemas/delegated-dispatch-attempt.schema.json`
   **Design decisions**: D4, D6
   **Dependencies**: 0.2
   **Files**: `skills/tests/roadmap-runtime/test_delegated_checkpoint.py`
 
-- [ ] 0.4 Extend the checkpoint attempt ledger (M)
+- [x] 0.4 Extend the checkpoint attempt ledger (M)
   **Dependencies**: 0.3
   **Files**: `skills/roadmap-runtime/scripts/models.py`, `skills/roadmap-runtime/scripts/checkpoint.py`, `openspec/schemas/checkpoint.schema.json`, `skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json`
 

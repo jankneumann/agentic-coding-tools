@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -463,6 +464,198 @@ class FailedItem:
         }
 
 
+_ATTEMPT_REQUIRED = {
+    "dispatch_id",
+    "item_id",
+    "change_id",
+    "phase",
+    "attempt",
+    "status",
+    "prepared_at",
+    "launch_token",
+    "launch_marker_path",
+    "lease_generation",
+    "launch_history",
+    "scope",
+    "isolation",
+    "context",
+}
+_SECRET_CONTEXT_KEY = re.compile(
+    r"secret|token|password|credential|api[_-]?key|private[_-]?key|auth|cookie|"
+    r"raw[_-]?response|transcript",
+    re.IGNORECASE,
+)
+
+
+def _require_attempt_fields(value: dict[str, Any], fields: set[str], state: str) -> None:
+    missing = sorted(fields - value.keys())
+    if missing:
+        raise ValueError(f"{state} dispatch attempt missing fields: {', '.join(missing)}")
+
+
+def _validate_dispatch_context(value: Any, *, depth: int = 1) -> None:
+    if not isinstance(value, dict) or depth > 4 or len(value) > 32:
+        raise ValueError("dispatch context must be an object bounded to four levels")
+    for key, child in value.items():
+        if not isinstance(key, str) or not key or len(key) > 64:
+            raise ValueError("dispatch context keys must be 1-64 character strings")
+        if _SECRET_CONTEXT_KEY.search(key):
+            raise ValueError(f"dispatch context contains forbidden key: {key}")
+        if isinstance(child, dict):
+            _validate_dispatch_context(child, depth=depth + 1)
+        elif isinstance(child, list):
+            if len(child) > 64 or any(isinstance(item, (dict, list)) for item in child):
+                raise ValueError("dispatch context arrays must contain at most 64 scalars")
+        elif not isinstance(child, (str, int, float, bool, type(None))):
+            raise ValueError("dispatch context values must be JSON scalars")
+        elif isinstance(child, str) and len(child) > 4096:
+            raise ValueError("dispatch context strings must not exceed 4096 characters")
+    if depth == 1:
+        canonical = json.dumps(value, sort_keys=True, separators=(",", ":"))
+        if len(canonical.encode("utf-8")) > 16 * 1024:
+            raise ValueError("dispatch context canonical JSON must not exceed 16 KiB")
+
+
+def validate_delegated_dispatch_attempt(attempt: dict[str, Any]) -> None:
+    """Validate one delegated attempt before it enters durable state."""
+    if not isinstance(attempt, dict):
+        raise ValueError("dispatch attempt must be an object")
+    _require_attempt_fields(attempt, _ATTEMPT_REQUIRED, "delegated")
+    if attempt["phase"] != "autopilot":
+        raise ValueError("dispatch attempt phase must be autopilot")
+    generation = attempt["lease_generation"]
+    if not isinstance(generation, int) or generation < 1:
+        raise ValueError("dispatch attempt generation must be positive")
+    history = attempt["launch_history"]
+    if not isinstance(history, list) or len(history) > 64:
+        raise ValueError("dispatch attempt launch_history must contain at most 64 entries")
+    for entry in history:
+        if not isinstance(entry, dict) or not isinstance(entry.get("generation"), int):
+            raise ValueError("dispatch attempt launch_history entries require a generation")
+        if entry["generation"] > generation:
+            raise ValueError("dispatch attempt launch_history generation is future")
+    _validate_dispatch_context(attempt["context"])
+
+    status = attempt["status"]
+    allowed = {
+        "prepared",
+        "claimed",
+        "acknowledged",
+        "launched",
+        "quarantined",
+        "parked",
+        "completed",
+        "failed",
+    }
+    if status not in allowed:
+        raise ValueError(f"unsupported dispatch attempt status: {status}")
+    lease = attempt.get("lease")
+    evidence = attempt.get("launch_evidence")
+    gate = attempt.get("launch_gate")
+    for label, value in (("lease", lease), ("launch_evidence", evidence), ("launch_gate", gate)):
+        if value is not None and (
+            not isinstance(value, dict) or value.get("generation") != generation
+        ):
+            raise ValueError(f"dispatch attempt generation mismatch in {label}")
+    if (
+        evidence
+        and gate
+        and evidence.get("kind") == "host_ack"
+        and evidence.get("handle") != gate.get("handle")
+    ):
+        raise ValueError("dispatch attempt host acknowledgement handle mismatch")
+
+    outcome = attempt.get("outcome")
+    if status in {"prepared", "claimed", "acknowledged", "launched", "quarantined"} and (
+        outcome is not None or attempt.get("resolved_at") is not None
+    ):
+        raise ValueError(f"{status} dispatch attempt cannot be terminal")
+    launch_fields = {"lease", "launch_evidence", "launch_gate"}
+    if status == "prepared":
+        if launch_fields & attempt.keys() or {"parked", "quarantine"} & attempt.keys():
+            raise ValueError("prepared dispatch attempt cannot contain launch state")
+    elif status == "claimed":
+        _require_attempt_fields(attempt, launch_fields, status)
+        if (
+            lease.get("state") != "active"
+            or evidence.get("kind") != "child_marker"
+            or gate.get("state") != "waiting_ack"
+            or any(gate.get(key) is not None for key in ("handle", "go_released_at", "entered_at"))
+        ):
+            raise ValueError("claimed dispatch attempt must hold an active pre-ack marker lease")
+    elif status == "acknowledged":
+        _require_attempt_fields(attempt, launch_fields, status)
+        if (
+            lease.get("state") != "active"
+            or evidence.get("kind") != "host_ack"
+            or gate.get("state") != "go_released"
+            or not gate.get("handle")
+            or not gate.get("go_released_at")
+            or gate.get("entered_at") is not None
+        ):
+            raise ValueError("acknowledged dispatch attempt must release go before entry")
+    elif status == "launched":
+        _require_attempt_fields(attempt, launch_fields, status)
+        if (
+            lease.get("state") != "active"
+            or evidence.get("kind") != "host_ack"
+            or gate.get("state") != "entered"
+            or not all(gate.get(key) for key in ("handle", "go_released_at", "entered_at"))
+        ):
+            raise ValueError("launched dispatch attempt must record entry with an active lease")
+    elif status == "quarantined":
+        _require_attempt_fields(attempt, launch_fields | {"quarantine"}, status)
+        if (
+            lease.get("state") != "uncertain"
+            or evidence.get("kind") != "host_ack"
+            or gate.get("state") not in {"go_released", "entered"}
+            or not gate.get("handle")
+            or not gate.get("go_released_at")
+            or attempt["quarantine"].get("kind") != "unknown_liveness"
+        ):
+            raise ValueError("quarantined dispatch attempt must retain an uncertain post-go lease")
+    elif status == "parked":
+        _require_attempt_fields(
+            attempt, launch_fields | {"parked", "outcome", "resolved_at"}, status
+        )
+        if (
+            lease.get("state") != "released"
+            or evidence.get("kind") != "host_ack"
+            or gate.get("state") != "entered"
+            or not all(gate.get(key) for key in ("handle", "go_released_at", "entered_at"))
+            or outcome != "parked"
+            or attempt["parked"].get("kind") not in {"pending_gate", "policy_pause"}
+        ):
+            raise ValueError("parked dispatch attempt must release a gate or policy pause")
+    elif status == "completed":
+        _require_attempt_fields(
+            attempt, launch_fields | {"handoff_id", "outcome", "resolved_at"}, status
+        )
+        if lease.get("state") != "released" or outcome != "success" or not attempt["handoff_id"]:
+            raise ValueError("completed dispatch attempt requires success and handoff")
+    elif status == "failed":
+        _require_attempt_fields(attempt, {"outcome", "resolved_at"}, status)
+        if not isinstance(outcome, str) or not (
+            outcome.startswith("failed:") or outcome.startswith("vendor_limit:")
+        ):
+            raise ValueError("failed dispatch attempt requires failure outcome")
+        if lease is not None and lease.get("state") not in {"released", "expired"}:
+            raise ValueError("failed dispatch attempt must release or expire its lease")
+
+    if status != "parked" and "parked" in attempt:
+        raise ValueError(f"{status} dispatch attempt cannot contain parked state")
+    if status != "quarantined" and "quarantine" in attempt:
+        raise ValueError(f"{status} dispatch attempt cannot contain quarantine state")
+    continuation = attempt.get("continuation")
+    if continuation is not None and (
+        status != "prepared"
+        or generation < 2
+        or continuation.get("kind") not in {"pending_gate", "policy_pause"}
+        or not continuation.get("approval_ref")
+    ):
+        raise ValueError("prepared continuation requires parked kind and approval reference")
+
+
 @dataclass
 class Checkpoint:
     schema_version: int
@@ -475,6 +668,7 @@ class Checkpoint:
     failed_items: list[FailedItem] = field(default_factory=list)
     vendor_state: dict[str, Any] = field(default_factory=dict)
     pause_state: dict[str, Any] = field(default_factory=dict)
+    dispatch_attempts: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -494,10 +688,17 @@ class Checkpoint:
             d["vendor_state"] = self.vendor_state
         if self.pause_state:
             d["pause_state"] = self.pause_state
+        if self.dispatch_attempts:
+            for attempt in self.dispatch_attempts:
+                validate_delegated_dispatch_attempt(attempt)
+            d["dispatch_attempts"] = json.loads(json.dumps(self.dispatch_attempts))
         return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Checkpoint:
+        dispatch_attempts = data.get("dispatch_attempts", [])
+        for attempt in dispatch_attempts:
+            validate_delegated_dispatch_attempt(attempt)
         return cls(
             schema_version=data["schema_version"],
             roadmap_id=data["roadmap_id"],
@@ -517,6 +718,7 @@ class Checkpoint:
             ],
             vendor_state=data.get("vendor_state", {}),
             pause_state=data.get("pause_state", {}),
+            dispatch_attempts=json.loads(json.dumps(dispatch_attempts)),
         )
 
     @classmethod
