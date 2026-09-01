@@ -30,14 +30,14 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
 
 ## 1. Select safe execution batches
 
-- [ ] 1.1 Write the batch-selection scope-boundary test matrix (S)
+- [x] 1.1 Write the batch-selection scope-boundary test matrix (S)
   **Spec scenarios**: roadmap-orchestration.2a (fan out disjoint items), roadmap-orchestration.2b (serialize indeterminate items), roadmap-orchestration.2c (serialize ambiguous globs and integration writes)
   **Contracts**: `contracts/schemas/supervised-dispatch-request.schema.json`
   **Design decisions**: D3
   **Dependencies**: 0.2
   **Files**: `skills/tests/roadmap-runtime/test_dispatch_scheduler.py`, `skills/tests/roadmap-runtime/fixtures/dispatch-scopes/**`
 
-- [ ] 1.2 Implement the neutral dispatch scheduler (M)
+- [x] 1.2 Implement the neutral dispatch scheduler (M)
   **Dependencies**: 0.4, 1.1
   **Files**: `skills/roadmap-runtime/scripts/dispatch_scheduler.py`
 
