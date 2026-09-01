@@ -1,0 +1,794 @@
+{
+  "architecture": {
+    "changed_nodes": [],
+    "delta_authoritative": false,
+    "freshness": "stale"
+  },
+  "change_id": "wire-supervise-execution-through-the-dispatch-fn-seam",
+  "checkpoint_status": "degraded",
+  "context_impact": {
+    "status": "declared",
+    "surfaces": [
+      "documentation",
+      "semantic_code"
+    ]
+  },
+  "merge_base_revision": "ae9576a56638d5c165792654c1b00c7451bafead",
+  "namespace": {
+    "key": "wire-supervise-execution-through-the-dispatch-fn-seam--wp-orchestrator",
+    "kind": "work_package"
+  },
+  "package_id": "wp-orchestrator",
+  "producer_results": [
+    {
+      "artifacts": [],
+      "producer_id": "api.contracts",
+      "producer_version": "1.0.0",
+      "remediation": [],
+      "status": "fresh",
+      "validations": [
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-code-search-schemas-semantic-context-hit.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-code-search-schemas-semantic-context-section.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-gen-eval-framework-schemas-cli-contract.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-gen-eval-framework-schemas-traceability-exclusions.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-gen-eval-framework-schemas-traceability.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-phase-record-schemas-handoff-local-fallback.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-phase-record-schemas-phase-record.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-project-context-refresh-schemas-context-checkpoint.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-project-context-refresh-schemas-context-convergence-record.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-project-context-refresh-schemas-context-drift-gate.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-project-context-refresh-schemas-context-refresh-manifest.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-project-context-refresh-schemas-context-refresh-operation.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-project-context-refresh-schemas-context-refresh-types.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-prototyping-schemas-synthesis-plan.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-prototyping-schemas-variant-descriptor.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-semantic-context-evaluation-schemas-context-eval-case.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-semantic-context-evaluation-schemas-context-eval-corpus.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "valid Draft 2020-12 schema",
+          "validation_id": "schema:openspec-contracts-semantic-context-evaluation-schemas-context-eval-report.schema.json"
+        },
+        {
+          "status": "passed",
+          "summary": "docs/architecture-analysis/contracts-inventory.md is current",
+          "validation_id": "contracts-inventory"
+        }
+      ]
+    },
+    {
+      "artifacts": [],
+      "producer_id": "decisions.timeline",
+      "producer_version": "1.0.0",
+      "remediation": [],
+      "status": "fresh",
+      "validations": [
+        {
+          "status": "passed",
+          "summary": "docs/decisions is current",
+          "validation_id": "decisions"
+        }
+      ]
+    },
+    {
+      "artifacts": [],
+      "producer_id": "documentation.inventory",
+      "producer_version": "1.0.0",
+      "remediation": [],
+      "status": "fresh",
+      "validations": [
+        {
+          "status": "passed",
+          "summary": "docs/architecture-analysis/skills-inventory.md is current",
+          "validation_id": "skills-inventory"
+        }
+      ]
+    },
+    {
+      "artifacts": [
+        {
+          "change": "added",
+          "path": "openspec/specs/add-mutation-score-guardrail/spec.md",
+          "sha256": "da788bf46688fdb813591ba73e16fe370f402edca864614fd1cbdd46c4d14154"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/add-self-describing-cli-entry-points/spec.md",
+          "sha256": "5224d18b395ab50212c1d466a1fd625cdb266741affc9b63dc876e19e80e5c0b"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/agent-archetypes/spec.md",
+          "sha256": "8f9a0b75688848082fbadf4b8f4383413d5352f58fdebafcfd5a8eeb04531829"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/agent-coordinator/spec.md",
+          "sha256": "78ab5b8be749af755fef268399d9a0a537770d3dfd2c4b2995c40d2352c3d1ca"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/agent-identity/spec.md",
+          "sha256": "be3d9e1f4aeed1b940e311e7d13e5e519b800213bfe5317baa74bafe81e680a6"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/agent-trajectory-harness/spec.md",
+          "sha256": "1a9898a19a4830cd351f05e9d2b0ae395e21aa2325b6d37c7d6e0c604c88e2cd"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/agentic-flow-display/spec.md",
+          "sha256": "0a3bc5b6de10c8b6e5caeccf762b0f187ade6e36a8145c13f6ff5857bc241000"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/aggregate-process-telemetry-scorecard/spec.md",
+          "sha256": "afe08c4ed2a89d69d5522a2f8638f2318e357b45b1826cedd9af3ac66467f402"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/ambient-review/spec.md",
+          "sha256": "493d225c2abac95c830ec0616b7fe83d80b2ee4d040d171f7e1e242748d5325e"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/apply-progressive-disclosure-oversized-skills/spec.md",
+          "sha256": "c61d9e261d9e96c63a8975bde62ea9867f5156a67d92bc0ff284362799cf509e"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/approval-gate/spec.md",
+          "sha256": "bb42523602a90b40010333a9bc62636e1b45bae589d298c072edf63bd3f2beaa"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/assert-generated-artifacts-validate-in-ci/spec.md",
+          "sha256": "e1dcce790cd79f02b79c285008568607e680fdc174f9121efd714b0a373500a8"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/build-task-replay-runner/spec.md",
+          "sha256": "5df6289f8fbc4d657bdee037ec6419d30f6fcd234f5fb525f4fbe74f59b12650"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/calibrate-llm-judge-against-human-labels/spec.md",
+          "sha256": "0f5922e384c3543e492117eb388e0f091d87cc046a4b625e6c95a6efbf4461e5"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/cloud-sandbox-execution/spec.md",
+          "sha256": "0b4ec7f9460fbdc2035f45ac3a0fc54884e2ec34bb02ba75d48f19432e75081f"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/collapse-mechanical-preamble-session-start/spec.md",
+          "sha256": "3bf8fce8a894793b6deb2402e009ec1bdb2d14c21ef20a38239eedff4c4651ab"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/collect-uncollected-skill-tests/spec.md",
+          "sha256": "d3de85731cde9ff6f21f96a43d4c1f51084a61d318d7e13be7d11d462b242fe4"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/configuration/spec.md",
+          "sha256": "03f6d222325141d3a5d5d8e93a13ea3816335441df81aa1b14003b913fe6420f"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/convert-failure-record-to-regression-scenarios/spec.md",
+          "sha256": "345f25cba23a1d4bffbb30d5a1375e8fb9548b094f29400ab7334a29828de489"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/coordination-bridge/spec.md",
+          "sha256": "c28e1685c6c2375c72815ed42fbdfb96b20793916962c3689170b684c69dfe91"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/coordinator-kanban-viz/spec.md",
+          "sha256": "374c976009d390a5c2d579f25142e2f9816f9eb4b29cf1edf11532bebe5f7645"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/credential-brokering/spec.md",
+          "sha256": "f988ed2f1d803b6d299ce090d77ba4fb1fc708964ef12df3a2ab52e91c2f833e"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/cross-vendor-arbitrage/spec.md",
+          "sha256": "354bcacf37568f29bbb56fffbe96492689998fd37c443e7c55341578679f85a7"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/cut-competence-rules-relocate-policy/spec.md",
+          "sha256": "0be5ec162028572f447ed59fe9405314729d8d8ece8f39d08a778d0b5ff061b7"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/delete-rationalizations-relax-tail-block/spec.md",
+          "sha256": "12292ce5228c0cec2998f6532cfa32abc6ad3b419b6cf608f2cc76919853b187"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/evaluation-framework/spec.md",
+          "sha256": "c262fffc4375edfda60e36551738d86bcf499f11d0b32232671a75da1cf5b90d"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/gen-eval-framework/spec.md",
+          "sha256": "f945a51126ff196fe842ca6ebd352da6365b598f4960d0d282787b62c9949a29"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/harness-engineering/spec.md",
+          "sha256": "878dc1ccca4eab93c6cb0055e21ab635698fe52ea027d632fcddba7630064556"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/invert-skill-test-suite-to-behavioural/spec.md",
+          "sha256": "cfc528dcfa21c2a6216f34c4561bfba0a0c1eeb96aaa3099312b6ac0cb6aaaa5"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/llm-gateway/spec.md",
+          "sha256": "0142c44421f0dd2f82945c10a1eb5a0381dcaf24e196c423b6afbe70c92d926d"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/loop-durability/spec.md",
+          "sha256": "3d315579614c9dc582a75ef979e961dde2c45529d945db93106ce5f7fb8e1a38"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/measure-validator-recall-seeded-defects/spec.md",
+          "sha256": "0d173cf873e09b787213276cdbf5413302e415e93deba58dea87770170ee47eb"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/model-routing/spec.md",
+          "sha256": "9a871e6a9f7f57e4bc5607327174f1a730b6899b71302f21298b9c6cfd2a56f1"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/observability/spec.md",
+          "sha256": "1307c91113272abc2d2b712acb898a821d5ece8733d7b5312e7f3451828fa5ab"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/product-discovery-workflow/spec.md",
+          "sha256": "a1a0cdd954ebefd818b1127fceae6506532f2d00a2c7a2ed881aaf36113511ba"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/publish-arm-a-baseline-scorecard/spec.md",
+          "sha256": "696ac45cb18f14463da18d9654b2a6ce7ff6a0f491346bb0387e7c9bde4e5288"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/record-doctor-context-cost-baseline/spec.md",
+          "sha256": "498879d67f9bcd653e440308bb057f9705ff73a98b7809a4f8d546dcd084450b"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/refine-loop/spec.md",
+          "sha256": "204b28ba2fb58efd271a01dd3fe53825927b31b945bab503a768c3986928a547"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/release-management/spec.md",
+          "sha256": "073558647772de4c9383b493bf51a816276307ad3c9a2e21e74ec7bdbf19ad14"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/repo-quality-gates/spec.md",
+          "sha256": "891cf2b76031b2c1b7144bc3c59876b0dc5925aeb7d7d74613d6fc017a14ecc9"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/rescope-review-convergence-disagreement-routing/spec.md",
+          "sha256": "77c24f8b2197476bfc85dab60a2d691744b03ff489d742227b31bab143575891"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/review-issue-sync/spec.md",
+          "sha256": "247fda1eea314308537b8ea09121e01c1e46398f5e4310b40fc3339fc243ee03"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/review-ledger/spec.md",
+          "sha256": "ae7be045169dc85fa2477d1d90e9a3fbcf15dc9cd7589fec2ea6dd335b4d05ca"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/rewrite-skill-frontmatter/spec.md",
+          "sha256": "a29e2e9a4415f33de9783545fa58486b03a5927e0f382a36971db229ee5e8c89"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/roadmap-orchestration/spec.md",
+          "sha256": "64ca3fe970c04351ae7783f283c8c32bcffd99755e5a6b35550d04bccf98ffb8"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/run-sealed-holdout-decision/spec.md",
+          "sha256": "d3afd19ed5c8da79eefa0f5ac3a912f26da18bbf4db9049b28fe40a8e7925f8a"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/seal-archive-benchmark-corpus-split/spec.md",
+          "sha256": "5361ecfb6cabf11993ba3c45ff316a0eb0977c1f69ec0962a7f1f7855c356840"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/setup-coordinator/spec.md",
+          "sha256": "e7eb9d38b53366583d98ce79443581e783e99a50da36ccd220b998e22187e561"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/skill-workflow/spec.md",
+          "sha256": "178fbf4e47afbd5d60a69e6a00a12f60f5067c2e33533faec46028a9d9e56dc7"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/supervise/spec.md",
+          "sha256": "9afd49b4c6ec892f5421cc920c77253399b61dafd77dbcc77e17e61d69d95cb3"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/task-routing/spec.md",
+          "sha256": "91d56f244dc1bf7cc1c1dde44fced3640d3547cb2cf1d4ac787194afa718a223"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/trust-posture/spec.md",
+          "sha256": "1f37327bcc116f6a95855007fd699237b30b8b3170bd7cd2a4df2d496a10b8b3"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/usage-api/spec.md",
+          "sha256": "2017c4ddbb31e8e40a41e2c1b4ca073085f795c4ba522d21cb197ce3001e7d7a"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/usage-collection/spec.md",
+          "sha256": "f73ae91952b08bf37663fdd56db5b0be3c2f66549becb99be5c7cb0793ad8a87"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/usage-dashboard/spec.md",
+          "sha256": "e5ecf990c9a1da5b24c91c25f951d02f6ada61da2450b01a15fd4569a0aeaeaf"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/vendor-dispatch/spec.md",
+          "sha256": "7372a8b35e092745ad87bb4dae40074fd4fcaea7654ebfb566c917d581623699"
+        },
+        {
+          "change": "added",
+          "path": "openspec/specs/vendor-registry/spec.md",
+          "sha256": "cc974dd2bc816cb8ef4306996a8bc22e0961931ae2e572180339aa5632cd9193"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/vendor-ux/spec.md",
+          "sha256": "d22fda5606bb67897c97786746153574fb04f4e1497369bef0b4e52531ef9822"
+        },
+        {
+          "change": "modified",
+          "path": "openspec/specs/worktree/spec.md",
+          "sha256": "f98b925fd0b1ef99fe71141afca672b0a7db3746add954465d1b795e3fa7690a"
+        }
+      ],
+      "fallback": {
+        "kind": "custom",
+        "reason": "Projection only: this producer never writes canonical specs; the sync-point owner performs the merge."
+      },
+      "producer_id": "openspec.projection",
+      "producer_version": "1.0.0",
+      "remediation": [
+        {
+          "command": "openspec archive <change-id>",
+          "summary": "Archive the active change(s) through cleanup-feature so the canonical spec merge lands at the sync point."
+        }
+      ],
+      "status": "degraded",
+      "validations": [
+        {
+          "status": "failed",
+          "summary": "openspec/specs/add-mutation-score-guardrail/spec.md would be created",
+          "validation_id": "spec:add-mutation-score-guardrail"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/add-self-describing-cli-entry-points/spec.md would be created",
+          "validation_id": "spec:add-self-describing-cli-entry-points"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/agent-archetypes/spec.md has a pending merge",
+          "validation_id": "spec:agent-archetypes"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/agent-coordinator/spec.md has a pending merge",
+          "validation_id": "spec:agent-coordinator"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/agent-identity/spec.md has a pending merge",
+          "validation_id": "spec:agent-identity"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/agent-trajectory-harness/spec.md would be created",
+          "validation_id": "spec:agent-trajectory-harness"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/agentic-flow-display/spec.md would be created",
+          "validation_id": "spec:agentic-flow-display"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/aggregate-process-telemetry-scorecard/spec.md would be created",
+          "validation_id": "spec:aggregate-process-telemetry-scorecard"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/ambient-review/spec.md would be created",
+          "validation_id": "spec:ambient-review"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/apply-progressive-disclosure-oversized-skills/spec.md would be created",
+          "validation_id": "spec:apply-progressive-disclosure-oversized-skills"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/approval-gate/spec.md would be created",
+          "validation_id": "spec:approval-gate"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/assert-generated-artifacts-validate-in-ci/spec.md would be created",
+          "validation_id": "spec:assert-generated-artifacts-validate-in-ci"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/build-task-replay-runner/spec.md would be created",
+          "validation_id": "spec:build-task-replay-runner"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/calibrate-llm-judge-against-human-labels/spec.md would be created",
+          "validation_id": "spec:calibrate-llm-judge-against-human-labels"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/cloud-sandbox-execution/spec.md would be created",
+          "validation_id": "spec:cloud-sandbox-execution"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/collapse-mechanical-preamble-session-start/spec.md would be created",
+          "validation_id": "spec:collapse-mechanical-preamble-session-start"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/collect-uncollected-skill-tests/spec.md would be created",
+          "validation_id": "spec:collect-uncollected-skill-tests"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/configuration/spec.md has a pending merge",
+          "validation_id": "spec:configuration"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/convert-failure-record-to-regression-scenarios/spec.md would be created",
+          "validation_id": "spec:convert-failure-record-to-regression-scenarios"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/coordination-bridge/spec.md has a pending merge",
+          "validation_id": "spec:coordination-bridge"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/coordinator-kanban-viz/spec.md has a pending merge",
+          "validation_id": "spec:coordinator-kanban-viz"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/credential-brokering/spec.md would be created",
+          "validation_id": "spec:credential-brokering"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/cross-vendor-arbitrage/spec.md would be created",
+          "validation_id": "spec:cross-vendor-arbitrage"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/cut-competence-rules-relocate-policy/spec.md would be created",
+          "validation_id": "spec:cut-competence-rules-relocate-policy"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/delete-rationalizations-relax-tail-block/spec.md would be created",
+          "validation_id": "spec:delete-rationalizations-relax-tail-block"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/evaluation-framework/spec.md has a pending merge",
+          "validation_id": "spec:evaluation-framework"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/gen-eval-framework/spec.md has a pending merge",
+          "validation_id": "spec:gen-eval-framework"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/harness-engineering/spec.md has a pending merge",
+          "validation_id": "spec:harness-engineering"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/invert-skill-test-suite-to-behavioural/spec.md would be created",
+          "validation_id": "spec:invert-skill-test-suite-to-behavioural"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/llm-gateway/spec.md would be created",
+          "validation_id": "spec:llm-gateway"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/loop-durability/spec.md would be created",
+          "validation_id": "spec:loop-durability"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/measure-validator-recall-seeded-defects/spec.md would be created",
+          "validation_id": "spec:measure-validator-recall-seeded-defects"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/model-routing/spec.md would be created",
+          "validation_id": "spec:model-routing"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/observability/spec.md has a pending merge",
+          "validation_id": "spec:observability"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/product-discovery-workflow/spec.md would be created",
+          "validation_id": "spec:product-discovery-workflow"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/publish-arm-a-baseline-scorecard/spec.md would be created",
+          "validation_id": "spec:publish-arm-a-baseline-scorecard"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/record-doctor-context-cost-baseline/spec.md would be created",
+          "validation_id": "spec:record-doctor-context-cost-baseline"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/refine-loop/spec.md would be created",
+          "validation_id": "spec:refine-loop"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/release-management/spec.md would be created",
+          "validation_id": "spec:release-management"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/repo-quality-gates/spec.md would be created",
+          "validation_id": "spec:repo-quality-gates"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/rescope-review-convergence-disagreement-routing/spec.md would be created",
+          "validation_id": "spec:rescope-review-convergence-disagreement-routing"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/review-issue-sync/spec.md would be created",
+          "validation_id": "spec:review-issue-sync"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/review-ledger/spec.md would be created",
+          "validation_id": "spec:review-ledger"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/rewrite-skill-frontmatter/spec.md would be created",
+          "validation_id": "spec:rewrite-skill-frontmatter"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/roadmap-orchestration/spec.md has a pending merge",
+          "validation_id": "spec:roadmap-orchestration"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/run-sealed-holdout-decision/spec.md would be created",
+          "validation_id": "spec:run-sealed-holdout-decision"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/seal-archive-benchmark-corpus-split/spec.md would be created",
+          "validation_id": "spec:seal-archive-benchmark-corpus-split"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/setup-coordinator/spec.md has a pending merge",
+          "validation_id": "spec:setup-coordinator"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/skill-workflow/spec.md has a pending merge",
+          "validation_id": "spec:skill-workflow"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/supervise/spec.md has a pending merge",
+          "validation_id": "spec:supervise"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/task-routing/spec.md would be created",
+          "validation_id": "spec:task-routing"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/trust-posture/spec.md would be created",
+          "validation_id": "spec:trust-posture"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/usage-api/spec.md would be created",
+          "validation_id": "spec:usage-api"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/usage-collection/spec.md would be created",
+          "validation_id": "spec:usage-collection"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/usage-dashboard/spec.md would be created",
+          "validation_id": "spec:usage-dashboard"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/vendor-dispatch/spec.md would be created",
+          "validation_id": "spec:vendor-dispatch"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/vendor-registry/spec.md would be created",
+          "validation_id": "spec:vendor-registry"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/vendor-ux/spec.md has a pending merge",
+          "validation_id": "spec:vendor-ux"
+        },
+        {
+          "status": "failed",
+          "summary": "openspec/specs/worktree/spec.md has a pending merge",
+          "validation_id": "spec:worktree"
+        }
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "scope": {
+    "deny": [
+      "**/.venv/**",
+      "skills/autopilot/scripts/phase_agent.py",
+      "skills/autopilot/scripts/provider_dispatch.py",
+      "skills/supervise/SKILL.md"
+    ],
+    "read_allow": [
+      "skills/autopilot-roadmap/**",
+      "skills/autopilot/**",
+      "skills/roadmap-runtime/**",
+      "skills/roadmap-runtime/scripts/dispatch_scheduler.py",
+      "skills/tests/autopilot-roadmap/**",
+      "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/**"
+    ]
+  },
+  "semantic_index": {
+    "fallback": {
+      "kind": "exact-search",
+      "reason": "Semantic index is not configured in this context; use exact search until an index completes for the requested revision."
+    },
+    "indexed_revision": null,
+    "operation_id": null,
+    "registry_record_id": null,
+    "requested_revision": "63779a6b1c2de483ea65d25e457b2d7839328230",
+    "status": "not-configured"
+  },
+  "source_revision": "63779a6b1c2de483ea65d25e457b2d7839328230"
+}
