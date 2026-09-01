@@ -12,12 +12,12 @@ Tasks use the plan-feature sizing scale. Test tasks precede the behavior they ve
 
 ## Phase 1 — Coordinator persistence boundary (wp-coordinator-queue)
 
-- [ ] 1.1 (M) Write real PostgreSQL RED tests for same-key replay, different-sequence submit/reconcile races, canonical identity, unkeyed compatibility, all terminal-current statuses, stale-row cancellation, malformed legacy preflight, rollback, remediation retry, and reconciliation replay.
+- [ ] 1.1 (M) Write real PostgreSQL RED tests for same-key replay, monotonic high-water behavior, stale/future keyed submits, different-sequence submit/reconcile races, canonical identity, unkeyed compatibility, all terminal-current statuses, stale-row cancellation, malformed legacy preflight, rollback, remediation retry, and reconciliation replay.
   **Spec scenarios**: agent-coordinator (Concurrent projection replay creates one task; Unkeyed tasks remain independent; Resume converges stale projection rows; Reconciliation replay is idempotent)
   **Contracts**: contracts/db/schema.sql
   **Design decisions**: D1, D2, D3
   **Dependencies**: 0.1
-- [ ] 1.2 (M) Add migration `035_work_queue_projection.sql` with non-throwing text expressions, deterministic locked preflight, exact conflict target/lookup, per-change advisory transaction locks, and terminal-aware submit/reconcile RPC behavior.
+- [ ] 1.2 (M) Add migration `035_work_queue_projection.sql` with the per-change high-water table, non-throwing text expressions, deterministic locked preflight, exact conflict target/lookup, per-change advisory transaction locks, and terminal-aware submit/reconcile RPC behavior.
   **Spec scenarios**: agent-coordinator (Concurrent projection replay creates one task; Unkeyed tasks remain independent; Resume converges stale projection rows; Reconciliation replay is idempotent)
   **Contracts**: contracts/db/schema.sql
   **Design decisions**: D1, D2, D3
@@ -33,7 +33,7 @@ Tasks use the plan-feature sizing scale. Test tasks precede the behavior they ve
   **Design decisions**: D1, D2, D3
   **Dependencies**: 1.2, 1.3
 - [ ] Checkpoint: run coordinator migration and service tests, review cumulative diff, verify package scope
-- [ ] 1.5 (S) Write HTTP RED tests for additive success results, reconcile validation, reserved keys, 401/403/422 Problem responses, authentication/policy denial, and machine-readable cancellation results.
+- [ ] 1.5 (S) Write HTTP RED tests for additive success results, reconcile validation, reserved keys, stale/reconciliation-required conflicts, 401/403/409/422 Problem responses, `submit_work` authorization with `mode=reconcile`, and machine-readable cancellation results.
   **Spec scenarios**: agent-coordinator (Resume converges stale projection rows), coordination-bridge (Bridge reports a deduplicated replay)
   **Contracts**: contracts/openapi/v1.yaml
   **Design decisions**: D2, D3
@@ -43,7 +43,7 @@ Tasks use the plan-feature sizing scale. Test tasks precede the behavior they ve
   **Contracts**: contracts/openapi/v1.yaml
   **Design decisions**: D2, D3
   **Dependencies**: 1.5
-- [ ] 1.7 (S) Write RED tests for direct MCP, HTTP-proxy MCP, and `coordination-cli work submit|reconcile` parity and discriminated failure envelopes.
+- [ ] 1.7 (S) Write dedicated RED tests for direct MCP, HTTP-proxy MCP, and `coordination-cli work submit|reconcile` parity, authorization mapping, and discriminated failure envelopes.
   **Spec scenarios**: agent-coordinator (Direct and proxy MCP mappings agree; CLI exposes projection operations; Policy denial is not a success payload)
   **Dependencies**: 1.6
 - [ ] 1.8 (M) Implement direct/proxy MCP and CLI keyed submit/reconcile mappings with one explicit projection key.

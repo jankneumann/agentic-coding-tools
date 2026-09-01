@@ -1,5 +1,11 @@
 -- ri-08 projection identity contract. Public callers provide projection_key;
 -- the service alone materializes these reserved fields in input_data.
+CREATE TABLE work_queue_projection_heads (
+    change_id TEXT PRIMARY KEY,
+    transition_sequence INTEGER NOT NULL CHECK (transition_sequence >= 0),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE UNIQUE INDEX work_queue_projection_key_uidx
 ON work_queue (
     (input_data ->> 'change_id'),
@@ -13,6 +19,9 @@ WHERE input_data ? 'change_id'
 
 -- Keyed submit_task and reconcile_work_projection MUST first execute:
 -- SELECT pg_advisory_xact_lock(hashtextextended(p_change_id, 0));
+-- submit_task establishes a missing head, accepts only the equal sequence, and
+-- raises stale_projection or reconciliation_required below or above the head.
+-- reconcile rejects below-head requests and otherwise advances the head first.
 -- Keyed insertion MUST use this exact arbiter:
 -- ON CONFLICT ((input_data ->> 'change_id'),
 --              (input_data ->> 'phase'),
