@@ -97,8 +97,8 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: 3.2, 4.2
   **Files**: `skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py`, `skills/tests/autopilot-roadmap/fixtures/supervised-dispatch/**`
 
-- [ ] 5.2 Synchronize runtime skill mirrors; run the full feature gates (S)
+- [x] 5.2 Synchronize runtime skill mirrors; run the full feature gates (S)
   **Dependencies**: 5.1
   **Files**: `.agents/skills/autopilot-roadmap/**`, `.agents/skills/supervise/**`, `.agents/skills/roadmap-runtime/**`, `.claude/skills/autopilot-roadmap/**`, `.claude/skills/supervise/**`, `.claude/skills/roadmap-runtime/**`
 
-- [ ] Checkpoint: run both skill suites; run strict OpenSpec, package, scope, runtime-mirror checks
+- [x] Checkpoint: run both skill suites; run strict OpenSpec, package, scope, runtime-mirror checks
