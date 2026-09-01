@@ -56,7 +56,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: 1.2, 2.1
   **Files**: `skills/autopilot-roadmap/scripts/orchestrator.py`, `skills/autopilot-roadmap/SKILL.md`
 
-- [ ] Checkpoint: run roadmap-orchestration tests; review the cumulative diff; verify legacy behavior
+- [x] Checkpoint: run roadmap-orchestration tests; review the cumulative diff; verify legacy behavior
 
 ## 3. Build the leased host adapter
 
