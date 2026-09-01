@@ -90,7 +90,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
 
 ## 5. Prove the end-to-end boundary
 
-- [ ] 5.1 Write the parent-session supervised-dispatch integration test (M)
+- [x] 5.1 Write the parent-session supervised-dispatch integration test (M)
   **Spec scenarios**: roadmap-orchestration.2a (concurrent batch), roadmap-orchestration.2b (serialized overlap), supervise.2a (distinct worktrees), skill-workflow.1a (no transcript field), skill-workflow.1c (inspect captured parent session and durable outputs)
   **Contracts**: `contracts/schemas/supervised-dispatch-request.schema.json`, `contracts/schemas/supervised-dispatch-result.schema.json`
   **Design decisions**: D3, D4, D5, D6, D7
