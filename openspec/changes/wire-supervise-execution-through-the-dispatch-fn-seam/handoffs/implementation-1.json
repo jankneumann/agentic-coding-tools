@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-01T06:27:21.944006+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Implemented supervised roadmap execution through the existing dispatch_fn seam across six coordinated work packages. Scope-safe scheduling, durable prepare/ack/go/apply state, isolated host execution, bounded outcome-only results, and end-to-end transcript exclusion are implemented and verified; external review dispatch fell back to documented self-review after all configured vendors timed out or were unavailable.",
+    "completed_work": [
+      "wp-contracts: closed supervised request, result, context, and attempt schemas",
+      "wp-runtime-state: durable delegated-attempt checkpoint ledger",
+      "wp-scheduler: fail-closed disjoint-scope batch selection",
+      "wp-orchestrator: opt-in prepare and apply lifecycle through dispatch_fn",
+      "wp-host-adapter: managed isolation and leased claim, acknowledge, go, enter, reconcile, resume, and apply protocol",
+      "wp-supervise: execute workflow contract and host protocol documentation",
+      "wp-integration: concurrent isolation, overlap serialization, runtime mirrors, and child transcript sentinel proof",
+      "Implementation-time spec and evidence validation with 342 passing tests and 8 of 8 requirements verified"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Keep Autopilot as the sole delegated phase owner",
+        "rationale": "The supervisor launches isolated child sessions while deterministic orchestration remains in the existing per-change phase machine.",
+        "capability": "roadmap-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "Require durable generation-specific acknowledgement before child entry",
+        "rationale": "The prepare, claim, acknowledge, go, and enter sequence closes launch crash windows and prevents stale owners from entering.",
+        "capability": "roadmap-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "Keep child transcripts outside parent and durable result state",
+        "rationale": "Closed schemas, bounded context, temporary result files, and sentinel scans preserve the outcome-only supervision boundary.",
+        "capability": "supervise",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Review and approve the pull request",
+      "Run merge-time cleanup validation, then archive only after approval"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/roadmap-runtime/scripts/dispatch_scheduler.py",
+        "description": "neutral scope-safe scheduler"
+      },
+      {
+        "path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+        "description": "delegated item lifecycle"
+      },
+      {
+        "path": "skills/supervise/scripts/execution.py",
+        "description": "leased host execution adapter"
+      },
+      {
+        "path": "skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py",
+        "description": "parent-session isolation and transcript boundary proof"
+      },
+      {
+        "path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/change-context.md",
+        "description": "final requirement and review evidence"
+      },
+      {
+        "path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/validation-report.md",
+        "description": "implementation-time spec/evidence validation"
+      }
+    ]
+  }
+}
