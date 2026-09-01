@@ -185,3 +185,26 @@ Validated PR #451 at exact commit 3b5a1fb0. Local tests, CI, OpenSpec, and archi
 
 ### Context
 Resolved all four mandatory validation rework items and one evidence-gate contract mismatch. Deferred overlap proof is durable, seven package results and eight exact-SHA requirement rows are persisted, and the prescribed traceability gate is green.
+
+---
+
+## Phase: Validation Re-run (2026-09-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Do not override the local cli-augmented transmission boundary** — The optional local gen-eval invocation could transmit private repository content externally, so it remains explicitly degraded; exact-head CI gen-eval passed and no merge-gate override was used.
+
+### Completed Work
+- spec
+- evidence
+- architecture
+- quality
+- ci
+- hard-gate
+
+### Next Steps
+- /cleanup-feature wire-supervise-execution-through-the-dispatch-fn-seam
+
+### Context
+Revalidated PR #451 at exact code head 7e4ffa08. The prior overlap-proof, seven-package evidence, eight exact-SHA row, and prescribed traceability failures are resolved; all required hard-gate phases and exact-head CI pass without override.
