@@ -11,7 +11,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: None
   **Files**: `skills/tests/supervise/test_execution_contract.py`, `skills/tests/supervise/fixtures/execution/contracts/**`
 
-- [ ] 0.2 Freeze dispatch schemas (S)
+- [x] 0.2 Freeze dispatch schemas (S)
   **Dependencies**: 0.1
   **Files**: `openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/**`
 

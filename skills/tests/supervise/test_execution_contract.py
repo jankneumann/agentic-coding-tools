@@ -38,8 +38,7 @@ def _load_json(path: Path) -> Any:
 @pytest.fixture(scope="module")
 def validators() -> dict[str, Draft202012Validator]:
     schemas = {
-        name: _load_json(_SCHEMA_ROOT / filename)
-        for name, filename in _SCHEMA_FILES.items()
+        name: _load_json(_SCHEMA_ROOT / filename) for name, filename in _SCHEMA_FILES.items()
     }
     for schema in schemas.values():
         Draft202012Validator.check_schema(schema)
@@ -62,9 +61,7 @@ def validators() -> dict[str, Draft202012Validator]:
     }
 
 
-def _errors(
-    validator: Draft202012Validator, instance: dict[str, Any]
-) -> list[str]:
+def _errors(validator: Draft202012Validator, instance: dict[str, Any]) -> list[str]:
     return [error.message for error in validator.iter_errors(instance)]
 
 
@@ -88,15 +85,13 @@ def test_request_context_is_recursively_bounded_and_sanitized(
     secret = copy.deepcopy(request)
     secret["context"]["routing"]["decision"]["metadata"]["Api_Token"] = "nope"
     over_depth = copy.deepcopy(request)
-    over_depth["context"]["routing"]["decision"]["metadata"]["nested"] = {
-        "too_deep": True
-    }
+    over_depth["context"]["routing"]["decision"]["metadata"]["nested"] = {"too_deep": True}
 
     assert _errors(validators["request"], secret)
     assert _errors(validators["request"], over_depth)
-    canonical = json.dumps(
-        request["context"], sort_keys=True, separators=(",", ":")
-    ).encode("utf-8")
+    canonical = json.dumps(request["context"], sort_keys=True, separators=(",", ":")).encode(
+        "utf-8"
+    )
     assert len(canonical) <= 16 * 1024
 
 
@@ -132,3 +127,75 @@ def test_prepared_attempt_cannot_claim_terminal_state(
     attempt["resolved_at"] = "2026-08-31T14:01:00Z"
 
     assert _errors(validators["attempt"], attempt)
+
+
+def test_continuation_requires_a_parked_kind_discriminator(
+    validators: dict[str, Draft202012Validator],
+) -> None:
+    request = _load_json(_FIXTURE_ROOT / "invalid-continuation-without-kind.json")
+
+    assert _errors(validators["request"], request)
+
+
+def test_only_gate_or_policy_parking_authorizes_continuation(
+    validators: dict[str, Draft202012Validator],
+) -> None:
+    request = _load_json(_FIXTURE_ROOT / "invalid-continuation-without-kind.json")
+    attempt = _load_json(_FIXTURE_ROOT / "valid-prepared-attempt.json")
+    attempt["lease_generation"] = 2
+    attempt["continuation"] = {"approval_ref": "approval-ri04-001"}
+
+    assert _errors(validators["attempt"], attempt)
+    for parked_kind in ("pending_gate", "policy_pause"):
+        request["continuation"]["kind"] = parked_kind
+        attempt["continuation"]["kind"] = parked_kind
+        assert _errors(validators["request"], request) == []
+        assert _errors(validators["attempt"], attempt) == []
+
+
+def test_attempt_contract_freezes_ack_go_lease_and_quarantine_fields() -> None:
+    schema = _load_json(_SCHEMA_ROOT / _SCHEMA_FILES["attempt"])
+    properties = schema["properties"]
+    assert properties["status"]["enum"] == [
+        "prepared",
+        "claimed",
+        "acknowledged",
+        "launched",
+        "quarantined",
+        "parked",
+        "completed",
+        "failed",
+    ]
+    assert set(properties["lease"]["required"]) == {
+        "generation",
+        "owner_nonce",
+        "state",
+        "acquired_at",
+        "heartbeat_at",
+        "expires_at",
+    }
+    assert set(properties["launch_gate"]["required"]) == {"generation", "state"}
+    assert properties["launch_history"]["maxItems"] == 64
+
+    transitions = {
+        rule["if"]["properties"]["status"]["const"]: rule["then"]
+        for rule in schema["allOf"]
+        if "status" in rule.get("if", {}).get("properties", {})
+        and "const" in rule["if"]["properties"]["status"]
+    }
+    assert transitions["claimed"]["properties"]["launch_gate"]["properties"]["state"] == {
+        "const": "waiting_ack"
+    }
+    assert transitions["acknowledged"]["properties"]["launch_gate"]["properties"]["state"] == {
+        "const": "go_released"
+    }
+    assert transitions["launched"]["properties"]["launch_gate"]["properties"]["state"] == {
+        "const": "entered"
+    }
+    assert transitions["quarantined"]["properties"]["lease"]["properties"]["state"] == {
+        "const": "uncertain"
+    }
+    assert "quarantine" in transitions["quarantined"]["required"]
+    assert transitions["parked"]["properties"]["lease"]["properties"]["state"] == {
+        "const": "released"
+    }
