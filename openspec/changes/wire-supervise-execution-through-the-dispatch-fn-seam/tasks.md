@@ -41,7 +41,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: 0.4, 1.1
   **Files**: `skills/roadmap-runtime/scripts/dispatch_scheduler.py`
 
-- [ ] Checkpoint: run contract plus batch-selection tests; review the cumulative diff; verify package scope
+- [x] Checkpoint: run contract plus batch-selection tests; review the cumulative diff; verify package scope
 
 ## 2. Delegate item lifecycles through the callback
 
