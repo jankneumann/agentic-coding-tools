@@ -90,15 +90,15 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
 
 ## 5. Prove the end-to-end boundary
 
-- [ ] 5.1 Write the parent-session supervised-dispatch integration test (M)
+- [x] 5.1 Write the parent-session supervised-dispatch integration test (M)
   **Spec scenarios**: roadmap-orchestration.2a (concurrent batch), roadmap-orchestration.2b (serialized overlap), supervise.2a (distinct worktrees), skill-workflow.1a (no transcript field), skill-workflow.1c (inspect captured parent session and durable outputs)
   **Contracts**: `contracts/schemas/supervised-dispatch-request.schema.json`, `contracts/schemas/supervised-dispatch-result.schema.json`
   **Design decisions**: D3, D4, D5, D6, D7
   **Dependencies**: 3.2, 4.2
   **Files**: `skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py`, `skills/tests/autopilot-roadmap/fixtures/supervised-dispatch/**`
 
-- [ ] 5.2 Synchronize runtime skill mirrors; run the full feature gates (S)
+- [x] 5.2 Synchronize runtime skill mirrors; run the full feature gates (S)
   **Dependencies**: 5.1
   **Files**: `.agents/skills/autopilot-roadmap/**`, `.agents/skills/supervise/**`, `.agents/skills/roadmap-runtime/**`, `.claude/skills/autopilot-roadmap/**`, `.claude/skills/supervise/**`, `.claude/skills/roadmap-runtime/**`
 
-- [ ] Checkpoint: run both skill suites; run strict OpenSpec, package, scope, runtime-mirror checks
+- [x] Checkpoint: run both skill suites; run strict OpenSpec, package, scope, runtime-mirror checks
