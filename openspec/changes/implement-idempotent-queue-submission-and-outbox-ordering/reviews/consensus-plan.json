@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "implement-idempotent-queue-submission-and-outbox-ordering",
+  "reviewers": [
+    {
+      "vendor": "codex-gpt-5",
+      "agent_id": "codex-gpt-5",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": false,
+  "quorum_requested": 1,
+  "quorum_received": 1,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "codex-gpt-5",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: The shared advisory lock serializes a different-sequence submit/reconcile race but does not make its outcome order-independent. If reconciliation for sequence N commits first, a delayed keyed submit for stale sequence N-1 can acquire the lock afterward and insert a new active row, violating the requirement that the reconciled current sequence be the only active projection row."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "codex-gpt-5",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The new reconcile endpoint requires policy denial behavior, but the plan never identifies the authorization action. The current native and Cedar inventories know `submit_work`, not `reconcile_work`, while the coordinator package cannot modify the policy schema or policy files under its declared write scope."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "codex-gpt-5",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The verification gates promise direct MCP parity but run no dedicated direct-MCP test module and no whole coordinator test directory. A new direct MCP test file can therefore be omitted from both package and integration gates while all declared commands remain green."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "codex-gpt-5",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The plan correctly places same-key idempotency in PostgreSQL with a partial unique expression index and keeps unkeyed submissions backward compatible."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "codex-gpt-5",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The persist-before-project seam and resume re-derivation keep filesystem state authoritative and give the non-transactional crash window an explicit repair path."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 5,
+    "confirmed_count": 0,
+    "unconfirmed_count": 5,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}
