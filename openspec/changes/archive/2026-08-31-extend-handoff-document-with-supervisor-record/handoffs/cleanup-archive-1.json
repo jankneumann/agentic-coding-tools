@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-01T02:17:44.366022+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "The merged change was archived as 2026-08-31-extend-handoff-document-with-supervisor-record. Delta specs were merged into agent-coordinator and skill-workflow, the supervise capability spec was created, the decision index was regenerated, and strict OpenSpec validation passed all 94 items; no tasks or submodules required migration.",
+    "completed_work": [
+      "archive",
+      "canonical spec sync",
+      "decision-index regeneration",
+      "strict OpenSpec validation 94/94"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Archive completed losslessly",
+        "rationale": "The Session Continuity delta retained the canonical scenario identity while updating its body to the implemented rpc_failed contract.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Commit and push cleanup to main",
+      "Remove feature and cleanup worktrees and local branches"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/archive/2026-08-31-extend-handoff-document-with-supervisor-record",
+        "description": "Archived change evidence"
+      },
+      {
+        "path": "openspec/specs/agent-coordinator/spec.md",
+        "description": "Updated canonical handoff requirements"
+      },
+      {
+        "path": "openspec/specs/supervise/spec.md",
+        "description": "New canonical supervise requirement"
+      }
+    ]
+  }
+}

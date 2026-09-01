@@ -283,3 +283,68 @@ Final VAL_REVIEW converged at fdb9b501. One independent final reviewer reproduce
 ### Context
 Autopilot converged through PR #450. Plan review converged after two passes; five coordinated work packages plus integration completed; implementation review left zero confirmed blockers; four validation-review blockers were remediated; the final review confirmed zero blockers. Codex completed implementation, fixes, and validation; Antigravity supplied a valid plan review; Claude and Grok timed out; Pi returned an invalid schema. The coordinator strategic-memory endpoint was reachable but unauthorized, so this tracked session-log entry and handoff fallback preserve the final memory.
 
+---
+
+## Phase: Cleanup (2026-09-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Use rebase merge** — The OpenSpec commits are conventional and preserve design intent for blame and bisect.
+2. **No task migration** — tasks.md contains no unchecked tasks.
+3. **Archive after merge** — The merged delta specs must become canonical and the active proposal must leave the active change set.
+
+### Alternatives Considered
+- Squash merge: rejected because the commit history is intentional and not noisy WIP
+- Coordinator issues or follow-up proposal: rejected because there are no unfinished tasks to migrate
+
+### Trade-offs
+- Accepted rebase-preserved history over a single squash commit because the implementation sequence and review fixes remain auditable
+
+### Completed Work
+- merge
+- pre-merge validation gate
+- CI verification
+- task audit
+- architecture-refresh
+- submodule check
+
+### Next Steps
+- Archive extend-handoff-document-with-supervisor-record and merge its delta specs
+- Regenerate decisions, validate OpenSpec, commit, and push main
+- Remove feature worktrees and branches
+
+### Relevant Files
+- `https://github.com/jankneumann/agentic-coding-tools/pull/450` — Merged pull request
+- `openspec/changes/extend-handoff-document-with-supervisor-record/validation-report.md` — Passing validation evidence
+
+### Context
+PR #450 merged successfully with rebase after 18 CI checks passed and the declared non-deployable validation gate continued without override. All 33 tasks are complete, so no migration is required; architecture provenance was refreshed, submodule sync was a no-op, and the OpenSpec archive is the remaining cleanup action. Staged traffic rollout is not applicable because the approved change declares deployable: false.
+
+---
+
+## Phase: Cleanup Archive (2026-09-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Archive completed losslessly** — The Session Continuity delta retained the canonical scenario identity while updating its body to the implemented rpc_failed contract.
+
+### Completed Work
+- archive
+- canonical spec sync
+- decision-index regeneration
+- strict OpenSpec validation 94/94
+
+### Next Steps
+- Commit and push cleanup to main
+- Remove feature and cleanup worktrees and local branches
+
+### Relevant Files
+- `openspec/changes/archive/2026-08-31-extend-handoff-document-with-supervisor-record` — Archived change evidence
+- `openspec/specs/agent-coordinator/spec.md` — Updated canonical handoff requirements
+- `openspec/specs/supervise/spec.md` — New canonical supervise requirement
+
+### Context
+The merged change was archived as 2026-08-31-extend-handoff-document-with-supervisor-record. Delta specs were merged into agent-coordinator and skill-workflow, the supervise capability spec was created, the decision index was regenerated, and strict OpenSpec validation passed all 94 items; no tasks or submodules required migration.
+

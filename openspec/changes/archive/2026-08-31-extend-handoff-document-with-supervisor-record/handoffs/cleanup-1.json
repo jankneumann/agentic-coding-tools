@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-01T02:14:48.897931+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "PR #450 merged successfully with rebase after 18 CI checks passed and the declared non-deployable validation gate continued without override. All 33 tasks are complete, so no migration is required; architecture provenance was refreshed, submodule sync was a no-op, and the OpenSpec archive is the remaining cleanup action. Staged traffic rollout is not applicable because the approved change declares deployable: false.",
+    "completed_work": [
+      "merge",
+      "pre-merge validation gate",
+      "CI verification",
+      "task audit",
+      "architecture-refresh",
+      "submodule check"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use rebase merge",
+        "rationale": "The OpenSpec commits are conventional and preserve design intent for blame and bisect.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "No task migration",
+        "rationale": "tasks.md contains no unchecked tasks.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Archive after merge",
+        "rationale": "The merged delta specs must become canonical and the active proposal must leave the active change set.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Archive extend-handoff-document-with-supervisor-record and merge its delta specs",
+      "Regenerate decisions, validate OpenSpec, commit, and push main",
+      "Remove feature worktrees and branches"
+    ],
+    "relevant_files": [
+      {
+        "path": "https://github.com/jankneumann/agentic-coding-tools/pull/450",
+        "description": "Merged pull request"
+      },
+      {
+        "path": "openspec/changes/extend-handoff-document-with-supervisor-record/validation-report.md",
+        "description": "Passing validation evidence"
+      }
+    ]
+  }
+}
