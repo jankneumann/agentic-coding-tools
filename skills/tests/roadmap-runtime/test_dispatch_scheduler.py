@@ -338,7 +338,11 @@ def test_batch_is_deterministic_priority_item_id_maximal_and_preserves_evidence(
 
     assert [item.item_id for item in plan.items] == ["ri-01", "ri-02"]
     assert plan.deferred_item_ids == ("ri-03",)
-    assert all(item.scope.proof == "proven_disjoint" for item in plan.items)
+    assert [item.scope.proof for item in plan.items] == [
+        "serial_indeterminate",
+        "proven_disjoint",
+    ]
+    assert plan.serial_item_ids == ("ri-01", "ri-03")
     assert plan.items[1].scope.package_ids == (
         "wp-core",
         "wp-integration",

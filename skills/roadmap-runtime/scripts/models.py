@@ -786,6 +786,7 @@ class Checkpoint:
     failed_items: list[FailedItem] = field(default_factory=list)
     vendor_state: dict[str, Any] = field(default_factory=dict)
     pause_state: dict[str, Any] = field(default_factory=dict)
+    serial_indeterminate_items: list[str] = field(default_factory=list)
     dispatch_attempts: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -806,6 +807,16 @@ class Checkpoint:
             d["vendor_state"] = self.vendor_state
         if self.pause_state:
             d["pause_state"] = self.pause_state
+        if self.serial_indeterminate_items:
+            if (
+                len(self.serial_indeterminate_items) != len(set(self.serial_indeterminate_items))
+                or any(
+                    not isinstance(item_id, str) or not 1 <= len(item_id) <= 128
+                    for item_id in self.serial_indeterminate_items
+                )
+            ):
+                raise ValueError("serial indeterminate item ids must be unique bounded strings")
+            d["serial_indeterminate_items"] = list(self.serial_indeterminate_items)
         if self.dispatch_attempts:
             for attempt in self.dispatch_attempts:
                 validate_delegated_dispatch_attempt(attempt)
@@ -815,6 +826,16 @@ class Checkpoint:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Checkpoint:
         dispatch_attempts = data.get("dispatch_attempts", [])
+        serial_indeterminate_items = data.get("serial_indeterminate_items", [])
+        if (
+            not isinstance(serial_indeterminate_items, list)
+            or len(serial_indeterminate_items) != len(set(serial_indeterminate_items))
+            or any(
+                not isinstance(item_id, str) or not 1 <= len(item_id) <= 128
+                for item_id in serial_indeterminate_items
+            )
+        ):
+            raise ValueError("serial indeterminate item ids must be unique bounded strings")
         for attempt in dispatch_attempts:
             validate_delegated_dispatch_attempt(attempt)
         return cls(
@@ -836,6 +857,7 @@ class Checkpoint:
             ],
             vendor_state=data.get("vendor_state", {}),
             pause_state=data.get("pause_state", {}),
+            serial_indeterminate_items=list(serial_indeterminate_items),
             dispatch_attempts=json.loads(json.dumps(dispatch_attempts)),
         )
 

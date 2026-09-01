@@ -264,6 +264,7 @@ def prepare_delegated_batch(
             ReadyDispatchItem(item.item_id, item.change_id, item.priority)
             for item in ready
         ],
+        forced_serial_item_ids=checkpoint.serial_indeterminate_items,
     )
     failures = [
         {"item_id": failure.item_id, "reason": failure.reason}
@@ -294,7 +295,14 @@ def prepare_delegated_batch(
         generation_specs.append(
             (selected, item, _next_attempt_number(checkpoint, item.item_id), isolation)
         )
+    pending_serial_items = set(checkpoint.serial_indeterminate_items)
+    pending_serial_items.update(plan.serial_item_ids)
+    pending_serial_items.difference_update(
+        item.item_id for _, item, _, _ in generation_specs
+    )
+    checkpoint.serial_indeterminate_items = sorted(pending_serial_items)
     if not generation_specs:
+        manager.save(checkpoint)
         return {
             "batch_id": None,
             "requests": [],
