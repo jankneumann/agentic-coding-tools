@@ -156,3 +156,32 @@ Resolved 15 critical-to-medium implementation-review findings across delegated s
 
 ### Context
 Validated PR #451 at exact commit 3b5a1fb0. Local tests, CI, OpenSpec, and architecture graph checks passed, but spec compliance and durable package evidence failed; no waiver or trust-gate override was applied.
+
+---
+
+## Phase: Implementation Iteration 2 (2026-09-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Persist affected deferred identities in the checkpoint** — A later prepare call cannot reconstruct which otherwise-valid singleton was previously affected by overlap without bounded durable state.
+2. **Preserve original package provenance and rerun verification** — Reconstructed results must describe actual package commits while separately recording current-head revalidation.
+3. **Permit only the exact change-local task record as shared evidence** — Approved task-coupled commits make tasks.md a truthful shared bookkeeping path; all source and other duplicate paths remain failures.
+
+### Alternatives Considered
+- Mark every singleton serial_indeterminate: rejected because That would mislabel unaffected requests and discard maximal safe batching evidence.
+- Omit tasks.md from files_modified: rejected because That would fabricate clean package separation instead of reporting the real task-coupled history.
+
+### Trade-offs
+- Accepted one optional bounded checkpoint field over stateless deferred scheduling because Durable proof preservation across prepare calls is required for crash-safe and later-emitted requests.
+
+### Completed Work
+- Added RED/GREEN regression and durable deferred overlap proof carry
+- Produced and validated all seven work results at plan revision 3/contracts revision 1
+- Reran all eight requirement rows at exact code SHA 5b619ba9
+- Provisioned the prescribed uv interpreter and passed traceability
+- Narrowed and tested the explicit change-local tasks.md evidence exception
+- Passed final independent review with zero findings
+
+### Context
+Resolved all four mandatory validation rework items and one evidence-gate contract mismatch. Deferred overlap proof is durable, seven package results and eight exact-SHA requirement rows are persisted, and the prescribed traceability gate is green.
