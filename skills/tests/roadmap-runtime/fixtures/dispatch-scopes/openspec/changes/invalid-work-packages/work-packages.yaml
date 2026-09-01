@@ -1,0 +1,3 @@
+schema_version: 1
+feature: invalid-work-packages
+packages: invalid

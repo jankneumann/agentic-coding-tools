@@ -1,0 +1,9 @@
+schema_version: 1
+feature:
+  id: overlaps-beta
+packages:
+  - package_id: wp-overlap
+    scope:
+      write_allow: ["src/beta/generated/**"]
+    locks:
+      keys: ["contract:generated"]
