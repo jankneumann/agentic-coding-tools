@@ -26,7 +26,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: 0.3
   **Files**: `skills/roadmap-runtime/scripts/models.py`, `skills/roadmap-runtime/scripts/checkpoint.py`, `openspec/schemas/checkpoint.schema.json`, `skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json`
 
-- [ ] Checkpoint: run schema plus checkpoint tests; review the cumulative diff; verify backward-compatible loading
+- [x] Checkpoint: run schema plus checkpoint tests; review the cumulative diff; verify backward-compatible loading
 
 ## 1. Select safe execution batches
 
