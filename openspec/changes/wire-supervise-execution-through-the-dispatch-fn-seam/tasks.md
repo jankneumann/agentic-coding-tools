@@ -71,7 +71,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: 3.1
   **Files**: `skills/supervise/scripts/execution.py`
 
-- [ ] Checkpoint: run launch-window, ack/go, marker collision, stale-takeover, quarantine, parked-resume, exact-evidence, and context-sanitizer tests
+- [x] Checkpoint: run launch-window, ack/go, marker collision, stale-takeover, quarantine, parked-resume, exact-evidence, and context-sanitizer tests
 
 ## 4. Wire the supervisor host protocol
 
