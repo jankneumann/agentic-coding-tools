@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-01T23:10:05.582794+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "local recovery handoff",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Resolved seven high and three medium review findings across the projection identity, database serialization, terminal semantics, migration safety, transport parity, boundary validation, and executable verification gates. Plan and contract revisions are now 2; strict OpenSpec and package DAG/overlap validation pass.",
+    "completed_work": [
+      "Addressed all ten plan-review findings and recorded dispositions in plan-findings.md.",
+      "Published OpenAPI 3.1 and SQL contracts for one validated projection key, exact conflict arbitration, terminal generations, and migration preflight.",
+      "Added direct/proxy MCP and CLI tasks/spec scenarios and real PostgreSQL plus semantic OpenAPI validation gates.",
+      "Passed strict OpenSpec, work-package schema/DAG/overlap, DAG scheduler, and semantic OpenAPI validation."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use one bounded monotonic projection identity",
+        "rationale": "A single explicit projection_key with transition_sequence copied from LoopState.total_iterations removes ambiguous iteration sources and reserved embedded fields.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Serialize keyed mutations per change",
+        "rationale": "A shared transaction advisory lock closes different-tuple submit/reconcile races while the unique text-expression index arbitrates same-key concurrency.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Keep failure shapes transport-appropriate",
+        "rationale": "HTTP uses RFC 7807 4xx errors while MCP and CLI use discriminated no-raise envelopes, so success-only fields remain truthful.",
+        "capability": "coordination-bridge",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run the PLAN_REVIEW phase against plan revision 2."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/design.md",
+        "description": "Revised identity, locking, migration, and transport decisions"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml",
+        "description": "Validated public projection API contract"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/db/schema.sql",
+        "description": "Exact database arbitration and preflight contract"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/work-packages.yaml",
+        "description": "Validated implementation DAG and executable gates"
+      }
+    ]
+  }
+}

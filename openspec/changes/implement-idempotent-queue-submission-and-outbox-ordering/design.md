@@ -15,10 +15,10 @@ Migration `035_work_queue_projection.sql` creates a unique index on:
 ```sql
 (input_data ->> 'change_id'),
 (input_data ->> 'phase'),
-((input_data ->> 'iteration')::integer)
+(input_data ->> 'transition_sequence')
 ```
 
-only where all three JSONB fields exist and `iteration` is a JSON number. Unkeyed and partially keyed tasks retain existing independent-insert behavior. The service validates a complete projection key before invoking keyed behavior, so malformed projection attempts fail without relying on a cast error.
+only where all three reserved JSONB fields exist and `transition_sequence` is a JSON number. Because every indexed expression is text-valued, malformed fractional or huge legacy numbers cannot throw during index evaluation. Public boundaries accept one optional complete `projection_key`; `change_id` is bounded to 128 lowercase kebab characters, `phase` is an autopilot phase enum, and `transition_sequence` is a strict non-boolean integer in `0..2147483647`. The service alone materializes reserved JSONB identity fields and rejects `change_id`, `phase`, or `transition_sequence` inside caller `input_data`. Unkeyed tasks retain independent-insert behavior.
 
 PostgreSQL documents expression indexes as constraint-capable and `ON CONFLICT` as an atomic concurrency arbiter:
 
@@ -29,7 +29,7 @@ PostgreSQL documents expression indexes as constraint-capable and `ON CONFLICT` 
 
 `submit_task` gains conditional submit-if-absent behavior rather than forcing callers onto a second general submission API. A complete projection key returns the canonical row with `created=true|false`; submissions without the complete key keep creating fresh rows and return `created=true`. `SubmitResult`, `/work/submit`, and `try_submit_work` carry `created` and `deduplicated` without removing existing fields.
 
-On conflict the RPC retrieves the row selected by the same three expressions and returns its ID. The database integration test starts concurrent transactions to prove every caller observes the same canonical ID and exactly one row remains.
+Both keyed `submit_task` and `reconcile_work_projection` first acquire `pg_advisory_xact_lock(hashtextextended(change_id, 0))`. Keyed insert publishes and uses the exact target `ON CONFLICT ((input_data ->> 'change_id'), (input_data ->> 'phase'), (input_data ->> 'transition_sequence')) WHERE input_data ? 'change_id' AND input_data ? 'phase' AND input_data ? 'transition_sequence' AND jsonb_typeof(input_data -> 'transition_sequence') = 'number' DO NOTHING`, then performs canonical lookup with the same expressions and predicate. Real PostgreSQL tests cover same-key and different-key submit/reconcile races plus malformed legacy rows.
 
 ### D3 — Reconciliation is one short database transaction
 
@@ -39,7 +39,7 @@ On conflict the RPC retrieves the row selected by the same three expressions and
 2. submit-if-absent creates or selects the current tuple;
 3. returns the canonical current task ID, `created`, and sorted cancelled task IDs.
 
-Terminal rows remain immutable. Lock acquisition follows one statement/order per table and the transaction contains no external calls, following PostgreSQL guidance to keep lock-holding transactions short: https://www.postgresql.org/docs/current/tutorial-transactions.html
+Terminal rows remain immutable. If the canonical current key already has `completed`, `failed`, or `cancelled` status, reconciliation treats that generation as already satisfied and returns it with `created=false`; it never manufactures a second row for the same transition sequence. Lock acquisition follows one statement/order per table and the transaction contains no external calls, following PostgreSQL guidance to keep lock-holding transactions short: https://www.postgresql.org/docs/current/tutorial-transactions.html
 
 ### D4 — Projection is an optional post-persistence dependency
 
@@ -52,7 +52,7 @@ queue_projection_fn(state)  # only after save succeeds
 
 Projection failure never rolls back or rewrites loop-state. The helper surfaces a structured warning/result so callers can observe degradation, while the next resume repairs the projection.
 
-After loading an existing loop-state, the same callback runs in reconciliation mode before any phase execution or gate early-return. It receives only authoritative fields derived from `LoopState`; its result is never used to mutate the state.
+After loading an existing loop-state, the same callback runs in reconciliation mode before any phase execution or gate early-return. It receives `(change_id, current_phase, total_iterations)` from `LoopState`, mapping `total_iterations` to `transition_sequence`; phase-local `iteration` is never projected. Its result is never used to mutate the state. Phase revisits therefore remain distinct generations.
 
 ### D5 — Tier isolation is dependency injection, not environment inference
 
@@ -60,7 +60,15 @@ The callback defaults to `None`. Autopilot, local-parallel, and sequential paths
 
 ### D6 — Reconciliation never reads queue truth back into loop-state
 
-The bridge adapter serializes `(change_id, current_phase, total_iterations)` from the passed `LoopState`, calls `/work/reconcile`, and returns projection metadata. It does not expose a phase/iteration result to the state machine and cannot update `LoopState`. The ri-07 AST invariant remains mandatory.
+The bridge adapter serializes `(change_id, current_phase, transition_sequence=total_iterations)` from the passed `LoopState`, calls `/work/reconcile`, and returns projection metadata. It does not expose a phase/iteration result to the state machine and cannot update `LoopState`. The ri-07 AST invariant remains mandatory.
+
+### D7 — Transport mappings and failures are explicit
+
+HTTP success is a `ProjectionMutationSuccess` with `success=true`; authentication, policy, and validation failures use 4xx RFC 7807 `Problem` responses and never satisfy the success schema. Direct MCP, HTTP-proxy MCP, the coordination bridge, and `coordination-cli work submit|reconcile` expose the same projection-key fields and success metadata. MCP/CLI no-raise failures use a discriminated `{success:false, reason}` envelope and omit success-only UUID/creation fields.
+
+### D8 — Migration preflight fails deterministically and retries cleanly
+
+Migration 035 takes a short `SHARE ROW EXCLUSIVE` lock, checks for partial, malformed, out-of-range, or duplicate complete reserved keys, and aborts with documented SQLSTATE/diagnostic queries before creating the index. The transaction rolls back on failure; operators quarantine or normalize reported rows and rerun the unchanged migration. Seeded migration tests cover malformed, duplicate, clean retry, and rollback behavior.
 
 ## Failure Matrix
 
@@ -75,14 +83,15 @@ The bridge adapter serializes `(change_id, current_phase, total_iterations)` fro
 ## Compatibility and Migration
 
 - The migration number follows current `034_handoff_supervisor_record.sql`.
-- Existing rows are not backfilled; the unique index creation must fail clearly if legacy duplicate complete keys already exist, and the migration test pins the expected preflight behavior.
-- Existing response consumers remain compatible because new fields are additive.
+- Existing rows are not backfilled. Preflight reports offending task IDs and categories with deterministic SQLSTATE `23514` for malformed/partial/out-of-range keys and `23505` for duplicates; the transaction fully rolls back so remediation and unchanged retry are safe. The short table lock prevents new keyed writes between preflight and index creation.
+- Existing response consumers remain compatible because success fields are additive and failures retain the established transport-specific error envelope.
 - No OpenAPI endpoint is removed.
 
 ## Test Strategy
 
 - PostgreSQL integration tests provide RED evidence for concurrent duplicate submission and reconciliation.
-- Service/API tests pin additive response fields and legacy unkeyed behavior.
+- Service/API tests pin strict bounds, reserved-key rejection, additive success fields, 4xx Problem failures, terminal-current semantics, and legacy unkeyed behavior.
+- Direct MCP, proxy MCP, and CLI tests pin keyed submit/reconcile mappings and failure envelopes.
 - Autopilot unit tests pin save-before-project call order, no projection after failed save, failure tolerance, and resume reconciliation.
 - Existing tier and AST-invariant tests prove coordinator-free fallback and one-way authority.
 
