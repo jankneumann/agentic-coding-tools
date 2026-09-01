@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "extend-handoff-document-with-supervisor-record",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "iteration": 0,
-  "total_iterations": 13,
+  "total_iterations": 14,
   "max_phase_iterations": 3,
   "findings_trend": [
     8,
@@ -114,7 +114,7 @@
   ],
   "last_handoff_id": "validation-goal-binding-1",
   "started_at": "2026-08-31T22:23:45.797305+00:00",
-  "phase_started_at": "2026-09-01T01:51:13.729448+00:00",
+  "phase_started_at": "2026-09-01T02:05:04.817501+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
@@ -189,8 +189,55 @@
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-09-01T01:55:21.213464+00:00",
       "note": "User explicitly requested: create PR"
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-01T02:01:25.555886+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 User explicitly invoked cleanup-feature for PR #450",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-01T02:04:06.669262+00:00",
+      "note": "User explicitly invoked cleanup-feature for PR #450"
     }
   ],
   "pending_gate": null,
-  "goal_gate": null
+  "goal_gate": {
+    "verdict": "passed",
+    "reason": "all required evidence present",
+    "evidence": {
+      "merge_authorized": true,
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/450",
+      "report_path": ".git-worktrees/extend-handoff-document-with-supervisor-record/openspec/changes/extend-handoff-document-with-supervisor-record/validation-report.md",
+      "checked_at": "2026-09-01T02:05:04.804611+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-09-01T01:51:21.108485+00:00",
+      "report_mtime": "2026-09-01T01:48:46.678668+00:00",
+      "required_sections": [
+        "Spec Compliance",
+        "Validation Review"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "pass",
+        "Validation Review": "pass"
+      }
+    }
+  }
 }
