@@ -1,0 +1,19 @@
+schema_version: 1
+feature:
+  id: disjoint-alpha
+packages:
+  - package_id: wp-core
+    scope:
+      write_allow: ["src/alpha/**"]
+    locks:
+      keys: ["contract:alpha"]
+  - package_id: wp-integration
+    scope:
+      write_allow: ["docs/alpha/**"]
+    locks:
+      keys: ["feature:alpha:integration"]
+  - package_id: wp-runtime-mirror
+    scope:
+      write_allow: [".agents/skills/alpha/**"]
+    locks:
+      keys: ["feature:alpha:runtime-mirror"]
