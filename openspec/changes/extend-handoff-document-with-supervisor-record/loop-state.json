@@ -1,0 +1,196 @@
+{
+  "schema_version": 5,
+  "change_id": "extend-handoff-document-with-supervisor-record",
+  "current_phase": "SUBMIT_PR",
+  "iteration": 0,
+  "total_iterations": 13,
+  "max_phase_iterations": 3,
+  "findings_trend": [
+    8,
+    0
+  ],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {
+    "wp-contracts": "complete",
+    "wp-coordinator": "complete",
+    "wp-host-plumbing": "complete",
+    "wp-integration": "complete",
+    "wp-skill-docs": "complete",
+    "wp-supervisor-builder": "complete"
+  },
+  "package_authors": {
+    "wp-contracts": "codex",
+    "wp-coordinator": "codex",
+    "wp-host-plumbing": "codex",
+    "wp-integration": "codex",
+    "wp-skill-docs": "tesla",
+    "wp-supervisor-builder": "carver"
+  },
+  "implementation_strategy": {
+    "wp-contracts": "coordinated",
+    "wp-coordinator": "coordinated",
+    "wp-host-plumbing": "coordinated",
+    "wp-integration": "coordinated",
+    "wp-skill-docs": "coordinated",
+    "wp-supervisor-builder": "coordinated"
+  },
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-extend-handoff-20260831-01",
+    "local-plan-iteration-1-1-89ad200e",
+    "plan-review-converged-20260831T230900Z",
+    "implementation-c129a5e8",
+    "0ef9da84339c3cc7f34f77b368d3a78efe3e124f",
+    "impl-review-converged-20260901T004132Z",
+    "validation-d96212b7",
+    "val-review-not-converged-20260901T010034Z",
+    "validation-fix-1-1-cb26e760",
+    "validation-2-1",
+    "validation-review-1",
+    "validation-goal-binding-1"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-08-31T22:24:50.800027+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-08-31T22:49:07.752724+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-08-31T23:13:53.178618+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-08-31T23:58:26.118521+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-09-01T00:24:46.967332+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-09-01T00:43:33.717189+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-01T00:54:01.333289+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-09-01T01:06:27.896821+00:00",
+      "outcome": "not_converged",
+      "phase": "VAL_REVIEW"
+    },
+    {
+      "at": "2026-09-01T01:21:05.677808+00:00",
+      "outcome": "fixed",
+      "phase": "VAL_FIX"
+    },
+    {
+      "at": "2026-09-01T01:34:40.635129+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-09-01T01:50:51.461508+00:00",
+      "outcome": "converged",
+      "phase": "VAL_REVIEW"
+    },
+    {
+      "at": "2026-09-01T01:51:21.108485+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    }
+  ],
+  "last_handoff_id": "validation-goal-binding-1",
+  "started_at": "2026-08-31T22:23:45.797305+00:00",
+  "phase_started_at": "2026-09-01T01:51:13.729448+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "runner",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": true,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 5,
+    "total_loc_estimate": 900
+  },
+  "gate_verdict": null,
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "outcome": "blocked",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "recorded_at": "2026-08-31T22:24:53.168559+00:00",
+      "resolution": "posture_block"
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "note": null,
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' approved by the operator",
+      "recorded_at": "2026-08-31T22:29:57.563035+00:00",
+      "resolution": "console_approved"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-01T01:51:57.938026+00:00"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' approved by the operator \u2014 User explicitly requested: create PR",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-01T01:55:21.213464+00:00",
+      "note": "User explicitly requested: create PR"
+    }
+  ],
+  "pending_gate": null,
+  "goal_gate": null
+}
