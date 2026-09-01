@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: wire-supervise-execution-through-the-dispatch-fn-seam
   title: "Wire supervise execution through the dispatch_fn seam"
-  plan_revision: 2
+  plan_revision: 3
   created_by: plan-feature
   deployable: false
 
@@ -127,6 +127,7 @@ packages:
       surfaces:
         - "apis"
         - "semantic_code"
+        - "documentation"
     worktree:
       name: runtime-state
       mode: isolated
@@ -186,6 +187,7 @@ packages:
     context_impact:
       surfaces:
         - "semantic_code"
+        - "documentation"
     worktree:
       name: scheduler
       mode: isolated
@@ -317,6 +319,7 @@ packages:
       surfaces:
         - "semantic_code"
         - "apis"
+        - "documentation"
     worktree:
       name: host-adapter
       mode: isolated
