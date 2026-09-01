@@ -1,0 +1,55 @@
+{
+  "review_type": "implementation",
+  "target": "whole-branch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: roadmap references are restricted to `ri-NN` item IDs, but multiple live roadmap artifacts use valid IDs such as `dg-00`, `pca-01`, `artifact-header-schema`, and `dispatcher-daemon`. For any active change owned by one of those items, `_roadmap_refs` reports a malformed reference and drops `roadmap_ref` instead of rehydrating the required `<roadmap-id>:<item-id>` link.",
+      "resolution": "Widen the roadmap-reference contract and `_ROADMAP_REF_RE` to accept every item ID allowed by the canonical roadmap schema, update both canonical and change-local supervisor-record schemas identically, and add a regression fixture whose matching roadmap item uses a non-`ri-NN` ID.",
+      "disposition": "fix",
+      "package_id": "wp-supervisor-builder",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 91,
+        "end": 91
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: the implementation keeps derivable `active_changes` out of the durable mirror and centralizes normalization, selection, schema validation, and atomic mirror writes in the deterministic host-assisted module.",
+      "resolution": "Preserve this derivable/non-derivable boundary in later schema versions.",
+      "disposition": "accept",
+      "package_id": "wp-supervisor-builder",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 560,
+        "end": 669
+      },
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: the handoff extension preserves the pre-extension positional dataclass constructor and ordinary handoff behavior while adding opt-in `supervisor_record` transport and pre-limit `supervisor_only` filtering across database, service, HTTP, MCP, CLI, and bridge surfaces.",
+      "resolution": "Keep the new fields optional and retain the SQL defaults in future revisions.",
+      "disposition": "accept",
+      "package_id": "wp-coordinator",
+      "file_path": "agent-coordinator/src/handoffs.py",
+      "line_range": {
+        "start": 22,
+        "end": 248
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    }
+  ]
+}
