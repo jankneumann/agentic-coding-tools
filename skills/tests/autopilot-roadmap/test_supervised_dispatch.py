@@ -293,6 +293,7 @@ def test_apply_binds_out_of_order_results_and_dispatches_once_with_router_contex
 @pytest.mark.parametrize(
     ("field", "replacement", "message"),
     [
+        ("schema_version", True, "schema_version"),
         ("dispatch_id", "other-dispatch", "result membership mismatch"),
         ("change_id", "other-change", "change_id mismatch"),
         ("attempt", 2, "attempt mismatch"),

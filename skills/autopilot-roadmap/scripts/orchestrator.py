@@ -319,7 +319,7 @@ def _validate_dispatch_result(result: Mapping[str, Any]) -> dict[str, Any]:
             "invalid supervised dispatch result fields: "
             f"missing={sorted(missing)} extra={sorted(extra)}"
         )
-    if value["schema_version"] != 1:
+    if isinstance(value["schema_version"], bool) or value["schema_version"] != 1:
         raise ValueError("invalid supervised dispatch result schema_version")
     if not isinstance(value["dispatch_id"], str) or not 1 <= len(value["dispatch_id"]) <= 256:
         raise ValueError("invalid supervised dispatch result dispatch_id")
