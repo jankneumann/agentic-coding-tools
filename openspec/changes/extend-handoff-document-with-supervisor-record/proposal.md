@@ -162,6 +162,14 @@ modified — `/supervise` rehydrates via the bridge read; (d) the builder lives 
 | Resilience | Coordinator unreachable at rehydrate | `/supervise` rehydrates from mirror + derivation; reports `Degraded: handoff` | VALIDATE (unit) |
 | Operability | SessionStart cost | `register_agent.py` wall-clock unchanged (record is not rendered there) | VALIDATE (measure) |
 
+Required acceptance is change-scoped: the coordinator handoff/surface tests, bridge,
+PhaseRecord, session-bootstrap, and supervise suites; strict type checking of changed
+coordinator modules; Ruff on changed Python surfaces; the migration-034 live PostgreSQL
+round-trip; contract drift; and strict OpenSpec validation must pass. Repository-wide
+suites are still run and reported as diagnostic evidence, but pre-existing collection,
+configuration, or environment failures outside the changed surfaces do not replace these
+feature gates or authorize hiding a feature regression.
+
 ## Impact
 
 - `agent-coordinator/src/{handoffs.py, coordination_api.py, coordination_mcp.py, http_proxy.py, coordination_cli.py, help_service.py}`, migration `034`
@@ -187,3 +195,5 @@ modified — `/supervise` rehydrates via the bridge read; (d) the builder lives 
 - Killing the supervisor session mid-roadmap and starting a fresh `/supervise` session loses no state: active changes and phases are freshly derived from repository state, while pending gates, standing decisions, and back-edge state are restored from the newest handoff or tracked mirror.
 - The supervisor record round-trips through serialization with all four sections (active changes, pending gates, standing decisions, back-edge digest state) intact, covered by unit tests.
 - The existing SessionStart hook remains unchanged and continues fetching the latest handoff; `/supervise` reads and renders the full `supervisor_record` through the bridge.
+- Migration 034 applies cleanly after migration 033 and the supervisor record completes a
+  real PostgreSQL write/read round-trip; all change-scoped required gates pass.

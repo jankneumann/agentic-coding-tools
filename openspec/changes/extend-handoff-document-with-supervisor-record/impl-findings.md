@@ -38,3 +38,17 @@ None detected. The approved behavior remains unchanged; both OpenAPI copies rece
 - Total findings addressed: 7
 - Remaining findings: none within this change
 - Termination reason: threshold met
+
+## Validation Fix 1
+
+<!-- Date: 2026-08-31 -->
+
+| # | Type | Criticality | Description | Resolution |
+|---|------|-------------|-------------|------------|
+| 8 | workflow | critical | Generated `.agents` and `.claude` supervise skill mirrors were stale. | Ran the canonical installer and proved exact equality for `SKILL.md` and `cycle_state.py` in both runtime trees. |
+| 9 | workflow | high | The active Session Continuity delta copied stale `database_unavailable` wording that contradicted the established public `rpc_failed:` behavior and the proposal's compatibility promise. | Preserved runtime behavior and existing tests; corrected the active delta to require the stable prefix plus diagnostic type/message. |
+| 10 | correctness | high | Migration 034 and the RPC round-trip had not been exercised against PostgreSQL. | Started the pinned ParadeDB image with isolated rootless Podman, applied 000–033 then 034 with `ON_ERROR_STOP`, verified unique RPC signatures, and passed the 4-test live suite. |
+| 11 | workflow | high | Integration acceptance made unrelated repository-wide collection/configuration failures conjunctive with feature correctness. | Refined proposal, design D9, tasks, and work-package verification to require all changed-surface and live-database gates while retaining broad suites as explicit diagnostics. |
+
+No changed-surface finding was deferred or reclassified. The repository-wide failures
+remain recorded in the validation report and are outside this change's approved write scope.

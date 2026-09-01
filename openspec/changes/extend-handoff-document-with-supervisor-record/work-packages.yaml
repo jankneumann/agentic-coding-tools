@@ -366,13 +366,16 @@ packages:
       result_keys: ["workflow_contract", "mirrors_synced"]
 
   - package_id: wp-integration
-    title: "Full suites, contract promotion, phase record"
+    title: "Feature gates, contract promotion, phase record"
     task_type: integration
     description: |
-      Phase 5, tasks 5.1-5.3. Merge the isolated worktrees, run coordinator unit +
-      e2e and all skills suites, promote contracts/openapi/handoffs.yaml over the
-      canonical contract, run the context-drift gate, openspec validate --strict,
-      write the Implementation PhaseRecord, push.
+      Phase 5, tasks 5.1-5.3. Merge the isolated worktrees, run the change-scoped
+      coordinator and skills suites plus strict changed-surface static checks and the
+      live migration-034 PostgreSQL round-trip. Run broad suites separately as
+      diagnostics and report every failure; a changed-surface regression remains
+      blocking. Promote contracts/openapi/handoffs.yaml over the canonical contract,
+      run the context-drift gate, openspec validate --strict, write the Implementation
+      PhaseRecord, push.
     role: integrator
     priority: 4
     depends_on: ["wp-coordinator", "wp-skill-docs"]
@@ -410,12 +413,30 @@ packages:
     verification:
       tier_required: B
       steps:
-        - name: "All suites pass"
+        - name: "Change-scoped coordinator suite passes"
           kind: command
-          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q && skills/.venv/bin/python -m pytest skills/tests -q && agent-coordinator/.venv/bin/python -m mypy --strict agent-coordinator/src && skills/.venv/bin/python -m ruff check agent-coordinator/src skills"
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_handoffs.py agent-coordinator/tests/test_handoff_supervisor_record.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_http_proxy.py agent-coordinator/tests/test_rpc_migration_alignment.py -q"
           evidence:
             artifacts: []
-            result_keys: ["full_suite"]
+            result_keys: ["coordinator_suite"]
+        - name: "Change-scoped skills suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/coordination-bridge skills/tests/phase-record-compaction skills/tests/session-bootstrap skills/tests/supervise -q"
+          evidence:
+            artifacts: []
+            result_keys: ["skills_suite"]
+        - name: "Changed Python surfaces pass static checks"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m mypy --strict agent-coordinator/src/handoffs.py && skills/.venv/bin/python -m ruff check agent-coordinator/src/handoffs.py agent-coordinator/src/coordination_api.py agent-coordinator/src/coordination_mcp.py agent-coordinator/src/http_proxy.py agent-coordinator/src/coordination_cli.py agent-coordinator/src/help_service.py skills/coordination-bridge/scripts/coordination_bridge.py skills/session-log/scripts/phase_record.py skills/supervise/scripts/cycle_state.py"
+          evidence:
+            artifacts: []
+            result_keys: ["static_checks"]
+        - name: "Migration 034 live round-trip passes"
+          kind: command
+          command: "PROFILE_SYNC_ENABLED=false DB_BACKEND=postgres agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/e2e/postgres/test_handoffs_live.py -q -rs"
+          evidence:
+            artifacts: []
+            result_keys: ["live_roundtrip"]
         - name: "Context drift gate green"
           kind: command
           command: "make context-drift-gate PYTHON=skills/.venv/bin/python"
@@ -433,4 +454,4 @@ packages:
       complexity: low
       package_kind: integration
     outputs:
-      result_keys: ["full_suite", "drift_gate", "openspec_valid"]
+      result_keys: ["coordinator_suite", "skills_suite", "static_checks", "live_roundtrip", "drift_gate", "openspec_valid"]
