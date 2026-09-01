@@ -236,7 +236,7 @@ packages:
             result_keys: [openapi_valid]
         - name: Run real PostgreSQL and coordinator transport suites
           kind: command
-          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_http_proxy.py agent-coordinator/tests/test_coordination_cli_axi.py agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py -q
+          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_mcp_work_projection.py agent-coordinator/tests/test_http_proxy.py agent-coordinator/tests/test_coordination_cli_axi.py agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py -q
           cwd: .
           expect_exit_code: 0
           evidence:
@@ -244,7 +244,7 @@ packages:
             result_keys: [coordinator_integration_tests_pass]
         - name: Run affected suites
           kind: command
-          command: skills/.venv/bin/python -m pytest skills/tests/coordination-bridge skills/tests/autopilot -q
+          command: skills/.venv/bin/python -m pytest skills/tests/coordination-bridge skills/tests/autopilot agent-coordinator/tests/test_mcp_work_projection.py -q
           cwd: .
           expect_exit_code: 0
           evidence:

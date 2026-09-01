@@ -33,6 +33,13 @@ The system SHALL provide task assignment, tracking, dependency management, and a
 - **THEN** it SHALL fail as `reconciliation_required`
 - **AND** reconciliation SHALL be the only operation that may advance the high-water sequence
 
+#### Scenario: Equal-sequence different-phase submit is rejected
+
+- **GIVEN** a projection head exists for one `(phase, transition_sequence)` generation
+- **WHEN** keyed submit requests a different phase at the same sequence
+- **THEN** it SHALL fail as `projection_generation_mismatch`
+- **AND** it SHALL NOT create a second active generation
+
 #### Scenario: Reserved or malformed identity is rejected
 
 - **WHEN** submit or reconcile receives a partial key, boolean or out-of-range sequence, unknown phase, invalid change ID, or reserved identity field inside `input_data`
