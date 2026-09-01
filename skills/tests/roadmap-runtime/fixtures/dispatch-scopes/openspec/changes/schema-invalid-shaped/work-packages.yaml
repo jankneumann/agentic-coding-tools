@@ -1,0 +1,9 @@
+schema_version: 1
+feature:
+  id: schema-invalid-shaped
+packages:
+  - package_id: wp-shaped
+    scope:
+      write_allow: ["src/shaped/**"]
+    locks:
+      keys: ["contract:shaped"]

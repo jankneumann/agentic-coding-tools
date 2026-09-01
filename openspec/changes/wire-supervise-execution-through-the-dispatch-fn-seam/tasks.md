@@ -37,7 +37,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: 0.2
   **Files**: `skills/tests/roadmap-runtime/test_dispatch_scheduler.py`, `skills/tests/roadmap-runtime/fixtures/dispatch-scopes/**`
 
-- [ ] 1.2 Implement the neutral dispatch scheduler (M)
+- [x] 1.2 Implement the neutral dispatch scheduler (M)
   **Dependencies**: 0.4, 1.1
   **Files**: `skills/roadmap-runtime/scripts/dispatch_scheduler.py`
 
