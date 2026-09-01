@@ -86,7 +86,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: 4.1
   **Files**: `skills/supervise/SKILL.md`
 
-- [ ] Checkpoint: run supervise tests; inspect host-assisted invariants; verify source-only skill scope
+- [x] Checkpoint: run supervise tests; inspect host-assisted invariants; verify source-only skill scope
 
 ## 5. Prove the end-to-end boundary
 
