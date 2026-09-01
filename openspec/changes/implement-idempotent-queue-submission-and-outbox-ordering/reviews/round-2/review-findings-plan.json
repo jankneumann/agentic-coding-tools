@@ -1,0 +1,82 @@
+{
+  "review_type": "plan",
+  "target": "implement-idempotent-queue-submission-and-outbox-ordering",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: The high-water remediation stores only transition_sequence, while projection identity also includes phase. After reconcile(phase=A, sequence=N), a delayed keyed submit(phase=B, sequence=N) passes the equal-sequence check and the tuple-level unique index permits a second active row; the same advisory lock merely serializes this recreation. The claimed single-current-row invariant therefore still fails for an equal-sequence, different-phase tuple.",
+      "resolution": "Store and validate the complete authoritative generation in the head (at least phase plus transition_sequence), or reject any equal-sequence key that differs from the head's canonical phase. Specify that reconciliation advances the complete head atomically and add forced reconcile-first/different-phase-submit-second and concurrent same-sequence/different-phase PostgreSQL tests.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/design.md",
+      "line_range": {
+        "start": 28,
+        "end": 43
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: The tasks require 409 mappings for stale_projection and reconciliation_required, but neither /work/submit nor /work/reconcile declares a 409 Problem response in the OpenAPI contract. An implementation can satisfy the task while failing the published transport contract, or satisfy the contract while omitting the planned conflict behavior.",
+      "resolution": "Add the applicable 409 Problem responses to both operations and pin their machine-readable conflict reasons in API tests, or explicitly choose another documented status and make design, tasks, specs, and contract agree.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 15,
+        "end": 41
+      },
+      "axis": "compatibility",
+      "severity": "nit"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Round-one remediation added test_mcp_work_projection.py only to the coordinator package gate. The final wp-integration transport suite still omits that direct-MCP module, so the final integration checkpoint can pass without re-running the dedicated parity coverage that task 1.7 requires.",
+      "resolution": "Include agent-coordinator/tests/test_mcp_work_projection.py in the wp-integration coordinator transport command, or use a bounded test target that necessarily includes it.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/work-packages.yaml",
+      "line_range": {
+        "start": 226,
+        "end": 244
+      },
+      "axis": "observability",
+      "severity": "nit"
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The persist-first callback and resume reconciliation preserve loop-state as one-way authoritative truth across projection failures and process crashes.",
+      "resolution": "Preserve the save-before-callback, failure-tolerance, resume-before-phase, and no-readback tests during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/design.md",
+      "line_range": {
+        "start": 45,
+        "end": 64
+      },
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "The remediated plan now identifies the existing submit_work authorization operation and a reconciliation-specific mode, eliminating the round-one privilege-contract ambiguity.",
+      "resolution": "Preserve the authorization mapping and denial-envelope tests across HTTP, direct MCP, proxy MCP, and CLI.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/design.md",
+      "line_range": {
+        "start": 66,
+        "end": 70
+      },
+      "axis": "security",
+      "severity": "none"
+    }
+  ]
+}

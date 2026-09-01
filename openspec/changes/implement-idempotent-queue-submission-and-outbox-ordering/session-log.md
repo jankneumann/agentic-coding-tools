@@ -78,3 +78,38 @@ Authored the approved ri-08 plan around an atomic PostgreSQL projection key, a s
 ### Context
 Resolved seven high and three medium review findings across the projection identity, database serialization, terminal semantics, migration safety, transport parity, boundary validation, and executable verification gates. Plan and contract revisions are now 2; strict OpenSpec and package DAG/overlap validation pass.
 
+---
+
+## Phase: Plan Review (2026-09-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Outcome is not_converged** — The canonical synthesis met quorum 2/2 but classified the complete-generation issue as a critical disagreement between Codex fix and Antigravity accept, yielding blocking_count=1.
+2. **Treat projection head as the complete generation** — A sequence-only head cannot distinguish two phase values at the same sequence; the head or equality check must cover the authoritative phase and transition_sequence tuple.
+3. **Preserve bounded vendor failure evidence** — Claude was excluded from round 2; Antigravity succeeded, Codex and Grok terminated at the configured 180-second limit, and Pi reported auth_required. These outcomes remain in the canonical dispatcher manifest.
+
+### Capability Gaps Observed
+- **vendor_quorum_degradation**: Three of four dispatched adapters did not return findings within the bounded round: Codex and Grok timed out and Pi authentication failed. The primary reviewer plus Antigravity still supplied two distinct vendors for synthesis. (skill: parallel-review-plan, severity: medium)
+
+### Completed Work
+- Read the complete remediated plan at c53682bb and round-one evidence at 7048ba97.
+- Ran the canonical dispatcher with claude_code excluded and a 180-second per-vendor timeout; preserved all round-two artifacts under reviews/round-2/.
+- Produced and schema-validated the primary Codex review and the returned Antigravity review.
+- Synthesized canonical two-vendor consensus: quorum 2/2, one disagreement, one blocking finding.
+
+### Next Steps
+- PLAN_FIX must make the high-water identity cover the complete authoritative generation, then add forced reconcile-first/equal-sequence-different-phase submit tests.
+- Declare 409 Problem responses for stale_projection and reconciliation_required in the OpenAPI contract, or align all plan artifacts on a different status.
+- Add test_mcp_work_projection.py to the final wp-integration coordinator transport verification command.
+- Run strict plan/package/contract checks and another bounded multi-vendor PLAN_REVIEW round.
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/round-2/review-findings-plan.json` — Primary schema-valid Codex findings
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/round-2/findings-antigravity-plan.json` — Successful independent Antigravity findings
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/round-2/consensus-plan.json` — Two-vendor consensus with one blocking disagreement
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/round-2/review-manifest.json` — Bounded dispatcher outcomes for all four non-Claude vendors
+
+### Context
+PLAN_REVIEW round 2 is not_converged. Two distinct reviewer sources met quorum (primary Codex plus Antigravity), but consensus contains one critical correctness disagreement and blocking_count=1. The sequence-only high-water row does not prevent an equal-sequence, different-phase keyed submit from recreating a second active tuple after reconciliation. The primary review also found a missing OpenAPI 409 contract and a final integration gate that still omits the dedicated direct-MCP test.
+
