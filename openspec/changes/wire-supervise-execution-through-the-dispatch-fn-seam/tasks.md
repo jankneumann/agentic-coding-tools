@@ -82,7 +82,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: 3.2
   **Files**: `skills/tests/supervise/test_workflow_contract.py`
 
-- [ ] 4.2 Document the `/supervise execute` background callback protocol (M)
+- [x] 4.2 Document the `/supervise execute` background callback protocol (M)
   **Dependencies**: 4.1
   **Files**: `skills/supervise/SKILL.md`
 
