@@ -94,6 +94,7 @@ class DispatchBatch:
 
     items: tuple[SelectedDispatchItem, ...]
     deferred_item_ids: tuple[str, ...]
+    serial_item_ids: tuple[str, ...]
     failures: tuple[SchedulingFailure, ...]
 
 
@@ -350,6 +351,8 @@ def classify_scope_relationship(
 def select_safe_ready_batch(
     repo_root: Path,
     ready_items: Sequence[ReadyDispatchItem],
+    *,
+    forced_serial_item_ids: Sequence[str] = (),
 ) -> DispatchBatch:
     """Select the priority/item-id ordered maximal pairwise-safe ready batch."""
     ordered = sorted(ready_items, key=lambda item: (item.priority, item.item_id))
@@ -370,13 +373,32 @@ def select_safe_ready_batch(
         )
 
     if not candidates:
-        return DispatchBatch((), (), tuple(failures))
+        return DispatchBatch((), (), (), tuple(failures))
+
+    affected_item_ids = {
+        candidate.item_id
+        for candidate in candidates
+        if candidate.scope.proof == "serial_indeterminate"
+        or candidate.item_id in forced_serial_item_ids
+    }
+    for index, first_candidate in enumerate(candidates):
+        for second_candidate in candidates[index + 1 :]:
+            if (
+                classify_scope_relationship(
+                    first_candidate.scope, second_candidate.scope
+                )
+                is not ScopeRelation.PROVEN_DISJOINT
+            ):
+                affected_item_ids.update(
+                    (first_candidate.item_id, second_candidate.item_id)
+                )
 
     first = candidates[0]
     if first.scope.proof == "serial_indeterminate":
         return DispatchBatch(
             (first,),
             tuple(candidate.item_id for candidate in candidates[1:]),
+            tuple(sorted(affected_item_ids)),
             tuple(failures),
         )
 
@@ -392,16 +414,25 @@ def select_safe_ready_batch(
         else:
             deferred.append(candidate.item_id)
 
-    if len(selected) == 1 and deferred:
-        selected[0] = replace(
-            selected[0],
+    selected = [
+        replace(
+            candidate,
             scope=replace(
-                selected[0].scope,
+                candidate.scope,
                 proof="serial_indeterminate",
-                reason="no_parallel_scope_proof",
+                reason=candidate.scope.reason or "no_parallel_scope_proof",
             ),
         )
-    return DispatchBatch(tuple(selected), tuple(deferred), tuple(failures))
+        if candidate.item_id in affected_item_ids
+        else candidate
+        for candidate in selected
+    ]
+    return DispatchBatch(
+        tuple(selected),
+        tuple(deferred),
+        tuple(sorted(affected_item_ids)),
+        tuple(failures),
+    )
 
 
 __all__ = [

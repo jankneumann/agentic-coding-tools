@@ -173,6 +173,16 @@
         }
       }
     },
+    "serial_indeterminate_items": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "default": []
+    },
     "dispatch_attempts": {
       "type": "array",
       "items": {
