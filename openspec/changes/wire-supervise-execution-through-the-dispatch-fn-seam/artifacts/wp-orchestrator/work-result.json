@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "feature_id": "wire-supervise-execution-through-the-dispatch-fn-seam",
+  "package_id": "wp-orchestrator",
+  "attempt": 1,
+  "plan_revision": 3,
+  "contracts_revision": 1,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "skills/autopilot-roadmap/SKILL.md"
+    ],
+    "keys": [
+      "feature:wire-supervise-execution-through-the-dispatch-fn-seam:orchestrator"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md",
+      "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "skills/autopilot-roadmap/SKILL.md",
+      "skills/tests/autopilot-roadmap/test_supervised_dispatch.py",
+      "skills/tests/autopilot-roadmap/test_orchestrator.py"
+    ],
+    "read_allow": [
+      "skills/autopilot-roadmap/**",
+      "skills/autopilot/**",
+      "skills/roadmap-runtime/**",
+      "skills/roadmap-runtime/scripts/dispatch_scheduler.py",
+      "skills/tests/autopilot-roadmap/**",
+      "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/**"
+    ],
+    "deny": [
+      "**/.venv/**",
+      "skills/autopilot/scripts/phase_agent.py",
+      "skills/autopilot/scripts/provider_dispatch.py",
+      "skills/supervise/SKILL.md"
+    ]
+  },
+  "files_modified": [
+    "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md",
+    "skills/autopilot-roadmap/SKILL.md",
+    "skills/autopilot-roadmap/scripts/orchestrator.py",
+    "skills/tests/autopilot-roadmap/test_supervised_dispatch.py"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "7dd0fdb9166ca1f2af37b51dbd2b8f6ba9f6d33a"
+    },
+    "head": {
+      "commit": "2e3d02804fe4a30c1f1e38d4a8b4256b7c8f85b5",
+      "branch": "openspec/wire-supervise-execution-through-the-dispatch-fn-seam--wp-orchestrator",
+      "worktree": ".git-worktrees/wire-supervise-execution-through-the-dispatch-fn-seam/wp-orchestrator"
+    }
+  },
+  "verification": {
+    "tier": "B",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Delegated and legacy orchestrator suites pass",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/tests/autopilot-roadmap/test_orchestrator.py skills/tests/autopilot-roadmap/test_supervised_dispatch.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "orchestrator_suite": {
+              "passed": 43,
+              "failed": 0,
+              "duration_seconds": 0.68
+            }
+          }
+        }
+      },
+      {
+        "name": "Autopilot roadmap host invariant passes",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/tests/autopilot-roadmap/test_host_assisted_invariant.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "host_invariant": {
+              "passed": 2,
+              "failed": 0,
+              "duration_seconds": 0.06
+            }
+          }
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "git.base/head record the original package execution commits and files_modified is their exact diff. All declared verification commands were revalidated against current feature HEAD 5b619ba94b90af26db42d8d84dd1fbc7ed81f765 on 2026-09-01; every command exited 0 and current metrics are recorded per step."
+}

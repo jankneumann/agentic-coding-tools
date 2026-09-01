@@ -53,9 +53,50 @@ The public contract remains a separate two-stage delegated API. OpenSpec prose w
 
 ---
 
+## Iteration 2
+
+<!-- Date: 2026-09-01 -->
+
+### Findings
+
+| # | Type | Criticality | Description | Resolution |
+|---|------|-------------|-------------|------------|
+| 1 | bug | high | A deferred peer affected by an overlapping ready pair was emitted later with `proven_disjoint` instead of retaining `serial_indeterminate`. | Added an exact conflict-affected ID set plus a bounded durable checkpoint queue; the deferred request consumes the carried proof when it is prepared. |
+| 2 | workflow | high | Seven declared work packages had no durable result artifacts, so revision, scope, and verification consistency could not be audited. | Reconstructed all seven results from their original package commits, reran all 13 declared checks at `5b619ba9`, and validated every artifact at plan revision 3 and contracts revision 1. |
+| 3 | observability | high | Requirement evidence cells did not identify the exact current code SHA and included one known failing row. | Reran all eight mapped requirement commands independently and recorded exactly eight `pass 5b619ba9` cells. |
+| 4 | workflow | high | The prescribed traceability interpreter was absent, so the critical gate failed before evaluating contracts. | Provisioned the locked core environment with `uv sync --project packages/gen-eval --no-dev`; the prescribed gate exits 0 with 68 operations citing 36 requirements. |
+| 5 | workflow | high | The evidence gate unconditionally rejected duplicate modified files even though approved plan revision 3 explicitly permits task-coupled writes to the shared change-local `tasks.md`. | Added a RED contract test and narrowed the gate to one explicit, truth-preserving task-record exception; every source, test, schema, mirror, contract, and other OpenSpec duplicate remains a failure. |
+
+### TDD Evidence
+
+- Deferred proof RED: 1 failed with the second batch reporting `proven_disjoint`; GREEN: 1 passed with both requests reporting `serial_indeterminate`.
+- Focused scheduler, checkpoint, model, and E2E matrix: 61 passed; broad roadmap-runtime, autopilot-roadmap, and supervise suites: 370 passed.
+- Evidence-gate exception RED: 1 failed on the missing bounded task-record rule; GREEN: 1 passed; full validate-feature suite: 64 passed, 5 skipped.
+
+### Durable Evidence
+
+- Work results: 7/7 schema-, scope-, and verification-valid; all retain original package commit provenance and current `5b619ba9` revalidation notes.
+- Declared package checks: 13/13 exit 0; cross-package revision/scope/verification audit exits 0. The only repeated modified path is `openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md`, declared by all seven packages under the approved task-coupled plan revision; no source or runtime path overlaps.
+- Requirement evidence: 8/8 row commands exit 0 at exact SHA `5b619ba9`.
+- Traceability: prescribed package interpreter exit 0; 68 operations cite 36 requirements.
+
+### Review Availability
+
+- Independent in-repository quality and implementation reviewers completed.
+- The coordinated external re-attempt dispatched Antigravity, Claude Code, Grok, and Pi with a 30-second per-vendor bound; all four timed out, so quorum remains unavailable at 0/4. `reviews/iteration-2/review-manifest.json` records the exact outcomes.
+
+### Quality Checks
+
+- Broad affected suites: 370 passed.
+- Validate-feature suite: 64 passed, 5 skipped.
+- Ruff over changed Python implementation and tests: pass.
+- Strict OpenSpec, prescribed traceability, runtime mirrors, seven canonical work-result validators, and `git diff --check`: pass.
+
+---
+
 ## Summary
 
-- Total iterations: 1
-- Total findings addressed: 15
+- Total iterations: 2
+- Total findings addressed: 20
 - Remaining findings: none at or above the medium threshold; external review unavailable (0/4)
-- Termination reason: threshold met; vendor quorum unavailable and explicitly recorded
+- Termination reason: threshold met; mandatory validation rework resolved and vendor quorum unavailable but explicitly recorded
