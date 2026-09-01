@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "dispatch_id": "batch-0123456789abcdef01234567:ri-01:attempt-1",
+  "change_id": "change-alpha",
+  "attempt": 1,
+  "lease_generation": 1,
+  "outcome": "parked",
+  "worktree_path": "__WORKTREE__",
+  "branch": "openspec/change-alpha",
+  "parked": {
+    "kind": "pending_gate",
+    "reason": "operator approval required",
+    "gate": "deploy",
+    "resume_hint": "continue after approval"
+  },
+  "evidence": {
+    "loop_state_path": ".git/autopilot/loop-state.json"
+  }
+}
