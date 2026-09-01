@@ -14,14 +14,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO_ROOT / "skills" / "supervise" / "scripts"
 FIXTURES = Path(__file__).parent / "fixtures" / "supervisor-record"
-SCHEMAS = (
-    REPO_ROOT
-    / "openspec"
-    / "changes"
-    / "extend-handoff-document-with-supervisor-record"
-    / "contracts"
-    / "schemas"
-)
+SCHEMAS = REPO_ROOT / "openspec" / "schemas"
 if str(SCRIPTS) not in sys.path:  # pragma: no cover - import wiring
     sys.path.insert(0, str(SCRIPTS))
 
@@ -38,10 +31,21 @@ from cycle_state import (  # noqa: E402
 NOW = "2026-08-31T23:30:00Z"
 
 
+def _install_schemas(repo: Path) -> None:
+    schema_target = repo / "openspec" / "schemas"
+    schema_target.mkdir(parents=True)
+    for name in (
+        "supervisor-record.schema.json",
+        "supervisor-record-mirror.schema.json",
+    ):
+        shutil.copy2(SCHEMAS / name, schema_target / name)
+
+
 @pytest.fixture
 def tree(tmp_path: Path) -> Path:
     target = tmp_path / "repo"
     shutil.copytree(FIXTURES / "tree", target)
+    _install_schemas(target)
     return target
 
 
@@ -213,6 +217,7 @@ class TestMirror:
         _git(repo, "config", "user.email", "t@example.com")
         _git(repo, "config", "user.name", "T")
         (repo / "README.md").write_text("x\n", encoding="utf-8")
+        _install_schemas(repo)
         write_mirror(repo, _json("full.json"), now=NOW)
         _git(repo, "add", "-A")
         _git(repo, "commit", "-m", "initial")
@@ -268,3 +273,101 @@ class TestPriorSelectionAndCommands:
         _validator("supervisor-record.schema.json").validate(
             json.loads(capsys.readouterr().out)
         )
+
+
+class TestRecordValidationAndWriteSafety:
+    def test_control_only_required_decision_field_is_dropped(self, tree: Path) -> None:
+        prior = _json("mirror.json")
+        prior["standing_decisions"] = [
+            {
+                "id": "\u0000",
+                "decided_at": "2026-08-31T22:00:00Z",
+                "scope": "global",
+                "decision": "continue",
+            }
+        ]
+
+        record = build_supervisor_record(tree, prior, now=NOW)
+
+        assert record["standing_decisions"] == []
+        _validator("supervisor-record.schema.json").validate(record)
+
+    def test_future_record_version_is_rejected_without_overwriting_mirror(
+        self, tree: Path
+    ) -> None:
+        write_mirror(tree, _json("full.json"), now=NOW)
+        path = tree / MIRROR_PATH
+        before = path.read_bytes()
+        future = _json("full.json")
+        future["schema_version"] = 2
+        future["back_edge"]["last_fingerprint"] = "future"
+
+        with pytest.raises(ValueError, match="unsupported supervisor record schema_version"):
+            write_mirror(tree, future, now="2026-09-01T00:00:00Z")
+
+        assert path.read_bytes() == before
+
+    def test_mirror_write_rejects_symlink_destination(
+        self, tree: Path, tmp_path: Path
+    ) -> None:
+        outside = tmp_path / "outside.json"
+        outside.write_bytes(b"sentinel")
+        path = tree / MIRROR_PATH
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.symlink_to(outside)
+
+        with pytest.raises(ValueError, match="symlink"):
+            write_mirror(tree, _json("full.json"), now=NOW)
+
+        assert outside.read_bytes() == b"sentinel"
+
+
+class TestRehydrateDegradation:
+    def test_missing_handoff_and_mirror_reports_degraded(
+        self, tree: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert main(
+            [
+                "--repo-root",
+                str(tree),
+                "rehydrate",
+                "--handoff",
+                str(tmp_path / "missing-handoff.json"),
+                "--mirror",
+                str(tmp_path / "missing-mirror.json"),
+                "--now",
+                NOW,
+            ]
+        ) == 0
+
+        assert "Degraded: handoff" in capsys.readouterr().err
+
+    def test_newer_mirror_reports_degraded(
+        self, tree: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        handoff_path = tmp_path / "handoff.json"
+        handoff_path.write_text(
+            json.dumps(_json("handoff-with-record.json")), encoding="utf-8"
+        )
+        mirror = _json("mirror.json")
+        mirror["written_at"] = "2026-09-01T00:00:00Z"
+        mirror_path = tmp_path / "mirror.json"
+        mirror_path.write_text(json.dumps(mirror), encoding="utf-8")
+
+        assert main(
+            [
+                "--repo-root",
+                str(tree),
+                "rehydrate",
+                "--handoff",
+                str(handoff_path),
+                "--mirror",
+                str(mirror_path),
+                "--now",
+                NOW,
+            ]
+        ) == 0
+        captured = capsys.readouterr()
+
+        assert json.loads(captured.out)["pending_gates"] == mirror["pending_gates"]
+        assert "Degraded: handoff" in captured.err

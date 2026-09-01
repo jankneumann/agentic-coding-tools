@@ -26,16 +26,19 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import posixpath
 import re
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 import yaml
+from jsonschema import Draft202012Validator, FormatChecker
 
 _RUNTIME = Path(__file__).resolve().parents[2] / "roadmap-runtime" / "scripts"
 
@@ -206,6 +209,17 @@ def _now_value(now: str | datetime | None) -> tuple[str, datetime]:
     return now, parsed
 
 
+def _validate_record(repo_root: Path, record: dict[str, Any], schema_name: str) -> None:
+    schema_path = repo_root / "openspec" / "schemas" / schema_name
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"cannot load supervisor record schema {schema_path}: {exc}") from exc
+    Draft202012Validator(
+        schema, format_checker=FormatChecker()
+    ).validate(record)
+
+
 def _sanitize_text(value: str) -> str:
     return "".join(char for char in value if ord(char) >= 32 or char in "\n\r\t")
 
@@ -249,10 +263,14 @@ def _clean_pending_gate(value: Any) -> dict[str, Any] | None:
 def _clean_standing_decision(value: Any, *, now: datetime) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
-    required = ("id", "decided_at", "scope", "decision")
-    if not all(isinstance(value.get(key), str) and value[key] for key in required):
+    required_text = {
+        key: _clean_optional_text(value.get(key))
+        for key in ("id", "scope", "decision")
+    }
+    if not all(required_text.values()):
         return None
-    if _parse_datetime(value["decided_at"]) is None:
+    decided_at = value.get("decided_at")
+    if _parse_datetime(decided_at) is None:
         return None
     expires_at = value.get("expires_at")
     expiry = _parse_datetime(expires_at) if expires_at is not None else None
@@ -261,10 +279,10 @@ def _clean_standing_decision(value: Any, *, now: datetime) -> dict[str, Any] | N
     if expiry is not None and expiry <= now:
         return None
     cleaned: dict[str, Any] = {
-        "id": _sanitize_text(value["id"]),
-        "decided_at": value["decided_at"],
-        "scope": _sanitize_text(value["scope"]),
-        "decision": _sanitize_text(value["decision"]),
+        "id": required_text["id"],
+        "decided_at": decided_at,
+        "scope": required_text["scope"],
+        "decision": required_text["decision"],
     }
     rationale = value.get("rationale")
     if rationale is None or isinstance(rationale, str):
@@ -282,16 +300,17 @@ def _clean_digested_stub(value: Any) -> dict[str, Any] | None:
     rank = value.get("rank")
     decision = value.get("decision")
     decided_at = value.get("decided_at")
+    cleaned_stub_key = _clean_optional_text(stub_key_value)
     if (
-        not isinstance(stub_key_value, str)
-        or not stub_key_value.startswith(("change:", "prov:"))
+        cleaned_stub_key is None
+        or re.fullmatch(r"^(change|prov):.+$", cleaned_stub_key) is None
         or not isinstance(rank, int) or isinstance(rank, bool) or rank < 1
         or decision not in _STUB_DECISIONS
         or _parse_datetime(decided_at) is None
     ):
         return None
     cleaned: dict[str, Any] = {
-        "stub_key": _sanitize_text(stub_key_value), "rank": rank,
+        "stub_key": cleaned_stub_key, "rank": rank,
         "decision": decision, "decided_at": decided_at,
     }
     suggested = value.get("suggested_change_id")
@@ -322,12 +341,21 @@ def _clean_back_edge(value: Any) -> dict[str, Any]:
     }
 
 
+def _require_supported_record_version(record: dict[str, Any]) -> None:
+    version = record.get("schema_version")
+    if version is not None and version != SUPERVISOR_RECORD_SCHEMA_VERSION:
+        raise ValueError(
+            f"unsupported supervisor record schema_version: {version}"
+        )
+
+
 def _extract_supervisor_record(value: Any) -> dict[str, Any] | None:
     """Normalize a full record, mirror, handoff row, or bridge read envelope."""
     if not isinstance(value, dict):
         return None
     embedded = value.get("supervisor_record")
     if isinstance(embedded, dict):
+        _require_supported_record_version(embedded)
         return embedded
     data = value.get("data")
     if isinstance(data, dict):
@@ -337,7 +365,11 @@ def _extract_supervisor_record(value: Any) -> dict[str, Any] | None:
                 extracted = _extract_supervisor_record(handoff)
                 if extracted is not None:
                     return extracted
-    if all(key in value for key in ("written_at", "pending_gates", "standing_decisions", "back_edge")):
+    if all(
+        key in value
+        for key in ("written_at", "pending_gates", "standing_decisions", "back_edge")
+    ):
+        _require_supported_record_version(value)
         return value
     return None
 
@@ -539,27 +571,70 @@ def build_supervisor_record(repo_root: Path, prior: dict[str, Any] | None = None
     }
     for message in sorted(set(degraded)):
         print(f"Degraded: {message}", file=sys.stderr)
+    _validate_record(root, record, "supervisor-record.schema.json")
     return record
+
+
+def _select_prior_with_source(
+    handoff: Any, mirror: Any
+) -> tuple[dict[str, Any] | None, str]:
+    handoff_record = _extract_supervisor_record(handoff)
+    mirror_record = _extract_supervisor_record(mirror)
+    if handoff_record is None:
+        return mirror_record, "mirror" if mirror_record is not None else "empty"
+    if mirror_record is None:
+        return handoff_record, "handoff"
+    handoff_time = _parse_datetime(handoff_record.get("written_at"))
+    mirror_time = _parse_datetime(mirror_record.get("written_at"))
+    if handoff_time is None:
+        return mirror_record, "mirror"
+    if mirror_time is not None and mirror_time > handoff_time:
+        return mirror_record, "mirror"
+    return handoff_record, "handoff"
 
 
 def select_prior(handoff: Any, mirror: Any) -> dict[str, Any] | None:
     """Choose the newer normalized durable source; ties prefer the handoff."""
-    handoff_record = _extract_supervisor_record(handoff)
-    mirror_record = _extract_supervisor_record(mirror)
-    if handoff_record is None:
-        return mirror_record
-    if mirror_record is None:
-        return handoff_record
-    handoff_time = _parse_datetime(handoff_record.get("written_at"))
-    mirror_time = _parse_datetime(mirror_record.get("written_at"))
-    if handoff_time is None:
-        return mirror_record
-    if mirror_time is not None and mirror_time > handoff_time:
-        return mirror_record
-    return handoff_record
+    return _select_prior_with_source(handoff, mirror)[0]
 
 
-def write_mirror(repo_root: Path, record: dict[str, Any], *, now: str | datetime | None = None) -> dict[str, Any]:
+def _safe_mirror_path(repo_root: Path) -> Path:
+    relative = Path(MIRROR_PATH)
+    current = repo_root
+    for part in relative.parent.parts:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError(f"mirror path contains symlink: {current}")
+        current.mkdir(exist_ok=True)
+    if not current.resolve().is_relative_to(repo_root):
+        raise ValueError("mirror path escapes repository root")
+    path = repo_root / relative
+    if path.is_symlink():
+        raise ValueError(f"mirror path is a symlink: {path}")
+    return path
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    descriptor, temporary_name = tempfile.mkstemp(
+        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        temporary.chmod(0o644)
+        os.replace(temporary, path)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def write_mirror(
+    repo_root: Path,
+    record: dict[str, Any],
+    *,
+    now: str | datetime | None = None,
+) -> dict[str, Any]:
     """Persist the sanitized durable subset, preserving time on a no-op write."""
     root = Path(repo_root).resolve()
     source = _extract_supervisor_record(record) or {}
@@ -572,7 +647,8 @@ def write_mirror(repo_root: Path, record: dict[str, Any], *, now: str | datetime
         "written_at": written_at,
         **_durable_sections(source, now=current),
     }
-    path = root / MIRROR_PATH
+    _validate_record(root, candidate, "supervisor-record-mirror.schema.json")
+    path = _safe_mirror_path(root)
     existing_raw: Any = None
     try:
         existing_raw = json.loads(path.read_text(encoding="utf-8"))
@@ -589,8 +665,7 @@ def write_mirror(repo_root: Path, record: dict[str, Any], *, now: str | datetime
         new = {k: v for k, v in candidate.items() if k != "written_at"}
         if old == new and existing_raw == sanitized_existing:
             return sanitized_existing
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(candidate, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _atomic_write_text(path, json.dumps(candidate, indent=2, sort_keys=True) + "\n")
     return candidate
 
 
@@ -1019,9 +1094,12 @@ def _cmd_rehydrate(args: argparse.Namespace) -> int:
     handoff = _read_json_file(args.handoff)
     mirror_path = Path(args.mirror) if args.mirror else repo / MIRROR_PATH
     mirror = _read_json_file(str(mirror_path))
-    if _extract_supervisor_record(handoff) is None and mirror is not None:
+    handoff_record = _extract_supervisor_record(handoff)
+    prior, source = _select_prior_with_source(handoff, mirror)
+    if handoff_record is None:
         print("Degraded: handoff", file=sys.stderr)
-    prior = select_prior(handoff, mirror)
+    elif source == "mirror":
+        print("Degraded: handoff (newer mirror selected)", file=sys.stderr)
     record = build_supervisor_record(repo, prior, now=args.now)
     print(json.dumps(record, indent=2, sort_keys=True))
     return 0

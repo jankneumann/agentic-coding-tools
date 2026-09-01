@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock
@@ -78,6 +80,26 @@ def test_handoff_document_preserves_supervisor_record(
     document = HandoffDocument.from_dict(_handoff_row(supervisor_record))
 
     assert document.supervisor_record == supervisor_record
+
+
+def test_handoff_document_preserves_pre_extension_positional_constructor() -> None:
+    created_at = datetime(2026, 8, 29, 3, tzinfo=UTC)
+
+    document = HandoffDocument(
+        uuid4(),
+        "supervisor",
+        "session-1",
+        "Supervisor cycle complete",
+        [],
+        [],
+        [],
+        [],
+        [],
+        created_at,
+    )
+
+    assert document.created_at == created_at
+    assert document.supervisor_record is None
 
 
 @pytest.mark.asyncio
@@ -345,7 +367,9 @@ def test_cli_read_prints_record_and_forwards_supervisor_only(
     assert service.read.await_args.kwargs["supervisor_only"] is True
 
 
-def test_handoff_help_documents_supervisor_surfaces() -> None:
+def test_handoff_help_documents_schema_valid_supervisor_surfaces(
+    supervisor_record: dict[str, Any],
+) -> None:
     from src.help_service import get_help_topic
 
     topic = get_help_topic("handoffs")
@@ -354,3 +378,13 @@ def test_handoff_help_documents_supervisor_surfaces() -> None:
     rendered = json.dumps(topic)
     assert "supervisor_record" in rendered
     assert "supervisor_only" in rendered
+    example = next(
+        item["code"]
+        for item in topic["examples"]
+        if "supervisor_record" in item["code"]
+    )
+    call = ast.parse(example).body[0].value
+    assert isinstance(call, ast.Call)
+    keyword = next(item for item in call.keywords if item.arg == "supervisor_record")
+    record = ast.literal_eval(keyword.value)
+    assert record.keys() == supervisor_record.keys()
