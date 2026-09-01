@@ -1,9 +1,42 @@
 schema_version: 1
 feature:
   id: boundless-scope
+  plan_revision: 1
 packages:
-  - package_id: wp-boundless
-    scope:
-      write_allow: ["**"]
-    locks:
-      keys: []
+- package_id: wp-boundless
+  scope:
+    write_allow:
+    - '**'
+    read_allow:
+    - '**'
+  locks:
+    keys: []
+    files: []
+  task_type: implementation
+  description: Scope fixture for wp-boundless
+  depends_on: []
+  priority: 1
+  worktree:
+    name: wp-boundless
+  timeout_minutes: 10
+  retry_budget: 0
+  min_trust_level: 0
+  verification:
+    tier_required: C
+    steps:
+    - name: fixture
+      kind: command
+      command: 'true'
+      evidence:
+        artifacts: []
+        result_keys:
+        - fixture
+  outputs:
+    result_keys:
+    - fixture
+contracts:
+  revision: 1
+  openapi:
+    primary: contracts/openapi.yaml
+    files:
+    - contracts/openapi.yaml
