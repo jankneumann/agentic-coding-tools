@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "feature_id": "wire-supervise-execution-through-the-dispatch-fn-seam",
+  "package_id": "wp-runtime-state",
+  "attempt": 1,
+  "plan_revision": 3,
+  "contracts_revision": 1,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "skills/roadmap-runtime/scripts/models.py",
+      "skills/roadmap-runtime/scripts/checkpoint.py",
+      "openspec/schemas/checkpoint.schema.json"
+    ],
+    "keys": [
+      "feature:wire-supervise-execution-through-the-dispatch-fn-seam:checkpoint",
+      "contract:roadmap.checkpoint"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md",
+      "skills/roadmap-runtime/scripts/models.py",
+      "skills/roadmap-runtime/scripts/checkpoint.py",
+      "skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json",
+      "openspec/schemas/checkpoint.schema.json",
+      "skills/tests/roadmap-runtime/test_delegated_checkpoint.py"
+    ],
+    "read_allow": [
+      "skills/roadmap-runtime/**",
+      "skills/tests/roadmap-runtime/**",
+      "openspec/schemas/**",
+      "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/**"
+    ],
+    "deny": [
+      "**/.venv/**",
+      "skills/supervise/**",
+      "skills/autopilot-roadmap/**"
+    ]
+  },
+  "files_modified": [
+    "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md",
+    "openspec/schemas/checkpoint.schema.json",
+    "skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json",
+    "skills/roadmap-runtime/scripts/checkpoint.py",
+    "skills/roadmap-runtime/scripts/models.py",
+    "skills/tests/roadmap-runtime/test_delegated_checkpoint.py"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "faccdcf76334e8776804e6b0fe2383b96c9d143a"
+    },
+    "head": {
+      "commit": "7408706d7f40e00bdb9543a5dceaa622d60ee86f",
+      "branch": "openspec/wire-supervise-execution-through-the-dispatch-fn-seam--wp-runtime-state",
+      "worktree": ".git-worktrees/wire-supervise-execution-through-the-dispatch-fn-seam/wp-runtime-state"
+    }
+  },
+  "verification": {
+    "tier": "B",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Checkpoint compatibility suite passes",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/tests/roadmap-runtime/test_delegated_checkpoint.py skills/tests/roadmap-runtime/test_models.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "checkpoint_suite": {
+              "passed": 33,
+              "failed": 0,
+              "duration_seconds": 0.09
+            }
+          }
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "git.base/head record the original package execution commits and files_modified is their exact diff. All declared verification commands were revalidated against current feature HEAD 5b619ba94b90af26db42d8d84dd1fbc7ed81f765 on 2026-09-01; every command exited 0 and current metrics are recorded per step."
+}

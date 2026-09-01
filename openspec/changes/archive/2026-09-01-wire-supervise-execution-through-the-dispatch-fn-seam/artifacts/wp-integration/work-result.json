@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "feature_id": "wire-supervise-execution-through-the-dispatch-fn-seam",
+  "package_id": "wp-integration",
+  "attempt": 1,
+  "plan_revision": 3,
+  "contracts_revision": 1,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py"
+    ],
+    "keys": [
+      "feature:wire-supervise-execution-through-the-dispatch-fn-seam:integration"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md",
+      "skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py",
+      "skills/tests/autopilot-roadmap/fixtures/supervised-dispatch/**",
+      ".agents/skills/autopilot-roadmap/**",
+      ".agents/skills/supervise/**",
+      ".agents/skills/roadmap-runtime/**",
+      ".claude/skills/autopilot-roadmap/**",
+      ".claude/skills/supervise/**",
+      ".claude/skills/roadmap-runtime/**"
+    ],
+    "read_allow": [
+      "**"
+    ],
+    "deny": [
+      "**/.venv/**",
+      "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "skills/supervise/scripts/execution.py",
+      "skills/supervise/SKILL.md"
+    ]
+  },
+  "files_modified": [
+    "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md",
+    "skills/tests/autopilot-roadmap/fixtures/supervised-dispatch/scenarios.json",
+    "skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "7aac50d077238a7d1e6854f7881be7d70b1bce3d"
+    },
+    "head": {
+      "commit": "bda1e1691e0b5d2b8c2190dbfb8436d9524c8eb4",
+      "branch": "openspec/wire-supervise-execution-through-the-dispatch-fn-seam--wp-integration",
+      "worktree": ".git-worktrees/wire-supervise-execution-through-the-dispatch-fn-seam/wp-integration"
+    }
+  },
+  "verification": {
+    "tier": "A",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Two-item supervised dispatch integration passes",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "e2e_suite": {
+              "passed": 2,
+              "failed": 0,
+              "duration_seconds": 0.15
+            }
+          }
+        }
+      },
+      {
+        "name": "Feature skill suites pass",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/tests/autopilot-roadmap skills/tests/supervise -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "feature_suites": {
+              "passed": 242,
+              "failed": 0,
+              "duration_seconds": 2.43
+            }
+          }
+        }
+      },
+      {
+        "name": "Strict OpenSpec validation passes",
+        "kind": "command",
+        "command": "openspec validate wire-supervise-execution-through-the-dispatch-fn-seam --strict",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "openspec_strict": {
+              "passed": true
+            }
+          }
+        }
+      },
+      {
+        "name": "Work packages validate",
+        "kind": "command",
+        "command": "python3 .agents/skills/validate-packages/scripts/validate_work_packages.py openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/work-packages.yaml --check-overlap",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "packages_valid": {
+              "passed": true,
+              "checks_passed": 6
+            }
+          }
+        }
+      },
+      {
+        "name": "Parallel zones package check passes",
+        "kind": "command",
+        "command": "python3 .agents/skills/refresh-architecture/scripts/parallel_zones.py --validate-packages openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/work-packages.yaml --json",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "scope_validation": {
+              "passed": true,
+              "parallel_pairs": 0,
+              "errors": 0
+            }
+          }
+        }
+      },
+      {
+        "name": "Runtime skill mirrors match canonical source",
+        "kind": "command",
+        "command": "diff -qr --exclude=__pycache__ skills/supervise .agents/skills/supervise && diff -qr --exclude=__pycache__ skills/supervise .claude/skills/supervise && diff -qr --exclude=__pycache__ skills/autopilot-roadmap .agents/skills/autopilot-roadmap && diff -qr --exclude=__pycache__ skills/autopilot-roadmap .claude/skills/autopilot-roadmap && diff -qr --exclude=__pycache__ skills/roadmap-runtime .agents/skills/roadmap-runtime && diff -qr --exclude=__pycache__ skills/roadmap-runtime .claude/skills/roadmap-runtime",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "runtime_mirrors": {
+              "passed": true,
+              "diff_count": 0
+            }
+          }
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "git.base/head record the original package execution commits and files_modified is their exact diff. All declared verification commands were revalidated against current feature HEAD 5b619ba94b90af26db42d8d84dd1fbc7ed81f765 on 2026-09-01; every command exited 0 and current metrics are recorded per step."
+}
