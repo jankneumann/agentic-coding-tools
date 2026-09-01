@@ -4,14 +4,14 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
 
 ## 0. Freeze the dispatch boundary
 
-- [ ] 0.1 Write schema tests for supervised dispatch fixtures (S)
+- [x] 0.1 Write schema tests for supervised dispatch fixtures (S)
   **Spec scenarios**: roadmap-orchestration.3a (success exact-match evidence), roadmap-orchestration.3b (stale result), roadmap-orchestration.3c (parked result), roadmap-orchestration.4a-4e (attempt, claimed/acknowledged/entered, and quarantine invariants), supervise.3c (bounded sanitized context), skill-workflow.1a-1b (bounded result)
   **Contracts**: `contracts/schemas/bounded-dispatch-context.schema.json`, `contracts/schemas/supervised-dispatch-request.schema.json`, `contracts/schemas/supervised-dispatch-result.schema.json`, `contracts/schemas/delegated-dispatch-attempt.schema.json`
   **Design decisions**: D2, D6, D7
   **Dependencies**: None
   **Files**: `skills/tests/supervise/test_execution_contract.py`, `skills/tests/supervise/fixtures/execution/contracts/**`
 
-- [ ] 0.2 Freeze dispatch schemas (S)
+- [x] 0.2 Freeze dispatch schemas (S)
   **Dependencies**: 0.1
   **Files**: `openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/**`
 

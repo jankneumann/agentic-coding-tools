@@ -1,0 +1,39 @@
+{
+  "success": {
+    "schema_version": 1,
+    "dispatch_id": "roadmap-alpha:item-1:attempt-1",
+    "change_id": "add-alpha-capability",
+    "attempt": 1,
+    "lease_generation": 1,
+    "outcome": "success",
+    "handoff_id": "handoff-alpha-1",
+    "worktree_path": "/workspace/.git-worktrees/add-alpha-capability",
+    "branch": "openspec/add-alpha-capability",
+    "evidence": {
+      "loop_state_path": "/workspace/.git-worktrees/add-alpha-capability/openspec/changes/add-alpha-capability/loop-state.json",
+      "commit": "0123456789abcdef0123456789abcdef01234567",
+      "loop_state_digest": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  },
+  "parked": {
+    "schema_version": 1,
+    "dispatch_id": "roadmap-alpha:item-1:attempt-1",
+    "change_id": "add-alpha-capability",
+    "attempt": 1,
+    "lease_generation": 1,
+    "outcome": "parked",
+    "worktree_path": "/workspace/.git-worktrees/add-alpha-capability",
+    "branch": "openspec/add-alpha-capability",
+    "parked": {
+      "kind": "pending_gate",
+      "reason": "Awaiting durable operator approval",
+      "gate": "implementation_review",
+      "deadline": "2026-09-01T14:00:00Z",
+      "resume_hint": "Supply the durable approval reference"
+    },
+    "evidence": {
+      "loop_state_path": "/workspace/.git-worktrees/add-alpha-capability/openspec/changes/add-alpha-capability/loop-state.json",
+      "loop_state_digest": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    }
+  }
+}
