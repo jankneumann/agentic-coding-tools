@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-01 — implement-idempotent-queue-submission-and-outbox-ordering
+
+### Phase: Plan
+
+**Keep loop-state authoritative through an optional outbox seam** — Projection runs only after state persistence and resume reconciliation derives queue rows from loaded LoopState without feeding results back.
+
+- Status: `active`
+- Source: [openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D2)
+
+---
+
 ## 2026-08-29 — 2026-08-28-bind-decision-index-to-session-log-writes
 
 ### Phase: Cleanup

@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-01 — implement-idempotent-queue-submission-and-outbox-ordering
+
+### Phase: Plan
+
+**Preserve coordinator-free fallback tiers** — The projection callback defaults to absent; local-parallel and sequential execution import or call no coordinator queue surface.
+
+- Status: `active`
+- Source: [openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D3)
+
+---
+
 ## 2026-04-25 — 2026-05-03-add-per-phase-archetype-resolution
 
 ### Phase: Implementation

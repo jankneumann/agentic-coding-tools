@@ -1,0 +1,247 @@
+schema_version: 1
+
+feature:
+  id: implement-idempotent-queue-submission-and-outbox-ordering
+  title: Idempotent queue submission and outbox ordering
+  plan_revision: 1
+  created_by: codex
+  deployable: true
+
+contracts:
+  revision: 1
+  openapi:
+    primary: openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml
+    files:
+      - openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml
+      - openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/db/schema.sql
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: Projection interface contracts
+    task_type: contracts
+    description: Validate the SQL and OpenAPI coordination boundary before implementation packages start. Implements task 0.1.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts
+      keys:
+        - contract:work-queue-projection
+      ttl_minutes: 60
+      reason: Freeze projection contracts for downstream packages
+    scope:
+      write_allow:
+        - openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/**
+      read_allow:
+        - '**'
+    context_impact:
+      surfaces: [apis]
+    worktree:
+      name: ri08-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: Parse OpenAPI contract
+          kind: command
+          command: skills/.venv/bin/python -c "import yaml; yaml.safe_load(open('openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml'))"
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [contracts_valid]
+    metadata:
+      loc_estimate: 0
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys: [contracts_valid]
+      artifacts:
+        - openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml
+        - openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/db/schema.sql
+
+  - package_id: wp-coordinator-queue
+    title: Atomic coordinator queue persistence
+    task_type: backend
+    description: Implement migration, queue service, and HTTP behavior for tasks 1.1 through 1.6.
+    role: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - agent-coordinator/database/migrations/035_work_queue_projection.sql
+        - agent-coordinator/src/work_queue.py
+        - agent-coordinator/src/coordination_api.py
+      keys:
+        - db:schema:work_queue_projection
+        - api:POST /work/submit
+      ttl_minutes: 120
+      reason: Atomic projection identity and reconciliation
+    scope:
+      write_allow:
+        - agent-coordinator/database/migrations/035_work_queue_projection.sql
+        - agent-coordinator/src/work_queue.py
+        - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/tests/**
+      read_allow:
+        - agent-coordinator/**
+        - openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/**
+        - docs/guides/work-queue-truth-projection.md
+      deny:
+        - skills/**
+    context_impact:
+      surfaces: [apis, architecture]
+    worktree:
+      name: ri08-wp-coordinator-queue
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: Run queue tests
+          kind: command
+          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [queue_tests_pass]
+    metadata:
+      loc_estimate: 350
+      complexity: high
+      package_kind: migration
+    inputs: {}
+    outputs:
+      result_keys: [queue_tests_pass]
+      artifacts:
+        - agent-coordinator/database/migrations/035_work_queue_projection.sql
+
+  - package_id: wp-bridge-projection
+    title: Outbox projection seam
+    task_type: backend
+    description: Implement bridge and optional autopilot projection infrastructure for tasks 2.1 through 2.6 without live mirroring.
+    role: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - skills/coordination-bridge/scripts/coordination_bridge.py
+        - skills/autopilot/scripts/autopilot.py
+      keys:
+        - feature:autopilot-queue-projection-seam:modify
+      ttl_minutes: 120
+      reason: Persist-first projection and resume reconciliation seams
+    scope:
+      write_allow:
+        - skills/coordination-bridge/scripts/**
+        - skills/autopilot/scripts/**
+        - skills/tests/coordination-bridge/**
+        - skills/tests/autopilot/**
+      read_allow:
+        - skills/**
+        - agent-coordinator/src/**
+        - openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/**
+        - docs/guides/work-queue-truth-projection.md
+      deny:
+        - apps/kanban-viz/**
+    context_impact:
+      surfaces: [architecture, documentation]
+    worktree:
+      name: ri08-wp-bridge-projection
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: Run projection seam tests
+          kind: command
+          command: skills/.venv/bin/python -m pytest skills/tests/coordination-bridge skills/tests/autopilot -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [projection_tests_pass]
+    metadata:
+      loc_estimate: 300
+      complexity: high
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: [projection_tests_pass]
+      artifacts:
+        - skills/autopilot/scripts/autopilot.py
+        - skills/coordination-bridge/scripts/coordination_bridge.py
+
+  - package_id: wp-integration
+    title: Truth-projection integration verification
+    task_type: integration
+    description: Update the durable guide and run cross-boundary validation for tasks 3.1 through 3.2.
+    role: integrator
+    priority: 3
+    depends_on: [wp-coordinator-queue, wp-bridge-projection]
+    locks:
+      files:
+        - docs/guides/work-queue-truth-projection.md
+      keys:
+        - feature:work-queue-truth-projection:verify
+      ttl_minutes: 90
+      reason: Cross-boundary documentation and validation
+    scope:
+      write_allow:
+        - docs/guides/work-queue-truth-projection.md
+        - openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/**
+      read_allow:
+        - '**'
+    context_impact:
+      surfaces: [documentation, capabilities]
+    worktree:
+      name: ri08-wp-integration
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: Run affected suites
+          kind: command
+          command: skills/.venv/bin/python -m pytest skills/tests/coordination-bridge skills/tests/autopilot -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [integration_tests_pass]
+        - name: Validate OpenSpec strictly
+          kind: command
+          command: openspec validate implement-idempotent-queue-submission-and-outbox-ordering --strict
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [openspec_valid]
+    metadata:
+      loc_estimate: 60
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: [integration_tests_pass, openspec_valid]
+      artifacts:
+        - docs/guides/work-queue-truth-projection.md
