@@ -175,6 +175,9 @@
     ]
   },
   "skills": {
+    "agent-ergonomics": {
+      "distribution": "portable"
+    },
     "agent-metrics": {
       "distribution": "portable"
     },
