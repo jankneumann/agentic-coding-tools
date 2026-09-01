@@ -1,0 +1,67 @@
+{
+  "review_type": "plan",
+  "target": "implement-idempotent-queue-submission-and-outbox-ordering",
+  "reviewer_vendor": "codex-gpt-5",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: The shared advisory lock serializes a different-sequence submit/reconcile race but does not make its outcome order-independent. If reconciliation for sequence N commits first, a delayed keyed submit for stale sequence N-1 can acquire the lock afterward and insert a new active row, violating the requirement that the reconciled current sequence be the only active projection row.",
+      "resolution": "Add a durable per-change reconciliation high-water/current-generation record (or equivalent database invariant) that reconciliation advances in the same transaction and keyed submit consults while holding the same lock, so a submit older than the authoritative generation is rejected or created terminal/cancelled. Specify and test both forced transaction orders, including reconcile-commits-before-stale-submit.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/design.md",
+      "line_range": {"start": 28, "end": 42},
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "medium",
+      "description": "Nit: The new reconcile endpoint requires policy denial behavior, but the plan never identifies the authorization action. The current native and Cedar inventories know `submit_work`, not `reconcile_work`, while the coordinator package cannot modify the policy schema or policy files under its declared write scope.",
+      "resolution": "Specify that `/work/reconcile` authorizes through the existing `submit_work` action (with reconciliation context), or explicitly add the policy/Cedar files and tests to package scope if a new action is intended.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/specs/agent-coordinator/spec.md",
+      "line_range": {"start": 61, "end": 79},
+      "axis": "security",
+      "severity": "nit"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: The verification gates promise direct MCP parity but run no dedicated direct-MCP test module and no whole coordinator test directory. A new direct MCP test file can therefore be omitted from both package and integration gates while all declared commands remain green.",
+      "resolution": "Name the direct MCP projection test module in both verification commands, or run a suitably bounded test directory/marker that necessarily includes the direct and proxy transport parity tests from task 1.7.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/work-packages.yaml",
+      "line_range": {"start": 119, "end": 129},
+      "axis": "observability",
+      "severity": "nit"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The plan correctly places same-key idempotency in PostgreSQL with a partial unique expression index and keeps unkeyed submissions backward compatible.",
+      "resolution": "Preserve the database-owned uniqueness invariant and exact conflict-target integration test during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/design.md",
+      "line_range": {"start": 11, "end": 32},
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The persist-before-project seam and resume re-derivation keep filesystem state authoritative and give the non-transactional crash window an explicit repair path.",
+      "resolution": "Preserve the ordering and queue-response non-authority tests during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/design.md",
+      "line_range": {"start": 44, "end": 63},
+      "axis": "resilience",
+      "severity": "none"
+    }
+  ]
+}
