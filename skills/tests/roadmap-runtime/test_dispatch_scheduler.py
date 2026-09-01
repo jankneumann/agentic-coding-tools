@@ -32,6 +32,23 @@ _SCHEMA_ROOT = (
 )
 _REQUEST_SCHEMA = _SCHEMA_ROOT / "supervised-dispatch-request.schema.json"
 _CONTEXT_SCHEMA = _SCHEMA_ROOT / "bounded-dispatch-context.schema.json"
+_INVALID_WORK_PACKAGES = _FIXTURE_ROOT / "invalid-work-packages.invalid.yaml"
+
+
+def _scenario_root(tmp_path: Path, change_id: str) -> Path:
+    if change_id != "invalid-work-packages":
+        return _FIXTURE_ROOT
+    repo_root = tmp_path / "invalid-scope-fixture"
+    target = (
+        repo_root
+        / "openspec"
+        / "changes"
+        / change_id
+        / "work-packages.yaml"
+    )
+    target.parent.mkdir(parents=True)
+    target.write_text(_INVALID_WORK_PACKAGES.read_text(), encoding="utf-8")
+    return repo_root
 
 
 def _scope(*writes: str, locks: tuple[str, ...] = ()) -> ScopeEvidence:
@@ -93,9 +110,12 @@ def test_schema_invalid_but_scope_shaped_document_fails_closed() -> None:
     "change_id",
     ["missing-work-packages", "invalid-work-packages", "empty-scope", "boundless-scope"],
 )
-def test_indeterminate_scope_is_a_schema_valid_singleton(change_id: str) -> None:
+def test_indeterminate_scope_is_a_schema_valid_singleton(
+    change_id: str, tmp_path: Path
+) -> None:
+    repo_root = _scenario_root(tmp_path, change_id)
     plan = select_safe_ready_batch(
-        _FIXTURE_ROOT,
+        repo_root,
         [
             ReadyDispatchItem(item_id="ri-02", change_id="disjoint-beta", priority=2),
             ReadyDispatchItem(item_id="ri-01", change_id=change_id, priority=1),
