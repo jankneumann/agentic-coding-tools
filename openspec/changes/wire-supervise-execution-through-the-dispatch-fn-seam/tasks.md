@@ -22,7 +22,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: 0.2
   **Files**: `skills/tests/roadmap-runtime/test_delegated_checkpoint.py`
 
-- [ ] 0.4 Extend the checkpoint attempt ledger (M)
+- [x] 0.4 Extend the checkpoint attempt ledger (M)
   **Dependencies**: 0.3
   **Files**: `skills/roadmap-runtime/scripts/models.py`, `skills/roadmap-runtime/scripts/checkpoint.py`, `openspec/schemas/checkpoint.schema.json`, `skills/roadmap-runtime/install_assets/openspec/schemas/checkpoint.schema.json`
 
