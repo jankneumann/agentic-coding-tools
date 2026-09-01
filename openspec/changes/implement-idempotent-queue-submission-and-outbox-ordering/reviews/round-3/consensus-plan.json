@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "implement-idempotent-queue-submission-and-outbox-ordering",
+  "reviewers": [
+    {"vendor": "codex", "agent_id": "codex", "success": true, "findings_count": 5, "elapsed_seconds": 0.0, "error": null},
+    {"vendor": "antigravity", "agent_id": "antigravity-local", "success": true, "findings_count": 6, "elapsed_seconds": 52.8704634369351, "error": null}
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {"id": 1, "status": "confirmed", "primary_vendor": "codex", "primary_finding_id": 1, "matched_findings": [{"vendor": "antigravity", "finding_id": 1}], "match_score": 0.98, "agreed_type": "correctness", "agreed_axis": "correctness", "agreed_criticality": "low", "recommended_disposition": "accept", "description": "The full generation head and exact-generation submit rule close the equal-sequence/different-phase recreation race."},
+    {"id": 2, "status": "confirmed", "primary_vendor": "codex", "primary_finding_id": 2, "matched_findings": [{"vendor": "antigravity", "finding_id": 2}], "match_score": 0.97, "agreed_type": "contract_mismatch", "agreed_axis": "compatibility", "agreed_criticality": "low", "recommended_disposition": "accept", "description": "Both projection endpoints explicitly publish the planned RFC 7807 409 response."},
+    {"id": 3, "status": "unconfirmed", "primary_vendor": "codex", "primary_finding_id": 3, "matched_findings": [], "match_score": 0.0, "agreed_type": "spec_gap", "agreed_axis": "observability", "agreed_criticality": "low", "recommended_disposition": "accept", "description": "Nit: the dedicated MCP test is correctly gated under the coordinator venv but redundantly repeated under the skills venv; the correct gate already satisfies the plan."},
+    {"id": 4, "status": "confirmed", "primary_vendor": "codex", "primary_finding_id": 4, "matched_findings": [{"vendor": "antigravity", "finding_id": 4}], "match_score": 0.95, "agreed_type": "security", "agreed_axis": "security", "agreed_criticality": "low", "recommended_disposition": "accept", "description": "Reconciliation reuses submit_work authorization with mode=reconcile context and pinned denial envelopes."},
+    {"id": 5, "status": "confirmed", "primary_vendor": "codex", "primary_finding_id": 5, "matched_findings": [{"vendor": "antigravity", "finding_id": 5}], "match_score": 0.97, "agreed_type": "resilience", "agreed_axis": "resilience", "agreed_criticality": "low", "recommended_disposition": "accept", "description": "Persist-first projection and resume reconciliation preserve loop-state as authoritative truth."},
+    {"id": 6, "status": "unconfirmed", "primary_vendor": "antigravity", "primary_finding_id": 3, "matched_findings": [], "match_score": 0.0, "agreed_type": "spec_gap", "agreed_axis": "observability", "agreed_criticality": "low", "recommended_disposition": "accept", "description": "The final coordinator transport gate directly executes the dedicated MCP projection test."},
+    {"id": 7, "status": "unconfirmed", "primary_vendor": "antigravity", "primary_finding_id": 6, "matched_findings": [], "match_score": 0.0, "agreed_type": "architecture", "agreed_axis": "architecture", "agreed_criticality": "low", "recommended_disposition": "accept", "description": "The package DAG and scopes isolate contracts, coordinator persistence, bridge projection, and integration verification."}
+  ],
+  "summary": {"total_unique_findings": 7, "confirmed_count": 4, "unconfirmed_count": 3, "disagreement_count": 0, "blocking_count": 0},
+  "verdict": "converged",
+  "maximum_round": 3,
+  "maximum_round_semantics": "Final allowed plan-review round converged: distinct-source quorum met and no critical blocker or disposition disagreement remains."
+}
