@@ -4,7 +4,7 @@
   "current_item_id": "ri-03",
   "phase": "validating",
   "created_at": "2026-09-01T02:35:00.134952+00:00",
-  "updated_at": "2026-09-01T08:20:54.128407+00:00",
+  "updated_at": "2026-09-01T22:06:27.554997+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -14,5 +14,21 @@
     "ri-14",
     "ri-15",
     "ri-17"
+  ],
+  "gate_decisions": [
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "disposition": "block",
+      "reason": "Operator explicitly authorized merging PR #451 via console.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "phase": "SUBMIT_PR",
+      "note": "merge 451",
+      "recorded_at": "2026-09-01T22:06:27.554989+00:00"
+    }
   ]
 }
