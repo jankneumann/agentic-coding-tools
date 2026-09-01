@@ -75,7 +75,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
 
 ## 4. Wire the supervisor host protocol
 
-- [ ] 4.1 Write supervisor host workflow tests (S)
+- [x] 4.1 Write supervisor host workflow tests (S)
   **Spec scenarios**: supervise.1a (approved execution), supervise.1b (unapproved refusal), supervise.2a (parallel isolation), supervise.2b (isolation failure), supervise.2c (park pending gate), supervise.3a (router pass-through), supervise.3b (router fallback), skill-workflow.1a (outcome boundary), skill-workflow.1b (failure boundary)
   **Contracts**: `contracts/schemas/supervised-dispatch-request.schema.json`, `contracts/schemas/supervised-dispatch-result.schema.json`
   **Design decisions**: D4, D5, D7
