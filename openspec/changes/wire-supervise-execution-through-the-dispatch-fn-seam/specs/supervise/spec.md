@@ -2,7 +2,7 @@
 
 ### Requirement: Approved Roadmap Execution
 
-The supervise skill SHALL expose an execution path that drives an operator-approved roadmap through `execute_roadmap()` using the delegated `dispatch_fn` contract without requiring per-item approval.
+The supervise skill SHALL expose an execution path that drives an operator-approved roadmap through the separate delegated prepare/apply entry points and their existing synchronous `dispatch_fn` normalization seam without requiring per-item approval.
 
 #### Scenario: Execute an inherited-approved roadmap
 - **WHEN** the operator invokes `/autopilot-roadmap` or approves a roadmap batch from `/supervise`

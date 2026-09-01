@@ -81,3 +81,44 @@ Planned roadmap item ri-03 as an outcome-only supervisor execution path over the
 ### Context
 Implemented supervised roadmap execution through the existing dispatch_fn seam across six coordinated work packages. Scope-safe scheduling, durable prepare/ack/go/apply state, isolated host execution, bounded outcome-only results, and end-to-end transcript exclusion are implemented and verified; external review dispatch fell back to documented self-review after all configured vendors timed out or were unavailable.
 
+---
+
+## Phase: Implementation Iteration 1 (2026-09-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Use worktree-owned markers and serialized durable checkpoint transitions** — Linked worktrees expose .git as a file and concurrent host updates require one durable transition order.
+2. **Require canonical committed loop-state evidence** — A path alone cannot prove that a returned success or parked state belongs to the exact child generation.
+3. **Keep delegated execution as separate prepare/apply entry points** — This preserves legacy execute_roadmap behavior while reusing the established synchronous dispatch result seam.
+
+### Alternatives Considered
+- Store markers under .git: rejected because managed linked worktrees use a gitfile and the checkout does not own a portable .git directory
+- Replay dispatch_fn after an uncertain callback crash: rejected because at-least-once replay can duplicate roadmap application; the durably bound result is authoritative
+
+### Trade-offs
+- Accepted at-most-once callback delivery after durable callback-start over automatic callback replay because the callback consumes an already bound deterministic result and duplicate delivery is the higher-risk failure mode
+
+### Capability Gaps Observed
+- **vendor_review_unavailable**: All four configured non-Codex implementation reviewers timed out during the final bounded re-attempt, leaving consensus below quorum. (skill: parallel-review-implementation, severity: medium)
+
+### Completed Work
+- Hardened scheduler scope semantics and per-item isolation failure handling.
+- Added checkpoint locks, atomic persistence, strict attempt/journal schemas, and crash recovery.
+- Verified canonical worktree branch, commit, loop-state path, digest, and semantics at entry/application.
+- Corrected OpenSpec API drift and documented exact host evidence/marker paths.
+- Passed 145 focused tests and 370 broad tests plus all package/spec/mirror gates.
+
+### Next Steps
+- Keep PR #451 open for validation/approval; do not merge or archive during this iteration.
+
+### Relevant Files
+- `openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/impl-findings.md` — Structured iteration findings and gate evidence
+- `skills/supervise/scripts/execution.py` — Host lifecycle, checkpoint concurrency, and exact evidence validation
+- `skills/autopilot-roadmap/scripts/orchestrator.py` — Two-stage batch preparation and journaled result application
+- `skills/roadmap-runtime/scripts/models.py` — Strict durable attempt and atomic checkpoint model
+- `skills/roadmap-runtime/scripts/dispatch_scheduler.py` — Fail-closed scope and package semantic validation
+
+### Context
+Resolved 15 critical-to-medium implementation-review findings across delegated scheduling, checkpoint durability, linked-worktree isolation, result evidence, and application recovery. The focused and broad suites are green; external vendor quorum remained unavailable and is recorded explicitly.
+

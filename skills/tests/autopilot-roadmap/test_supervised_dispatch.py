@@ -134,7 +134,11 @@ def _result(request: dict[str, Any], outcome: str = "success") -> dict[str, Any]
         "outcome": outcome,
         "worktree_path": request["isolation"]["worktree_path"],
         "branch": request["isolation"]["branch"],
-        "evidence": {"loop_state_path": ".git/autopilot/loop-state.json"},
+        "evidence": {
+            "loop_state_path": ".git/autopilot/loop-state.json",
+            "commit": "a" * 40,
+            "loop_state_digest": "b" * 64,
+        },
     }
     if outcome == "success":
         result["handoff_id"] = f"handoff-{request['item_id']}"
@@ -172,6 +176,70 @@ def test_prepare_persists_exact_safe_batch_before_returning_requests(tmp_path: P
     assert all(attempt["status"] == "prepared" for attempt in checkpoint["dispatch_attempts"])
     assert all(request["context"]["router_vendor"] == "codex" for request in prepared["requests"])
     assert all(request["context"]["routing"] == {"model": "gpt-test"} for request in prepared["requests"])
+    assert [request["launch_marker_path"] for request in prepared["requests"]] == [
+        ".supervised-dispatch/change-alpha/ri-01-attempt-1.marker",
+        ".supervised-dispatch/change-beta/ri-02-attempt-1.marker",
+    ]
+
+
+def test_prepare_isolates_resolver_failure_and_persists_valid_peer(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [
+            RoadmapItem("ri-01", "Alpha", ItemStatus.APPROVED, 1, Effort.S, change_id="change-alpha"),
+            RoadmapItem("ri-02", "Beta", ItemStatus.APPROVED, 2, Effort.S, change_id="change-beta"),
+        ],
+    )
+    _write_work_packages(repo, "change-alpha", "src/alpha/**")
+    _write_work_packages(repo, "change-beta", "src/beta/**")
+
+    def isolate(item: RoadmapItem) -> dict[str, str]:
+        if item.item_id == "ri-01":
+            raise RuntimeError("sensitive resolver detail " + "x" * 4096)
+        return _isolation(item)
+
+    prepared = prepare_delegated_batch(
+        workspace,
+        repo_root=repo,
+        isolation_resolver=isolate,
+    )
+
+    assert [request["item_id"] for request in prepared["requests"]] == ["ri-02"]
+    assert prepared["failures"] == [
+        {"item_id": "ri-01", "reason": "isolation_resolution_failed:RuntimeError"}
+    ]
+    checkpoint = json.loads((workspace / "checkpoint.json").read_text())
+    assert [attempt["item_id"] for attempt in checkpoint["dispatch_attempts"]] == ["ri-02"]
+    roadmap = yaml.safe_load((workspace / "roadmap.yaml").read_text())
+    statuses = {item["item_id"]: item["status"] for item in roadmap["items"]}
+    assert statuses == {"ri-01": "approved", "ri-02": "in_progress"}
+
+
+def test_prepare_rejects_reserved_additive_context_keys_deterministically(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [RoadmapItem("ri-01", "Alpha", ItemStatus.APPROVED, 1, Effort.S, change_id="change-alpha")],
+    )
+    _write_work_packages(repo, "change-alpha", "src/alpha/**")
+
+    with pytest.raises(
+        ValueError,
+        match=r"^dispatch context contains reserved keys: dispatch_result, scope$",
+    ):
+        prepare_delegated_batch(
+            workspace,
+            repo_root=repo,
+            isolation_resolver=_isolation,
+            context={"scope": "router-value", "dispatch_result": {"outcome": "spoofed"}},
+        )
+
+    assert not (workspace / "checkpoint.json").exists()
+    roadmap = yaml.safe_load((workspace / "roadmap.yaml").read_text())
+    assert roadmap["items"][0]["status"] == "approved"
 
 
 def test_prepare_preserves_preexisting_delegated_batch_id_router_key(tmp_path: Path) -> None:
@@ -288,6 +356,148 @@ def test_apply_binds_out_of_order_results_and_dispatches_once_with_router_contex
             repo_root=repo,
         )
     assert len(calls) == 2
+
+
+def test_apply_recovers_callback_crash_without_reinvoking_after_durable_start(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [RoadmapItem("ri-01", "Alpha", ItemStatus.APPROVED, 1, Effort.S, change_id="change-alpha")],
+    )
+    _write_work_packages(repo, "change-alpha", "src/alpha/**")
+    prepared = prepare_delegated_batch(workspace, repo_root=repo, isolation_resolver=_isolation)
+    _mark_batch_launched(workspace)
+    result = _result(prepared["requests"][0])
+    calls: list[str] = []
+
+    def crashing_callback(item_id: str, phase: str, context: dict[str, Any]) -> dict[str, Any]:
+        calls.append(item_id)
+        raise RuntimeError("crash after callback invocation")
+
+    with pytest.raises(RuntimeError, match="crash after callback invocation"):
+        apply_delegated_batch(
+            workspace,
+            prepared["batch_id"],
+            [result],
+            crashing_callback,
+            repo_root=repo,
+        )
+
+    checkpoint = json.loads((workspace / "checkpoint.json").read_text())
+    assert checkpoint["dispatch_attempts"][0]["application_journal"]["state"] == "callback_started"
+
+    recovered = apply_delegated_batch(
+        workspace,
+        prepared["batch_id"],
+        [result],
+        lambda item_id, phase, context: calls.append(item_id) or context["dispatch_result"],
+        repo_root=repo,
+    )
+
+    assert calls == ["ri-01"]
+    assert recovered["completed_item_ids"] == ["ri-01"]
+    checkpoint = json.loads((workspace / "checkpoint.json").read_text())
+    assert checkpoint["dispatch_attempts"][0]["application_journal"]["state"] == "effects_applied"
+
+
+def test_apply_recovers_terminal_persistence_before_roadmap_and_learning_side_effects(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [RoadmapItem("ri-01", "Alpha", ItemStatus.APPROVED, 1, Effort.S, change_id="change-alpha")],
+    )
+    _write_work_packages(repo, "change-alpha", "src/alpha/**")
+    prepared = prepare_delegated_batch(workspace, repo_root=repo, isolation_resolver=_isolation)
+    _mark_batch_launched(workspace)
+    result = _result(prepared["requests"][0])
+    calls: list[str] = []
+    original_save = orchestrator_module.CheckpointManager.save
+    injected = False
+
+    def crash_after_terminal_save(self: Any, checkpoint: Any) -> None:
+        nonlocal injected
+        original_save(self, checkpoint)
+        if injected:
+            return
+        if any(
+            attempt.get("application_journal", {}).get("state") == "terminal_persisted"
+            for attempt in checkpoint.dispatch_attempts
+        ):
+            injected = True
+            raise RuntimeError("crash after terminal persistence")
+
+    monkeypatch.setattr(orchestrator_module.CheckpointManager, "save", crash_after_terminal_save)
+    with pytest.raises(RuntimeError, match="crash after terminal persistence"):
+        apply_delegated_batch(
+            workspace,
+            prepared["batch_id"],
+            [result],
+            lambda item_id, phase, context: calls.append(item_id) or context["dispatch_result"],
+            repo_root=repo,
+        )
+
+    checkpoint = json.loads((workspace / "checkpoint.json").read_text())
+    assert checkpoint.get("completed_items", []) == []
+    assert checkpoint["dispatch_attempts"][0]["status"] == "completed"
+    assert checkpoint["dispatch_attempts"][0]["application_journal"]["state"] == "terminal_persisted"
+    roadmap = yaml.safe_load((workspace / "roadmap.yaml").read_text())
+    assert roadmap["items"][0]["status"] == "in_progress"
+    assert not (workspace / "learnings/ri-01.md").exists()
+
+    monkeypatch.setattr(orchestrator_module.CheckpointManager, "save", original_save)
+    recovered = apply_delegated_batch(
+        workspace,
+        prepared["batch_id"],
+        [result],
+        lambda item_id, phase, context: calls.append(item_id) or context["dispatch_result"],
+        repo_root=repo,
+    )
+
+    assert calls == ["ri-01"]
+    assert recovered["completed_item_ids"] == ["ri-01"]
+    checkpoint = json.loads((workspace / "checkpoint.json").read_text())
+    assert checkpoint["completed_items"] == ["ri-01"]
+    assert checkpoint["dispatch_attempts"][0]["application_journal"]["state"] == "effects_applied"
+    roadmap = yaml.safe_load((workspace / "roadmap.yaml").read_text())
+    assert roadmap["items"][0]["status"] == "completed"
+    assert (workspace / "learnings/ri-01.md").exists()
+
+
+def test_apply_terminal_attempt_drops_continuation_state(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [RoadmapItem("ri-01", "Alpha", ItemStatus.APPROVED, 1, Effort.S, change_id="change-alpha")],
+    )
+    _write_work_packages(repo, "change-alpha", "src/alpha/**")
+    prepared = prepare_delegated_batch(workspace, repo_root=repo, isolation_resolver=_isolation)
+    checkpoint_path = workspace / "checkpoint.json"
+    checkpoint = json.loads(checkpoint_path.read_text())
+    checkpoint["dispatch_attempts"][0].update(
+        lease_generation=2,
+        continuation={"kind": "pending_gate", "approval_ref": "approval-1"},
+    )
+    checkpoint_path.write_text(json.dumps(checkpoint, indent=2) + "\n")
+    _mark_batch_launched(workspace)
+    request = dict(prepared["requests"][0], lease_generation=2)
+    result = _result(request)
+
+    applied = apply_delegated_batch(
+        workspace,
+        prepared["batch_id"],
+        [result],
+        lambda item_id, phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+
+    assert applied["completed_item_ids"] == ["ri-01"]
+    checkpoint = json.loads(checkpoint_path.read_text())
+    assert "continuation" not in checkpoint["dispatch_attempts"][0]
 
 
 @pytest.mark.parametrize(

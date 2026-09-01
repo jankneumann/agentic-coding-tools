@@ -138,6 +138,27 @@ _DATE_TIME = re.compile(
 _HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 _HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 _TERMINAL_ATTEMPT_STATUSES = {"completed", "failed", "parked"}
+_RESERVED_DISPATCH_CONTEXT_KEYS = frozenset(
+    {
+        "attempt",
+        "change_id",
+        "dispatch_id",
+        "dispatch_result",
+        "execution_mode",
+        "isolation",
+        "item_id",
+        "lease_generation",
+        "roadmap_id",
+        "scope",
+    }
+)
+_APPLICATION_STATES = (
+    "result_bound",
+    "callback_started",
+    "callback_acknowledged",
+    "terminal_persisted",
+    "effects_applied",
+)
 _UNRESOLVED_ATTEMPT_STATUSES = {
     "prepared",
     "claimed",
@@ -159,7 +180,13 @@ def _load_or_create_execution_state(
 
 
 def _copy_context(context: Mapping[str, Any] | None) -> dict[str, Any]:
-    return copy.deepcopy(dict(context or {}))
+    value = copy.deepcopy(dict(context or {}))
+    collisions = sorted(value.keys() & _RESERVED_DISPATCH_CONTEXT_KEYS)
+    if collisions:
+        raise ValueError(
+            f"dispatch context contains reserved keys: {', '.join(collisions)}"
+        )
+    return value
 
 
 def _validated_isolation(value: Mapping[str, Any]) -> dict[str, str]:
@@ -215,6 +242,7 @@ def prepare_delegated_batch(
     context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Persist one scope-safe generation batch without invoking ``dispatch_fn``."""
+    base_context = _copy_context(context)
     roadmap, manager, checkpoint = _load_or_create_execution_state(workspace, repo_root)
     unresolved_items = {
         attempt["item_id"]
@@ -250,15 +278,33 @@ def prepare_delegated_batch(
         }
 
     by_id = {item.item_id: item for item in roadmap.items}
-    base_context = _copy_context(context)
-    generation_specs = [
-        (selected, by_id[selected.item_id], _next_attempt_number(checkpoint, selected.item_id))
-        for selected in plan.items
-    ]
+    generation_specs: list[tuple[Any, RoadmapItem, int, dict[str, str]]] = []
+    for selected in plan.items:
+        item = by_id[selected.item_id]
+        try:
+            isolation = _validated_isolation(isolation_resolver(item))
+        except Exception as exc:
+            failures.append(
+                {
+                    "item_id": item.item_id,
+                    "reason": f"isolation_resolution_failed:{type(exc).__name__[:64]}",
+                }
+            )
+            continue
+        generation_specs.append(
+            (selected, item, _next_attempt_number(checkpoint, item.item_id), isolation)
+        )
+    if not generation_specs:
+        return {
+            "batch_id": None,
+            "requests": [],
+            "failures": failures,
+            "deferred_item_ids": list(plan.deferred_item_ids),
+        }
     digest_input = json.dumps(
         [
             [roadmap.roadmap_id, item.item_id, attempt_number]
-            for _, item, attempt_number in generation_specs
+            for _, item, attempt_number, _ in generation_specs
         ],
         separators=(",", ":"),
         ensure_ascii=True,
@@ -266,7 +312,7 @@ def prepare_delegated_batch(
     batch_id = f"batch-{hashlib.sha256(digest_input.encode()).hexdigest()[:24]}"
     prepared: list[dict[str, Any]] = []
     dispatch_ids: list[str] = []
-    for selected, item, attempt_number in generation_specs:
+    for selected, item, attempt_number, isolation in generation_specs:
         dispatch_id = f"{batch_id}:{item.item_id}:attempt-{attempt_number}"
         dispatch_ids.append(dispatch_id)
         prepared.append(
@@ -279,11 +325,14 @@ def prepare_delegated_batch(
                 "status": "prepared",
                 "prepared_at": datetime.now(timezone.utc).isoformat(),
                 "launch_token": secrets.token_urlsafe(24),
-                "launch_marker_path": f".git/autopilot/{item.item_id}-attempt-{attempt_number}.marker",
+                "launch_marker_path": (
+                    f".supervised-dispatch/{item.change_id}/"
+                    f"{item.item_id}-attempt-{attempt_number}.marker"
+                ),
                 "lease_generation": 1,
                 "launch_history": [],
                 "scope": selected.scope.to_request_scope(),
-                "isolation": _validated_isolation(isolation_resolver(item)),
+                "isolation": isolation,
                 "context": copy.deepcopy(base_context),
             }
         )
@@ -366,13 +415,13 @@ def _validate_dispatch_result(result: Mapping[str, Any]) -> dict[str, Any]:
             raise ValueError("invalid supervised dispatch result evidence")
         if not isinstance(evidence.get("loop_state_path"), str) or not evidence["loop_state_path"]:
             raise ValueError("invalid supervised dispatch result loop_state_path")
-        if "commit" in evidence and (
-            not isinstance(evidence["commit"], str)
+        if (
+            not isinstance(evidence.get("commit"), str)
             or _HEX_40.fullmatch(evidence["commit"]) is None
         ):
             raise ValueError("invalid supervised dispatch result commit")
-        if "loop_state_digest" in evidence and (
-            not isinstance(evidence["loop_state_digest"], str)
+        if (
+            not isinstance(evidence.get("loop_state_digest"), str)
             or _HEX_64.fullmatch(evidence["loop_state_digest"]) is None
         ):
             raise ValueError("invalid supervised dispatch result loop_state_digest")
@@ -421,6 +470,61 @@ def _valid_nullable_date_time(value: Mapping[str, Any], field: str) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _result_digest(result: Mapping[str, Any]) -> str:
+    canonical = json.dumps(
+        result,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _new_application_journal(result: Mapping[str, Any]) -> dict[str, Any]:
+    now = datetime.now(timezone.utc).isoformat()
+    return {
+        "schema_version": 1,
+        "state": "result_bound",
+        "result": copy.deepcopy(dict(result)),
+        "result_digest": _result_digest(result),
+        "bound_at": now,
+    }
+
+
+def _advance_application_journal(journal: dict[str, Any], state: str) -> None:
+    current = journal.get("state")
+    if current not in _APPLICATION_STATES or state not in _APPLICATION_STATES:
+        raise ValueError("invalid delegated application journal state")
+    if _APPLICATION_STATES.index(state) < _APPLICATION_STATES.index(current):
+        raise ValueError("delegated application journal cannot move backward")
+    journal["state"] = state
+    timestamp_field = {
+        "callback_started": "callback_started_at",
+        "callback_acknowledged": "callback_acknowledged_at",
+        "terminal_persisted": "terminal_persisted_at",
+        "effects_applied": "effects_applied_at",
+    }.get(state)
+    if timestamp_field is not None:
+        journal.setdefault(timestamp_field, datetime.now(timezone.utc).isoformat())
+
+
+def _bound_application_journal(
+    attempt: Mapping[str, Any],
+    result: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    journal = attempt.get("application_journal")
+    if journal is None:
+        return None
+    if (
+        not isinstance(journal, dict)
+        or journal.get("result") != result
+        or journal.get("result_digest") != _result_digest(result)
+    ):
+        raise ValueError(f"bound dispatch result mismatch for {attempt['dispatch_id']}")
+    return journal
 
 
 def _batch_attempts(checkpoint: Any, batch_id: str) -> list[dict[str, Any]]:
@@ -489,6 +593,11 @@ def _terminal_attempt(
         terminal.update(status="parked", parked=copy.deepcopy(result["parked"]))
     else:
         terminal["status"] = "failed"
+    terminal.pop("continuation", None)
+    journal = terminal.get("application_journal")
+    if not isinstance(journal, dict):
+        raise ValueError("terminal dispatch attempt requires an application journal")
+    _advance_application_journal(journal, "terminal_persisted")
     validate_delegated_dispatch_attempt(terminal)
     return terminal
 
@@ -505,7 +614,11 @@ def apply_delegated_batch(
     """Validate and apply one exact persisted batch through ``dispatch_fn`` once."""
     roadmap, manager, checkpoint = _load_or_create_execution_state(workspace, repo_root)
     attempts = _batch_attempts(checkpoint, batch_id)
-    if all(attempt["status"] in _TERMINAL_ATTEMPT_STATUSES for attempt in attempts):
+    if all(
+        attempt["status"] in _TERMINAL_ATTEMPT_STATUSES
+        and attempt.get("application_journal", {}).get("state") == "effects_applied"
+        for attempt in attempts
+    ):
         raise ValueError(f"delegated batch already applied: {batch_id}")
 
     validated = [_validate_dispatch_result(result) for result in results]
@@ -519,6 +632,7 @@ def apply_delegated_batch(
     for attempt in attempts:
         result = result_by_id[attempt["dispatch_id"]]
         _validate_exact_result(attempt, result)
+        _bound_application_journal(attempt, result)
         if attempt["status"] in _TERMINAL_ATTEMPT_STATUSES:
             if attempt.get("outcome") != result["outcome"]:
                 raise ValueError(f"terminal outcome mismatch for {attempt['dispatch_id']}")
@@ -532,23 +646,76 @@ def apply_delegated_batch(
     replan_state: dict[str, Any] = {}
     by_id = {item.item_id: item for item in roadmap.items}
     for attempt in attempts:
-        if attempt["status"] in _TERMINAL_ATTEMPT_STATUSES:
-            continue
         result = result_by_id[attempt["dispatch_id"]]
-        context = _dispatch_context(roadmap.roadmap_id, attempt, result)
-        dispatched_outcome, replan_signal = _normalize_outcome(
-            dispatch_fn(attempt["item_id"], "autopilot", context)
-        )
-        if dispatched_outcome != result["outcome"]:
-            raise ValueError(f"dispatch outcome mismatch for {attempt['dispatch_id']}")
-        if replan_signal != bool(result.get("replan", False)):
-            raise ValueError(f"dispatch replan mismatch for {attempt['dispatch_id']}")
+        journal = _bound_application_journal(attempt, result)
+        if attempt["status"] in _TERMINAL_ATTEMPT_STATUSES:
+            if journal is None:
+                journal = _new_application_journal(result)
+                for state in (
+                    "callback_started",
+                    "callback_acknowledged",
+                    "terminal_persisted",
+                ):
+                    _advance_application_journal(journal, state)
+                attempt["application_journal"] = journal
+                validate_delegated_dispatch_attempt(attempt)
+                manager.save(checkpoint)
+            elif journal["state"] not in {"terminal_persisted", "effects_applied"}:
+                raise ValueError(
+                    f"terminal application journal mismatch for {attempt['dispatch_id']}"
+                )
+        else:
+            if journal is None:
+                journal = _new_application_journal(result)
+                attempt["application_journal"] = journal
+                validate_delegated_dispatch_attempt(attempt)
+                manager.save(checkpoint)
 
-        terminal = _terminal_attempt(attempt, result)
-        attempt.clear()
-        attempt.update(terminal)
-        manager.save(checkpoint)
+            should_dispatch = False
+            if journal["state"] == "result_bound":
+                _advance_application_journal(journal, "callback_started")
+                validate_delegated_dispatch_attempt(attempt)
+                manager.save(checkpoint)
+                should_dispatch = True
+            elif journal["state"] == "callback_started":
+                # Invocation may already have happened. The bound result is
+                # authoritative, so recovery favors at-most-once callback delivery.
+                pass
+            elif journal["state"] != "callback_acknowledged":
+                raise ValueError(
+                    f"launched application journal mismatch for {attempt['dispatch_id']}"
+                )
+
+            if should_dispatch:
+                context = _dispatch_context(roadmap.roadmap_id, attempt, result)
+                dispatched_outcome, replan_signal = _normalize_outcome(
+                    dispatch_fn(attempt["item_id"], "autopilot", context)
+                )
+                if dispatched_outcome != result["outcome"]:
+                    raise ValueError(
+                        f"dispatch outcome mismatch for {attempt['dispatch_id']}"
+                    )
+                if replan_signal != bool(result.get("replan", False)):
+                    raise ValueError(
+                        f"dispatch replan mismatch for {attempt['dispatch_id']}"
+                    )
+
+            if journal["state"] == "callback_started":
+                _advance_application_journal(journal, "callback_acknowledged")
+                validate_delegated_dispatch_attempt(attempt)
+                manager.save(checkpoint)
+
+            terminal = _terminal_attempt(attempt, result)
+            attempt.clear()
+            attempt.update(terminal)
+            journal = attempt["application_journal"]
+            manager.save(checkpoint)
+
+        if journal["state"] == "effects_applied":
+            continue
         item_id = attempt["item_id"]
+        dispatched_outcome = result["outcome"]
+        replan_signal = bool(result.get("replan", False))
         if dispatched_outcome == "success":
             manager.complete_item(checkpoint, item_id)
             by_id[item_id].status = ItemStatus.COMPLETED
@@ -558,7 +725,11 @@ def apply_delegated_batch(
             by_id[item_id].status = ItemStatus.IN_PROGRESS
             parked.append(item_id)
         else:
-            reason = dispatched_outcome.split(":", 1)[1] if ":" in dispatched_outcome else dispatched_outcome
+            reason = (
+                dispatched_outcome.split(":", 1)[1]
+                if ":" in dispatched_outcome
+                else dispatched_outcome
+            )
             _handle_failure(
                 item_id=item_id,
                 reason=reason,
@@ -574,6 +745,9 @@ def apply_delegated_batch(
             )
             failed.append(item_id)
         save_roadmap(roadmap, workspace / "roadmap.yaml", overwrite=True)
+        _advance_application_journal(journal, "effects_applied")
+        validate_delegated_dispatch_attempt(attempt)
+        manager.save(checkpoint)
 
     return {
         "batch_id": batch_id,
