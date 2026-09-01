@@ -67,7 +67,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: 0.4, 1.2, 2.2
   **Files**: `skills/tests/supervise/test_execution.py`, `skills/tests/supervise/fixtures/execution/lifecycle/**`
 
-- [ ] 3.2 Implement the host prepare/launch/heartbeat/resume/apply adapter (M)
+- [x] 3.2 Implement the host prepare/launch/heartbeat/resume/apply adapter (M)
   **Dependencies**: 3.1
   **Files**: `skills/supervise/scripts/execution.py`
 
