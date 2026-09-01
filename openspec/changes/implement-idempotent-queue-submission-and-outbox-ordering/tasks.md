@@ -12,7 +12,7 @@ Tasks use the plan-feature sizing scale. Test tasks precede the behavior they ve
 
 ## Phase 1 — Coordinator persistence boundary (wp-coordinator-queue)
 
-- [ ] 1.1 (M) Write real PostgreSQL RED tests for same-key replay, monotonic high-water behavior, stale/future keyed submits, different-sequence submit/reconcile races, canonical identity, unkeyed compatibility, all terminal-current statuses, stale-row cancellation, malformed legacy preflight, rollback, remediation retry, and reconciliation replay.
+- [ ] 1.1 (M) Write real PostgreSQL RED tests for same-key replay, monotonic high-water behavior, stale/future keyed submits, forced reconcile-first equal-sequence/different-phase rejection, different-sequence submit/reconcile races, canonical identity, unkeyed compatibility, all terminal-current statuses, stale-row cancellation, malformed legacy preflight, rollback, remediation retry, and reconciliation replay.
   **Spec scenarios**: agent-coordinator (Concurrent projection replay creates one task; Unkeyed tasks remain independent; Resume converges stale projection rows; Reconciliation replay is idempotent)
   **Contracts**: contracts/db/schema.sql
   **Design decisions**: D1, D2, D3

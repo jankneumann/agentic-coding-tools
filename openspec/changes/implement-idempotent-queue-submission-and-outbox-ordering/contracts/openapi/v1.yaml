@@ -20,6 +20,7 @@ paths:
               schema: {$ref: '#/components/schemas/ProjectionMutationSuccess'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
   /work/reconcile:
     post:
@@ -38,6 +39,7 @@ paths:
               schema: {$ref: '#/components/schemas/ProjectionMutationSuccess'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
 components:
   schemas:
@@ -113,7 +115,7 @@ components:
         detail: {type: string}
   responses:
     Problem:
-      description: RFC 7807 authentication, policy, or validation error
+      description: RFC 7807 authentication, policy, projection conflict, or validation error
       content:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
