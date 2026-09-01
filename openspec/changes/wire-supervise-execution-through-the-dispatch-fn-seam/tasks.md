@@ -52,7 +52,7 @@ All tasks are XS, S, or M. None are L or XL. Test tasks precede the implementati
   **Dependencies**: 0.2
   **Files**: `skills/tests/autopilot-roadmap/test_supervised_dispatch.py`, `skills/tests/autopilot-roadmap/test_orchestrator.py`
 
-- [ ] 2.2 Extend the roadmap orchestrator with opt-in delegated batches (M)
+- [x] 2.2 Extend the roadmap orchestrator with opt-in delegated batches (M)
   **Dependencies**: 1.2, 2.1
   **Files**: `skills/autopilot-roadmap/scripts/orchestrator.py`, `skills/autopilot-roadmap/SKILL.md`
 

@@ -372,6 +372,81 @@ def test_apply_rejects_inexact_result_membership_without_partial_completion(
     assert checkpoint["dispatch_attempts"][0]["status"] == "launched"
 
 
+def test_apply_rejects_batch_id_subprefix_without_partial_completion(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [RoadmapItem("ri-01", "Alpha", ItemStatus.APPROVED, 1, Effort.S, change_id="change-alpha")],
+    )
+    _write_work_packages(repo, "change-alpha", "src/alpha/**")
+    prepared = prepare_delegated_batch(workspace, repo_root=repo, isolation_resolver=_isolation)
+    _mark_batch_launched(workspace)
+    result = _result(prepared["requests"][0])
+    calls: list[str] = []
+
+    with pytest.raises(ValueError, match="invalid delegated batch id"):
+        apply_delegated_batch(
+            workspace,
+            f"{prepared['batch_id']}:ri-01",
+            [result],
+            lambda item_id, phase, context: calls.append(item_id) or context["dispatch_result"],
+            repo_root=repo,
+        )
+
+    assert calls == []
+    checkpoint = json.loads((workspace / "checkpoint.json").read_text())
+    assert checkpoint.get("completed_items", []) == []
+    assert checkpoint["dispatch_attempts"][0]["status"] == "launched"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("gate", 7),
+        ("gate", "g" * 129),
+        ("deadline", 7),
+        ("deadline", "not-a-date-time"),
+        ("deadline", "2026-09-01"),
+        ("resume_hint", 7),
+        ("resume_hint", "r" * 513),
+    ],
+)
+def test_apply_rejects_invalid_optional_parked_fields_before_dispatch(
+    tmp_path: Path,
+    field: str,
+    value: object,
+) -> None:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [RoadmapItem("ri-01", "Alpha", ItemStatus.APPROVED, 1, Effort.S, change_id="change-alpha")],
+    )
+    _write_work_packages(repo, "change-alpha", "src/alpha/**")
+    prepared = prepare_delegated_batch(workspace, repo_root=repo, isolation_resolver=_isolation)
+    _mark_batch_launched(workspace)
+    result = _result(prepared["requests"][0], outcome="parked")
+    result["parked"] = {
+        "kind": "pending_gate",
+        "reason": "operator approval required",
+        field: value,
+    }
+    calls: list[str] = []
+
+    with pytest.raises(ValueError, match="invalid parked dispatch result"):
+        apply_delegated_batch(
+            workspace,
+            prepared["batch_id"],
+            [result],
+            lambda item_id, phase, context: calls.append(item_id) or context["dispatch_result"],
+            repo_root=repo,
+        )
+
+    assert calls == []
+    checkpoint = json.loads((workspace / "checkpoint.json").read_text())
+    assert checkpoint.get("completed_items", []) == []
+    assert checkpoint["dispatch_attempts"][0]["status"] == "launched"
+
+
 def test_parked_result_is_nonterminal_and_does_not_unblock_dependent(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     workspace = _write_workspace(
