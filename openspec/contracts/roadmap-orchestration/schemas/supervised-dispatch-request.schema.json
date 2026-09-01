@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/contracts/supervised-dispatch-request.schema.json",
+  "title": "Supervised Dispatch Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dispatch_id",
+    "roadmap_id",
+    "item_id",
+    "change_id",
+    "phase",
+    "attempt",
+    "launch_token",
+    "lease_generation",
+    "launch_marker_path",
+    "scope",
+    "isolation",
+    "context"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "dispatch_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "roadmap_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "item_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "change_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "maxLength": 160
+    },
+    "phase": {
+      "const": "autopilot"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "launch_token": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 256
+    },
+    "launch_marker_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proof",
+        "write_allow",
+        "lock_keys"
+      ],
+      "properties": {
+        "proof": {
+          "enum": [
+            "proven_disjoint",
+            "serial_indeterminate"
+          ]
+        },
+        "write_allow": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "lock_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "isolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "worktree_path",
+        "branch"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "managed_worktree",
+            "harness_provided"
+          ]
+        },
+        "worktree_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "context": {
+      "$ref": "./bounded-dispatch-context.schema.json",
+      "description": "Shared recursively bounded secret-free context; runtime also enforces canonical JSON at most 16 KiB."
+    },
+    "lease_generation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "continuation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "approval_ref"
+      ],
+      "properties": {
+        "approval_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "kind": {
+          "enum": [
+            "pending_gate",
+            "policy_pause"
+          ]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "scope": {
+            "properties": {
+              "proof": {
+                "const": "proven_disjoint"
+              }
+            },
+            "required": [
+              "proof"
+            ]
+          }
+        },
+        "required": [
+          "scope"
+        ]
+      },
+      "then": {
+        "properties": {
+          "scope": {
+            "properties": {
+              "write_allow": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "continuation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "lease_generation": {
+            "minimum": 2
+          }
+        }
+      }
+    }
+  ]
+}

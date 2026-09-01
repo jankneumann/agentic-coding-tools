@@ -27,9 +27,8 @@ _FIXTURE_ROOT = Path(__file__).with_name("fixtures") / "dispatch-scopes"
 _SCHEMA_ROOT = (
     _REPO_ROOT
     / "openspec"
-    / "changes"
-    / "wire-supervise-execution-through-the-dispatch-fn-seam"
     / "contracts"
+    / "roadmap-orchestration"
     / "schemas"
 )
 _REQUEST_SCHEMA = _SCHEMA_ROOT / "supervised-dispatch-request.schema.json"

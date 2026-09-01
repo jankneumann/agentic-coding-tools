@@ -29,8 +29,7 @@ _FIXTURE = (
 )
 _CONTRACT_ROOT = (
     _REPO_ROOT
-    / "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam"
-    / "contracts/schemas"
+    / "openspec/contracts/roadmap-orchestration/schemas"
 )
 
 

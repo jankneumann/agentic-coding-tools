@@ -17,9 +17,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _SCHEMA_ROOT = (
     _REPO_ROOT
     / "openspec"
-    / "changes"
-    / "wire-supervise-execution-through-the-dispatch-fn-seam"
     / "contracts"
+    / "roadmap-orchestration"
     / "schemas"
 )
 _FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "execution" / "contracts"
