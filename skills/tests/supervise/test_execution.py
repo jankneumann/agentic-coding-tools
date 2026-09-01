@@ -281,9 +281,8 @@ def test_lifecycle_fixtures_are_schema_valid() -> None:
     schema_root = (
         _REPO_ROOT
         / "openspec"
-        / "changes"
-        / "wire-supervise-execution-through-the-dispatch-fn-seam"
         / "contracts"
+        / "roadmap-orchestration"
         / "schemas"
     )
     result_validator = Draft202012Validator(
