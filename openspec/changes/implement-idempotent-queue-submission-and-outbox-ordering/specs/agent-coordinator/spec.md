@@ -24,6 +24,14 @@ The system SHALL provide task assignment, tracking, dependency management, and a
 - **WHEN** both database transactions execute
 - **THEN** both SHALL acquire the same change-scoped transaction lock
 - **AND** the reconciled current sequence SHALL be the only active projection row
+- **AND** a delayed submit below the committed high-water sequence SHALL fail as `stale_projection`
+
+#### Scenario: Only reconciliation advances projection sequence
+
+- **GIVEN** a projection head already exists for a change
+- **WHEN** keyed submit requests a sequence above that head
+- **THEN** it SHALL fail as `reconciliation_required`
+- **AND** reconciliation SHALL be the only operation that may advance the high-water sequence
 
 #### Scenario: Reserved or malformed identity is rejected
 
@@ -77,6 +85,12 @@ Direct MCP, HTTP-proxy MCP, HTTP, and `coordination-cli` SHALL map keyed submit 
 - **WHEN** HTTP authentication or policy denies a projection mutation
 - **THEN** the response SHALL be a 401 or 403 Problem
 - **AND** it SHALL NOT contain a null `task_id` in a success schema
+
+#### Scenario: Reconciliation uses queue-submission authorization
+
+- **WHEN** any transport requests projection reconciliation
+- **THEN** authorization SHALL evaluate the existing `submit_work` policy operation
+- **AND** policy context SHALL identify `mode=reconcile`
 
 ### Requirement: Projection Migration Preflight
 
