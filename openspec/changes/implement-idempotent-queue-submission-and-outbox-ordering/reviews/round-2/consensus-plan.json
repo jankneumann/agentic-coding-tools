@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "implement-idempotent-queue-submission-and-outbox-ordering",
+  "reviewers": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "disagreement",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "escalate",
+      "description": "Critical: The high-water remediation stores only transition_sequence, while projection identity also includes phase. After reconcile(phase=A, sequence=N), a delayed keyed submit(phase=B, sequence=N) passes the equal-sequence check and the tuple-level unique index permits a second active row; the same advisory lock merely serializes this recreation. The claimed single-current-row invariant therefore still fails for an equal-sequence, different-phase tuple.",
+      "vendor_dispositions": {
+        "codex": "fix",
+        "antigravity": "accept"
+      }
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The tasks require 409 mappings for stale_projection and reconciliation_required, but neither /work/submit nor /work/reconcile declares a 409 Problem response in the OpenAPI contract. An implementation can satisfy the task while failing the published transport contract, or satisfy the contract while omitting the planned conflict behavior."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Round-one remediation added test_mcp_work_projection.py only to the coordinator package gate. The final wp-integration transport suite still omits that direct-MCP module, so the final integration checkpoint can pass without re-running the dedicated parity coverage that task 1.7 requires."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The persist-first callback and resume reconciliation preserve loop-state as one-way authoritative truth across projection failures and process crashes."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The remediated plan now identifies the existing submit_work authorization operation and a reconciliation-specific mode, eliminating the round-one privilege-contract ambiguity."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Reconciliation endpoint authorization is explicitly mapped to the existing submit_work policy action with mode=reconcile context, preserving existing Cedar policy boundaries while enforcing strict RFC 7807 401/403 problem responses on denial."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Verification commands for wp-coordinator-queue explicitly include dedicated direct MCP projection test modules (test_mcp_work_projection.py) alongside API, CLI, and PostgreSQL integration suites to guarantee transport parity."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Migration 035 implements deterministic preflight validation under SHARE ROW EXCLUSIVE table locks, aborting with documented SQLSTATE errors for legacy malformed or duplicate rows to ensure clean rollback and safe retries."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The autopilot state machine enforces a persist-first ordering seam where loop-state persistence precedes queue projection, and resume reconciliation reconstructs queue state strictly from loaded loop-state without mutating authoritative state."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The work-package DAG and write scope boundaries cleanly segregate contracts, coordinator persistence, bridge outbox seams, and integration validation without overlapping write permissions or circular dependencies."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 10,
+    "confirmed_count": 0,
+    "unconfirmed_count": 9,
+    "disagreement_count": 1,
+    "blocking_count": 1
+  }
+}

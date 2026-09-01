@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "plan",
+  "created_at": "2026-09-01T23:41:21Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": [
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 34.85105103789829,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gpt-5.5"
+      ],
+      "elapsed_seconds": 180.023101269966,
+      "error": "Timeout after 180s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "grok",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 180.10679323598742,
+      "error": "Timeout after 180s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "qwen/qwen3-coder"
+      ],
+      "elapsed_seconds": 45.76927046617493,
+      "error": "Auth expired. Run: set OPENROUTER_API_KEY in the environment (pi has no login subcommand)",
+      "error_class": "auth_required"
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 1,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-plan.json",
+      "finding_count": 6
+    }
+  ]
+}
