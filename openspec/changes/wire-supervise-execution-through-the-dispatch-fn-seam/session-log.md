@@ -122,3 +122,37 @@ Implemented supervised roadmap execution through the existing dispatch_fn seam a
 ### Context
 Resolved 15 critical-to-medium implementation-review findings across delegated scheduling, checkpoint durability, linked-worktree isolation, result evidence, and application recovery. The focused and broad suites are green; external vendor quorum remained unavailable and is recorded explicitly.
 
+---
+
+## Phase: Validation (2026-09-01)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Halt cleanup and merge** — A minimal reproduction violates roadmap-orchestration.2 and the pre-merge gate correctly returns halt.
+
+### Capability Gaps Observed
+- **behavioral_failure**: The deferred peer of an overlapping ready pair later carries proven_disjoint instead of serial_indeterminate. (skill: autopilot-roadmap, severity: high)
+- **evidence_gap**: Six of seven package results are absent and the only durable result records stale plan revision 2. (skill: implement-feature, severity: high)
+- **environment_failure**: The validate-feature prescribed traceability fallback interpreter lacks pydantic. (skill: validate-feature, severity: high)
+
+### Completed Work
+- 370 focused tests passed
+- strict OpenSpec passed
+- architecture graph and scoped flow checks passed
+- CI checks passed
+- FAIL report and exact-SHA change-context evidence persisted
+
+### Next Steps
+- Add a failing second-request proof regression and fix it with TDD
+- Regenerate all seven work-package results at plan revision 3 and contracts revision 1
+- Keep exact-SHA evidence in all eight change-context cells
+- Provision the prescribed traceability interpreter and re-run validate-feature
+
+### Relevant Files
+- `skills/roadmap-runtime/scripts/dispatch_scheduler.py` — Blocking scope-proof behavior
+- `skills/tests/roadmap-runtime/test_dispatch_scheduler.py` — Missing second-request regression assertion
+- `openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/validation-report.md` — Exact-head FAIL evidence
+
+### Context
+Validated PR #451 at exact commit 3b5a1fb0. Local tests, CI, OpenSpec, and architecture graph checks passed, but spec compliance and durable package evidence failed; no waiver or trust-gate override was applied.

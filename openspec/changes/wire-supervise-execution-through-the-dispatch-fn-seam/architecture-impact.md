@@ -1,24 +1,33 @@
 # Architecture Impact
 
-**Commit**: 1b75daca
+**Commit**: 3b5a1fb06d8ae3662414985d06092016015a6c96
 **Branch**: openspec/wire-supervise-execution-through-the-dispatch-fn-seam
 **Base**: ae9576a56638d5c165792654c1b00c7451bafead
 
 ## Changed Files
 
-The implementation changes the roadmap-runtime scheduler and checkpoint model, the Autopilot roadmap orchestrator, the supervise host adapter and protocol, dispatch schemas, and their contract/unit/integration tests. The full path mapping is recorded in [change-context.md](./change-context.md).
+The PR changes 81 tracked files relative to its roadmap base, primarily the roadmap-runtime scheduler/checkpoint model, Autopilot roadmap orchestration, the supervise host adapter/protocol, schemas, OpenSpec evidence, and focused tests.
 
 ## Structural Diff
 
-The changed skill scripts are outside the architecture graph Python source root (`agent-coordinator/src`), so the graph reports no feature-attributable node or edge changes. A refreshed diagnostic run found no new cycles, high-impact modules, routes, or database tables attributable to this change. The refresh also discovered 90 pre-existing TypeScript nodes because analyzer dependencies became available; that analyzer-availability delta is unrelated to this feature and its generated repository-wide artifacts were not committed.
+The repository-specific architecture producer completed successfully and a second ensure reported fresh. The baseline graph diff reported:
+
+- Nodes: +0 / -0
+- Edges: +0 / -0
+- New cycles: 0
+- New high-impact modules: 0
+- Untested new routes: 0
+- New database tables: 0
+
+The changed skill scripts sit outside the agent-coordinator graph's Python source root, so the graph has no feature-attributable node or edge delta.
 
 ### New Cross-Layer Flows
 
-No service-layer flow was added. Within the skills layer, the intentional direction is `roadmap-runtime dispatch scheduler -> autopilot-roadmap orchestrator -> supervise ExecutionAdapter -> host callback`, with structured results returning through the existing `dispatch_fn` seam.
+No service-layer flow was added. The intended skills-layer direction remains roadmap-runtime scheduler -> autopilot-roadmap orchestrator -> supervise ExecutionAdapter -> host callback, with structured outcomes returning through dispatch_fn.
 
 ### Broken Cross-Layer Flows
 
-None. Scoped flow validation covered 43 changed files and reported 0 findings.
+None. Scoped validation covered 81 changed files and reported 0 errors, warnings, or informational findings.
 
 ### New High-Impact Nodes
 
@@ -26,16 +35,21 @@ None reported.
 
 ## Validation Findings
 
-| Severity | Category | Description | File |
-|----------|----------|-------------|------|
-| none | flow | 0 errors, 0 warnings, 0 informational findings across 43 changed files | `docs/architecture-analysis/architecture.diagnostics.scoped.json` |
-| none | dependency direction | Neutral roadmap-runtime helpers do not import the orchestrator or host adapter | `skills/roadmap-runtime/scripts/dispatch_scheduler.py` |
-| none | state ownership | Orchestrator remains the phase owner; ExecutionAdapter owns host lease and launch transitions | `skills/autopilot-roadmap/scripts/orchestrator.py` |
+| Severity | Category | Description | Files |
+|----------|----------|-------------|-------|
+| none | graph diff | No new cycles, high-impact modules, untested routes, or tables | docs/architecture-analysis/architecture.diff.json |
+| none | scoped flows | 0 findings across 81 changed files | docs/architecture-analysis/architecture.diagnostics.scoped.json |
+| medium (advisory nit) | file size | Seven generated context checkpoint JSON files exceed 500 lines | openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/context-checkpoints/*.json |
+| medium (advisory nit) | file size | Three touched schema artifacts exceed 500 lines | delegated-dispatch-attempt.schema.json and checkpoint schema mirrors |
+| medium (advisory nit) | file size | Three touched Python modules exceed 500 lines | orchestrator.py, models.py, execution.py |
+| medium (advisory nit) | file size | Two touched test modules exceed 500 lines | test_supervised_dispatch.py, test_execution.py |
+
+Architecture gating is configured as advisory. The 15 file-size findings are reported and not suppressed.
 
 ## Parallel Zone Impact
 
-The package DAG and overlap validator passed with no invalid parallel pair or lock overlap. Runtime concurrency is admitted only for work packages whose effective write scopes are affirmatively disjoint; missing, invalid, empty, boundless, or ambiguous scope serializes. No previously independent repository architecture zone was merged.
+The package DAG, scope-overlap, lock-overlap, and parallel-zone validation all pass. Runtime batching admits concurrency only for affirmatively disjoint effective write scopes; no repository architecture zones were merged by the graph.
 
 ## Recommendations
 
-Safe to open for review. No blocking architecture issue was found; merge-time validation should preserve the scheduler-to-orchestrator-to-host dependency direction and rerun the focused supervised-dispatch integration suite.
+The architecture graph and flow results do not block merge. The feature as a whole is not merge-ready because validation independently found a spec-compliance defect in second-request overlap proof and incomplete durable work-package evidence; resolve those findings and re-run validation.
