@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "validation-evidence",
+  "reviewers": [
+    {"vendor": "codex", "agent_id": "evidence_critic", "success": true, "findings_count": 4, "elapsed_seconds": 0.0, "error": null},
+    {"vendor": "codex", "agent_id": "spec_critic", "success": true, "findings_count": 4, "elapsed_seconds": 0.0, "error": null}
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {"id": 1, "status": "confirmed", "primary_vendor": "codex-evidence", "primary_finding_id": 1, "matched_findings": [{"vendor": "codex-spec", "finding_id": 1}], "match_score": 1.0, "agreed_type": "correctness", "agreed_axis": "compatibility", "agreed_criticality": "critical", "recommended_disposition": "fix", "description": "Generated runtime supervise skill copies are stale."},
+    {"id": 2, "status": "confirmed", "primary_vendor": "codex-evidence", "primary_finding_id": 2, "matched_findings": [{"vendor": "codex-spec", "finding_id": 3}], "match_score": 1.0, "agreed_type": "correctness", "agreed_axis": "resilience", "agreed_criticality": "high", "recommended_disposition": "fix", "description": "Required live PostgreSQL acceptance is unexecuted."},
+    {"id": 3, "status": "confirmed", "primary_vendor": "codex-evidence", "primary_finding_id": 3, "matched_findings": [{"vendor": "codex-spec", "finding_id": 4}], "match_score": 1.0, "agreed_type": "correctness", "agreed_axis": "correctness", "agreed_criticality": "high", "recommended_disposition": "fix", "description": "Declared full-suite integration acceptance is unmet."},
+    {"id": 4, "status": "confirmed", "primary_vendor": "codex-evidence", "primary_finding_id": 4, "matched_findings": [{"vendor": "codex-spec", "finding_id": 2}], "match_score": 1.0, "agreed_type": "contract_mismatch", "agreed_axis": "correctness", "agreed_criticality": "high", "recommended_disposition": "fix", "description": "Database-unreachable error specification contradicts code and tests."}
+  ],
+  "summary": {"total_unique_findings": 4, "confirmed_count": 4, "unconfirmed_count": 0, "disagreement_count": 0, "blocking_count": 4}
+}

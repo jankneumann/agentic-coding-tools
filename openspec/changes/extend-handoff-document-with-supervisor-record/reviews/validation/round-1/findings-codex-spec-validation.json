@@ -1,0 +1,11 @@
+{
+  "review_type": "implementation",
+  "target": "validation-evidence",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {"id": 1, "type": "correctness", "criticality": "critical", "description": "Both runtime supervise skill copies omit the canonical supervisor-record flow.", "resolution": "Regenerate runtime skill copies and prove exact equality.", "disposition": "fix", "package_id": "wp-skill-docs", "file_path": ".agents/skills/supervise/SKILL.md", "line_range": {"start": 70, "end": 253}, "axis": "compatibility", "severity": "critical"},
+    {"id": 2, "type": "contract_mismatch", "criticality": "high", "description": "The database-unreachable error contract contradicts implementation and its regression test.", "resolution": "Align code and tests or revise the specification.", "disposition": "fix", "package_id": "wp-coordinator", "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/specs/agent-coordinator/spec.md", "line_range": {"start": 30, "end": 32}, "axis": "correctness", "severity": "critical"},
+    {"id": 3, "type": "behavioral_failure", "criticality": "high", "description": "All four live PostgreSQL tests skipped, leaving migration and RPC behavior unverified.", "resolution": "Provision PostgreSQL and persist passing evidence.", "disposition": "fix", "package_id": "wp-coordinator", "file_path": "agent-coordinator/tests/e2e/postgres/test_handoffs_live.py", "line_range": {"start": 78, "end": 125}, "axis": "resilience", "severity": "critical"},
+    {"id": 4, "type": "behavioral_failure", "criticality": "high", "description": "The full-suite integration acceptance did not pass.", "resolution": "Fix the environment or revise the package acceptance.", "disposition": "fix", "package_id": "wp-integration", "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/validation-report.md", "line_range": {"start": 62, "end": 64}, "axis": "correctness", "severity": "critical"}
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "change_id": "extend-handoff-document-with-supervisor-record",
+  "review_type": "implementation",
+  "created_at": "2026-09-01T01:00:34Z",
+  "target": "validation-evidence",
+  "dispatches": [
+    {"vendor": "codex", "agent_id": "evidence_critic", "success": true, "elapsed_seconds": 0.0, "error": null, "error_class": null, "findings_path": "findings-codex-evidence-validation.json"},
+    {"vendor": "codex", "agent_id": "spec_critic", "success": true, "elapsed_seconds": 0.0, "error": null, "error_class": null, "findings_path": "findings-codex-spec-validation.json"}
+  ],
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "same_provider_independent_reviewers": true,
+  "timeout_failures": 0,
+  "schema_failures": 0
+}

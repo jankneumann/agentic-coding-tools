@@ -1,0 +1,11 @@
+{
+  "review_type": "implementation",
+  "target": "validation-evidence",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {"id": 1, "type": "correctness", "criticality": "critical", "description": "Generated runtime supervise skill copies are stale and falsify task 4.3 and mirrors_synced.", "resolution": "Run the skill installer in the final feature worktree and rerun both diff checks.", "disposition": "fix", "package_id": "wp-skill-docs", "file_path": "skills/supervise/SKILL.md", "line_range": {"start": 73, "end": 253}, "axis": "compatibility", "severity": "critical"},
+    {"id": 2, "type": "behavioral_failure", "criticality": "high", "description": "The required live PostgreSQL migration and round-trip acceptance is unexecuted because all four live tests skipped.", "resolution": "Apply migration 034 to PostgreSQL and persist a passing live result.", "disposition": "fix", "package_id": "wp-coordinator", "file_path": "agent-coordinator/tests/e2e/postgres/test_handoffs_live.py", "line_range": {"start": 78, "end": 125}, "axis": "resilience", "severity": "critical"},
+    {"id": 3, "type": "behavioral_failure", "criticality": "high", "description": "The declared integration full-suite acceptance is not met by the recorded failures and collection errors.", "resolution": "Make the command pass or formally revise or defer the acceptance.", "disposition": "fix", "package_id": "wp-integration", "file_path": "openspec/changes/extend-handoff-document-with-supervisor-record/work-packages.yaml", "line_range": {"start": 410, "end": 418}, "axis": "correctness", "severity": "critical"},
+    {"id": 4, "type": "contract_mismatch", "criticality": "high", "description": "The modified Session Continuity scenario requires database_unavailable while code and tests require rpc_failed.", "resolution": "Align implementation and tests or formally revise the requirement.", "disposition": "fix", "package_id": "wp-coordinator", "file_path": "agent-coordinator/src/handoffs.py", "line_range": {"start": 171, "end": 175}, "axis": "correctness", "severity": "critical"}
+  ]
+}
