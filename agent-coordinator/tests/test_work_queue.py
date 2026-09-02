@@ -247,7 +247,7 @@ class TestWorkQueueService:
 
         class DenyPolicyEngine:
             async def check_operation(self, **_kwargs):
-                return PolicyDecision.deny("operation_not_permitted")
+                return PolicyDecision.deny("write_denied: trust_level=1 < 2")
 
         class FailDB:
             async def rpc(self, *_args, **_kwargs):
@@ -266,7 +266,8 @@ class TestWorkQueueService:
 
         assert result.success is False
         assert result.task_id is None
-        assert result.reason == "operation_not_permitted"
+        assert result.reason == "write_denied: trust_level=1 < 2"
+        assert result.failure_category == "policy"
 
     @pytest.mark.asyncio
     async def test_submit_blocked_by_guardrails_preserves_reason(self, monkeypatch):
@@ -671,3 +672,4 @@ async def test_reconcile_enforces_submit_work_policy_with_mode(monkeypatch):
 
     assert result.success is False
     assert result.reason == "operation_not_permitted"
+    assert result.failure_category == "policy"

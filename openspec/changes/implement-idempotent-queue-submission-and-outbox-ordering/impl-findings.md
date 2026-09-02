@@ -44,3 +44,20 @@ All three implementation-review blockers are fixed with RED-to-GREEN regression 
 - Strict OpenSpec validation: passed.
 - Semantic OpenAPI validation: passed.
 - Full coordinator non-integration run: 2434 passed, 50 skipped, 7 environment/suite-isolation failures outside the changed surface. Four require localhost PostgreSQL; the three non-live failures pass in isolation (3 passed), confirming shared global-state leakage rather than this change.
+
+
+## Implementation Review Fix 2
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 9 | contract_mismatch | high | Open-ended policy reasons such as `write_denied: trust_level=1 < 2` fell through the exact-token mapper and became HTTP 422. | Added a RED realistic prefixed-denial regression, attached an explicit policy-only failure category at the service policy boundary, and mapped that category to RFC 7807 403 while guardrail and validation failures remain 422. |
+
+The round-two blocking finding is fixed with RED-to-GREEN HTTP and service coverage.
+
+## Implementation Fix 2 Verification
+
+- Focused service and HTTP regressions: 5 passed.
+- Affected coordinator projection suite: 142 passed, 16 skipped because a real PostgreSQL runtime is unavailable.
+- Changed-surface Ruff: passed.
+- Strict OpenSpec validation: passed.
+- Semantic OpenAPI validation: passed.

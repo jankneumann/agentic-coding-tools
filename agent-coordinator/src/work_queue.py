@@ -250,6 +250,7 @@ class SubmitResult:
     deduplicated: bool = False
     status: str | None = None
     reason: str | None = None
+    failure_category: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "SubmitResult":
@@ -285,6 +286,7 @@ class ReconcileResult(SubmitResult):
             deduplicated=base.deduplicated,
             status=base.status,
             reason=base.reason,
+            failure_category=base.failure_category,
             cancelled_task_ids=cancelled,
         )
 
@@ -716,6 +718,7 @@ class WorkQueueService:
                     task_id=None,
                     created=False,
                     reason=decision.reason or "operation_not_permitted",
+                    failure_category="policy",
                 )
 
             # Guardrails check on submitted task content
@@ -832,6 +835,7 @@ class WorkQueueService:
                 success=False,
                 created=False,
                 reason=decision.reason or "operation_not_permitted",
+                failure_category="policy",
             )
 
         payload = {**(input_data or {}), **key.as_input_data()}
