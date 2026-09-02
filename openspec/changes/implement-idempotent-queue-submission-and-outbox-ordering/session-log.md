@@ -364,3 +364,36 @@ Fixed the round-two HTTP policy-status blocker with a RED-to-GREEN regression fo
 ### Context
 Final maximum implementation-review round converged: primary Codex and Antigravity supplied schema-valid 2/2 quorum with zero blocking findings and zero disagreements.
 
+---
+
+## Phase: Validation (2026-09-02)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Do not accept degraded live phases** — The deployable surface failed a real fresh-volume migration and no degraded-phase authorization exists.
+
+### Capability Gaps Observed
+- **environment_config_error**: Architecture refresh source roots do not match this repository layout. (skill: validate-feature, severity: medium)
+
+### Completed Work
+- strict OpenSpec
+- semantic OpenAPI
+- affected tests
+- traceability
+- package validation
+- architecture diagnostics
+- security capability detection
+
+### Next Steps
+- Fix migration 035 transaction boundary
+- Correct work-package context-impact surfaces
+- Re-run live PostgreSQL, smoke, security, and E2E validation
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md` — failed validation evidence
+- `agent-coordinator/database/migrations/035_work_queue_projection.sql` — critical deployment blocker
+
+### Context
+Validation failed: fresh PostgreSQL deployment aborts migration 035 because LOCK TABLE is outside a transaction. Static contracts and affected unit suites passed, but required live smoke, security, and E2E checks could not run; context-impact metadata also failed.
+
