@@ -17,10 +17,13 @@ import time
 from typing import Any, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exception_handlers import (
+    http_exception_handler,
+    request_validation_exception_handler,
+)
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt
 
 from .approval import get_approval_service
 from .axi_output import list_envelope, probe_truncation
@@ -88,6 +91,37 @@ class _CodeSearchProblemError(Exception):
         super().__init__(_CODE_SEARCH_PROBLEMS[status]["detail"])
 
 
+_PROJECTION_CONFLICTS = {
+    "stale_projection",
+    "projection_generation_mismatch",
+    "reconciliation_required",
+}
+
+
+class _ProjectionProblemError(Exception):
+    def __init__(self, reason: str, status: int = 409) -> None:
+        self.reason = reason
+        self.status = status
+        super().__init__(reason)
+
+
+def _projection_mutation_payload(result: Any) -> dict[str, Any]:
+    if not result.success:
+        if result.reason in _PROJECTION_CONFLICTS:
+            raise _ProjectionProblemError(result.reason)
+        if result.reason in {"invalid_projection_key", "reserved_projection_key"}:
+            raise _ProjectionProblemError(result.reason, status=422)
+        return {"success": False, "reason": result.reason}
+    return {
+        "success": True,
+        "task_id": str(result.task_id),
+        "created": result.created,
+        "deduplicated": result.deduplicated,
+        "status": result.status,
+        "cancelled_task_ids": [str(value) for value in getattr(result, "cancelled_task_ids", [])],
+    }
+
+
 # =============================================================================
 # Pydantic request / response models
 # =============================================================================
@@ -139,12 +173,45 @@ class WorkCompleteRequest(BaseModel):
     error_message: str | None = None
 
 
+class ProjectionKeyRequest(BaseModel):
+    change_id: str = Field(min_length=1, max_length=128, pattern=r"^[a-z0-9][a-z0-9-]{0,127}$")
+    phase: Literal[
+        "INIT",
+        "GATEKEEPER",
+        "PLAN",
+        "PLAN_ITERATE",
+        "PLAN_REVIEW",
+        "PLAN_FIX",
+        "IMPLEMENT",
+        "IMPL_ITERATE",
+        "IMPL_REVIEW",
+        "IMPL_FIX",
+        "VALIDATE",
+        "VAL_REVIEW",
+        "VAL_FIX",
+        "SUBMIT_PR",
+        "ESCALATE",
+        "DONE",
+    ]
+    transition_sequence: StrictInt = Field(ge=0, le=2147483647)
+
+
 class WorkSubmitRequest(BaseModel):
-    task_type: str
-    task_description: str
+    task_type: str = Field(min_length=1)
+    task_description: str = Field(min_length=1)
+    projection_key: ProjectionKeyRequest | None = None
     input_data: dict[str, Any] | None = None
-    priority: int = 5
+    priority: int = Field(default=5, ge=1, le=10)
     depends_on: list[str] | None = None
+    agent_requirements: dict[str, Any] | None = None
+
+
+class WorkReconcileRequest(BaseModel):
+    projection_key: ProjectionKeyRequest
+    task_type: str = Field(min_length=1)
+    task_description: str = Field(min_length=1)
+    input_data: dict[str, Any] | None = None
+    priority: int = Field(default=5, ge=1, le=10)
     agent_requirements: dict[str, Any] | None = None
 
 
@@ -742,6 +809,40 @@ def create_coordination_api() -> FastAPI:
             media_type="application/problem+json",
         )
 
+    @app.exception_handler(_ProjectionProblemError)
+    async def projection_problem_handler(
+        _request: Request, exc: _ProjectionProblemError
+    ) -> JSONResponse:
+        reason = exc.reason
+        return JSONResponse(
+            status_code=exc.status,
+            content={
+                "type": f"urn:coordinator:work-projection:{reason}",
+                "title": "Work projection conflict",
+                "status": exc.status,
+                "detail": reason,
+            },
+            media_type="application/problem+json",
+        )
+
+    @app.exception_handler(HTTPException)
+    async def projection_http_problem_handler(request: Request, exc: HTTPException) -> JSONResponse:
+        if request.url.path in {"/work/submit", "/work/reconcile"} and exc.status_code in {
+            401,
+            403,
+        }:
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={
+                    "type": f"urn:coordinator:work-projection:http-{exc.status_code}",
+                    "title": "Work projection request denied",
+                    "status": exc.status_code,
+                    "detail": str(exc.detail),
+                },
+                media_type="application/problem+json",
+            )
+        return await http_exception_handler(request, exc)
+
     @app.exception_handler(RequestValidationError)
     async def request_validation_handler(
         request: Request,
@@ -751,6 +852,17 @@ def create_coordination_api() -> FastAPI:
             return JSONResponse(
                 status_code=422,
                 content=_CODE_SEARCH_PROBLEMS[422],
+                media_type="application/problem+json",
+            )
+        if request.url.path in {"/work/submit", "/work/reconcile"}:
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "type": "urn:coordinator:work-projection:invalid-request",
+                    "title": "Invalid work projection request",
+                    "status": 422,
+                    "detail": "Projection request validation failed.",
+                },
                 media_type="application/problem+json",
             )
         return await request_validation_exception_handler(request, exc)
@@ -1072,11 +1184,42 @@ def create_coordination_api() -> FastAPI:
             priority=request.priority,
             depends_on=depends_on_uuids,
             agent_requirements=request.agent_requirements,
+            projection_key=(
+                request.projection_key.model_dump() if request.projection_key else None
+            ),
         )
-        return {
-            "success": result.success,
-            "task_id": str(result.task_id) if result.task_id else None,
-        }
+        payload = _projection_mutation_payload(result)
+        if request.projection_key is None:
+            payload.pop("cancelled_task_ids", None)
+        return payload
+
+    @app.post("/work/reconcile")
+    async def reconcile_work_projection(
+        request: WorkReconcileRequest,
+        principal: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
+        agent_id, agent_type = resolve_identity(principal, None, None)
+        await authorize_operation(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            operation="submit_work",
+            context={
+                "mode": "reconcile",
+                "task_type": request.task_type,
+                "priority": request.priority,
+            },
+        )
+        from .work_queue import get_work_queue_service
+
+        result = await get_work_queue_service().reconcile_projection(
+            projection_key=request.projection_key.model_dump(),
+            task_type=request.task_type,
+            description=request.task_description,
+            input_data=request.input_data,
+            priority=request.priority,
+            agent_requirements=request.agent_requirements,
+        )
+        return _projection_mutation_payload(result)
 
     @app.post("/work/get")
     async def get_task_endpoint(
