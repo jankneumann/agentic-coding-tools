@@ -458,3 +458,31 @@ Resolved the migration 035 fresh-deploy blocker and work-package context declara
 ### Context
 Canonical validation rerun passed every required phase at b0907df9. Fresh Podman deployment, asyncpg apply/retry, live PostgreSQL projection, smoke, passive DAST coverage, HTTP E2E, contracts, traceability, package gates, and affected suites passed; architecture freshness and scanner artifact persistence remain explicit advisories.
 
+---
+
+## Phase: Validation Review 1 (2026-09-02)
+
+**Agent**: codex | **Session**: val-review-round-1
+
+### Decisions
+1. **Do not converge without auditable Security evidence** — The ZAP wrapper exited nonzero and no JSON, HTML, captured log, or canonical gate artifact is retained; the report cannot promote the phase to pass solely from an unpreserved console summary.
+
+### Capability Gaps Observed
+- **vendor_timeout**: Antigravity returned no findings before the enforced validation-review cap, so independent quorum was unavailable. (skill: autopilot, severity: medium)
+
+### Completed Work
+- Reviewed committed validation report, findings, traceability, architecture impact, session records, and validation contracts.
+- Produced schema-valid primary findings, manifest, and consensus evidence.
+- Recorded quorum loss at 1/2 and one critical blocking Security evidence finding.
+
+### Next Steps
+- Rerun ZAP with a writable artifact directory and retain canonical scanner/gate evidence, or record Security as DEGRADED and obtain explicit degraded-phase authorization.
+- Repeat VAL_REVIEW with two successful independent reviewers.
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-1/consensus-validation.json` — Round-one quorum and blocker evidence
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md` — Validation claim under critique
+
+### Context
+Validation evidence did not converge: Antigravity returned no findings before the hard cap, leaving quorum at 1/2, and the primary review found the required Security pass independently unauditable.
+
