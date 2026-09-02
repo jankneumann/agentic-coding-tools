@@ -1,13 +1,13 @@
 # Validation Report: implement-idempotent-queue-submission-and-outbox-ordering
 
-**Date**: 2026-09-01 22:15 EDT
-**Commit**: `b0907df98c04af88f7c72cd5043823c533154844`
-**Validated tree**: `c368b09908bcce8bbfb9624396e16d241bc985f1`
+**Date**: 2026-09-01 22:35 EDT
+**Commit**: `eb3cb550e0fa90b8aecce70e4116f3fda838cc8b`
+**Validated tree**: `b4e0fb7eb1abff5ce5f7f9f48792c92163a1115a`
 **Branch**: `openspec/implement-idempotent-queue-submission-and-outbox-ordering`
 
 ## Result
 
-**PASS WITH ADVISORIES** — All required phases pass at the validation-fix head. Fresh rootless Podman deployment, migration apply/retry, live PostgreSQL projection behavior, smoke, security coverage, HTTP E2E, contracts, traceability, and affected suites succeeded. Architecture freshness and unrelated fresh-schema/runtime bootstrap noise remain advisory baselines.
+**PASS WITH ADVISORIES** — All required phases pass at the validation-review head. Fresh rootless Podman deployment, migration apply/retry, live PostgreSQL projection behavior, smoke, security coverage, HTTP E2E, contracts, traceability, and affected suites succeeded. The Security phase now retains independently auditable scanner and gate artifacts; architecture freshness and unrelated fresh-schema/runtime bootstrap noise remain advisory baselines.
 
 ## Phase Results
 
@@ -29,7 +29,7 @@ The reusable live smoke suite passed 11/11: health/readiness, valid/invalid/miss
 
 **Status**: pass with warning
 
-One bounded OWASP ZAP baseline attempt reached the live isolated API and completed passive coverage: 66 rules passed, zero failures, and one advisory cacheability warning on the public 404 root response. The wrapper exited 2 after scanning because the rootless container could not write its HTML/JSON report into the mounted temporary directory; the complete rule summary remained in the captured scanner log and no second attempt was made. Preventive checks found no new Tier-3 dynamic execution, TLS bypass, hardcoded secret, or unparameterized SQL boundary. No dependency manifests changed, so dependency SCA was not repeated. The installed security skill omitted its referenced detailed checklist file; embedded A01/A03 rules were applied.
+One fresh, bounded OWASP ZAP baseline attempt ran against the isolated API from `2026-09-02T02:34:36Z` through `02:35:04Z`. The scan exited 2 and is classified as `completed_with_warnings`, not as a zero-exit scan pass: 66 passive rules passed, zero failed, and one informational cacheability warning covered three public 404 responses. A writable Podman named volume retained the JSON and HTML reports, while change-local files retained raw stdout/stderr, exact command, target, timestamps, exit code, summaries, and SHA-256 hashes. The canonical security parser and `fail_on=high` risk gate returned **PASS** with one informational finding and zero threshold findings. See `validation-evidence/security/validation-fix-2/execution.json`, `zap.stdout.log`, `zap-report.json`, `security-review-report.json`, and `gate.json`. No second scan attempt was made. Preventive checks found no new Tier-3 dynamic execution, TLS bypass, hardcoded secret, or unparameterized SQL boundary. No dependency manifests changed, so dependency SCA was not repeated.
 
 ## E2E Tests
 
@@ -94,6 +94,5 @@ No pull request or workflow run exists yet for the feature branch.
 ## Residual Advisories
 
 1. Correct architecture source-root configuration and refresh the graph.
-2. Repair rootless ZAP report-volume permissions so future runs retain JSON/HTML artifacts.
-3. Address legacy fresh-schema migration-runner and `audit_log.delegated_from` bootstrap noise separately.
-4. Repair repository-wide test isolation failures recorded by the first validation run.
+2. Address legacy fresh-schema migration-runner and `audit_log.delegated_from` bootstrap noise separately.
+3. Repair repository-wide test isolation failures recorded by the first validation run.

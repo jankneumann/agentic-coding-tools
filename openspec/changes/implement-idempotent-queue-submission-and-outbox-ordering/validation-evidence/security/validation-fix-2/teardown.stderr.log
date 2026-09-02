@@ -1,0 +1,14 @@
+[4m>>>> Executing external compose provider "/usr/libexec/docker/cli-plugins/docker-compose". Please refer to the documentation for details. <<<<
+
+[0m Container ri08_valfix2-coordinator-api-1 Stopping 
+ Container ri08_valfix2-coordinator-api-1 Stopped 
+ Container ri08_valfix2-coordinator-api-1 Removing 
+ Container ri08_valfix2-coordinator-api-1 Removed 
+ Container ri08_valfix2-postgres-1 Stopping 
+ Container ri08_valfix2-postgres-1 Stopped 
+ Container ri08_valfix2-postgres-1 Removing 
+ Container ri08_valfix2-postgres-1 Removed 
+ Volume ri08_valfix2_postgres-data Removing 
+ Network ri08_valfix2_default Removing 
+ Network ri08_valfix2_default Removed 
+ Volume ri08_valfix2_postgres-data Removed 

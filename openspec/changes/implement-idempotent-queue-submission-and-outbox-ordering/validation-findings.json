@@ -5,11 +5,12 @@
     {"id": 3, "type": "contract_compliance", "axis": "contracts", "severity": "major", "criticality": "medium", "disposition": "accept", "description": "Context-impact validation rejects wp-contracts and wp-integration for omitted documentation, APIs, and semantic-code surfaces.", "resolution": "Resolved and revalidated at b0907df9: all inferred surfaces declared; context-impact gate passes all packages."},
     {"id": 4, "type": "verification_failure", "axis": "testing", "severity": "major", "criticality": "medium", "disposition": "investigate", "description": "Full coordinator suite: 2435 passed, 92 skipped, 7 failed; full skills suite stopped with 36 collection import errors.", "resolution": "Separate baseline/order-sensitive failures from regressions and repair shared test import isolation."},
     {"id": 5, "type": "architecture", "axis": "architecture", "severity": "major", "criticality": "medium", "disposition": "investigate", "description": "Architecture freshness failed because root configuration targets absent src, database/migrations, and web paths.", "resolution": "Correct source roots, refresh the graph, and rerun architecture diff and scoped flows."},
-    {"id": 6, "type": "security", "axis": "security", "severity": "critical", "criticality": "high", "disposition": "accept", "description": "Live DAST and endpoint security checks could not run because the API never started after the migration failure.", "resolution": "Resolved and revalidated at b0907df9: API healthy, smoke 11/11, ZAP baseline 66 rules with zero failures, and live HTTP projection E2E passed."}
+    {"id": 6, "type": "security", "axis": "security", "severity": "critical", "criticality": "high", "disposition": "accept", "description": "Live DAST and endpoint security checks could not run because the API never started after the migration failure.", "resolution": "Resolved and revalidated at eb3cb550: API healthy; the single bounded ZAP run completed with 66 rule passes, zero failures, and one informational warning; canonical gate PASS with zero high-threshold findings."},
+    {"id": 7, "type": "verification_failure", "axis": "evidence_integrity", "severity": "critical", "criticality": "critical", "disposition": "accept", "description": "Validation Review 1 could not independently audit Security because the earlier nonzero ZAP run retained no raw log, JSON/HTML report, or canonical gate artifact.", "resolution": "Resolved at eb3cb550 with one fresh isolated run. Change-local evidence retains raw stdout/stderr, JSON/HTML, exact execution metadata and hashes, normalized result, aggregate, schema-valid canonical report, and PASS risk gate; the scanner exit 2 is explicitly recorded as completed_with_warnings rather than pass."}
   ],
   "review_type": "implementation",
   "reviewer_vendor": "validate-feature",
   "target": "implement-idempotent-queue-submission-and-outbox-ordering",
-  "validated_commit": "b0907df98c04af88f7c72cd5043823c533154844",
-  "validated_tree": "c368b09908bcce8bbfb9624396e16d241bc985f1"
+  "validated_commit": "eb3cb550e0fa90b8aecce70e4116f3fda838cc8b",
+  "validated_tree": "b4e0fb7eb1abff5ce5f7f9f48792c92163a1115a"
 }

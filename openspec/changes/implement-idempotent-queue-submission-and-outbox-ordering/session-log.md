@@ -486,3 +486,31 @@ Canonical validation rerun passed every required phase at b0907df9. Fresh Podman
 ### Context
 Validation evidence did not converge: Antigravity returned no findings before the hard cap, leaving quorum at 1/2, and the primary review found the required Security pass independently unauditable.
 
+---
+
+## Phase: Validation Fix 2 (2026-09-02)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Classify scanner exit 2 precisely** — The scan is completed_with_warnings, not a zero-exit scan pass; the independent high-threshold risk gate passes with zero threshold findings.
+
+### Completed Work
+- fresh isolated Podman API stack
+- one bounded ZAP baseline attempt
+- durable raw and canonical security artifacts
+- required validation evidence gate
+- complete container and volume teardown
+
+### Next Steps
+- Resume autopilot VAL_REVIEW
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-evidence/security/validation-fix-2/execution.json` — Exact scan execution record
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-evidence/security/validation-fix-2/security-review-report.json` — Canonical security result
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-evidence/security/validation-fix-2/gate.json` — Canonical security gate
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md` — Updated validation evidence
+
+### Context
+Resolved the Security evidence-integrity blocker with one fresh isolated ZAP run. The scan completed with warnings at exit 2 (66 pass, 0 fail, 1 informational warning); durable raw, JSON/HTML, normalized, canonical gate/report, and teardown evidence are retained, and the required validation evidence gate passes.
+

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "change_id": "implement-idempotent-queue-submission-and-outbox-ordering",
+  "validated_commit": "eb3cb550e0fa90b8aecce70e4116f3fda838cc8b",
+  "stack": {
+    "runtime": "podman 4.9.3",
+    "compose_project": "ri08_valfix2",
+    "database_port": 55441,
+    "api_port": 18091,
+    "api_health": {"status_code": 200, "body": {"status": "ok", "db": "connected", "version": "0.2.0"}}
+  },
+  "scan": {
+    "scanner": "OWASP ZAP baseline",
+    "image": "ghcr.io/zaproxy/zaproxy:stable",
+    "target": "http://host.containers.internal:18091",
+    "command": "timeout 240s podman run --rm -v ri08_valfix2_zap:/zap/wrk ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host.containers.internal:18091 -J zap-report.json -r zap-report.html -m 5",
+    "started_at": "2026-09-02T02:34:36Z",
+    "finished_at": "2026-09-02T02:35:04Z",
+    "exit_code": 2,
+    "outcome": "completed_with_warnings",
+    "summary": {"pass": 66, "fail_new": 0, "fail_in_progress": 0, "warn_new": 1, "warn_in_progress": 0, "info": 0, "ignore": 0},
+    "warning": "Storable and Cacheable Content [10049] on three public 404 responses",
+    "raw_stdout": "zap.stdout.log",
+    "raw_stderr": "zap.stderr.log",
+    "json_report": "zap-report.json",
+    "html_report": "zap-report.html",
+    "stdout_sha256": "1899f02855ae47079d6a71cececa806df56372541b17bf3024718f853aa125cf",
+    "json_report_sha256": "c2c4b37775d2c16b9b620862aefb5767ad534a1a557d8464b250d9e86430cfc9"
+  }
+}
