@@ -1,0 +1,71 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Retained OWASP ZAP DAST evidence SHA-256 hashes for zap.stdout.log and zap-report.json match raw execution.json entries exactly, and canonical risk gate returns PASS with zero high-threshold findings.",
+      "resolution": "Verified exact SHA-256 hash match for ZAP evidence logs/reports and confirmed PASS decision in gate.json.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-evidence/security/validation-fix-2/execution.json",
+      "line_range": {
+        "start": 27,
+        "end": 28
+      },
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Raw PostgreSQL bootstrap tracking helper correctly validates migration filename patterns, computes SHA-256 checksums matching Python migration runner checksums, and updates schema_migrations idempotently within a single transaction.",
+      "resolution": "Confirmed 999_record_schema_migrations.sh behavior and matching unit test coverage in test_migrations.py.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "agent-coordinator/database/migrations/999_record_schema_migrations.sh",
+      "line_range": {
+        "start": 30,
+        "end": 46
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: Migration 035 idempotently removes obsolete 5-argument coordinator_notify overload and takes a SHARE ROW EXCLUSIVE lock during projection table/index creation, preventing notification call ambiguity and concurrency race conditions during schema migration.",
+      "resolution": "Validated migration 035 drop function clause and lock semantics against fresh PostgreSQL bootstrap execution.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "agent-coordinator/database/migrations/035_work_queue_projection.sql",
+      "line_range": {
+        "start": 11,
+        "end": 13
+      },
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Exact PR #457 GitHub CI head 0106b8fab44c6c7e61eb0c045205afb2779fb764 passed all 15 substantive status checks including test, test-integration, docker-smoke-import, and coverage-ratchet without failure.",
+      "resolution": "Confirmed green status check rollup via GitHub API for PR #457 at exact commit 0106b8fa.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+      "line_range": {
+        "start": 198,
+        "end": 208
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    }
+  ]
+}
