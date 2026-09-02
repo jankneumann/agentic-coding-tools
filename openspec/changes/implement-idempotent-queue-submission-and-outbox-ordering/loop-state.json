@@ -247,8 +247,37 @@
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-09-02T03:20:53.377661+00:00",
       "note": "Approved by the user's explicit create PR request for the authorized autopilot-roadmap ri-08 lifecycle; target base is openspec/roadmap-roadmap-supervisor-orchestration."
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-02T03:27:16.550488+00:00"
     }
   ],
-  "pending_gate": null,
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "implement-idempotent-queue-submission-and-outbox-ordering",
+    "gate": "merge",
+    "phase": "SUBMIT_PR",
+    "requested_at": "2026-09-02T03:27:16.550870+00:00",
+    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "context": {
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/457",
+      "branch": "openspec/implement-idempotent-queue-submission-and-outbox-ordering",
+      "change_id": "implement-idempotent-queue-submission-and-outbox-ordering"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": false
+    }
+  },
   "goal_gate": null
 }
