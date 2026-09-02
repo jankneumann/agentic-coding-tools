@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-01T02:13:39+00:00",
+  "generated_at": "2026-09-02T10:23:05+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -6768,7 +6768,7 @@
       "message": "Function '_parse_iso_datetime' has no corresponding test references",
       "node_id": "py:db_postgres._parse_iso_datetime",
       "file": "db_postgres.py",
-      "line": 32,
+      "line": 33,
       "suggestion": "Add tests that reference '_parse_iso_datetime' (e.g., test__parse_iso_datetime or import it in a test file)"
     },
     {
@@ -6777,8 +6777,26 @@
       "message": "Function '_coerce_filter_value' has no corresponding test references",
       "node_id": "py:db_postgres._coerce_filter_value",
       "file": "db_postgres.py",
-      "line": 48,
+      "line": 49,
       "suggestion": "Add tests that reference '_coerce_filter_value' (e.g., test__coerce_filter_value or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_decode_query_value' has no corresponding test references",
+      "node_id": "py:db_postgres._decode_query_value",
+      "file": "db_postgres.py",
+      "line": 73,
+      "suggestion": "Add tests that reference '_decode_query_value' (e.g., test__decode_query_value or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_parse_postgrest_array_literal' has no corresponding test references",
+      "node_id": "py:db_postgres._parse_postgrest_array_literal",
+      "file": "db_postgres.py",
+      "line": 83,
+      "suggestion": "Add tests that reference '_parse_postgrest_array_literal' (e.g., test__parse_postgrest_array_literal or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -6786,7 +6804,7 @@
       "message": "Function '_validate_identifier' has no corresponding test references",
       "node_id": "py:db_postgres._validate_identifier",
       "file": "db_postgres.py",
-      "line": 72,
+      "line": 120,
       "suggestion": "Add tests that reference '_validate_identifier' (e.g., test__validate_identifier or import it in a test file)"
     },
     {
@@ -6795,7 +6813,7 @@
       "message": "Function '_validate_select_clause' has no corresponding test references",
       "node_id": "py:db_postgres._validate_select_clause",
       "file": "db_postgres.py",
-      "line": 80,
+      "line": 128,
       "suggestion": "Add tests that reference '_validate_select_clause' (e.g., test__validate_select_clause or import it in a test file)"
     },
     {
@@ -6804,7 +6822,7 @@
       "message": "Function '_serialize_for_asyncpg' has no corresponding test references",
       "node_id": "py:db_postgres._serialize_for_asyncpg",
       "file": "db_postgres.py",
-      "line": 92,
+      "line": 140,
       "suggestion": "Add tests that reference '_serialize_for_asyncpg' (e.g., test__serialize_for_asyncpg or import it in a test file)"
     },
     {
@@ -6813,7 +6831,7 @@
       "message": "Function 'DirectPostgresClient' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient",
       "file": "db_postgres.py",
-      "line": 112,
+      "line": 160,
       "suggestion": "Add tests that reference 'DirectPostgresClient' (e.g., test_DirectPostgresClient or import it in a test file)"
     },
     {
@@ -6822,7 +6840,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.__init__",
       "file": "db_postgres.py",
-      "line": 119,
+      "line": 167,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -6831,7 +6849,7 @@
       "message": "Function '_get_pool' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient._get_pool",
       "file": "db_postgres.py",
-      "line": 123,
+      "line": 171,
       "suggestion": "Add tests that reference '_get_pool' (e.g., test__get_pool or import it in a test file)"
     },
     {
@@ -6840,7 +6858,7 @@
       "message": "Function 'rpc' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.rpc",
       "file": "db_postgres.py",
-      "line": 132,
+      "line": 180,
       "suggestion": "Add tests that reference 'rpc' (e.g., test_rpc or import it in a test file)"
     },
     {
@@ -6849,7 +6867,7 @@
       "message": "Function 'query' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.query",
       "file": "db_postgres.py",
-      "line": 162,
+      "line": 210,
       "suggestion": "Add tests that reference 'query' (e.g., test_query or import it in a test file)"
     },
     {
@@ -6858,7 +6876,7 @@
       "message": "Function 'insert' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.insert",
       "file": "db_postgres.py",
-      "line": 251,
+      "line": 308,
       "suggestion": "Add tests that reference 'insert' (e.g., test_insert or import it in a test file)"
     },
     {
@@ -6867,7 +6885,7 @@
       "message": "Function 'update' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.update",
       "file": "db_postgres.py",
-      "line": 279,
+      "line": 336,
       "suggestion": "Add tests that reference 'update' (e.g., test_update or import it in a test file)"
     },
     {
@@ -6876,7 +6894,7 @@
       "message": "Function 'delete' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.delete",
       "file": "db_postgres.py",
-      "line": 321,
+      "line": 378,
       "suggestion": "Add tests that reference 'delete' (e.g., test_delete or import it in a test file)"
     },
     {
@@ -6885,7 +6903,7 @@
       "message": "Function 'close' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.close",
       "file": "db_postgres.py",
-      "line": 343,
+      "line": 400,
       "suggestion": "Add tests that reference 'close' (e.g., test_close or import it in a test file)"
     },
     {
@@ -9222,10 +9240,28 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function '_postgrest_array_literal' has no corresponding test references",
+      "node_id": "py:issue_service._postgrest_array_literal",
+      "file": "issue_service.py",
+      "line": 46,
+      "suggestion": "Add tests that reference '_postgrest_array_literal' (e.g., test__postgrest_array_literal or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_encode_query_value' has no corresponding test references",
+      "node_id": "py:issue_service._encode_query_value",
+      "file": "issue_service.py",
+      "line": 62,
+      "suggestion": "Add tests that reference '_encode_query_value' (e.g., test__encode_query_value or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function 'Issue' has no corresponding test references",
       "node_id": "py:issue_service.Issue",
       "file": "issue_service.py",
-      "line": 47,
+      "line": 84,
       "suggestion": "Add tests that reference 'Issue' (e.g., test_Issue or import it in a test file)"
     },
     {
@@ -9234,7 +9270,7 @@
       "message": "Function 'from_row' has no corresponding test references",
       "node_id": "py:issue_service.Issue.from_row",
       "file": "issue_service.py",
-      "line": 72,
+      "line": 109,
       "suggestion": "Add tests that reference 'from_row' (e.g., test_from_row or import it in a test file)"
     },
     {
@@ -9243,7 +9279,7 @@
       "message": "Function 'parse_dt' has no corresponding test references",
       "node_id": "py:issue_service.Issue.from_row.parse_dt",
       "file": "issue_service.py",
-      "line": 73,
+      "line": 110,
       "suggestion": "Add tests that reference 'parse_dt' (e.g., test_parse_dt or import it in a test file)"
     },
     {
@@ -9252,7 +9288,7 @@
       "message": "Function 'to_dict' has no corresponding test references",
       "node_id": "py:issue_service.Issue.to_dict",
       "file": "issue_service.py",
-      "line": 108,
+      "line": 145,
       "suggestion": "Add tests that reference 'to_dict' (e.g., test_to_dict or import it in a test file)"
     },
     {
@@ -9261,7 +9297,7 @@
       "message": "Function 'Comment' has no corresponding test references",
       "node_id": "py:issue_service.Comment",
       "file": "issue_service.py",
-      "line": 154,
+      "line": 191,
       "suggestion": "Add tests that reference 'Comment' (e.g., test_Comment or import it in a test file)"
     },
     {
@@ -9270,7 +9306,7 @@
       "message": "Function 'from_row' has no corresponding test references",
       "node_id": "py:issue_service.Comment.from_row",
       "file": "issue_service.py",
-      "line": 164,
+      "line": 201,
       "suggestion": "Add tests that reference 'from_row' (e.g., test_from_row or import it in a test file)"
     },
     {
@@ -9279,7 +9315,7 @@
       "message": "Function 'to_dict' has no corresponding test references",
       "node_id": "py:issue_service.Comment.to_dict",
       "file": "issue_service.py",
-      "line": 176,
+      "line": 213,
       "suggestion": "Add tests that reference 'to_dict' (e.g., test_to_dict or import it in a test file)"
     },
     {
@@ -9288,7 +9324,7 @@
       "message": "Function 'IssueService' has no corresponding test references",
       "node_id": "py:issue_service.IssueService",
       "file": "issue_service.py",
-      "line": 186,
+      "line": 223,
       "suggestion": "Add tests that reference 'IssueService' (e.g., test_IssueService or import it in a test file)"
     },
     {
@@ -9297,7 +9333,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.__init__",
       "file": "issue_service.py",
-      "line": 189,
+      "line": 226,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -9306,7 +9342,7 @@
       "message": "Function 'db' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.db",
       "file": "issue_service.py",
-      "line": 193,
+      "line": 230,
       "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
     },
     {
@@ -9315,7 +9351,7 @@
       "message": "Function 'create' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.create",
       "file": "issue_service.py",
-      "line": 198,
+      "line": 235,
       "suggestion": "Add tests that reference 'create' (e.g., test_create or import it in a test file)"
     },
     {
@@ -9324,7 +9360,7 @@
       "message": "Function 'list_issues' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.list_issues",
       "file": "issue_service.py",
-      "line": 251,
+      "line": 288,
       "suggestion": "Add tests that reference 'list_issues' (e.g., test_list_issues or import it in a test file)"
     },
     {
@@ -9333,7 +9369,7 @@
       "message": "Function 'show' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.show",
       "file": "issue_service.py",
-      "line": 306,
+      "line": 348,
       "suggestion": "Add tests that reference 'show' (e.g., test_show or import it in a test file)"
     },
     {
@@ -9342,7 +9378,7 @@
       "message": "Function 'update' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.update",
       "file": "issue_service.py",
-      "line": 344,
+      "line": 386,
       "suggestion": "Add tests that reference 'update' (e.g., test_update or import it in a test file)"
     },
     {
@@ -9351,7 +9387,7 @@
       "message": "Function 'close' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.close",
       "file": "issue_service.py",
-      "line": 410,
+      "line": 452,
       "suggestion": "Add tests that reference 'close' (e.g., test_close or import it in a test file)"
     },
     {
@@ -9360,7 +9396,7 @@
       "message": "Function 'comment' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.comment",
       "file": "issue_service.py",
-      "line": 453,
+      "line": 495,
       "suggestion": "Add tests that reference 'comment' (e.g., test_comment or import it in a test file)"
     },
     {
@@ -9369,7 +9405,7 @@
       "message": "Function 'ready' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.ready",
       "file": "issue_service.py",
-      "line": 479,
+      "line": 521,
       "suggestion": "Add tests that reference 'ready' (e.g., test_ready or import it in a test file)"
     },
     {
@@ -9378,7 +9414,7 @@
       "message": "Function 'blocked' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.blocked",
       "file": "issue_service.py",
-      "line": 525,
+      "line": 567,
       "suggestion": "Add tests that reference 'blocked' (e.g., test_blocked or import it in a test file)"
     },
     {
@@ -9387,7 +9423,7 @@
       "message": "Function 'search' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.search",
       "file": "issue_service.py",
-      "line": 554,
+      "line": 596,
       "suggestion": "Add tests that reference 'search' (e.g., test_search or import it in a test file)"
     },
     {
@@ -9396,7 +9432,7 @@
       "message": "Function 'get_issue_service' has no corresponding test references",
       "node_id": "py:issue_service.get_issue_service",
       "file": "issue_service.py",
-      "line": 594,
+      "line": 636,
       "suggestion": "Add tests that reference 'get_issue_service' (e.g., test_get_issue_service or import it in a test file)"
     },
     {
@@ -17847,7 +17883,7 @@
       "message": "'_parse_iso_datetime' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._parse_iso_datetime",
       "file": "db_postgres.py",
-      "line": 32,
+      "line": 33,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17856,7 +17892,25 @@
       "message": "'_coerce_filter_value' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._coerce_filter_value",
       "file": "db_postgres.py",
-      "line": 48,
+      "line": 49,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_decode_query_value' is unreachable from any entrypoint or test",
+      "node_id": "py:db_postgres._decode_query_value",
+      "file": "db_postgres.py",
+      "line": 73,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_parse_postgrest_array_literal' is unreachable from any entrypoint or test",
+      "node_id": "py:db_postgres._parse_postgrest_array_literal",
+      "file": "db_postgres.py",
+      "line": 83,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17865,7 +17919,7 @@
       "message": "'_validate_identifier' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._validate_identifier",
       "file": "db_postgres.py",
-      "line": 72,
+      "line": 120,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17874,7 +17928,7 @@
       "message": "'_validate_select_clause' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._validate_select_clause",
       "file": "db_postgres.py",
-      "line": 80,
+      "line": 128,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17883,7 +17937,7 @@
       "message": "'_serialize_for_asyncpg' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._serialize_for_asyncpg",
       "file": "db_postgres.py",
-      "line": 92,
+      "line": 140,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17892,7 +17946,7 @@
       "message": "'DirectPostgresClient' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient",
       "file": "db_postgres.py",
-      "line": 112,
+      "line": 160,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17901,7 +17955,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.__init__",
       "file": "db_postgres.py",
-      "line": 119,
+      "line": 167,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17910,7 +17964,7 @@
       "message": "'_get_pool' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient._get_pool",
       "file": "db_postgres.py",
-      "line": 123,
+      "line": 171,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17919,7 +17973,7 @@
       "message": "'rpc' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.rpc",
       "file": "db_postgres.py",
-      "line": 132,
+      "line": 180,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17928,7 +17982,7 @@
       "message": "'query' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.query",
       "file": "db_postgres.py",
-      "line": 162,
+      "line": 210,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17937,7 +17991,7 @@
       "message": "'insert' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.insert",
       "file": "db_postgres.py",
-      "line": 251,
+      "line": 308,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17946,7 +18000,7 @@
       "message": "'update' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.update",
       "file": "db_postgres.py",
-      "line": 279,
+      "line": 336,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17955,7 +18009,7 @@
       "message": "'delete' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.delete",
       "file": "db_postgres.py",
-      "line": 321,
+      "line": 378,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17964,7 +18018,7 @@
       "message": "'close' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.close",
       "file": "db_postgres.py",
-      "line": 343,
+      "line": 400,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20148,10 +20202,28 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'_postgrest_array_literal' is unreachable from any entrypoint or test",
+      "node_id": "py:issue_service._postgrest_array_literal",
+      "file": "issue_service.py",
+      "line": 46,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_encode_query_value' is unreachable from any entrypoint or test",
+      "node_id": "py:issue_service._encode_query_value",
+      "file": "issue_service.py",
+      "line": 62,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'Issue' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Issue",
       "file": "issue_service.py",
-      "line": 47,
+      "line": 84,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20160,7 +20232,7 @@
       "message": "'from_row' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Issue.from_row",
       "file": "issue_service.py",
-      "line": 72,
+      "line": 109,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20169,7 +20241,7 @@
       "message": "'parse_dt' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Issue.from_row.parse_dt",
       "file": "issue_service.py",
-      "line": 73,
+      "line": 110,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20178,7 +20250,7 @@
       "message": "'to_dict' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Issue.to_dict",
       "file": "issue_service.py",
-      "line": 108,
+      "line": 145,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20187,7 +20259,7 @@
       "message": "'Comment' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Comment",
       "file": "issue_service.py",
-      "line": 154,
+      "line": 191,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20196,7 +20268,7 @@
       "message": "'from_row' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Comment.from_row",
       "file": "issue_service.py",
-      "line": 164,
+      "line": 201,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20205,7 +20277,7 @@
       "message": "'to_dict' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Comment.to_dict",
       "file": "issue_service.py",
-      "line": 176,
+      "line": 213,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20214,7 +20286,7 @@
       "message": "'IssueService' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService",
       "file": "issue_service.py",
-      "line": 186,
+      "line": 223,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20223,7 +20295,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.__init__",
       "file": "issue_service.py",
-      "line": 189,
+      "line": 226,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20232,7 +20304,7 @@
       "message": "'db' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.db",
       "file": "issue_service.py",
-      "line": 193,
+      "line": 230,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20241,7 +20313,7 @@
       "message": "'create' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.create",
       "file": "issue_service.py",
-      "line": 198,
+      "line": 235,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20250,7 +20322,7 @@
       "message": "'list_issues' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.list_issues",
       "file": "issue_service.py",
-      "line": 251,
+      "line": 288,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20259,7 +20331,7 @@
       "message": "'show' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.show",
       "file": "issue_service.py",
-      "line": 306,
+      "line": 348,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20268,7 +20340,7 @@
       "message": "'update' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.update",
       "file": "issue_service.py",
-      "line": 344,
+      "line": 386,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20277,7 +20349,7 @@
       "message": "'close' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.close",
       "file": "issue_service.py",
-      "line": 410,
+      "line": 452,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20286,7 +20358,7 @@
       "message": "'comment' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.comment",
       "file": "issue_service.py",
-      "line": 453,
+      "line": 495,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20295,7 +20367,7 @@
       "message": "'ready' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.ready",
       "file": "issue_service.py",
-      "line": 479,
+      "line": 521,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20304,7 +20376,7 @@
       "message": "'blocked' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.blocked",
       "file": "issue_service.py",
-      "line": 525,
+      "line": 567,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20313,7 +20385,7 @@
       "message": "'search' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.search",
       "file": "issue_service.py",
-      "line": 554,
+      "line": 596,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24728,12 +24800,12 @@
     }
   ],
   "summary": {
-    "total_findings": 2747,
+    "total_findings": 2755,
     "errors": 0,
-    "warnings": 2659,
+    "warnings": 2667,
     "info": 88,
     "entrypoints_checked": 96,
     "flows_with_coverage": 0,
-    "flows_without_coverage": 1338
+    "flows_without_coverage": 1342
   }
 }

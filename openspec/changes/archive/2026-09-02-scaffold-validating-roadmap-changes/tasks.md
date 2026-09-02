@@ -57,3 +57,17 @@
       `tests/plan-roadmap` and `tests/roadmap-runtime` to `testpaths` `[L]`
 - [ ] 8.2 Teach `/plan-feature` and `/iterate-on-plan` to recognize the `SCAFFOLD`
       marker and replace rather than append `[M]`
+
+## Migration Notes
+
+Open tasks migrated to GitHub issues on 2026-09-02 during post-merge cleanup of
+PR #350. The coordinator was unavailable (transport `none`), and this repository
+tracks follow-ups as GitHub issues rather than as follow-up OpenSpec proposals.
+
+- 8.1 → #459 (disambiguate the five flat `models.py` modules, then add the two
+  roadmap suites to `testpaths`)
+- 8.2 → #460 (teach `/plan-feature` and `/iterate-on-plan` to replace `SCAFFOLD`
+  blocks rather than append)
+
+Both were already scoped out of this change under "## 8. Follow-up (not in this
+change)"; the issues record them so archiving does not drop them.
