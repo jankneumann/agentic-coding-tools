@@ -1,13 +1,13 @@
 # Validation Report: implement-idempotent-queue-submission-and-outbox-ordering
 
-**Date**: 2026-09-01 22:03 EDT
-**Commit**: `e1931c15cb38a3196a80fb24b1dd5eca7f00bfb6`
-**Validated tree**: `d789715f83f70591b582d83205f6dc30f2206a52`
+**Date**: 2026-09-01 22:15 EDT
+**Commit**: `b0907df98c04af88f7c72cd5043823c533154844`
+**Validated tree**: `c368b09908bcce8bbfb9624396e16d241bc985f1`
 **Branch**: `openspec/implement-idempotent-queue-submission-and-outbox-ordering`
 
 ## Result
 
-**PASS WITH BASELINE WARNINGS** — The ri-08 validation blockers are fixed. Migration 035 applies atomically through both Docker initdb and the asyncpg runner, retry is idempotent, live projection behavior passes, context-impact metadata is complete, and smoke/DAST/HTTP E2E checks pass. Repository-wide architecture and legacy fresh-schema findings remain recorded as unrelated baseline warnings.
+**PASS WITH ADVISORIES** — All required phases pass at the validation-fix head. Fresh rootless Podman deployment, migration apply/retry, live PostgreSQL projection behavior, smoke, security coverage, HTTP E2E, contracts, traceability, and affected suites succeeded. Architecture freshness and unrelated fresh-schema/runtime bootstrap noise remain advisory baselines.
 
 ## Phase Results
 
@@ -15,7 +15,7 @@
 
 **Status**: pass
 
-Rootless Podman 4.9.3 started a fresh PostgreSQL 18.3 volume and coordinator API on isolated ports 55438 and 18088. PostgreSQL executed migration 035 as BEGIN → LOCK → preflight/DDL → COMMIT, and the API returned health 200.
+Rootless Podman 4.9.3 started a fresh PostgreSQL 18.3 volume and coordinator API on isolated ports 55439 and 18089. PostgreSQL initdb executed migration 035 as BEGIN → LOCK → preflight/DDL → COMMIT, and the API returned health 200.
 
 The real asyncpg runner independently applied only migration 035 in a disposable database, returned `[035_work_queue_projection.sql]`, then returned `[]` on immediate retry. The projection table, unique index, reconcile function, and schema-migrations record were all present.
 
@@ -29,7 +29,7 @@ The reusable live smoke suite passed 11/11: health/readiness, valid/invalid/miss
 
 **Status**: pass with warning
 
-OWASP ZAP baseline DAST completed against the live isolated API: 66 passive rules passed, zero failures, and one informational cacheability warning on public 404 root/robots responses. Preventive checks found no new Tier-3 dynamic execution, TLS bypass, hardcoded secret, or unparameterized SQL boundary. No dependency manifests changed, so dependency SCA was not repeated. The installed security skill omitted its referenced detailed checklist file; the embedded A01/A03 rules were applied.
+One bounded OWASP ZAP baseline attempt reached the live isolated API and completed passive coverage: 66 rules passed, zero failures, and one advisory cacheability warning on the public 404 root response. The wrapper exited 2 after scanning because the rootless container could not write its HTML/JSON report into the mounted temporary directory; the complete rule summary remained in the captured scanner log and no second attempt was made. Preventive checks found no new Tier-3 dynamic execution, TLS bypass, hardcoded secret, or unparameterized SQL boundary. No dependency manifests changed, so dependency SCA was not repeated. The installed security skill omitted its referenced detailed checklist file; embedded A01/A03 rules were applied.
 
 ## E2E Tests
 
@@ -51,18 +51,19 @@ Live HTTP projection flow passed: missing auth returned 401; keyed create return
 
 **Status**: pass for the affected ri-08 surface
 
-- Affected coordinator: 158 passed.
+- Coordinator unit/transport surface: 142 passed.
+- Migration runner: 16 passed.
 - Live PostgreSQL projection: 4 passed, 0 skipped, including concurrent canonical replay and reconciliation/cancellation.
 - Bridge and autopilot: 460 passed, 2 marker/deprecation warnings.
 - Smoke: 11 passed.
 
-The full 16-test legacy PostgreSQL module ran with zero skips but 10 unrelated claim-path failures from ambiguous pre-existing `coordinator_notify` overloads. Two projection failures exposed fixture leakage from the new head table; adding that table to cleanup resolved the projection class to 4/4. The prior full-suite import-order and baseline failures remain investigation items.
+The previously recorded repository-wide suite failures remain outside this focused rerun. No affected ri-08 test failed or skipped.
 
 ### Architecture
 
 **Status**: DEGRADED
 
-Architecture freshness remains unavailable because root configuration targets absent `src`, `database/migrations`, and `web` paths. This pre-existing tooling configuration was not expanded into ri-08.
+Architecture mode is advisory. Freshness remains unavailable because root configuration targets absent `src`, `database/migrations`, and `web` paths; refresh stopped before promotion and left committed artifacts untouched. Structural linters reported the same 14 file-size advisories and no new blocking architecture finding.
 
 ### Package Evidence
 
@@ -80,7 +81,7 @@ No migration-035 or projection endpoint error remains. Fresh-schema logs still c
 
 **Status**: skipped
 
-No PR existed during this validation-fix round.
+No pull request or workflow run exists yet for the feature branch.
 
 ## Resolved Findings
 
@@ -89,3 +90,10 @@ No PR existed during this validation-fix round.
 3. All live PostgreSQL projection tests run without skips and pass.
 4. Context-impact metadata declares every inferred surface.
 5. Live smoke, ZAP baseline DAST, and HTTP projection E2E checks pass.
+
+## Residual Advisories
+
+1. Correct architecture source-root configuration and refresh the graph.
+2. Repair rootless ZAP report-volume permissions so future runs retain JSON/HTML artifacts.
+3. Address legacy fresh-schema migration-runner and `audit_log.delegated_from` bootstrap noise separately.
+4. Repair repository-wide test isolation failures recorded by the first validation run.
