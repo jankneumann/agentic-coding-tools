@@ -5,6 +5,11 @@
 
 BEGIN;
 
+-- Migration 025 added a seven-argument replacement with two defaults without
+-- removing migration 015's five-argument overload. Calls with five arguments
+-- are otherwise ambiguous once both migrations have been applied.
+DROP FUNCTION IF EXISTS coordinator_notify(TEXT,TEXT,TEXT,TEXT,TEXT);
+
 LOCK TABLE work_queue IN SHARE ROW EXCLUSIVE MODE;
 
 DO $migration$
@@ -44,14 +49,14 @@ BEGIN
 END
 $migration$;
 
-CREATE TABLE work_queue_projection_heads (
+CREATE TABLE IF NOT EXISTS work_queue_projection_heads (
   change_id TEXT PRIMARY KEY,
   phase TEXT NOT NULL,
   transition_sequence INTEGER NOT NULL CHECK (transition_sequence >= 0),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX work_queue_projection_key_uidx
+CREATE UNIQUE INDEX IF NOT EXISTS work_queue_projection_key_uidx
 ON work_queue ((input_data ->> 'change_id'),(input_data ->> 'phase'),
                (input_data ->> 'transition_sequence'))
 WHERE input_data ? 'change_id' AND input_data ? 'phase'

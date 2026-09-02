@@ -701,3 +701,43 @@ The SUBMIT_PR pre-publication audit caught contradictory derived state before an
 
 ### Context
 Created PR #457 against openspec/roadmap-roadmap-supervisor-orchestration at validated head b2fa3a14; merge authorization is pending and autopilot has not merged or archived.
+
+---
+
+## Phase: Validation Fix 4 (2026-09-02)
+
+**Agent**: codex | **Session**: pr-457-ci-remediation
+
+### Decisions
+1. **Record successful raw bootstrap with one final shared helper** — Docker init and CI execute SQL outside the Python runner; a lexically final success-only script now writes the exact filename/SHA-256 ledger that ensure_schema consumes.
+2. **Reject migration-specific uniqueness suppression** — Live inspection showed migration 019 can roll back while legacy profile drift remains, so falsely recording it as applied is unsafe; historical SQL remains unchanged and non-recorded failures propagate.
+3. **Remove only the obsolete notification overload in migration 035** — The five-argument overload from migration 015 conflicts with migration 025's defaulted seven-argument signature; idempotent 035 cleanup restores unambiguous lifecycle calls.
+
+### Alternatives Considered
+- Allowlist UniqueViolationError for historical migrations: rejected because a replay collision can roll back the migration while leaving semantically stale rows, so ledger state would lie about database state
+- Duplicate migration-ledger inserts in CI YAML: rejected because the Docker and CI bootstrap paths would drift; both now invoke the same tested helper
+
+### Capability Gaps Observed
+- **bootstrap_ledger_gap**: Raw SQL bootstrap applied migrations without recording the checksum ledger expected by the Python runtime, causing historical replay and signature drift. (skill: validate-feature, severity: high)
+
+### Completed Work
+- Added cwd-independent migration contract tests and fixed mypy narrowing/response typing.
+- Added RED-to-GREEN bootstrap ledger tests and executable 999_record_schema_migrations.sh.
+- Updated test-integration CI to fail fast through every SQL file, then invoke the shared ledger helper.
+- Proved fresh bootstrap records 38/38 exact checksums; ensure_schema apply and retry both return an empty list.
+- Proved migration 019 leaves zero legacy names, evaluator matches migration 026, the obsolete five-argument overload is absent, and projection/lifecycle live tests pass.
+- Tore down every isolated container, volume, network, and listener.
+
+### Next Steps
+- Commit and push the VAL_FIX package.
+- Apply the canonical fixed outcome, run canonical validation and independent validation review, then require all PR checks green before returning to the merge gate.
+
+### Relevant Files
+- `agent-coordinator/database/migrations/999_record_schema_migrations.sh` — Success-only raw bootstrap ledger writer
+- `agent-coordinator/database/migrations/035_work_queue_projection.sql` — Idempotent projection migration and obsolete overload cleanup
+- `.github/workflows/ci.yml` — Fail-fast integration bootstrap ordering
+- `agent-coordinator/tests/test_migrations.py` — Checksum, discovery, idempotence, and workflow-ordering regressions
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md` — Fresh PostgreSQL and CI-remediation evidence
+
+### Context
+Reproduced and fixed the required PR CI failures with TDD, then proved raw bootstrap and migration-runner convergence on a fresh PostgreSQL stack.

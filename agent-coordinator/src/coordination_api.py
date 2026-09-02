@@ -23,7 +23,7 @@ from fastapi.exception_handlers import (
     request_validation_exception_handler,
 )
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from .approval import get_approval_service
@@ -852,7 +852,7 @@ def create_coordination_api() -> FastAPI:
         )
 
     @app.exception_handler(HTTPException)
-    async def projection_http_problem_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    async def projection_http_problem_handler(request: Request, exc: HTTPException) -> Response:
         if request.url.path in {"/work/submit", "/work/reconcile"} and exc.status_code in {
             401,
             403,
