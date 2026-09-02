@@ -671,10 +671,12 @@ def try_submit_work(
     input_data: dict[str, Any] | None = None,
     priority: int = 5,
     depends_on: list[str] | None = None,
+    projection_key: dict[str, Any] | None = None,
     http_url: str | None = None,
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """Submit queue work when queue capability is available."""
+    _validate_projection_payload(projection_key, input_data)
     return _execute_single_endpoint_operation(
         operation="try_submit_work",
         capability_flag="CAN_QUEUE_WORK",
@@ -686,11 +688,35 @@ def try_submit_work(
             "input_data": input_data,
             "priority": priority,
             "depends_on": depends_on,
+            "projection_key": projection_key,
         },
         http_url=http_url,
         api_key=api_key,
     )
 
+
+_PROJECTION_IDENTITY_FIELDS = frozenset({"change_id", "phase", "transition_sequence"})
+
+def _validate_projection_payload(projection_key: dict[str, Any] | None, input_data: dict[str, Any] | None) -> None:
+    """Reject ambiguous projection identity before a coordinator request."""
+    if projection_key is not None and set(projection_key) != _PROJECTION_IDENTITY_FIELDS:
+        raise ValueError("projection_key must contain change_id, phase, transition_sequence")
+    duplicated = _PROJECTION_IDENTITY_FIELDS.intersection(input_data or {})
+    if duplicated:
+        names = ", ".join(sorted(duplicated))
+        raise ValueError(f"input_data contains reserved projection identity: {names}")
+
+def try_reconcile_work_projection(*, projection_key: dict[str, Any], task_type: str, task_description: str, input_data: dict[str, Any] | None = None, priority: int = 5, agent_requirements: dict[str, Any] | None = None, http_url: str | None = None, api_key: str | None = None) -> dict[str, Any]:
+    """Reconcile a queue projection without raising transport failures."""
+    _validate_projection_payload(projection_key, input_data)
+    return _execute_single_endpoint_operation(
+        operation="try_reconcile_work_projection", capability_flag="CAN_QUEUE_WORK",
+        method="POST", path="/work/reconcile",
+        payload={"projection_key": projection_key, "task_type": task_type,
+                 "task_description": task_description, "input_data": input_data,
+                 "priority": priority, "agent_requirements": agent_requirements},
+        http_url=http_url, api_key=api_key,
+    )
 
 def try_get_work(
     *,
