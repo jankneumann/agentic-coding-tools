@@ -273,3 +273,31 @@ Reviewed the complete queue-projection implementation and fixed five contract de
 ### Context
 Fixed all three blocking implementation-review contract findings with RED-to-GREEN HTTP and service tests. Strict request validation, UUID boundary parsing, and RFC 7807 policy/guardrail denial mappings now match the frozen OpenAPI contract.
 
+---
+
+## Phase: Implementation Review 2 (2026-09-02)
+
+**Agent**: codex | **Session**: impl-review-round-2
+
+### Decisions
+1. **Outcome is not_converged** — Antigravity timed out at 120 seconds, quorum is 1/2, and one blocking HTTP policy-status defect remains.
+
+### Capability Gaps Observed
+- **vendor_timeout**: Antigravity produced no findings artifact. (skill: parallel-review-implementation, severity: medium)
+- **postgres_unavailable**: PostgreSQL integration behavior was not executed. (skill: parallel-review-implementation, severity: low)
+
+### Completed Work
+- Confirmed strict Pydantic extra-field and UUID dependency fixes.
+- Found realistic `write_denied: trust_level=1 < 2` reasons map to 422 instead of 403.
+- Recorded primary findings, manifest, and degraded consensus.
+
+### Next Steps
+- Add a RED realistic prefixed-policy-reason regression, normalize or categorize policy denials, and repeat review.
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/implementation/round-2/review-findings-implementation.json` — primary findings
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/implementation/round-2/consensus-implementation.json` — degraded quorum evidence
+
+### Context
+Two fixes are sound, but open-ended service policy reasons still fall through the exact-token HTTP mapper.
+
