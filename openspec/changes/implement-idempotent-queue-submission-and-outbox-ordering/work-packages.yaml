@@ -44,7 +44,7 @@ packages:
       read_allow:
         - '**'
     context_impact:
-      surfaces: [apis]
+      surfaces: [apis, documentation, semantic_code]
     worktree:
       name: ri08-wp-contracts
       mode: isolated
@@ -216,7 +216,7 @@ packages:
       read_allow:
         - '**'
     context_impact:
-      surfaces: [documentation, capabilities]
+      surfaces: [apis, capabilities, documentation, semantic_code]
     worktree:
       name: ri08-wp-integration
       mode: isolated

@@ -283,6 +283,14 @@ class TestWorkQueueProjectionMigrationContract:
         assert "reconciliation_required" in sql
         assert "cancelled_by_projection_reconcile" in sql
         assert "ON CONFLICT ((input_data ->>" in sql
+        assert "OR (CASE WHEN" in sql
+        assert "ELSE FALSE END)" in sql
+        statements = [line.strip() for line in sql.splitlines()]
+        assert "BEGIN;" in statements
+        assert "COMMIT;" in statements
+        assert statements.index("BEGIN;") < statements.index(
+            "LOCK TABLE work_queue IN SHARE ROW EXCLUSIVE MODE;"
+        ) < statements.index("COMMIT;")
 
     @pytest.mark.asyncio
     async def test_projection_submit_replay_returns_one_canonical_task(self, pg_work_queue):

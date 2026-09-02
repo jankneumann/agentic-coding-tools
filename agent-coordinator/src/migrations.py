@@ -52,6 +52,27 @@ def _checksum(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()
 
 
+def _unwrap_explicit_transaction(content: str) -> str:
+    """Remove file-owned boundaries when the runner owns the transaction.
+
+    Docker initdb executes migration files through psql, where LOCK TABLE
+    requires an explicit transaction block.  The runtime runner already wraps
+    the file and its schema_migrations record atomically, so matching standalone
+    BEGIN/COMMIT lines are removed before asyncpg executes the body.
+    """
+    lines = content.splitlines(keepends=True)
+    statements = [
+        (index, line.strip().upper())
+        for index, line in enumerate(lines)
+        if line.strip() and not line.lstrip().startswith("--")
+    ]
+    if len(statements) >= 2 and statements[0][1] == "BEGIN;" and statements[-1][1] == "COMMIT;":
+        for index in (statements[0][0], statements[-1][0]):
+            lines[index] = "\n" if lines[index].endswith("\n") else ""
+        return "".join(lines)
+    return content
+
+
 async def run_migrations(
     dsn: str,
     *,
@@ -107,7 +128,7 @@ async def run_migrations(
             logger.info("Applying migration: %s", filename)
             try:
                 async with conn.transaction():
-                    await conn.execute(content)
+                    await conn.execute(_unwrap_explicit_transaction(content))
                     await conn.execute(
                         "INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2)",
                         filename,
@@ -115,7 +136,14 @@ async def run_migrations(
                     )
                 newly_applied.append(filename)
             except Exception as exc:  # noqa: BLE001
-                if bootstrapping:
+                if bootstrapping and isinstance(
+                    exc,
+                    (
+                        asyncpg.DuplicateTableError,
+                        asyncpg.DuplicateObjectError,
+                        asyncpg.DuplicateColumnError,
+                    ),
+                ):
                     # First run with an empty tracking table — the database was
                     # likely bootstrapped by Docker initdb.  Record the migration
                     # as already applied so future runs skip it.

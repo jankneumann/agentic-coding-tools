@@ -27,6 +27,7 @@ POSTGRES_DSN = os.environ.get(
 # audit_log is immutable (has a trigger preventing DELETE) — skip it.
 _TABLES = [
     "handoff_documents",
+    "work_queue_projection_heads",
     "memory_episodic",
     "work_queue",
     "file_locks",

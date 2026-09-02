@@ -541,6 +541,10 @@ def test_projection_migration_declares_full_head_and_atomic_paths():
         "reconciliation_required",
         "cancelled_by_projection_reconcile",
         "ON CONFLICT ((input_data ->>",
+        "BEGIN;",
+        "COMMIT;",
+        "OR (CASE WHEN",
+        "ELSE FALSE END)",
     ):
         assert token in sql
 
