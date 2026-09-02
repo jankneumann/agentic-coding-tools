@@ -305,6 +305,56 @@ class TestWorkQueueService:
         assert result.created is False
         assert result.reason == "guardrail_denied"
 
+    @pytest.mark.asyncio
+    async def test_reconcile_blocked_by_guardrails_before_mutating_rpc(self, monkeypatch):
+        """Reconciliation must not be a way around submit()'s guardrail screen.
+
+        ``reconcile_projection`` cancels active rows for the projection key and
+        inserts a canonical task, so content ordinary ``submit()`` would reject must
+        be rejected here too — and before the mutating RPC, not after it.
+        """
+        from src.guardrails import GuardrailResult
+
+        class AllowPolicyEngine:
+            async def check_operation(self, **_kwargs):
+                return PolicyDecision.allow()
+
+        class DenyGuardrails:
+            async def check_operation(self, **_kwargs):
+                return GuardrailResult(safe=False)
+
+        class FailDB:
+            async def rpc(self, *_args, **_kwargs):
+                raise AssertionError("DB RPC should not be called when denied")
+
+        async def resolve_trust(*_args, **_kwargs):
+            return "default"
+
+        monkeypatch.setattr(
+            "src.policy_engine.get_policy_engine",
+            lambda: AllowPolicyEngine(),
+        )
+        monkeypatch.setattr(
+            "src.guardrails.get_guardrails_service",
+            lambda: DenyGuardrails(),
+        )
+        service = WorkQueueService(FailDB())
+        monkeypatch.setattr(service, "_resolve_trust_level", resolve_trust)
+
+        result = await service.reconcile_projection(
+            projection_key={
+                "change_id": "guarded-change",
+                "phase": "IMPLEMENT",
+                "transition_sequence": 3,
+            },
+            task_type="test",
+            description="blocked",
+        )
+
+        assert result.success is False
+        assert result.created is False
+        assert result.reason == "guardrail_denied"
+
 
 class TestTaskDataClasses:
     """Tests for Task and result dataclasses."""
