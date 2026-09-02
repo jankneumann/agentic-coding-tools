@@ -32,6 +32,60 @@ environment.
 - THEN it SHALL exclude that change from the corpus with a recorded exclusion
   reason rather than emitting a judge-only task by default
 
+### Requirement: Deterministic Change-Level Task Type
+
+The converter SHALL assign each converted task exactly one `task_type` from the
+`package_kind` vocabulary by a deterministic reduction over the source change's
+declared work packages, and SHALL record on every emitted trial both how that value
+was derived and the per-kind weights the reduction consumed. Out-of-vocabulary
+`package_kind` values SHALL NOT be remapped onto vocabulary values.
+
+#### Scenario: single declared kind
+
+- WHEN every in-vocabulary `package_kind` declared by the source change's
+  `work-packages.yaml` is the same value
+- THEN `task_type` SHALL be that value and the trial SHALL carry
+  `task_type_source: declared`
+
+#### Scenario: multiple declared kinds reduce by weight
+
+- WHEN the source change declares two or more distinct in-vocabulary `package_kind`
+  values
+- THEN `task_type` SHALL be the kind with the greatest summed `metadata.loc_estimate`
+  across the declaring packages, ties broken by the fixed precedence
+  `algorithm > data_model > migration > integration > crud > config`
+- AND the trial SHALL carry `task_type_source: declared_dominant` and a
+  `task_type_mix` of the normalized per-kind weights
+
+#### Scenario: missing size estimates fall back to package count
+
+- WHEN no package in the source change declares `metadata.loc_estimate`
+- THEN each declaring package SHALL contribute equal weight so the reduction yields a
+  package-count plurality rather than failing
+
+#### Scenario: legacy kinds are excluded, not remapped
+
+- WHEN a source change declares a `package_kind` outside the controlled vocabulary
+  (for example the legacy value `feature`)
+- THEN that package SHALL contribute no weight to the reduction, the value SHALL be
+  recorded on the trial as an excluded legacy kind, and it SHALL NOT be rewritten to
+  any vocabulary value
+
+#### Scenario: no usable declaration falls through to inference
+
+- WHEN the source change has no `work-packages.yaml`, declares no `package_kind`, or
+  every kind it declares is out of vocabulary
+- THEN `task_type` SHALL be inferred deterministically from the change's delta-spec
+  capability and the trial SHALL carry `task_type_source: inferred`
+- AND re-running the inference on the same change SHALL yield the same value
+
+#### Scenario: unmappable capability is excluded, not guessed
+
+- WHEN inference cannot map a change's delta-spec capability to exactly one
+  vocabulary value
+- THEN the change SHALL be excluded from the corpus with a recorded exclusion reason
+  rather than assigned an arbitrary `task_type`
+
 ### Requirement: Sealed Benchmark Corpus Manifest
 
 The system SHALL partition the converted archive corpus into a development split and
@@ -84,15 +138,40 @@ and cost fields.
 ### Requirement: Sweep Budget Enforcement
 
 The system SHALL enforce a per-job USD spend cap for metered vendors and a per-vendor
-trial-rate throttle for subscription vendors, refusing new trials that would exceed
-either bound.
+trial-rate throttle for subscription vendors, refusing to *start* any trial that could
+carry the job past either bound. The metered cap SHALL be enforced against a
+conservative pre-launch cost estimate for the candidate trial plus the estimates of
+all metered trials still in flight, not against completed spend alone, so that the
+cap bounds the job's worst case rather than its already-realized cost.
+
+#### Scenario: admission accounts for in-flight trials
+
+- WHEN the runner considers starting a metered trial
+- THEN it SHALL admit the trial only if completed spend plus the reserved estimates of
+  all in-flight metered trials plus a conservative upper-bound estimate for the
+  candidate trial is within the configured cap (default 50 USD)
+- AND the estimate SHALL be derived from the combo's per-token pricing and the trial's
+  configured maximum token budget with the configured safety factor applied
 
 #### Scenario: metered cap reached
 
-- WHEN accumulated OpenRouter cost within a sweep job reaches the configured cap
-  (default 50 USD)
+- WHEN admitting a metered trial would carry the job's reserved-plus-spent total past
+  the configured cap
 - THEN the runner SHALL start no further metered-vendor trials in that job and SHALL
-  record the cap event in the job summary
+  record the cap event in the job summary together with the spent, reserved, and
+  estimated amounts that produced the refusal
+
+#### Scenario: reservation released on completion
+
+- WHEN a metered trial completes
+- THEN its reservation SHALL be released and its actual cost SHALL be added to the
+  job's completed spend, freeing headroom for subsequent admissions
+
+#### Scenario: estimate overrun is recorded
+
+- WHEN a completed metered trial's actual cost exceeds the estimate reserved for it
+- THEN the runner SHALL record a cost-estimate-overrun event in the job summary rather
+  than silently absorbing the difference
 
 #### Scenario: subscription throttle
 

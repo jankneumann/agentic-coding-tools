@@ -45,17 +45,23 @@ data plane and its first real prior source.
   - **Prior importer**: Harbor trial results → `model_catalog.benchmark_prior` /
     `model_posteriors`, keyed on `(vendor, model, thinking, task_type)` with
     provenance `harbor-replay` so archive-replay priors are distinguishable from the
-    router's planned OpenRouter/Artificial-Analysis prior sources.
+    router's planned OpenRouter/Artificial-Analysis prior sources. Every job's
+    contribution is recorded in a `model_posterior_imports` ledger and posteriors are
+    aggregates over it, so re-importing any job in any order is idempotent (D3).
 - **Migration `035_model_routing.sql`** lands here (schema from
   `add-adaptive-model-router`'s `contracts/db/schema.sql` plus provenance and
-  thinking-level columns), unblocking that change as a side effect.
+  thinking-level columns, plus the `model_posterior_imports` ledger), unblocking that
+  change as a side effect.
 - **Corpus manifest**: regenerate ri-02's sealed dev/holdout split over the current
   114 archived changes using its declared method (holdout biased post-2026-05-01,
   checksummed, runner refuses holdout without an explicit decision-run flag).
 - **Feedback keying fix**: `model_routing/feedback.py` normalizers currently key on
   `vendor` alone, collapsing thinking tiers — the dimension that matters most (codex
   frontier/premium and all grok tiers differ *only* by thinking). Re-key to
-  `(vendor, model, thinking)` before any prior is fitted.
+  `(vendor, model, thinking)` before any prior is fitted. `resolver.py`'s
+  `CandidateInput`/`ScoredCandidate` gain `thinking` for the same reason: without it
+  the ranked result cannot say which thinking tier won, so the read-path below has
+  nothing to return (D8).
 - **Flagged read-path**: `resolve_for_phase` gains a `ROUTING_ADAPTIVE` mode
   (default off) that ranks candidates via `model_routing.resolver.score_and_rank()`
   using imported priors. Exploration (`exploration.choose()`) and live posterior
@@ -66,8 +72,10 @@ data plane and its first real prior source.
 **Budget model** (per discovery): claude/codex/grok/antigravity are
 subscription-based — their sweep cost is usage-limit headroom, not USD; `pi` via
 OpenRouter is the only USD-metered vendor. The pilot caps OpenRouter spend at
-**$50/job** (ledger-enforced) and throttles subscription vendors by quota-headroom
-policy. Pilot sweep: ~15–20 dev-split tasks across the full 5-vendor matrix;
+**$50/job**, enforced by reserving a conservative pre-launch cost estimate for each
+trial and admitting one only if spent + reserved + estimate stays within the cap — a
+check against completed spend alone would let in-flight trials overshoot it (D4) —
+and throttles subscription vendors by quota-headroom policy. Pilot sweep: ~15–20 dev-split tasks across the full 5-vendor matrix;
 imported priors carry small-n sample sizes that `blend_quality()`'s confidence
 weighting already discounts.
 
@@ -87,7 +95,7 @@ weighting already discounts.
 
 | Attribute | Metric | Target | Verifying phase |
 |---|---|---|---|
-| Budget safety | OpenRouter USD per sweep job | ≤ $50, refuse trials beyond cap | VALIDATE (ledger test) |
+| Budget safety | OpenRouter USD per sweep job | ≤ $50 including in-flight reservations; refuse admission beyond cap | VALIDATE (admission-control test) |
 | Corpus integrity | Holdout runs without decision flag | 0 (runner refuses) | VALIDATE |
 | Provenance | Prior rows without source+combo key | 0 (NOT NULL constraints) | VALIDATE (migration test) |
 | Reproducibility | Converter re-run on same archive entry | Byte-identical task dir (modulo timestamps) | IMPL_REVIEW |

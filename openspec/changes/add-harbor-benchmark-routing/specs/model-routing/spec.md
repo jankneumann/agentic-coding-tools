@@ -4,9 +4,10 @@
 
 ### Requirement: Model Routing Data Plane
 
-The coordinator database SHALL provide `model_catalog` and `model_posteriors` tables
-keyed to distinguish thinking levels, with mandatory provenance on every prior and
-posterior row.
+The coordinator database SHALL provide `model_catalog`, `model_posteriors`, and
+`model_posterior_imports` tables keyed to distinguish thinking levels, with mandatory
+provenance on every prior and posterior row and a durable per-job record of every
+contribution folded into a posterior.
 
 #### Scenario: migration applies
 
@@ -15,6 +16,13 @@ posterior row.
   endpoint_kind, benchmark_prior, and prior_source (NOT NULL when benchmark_prior is
   set), and `model_posteriors` SHALL exist keyed on (catalog_id, task_type, metric)
   with source and sample_size columns
+
+#### Scenario: import ledger is uniquely keyed per job
+
+- WHEN migration `035_model_routing.sql` is applied
+- THEN `model_posterior_imports` SHALL exist holding one contribution row per
+  (job_id, catalog_id, task_type, metric, source) under a UNIQUE constraint on that
+  tuple, carrying that job's own summed value and sample size
 
 #### Scenario: thinking-distinct candidates
 
@@ -45,6 +53,20 @@ stamping every written row with source `harbor-replay`.
 - WHEN the importer is re-run over the same job
 - THEN it SHALL NOT double-count trials (sample sizes and aggregates are unchanged)
 
+#### Scenario: posteriors are aggregates over the import ledger
+
+- WHEN the importer processes a job's trial records
+- THEN it SHALL write that job's contribution to `model_posterior_imports` keyed on
+  (job_id, catalog_id, task_type, metric, source), replacing any existing row for that
+  key rather than adding to it, and SHALL recompute each affected `model_posteriors`
+  row as the aggregate over its ledger rows
+
+#### Scenario: out-of-order re-import does not double-count
+
+- WHEN job A is imported, then job B, then job A is imported again
+- THEN the resulting posterior aggregates and sample sizes SHALL equal those from
+  importing A and B exactly once each, in either order
+
 ### Requirement: Combo-Keyed Feedback Normalization
 
 Feedback normalizers in `model_routing.feedback` SHALL key observations on the
@@ -61,6 +83,26 @@ composite (vendor, model, thinking) identity rather than vendor alone.
   record that names a vendor
 - THEN the emitted model_id SHALL resolve to the catalog's composite identity, not
   the bare vendor string
+
+### Requirement: Thinking-Distinct Candidate Ranking
+
+The `model_routing.resolver` scoring interface SHALL carry the thinking level through
+candidate construction and ranking, so that catalog rows sharing vendor and model but
+differing in thinking remain distinguishable in the ranked result.
+
+#### Scenario: candidate inputs carry thinking
+
+- WHEN a routing candidate is built from a `model_catalog` row
+- THEN the candidate SHALL carry that row's thinking value, defaulting to the empty
+  string for rows with no explicit thinking level
+
+#### Scenario: ranked results identify the winning thinking tier
+
+- WHEN `score_and_rank()` ranks two candidates that share vendor and model but differ
+  in thinking level
+- THEN they SHALL be ranked as separate candidates and the returned top result SHALL
+  identify which thinking level won, without the caller re-deriving it from the
+  catalog
 
 ### Requirement: Flagged Adaptive Phase Resolution
 

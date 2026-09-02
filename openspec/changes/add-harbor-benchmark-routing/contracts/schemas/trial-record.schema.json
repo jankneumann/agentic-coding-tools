@@ -4,41 +4,145 @@
   "title": "TrialRecord",
   "description": "One benchmark trial: a single combo attempt on one converted task. The importer's sole input.",
   "type": "object",
-  "required": ["job_id", "trial_id", "task_id", "task_type", "combo", "attempt", "reward", "graded_by", "duration_seconds", "tokens"],
+  "required": [
+    "job_id",
+    "trial_id",
+    "task_id",
+    "task_type",
+    "task_type_source",
+    "combo",
+    "attempt",
+    "reward",
+    "graded_by",
+    "duration_seconds",
+    "tokens"
+  ],
   "additionalProperties": false,
   "properties": {
-    "job_id": { "type": "string" },
-    "trial_id": { "type": "string" },
-    "task_id": { "type": "string", "description": "Archived change id, e.g. 2026-08-26-introduce-fitness-function-gates" },
+    "job_id": {
+      "type": "string"
+    },
+    "trial_id": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Archived change id, e.g. 2026-08-26-introduce-fitness-function-gates"
+    },
     "task_type": {
       "type": "string",
-      "enum": ["algorithm", "data_model", "crud", "config", "migration", "integration"],
-      "description": "package_kind vocabulary (design.md D7)"
+      "enum": [
+        "algorithm",
+        "data_model",
+        "crud",
+        "config",
+        "migration",
+        "integration"
+      ],
+      "description": "package_kind vocabulary, reduced to one change-level value (design.md D7)"
     },
-    "task_type_source": { "type": "string", "enum": ["declared", "inferred"] },
-    "combo": { "$ref": "combo.schema.json" },
-    "attempt": { "type": "integer", "minimum": 1 },
-    "reward": { "type": "number", "minimum": 0, "maximum": 1 },
-    "graded_by": { "type": "string", "enum": ["deterministic", "judge"] },
-    "success": { "type": "boolean", "description": "reward >= task success threshold" },
-    "duration_seconds": { "type": "number", "minimum": 0 },
+    "task_type_source": {
+      "type": "string",
+      "enum": [
+        "declared",
+        "declared_dominant",
+        "inferred"
+      ],
+      "description": "How task_type was derived (design.md D7). 'declared' = the change's packages declared exactly one in-vocabulary package_kind; 'declared_dominant' = reduced from two or more distinct kinds by weight; 'inferred' = no work-packages.yaml, or all declared kinds were legacy."
+    },
+    "combo": {
+      "$ref": "combo.schema.json"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "reward": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "graded_by": {
+      "type": "string",
+      "enum": [
+        "deterministic",
+        "judge"
+      ]
+    },
+    "success": {
+      "type": "boolean",
+      "description": "reward >= task success threshold"
+    },
+    "duration_seconds": {
+      "type": "number",
+      "minimum": 0
+    },
     "tokens": {
       "type": "object",
-      "required": ["input", "output"],
+      "required": [
+        "input",
+        "output"
+      ],
       "additionalProperties": false,
       "properties": {
-        "input": { "type": "integer", "minimum": 0 },
-        "output": { "type": "integer", "minimum": 0 },
-        "cache_read": { "type": "integer", "minimum": 0 },
-        "cache_creation": { "type": "integer", "minimum": 0 }
+        "input": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_read": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_creation": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "cost_usd": {
-      "type": ["number", "null"],
+      "type": [
+        "number",
+        "null"
+      ],
       "description": "Actual USD for metered vendors; null for subscription vendors (design.md D4)"
     },
-    "split": { "type": "string", "enum": ["dev", "holdout"] },
-    "decision_run": { "type": "boolean", "description": "true only when holdout was explicitly unlocked" },
-    "trajectory_ref": { "type": "string", "description": "Path/URI of the Harbor ATIF trajectory for this trial" }
+    "split": {
+      "type": "string",
+      "enum": [
+        "dev",
+        "holdout"
+      ]
+    },
+    "decision_run": {
+      "type": "boolean",
+      "description": "true only when holdout was explicitly unlocked"
+    },
+    "trajectory_ref": {
+      "type": "string",
+      "description": "Path/URI of the Harbor ATIF trajectory for this trial"
+    },
+    "task_type_mix": {
+      "type": "object",
+      "description": "Normalized per-kind weights the D7 reduction consumed, so a posterior built on a thin plurality is distinguishable from one built on an unambiguous label. Present whenever task_type_source is 'declared' or 'declared_dominant'.",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(algorithm|data_model|crud|config|migration|integration)$": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "task_type_legacy_kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Out-of-vocabulary package_kind values seen on the source change and excluded from the weighting (e.g. the legacy 'feature'). Empty or absent when none."
+    }
   }
 }
