@@ -397,3 +397,36 @@ Final maximum implementation-review round converged: primary Codex and Antigravi
 ### Context
 Validation failed: fresh PostgreSQL deployment aborts migration 035 because LOCK TABLE is outside a transaction. Static contracts and affected unit suites passed, but required live smoke, security, and E2E checks could not run; context-impact metadata also failed.
 
+---
+
+## Phase: Validation Fix 1 (2026-09-02)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Normalize explicit migration boundaries inside the runner** — psql needs BEGIN and COMMIT for LOCK TABLE while asyncpg must retain ownership of the atomic migration and tracking transaction
+
+### Capability Gaps Observed
+- **architecture_config_error**: Architecture refresh roots do not match this repository layout. (skill: validate-feature, severity: medium)
+- **legacy_postgres_schema_drift**: Fresh schema retains coordinator_notify overload and audit delegated_from baseline errors outside ri-08. (skill: validate-feature, severity: medium)
+
+### Completed Work
+- fresh Podman deploy
+- migration apply and retry
+- live PostgreSQL projection tests
+- smoke
+- ZAP baseline DAST
+- HTTP E2E
+- package and spec gates
+
+### Next Steps
+- Resume autopilot VAL_REVIEW
+
+### Relevant Files
+- `agent-coordinator/database/migrations/035_work_queue_projection.sql` — Atomic psql migration
+- `agent-coordinator/src/migrations.py` — Runner transaction normalization
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md` — Validation-fix evidence
+
+### Context
+Resolved the migration 035 fresh-deploy blocker and work-package context declarations. Fresh rootless Podman, asyncpg apply and retry, live PostgreSQL projection, smoke, ZAP baseline, and HTTP E2E all passed; unrelated architecture and legacy fresh-schema warnings remain documented.
+
