@@ -135,9 +135,7 @@ class ClaimResult:
     def from_dict(cls, data: dict[str, Any]) -> "ClaimResult":
         deadline = None
         if data.get("deadline"):
-            deadline = datetime.fromisoformat(
-                str(data["deadline"]).replace("Z", "+00:00")
-            )
+            deadline = datetime.fromisoformat(str(data["deadline"]).replace("Z", "+00:00"))
 
         task_id = None
         if data.get("task_id"):
@@ -346,9 +344,7 @@ class WorkQueueService:
         resolved_agent_id = agent_id or config.agent.agent_id
         resolved_agent_type = agent_type or config.agent.agent_type
 
-        claim_duration_hist, wait_time_hist, _, _, guardrail_counter = (
-            _ensure_instruments()
-        )
+        claim_duration_hist, wait_time_hist, _, _, guardrail_counter = _ensure_instruments()
 
         with start_span("queue.claim", {"agent_id": resolved_agent_id}):
             from .policy_engine import get_policy_engine
@@ -400,9 +396,7 @@ class WorkQueueService:
                 # claiming agent's ID so the RPC can skip tasks where
                 # input_data->>'submitted_by' matches the claimant.
                 exclude_submitted_by: str | None = None
-                if task_types and any(
-                    t in ("evaluate", "review") for t in task_types
-                ):
+                if task_types and any(t in ("evaluate", "review") for t in task_types):
                     exclude_submitted_by = resolved_agent_id
 
                 result = await self.db.rpc(
@@ -450,9 +444,7 @@ class WorkQueueService:
             if claim_result.success and result.get("created_at"):
                 try:
                     if wait_time_hist is not None:
-                        created_at_str = str(result["created_at"]).replace(
-                            "Z", "+00:00"
-                        )
+                        created_at_str = str(result["created_at"]).replace("Z", "+00:00")
                         created_at = datetime.fromisoformat(created_at_str)
                         now = datetime.now(UTC)
                         wait_ms = (now - created_at).total_seconds() * 1000
@@ -485,21 +477,13 @@ class WorkQueueService:
                             trust_level=trust_level,
                         )
                         if not check.safe:
-                            patterns = [
-                                v.pattern_name
-                                for v in check.violations
-                                if v.blocked
-                            ]
+                            patterns = [v.pattern_name for v in check.violations if v.blocked]
                             # Record guardrail block counter
                             try:
                                 if guardrail_counter is not None:
                                     guardrail_counter.add(
                                         1,
-                                        {
-                                            "pattern": patterns[0]
-                                            if patterns
-                                            else "unknown"
-                                        },
+                                        {"pattern": patterns[0] if patterns else "unknown"},
                                     )
                             except Exception:
                                 logger.debug(
@@ -510,16 +494,11 @@ class WorkQueueService:
                             # stuck in "claimed" with no agent to work it.
                             if claim_result.task_id:
                                 try:
-                                    msg = (
-                                        "Blocked by guardrails: "
-                                        f"{', '.join(patterns)}"
-                                    )
+                                    msg = f"Blocked by guardrails: {', '.join(patterns)}"
                                     await self.db.rpc(
                                         "complete_task",
                                         {
-                                            "p_task_id": str(
-                                                claim_result.task_id
-                                            ),
+                                            "p_task_id": str(claim_result.task_id),
                                             "p_agent_id": resolved_agent_id,
                                             "p_success": False,
                                             "p_result": None,
@@ -534,10 +513,7 @@ class WorkQueueService:
                                     )
                             return ClaimResult(
                                 success=False,
-                                reason=(
-                                    "destructive_operation_blocked: "
-                                    f"{', '.join(patterns)}"
-                                ),
+                                reason=(f"destructive_operation_blocked: {', '.join(patterns)}"),
                             )
                 except TrustResolutionError:
                     # Must not land in the blanket handler below: swallowing it
@@ -546,20 +522,14 @@ class WorkQueueService:
                     # _resolve_trust_level documents as unacceptable (#408).
                     raise
                 except Exception:
-                    logger.error(
-                        "Guardrails check failed during claim", exc_info=True
-                    )
+                    logger.error("Guardrails check failed during claim", exc_info=True)
 
             try:
                 await get_audit_service().log_operation(
                     agent_id=resolved_agent_id,
                     operation="claim_task",
                     parameters={"task_types": task_types},
-                    result={
-                        "task_id": str(claim_result.task_id)
-                        if claim_result.task_id
-                        else None
-                    },
+                    result={"task_id": str(claim_result.task_id) if claim_result.task_id else None},
                     success=claim_result.success,
                 )
             except Exception:
@@ -633,17 +603,12 @@ class WorkQueueService:
                         trust_level=trust_level,
                     )
                     if not check.safe:
-                        patterns = [
-                            v.pattern_name for v in check.violations if v.blocked
-                        ]
+                        patterns = [v.pattern_name for v in check.violations if v.blocked]
                         return CompleteResult(
                             success=False,
                             status="blocked",
                             task_id=task_id,
-                            reason=(
-                                "destructive_operation_blocked: "
-                                f"{', '.join(patterns)}"
-                            ),
+                            reason=(f"destructive_operation_blocked: {', '.join(patterns)}"),
                         )
                 except TrustResolutionError:
                     # Must not land in the blanket handler below: swallowing it
@@ -652,9 +617,7 @@ class WorkQueueService:
                     # _resolve_trust_level documents as unacceptable (#408).
                     raise
                 except Exception:
-                    logger.error(
-                        "Guardrails check failed during complete", exc_info=True
-                    )
+                    logger.error("Guardrails check failed during complete", exc_info=True)
 
             # Look up the task for claimed_at to compute task duration
             task_type_label = "unknown"
@@ -665,9 +628,7 @@ class WorkQueueService:
                     task_type_label = task_obj.task_type
                     claimed_at_snapshot = task_obj.claimed_at
             except Exception:
-                logger.debug(
-                    "Failed to fetch task for duration metric", exc_info=True
-                )
+                logger.debug("Failed to fetch task for duration metric", exc_info=True)
 
             result_data = await self.db.rpc(
                 "complete_task",
@@ -703,9 +664,7 @@ class WorkQueueService:
                             },
                         )
                 except Exception:
-                    logger.debug(
-                        "Failed to record task duration metric", exc_info=True
-                    )
+                    logger.debug("Failed to record task duration metric", exc_info=True)
 
             try:
                 await get_audit_service().log_operation(
@@ -718,9 +677,7 @@ class WorkQueueService:
                     success=complete_result.success,
                 )
             except Exception:
-                logger.warning(
-                    "Audit log failed for complete_task", exc_info=True
-                )
+                logger.warning("Audit log failed for complete_task", exc_info=True)
 
             return complete_result
 
@@ -752,12 +709,12 @@ class WorkQueueService:
             SubmitResult with the new task ID
         """
         parsed_projection = None
+        if input_data and _RESERVED_PROJECTION_KEYS.intersection(input_data):
+            return SubmitResult(success=False, created=False, reason="reserved_projection_key")
         if projection_key is not None:
             parsed_projection = ProjectionKey.parse(projection_key)
             if parsed_projection is None:
                 return SubmitResult(success=False, created=False, reason="invalid_projection_key")
-            if input_data and _RESERVED_PROJECTION_KEYS.intersection(input_data):
-                return SubmitResult(success=False, created=False, reason="reserved_projection_key")
             input_data = {**(input_data or {}), **parsed_projection.as_input_data()}
 
         config = get_config()
@@ -882,6 +839,26 @@ class WorkQueueService:
             return ReconcileResult(success=False, created=False, reason="invalid_projection_key")
         if input_data and _RESERVED_PROJECTION_KEYS.intersection(input_data):
             return ReconcileResult(success=False, created=False, reason="reserved_projection_key")
+        config = get_config()
+        from .policy_engine import get_policy_engine
+
+        decision = await get_policy_engine().check_operation(
+            agent_id=config.agent.agent_id,
+            agent_type=config.agent.agent_type,
+            operation="submit_work",
+            context={
+                "mode": "reconcile",
+                "task_type": task_type,
+                "priority": priority,
+            },
+        )
+        if not decision.allowed:
+            return ReconcileResult(
+                success=False,
+                created=False,
+                reason=decision.reason or "operation_not_permitted",
+            )
+
         payload = {**(input_data or {}), **key.as_input_data()}
         import json as _json
 

@@ -78,10 +78,10 @@ def test_reconcile_derives_payload_and_never_raises_transport_failure(monkeypatc
 @pytest.mark.parametrize("field", ["change_id", "phase", "transition_sequence"])
 def test_reserved_identity_cannot_be_duplicated_in_input_data(field: str) -> None:
     bridge = _load_bridge()
-    with pytest.raises(ValueError, match="reserved projection identity"):
-        bridge.try_reconcile_work_projection(
-            projection_key=_key(),
-            task_type="autopilot-phase",
-            task_description="repair",
-            input_data={field: "duplicate"},
-        )
+    result = bridge.try_reconcile_work_projection(
+        projection_key=_key(),
+        task_type="autopilot-phase",
+        task_description="repair",
+        input_data={field: "duplicate"},
+    )
+    assert result == {"status": "failed", "reason": "reserved_projection_key"}

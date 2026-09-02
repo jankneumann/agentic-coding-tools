@@ -40,12 +40,12 @@ def _load_bridge():
 )
 def test_invalid_projection_key_is_rejected_before_transport(key) -> None:
     bridge = _load_bridge()
-    with pytest.raises(ValueError, match="projection_key"):
-        bridge.try_submit_work(
-            task_type="autopilot-phase",
-            task_description="project",
-            projection_key=key,
-        )
+    result = bridge.try_submit_work(
+        task_type="autopilot-phase",
+        task_description="project",
+        projection_key=key,
+    )
+    assert result == {"status": "failed", "reason": "invalid_projection_key"}
 
 
 def test_unkeyed_submit_omits_projection_key_for_legacy_contract(monkeypatch) -> None:
