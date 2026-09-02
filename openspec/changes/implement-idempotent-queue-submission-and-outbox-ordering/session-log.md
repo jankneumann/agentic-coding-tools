@@ -637,3 +637,34 @@ Validation remained passing after the no-op quorum-loss fix. No product code or 
 ### Context
 Final validation review converged with real 2/2 distinct-vendor quorum. Codex and Antigravity independently confirmed the scoped evidence checks with zero blockers, disagreements, or unconfirmed findings.
 
+---
+
+## Phase: Submit PR (2026-09-02)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Repair derived loop summaries before publication** — The canonical apply-outcome path recorded handoffs and transitions but did not refresh findings_trend or blocking_findings, leaving a resolved plan blocker in the otherwise converged lifecycle state. Rebuilt the trend exclusively from the nine committed consensus summaries and cleared blockers only after final PLAN, IMPL, and VAL reviews each recorded real quorum with zero blocking findings and disagreements.
+2. **Reuse the user's explicit PR authorization** — Recorded the existing create-PR request through the pr_creation gate and kept the target base fixed to openspec/roadmap-roadmap-supervisor-orchestration.
+
+### Capability Gaps Observed
+- **state_refresh_defect**: apply-outcome does not refresh review-derived findings_trend or blocking_findings, so trusted handoff transitions can leave stale review summaries in loop-state.json. (skill: autopilot, severity: high)
+
+### Completed Work
+- Reconciled findings_trend to committed consensus totals: PLAN 5/10/7, IMPL 3/3/6, and VAL 1/2/4.
+- Confirmed the final consensus in each review family has quorum and zero blocking findings or disagreements.
+- Recorded the user's existing PR-creation authorization in the canonical gate history.
+
+### Next Steps
+- Commit and push the reconciled lifecycle evidence.
+- Create the PR against the roadmap branch.
+- Record and present the merge authorization gate without answering it.
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/loop-state.json` — Reconciled lifecycle state and authorization history
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/round-3/consensus-plan.json` — Final plan consensus
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/implementation/round-3/consensus-implementation.json` — Final implementation consensus
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-3/consensus-validation.json` — Final validation consensus
+
+### Context
+The SUBMIT_PR pre-publication audit caught contradictory derived state before any PR was created. The repair was explicitly authorized after disclosure, changes no review artifact or product result, and makes loop-state summarize the committed consensus evidence accurately.
