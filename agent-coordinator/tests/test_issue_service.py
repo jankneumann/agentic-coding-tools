@@ -233,6 +233,52 @@ class TestIssueList:
         assert cs_pos < limit_pos
 
     @pytest.mark.asyncio
+    async def test_list_by_labels_encodes_query_delimiters(self, service, mock_db):
+        """A label containing `&` or `#` must not split the query string.
+
+        `list_issues` joins filter parts with `&`, and both backends parse that
+        form: `SupabaseClient` puts it in a URL, `DirectPostgresClient.query`
+        splits on `&` literally. A raw delimiter inside a label value therefore
+        truncates the filter or starts a bogus parameter. Labels accept any
+        character, so the value must be percent-encoded on the way out.
+        """
+        mock_db.query.return_value = [
+            _make_issue_row(title="Match", labels=["research & design"]),
+        ]
+
+        await service.list_issues(labels=["research & design"])
+
+        query = mock_db.query.call_args[0][1]
+        # The only `&` in the query string are the part separators.
+        parts = query.split("&")
+        cs_parts = [p for p in parts if p.startswith("labels=cs.")]
+        assert len(cs_parts) == 1, f"label filter was split across parts: {parts}"
+        assert "%26" in cs_parts[0]
+
+    @pytest.mark.asyncio
+    async def test_list_by_labels_delimiters_round_trip(self, service, mock_db):
+        """What `list_issues` emits must parse back to the original label.
+
+        This is the producer/consumer contract the encoding creates: the direct
+        Postgres backend percent-decodes before parsing the array literal, so a
+        round trip has to be lossless for `%`, `&`, `#` and `+` alike.
+        """
+        from src.db_postgres import (
+            _decode_query_value,
+            _parse_postgrest_array_literal,
+        )
+
+        labels = ["research & design", "tag#1", "100%", "a+b"]
+        mock_db.query.return_value = []
+
+        await service.list_issues(labels=labels)
+
+        query = mock_db.query.call_args[0][1]
+        cs_part = next(p for p in query.split("&") if p.startswith("labels=cs."))
+        val = cs_part.split("=cs.", 1)[1]
+        assert _parse_postgrest_array_literal(_decode_query_value(val)) == labels
+
+    @pytest.mark.asyncio
     async def test_list_by_parent(self, service, mock_db):
         """Filter by parent_id."""
         parent_id = uuid4()
