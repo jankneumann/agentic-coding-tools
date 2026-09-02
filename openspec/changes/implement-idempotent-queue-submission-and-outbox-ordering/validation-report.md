@@ -1,13 +1,13 @@
 # Validation Report: implement-idempotent-queue-submission-and-outbox-ordering
 
-**Date**: 2026-09-01 22:35 EDT
-**Commit**: `eb3cb550e0fa90b8aecce70e4116f3fda838cc8b`
-**Validated tree**: `b4e0fb7eb1abff5ce5f7f9f48792c92163a1115a`
+**Date**: 2026-09-01 22:55 EDT
+**Commit**: `59fdb05f65e2a38d3ad75263a6a51f950edb7be2`
+**Validated tree**: `b2478da8a9aed3c4bc3271dec92c6e7d9b017d45`
 **Branch**: `openspec/implement-idempotent-queue-submission-and-outbox-ordering`
 
 ## Result
 
-**PASS WITH ADVISORIES** — All required phases pass at the validation-review head. Fresh rootless Podman deployment, migration apply/retry, live PostgreSQL projection behavior, smoke, security coverage, HTTP E2E, contracts, traceability, and affected suites succeeded. The Security phase now retains independently auditable scanner and gate artifacts; architecture freshness and unrelated fresh-schema/runtime bootstrap noise remain advisory baselines.
+**PASS WITH ADVISORIES** — All required phases pass at the security-evidence fix head without overrides. Fresh rootless Podman deployment, migration apply/retry, live PostgreSQL projection behavior, smoke, security coverage, HTTP E2E, contracts, traceability, and affected suites succeeded. The Security phase now retains independently auditable scanner and gate artifacts; architecture freshness and unrelated fresh-schema/runtime bootstrap noise remain advisory baselines.
 
 ## Phase Results
 
@@ -15,7 +15,7 @@
 
 **Status**: pass
 
-Rootless Podman 4.9.3 started a fresh PostgreSQL 18.3 volume and coordinator API on isolated ports 55439 and 18089. PostgreSQL initdb executed migration 035 as BEGIN → LOCK → preflight/DDL → COMMIT, and the API returned health 200.
+Rootless Podman 4.9.3 started a fresh PostgreSQL 18.3 volume and coordinator API on isolated ports 55443 and 18093. PostgreSQL initdb executed migration 035 as BEGIN → LOCK → preflight/DDL → COMMIT, and the API returned health 200.
 
 The real asyncpg runner independently applied only migration 035 in a disposable database, returned `[035_work_queue_projection.sql]`, then returned `[]` on immediate retry. The projection table, unique index, reconcile function, and schema-migrations record were all present.
 
@@ -63,7 +63,7 @@ The previously recorded repository-wide suite failures remain outside this focus
 
 **Status**: DEGRADED
 
-Architecture mode is advisory. Freshness remains unavailable because root configuration targets absent `src`, `database/migrations`, and `web` paths; refresh stopped before promotion and left committed artifacts untouched. Structural linters reported the same 14 file-size advisories and no new blocking architecture finding.
+Architecture mode is advisory. Freshness remains unavailable because root configuration targets absent `src`, `database/migrations`, and `web` paths; refresh stopped before promotion and left committed artifacts untouched. Structural linters reported the 16 file-size advisories and no new blocking architecture finding.
 
 ### Package Evidence
 

@@ -514,3 +514,31 @@ Validation evidence did not converge: Antigravity returned no findings before th
 ### Context
 Resolved the Security evidence-integrity blocker with one fresh isolated ZAP run. The scan completed with warnings at exit 2 (66 pass, 0 fail, 1 informational warning); durable raw, JSON/HTML, normalized, canonical gate/report, and teardown evidence are retained, and the required validation evidence gate passes.
 
+---
+
+## Phase: Validation 3 (2026-09-02)
+
+**Agent**: codex | **Session**: N/A
+
+### Capability Gaps Observed
+- **tooling_configuration**: Architecture refresh targets absent root src, database/migrations, and web paths; no staged artifacts were promoted. (skill: validate-feature, severity: medium)
+- **missing_reference**: security-review references a detailed checklist file that is absent from the installed skill source. (skill: security-review, severity: low)
+
+### Completed Work
+- security evidence hash/schema/gate audit
+- fresh isolated deploy and migration apply/retry
+- live PostgreSQL projection, smoke, and HTTP E2E
+- OpenAPI, OpenSpec, traceability, package, context, and affected test gates
+- exact stack, network, and volume teardown
+
+### Next Steps
+- Resume autopilot VAL_REVIEW
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md` — Validation-3 evidence
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/change-context.md` — Requirement evidence
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/architecture-impact.md` — Advisory architecture evidence
+
+### Context
+Fresh canonical validation at 59fdb05f passed every required phase without overrides. Committed Security hashes and canonical gate were independently audited; fresh deploy, migration apply/retry, live PostgreSQL, smoke, E2E, contracts, traceability, package, and affected suites passed; architecture remains advisory and degraded.
+
