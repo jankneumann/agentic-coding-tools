@@ -799,3 +799,41 @@ Canonical validation passed at exact pushed commit 0106b8fa without waivers. Fre
 ### Context
 Validation evidence remains substantively passing, but the final review failed closed because only Antigravity returned findings before the bounded vendor roster was exhausted.
 
+---
+
+## Phase: Validation Review 5 (2026-09-02)
+
+**Agent**: claude_code | **Session**: val-review-round-5
+
+### Decisions
+1. **Converge canonical validation review at round five** — Two distinct-provider reviewers (Antigravity/Google and Grok/xAI) independently confirmed the security, correctness, resilience, and compatibility claims of Canonical Validation 5 with no blocking finding and no disagreement, satisfying the vendor-diverse 2/2 quorum that round four could not reach.
+2. **Raise the per-vendor review timeout to the dispatcher default** — Round four's 90-second cap caused three vendors to time out; at the default 300s Grok completed in 270.8s, which alone converted a fail-closed 1/2 round into a real 2/2 quorum.
+3. **Record Grok's stale-header FYI as a non-blocking advisory** — `architecture-impact.md` still carries validated commit `59fdb05f` in its header while the Canonical Validation 5 Audit subsection cites `0106b8fa`; the drift is documentation-only, does not contradict the advisory DEGRADED conclusion, and does not invalidate PASS.
+
+### Capability Gaps Observed
+- **vendor_timeout**: Claude Code returned no findings before the 300-second cap. (skill: autopilot, severity: medium)
+- **vendor_output_contract**: Codex failed in 2.9 seconds by emitting its interactive banner to stderr instead of review-findings JSON; the raw output is retained in `review-manifest.json`. (skill: parallel-infrastructure, severity: medium)
+- **vendor_auth**: Pi remained excluded because its OpenRouter authentication is still expired. (skill: autopilot, severity: low)
+
+### Completed Work
+- Re-ran the bounded multi-vendor validation-evidence review at the dispatcher default 300s per-vendor timeout with `pi` excluded.
+- Collected schema-valid findings from Antigravity (5) and Grok (6) and synthesized consensus at `min_quorum=2`.
+- Recorded `quorum_received=2/2`, `confirmed=4`, `unconfirmed=3`, `disagreement_count=0`, `blocking_count=0`, `verdict=converged`.
+- Independently reproduced the ZAP evidence SHA-256 hashes, the PASS security gate, the `0106b8fa` tree match (`04610c62`), the evidence-only `be1bada1` diff, and strict OpenSpec validation.
+- Confirmed no dependency manifest changed after the retained DAST scan and that the post-scan product diff is type-narrowing plus migration-ledger work only.
+
+### In Progress
+- None.
+
+### Next Steps
+- Apply the converged VAL_REVIEW outcome and return PR #457 to the merge authorization gate.
+- Optionally refresh the `architecture-impact.md` header validated-commit field in a follow-up touch.
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-5/consensus-validation.json` — 2/2 distinct-vendor consensus, 0 blocking, 0 disagreements
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-5/review-manifest.json` — All four bounded dispatch outcomes, quorum, and verdict
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-5/findings-antigravity-implementation.json` — Antigravity's five schema-valid findings
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-5/findings-grok-implementation.json` — Grok's six schema-valid findings including one FYI advisory
+
+### Context
+Round four failed closed at 1/2 quorum purely because of a 90-second per-vendor cap and an expired Pi key, not because of any defect in the evidence. Round five reran the same scoped review at the dispatcher's default 300-second timeout and reached a real vendor-diverse 2/2 quorum. Both reviewers accepted every phase claim; the only new observation is a documentation-only stale header in `architecture-impact.md`.
