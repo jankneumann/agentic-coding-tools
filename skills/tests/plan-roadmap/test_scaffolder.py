@@ -174,6 +174,13 @@ class TestBulkScaffolding:
             scaffold_change(roadmap, tmp_path, "ri-01")
 
 
+
+def _delta_text(change_dir):
+    """Read the single scaffolded spec delta, wherever its capability dir landed."""
+    (delta,) = list((change_dir / "specs").rglob("spec.md"))
+    return delta.read_text()
+
+
 class TestScaffoldWritesSpecDeltas:
     """The delta is what makes a scaffold valid — this is the missing function."""
 
@@ -192,15 +199,16 @@ class TestScaffoldWritesSpecDeltas:
     def test_delta_declares_a_requirement_and_scenarios(self, tmp_path: Path):
         roadmap = _make_roadmap()
         created = scaffold_change(roadmap, tmp_path, "ri-01")
-        text = (created / "specs" / "test-feature" / "spec.md").read_text()
+        text = _delta_text(created)
         assert "## ADDED Requirements" in text
-        assert "### Requirement: Test Feature" in text
-        assert text.count("#### Scenario:") == 2  # one per acceptance outcome
+        # One requirement per acceptance outcome, each with its own scenario.
+        assert text.count("### Requirement:") == 2
+        assert text.count("#### Scenario:") == 2
 
     def test_every_acceptance_outcome_appears(self, tmp_path: Path):
         roadmap = _make_roadmap()
         created = scaffold_change(roadmap, tmp_path, "ri-01")
-        text = (created / "specs" / "test-feature" / "spec.md").read_text()
+        text = _delta_text(created)
         for outcome in ["Tests pass", "Feature works"]:
             assert outcome in text
 
@@ -208,7 +216,7 @@ class TestScaffoldWritesSpecDeltas:
         item = _make_item(acceptance_outcomes=[])
         roadmap = _make_roadmap([item])
         created = scaffold_change(roadmap, tmp_path, "ri-01")
-        text = (created / "specs" / "test-feature" / "spec.md").read_text()
+        text = _delta_text(created)
         assert "#### Scenario:" in text
 
 
