@@ -232,3 +232,44 @@ Reviewed the complete queue-projection implementation and fixed five contract de
 
 ---
 
+---
+
+## Phase: Implementation Fix 1 (2026-09-02)
+
+**Agent**: codex | **Session**: impl-fix-round-1
+
+### Decisions
+1. **Reject undeclared request fields at the Pydantic boundary** — The runtime request models must implement OpenAPI additionalProperties=false before service dispatch.
+2. **Keep HTTP success schema success-only** — Every service failure is classified as a 4xx Problem so policy and guardrail denials cannot masquerade as HTTP 200.
+
+### Alternatives Considered
+- Catch UUID ValueError inside the route: rejected because Boundary typing is smaller and ensures FastAPI emits the standard 422 Problem path.
+- Return a generic 400 for all service failures: rejected because It would erase authorization semantics and conflict/retry distinctions.
+
+### Trade-offs
+- Accepted Explicit stable denial-reason classification over A generic failure envelope because The public contract requires status-specific RFC 7807 responses.
+
+### Capability Gaps Observed
+- **environment_unavailable**: Real PostgreSQL runtime remains unavailable; 16 integration cases skip explicitly. (skill: iterate-on-implementation, severity: medium)
+- **test_isolation**: Repository-wide coordinator execution has seven unrelated live-environment/global-state failures; the three non-live cases pass in isolation. (skill: implement-feature, severity: low)
+- **tooling_failure**: apply_patch cannot initialize the sandbox loopback namespace, requiring deterministic in-place replacement fallback. (skill: worktree, severity: medium)
+
+### Completed Work
+- Added nine focused regressions and confirmed RED then GREEN.
+- Forbid undeclared fields in projection request models and validate dependency UUIDs during request parsing.
+- Preserve service policy and guardrail denial reasons and map them to 403/422 Problems.
+- Passed 141 affected coordinator tests with 16 environment-only PostgreSQL skips, Ruff, strict OpenSpec, and semantic OpenAPI validation.
+
+### Next Steps
+- Repeat implementation review against this remediation commit.
+
+### Relevant Files
+- `agent-coordinator/src/coordination_api.py` — Strict request models and RFC 7807 failure mapping
+- `agent-coordinator/src/work_queue.py` — Preserved service denial reasons
+- `agent-coordinator/tests/test_coordination_api.py` — HTTP contract regressions
+- `agent-coordinator/tests/test_work_queue.py` — Service denial reason regressions
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/impl-findings.md` — Fix evidence
+
+### Context
+Fixed all three blocking implementation-review contract findings with RED-to-GREEN HTTP and service tests. Strict request validation, UUID boundary parsing, and RFC 7807 policy/guardrail denial mappings now match the frozen OpenAPI contract.
+

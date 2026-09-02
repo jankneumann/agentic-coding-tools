@@ -24,3 +24,23 @@ All five findings are fixed. No findings at or above the medium remediation thre
 ## Vendor Review Evidence
 
 The canonical read-only dispatcher attempted Antigravity with a 90-second per-vendor bound. It exceeded the parent hard cap and was interrupted; no findings artifact was produced, so vendor quorum is unavailable. No redispatch was attempted. This is degraded optional evidence, not a substitute for the green local gates above.
+
+
+## Implementation Review Fix 1
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 6 | contract_mismatch | high | Projection request models accepted undeclared top-level and nested fields despite OpenAPI additionalProperties=false. | Added RED HTTP coverage and set extra=forbid on ProjectionKeyRequest, WorkSubmitRequest, and WorkReconcileRequest. |
+| 7 | contract_mismatch | high | Malformed depends_on UUID strings raised ValueError after request validation instead of returning a 422 Problem. | Typed depends_on as UUID at the Pydantic boundary and removed late route conversion. |
+| 8 | contract_mismatch | high | Service policy and guardrail denials could lose their reason and serialize as undeclared HTTP 200 success=false payloads. | Preserved operation_not_permitted/guardrail_denied reasons and mapped them to RFC 7807 403/422 responses. |
+
+All three implementation-review blockers are fixed with RED-to-GREEN regression coverage.
+
+## Implementation Fix 1 Verification
+
+- Focused HTTP/service regressions: 9 passed.
+- Affected coordinator projection suite: 141 passed, 16 skipped because a real PostgreSQL runtime is unavailable.
+- Changed-surface Ruff: passed.
+- Strict OpenSpec validation: passed.
+- Semantic OpenAPI validation: passed.
+- Full coordinator non-integration run: 2434 passed, 50 skipped, 7 environment/suite-isolation failures outside the changed surface. Four require localhost PostgreSQL; the three non-live failures pass in isolation (3 passed), confirming shared global-state leakage rather than this change.
