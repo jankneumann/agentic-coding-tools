@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T02:19:06.642866+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Canonical validation rerun passed every required phase at b0907df9. Fresh Podman deployment, asyncpg apply/retry, live PostgreSQL projection, smoke, passive DAST coverage, HTTP E2E, contracts, traceability, package gates, and affected suites passed; architecture freshness and scanner artifact persistence remain explicit advisories.",
+    "completed_work": [
+      "fresh rootless Podman deploy and migration",
+      "asyncpg apply and idempotent retry",
+      "live PostgreSQL projection verification",
+      "smoke and HTTP E2E",
+      "bounded ZAP passive coverage",
+      "OpenAPI, OpenSpec, traceability, package, context, overlap, and affected test gates"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Treat completed ZAP coverage as pass with artifact warning",
+        "rationale": "The single bounded attempt reached the live API and completed 66 passive rules with zero failures; only post-scan JSON/HTML persistence was denied, so security coverage is present and the artifact gap remains advisory.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Resume autopilot VAL_REVIEW"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+        "description": "canonical validation-2 evidence"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/architecture-impact.md",
+        "description": "advisory architecture evidence"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/change-context.md",
+        "description": "requirement evidence at validated head"
+      }
+    ]
+  }
+}

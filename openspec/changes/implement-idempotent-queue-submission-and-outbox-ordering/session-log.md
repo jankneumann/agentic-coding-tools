@@ -430,3 +430,31 @@ Validation failed: fresh PostgreSQL deployment aborts migration 035 because LOCK
 ### Context
 Resolved the migration 035 fresh-deploy blocker and work-package context declarations. Fresh rootless Podman, asyncpg apply and retry, live PostgreSQL projection, smoke, ZAP baseline, and HTTP E2E all passed; unrelated architecture and legacy fresh-schema warnings remain documented.
 
+---
+
+## Phase: Validation 2 (2026-09-02)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Treat completed ZAP coverage as pass with artifact warning** — The single bounded attempt reached the live API and completed 66 passive rules with zero failures; only post-scan JSON/HTML persistence was denied, so security coverage is present and the artifact gap remains advisory.
+
+### Completed Work
+- fresh rootless Podman deploy and migration
+- asyncpg apply and idempotent retry
+- live PostgreSQL projection verification
+- smoke and HTTP E2E
+- bounded ZAP passive coverage
+- OpenAPI, OpenSpec, traceability, package, context, overlap, and affected test gates
+
+### Next Steps
+- Resume autopilot VAL_REVIEW
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md` — canonical validation-2 evidence
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/architecture-impact.md` — advisory architecture evidence
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/change-context.md` — requirement evidence at validated head
+
+### Context
+Canonical validation rerun passed every required phase at b0907df9. Fresh Podman deployment, asyncpg apply/retry, live PostgreSQL projection, smoke, passive DAST coverage, HTTP E2E, contracts, traceability, package gates, and affected suites passed; architecture freshness and scanner artifact persistence remain explicit advisories.
+
