@@ -1,7 +1,7 @@
 {
   "schema_version": 5,
   "change_id": "implement-idempotent-queue-submission-and-outbox-ordering",
-  "current_phase": "VAL_FIX",
+  "current_phase": "VALIDATE",
   "iteration": 2,
   "total_iterations": 29,
   "max_phase_iterations": 3,
@@ -47,7 +47,8 @@
     "validation-review-3-1",
     "validation-fix-4-1",
     "validation-5-1",
-    "validation-review-5-1"
+    "validation-review-5-1",
+    "validation-fix-5-1"
   ],
   "phase_history": [
     {
@@ -195,20 +196,25 @@
     },
     {
       "at": "2026-09-02T13:23:40.855622+00:00",
-      "phase": "SUBMIT_PR",
+      "note": "PR #457 Codex GitHub review left two P1 and two P2 findings unaddressed after dda2834f (escalation projection seam, complete_task overwriting cancelled rows, reconcile audit trail, projection envelope status); product commit dda2834f also postdates Validation 5. Returning to VAL_FIX before the merge gate.",
       "outcome": "review_findings_open",
-      "note": "PR #457 Codex GitHub review left two P1 and two P2 findings unaddressed after dda2834f (escalation projection seam, complete_task overwriting cancelled rows, reconcile audit trail, projection envelope status); product commit dda2834f also postdates Validation 5. Returning to VAL_FIX before the merge gate."
+      "phase": "SUBMIT_PR"
+    },
+    {
+      "at": "2026-09-02T13:39:51.605536+00:00",
+      "outcome": "fixed",
+      "phase": "VAL_FIX"
     }
   ],
-  "last_handoff_id": "validation-review-5-1",
+  "last_handoff_id": "validation-fix-5-1",
   "started_at": "2026-09-01T22:47:26.224636+00:00",
-  "phase_started_at": "2026-09-02T13:23:40.855622+00:00",
-  "previous_phase": "SUBMIT_PR",
+  "phase_started_at": "2026-09-02T13:39:51.654695+00:00",
+  "previous_phase": "VAL_FIX",
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": null,
+  "phase_archetype": "implementer",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
