@@ -177,6 +177,19 @@ def load_state(path: str | Path) -> LoopState:
     return state
 
 
+def persist_and_project(state: LoopState, path: str | Path, queue_projection_fn: Callable[..., Any] | None = None, *, mode: str = "submit") -> dict[str, Any]:
+    """Persist authoritative state, then best-effort project it to the queue."""
+    save_state(state, path)
+    if queue_projection_fn is None:
+        return {"status": "skipped", "reason": "projection_callback_absent"}
+    try:
+        response = queue_projection_fn(state, mode=mode)
+    except Exception as exc:
+        logger.warning("Queue projection failed after state persistence: %s", exc)
+        return {"status": "failed", "reason": "projection_failed", "error": str(exc)}
+    return {"status": "ok", "response": response}
+
+
 # ---------------------------------------------------------------------------
 # Transition table
 # ---------------------------------------------------------------------------
@@ -865,6 +878,7 @@ def run_loop(
     gatekeeper_fn: Callable[[LoopState], str] | None = None,
     post_fix_validator_fn: Callable[[Path], list[str]] | None = None,
     status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
+    queue_projection_fn: Callable[..., Any] | None = None,
     gate_evaluator: GateEvaluator | None = None,
     cli_review_enabled: bool = True,
     force: bool = False,
@@ -944,6 +958,8 @@ def run_loop(
             "Resumed loop state at phase=%s iteration=%d",
             state.current_phase, state.total_iterations,
         )
+        if queue_projection_fn is not None:
+            persist_and_project(state, state_path, queue_projection_fn, mode="reconcile")
     else:
         state = LoopState(
             change_id=change_id,
