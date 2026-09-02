@@ -226,6 +226,58 @@ class TestWorkQueueAuditCompleteness:
         audit_tracker.log_operation.assert_called()
 
     @pytest.mark.asyncio
+    async def test_successful_reconcile_audited(self, audit_tracker, allow_policy):
+        """Successful projection reconciliation emits an audit record.
+
+        reconcile_work_projection() cancels active tasks for the previous
+        generation and creates the canonical task for the new one — a
+        mutation surface as significant as submit_task/complete_task, so it
+        must be audited the same way (created + cancelled task IDs included).
+        """
+        task_id = uuid4()
+        cancelled_id = uuid4()
+        db = AsyncMock()
+        db.rpc = AsyncMock(return_value={
+            "success": True,
+            "task_id": str(task_id),
+            "status": "pending",
+            "created": True,
+            "deduplicated": False,
+            "cancelled_task_ids": [str(cancelled_id)],
+        })
+        db.query = AsyncMock(return_value=[])
+        db.insert = AsyncMock(return_value={})
+
+        service = WorkQueueService(db=db)
+
+        with (
+            patch("src.policy_engine.get_policy_engine", return_value=allow_policy),
+            patch("src.work_queue.get_audit_service", return_value=audit_tracker),
+        ):
+            result = await service.reconcile_projection(
+                projection_key={
+                    "change_id": "audited-change",
+                    "phase": "VALIDATE",
+                    "transition_sequence": 4,
+                },
+                task_type="validate",
+                description="reconciled task",
+            )
+
+        assert result.success is True
+        audit_tracker.log_operation.assert_called()
+
+        audit_calls = audit_tracker.log_operation.call_args_list
+        reconcile_audit = [
+            c for c in audit_calls if c.kwargs.get("operation") == "reconcile_work_projection"
+        ]
+        assert len(reconcile_audit) == 1
+        audit_result = reconcile_audit[0].kwargs["result"]
+        assert audit_result["task_id"] == str(task_id)
+        assert audit_result["created"] is True
+        assert audit_result["cancelled_task_ids"] == [str(cancelled_id)]
+
+    @pytest.mark.asyncio
     async def test_no_tasks_claim_audited(self, audit_tracker, allow_policy):
         """Claim with no available tasks still emits audit record."""
         db = AsyncMock()
@@ -438,6 +490,7 @@ class TestMutationSurfaceCoverage:
         "claim_task": "work_queue.py",
         "complete_task": "work_queue.py",
         "submit_task": "work_queue.py",
+        "reconcile_work_projection": "work_queue.py",
     }
 
     @pytest.mark.asyncio

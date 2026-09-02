@@ -322,6 +322,35 @@ async def test_ensure_schema_skips_supabase_backend() -> None:
     assert result == []
 
 
+# ---------------------------------------------------------------------------
+# Migration 036 static contract (terminal completion guard)
+# ---------------------------------------------------------------------------
+
+
+def test_migration_036_makes_cancellation_terminal_against_late_completions() -> None:
+    """complete_task must never overwrite a non-active (e.g. cancelled) row.
+
+    This is a static, DB-less check of the migration content — the
+    PostgreSQL-backed behavioural coverage lives in
+    tests/integration/postgres/test_work_queue_postgres.py
+    (TestCompleteTaskTerminalCancellation), which is skipped in this
+    environment without a live database.
+    """
+    sql = (
+        _COORDINATOR_ROOT / "database/migrations/036_terminal_completion_guard.sql"
+    ).read_text()
+
+    assert "CREATE OR REPLACE FUNCTION complete_task(" in sql
+    # The UPDATE that flips a task terminal must be scoped to active statuses
+    # only, so a row already cancelled by projection reconciliation can never
+    # be overwritten by a late worker call.
+    assert "AND status IN ('claimed', 'running')" in sql
+    # A refused completion must report *why*, distinguishing "already
+    # terminal" from "not found / not claimed by this agent".
+    assert "'task_not_active'" in sql
+    assert "'task_not_found_or_not_claimed_by_agent'" in sql
+
+
 @pytest.mark.asyncio()
 async def test_ensure_schema_skips_missing_dsn() -> None:
     """ensure_schema returns empty list when DSN is not set."""
