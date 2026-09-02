@@ -240,3 +240,31 @@ The required second vote did not complete. Codex, Grok, and Claude each returned
 
 Validation 5 and all substantive GitHub checks remain green at exact pushed head `0106b8fab44c6c7e61eb0c045205afb2779fb764`, but the lifecycle fails closed at validation review. One configured vendor must become capable and independently confirm the evidence before the PR can return to the merge authorization gate.
 
+
+---
+
+## Canonical Validation Review 5 (2026-09-02)
+
+**Status**: CONVERGED — real vendor-diverse 2/2 quorum, zero blocking findings.
+
+The bounded validation-evidence review was rerun at the dispatcher's default 300-second per-vendor timeout (round 4 used 90 seconds) with `pi` excluded for expired OpenRouter authentication. Two distinct providers completed schema-valid reviews:
+
+- **Antigravity** (`gemini-3.6-flash-medium`, 49.0s) — 5 findings, all `severity: none` / `disposition: accept`.
+- **Grok** (`grok-4.5`, 270.8s) — 6 findings: 5 `severity: none` / `accept` plus 1 `fyi` advisory.
+
+Claude Code returned nothing before the 300-second cap; Codex failed in 2.9 seconds by emitting its interactive banner instead of review-findings JSON. Both raw outcomes are retained in `reviews/validation/round-5/review-manifest.json`.
+
+Consensus over the two completed reviewers confirmed four findings cross-vendor — retained ZAP hash/gate integrity, raw-bootstrap ledger correctness, migration-035 overload cleanup and lock semantics, and exact-head PR #457 CI — and left three unconfirmed single-vendor acceptances covering the advisory architecture and package-evidence scoping. The canonical manifest records:
+
+- quorum requested: 2;
+- quorum received: 2 (antigravity, grok — distinct providers);
+- confirmed: 4; unconfirmed: 3;
+- blocking product/evidence findings: 0;
+- disagreements: 0;
+- verdict: `converged`.
+
+The reviewing agent independently reproduced the load-bearing claims: `zap.stdout.log` and `zap-report.json` SHA-256 digests match `execution.json`; `gate.json` is `PASS` with `fail_on=high`, `triggered_count=0`; commit `0106b8fa` has tree `04610c62`, matching the recorded validated tree; `be1bada1` changes only this change's OpenSpec artifacts; no dependency manifest changed after the retained DAST scan, and the post-scan product diff is a FastAPI return-type annotation plus `ProjectionKey` input-type narrowing — both attack-surface-neutral or narrowing — alongside the migration-ledger work; strict OpenSpec validation passes; `tests/test_migrations.py` passes 19/19.
+
+### Residual Advisory (non-blocking, new this round)
+
+Grok noted that the `architecture-impact.md` header still records validated commit `59fdb05f` while its own `Canonical Validation 5 Audit` subsection correctly cites `0106b8fa` / tree `04610c62`. This is documentation drift only; it neither contradicts the advisory DEGRADED conclusion nor invalidates the Validation 5 PASS.
