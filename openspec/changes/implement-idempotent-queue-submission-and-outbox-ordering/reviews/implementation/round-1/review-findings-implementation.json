@@ -1,0 +1,46 @@
+{
+  "review_type": "implementation",
+  "target": "whole-branch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: the projection request models use Pydantic's default extra-field policy, so undeclared request and projection-key members are silently ignored even though both OpenAPI schemas set additionalProperties=false; invalid projection mutations therefore succeed instead of returning the required 422 Problem.",
+      "resolution": "Set extra='forbid' on ProjectionKeyRequest, WorkSubmitRequest, and WorkReconcileRequest, and add HTTP tests for unknown top-level and nested projection-key fields.",
+      "disposition": "fix",
+      "package_id": "wp-coordinator-queue",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {"start": 176, "end": 215},
+      "axis": "compatibility",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: WorkSubmitRequest declares depends_on as arbitrary strings and converts them to UUID only inside the route, so a non-UUID passes request validation and raises ValueError at runtime instead of producing the OpenAPI-declared 422 RFC 7807 Problem.",
+      "resolution": "Type depends_on as UUID values (or validate each string in the Pydantic model) and add a malformed dependency HTTP test that asserts status 422 and application/problem+json.",
+      "disposition": "fix",
+      "package_id": "wp-coordinator-queue",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {"start": 199, "end": 206},
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: service-layer submit_work policy and guardrail denials return SubmitResult(success=false) without a reason, and the HTTP mapper converts any unrecognized failure to an HTTP 200 {success:false, reason:null}; this violates the contract that HTTP 200 is ProjectionMutationSuccess and policy or validation failures are 4xx Problems, and it can disagree with the principal authorization already performed by the route.",
+      "resolution": "Preserve a discriminating denial reason from WorkQueueService, map service denials to 403 (and validation or guardrail failures to an appropriate 4xx Problem), and test the route when service-level policy denies after route authorization.",
+      "disposition": "fix",
+      "package_id": "wp-coordinator-queue",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {"start": 108, "end": 121},
+      "axis": "resilience",
+      "severity": "critical"
+    }
+  ]
+}
