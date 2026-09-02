@@ -56,7 +56,28 @@ def _postgrest_array_literal(values: list[str]) -> str:
         else:
             escaped = value.replace("\\", "\\\\").replace('"', '\\"')
             parts.append(f'"{escaped}"')
-    return "{" + ",".join(parts) + "}"
+    return _encode_query_value("{" + ",".join(parts) + "}")
+
+
+def _encode_query_value(literal: str) -> str:
+    """Percent-encode the characters that would split a PostgREST query string.
+
+    Filter parts are joined with ``&``, and both backends take that join
+    literally: ``SupabaseClient`` puts it in a URL, ``DirectPostgresClient``
+    splits on ``&`` before parsing. Labels accept any character, so a value
+    containing a delimiter would truncate the filter or invent a parameter.
+
+    Only the four characters that actually break that parse are encoded, so
+    ordinary labels such as ``change:foo`` stay readable in logs. ``%`` is
+    encoded first, which is what makes ``urllib.parse.unquote`` an exact
+    inverse; ``db_postgres._decode_query_value`` is the other half.
+    """
+    return (
+        literal.replace("%", "%25")
+        .replace("&", "%26")
+        .replace("#", "%23")
+        .replace("+", "%2B")
+    )
 
 
 @dataclass

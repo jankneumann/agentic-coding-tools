@@ -11,6 +11,7 @@ import json
 import re
 from datetime import datetime
 from typing import Any
+from urllib.parse import unquote
 from uuid import UUID
 
 import asyncpg  # noqa: I001
@@ -67,6 +68,16 @@ def _coerce_filter_value(val: str) -> Any:
     if parsed is not None:
         return parsed
     return val
+
+
+def _decode_query_value(val: str) -> str:
+    """Reverse ``issue_service._encode_query_value``.
+
+    ``query()`` splits ``query_params`` on ``&`` before it reaches here, so a
+    filter value that contained a delimiter arrives percent-encoded. Decoding
+    is exact because the encoder escaped ``%`` first.
+    """
+    return unquote(val)
 
 
 def _parse_postgrest_array_literal(val: str) -> list[str]:
@@ -276,7 +287,9 @@ class DirectPostgresClient:
                 elif "=cs." in part:
                     col, val = part.split("=cs.", 1)
                     _validate_identifier(col, allow_qualified=True)
-                    cs_values = _parse_postgrest_array_literal(val)
+                    cs_values = _parse_postgrest_array_literal(
+                        _decode_query_value(val)
+                    )
                     where_clauses.append(f"{col} @> ${param_idx}::text[]")
                     values.append(cs_values)
                     param_idx += 1
