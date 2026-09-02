@@ -849,6 +849,39 @@ class WorkQueueService:
                 failure_category="policy",
             )
 
+        # Guardrails check on reconciled task content.
+        #
+        # Reconciliation is a mutating queue operation on the same content submit()
+        # screens: it cancels active rows for the projection key and inserts a
+        # canonical task. Reaching the RPC on content that ordinary submit() would
+        # reject would make reconcile a way around the trust and guardrail checks,
+        # so the same screen runs here, on the same scan text, with the same
+        # denial semantics.
+        try:
+            from .guardrails import get_guardrails_service
+
+            guardrails = get_guardrails_service()
+            trust_level = await self._resolve_trust_level(
+                config.agent.agent_id, config.agent.agent_type
+            )
+            scan_text = description
+            if input_data:
+                scan_text += "\n" + str(input_data)
+            check = await guardrails.check_operation(
+                operation_text=scan_text[:2000],
+                agent_id=config.agent.agent_id,
+                agent_type=config.agent.agent_type,
+                trust_level=trust_level,
+            )
+            if not check.safe:
+                return ReconcileResult(
+                    success=False,
+                    created=False,
+                    reason="guardrail_denied",
+                )
+        except Exception:
+            logger.error("Guardrails check failed during reconcile", exc_info=True)
+
         payload = {**(input_data or {}), **key.as_input_data()}
         import json as _json
 

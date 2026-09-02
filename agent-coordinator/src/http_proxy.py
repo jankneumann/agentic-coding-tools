@@ -479,9 +479,15 @@ async def proxy_submit_work(
     agent_requirements: dict[str, Any] | None = None,
     projection_key: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Proxy submit_work to POST /work/submit."""
+    """Proxy submit_work to POST /work/submit.
+
+    No agent identity is injected. ``WorkSubmitRequest`` forbids extra fields, and
+    the route resolves identity from the authenticated principal
+    (``resolve_identity(principal, None, None)``) rather than from the body — so
+    sending ``agent_id``/``agent_type`` here is both ignored server-side and a hard
+    422 before the route is reached.
+    """
     body = {
-        **_agent_identity(),
         "task_type": task_type,
         "task_description": description,
         "input_data": input_data,
@@ -502,9 +508,13 @@ async def proxy_reconcile_work_projection(
     priority: int = 5,
     agent_requirements: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Proxy projection reconciliation to POST /work/reconcile."""
+    """Proxy projection reconciliation to POST /work/reconcile.
+
+    Same contract as :func:`proxy_submit_work`: ``WorkReconcileRequest`` forbids
+    extra fields and the route takes identity from the principal, so no identity is
+    injected into the body.
+    """
     body = {
-        **_agent_identity(),
         "projection_key": projection_key,
         "task_type": task_type,
         "task_description": description,
