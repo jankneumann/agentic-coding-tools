@@ -1,0 +1,83 @@
+{
+  "scanner": "zap",
+  "status": "ok",
+  "findings": [
+    {
+      "scanner": "zap",
+      "finding_id": "10049",
+      "title": "Storable and Cacheable Content",
+      "severity": "info",
+      "description": "<p>The response contents are storable by caching components such as proxy servers, and may be retrieved directly from the cache, rather than from the origin server by the caching servers, in response to similar requests from other users. If the response data is sensitive, personal or user-specific, this may result in sensitive information being leaked. In some cases, this may even result in a user gaining complete control of the session of another user, depending on the configuration of the caching components in use in their environment. This is primarily an issue where \"shared\" caching servers such as \"proxy\" caches are configured on the local network. This configuration is typically found in corporate or educational environments, for instance.</p>",
+      "location": "http://host.containers.internal:18091",
+      "metadata": {
+        "confidence": "2",
+        "solution": "<p>Validate that the response does not contain sensitive, personal or user-specific information. If it does, consider the use of the following HTTP response headers, to limit, or prevent the content being stored and retrieved from the cache by another user:</p><p>Cache-Control: no-cache, no-store, must-revalidate, private</p><p>Pragma: no-cache</p><p>Expires: 0</p><p>This configuration directs both HTTP 1.0 and HTTP 1.1 compliant caching servers to not store the response, and to not retrieve the response (without validation) from the cache, in response to a similar request.</p>",
+        "reference": "<p>https://datatracker.ietf.org/doc/html/rfc7234</p><p>https://datatracker.ietf.org/doc/html/rfc7231</p><p>https://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html</p>",
+        "instances": [
+          {
+            "id": "1",
+            "uri": "http://host.containers.internal:18091",
+            "nodeName": "http://host.containers.internal:18091",
+            "method": "GET",
+            "param": "",
+            "attack": "",
+            "evidence": "",
+            "otherinfo": "In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234."
+          },
+          {
+            "id": "2",
+            "uri": "http://host.containers.internal:18091/robots.txt",
+            "nodeName": "http://host.containers.internal:18091/robots.txt",
+            "method": "GET",
+            "param": "",
+            "attack": "",
+            "evidence": "",
+            "otherinfo": "In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234."
+          },
+          {
+            "id": "3",
+            "uri": "http://host.containers.internal:18091/sitemap.xml",
+            "nodeName": "http://host.containers.internal:18091/sitemap.xml",
+            "method": "GET",
+            "param": "",
+            "attack": "",
+            "evidence": "",
+            "otherinfo": "In the absence of an explicitly specified caching lifetime directive in the response, a liberal lifetime heuristic of 1 year was assumed. This is permitted by rfc7234."
+          }
+        ]
+      }
+    }
+  ],
+  "messages": [
+    "ZAP baseline completed with warnings (exit 2): 66 rules passed, 1 informational warning, 0 failures"
+  ],
+  "metadata": {
+    "site_count": 1,
+    "execution": {
+      "scanner": "OWASP ZAP baseline",
+      "image": "ghcr.io/zaproxy/zaproxy:stable",
+      "target": "http://host.containers.internal:18091",
+      "command": "timeout 240s podman run --rm -v ri08_valfix2_zap:/zap/wrk ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host.containers.internal:18091 -J zap-report.json -r zap-report.html -m 5",
+      "started_at": "2026-09-02T02:34:36Z",
+      "finished_at": "2026-09-02T02:35:04Z",
+      "exit_code": 2,
+      "outcome": "completed_with_warnings",
+      "summary": {
+        "pass": 66,
+        "fail_new": 0,
+        "fail_in_progress": 0,
+        "warn_new": 1,
+        "warn_in_progress": 0,
+        "info": 0,
+        "ignore": 0
+      },
+      "warning": "Storable and Cacheable Content [10049] on three public 404 responses",
+      "raw_stdout": "zap.stdout.log",
+      "raw_stderr": "zap.stderr.log",
+      "json_report": "zap-report.json",
+      "html_report": "zap-report.html",
+      "stdout_sha256": "1899f02855ae47079d6a71cececa806df56372541b17bf3024718f853aa125cf",
+      "json_report_sha256": "c2c4b37775d2c16b9b620862aefb5767ad534a1a557d8464b250d9e86430cfc9"
+    }
+  }
+}
