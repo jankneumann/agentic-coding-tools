@@ -521,3 +521,110 @@ class TestWorkQueueTrustResolution:
         )
         assert trust == 2
         reset_config()
+
+
+def test_projection_migration_declares_full_head_and_atomic_paths():
+    from pathlib import Path
+
+    sql = Path("agent-coordinator/database/migrations/035_work_queue_projection.sql").read_text()
+    for token in (
+        "CREATE TABLE work_queue_projection_heads",
+        "phase TEXT NOT NULL",
+        "pg_advisory_xact_lock(hashtextextended",
+        "projection_generation_mismatch",
+        "reconciliation_required",
+        "cancelled_by_projection_reconcile",
+        "ON CONFLICT ((input_data ->>",
+    ):
+        assert token in sql
+
+
+@pytest.mark.asyncio
+async def test_projection_submit_returns_canonical_deduplicated_result(mock_supabase, db_client):
+    task_id = UUID(int=7)
+    mock_supabase.post("https://test.supabase.co/rest/v1/rpc/submit_task").mock(
+        return_value=Response(
+            200,
+            json={
+                "success": True,
+                "task_id": str(task_id),
+                "created": False,
+                "status": "pending",
+            },
+        )
+    )
+    result = await WorkQueueService(db_client).submit(
+        task_type="implement",
+        description="project current phase",
+        projection_key={
+            "change_id": "projection-change",
+            "phase": "IMPLEMENT",
+            "transition_sequence": 4,
+        },
+    )
+    assert result.task_id == task_id
+    assert result.created is False
+    assert result.deduplicated is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "projection_key",
+    [
+        {"change_id": "Bad_ID", "phase": "IMPLEMENT", "transition_sequence": 1},
+        {"change_id": "ok", "phase": "NOT_A_PHASE", "transition_sequence": 1},
+        {"change_id": "ok", "phase": "IMPLEMENT", "transition_sequence": True},
+        {"change_id": "ok", "phase": "IMPLEMENT", "transition_sequence": 2**31},
+    ],
+)
+async def test_projection_submit_rejects_invalid_complete_key(db_client, projection_key):
+    result = await WorkQueueService(db_client).submit(
+        task_type="implement", description="invalid", projection_key=projection_key
+    )
+    assert result.success is False
+    assert result.reason == "invalid_projection_key"
+
+
+@pytest.mark.asyncio
+async def test_projection_submit_rejects_reserved_embedded_keys(db_client):
+    result = await WorkQueueService(db_client).submit(
+        task_type="implement",
+        description="ambiguous",
+        input_data={"change_id": "caller-owned"},
+        projection_key={
+            "change_id": "projection-change",
+            "phase": "IMPLEMENT",
+            "transition_sequence": 1,
+        },
+    )
+    assert result.success is False
+    assert result.reason == "reserved_projection_key"
+
+
+@pytest.mark.asyncio
+async def test_reconcile_returns_sorted_cancelled_ids(mock_supabase, db_client):
+    current = UUID(int=8)
+    cancelled = [UUID(int=3), UUID(int=2)]
+    mock_supabase.post("https://test.supabase.co/rest/v1/rpc/reconcile_work_projection").mock(
+        return_value=Response(
+            200,
+            json={
+                "success": True,
+                "task_id": str(current),
+                "created": True,
+                "status": "pending",
+                "cancelled_task_ids": [str(v) for v in cancelled],
+            },
+        )
+    )
+    result = await WorkQueueService(db_client).reconcile_projection(
+        projection_key={
+            "change_id": "projection-change",
+            "phase": "IMPLEMENT",
+            "transition_sequence": 5,
+        },
+        task_type="implement",
+        description="resume",
+    )
+    assert result.success is True
+    assert result.cancelled_task_ids == sorted(cancelled, key=str)

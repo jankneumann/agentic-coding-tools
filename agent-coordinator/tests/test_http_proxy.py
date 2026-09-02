@@ -909,3 +909,24 @@ async def test_proxy_release_lock_sends_identity(_reset_client: None) -> None:
     await http_proxy.proxy_release_lock("x.py")
     assert captured["json"]["agent_id"] == "agent-x"
     assert captured["json"]["file_path"] == "x.py"
+
+
+async def test_proxy_submit_and_reconcile_projection_payloads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = AsyncMock(return_value={"success": True})
+    monkeypatch.setattr(http_proxy, "_request", request)
+    monkeypatch.setattr(http_proxy, "_agent_identity", lambda: {})
+    key = {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 6}
+
+    await http_proxy.proxy_submit_work(
+        task_type="implement", description="submit", projection_key=key
+    )
+    assert request.await_args_list[0].args[:2] == ("POST", "/work/submit")
+    assert request.await_args_list[0].kwargs["json_body"]["projection_key"] == key
+
+    await http_proxy.proxy_reconcile_work_projection(
+        projection_key=key, task_type="implement", description="resume"
+    )
+    assert request.await_args_list[1].args[:2] == ("POST", "/work/reconcile")
+    assert request.await_args_list[1].kwargs["json_body"]["projection_key"] == key

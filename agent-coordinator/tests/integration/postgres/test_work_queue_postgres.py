@@ -267,3 +267,63 @@ class TestWorkQueueConcurrencyPostgres:
         assert all(r.success for r in results)
         task_ids = {r.task_id for r in results}
         assert len(task_ids) == 2  # Each got a different task
+
+
+class TestWorkQueueProjectionMigrationContract:
+    def test_migration_035_static_contract(self):
+        from pathlib import Path
+
+        sql = Path(
+            "agent-coordinator/database/migrations/035_work_queue_projection.sql"
+        ).read_text()
+        assert "CREATE TABLE work_queue_projection_heads" in sql
+        assert "phase TEXT NOT NULL" in sql
+        assert "pg_advisory_xact_lock(hashtextextended" in sql
+        assert "projection_generation_mismatch" in sql
+        assert "reconciliation_required" in sql
+        assert "cancelled_by_projection_reconcile" in sql
+        assert "ON CONFLICT ((input_data ->>" in sql
+
+    @pytest.mark.asyncio
+    async def test_projection_submit_replay_returns_one_canonical_task(self, pg_work_queue):
+        key = {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 1}
+        first, second = await asyncio.gather(
+            pg_work_queue.submit(task_type="implement", description="one", projection_key=key),
+            pg_work_queue.submit(task_type="implement", description="one", projection_key=key),
+        )
+        assert first.task_id == second.task_id
+        assert sorted([first.created, second.created]) == [False, True]
+
+    @pytest.mark.asyncio
+    async def test_projection_head_rejects_equal_sequence_different_phase(self, pg_work_queue):
+        first = {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 2}
+        mismatch = {"change_id": "projection-change", "phase": "VALIDATE", "transition_sequence": 2}
+        assert (
+            await pg_work_queue.submit(
+                task_type="implement", description="one", projection_key=first
+            )
+        ).success is True
+        result = await pg_work_queue.submit(
+            task_type="validate", description="wrong generation", projection_key=mismatch
+        )
+        assert result.success is False
+        assert result.reason == "projection_generation_mismatch"
+
+    @pytest.mark.asyncio
+    async def test_reconcile_advances_full_head_and_cancels_stale(self, pg_work_queue):
+        old = {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 3}
+        new = {"change_id": "projection-change", "phase": "VALIDATE", "transition_sequence": 4}
+        stale = await pg_work_queue.submit(
+            task_type="implement", description="old", projection_key=old
+        )
+        current = await pg_work_queue.reconcile_projection(
+            projection_key=new, task_type="validate", description="current"
+        )
+        assert current.success is True
+        assert current.created is True
+        assert stale.task_id in current.cancelled_task_ids
+        replay = await pg_work_queue.reconcile_projection(
+            projection_key=new, task_type="validate", description="current"
+        )
+        assert replay.task_id == current.task_id
+        assert replay.created is False

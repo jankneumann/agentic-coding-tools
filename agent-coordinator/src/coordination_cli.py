@@ -436,16 +436,54 @@ def cmd_work_submit(args: argparse.Namespace) -> int:
     """Submit work to the queue."""
     from .work_queue import get_work_queue_service
 
-    result = _run(get_work_queue_service().submit(
-        task_type=args.task_type,
-        description=args.description,
-        priority=args.priority,
-        input_data=json.loads(args.input_data) if args.input_data else None,
-    ))
-    _output({
-        "success": result.success,
-        "task_id": str(result.task_id) if result.task_id else None,
-    }, json_mode=args.json)
+    result = _run(
+        get_work_queue_service().submit(
+            task_type=args.task_type,
+            description=args.description,
+            priority=args.priority,
+            input_data=json.loads(args.input_data) if args.input_data else None,
+            projection_key=(json.loads(args.projection_key) if args.projection_key else None),
+        )
+    )
+    _output(
+        {
+            "success": result.success,
+            "task_id": str(result.task_id) if result.task_id else None,
+            "created": result.created,
+            "deduplicated": result.deduplicated,
+            "status": result.status,
+            "reason": result.reason,
+        },
+        json_mode=args.json,
+    )
+    return 0 if result.success else 1
+
+
+def cmd_work_reconcile(args: argparse.Namespace) -> int:
+    """Reconcile work projection from authoritative loop-state identity."""
+    from .work_queue import get_work_queue_service
+
+    result = _run(
+        get_work_queue_service().reconcile_projection(
+            projection_key=json.loads(args.projection_key),
+            task_type=args.task_type,
+            description=args.description,
+            priority=args.priority,
+            input_data=json.loads(args.input_data) if args.input_data else None,
+        )
+    )
+    _output(
+        {
+            "success": result.success,
+            "task_id": str(result.task_id) if result.task_id else None,
+            "created": result.created,
+            "deduplicated": result.deduplicated,
+            "status": result.status,
+            "cancelled_task_ids": [str(value) for value in result.cancelled_task_ids],
+            "reason": result.reason,
+        },
+        json_mode=args.json,
+    )
     return 0 if result.success else 1
 
 
@@ -852,7 +890,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--description", required=True)
     p.add_argument("--priority", type=int, default=5)
     p.add_argument("--input-data", help="JSON input data")
+    p.add_argument("--projection-key", help="JSON complete projection key")
     p.set_defaults(func=cmd_work_submit)
+
+    p = work_subs.add_parser("reconcile", help="Reconcile loop-state work projection")
+    p.add_argument("--task-type", required=True)
+    p.add_argument("--description", required=True)
+    p.add_argument("--priority", type=int, default=5)
+    p.add_argument("--input-data", help="JSON input data")
+    p.add_argument("--projection-key", required=True, help="JSON complete projection key")
+    p.set_defaults(func=cmd_work_reconcile)
 
     p = work_subs.add_parser("claim", help="Claim work from the queue")
     p.add_argument("--agent-id", required=True)
