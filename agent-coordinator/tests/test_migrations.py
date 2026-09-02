@@ -7,7 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.migrations import _checksum, discover_migrations, run_migrations
+from src.migrations import (
+    _checksum,
+    _unwrap_explicit_transaction,
+    discover_migrations,
+    run_migrations,
+)
 
 # ---------------------------------------------------------------------------
 # discover_migrations
@@ -61,6 +66,46 @@ def test_checksum_deterministic() -> None:
 def test_checksum_differs() -> None:
     """Different content produces different checksums."""
     assert _checksum("SELECT 1;") != _checksum("SELECT 2;")
+
+
+# ---------------------------------------------------------------------------
+# explicit transaction normalization
+# ---------------------------------------------------------------------------
+
+
+def test_unwrap_explicit_transaction_for_runner_owned_atomicity() -> None:
+    """Explicit psql boundaries are removed inside the asyncpg transaction."""
+    sql = "-- migration\nBEGIN;\nLOCK TABLE work_queue;\nSELECT 1;\nCOMMIT;\n"
+
+    assert _unwrap_explicit_transaction(sql) == (
+        "-- migration\n\nLOCK TABLE work_queue;\nSELECT 1;\n\n"
+    )
+
+
+def test_unwrap_preserves_migrations_without_explicit_boundaries() -> None:
+    """Legacy migrations continue to execute byte-for-byte."""
+    sql = "CREATE TABLE example (id INTEGER);\n"
+
+    assert _unwrap_explicit_transaction(sql) == sql
+
+
+@pytest.mark.asyncio()
+async def test_run_migrations_does_not_record_bootstrap_syntax_failure(tmp_path: Path) -> None:
+    """A broken migration is never recorded merely because the DB was bootstrapped."""
+    import asyncpg
+
+    (tmp_path / "035_broken.sql").write_text("BROKEN SQL")
+    mock_conn = _make_mock_conn()
+    mock_conn.execute.side_effect = [None, asyncpg.PostgresSyntaxError("bad syntax")]
+
+    with patch("asyncpg.connect", AsyncMock(return_value=mock_conn)):
+        with pytest.raises(asyncpg.PostgresSyntaxError):
+            await run_migrations("postgresql://test", migrations_dir=tmp_path)
+
+    assert all(
+        not call.args[0].startswith("INSERT INTO schema_migrations")
+        for call in mock_conn.execute.await_args_list
+    )
 
 
 # ---------------------------------------------------------------------------
