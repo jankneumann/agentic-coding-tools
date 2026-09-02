@@ -51,9 +51,7 @@ class TestEmitListEnvelope:
             next_steps=["coordination-cli feature show --feature-id <id>"],
         )
         env = _capture(capsys)
-        assert env["next_steps"] == [
-            "coordination-cli feature show --feature-id <id>"
-        ]
+        assert env["next_steps"] == ["coordination-cli feature show --feature-id <id>"]
 
     def test_next_steps_omitted_when_absent(self, capsys):
         _emit_list([{"x": 1}], json_mode=True)
@@ -186,3 +184,49 @@ def test_work_reconcile_cli_maps_projection_result(monkeypatch, capsys) -> None:
     )
     assert cmd_work_reconcile(args) == 0
     assert json.loads(capsys.readouterr().out)["cancelled_task_ids"] == [str(UUID(int=2))]
+
+
+def test_work_projection_cli_failure_omits_success_only_fields(monkeypatch, capsys) -> None:
+    from src import work_queue
+
+    service = AsyncMock()
+    service.submit.return_value = work_queue.SubmitResult(
+        success=False, created=False, reason="stale_projection"
+    )
+    service.reconcile_projection.return_value = work_queue.ReconcileResult(
+        success=False, created=False, reason="stale_projection"
+    )
+    monkeypatch.setattr(work_queue, "get_work_queue_service", lambda: service)
+    common = [
+        "--json",
+        "work",
+        "submit",
+        "--task-type",
+        "implement",
+        "--description",
+        "project",
+    ]
+    assert cmd_work_submit(build_parser().parse_args(common)) == 1
+    assert json.loads(capsys.readouterr().out) == {
+        "success": False,
+        "reason": "stale_projection",
+    }
+
+    reconcile = [
+        "--json",
+        "work",
+        "reconcile",
+        "--task-type",
+        "implement",
+        "--description",
+        "project",
+        "--projection-key",
+        json.dumps(
+            {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 1}
+        ),
+    ]
+    assert cmd_work_reconcile(build_parser().parse_args(reconcile)) == 1
+    assert json.loads(capsys.readouterr().out) == {
+        "success": False,
+        "reason": "stale_projection",
+    }

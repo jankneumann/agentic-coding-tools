@@ -97,6 +97,37 @@ def test_resume_reconciles_loaded_state_before_phase_execution(tmp_path: Path) -
     assert result.total_iterations == 9
 
 
+def test_phase_transition_persists_before_submit_projection(tmp_path: Path) -> None:
+    path = tmp_path / "loop-state.json"
+    state = _state()
+    state.total_iterations = 0
+    autopilot.save_state(state, path)
+    calls: list[tuple[str, str, int]] = []
+
+    def project(received: autopilot.LoopState, *, mode: str):
+        on_disk = json.loads(path.read_text())
+        assert on_disk["current_phase"] == received.current_phase
+        assert on_disk["total_iterations"] == received.total_iterations
+        calls.append((mode, received.current_phase, received.total_iterations))
+        return {"success": True}
+
+    result = autopilot.run_loop(
+        "ri-08",
+        tmp_path,
+        tmp_path,
+        state_path=path,
+        implement_fn=lambda _state: "complete",
+        queue_projection_fn=project,
+        max_global_iterations=1,
+    )
+
+    assert result.current_phase == "IMPL_ITERATE"
+    assert calls == [
+        ("reconcile", "IMPLEMENT", 0),
+        ("submit", "IMPL_ITERATE", 1),
+    ]
+
+
 def test_callback_absence_has_no_projection_side_effect(tmp_path: Path, monkeypatch) -> None:
     path = tmp_path / "loop-state.json"
     autopilot.save_state(_state(), path)
