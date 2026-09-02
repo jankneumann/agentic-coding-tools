@@ -273,10 +273,13 @@ class TestWorkQueueProjectionMigrationContract:
     def test_migration_035_static_contract(self):
         from pathlib import Path
 
-        sql = Path(
-            "agent-coordinator/database/migrations/035_work_queue_projection.sql"
+        sql = (
+            Path(__file__).resolve().parents[3]
+            / "database/migrations/035_work_queue_projection.sql"
         ).read_text()
-        assert "CREATE TABLE work_queue_projection_heads" in sql
+        assert "DROP FUNCTION IF EXISTS coordinator_notify(TEXT,TEXT,TEXT,TEXT,TEXT);" in sql
+        assert "CREATE TABLE IF NOT EXISTS work_queue_projection_heads" in sql
+        assert "CREATE UNIQUE INDEX IF NOT EXISTS work_queue_projection_key_uidx" in sql
         assert "phase TEXT NOT NULL" in sql
         assert "pg_advisory_xact_lock(hashtextextended" in sql
         assert "projection_generation_mismatch" in sql

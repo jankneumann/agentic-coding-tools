@@ -547,10 +547,17 @@ jobs:
 
       - name: Apply database migrations
         run: |
+          set -euo pipefail
           sudo apt-get install -y postgresql-client
           for f in agent-coordinator/database/migrations/*.sql; do
-            PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -f "$f"
+            PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 -h localhost -p 54322 -U postgres -d postgres -f "$f"
           done
+          PGPASSWORD=postgres \
+          POSTGRES_USER=postgres \
+          POSTGRES_DB=postgres \
+          PGHOST=localhost \
+          PGPORT=54322 \
+            bash agent-coordinator/database/migrations/999_record_schema_migrations.sh
 
       - name: Wait for DB readiness
         run: cd agent-coordinator && uv run python scripts/wait_for_db.py

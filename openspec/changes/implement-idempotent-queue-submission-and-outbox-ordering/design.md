@@ -73,6 +73,15 @@ HTTP success is a `ProjectionMutationSuccess` with `success=true`; authenticatio
 
 Migration 035 takes a short `SHARE ROW EXCLUSIVE` lock, checks for partial, malformed, out-of-range, or duplicate complete reserved keys, and aborts with documented SQLSTATE/diagnostic queries before creating the index. The transaction rolls back on failure; operators quarantine or normalize reported rows and rerun the unchanged migration. Seeded migration tests cover malformed, duplicate, clean retry, and rollback behavior.
 
+### D9 — Raw SQL bootstrap records the same migration ledger as the Python runner
+
+The official ParadeDB/PostgreSQL init path executes every `*.sql` file directly, so it must also leave the checksum ledger that `ensure_schema` expects. A lexically final executable init helper, `999_record_schema_migrations.sh`, runs only after all earlier SQL files succeed. It discovers every SQL migration, computes the byte-level SHA-256 used by Python `_checksum`, and records the complete set in one fail-fast transaction. Re-execution is idempotent. The Python runner continues to discover only `*.sql`, so it ignores the helper itself.
+
+CI invokes the same helper immediately after its `ON_ERROR_STOP` SQL loop instead of duplicating ledger logic in workflow YAML. A failed SQL file terminates the loop before the helper can run, preventing a partially applied bootstrap from being falsely marked complete.
+
+Migration-specific `UniqueViolationError` suppression was rejected. A live replay of migration 019 showed that its transaction can roll back while three legacy profile names remain, so recording that filename as applied would preserve semantic drift. Historical migrations remain unchanged and every non-recorded failure continues to propagate.
+
+
 ## Failure Matrix
 
 | Failure point | Durable truth | Queue state | Recovery |
@@ -90,6 +99,7 @@ Migration 035 takes a short `SHARE ROW EXCLUSIVE` lock, checks for partial, malf
 - Existing response consumers remain compatible because success fields are additive and failures retain the established transport-specific error envelope.
 - No OpenAPI endpoint is removed.
 
+- Fresh raw-SQL bootstrap now records the same 38-file checksum ledger consumed by the Python runner. This affects bootstrap bookkeeping only; no historical SQL checksum changes.
 ## Test Strategy
 
 - PostgreSQL integration tests provide RED evidence for concurrent duplicate submission and reconciliation.
@@ -98,6 +108,7 @@ Migration 035 takes a short `SHARE ROW EXCLUSIVE` lock, checks for partial, malf
 - Autopilot unit tests pin save-before-project call order, no projection after failed save, failure tolerance, and resume reconciliation.
 - Existing tier and AST-invariant tests prove coordinator-free fallback and one-way authority.
 
+- Bootstrap tests pin SQL-only discovery, exact checksum parity, idempotent tracking, fail-fast success-only ordering, and the CI call site. Fresh PostgreSQL validation proves `ensure_schema` has no follow-up apply set.
 ## Explicit ri-09 Boundary
 
 This change does not register a phase-transition publisher, change kanban-viz polling, or promise live phase latency. ri-09 will inject the adapter at the coordinated execution boundary and verify live mirroring. ri-08 supplies the atomic contract and crash-safe composition seam only.

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T04:20:38.988044+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": "pr-457-ci-remediation",
+    "summary": "Reproduced and fixed the required PR CI failures with TDD, then proved raw bootstrap and migration-runner convergence on a fresh PostgreSQL stack.",
+    "completed_work": [
+      "Added cwd-independent migration contract tests and fixed mypy narrowing/response typing.",
+      "Added RED-to-GREEN bootstrap ledger tests and executable 999_record_schema_migrations.sh.",
+      "Updated test-integration CI to fail fast through every SQL file, then invoke the shared ledger helper.",
+      "Proved fresh bootstrap records 38/38 exact checksums; ensure_schema apply and retry both return an empty list.",
+      "Proved migration 019 leaves zero legacy names, evaluator matches migration 026, the obsolete five-argument overload is absent, and projection/lifecycle live tests pass.",
+      "Tore down every isolated container, volume, network, and listener."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Record successful raw bootstrap with one final shared helper",
+        "rationale": "Docker init and CI execute SQL outside the Python runner; a lexically final success-only script now writes the exact filename/SHA-256 ledger that ensure_schema consumes.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Reject migration-specific uniqueness suppression",
+        "rationale": "Live inspection showed migration 019 can roll back while legacy profile drift remains, so falsely recording it as applied is unsafe; historical SQL remains unchanged and non-recorded failures propagate.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Remove only the obsolete notification overload in migration 035",
+        "rationale": "The five-argument overload from migration 015 conflicts with migration 025's defaulted seven-argument signature; idempotent 035 cleanup restores unambiguous lifecycle calls.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Commit and push the VAL_FIX package.",
+      "Apply the canonical fixed outcome, run canonical validation and independent validation review, then require all PR checks green before returning to the merge gate."
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/database/migrations/999_record_schema_migrations.sh",
+        "description": "Success-only raw bootstrap ledger writer"
+      },
+      {
+        "path": "agent-coordinator/database/migrations/035_work_queue_projection.sql",
+        "description": "Idempotent projection migration and obsolete overload cleanup"
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "description": "Fail-fast integration bootstrap ordering"
+      },
+      {
+        "path": "agent-coordinator/tests/test_migrations.py",
+        "description": "Checksum, discovery, idempotence, and workflow-ordering regressions"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+        "description": "Fresh PostgreSQL and CI-remediation evidence"
+      }
+    ]
+  }
+}

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import re
+import subprocess
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -13,6 +16,11 @@ from src.migrations import (
     discover_migrations,
     run_migrations,
 )
+
+_COORDINATOR_ROOT = Path(__file__).resolve().parents[1]
+_REPOSITORY_ROOT = _COORDINATOR_ROOT.parent
+_TRACKING_SCRIPT = _COORDINATOR_ROOT / "database/migrations/999_record_schema_migrations.sh"
+_CI_WORKFLOW = _REPOSITORY_ROOT / ".github/workflows/ci.yml"
 
 # ---------------------------------------------------------------------------
 # discover_migrations
@@ -51,6 +59,87 @@ def test_discover_migrations_ignores_directories(tmp_path: Path) -> None:
     result = discover_migrations(tmp_path)
     assert len(result) == 1
     assert result[0][1] == "002_real.sql"
+
+
+def test_discover_migrations_ignores_shell_tracking_script(tmp_path: Path) -> None:
+    """The Python runner discovers SQL migrations only, never entrypoint helpers."""
+    (tmp_path / "001_schema.sql").write_text("SELECT 1;")
+    (tmp_path / "999_record_schema_migrations.sh").write_text("#!/usr/bin/env bash\n")
+
+    assert [item[1] for item in discover_migrations(tmp_path)] == ["001_schema.sql"]
+
+
+def _render_tracking_sql(migrations_dir: Path, tmp_path: Path) -> str:
+    fake_psql = tmp_path / "fake-psql"
+    fake_psql.write_text("#!/usr/bin/env bash\ncat\n")
+    fake_psql.chmod(0o755)
+    env = os.environ.copy()
+    env.update(
+        {
+            "COORDINATOR_MIGRATIONS_DIR": str(migrations_dir),
+            "PSQL_BIN": str(fake_psql),
+            "POSTGRES_USER": "postgres",
+            "POSTGRES_DB": "postgres",
+        }
+    )
+    result = subprocess.run(
+        ["bash", str(_TRACKING_SCRIPT)],
+        check=True,
+        capture_output=True,
+        env=env,
+        text=True,
+    )
+    return result.stdout
+
+
+def test_tracking_script_discovers_sql_hashes_and_is_idempotent(tmp_path: Path) -> None:
+    """The final init script records every SQL file with Python-compatible hashes."""
+    migrations_dir = tmp_path / "migrations"
+    migrations_dir.mkdir()
+    first = migrations_dir / "001_first.sql"
+    second = migrations_dir / "002_second.sql"
+    first.write_text("SELECT 1;\n")
+    second.write_text("SELECT 'two';\n")
+    (migrations_dir / "999_ignored.sh").write_text("exit 1\n")
+
+    rendered_once = _render_tracking_sql(migrations_dir, tmp_path)
+    rendered_twice = _render_tracking_sql(migrations_dir, tmp_path)
+    recorded = dict(
+        re.findall(
+            r"VALUES \('([^']+)', '([0-9a-f]{64})'\)",
+            rendered_once,
+        )
+    )
+
+    assert rendered_once == rendered_twice
+    assert recorded == {
+        first.name: _checksum(first.read_text()),
+        second.name: _checksum(second.read_text()),
+    }
+    assert rendered_once.count("ON CONFLICT (filename) DO UPDATE") == 2
+    assert "CREATE TABLE IF NOT EXISTS schema_migrations" in rendered_once
+    assert rendered_once.startswith("BEGIN;")
+    assert rendered_once.rstrip().endswith("COMMIT;")
+
+
+def test_tracking_script_runs_only_after_fail_fast_ci_sql_loop() -> None:
+    """A failed SQL migration prevents CI from falsely recording later files."""
+    workflow = _CI_WORKFLOW.read_text()
+    step_start = workflow.index("      - name: Apply database migrations")
+    step_end = workflow.index("      - name:", step_start + 10)
+    step = workflow[step_start:step_end]
+
+    assert "set -euo pipefail" in step
+    assert "psql -v ON_ERROR_STOP=1" in step
+    assert step.index("for f in") < step.index("psql -v ON_ERROR_STOP=1")
+    assert step.index("psql -v ON_ERROR_STOP=1") < step.index("done")
+    script_call = "bash agent-coordinator/database/migrations/999_record_schema_migrations.sh"
+    assert step.index("done") < step.index(script_call)
+    assert step.count(script_call) == 1
+    assert _TRACKING_SCRIPT.name > max(
+        path.name for path in _TRACKING_SCRIPT.parent.glob("*.sql")
+    )
+    assert os.access(_TRACKING_SCRIPT, os.X_OK)
 
 
 # ---------------------------------------------------------------------------
