@@ -43,3 +43,41 @@
 ### Context
 Planned a Harbor-based archive-replay benchmark (114 archived OpenSpec changes as tasks) that sweeps combos {vendor, model, thinking, harness} across all 5 vendors and imports priors into the adaptive router's data plane, with a flagged ROUTING_ADAPTIVE read-path in resolve_for_phase. Gate 1 selected Approach A (Harbor substrate subsuming ri-05); tier coordinated; interview-mode discovery (9 questions, min confidence 0.90).
 
+## Phase: Plan review remediation (2026-09-02)
+
+**Agent**: claude_code | **Session**: N/A | **Trigger**: Codex review on PR #458 (5 P1 findings)
+
+### Decisions
+1. **Import idempotency moves from a `last_job_id` column to a `model_posterior_imports` ledger (D3)** `architectural: model-routing` — One column only remembers the most recent import, so importing A → B → A again double-counts A into an aggregate that already contains it; the ledger persists every contributing job identity and posteriors become deterministic aggregates over it
+2. **Metered cap enforced by pre-launch reservation, not observed spend (D4)** `architectural: evaluation-framework` — Trial cost is only known on completion, so `accumulated >= cap` admits trials that overshoot by one or more full trial costs when attempts run in parallel; admission is now spent + reserved + conservative estimate ≤ cap
+3. **`task_type` is a specified deterministic reduction over `package_kind`, not a lookup (D7)** `architectural: evaluation-framework` — only 34 of 115 archived changes declare any `package_kind` and 28 of those declare two or more distinct kinds, so multi-kind is the common case, not an edge case; without a rule, conversion either fails or labels trials arbitrarily and corrupts the posteriors it feeds
+4. **`thinking` added to `CandidateInput`/`ScoredCandidate` as an explicit wp-db-import prerequisite (D8)** `architectural: model-routing` — The scorer is keyed on (vendor, model, endpoint_kind) today, so the exact distinction this change exists to measure collapses before ranking and the read-path has no thinking value to return
+5. **wp-db-import owns the importer's harbor-bench source path** `process` — The proposal places the importer under `packages/harbor-bench`, but the package owning task 4.6 could write only coordinator paths, so no package could implement it where it is specified
+
+### Alternatives Considered
+- Map the legacy `feature` package_kind onto a modern vocabulary value: rejected because it fabricates a declaration the change never made and spans several current kinds
+- Split a multi-kind change into one trial per work package: rejected because the Harbor instruction is the change's whole proposal.md, so per-package trials would score the same work several times
+- Assign the importer to a new prerequisite package instead of extending wp-db-import's scope: rejected because the coordinator-side schema and the importer that fills it share one idempotency design (D3) and would otherwise have to re-agree on it across a package boundary
+- Serialize metered trials one at a time to bound spend: rejected because it is correct but discards the parallelism the sweep needs to finish
+
+### Trade-offs
+- Accepted A third table and a per-job ledger row per posterior cell over a single idempotency column because correctness across multi-job imports is the whole point of the provenance design
+- Accepted Conservative cost over-estimation (default 1.25 safety factor) leaving the job under budget over exact accounting that can exceed the cap because the cap is a hard external constraint and unused headroom is recoverable
+- Accepted wp-db-import now waits on wp-corpus for the package scaffold because the alternative is a package that cannot write the file it owns
+
+### Open Questions
+- [ ] The 1.25 cost-estimate safety factor is a starting value; the `cost_estimate_exceeded` job-summary event exists so the pilot can re-tune it
+- [ ] Inference of `task_type` from delta-spec capability turns out to carry 81 of the 115 archived changes (46 with no work-packages.yaml, 35 with one that declares no package_kind), so it is load-bearing rather than a fallback; its deterministic rule is specified and tested at task 2.8
+
+### Next Steps
+- Unchanged: Phase 1 first (contracts validation, scaffold, sealed manifest)
+- Two new converter tasks (2.7, 2.8) and two new data-plane tasks (4.7, 4.8) enter the TDD sequence
+
+### Relevant Files
+- `openspec/changes/add-harbor-benchmark-routing/design.md` — D3, D4, D7, D8 rewritten
+- `openspec/changes/add-harbor-benchmark-routing/contracts/db/schema.sql` — `model_posterior_imports` added, `last_job_id` removed
+- `openspec/changes/add-harbor-benchmark-routing/contracts/schemas/trial-record.schema.json` — `task_type_source` required; `task_type_mix`, `task_type_legacy_kinds` added
+- `openspec/changes/add-harbor-benchmark-routing/work-packages.yaml` — wp-db-import scope, deps, locks, and verification extended (plan_revision 2)
+
+### Context
+Remediated all five P1 findings from the Codex review of PR #458. Two of them (the importer's write scope and the missing `thinking` field on the scorer) made the plan un-implementable as written: no work package could create the importer at its specified path, and wp-readpath could not satisfy its own spec scenario within its scope. Every claim was verified against the repository before editing — the resolver dataclasses, the archive's package_kind distribution (115 changes; 34 declaring any package_kind, 28 of those multi-kind; 81 with none; 1 legacy `feature`; 1 without loc_estimate), and the proposal's stated importer location.

@@ -3,11 +3,11 @@ schema_version: 1
 feature:
   id: add-harbor-benchmark-routing
   title: "Harbor archive-replay benchmark feeding combo priors into adaptive routing"
-  plan_revision: 1
+  plan_revision: 2
   created_by: claude-code
 
 contracts:
-  revision: 1
+  revision: 2
   openapi:
     primary: "openspec/changes/add-harbor-benchmark-routing/contracts/README.md"
     files:
@@ -131,15 +131,16 @@ packages:
       result_keys:
         - "corpus_tests_green"
 
-  # ── wp-converter — archive → Harbor task conversion (tasks 2.1–2.6)
+  # ── wp-converter — archive → Harbor task conversion (tasks 2.1–2.8)
   - package_id: wp-converter
     title: "Converter — instruction/environment/verifier emission"
     task_type: backend
     description: |
-      Tasks 2.1–2.6: instruction extraction with diff withholding; environment
+      Tasks 2.1–2.8: instruction extraction with diff withholding; environment
       emission pinned to pre-implementation commit (OCI-compatible subset);
       deterministic-first verifier ladder with blind judge path behind per-task
-      flag. Design D1, D6, D7, D10.
+      flag; deterministic change-level task_type reduction over package_kind with
+      task_type_source / task_type_mix stamping. Design D1, D6, D7, D10.
     role: backend-implementer
     archetype: implementer
     priority: 3
@@ -285,24 +286,36 @@ packages:
       result_keys:
         - "sweep_tests_green"
 
-  # ── wp-db-import — migration 035, feedback re-keying, importer (tasks 4.1–4.6)
+  # ── wp-db-import — migration 035, feedback re-keying, resolver thinking,
+  #    importer (tasks 4.1–4.8)
   - package_id: wp-db-import
-    title: "Data plane — migration 035, feedback re-keying, prior importer"
+    title: "Data plane — migration 035, feedback re-keying, resolver thinking, prior importer"
     task_type: backend
     description: |
-      Tasks 4.1–4.6: migration 035 (model_catalog + model_posteriors with thinking
-      and provenance); re-key feedback normalizers to (vendor, model, thinking)
-      with compat shim; idempotent importer from trial records. Design D3, D7, D9.
+      Tasks 4.1–4.8: migration 035 (model_catalog + model_posteriors + the
+      model_posterior_imports ledger, with thinking and provenance); re-key feedback
+      normalizers to (vendor, model, thinking) with compat shim; add `thinking` to
+      CandidateInput/ScoredCandidate so wp-readpath can return the selected tier;
+      ledger-backed idempotent importer from trial records. Design D3, D7, D8, D9.
       Migration authorship is serialized via the db:schema lock (next free: 035).
+
+      The importer's source lives at packages/harbor-bench/src/harbor_bench/importer/
+      per the proposal's three-tool layout, so this package writes into
+      packages/harbor-bench as well as the coordinator, and depends on wp-corpus for
+      the package scaffold. The coordinator-side schema and the importer that fills
+      it share one idempotency design (D3) and are kept in one package rather than
+      split across a boundary they would have to re-agree on.
     role: backend-implementer
     archetype: implementer
     priority: 3
-    depends_on: [wp-contracts]
+    depends_on: [wp-contracts, wp-corpus]
     locks:
       files:
         - "agent-coordinator/src/model_routing/feedback.py"
+        - "agent-coordinator/src/model_routing/resolver.py"
       keys:
         - "db:schema:model_routing"
+        - "feature:harbor-bench:importer"
       ttl_minutes: 180
       reason: "Routing data plane and importer"
     scope:
@@ -310,6 +323,8 @@ packages:
         - "agent-coordinator/database/migrations/035_model_routing.sql"
         - "agent-coordinator/src/model_routing/**"
         - "agent-coordinator/tests/model_routing/**"
+        - "packages/harbor-bench/src/harbor_bench/importer/**"
+        - "packages/harbor-bench/tests/importer/**"
       read_allow:
         - "**"
     worktree:
@@ -330,14 +345,24 @@ packages:
             artifacts: []
             result_keys:
               - "model_routing_tests_green"
+        - name: "Importer tests pass"
+          kind: command
+          command: "uv run --project packages/harbor-bench pytest packages/harbor-bench/tests/importer -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "importer_tests_green"
     metadata:
-      loc_estimate: 800
+      loc_estimate: 1000
       complexity: medium
       package_kind: migration
     inputs: {}
     outputs:
       result_keys:
         - "model_routing_tests_green"
+        - "importer_tests_green"
 
   # ── wp-readpath — flagged adaptive resolution (tasks 5.1–5.3)
   - package_id: wp-readpath
@@ -348,6 +373,11 @@ packages:
       ranking via score_and_rank with constraint filtering and empty-catalog
       fallback. coordination_api.py is a high-coupling module — serialized after
       wp-db-import, file-locked. Design D8.
+
+      Depends on wp-db-import for more than data: resolver.py's CandidateInput /
+      ScoredCandidate gain their `thinking` field there (task 4.8). Without it this
+      package cannot satisfy "flag on ranks by priors", which requires returning the
+      selected thinking tier, and resolver.py is outside this package's write scope.
     role: backend-implementer
     archetype: implementer
     priority: 5
