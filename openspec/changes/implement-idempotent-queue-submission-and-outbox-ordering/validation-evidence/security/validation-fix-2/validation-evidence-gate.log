@@ -1,0 +1,18 @@
+{
+  "action": "continue",
+  "reason": "All required phases passed. Proceeding to merge.",
+  "phase_statuses": {
+    "Spec Compliance": "pass",
+    "Smoke Tests": "pass",
+    "Security": "pass",
+    "E2E Tests": "pass"
+  },
+  "force": false,
+  "accept_degraded": [],
+  "architecture_gate_mode": "advisory",
+  "deployable_surface": {
+    "deployable": true,
+    "source": "declared",
+    "reason": "declared in openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering"
+  }
+}
