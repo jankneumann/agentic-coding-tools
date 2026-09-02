@@ -104,9 +104,7 @@ def _emit_list(
         "items": items,
     }
     if truncated and limit is not None:
-        envelope["hint"] = (
-            f"showing first {limit}; re-run with a higher --limit to see more"
-        )
+        envelope["hint"] = f"showing first {limit}; re-run with a higher --limit to see more"
     if next_steps:
         envelope["next_steps"] = next_steps
 
@@ -164,21 +162,26 @@ def cmd_feature_register(args: argparse.Namespace) -> int:
     from .feature_registry import get_feature_registry_service
 
     claims = args.claims or []
-    result = _run(get_feature_registry_service().register(
-        feature_id=args.feature_id,
-        resource_claims=claims,
-        title=args.title,
-        agent_id=args.agent_id,
-        branch_name=args.branch_name,
-        merge_priority=args.merge_priority,
-        metadata=json.loads(args.metadata) if args.metadata else None,
-    ))
-    _output({
-        "success": result.success,
-        "feature_id": result.feature_id,
-        "action": result.action,
-        "reason": result.reason,
-    }, json_mode=args.json)
+    result = _run(
+        get_feature_registry_service().register(
+            feature_id=args.feature_id,
+            resource_claims=claims,
+            title=args.title,
+            agent_id=args.agent_id,
+            branch_name=args.branch_name,
+            merge_priority=args.merge_priority,
+            metadata=json.loads(args.metadata) if args.metadata else None,
+        )
+    )
+    _output(
+        {
+            "success": result.success,
+            "feature_id": result.feature_id,
+            "action": result.action,
+            "reason": result.reason,
+        },
+        json_mode=args.json,
+    )
     return 0 if result.success else 1
 
 
@@ -186,16 +189,21 @@ def cmd_feature_deregister(args: argparse.Namespace) -> int:
     """Deregister a feature."""
     from .feature_registry import get_feature_registry_service
 
-    result = _run(get_feature_registry_service().deregister(
-        feature_id=args.feature_id,
-        status=args.status,
-    ))
-    _output({
-        "success": result.success,
-        "feature_id": result.feature_id,
-        "status": result.status,
-        "reason": result.reason,
-    }, json_mode=args.json)
+    result = _run(
+        get_feature_registry_service().deregister(
+            feature_id=args.feature_id,
+            status=args.status,
+        )
+    )
+    _output(
+        {
+            "success": result.success,
+            "feature_id": result.feature_id,
+            "status": result.status,
+            "reason": result.reason,
+        },
+        json_mode=args.json,
+    )
     return 0 if result.success else 1
 
 
@@ -206,17 +214,20 @@ def cmd_feature_show(args: argparse.Namespace) -> int:
     feature = _run(get_feature_registry_service().get_feature(args.feature_id))
     if feature is None:
         return _error(f"feature not found: {args.feature_id}")
-    _output({
-        "feature_id": feature.feature_id,
-        "title": feature.title,
-        "status": feature.status,
-        "registered_by": feature.registered_by,
-        "resource_claims": feature.resource_claims,
-        "branch_name": feature.branch_name,
-        "merge_priority": feature.merge_priority,
-        "metadata": feature.metadata,
-        "registered_at": feature.registered_at.isoformat() if feature.registered_at else None,
-    }, json_mode=args.json)
+    _output(
+        {
+            "feature_id": feature.feature_id,
+            "title": feature.title,
+            "status": feature.status,
+            "registered_by": feature.registered_by,
+            "resource_claims": feature.resource_claims,
+            "branch_name": feature.branch_name,
+            "merge_priority": feature.merge_priority,
+            "metadata": feature.metadata,
+            "registered_at": feature.registered_at.isoformat() if feature.registered_at else None,
+        },
+        json_mode=args.json,
+    )
     return 0
 
 
@@ -251,17 +262,22 @@ def cmd_feature_conflicts(args: argparse.Namespace) -> int:
     """Analyze resource conflicts for a candidate feature."""
     from .feature_registry import get_feature_registry_service
 
-    report = _run(get_feature_registry_service().analyze_conflicts(
-        args.feature_id,
-        args.claims,
-    ))
-    _output({
-        "candidate_feature_id": report.candidate_feature_id,
-        "feasibility": report.feasibility.value,
-        "total_candidate_claims": report.total_candidate_claims,
-        "total_conflicting_claims": report.total_conflicting_claims,
-        "conflicts": report.conflicts,
-    }, json_mode=args.json)
+    report = _run(
+        get_feature_registry_service().analyze_conflicts(
+            args.feature_id,
+            args.claims,
+        )
+    )
+    _output(
+        {
+            "candidate_feature_id": report.candidate_feature_id,
+            "feasibility": report.feasibility.value,
+            "total_candidate_claims": report.total_candidate_claims,
+            "total_conflicting_claims": report.total_conflicting_claims,
+            "conflicts": report.conflicts,
+        },
+        json_mode=args.json,
+    )
     return 0
 
 
@@ -272,18 +288,23 @@ def cmd_mq_enqueue(args: argparse.Namespace) -> int:
     """Enqueue a feature for merge."""
     from .merge_queue import get_merge_queue_service
 
-    entry = _run(get_merge_queue_service().enqueue(
-        feature_id=args.feature_id,
-        pr_url=args.pr_url,
-    ))
+    entry = _run(
+        get_merge_queue_service().enqueue(
+            feature_id=args.feature_id,
+            pr_url=args.pr_url,
+        )
+    )
     if entry is None:
         return _error("feature not found or not active")
-    _output({
-        "feature_id": entry.feature_id,
-        "merge_status": entry.merge_status.value,
-        "merge_priority": entry.merge_priority,
-        "pr_url": entry.pr_url,
-    }, json_mode=args.json)
+    _output(
+        {
+            "feature_id": entry.feature_id,
+            "merge_status": entry.merge_status.value,
+            "merge_priority": entry.merge_priority,
+            "pr_url": entry.pr_url,
+        },
+        json_mode=args.json,
+    )
     return 0
 
 
@@ -321,12 +342,15 @@ def cmd_mq_next(args: argparse.Namespace) -> int:
     if entry is None:
         _output({"entry": None, "reason": "no_features_ready"}, json_mode=args.json)
         return 0
-    _output({
-        "feature_id": entry.feature_id,
-        "merge_status": entry.merge_status.value,
-        "merge_priority": entry.merge_priority,
-        "pr_url": entry.pr_url,
-    }, json_mode=args.json)
+    _output(
+        {
+            "feature_id": entry.feature_id,
+            "merge_status": entry.merge_status.value,
+            "merge_priority": entry.merge_priority,
+            "pr_url": entry.pr_url,
+        },
+        json_mode=args.json,
+    )
     return 0
 
 
@@ -335,13 +359,16 @@ def cmd_mq_check(args: argparse.Namespace) -> int:
     from .merge_queue import get_merge_queue_service
 
     result = _run(get_merge_queue_service().run_pre_merge_checks(args.feature_id))
-    _output({
-        "feature_id": result.feature_id,
-        "passed": result.passed,
-        "checks": result.checks,
-        "issues": result.issues,
-        "conflicts": result.conflicts,
-    }, json_mode=args.json)
+    _output(
+        {
+            "feature_id": result.feature_id,
+            "passed": result.passed,
+            "checks": result.checks,
+            "issues": result.issues,
+            "conflicts": result.conflicts,
+        },
+        json_mode=args.json,
+    )
     return 0 if result.passed else 1
 
 
@@ -370,20 +397,25 @@ def cmd_lock_acquire(args: argparse.Namespace) -> int:
     """Acquire a file lock."""
     from .locks import get_lock_service
 
-    result = _run(get_lock_service().acquire(
-        file_path=args.file_path,
-        agent_id=args.agent_id,
-        agent_type=args.agent_type or "cli",
-        reason=args.reason,
-        ttl_minutes=args.ttl_minutes,
-    ))
-    _output({
-        "success": result.success,
-        "action": result.action,
-        "file_path": result.file_path,
-        "expires_at": result.expires_at.isoformat() if result.expires_at else None,
-        "reason": result.reason,
-    }, json_mode=args.json)
+    result = _run(
+        get_lock_service().acquire(
+            file_path=args.file_path,
+            agent_id=args.agent_id,
+            agent_type=args.agent_type or "cli",
+            reason=args.reason,
+            ttl_minutes=args.ttl_minutes,
+        )
+    )
+    _output(
+        {
+            "success": result.success,
+            "action": result.action,
+            "file_path": result.file_path,
+            "expires_at": result.expires_at.isoformat() if result.expires_at else None,
+            "reason": result.reason,
+        },
+        json_mode=args.json,
+    )
     return 0 if result.success else 1
 
 
@@ -391,15 +423,20 @@ def cmd_lock_release(args: argparse.Namespace) -> int:
     """Release a file lock."""
     from .locks import get_lock_service
 
-    result = _run(get_lock_service().release(
-        file_path=args.file_path,
-        agent_id=args.agent_id,
-    ))
-    _output({
-        "success": result.success,
-        "action": result.action,
-        "file_path": result.file_path,
-    }, json_mode=args.json)
+    result = _run(
+        get_lock_service().release(
+            file_path=args.file_path,
+            agent_id=args.agent_id,
+        )
+    )
+    _output(
+        {
+            "success": result.success,
+            "action": result.action,
+            "file_path": result.file_path,
+        },
+        json_mode=args.json,
+    )
     return 0 if result.success else 1
 
 
@@ -445,17 +482,17 @@ def cmd_work_submit(args: argparse.Namespace) -> int:
             projection_key=(json.loads(args.projection_key) if args.projection_key else None),
         )
     )
-    _output(
-        {
-            "success": result.success,
-            "task_id": str(result.task_id) if result.task_id else None,
-            "created": result.created,
-            "deduplicated": result.deduplicated,
-            "status": result.status,
-            "reason": result.reason,
-        },
-        json_mode=args.json,
-    )
+    payload = {"success": result.success}
+    if result.success:
+        payload.update(
+            task_id=str(result.task_id),
+            created=result.created,
+            deduplicated=result.deduplicated,
+            status=result.status,
+        )
+    else:
+        payload["reason"] = result.reason
+    _output(payload, json_mode=args.json)
     return 0 if result.success else 1
 
 
@@ -472,18 +509,18 @@ def cmd_work_reconcile(args: argparse.Namespace) -> int:
             input_data=json.loads(args.input_data) if args.input_data else None,
         )
     )
-    _output(
-        {
-            "success": result.success,
-            "task_id": str(result.task_id) if result.task_id else None,
-            "created": result.created,
-            "deduplicated": result.deduplicated,
-            "status": result.status,
-            "cancelled_task_ids": [str(value) for value in result.cancelled_task_ids],
-            "reason": result.reason,
-        },
-        json_mode=args.json,
-    )
+    payload = {"success": result.success}
+    if result.success:
+        payload.update(
+            task_id=str(result.task_id),
+            created=result.created,
+            deduplicated=result.deduplicated,
+            status=result.status,
+            cancelled_task_ids=[str(value) for value in result.cancelled_task_ids],
+        )
+    else:
+        payload["reason"] = result.reason
+    _output(payload, json_mode=args.json)
     return 0 if result.success else 1
 
 
@@ -491,19 +528,24 @@ def cmd_work_claim(args: argparse.Namespace) -> int:
     """Claim work from the queue."""
     from .work_queue import get_work_queue_service
 
-    result = _run(get_work_queue_service().claim(
-        agent_id=args.agent_id,
-        agent_type=args.agent_type or "cli",
-        task_types=args.task_types,
-    ))
-    _output({
-        "success": result.success,
-        "task_id": str(result.task_id) if result.task_id else None,
-        "task_type": result.task_type,
-        "description": result.description,
-        "priority": result.priority,
-        "reason": result.reason,
-    }, json_mode=args.json)
+    result = _run(
+        get_work_queue_service().claim(
+            agent_id=args.agent_id,
+            agent_type=args.agent_type or "cli",
+            task_types=args.task_types,
+        )
+    )
+    _output(
+        {
+            "success": result.success,
+            "task_id": str(result.task_id) if result.task_id else None,
+            "task_type": result.task_type,
+            "description": result.description,
+            "priority": result.priority,
+            "reason": result.reason,
+        },
+        json_mode=args.json,
+    )
     return 0 if result.success else 1
 
 
@@ -513,17 +555,22 @@ def cmd_work_complete(args: argparse.Namespace) -> int:
 
     from .work_queue import get_work_queue_service
 
-    result = _run(get_work_queue_service().complete(
-        task_id=UUID(args.task_id),
-        success=args.success,
-        result=json.loads(args.result_data) if args.result_data else None,
-        error_message=args.error_message,
-    ))
-    _output({
-        "success": result.success,
-        "status": result.status,
-        "task_id": str(result.task_id) if result.task_id else None,
-    }, json_mode=args.json)
+    result = _run(
+        get_work_queue_service().complete(
+            task_id=UUID(args.task_id),
+            success=args.success,
+            result=json.loads(args.result_data) if args.result_data else None,
+            error_message=args.error_message,
+        )
+    )
+    _output(
+        {
+            "success": result.success,
+            "status": result.status,
+            "task_id": str(result.task_id) if result.task_id else None,
+        },
+        json_mode=args.json,
+    )
     return 0 if result.success else 1
 
 
@@ -536,14 +583,17 @@ def cmd_work_get(args: argparse.Namespace) -> int:
     task = _run(get_work_queue_service().get_task(UUID(args.task_id)))
     if task is None:
         return _error(f"task not found: {args.task_id}")
-    _output({
-        "id": str(task.id),
-        "task_type": task.task_type,
-        "description": task.description,
-        "status": task.status,
-        "priority": task.priority,
-        "claimed_by": task.claimed_by,
-    }, json_mode=args.json)
+    _output(
+        {
+            "id": str(task.id),
+            "task_type": task.task_type,
+            "description": task.description,
+            "status": task.status,
+            "priority": task.priority,
+            "claimed_by": task.claimed_by,
+        },
+        json_mode=args.json,
+    )
     return 0
 
 
@@ -554,15 +604,20 @@ def cmd_handoff_write(args: argparse.Namespace) -> int:
     """Write a handoff document."""
     from .handoffs import get_handoff_service
 
-    result = _run(get_handoff_service().write(
-        summary=args.summary,
-        agent_name=args.agent_id,
-        session_id=args.session_id,
-    ))
-    _output({
-        "success": result.success,
-        "handoff_id": str(result.handoff_id) if result.handoff_id else None,
-    }, json_mode=args.json)
+    result = _run(
+        get_handoff_service().write(
+            summary=args.summary,
+            agent_name=args.agent_id,
+            session_id=args.session_id,
+        )
+    )
+    _output(
+        {
+            "success": result.success,
+            "handoff_id": str(result.handoff_id) if result.handoff_id else None,
+        },
+        json_mode=args.json,
+    )
     return 0 if result.success else 1
 
 
@@ -572,12 +627,14 @@ def cmd_handoff_read(args: argparse.Namespace) -> int:
 
     # Truncation detection is owned by the service (detect_truncation) so the
     # over-fetch never inflates the audit trail's recorded limit/count.
-    result = _run(get_handoff_service().read(
-        agent_name=args.agent_name,
-        limit=args.limit,
-        detect_truncation=True,
-        supervisor_only=args.supervisor_only,
-    ))
+    result = _run(
+        get_handoff_service().read(
+            agent_name=args.agent_name,
+            limit=args.limit,
+            detect_truncation=True,
+            supervisor_only=args.supervisor_only,
+        )
+    )
     data = [
         {
             "id": str(h.id),
@@ -605,17 +662,22 @@ def cmd_memory_store(args: argparse.Namespace) -> int:
     """Store an episodic memory."""
     from .memory import get_memory_service
 
-    result = _run(get_memory_service().remember(
-        event_type=args.event_type,
-        summary=args.summary,
-        tags=args.tags,
-        agent_id=args.agent_id,
-    ))
-    _output({
-        "success": result.success,
-        "memory_id": result.memory_id,
-        "action": result.action,
-    }, json_mode=args.json)
+    result = _run(
+        get_memory_service().remember(
+            event_type=args.event_type,
+            summary=args.summary,
+            tags=args.tags,
+            agent_id=args.agent_id,
+        )
+    )
+    _output(
+        {
+            "success": result.success,
+            "memory_id": result.memory_id,
+            "action": result.action,
+        },
+        json_mode=args.json,
+    )
     return 0 if result.success else 1
 
 
@@ -623,11 +685,13 @@ def cmd_memory_query(args: argparse.Namespace) -> int:
     """Query episodic memories."""
     from .memory import get_memory_service
 
-    result = _run(get_memory_service().recall(
-        tags=args.tags,
-        event_type=args.event_type,
-        limit=args.limit + 1,  # +1 sentinel row to detect truncation
-    ))
+    result = _run(
+        get_memory_service().recall(
+            tags=args.tags,
+            event_type=args.event_type,
+            limit=args.limit + 1,  # +1 sentinel row to detect truncation
+        )
+    )
     memories, truncated = _probe_truncation(list(result.memories), args.limit)
     data = [
         {
@@ -655,17 +719,22 @@ def cmd_guardrails_check(args: argparse.Namespace) -> int:
     """Check an operation for destructive patterns."""
     from .guardrails import get_guardrails_service
 
-    result = _run(get_guardrails_service().check_operation(
-        operation_text=args.operation_text,
-        file_paths=args.file_paths,
-    ))
-    _output({
-        "safe": result.safe,
-        "violations": [
-            {"pattern_name": v.pattern_name, "severity": v.severity, "blocked": v.blocked}
-            for v in result.violations
-        ],
-    }, json_mode=args.json)
+    result = _run(
+        get_guardrails_service().check_operation(
+            operation_text=args.operation_text,
+            file_paths=args.file_paths,
+        )
+    )
+    _output(
+        {
+            "safe": result.safe,
+            "violations": [
+                {"pattern_name": v.pattern_name, "severity": v.severity, "blocked": v.blocked}
+                for v in result.violations
+            ],
+        },
+        json_mode=args.json,
+    )
     return 0 if result.safe else 1
 
 
@@ -676,11 +745,13 @@ def cmd_audit_query(args: argparse.Namespace) -> int:
     """Query audit trail."""
     from .audit import get_audit_service
 
-    entries = _run(get_audit_service().query(
-        agent_id=args.agent_id,
-        operation=args.operation,
-        limit=args.limit + 1,  # +1 sentinel row to detect truncation
-    ))
+    entries = _run(
+        get_audit_service().query(
+            agent_id=args.agent_id,
+            operation=args.operation,
+            limit=args.limit + 1,  # +1 sentinel row to detect truncation
+        )
+    )
     entries, truncated = _probe_truncation(list(entries), args.limit)
     data = [
         {
@@ -789,7 +860,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="Multi-agent coordination CLI. Token-efficient alternative to MCP.",
     )
     parser.add_argument(
-        "--json", action="store_true", help="JSON output (default: human-readable)",
+        "--json",
+        action="store_true",
+        help="JSON output (default: human-readable)",
     )
     subs = parser.add_subparsers(dest="command", help="Available command groups")
 

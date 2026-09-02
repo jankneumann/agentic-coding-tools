@@ -190,3 +190,41 @@ PLAN_REVIEW round 3 is the final allowed round and converged. Two distinct succe
 ### Context
 Implemented idempotent keyed work submission and full-generation reconciliation across PostgreSQL, service, HTTP, direct/proxy MCP, CLI, coordination bridge, and optional autopilot persist-first projection seams. All non-PostgreSQL package and integration gates pass; the real PostgreSQL suite is present but skipped because the Docker socket is denied and this environment contains PostgreSQL client binaries only.
 
+---
+
+## Phase: Implementation Iteration 1 (2026-09-02)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Treat projection persistence and transport parity as merge-blocking contracts** — The queue is derived state, so missed post-persistence publication or transport-specific authorization behavior breaks crash recovery and boundary consistency.
+
+### Alternatives Considered
+- Defer transport inconsistencies to ri-09: rejected because ri-08 explicitly owns the projection seam and parity contracts, so deferral would ship an unusable foundation.
+
+### Trade-offs
+- Accepted explicit PostgreSQL and vendor-review degradation records over stalling for unavailable infrastructure because The real PostgreSQL runtime is unavailable and bounded Antigravity review produced no artifact; deterministic local gates remain green.
+
+### Capability Gaps Observed
+- **runtime_unavailable**: Real PostgreSQL integration tests skipped because no PostgreSQL runtime is available (skill: iterate-on-implementation, severity: medium)
+- **vendor_timeout**: Bounded Antigravity implementation review exceeded the hard cap and produced no artifact (skill: iterate-on-implementation, severity: low)
+
+### Completed Work
+- Fixed normal transition persist-then-project ordering
+- Enforced submit_work authorization for direct reconciliation
+- Restored bridge no-raise validation envelopes
+- Rejected reserved projection identity on unkeyed submissions
+- Removed success-only fields from CLI failure envelopes
+
+### Next Steps
+- Run validation with a real PostgreSQL service when available
+- Proceed to implementation review using the committed local evidence
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/impl-findings.md` — Iteration findings and verification evidence
+- `skills/autopilot/scripts/autopilot.py` — Persist-before-project transition seam
+- `agent-coordinator/src/work_queue.py` — Projection validation and authorization
+
+### Context
+Reviewed the complete queue-projection implementation and fixed five contract defects with RED-to-GREEN tests. Persist ordering, reconciliation authorization, bridge failure envelopes, reserved-key isolation, and CLI failure parity now match the approved specification; all available local gates pass.
+
