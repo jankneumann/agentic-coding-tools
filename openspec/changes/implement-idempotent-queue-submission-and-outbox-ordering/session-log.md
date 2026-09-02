@@ -301,3 +301,37 @@ Fixed all three blocking implementation-review contract findings with RED-to-GRE
 ### Context
 Two fixes are sound, but open-ended service policy reasons still fall through the exact-token HTTP mapper.
 
+---
+
+## Phase: Implementation Fix 2 (2026-09-02)
+
+**Agent**: codex | **Session**: impl-fix-round-2
+
+### Decisions
+1. **Classify policy origin explicitly** — PolicyDecision.reason is open-ended, so transport status must depend on the trusted service branch that produced the denial rather than a reason-string allowlist or prefix heuristic.
+
+### Alternatives Considered
+- Prefix-match write_denied and other known policy strings: rejected because Open-ended policy reasons would remain incomplete and arbitrary validation text could be misclassified.
+
+### Trade-offs
+- Accepted one optional internal result category over expanding the public failure envelope because the HTTP boundary needs provenance while MCP and CLI compatibility remains unchanged
+
+### Completed Work
+- Added and observed a failing realistic prefixed-policy HTTP regression before implementation.
+- Tagged only submit and reconcile policy-engine denials as policy failures.
+- Preserved guardrail and validation 422 mappings and prevented RPC payloads from assigning policy provenance.
+- Passed 5 focused regressions, 142 affected coordinator tests with 16 PostgreSQL skips, Ruff, strict OpenSpec, and semantic OpenAPI validation.
+
+### Next Steps
+- Repeat implementation review against the remediation commit.
+
+### Relevant Files
+- `agent-coordinator/src/work_queue.py` — Trusted service policy-origin category
+- `agent-coordinator/src/coordination_api.py` — RFC 7807 policy status mapping
+- `agent-coordinator/tests/test_coordination_api.py` — Realistic prefixed policy-denial regression
+- `agent-coordinator/tests/test_work_queue.py` — Service provenance regressions
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/impl-findings.md` — Round-two remediation evidence
+
+### Context
+Fixed the round-two HTTP policy-status blocker with a RED-to-GREEN regression for a realistic prefixed denial. An explicit service-origin category now maps policy denials to 403 without interpreting guardrail, validation, or database reasons as authorization failures.
+

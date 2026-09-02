@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T01:16:41.635863+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "legacy_shim",
+    "session_id": null,
+    "summary": "**Agent**: codex | **Session**: impl-review-round-2",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

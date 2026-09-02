@@ -118,6 +118,8 @@ class _ProjectionProblemError(Exception):
 
 def _projection_mutation_payload(result: Any) -> dict[str, Any]:
     if not result.success:
+        if getattr(result, "failure_category", None) == "policy":
+            raise _ProjectionProblemError(result.reason or "policy_denied", status=403)
         if result.reason in _PROJECTION_CONFLICTS:
             raise _ProjectionProblemError(result.reason)
         if result.reason in _PROJECTION_FORBIDDEN:
