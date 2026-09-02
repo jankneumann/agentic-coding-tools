@@ -184,7 +184,16 @@ def persist_and_project(
     *,
     mode: str = "submit",
 ) -> dict[str, Any]:
-    """Persist authoritative state, then best-effort project it to the queue."""
+    """Persist authoritative state, then best-effort project it to the queue.
+
+    The callback (typically the coordination-bridge ``try_submit_work`` /
+    ``try_reconcile_projection`` helpers) does not always raise on failure —
+    when the coordinator is unreachable or refuses the payload it returns a
+    structured ``{"status": "skipped"|"failed", ...}`` envelope instead. A
+    non-success envelope is classified the same as a raised exception: it is
+    never reported as ``"ok"``, so callers (and the run loop) can see that
+    the previous queue generation may still be live.
+    """
     save_state(state, path)
     if queue_projection_fn is None:
         return {"status": "skipped", "reason": "projection_callback_absent"}
@@ -193,6 +202,18 @@ def persist_and_project(
     except Exception as exc:
         logger.warning("Queue projection failed after state persistence: %s", exc)
         return {"status": "failed", "reason": "projection_failed", "error": str(exc)}
+    if isinstance(response, dict):
+        envelope_status = response.get("status")
+        if envelope_status is not None and envelope_status != "ok":
+            reason = response.get("reason") or response.get("error")
+            logger.warning(
+                "Queue projection callback returned non-success status %r after "
+                "state persistence (mode=%s): %s",
+                envelope_status,
+                mode,
+                reason,
+            )
+            return {"status": envelope_status, "reason": reason, "response": response}
     return {"status": "ok", "response": response}
 
 
@@ -1054,7 +1075,11 @@ def run_loop(
             logger.error("Phase %s raised: %s", phase, exc)
             state.error = str(exc)
             enter_escalate(state, f"Exception in {phase}: {exc}", status_fn=status_fn)
-            save_state(state, state_path)
+            # ESCALATE is a phase change like any other transition — route it
+            # through the same persist-then-project seam so a coordinated run
+            # can't durably enter ESCALATE while the previous queue
+            # generation stays active.
+            persist_and_project(state, state_path, queue_projection_fn, mode="submit")
             break
 
         if outcome == GATE_PENDING:
@@ -1078,9 +1103,9 @@ def run_loop(
             break
 
         # If phase handler already changed the phase (e.g. enter_escalate),
-        # skip the normal transition — just save and continue.
+        # skip the normal transition — just persist (and project) and continue.
         if state.current_phase != phase:
-            save_state(state, state_path)
+            persist_and_project(state, state_path, queue_projection_fn, mode="submit")
             continue
 
         prev_phase = state.current_phase
@@ -1099,7 +1124,7 @@ def run_loop(
                 f"goal gate refused: {exc.reason}",
                 status_fn=status_fn,
             )
-            save_state(state, state_path)
+            persist_and_project(state, state_path, queue_projection_fn, mode="submit")
             break
         except GatePending as exc:
             save_state(state, state_path)
