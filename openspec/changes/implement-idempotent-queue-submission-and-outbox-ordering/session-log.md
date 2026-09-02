@@ -837,3 +837,46 @@ Validation evidence remains substantively passing, but the final review failed c
 
 ### Context
 Round four failed closed at 1/2 quorum purely because of a 90-second per-vendor cap and an expired Pi key, not because of any defect in the evidence. Round five reran the same scoped review at the dispatcher's default 300-second timeout and reached a real vendor-diverse 2/2 quorum. Both reviewers accepted every phase claim; the only new observation is a documentation-only stale header in `architecture-impact.md`.
+
+---
+
+## Phase: Validation Fix 5 (2026-09-02)
+
+**Agent**: claude | **Session**: val-fix-5
+
+### Decisions
+1. **Make cancellation terminal inside `complete_task`, not just at the caller** — `complete_task` (`001_core_schema.sql`) updated any row `WHERE id = p_task_id AND claimed_by = p_agent_id`, with no status filter, so a worker whose task migration 035's `reconcile_work_projection` had already cancelled could still flip the terminal `cancelled` row back to `completed`/`failed`. Migration `036_terminal_completion_guard.sql` adds `AND status IN ('claimed', 'running')` to that UPDATE and returns a distinct `reason: 'task_not_active'` (with the row's current `status`) when refused for that reason, so callers can tell "already terminal" apart from "not found / not claimed by this agent."
+2. **Route every phase-changing persistence path in `run_loop` through `persist_and_project`** — Only the ordinary "phase advanced" branch called the projection seam; the exception handler, the "phase handler already changed `current_phase`" branch (e.g. `enter_escalate` called from inside `_phase_gatekeeper`), and the `GoalGateRefused` handler all persisted with plain `save_state()`. All three now call `persist_and_project(..., mode="submit")` after `enter_escalate`, so a coordinated run can no longer enter ESCALATE durably while the previous queue generation stays active.
+3. **Audit `reconcile_work_projection` the same way `submit()` audits `submit_task`** — `WorkQueueService.reconcile_projection` cancels active tasks and creates the canonical task for a new generation without recording the mutation to the audit trail. Added a `get_audit_service().log_operation(operation="reconcile_work_projection", ...)` call carrying the created task id and the cancelled task ids, wrapped in the same best-effort try/except as the other work-queue operations.
+4. **Classify non-raising projection-callback envelopes in `persist_and_project`** — The coordination-bridge helpers return structured `{"status": "skipped"|"failed", ...}` envelopes instead of raising when the coordinator is unreachable or refuses the payload; `persist_and_project` previously reported every non-raising response as `status="ok"`. It now inspects a mapping response's `status` field and, when present and not `"ok"`, returns that status with `reason`/`error` preserved and logs a warning — non-mapping and statusless-mapping responses keep the prior "ok" behaviour so the two ordinary success shapes used elsewhere in this codebase are unaffected.
+
+### Capability Gaps Observed
+- **silent_projection_envelope**: `persist_and_project` swallowed structured non-raising failure envelopes from the coordination-bridge callback as `status="ok"`, hiding queue-projection refusals from the run loop and from callers inspecting the return value. (skill: autopilot, severity: medium)
+- **non_terminal_cancellation**: `complete_task` had no status guard, so a stale worker's completion call could resurrect a task migration 035's reconciliation had already cancelled. (skill: agent-coordinator, severity: high)
+
+### Completed Work
+- Added migration `036_terminal_completion_guard.sql`: `complete_task` now updates only `status IN ('claimed', 'running')` rows and returns `reason='task_not_active'` plus the current `status` when refused for that reason; `WorkQueueService.complete()` logs a warning when that reason is returned.
+- Added `agent-coordinator/tests/test_migrations.py::test_migration_036_makes_cancellation_terminal_against_late_completions` (DB-less static content check) and two PostgreSQL-backed behavioural tests in `agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py::TestCompleteTaskTerminalCancellation` (late-complete-after-cancel is refused and does not overwrite the cancellation; the ordinary active-claim completion path still succeeds).
+- Added `agent-coordinator/tests/test_work_queue.py::test_complete_refused_after_cancellation_surfaces_status_and_warns` proving the Python-side warning and the surfaced `status`/`reason`.
+- Routed the exception handler, the phase-raise branch, and the `GoalGateRefused` handler in `skills/autopilot/scripts/autopilot.py::run_loop` through `persist_and_project(..., mode="submit")`.
+- Added three `run_loop`-level tests in `skills/tests/autopilot/test_queue_projection_ordering.py` (`test_exception_branch_projects_the_escalate_transition`, `test_phase_raise_branch_projects_the_escalate_transition`, `test_goal_gate_refusal_branch_projects_the_escalate_transition`) proving each branch now calls the projection callback with `mode="submit"` for the ESCALATE transition.
+- Added `WorkQueueService.reconcile_projection` audit logging (`operation="reconcile_work_projection"`, result carries `task_id`/`created`/`cancelled_task_ids`), a matching unit test (`test_successful_reconcile_audited` in `agent-coordinator/tests/test_audit_completeness.py`), and registered the operation in `TestMutationSurfaceCoverage.MUTATION_SURFACE`.
+- Reworked `persist_and_project` to classify a mapping callback response whose `status` is present and not `"ok"` as that status (preserving `reason`/`error`) with a logged warning, and added six unit tests covering failed/skipped/error-key/success/statusless-mapping envelopes plus the warning log.
+- Ran the full relevant suites: coordinator pytest (`tests/test_migrations.py`, `tests/test_work_queue.py`, `tests/test_work_queue_invariants.py`, `tests/test_audit_completeness.py` = 86 passed; full `-m "not e2e and not integration"` = 2439 passed, 11 skipped), coordinator `mypy src/` (77 files, no issues) and `ruff check .` (clean), skills `skills/tests/autopilot` (369 passed, 6 skipped) and full `skills` suite (2973 passed, 13 skipped, 1 pre-existing unrelated failure in `refresh-architecture/scripts/tests/test_interpreter_resolution.py` caused by the local environment's system Python lacking `tree_sitter` — untouched by this change), and `openspec validate ... --strict` (valid).
+
+### Next Steps
+- Commit and hand off; the orchestrator re-runs VALIDATE and, if that passes, VAL_REVIEW before returning to the merge gate.
+- The new PostgreSQL-backed tests (`TestCompleteTaskTerminalCancellation`) are skipped in this sandbox (no live PostgreSQL/docker access) — CI's `tests/integration/postgres/` job is the first place they actually execute; watch that job on the next CI run.
+
+### Relevant Files
+- `agent-coordinator/database/migrations/036_terminal_completion_guard.sql` — New migration making cancellation terminal against late `complete_task` calls
+- `agent-coordinator/src/work_queue.py` — `complete()` warning on `task_not_active`; `reconcile_projection()` audit logging
+- `agent-coordinator/tests/test_migrations.py` — Static contract test for migration 036
+- `agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py` — `TestCompleteTaskTerminalCancellation` PostgreSQL-backed behavioural tests
+- `agent-coordinator/tests/test_work_queue.py` — Unit test for the `task_not_active` warning/result shape
+- `agent-coordinator/tests/test_audit_completeness.py` — `test_successful_reconcile_audited` and updated `MUTATION_SURFACE`
+- `skills/autopilot/scripts/autopilot.py` — `persist_and_project` envelope classification; escalation paths in `run_loop` routed through it
+- `skills/tests/autopilot/test_queue_projection_ordering.py` — Escalation-path projection tests and envelope-classification tests
+
+### Context
+Fixed all four findings from the Codex GitHub review of PR #457 that sent the loop back to VAL_FIX after VAL_REVIEW round 5 converged (SUBMIT_PR `review_findings_open`, product commit `dda2834f`): two P1s (complete_task overwriting cancelled rows; escalation transitions bypassing the queue-projection seam) and two P2s (reconcile mutations missing from the audit trail; projection-callback failure envelopes reported as success). Each fix follows TDD — a failing/characterizing test first, then the minimal code change — and stays scoped to the four findings without broader refactors.
