@@ -266,6 +266,43 @@ class TestWorkQueueService:
 
         assert result.success is False
         assert result.task_id is None
+        assert result.reason == "operation_not_permitted"
+
+    @pytest.mark.asyncio
+    async def test_submit_blocked_by_guardrails_preserves_reason(self, monkeypatch):
+        from src.guardrails import GuardrailResult
+
+        class AllowPolicyEngine:
+            async def check_operation(self, **_kwargs):
+                return PolicyDecision.allow()
+
+        class DenyGuardrails:
+            async def check_operation(self, **_kwargs):
+                return GuardrailResult(safe=False)
+
+        class FailDB:
+            async def rpc(self, *_args, **_kwargs):
+                raise AssertionError("DB RPC should not be called when denied")
+
+        async def resolve_trust(*_args, **_kwargs):
+            return "default"
+
+        monkeypatch.setattr(
+            "src.policy_engine.get_policy_engine",
+            lambda: AllowPolicyEngine(),
+        )
+        monkeypatch.setattr(
+            "src.guardrails.get_guardrails_service",
+            lambda: DenyGuardrails(),
+        )
+        service = WorkQueueService(FailDB())
+        monkeypatch.setattr(service, "_resolve_trust_level", resolve_trust)
+
+        result = await service.submit(task_type="test", description="blocked")
+
+        assert result.success is False
+        assert result.created is False
+        assert result.reason == "guardrail_denied"
 
 
 class TestTaskDataClasses:

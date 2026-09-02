@@ -711,7 +711,12 @@ class WorkQueueService:
                 },
             )
             if not decision.allowed:
-                return SubmitResult(success=False, task_id=None)
+                return SubmitResult(
+                    success=False,
+                    task_id=None,
+                    created=False,
+                    reason=decision.reason or "operation_not_permitted",
+                )
 
             # Guardrails check on submitted task content
             try:
@@ -734,6 +739,8 @@ class WorkQueueService:
                     return SubmitResult(
                         success=False,
                         task_id=None,
+                        created=False,
+                        reason="guardrail_denied",
                     )
             except Exception:
                 logger.error("Guardrails check failed during submit", exc_info=True)
