@@ -15,6 +15,7 @@ import os
 import sys
 import time
 from typing import Any, Literal
+from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.exception_handlers import (
@@ -23,7 +24,7 @@ from fastapi.exception_handlers import (
 )
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from .approval import get_approval_service
 from .axi_output import list_envelope, probe_truncation
@@ -96,6 +97,16 @@ _PROJECTION_CONFLICTS = {
     "projection_generation_mismatch",
     "reconciliation_required",
 }
+_PROJECTION_FORBIDDEN = {
+    "operation_not_permitted",
+    "insufficient_trust_level",
+    "policy_denied",
+}
+_PROJECTION_INVALID = {
+    "invalid_projection_key",
+    "reserved_projection_key",
+    "guardrail_denied",
+}
 
 
 class _ProjectionProblemError(Exception):
@@ -109,9 +120,11 @@ def _projection_mutation_payload(result: Any) -> dict[str, Any]:
     if not result.success:
         if result.reason in _PROJECTION_CONFLICTS:
             raise _ProjectionProblemError(result.reason)
-        if result.reason in {"invalid_projection_key", "reserved_projection_key"}:
+        if result.reason in _PROJECTION_FORBIDDEN:
+            raise _ProjectionProblemError(result.reason, status=403)
+        if result.reason in _PROJECTION_INVALID:
             raise _ProjectionProblemError(result.reason, status=422)
-        return {"success": False, "reason": result.reason}
+        raise _ProjectionProblemError(result.reason or "projection_mutation_failed", status=422)
     return {
         "success": True,
         "task_id": str(result.task_id),
@@ -174,6 +187,8 @@ class WorkCompleteRequest(BaseModel):
 
 
 class ProjectionKeyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     change_id: str = Field(min_length=1, max_length=128, pattern=r"^[a-z0-9][a-z0-9-]{0,127}$")
     phase: Literal[
         "INIT",
@@ -197,16 +212,20 @@ class ProjectionKeyRequest(BaseModel):
 
 
 class WorkSubmitRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     task_type: str = Field(min_length=1)
     task_description: str = Field(min_length=1)
     projection_key: ProjectionKeyRequest | None = None
     input_data: dict[str, Any] | None = None
     priority: int = Field(default=5, ge=1, le=10)
-    depends_on: list[str] | None = None
+    depends_on: list[UUID] | None = None
     agent_requirements: dict[str, Any] | None = None
 
 
 class WorkReconcileRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     projection_key: ProjectionKeyRequest
     task_type: str = Field(min_length=1)
     task_description: str = Field(min_length=1)
@@ -814,11 +833,16 @@ def create_coordination_api() -> FastAPI:
         _request: Request, exc: _ProjectionProblemError
     ) -> JSONResponse:
         reason = exc.reason
+        title = {
+            403: "Work projection request denied",
+            409: "Work projection conflict",
+            422: "Invalid work projection request",
+        }.get(exc.status, "Work projection request failed")
         return JSONResponse(
             status_code=exc.status,
             content={
                 "type": f"urn:coordinator:work-projection:{reason}",
-                "title": "Work projection conflict",
+                "title": title,
                 "status": exc.status,
                 "detail": reason,
             },
@@ -1161,7 +1185,6 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Submit new work to the queue."""
-        from uuid import UUID
 
         agent_id, agent_type = resolve_identity(principal, None, None)
         await authorize_operation(
@@ -1171,9 +1194,7 @@ def create_coordination_api() -> FastAPI:
             context={"task_type": request.task_type, "priority": request.priority},
         )
 
-        depends_on_uuids = None
-        if request.depends_on:
-            depends_on_uuids = [UUID(d) for d in request.depends_on]
+        depends_on_uuids = request.depends_on
 
         from .work_queue import get_work_queue_service
 

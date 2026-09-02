@@ -95,3 +95,11 @@ Tasks use the plan-feature sizing scale. Test tasks precede the behavior they ve
   **Design decisions**: D1, D2, D3, D4, D5, D6
   **Dependencies**: 3.1
 - [x] Checkpoint: full affected suites green, cumulative diff maps to tasks, no ri-09 live mirroring present
+
+
+## Phase 4 — Implementation review remediation
+
+- [x] 4.1 (S) Add RED HTTP regressions for undeclared top-level/nested fields and malformed dependency UUIDs.
+- [x] 4.2 (S) Forbid undeclared projection request fields and validate dependency UUIDs at the Pydantic boundary.
+- [x] 4.3 (S) Preserve service policy/guardrail denial reasons and map every HTTP failure to an RFC 7807 4xx response.
+- [x] Checkpoint: focused regressions, affected coordinator suite, Ruff, OpenAPI, and strict OpenSpec validation green.
