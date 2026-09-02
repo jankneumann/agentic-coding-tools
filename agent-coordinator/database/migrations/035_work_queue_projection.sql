@@ -3,6 +3,8 @@
 -- https://www.postgresql.org/docs/current/indexes-expressional.html
 -- https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS
 
+BEGIN;
+
 LOCK TABLE work_queue IN SHARE ROW EXCLUSIVE MODE;
 
 DO $migration$
@@ -85,8 +87,8 @@ BEGIN
       'IMPLEMENT','IMPL_ITERATE','IMPL_REVIEW','IMPL_FIX','VALIDATE',
       'VAL_REVIEW','VAL_FIX','SUBMIT_PR','ESCALATE','DONE'])
     OR COALESCE(p_input_data->>'transition_sequence','') !~ '^(0|[1-9][0-9]{0,9})$'
-    OR CASE WHEN COALESCE(p_input_data->>'transition_sequence','') ~ '^(0|[1-9][0-9]{0,9})$'
-            THEN (p_input_data->>'transition_sequence')::BIGINT > 2147483647 ELSE FALSE END
+    OR (CASE WHEN COALESCE(p_input_data->>'transition_sequence','') ~ '^(0|[1-9][0-9]{0,9})$'
+            THEN (p_input_data->>'transition_sequence')::BIGINT > 2147483647 ELSE FALSE END)
   THEN
     RETURN jsonb_build_object('success',FALSE,'reason','invalid_projection_key',
       'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
@@ -196,3 +198,5 @@ BEGIN
     'created',v_created,'deduplicated',NOT v_created,'cancelled_task_ids',to_jsonb(v_cancelled));
 END;
 $$ LANGUAGE plpgsql;
+
+COMMIT;
