@@ -109,7 +109,7 @@ packages:
       deny:
         - skills/**
     context_impact:
-      surfaces: [apis, architecture]
+      surfaces: [apis, architecture, semantic_code]
     worktree:
       name: ri08-wp-coordinator-queue
       mode: isolated
@@ -166,7 +166,7 @@ packages:
       deny:
         - apps/kanban-viz/**
     context_impact:
-      surfaces: [architecture, documentation]
+      surfaces: [architecture, documentation, semantic_code]
     worktree:
       name: ri08-wp-bridge-projection
       mode: isolated

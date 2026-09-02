@@ -146,3 +146,47 @@ PLAN_REVIEW round 2 is not_converged. Two distinct reviewer sources met quorum (
 
 ### Context
 PLAN_REVIEW round 3 is the final allowed round and converged. Two distinct successful sources met quorum, no blocking issue remains, and the sole residual finding is a non-blocking redundant-command nit.
+
+---
+
+## Phase: Implementation (2026-09-02)
+
+**Agent**: codex | **Session**: implement-phase
+
+### Decisions
+1. **Use the full projection generation as the high-water head** — The authoritative head is the pair (phase, transition_sequence), so equal-sequence phase disagreement fails closed and reconciliation advances both fields.
+2. **Keep queue projection optional and downstream of persistence** — Durable loop-state remains authoritative and coordinator absence cannot affect local-parallel or sequential execution.
+
+### Alternatives Considered
+- Application-side check then insert: rejected because it cannot make same-key concurrent submission atomic
+- Sequence-only high-water mark: rejected because it cannot distinguish same-sequence phase divergence
+
+### Trade-offs
+- Accepted PostgreSQL advisory-lock and expression-index primitives over backend portability because the invariant must be transactionally enforced at the database boundary
+
+### Capability Gaps Observed
+- **environment_unavailable**: Docker socket access is denied and PostgreSQL server binaries are absent, so 16 real-database cases skip (skill: implement-feature, severity: medium)
+- **tooling_failure**: sandboxed commands fail while configuring the loopback namespace; commands required approved unsandboxed execution (skill: worktree, severity: medium)
+- **capacity_degradation**: worker thread capacity was unavailable, so the parent executed wp-bridge-projection locally in parallel (skill: parallel-infrastructure, severity: low)
+
+### Completed Work
+- Validated frozen OpenAPI and SQL contracts
+- Implemented and committed wp-coordinator-queue at 796201a4852fa97d05a9c2b471c2d5e988808eec
+- Integrated wp-bridge-projection through 93868b80
+- Updated guide, task status, generated traceability, and package checkpoints
+- Passed 130 coordinator tests with 16 explicit PostgreSQL skips and 459 bridge/autopilot tests
+
+### Next Steps
+- Run the 16 PostgreSQL integration cases where a server or Docker socket is available
+- Proceed to canonical validation review
+
+### Relevant Files
+- `agent-coordinator/database/migrations/035_work_queue_projection.sql` — atomic identity and reconciliation migration
+- `agent-coordinator/src/work_queue.py` — service semantics
+- `skills/autopilot/scripts/autopilot.py` — persist-first projection seam
+- `docs/guides/work-queue-truth-projection.md` — operator-facing recovery guide
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/change-context.md` — requirement traceability
+
+### Context
+Implemented idempotent keyed work submission and full-generation reconciliation across PostgreSQL, service, HTTP, direct/proxy MCP, CLI, coordination bridge, and optional autopilot persist-first projection seams. All non-PostgreSQL package and integration gates pass; the real PostgreSQL suite is present but skipped because the Docker socket is denied and this environment contains PostgreSQL client binaries only.
+
