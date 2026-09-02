@@ -83,6 +83,9 @@ packages:
     locks:
       files:
         - agent-coordinator/database/migrations/035_work_queue_projection.sql
+        - agent-coordinator/database/migrations/999_record_schema_migrations.sh
+        - agent-coordinator/tests/test_migrations.py
+        - .github/workflows/ci.yml
         - agent-coordinator/src/work_queue.py
         - agent-coordinator/src/coordination_api.py
         - agent-coordinator/src/coordination_mcp.py
@@ -96,6 +99,9 @@ packages:
     scope:
       write_allow:
         - agent-coordinator/database/migrations/035_work_queue_projection.sql
+        - agent-coordinator/database/migrations/999_record_schema_migrations.sh
+        - agent-coordinator/tests/test_migrations.py
+        - .github/workflows/ci.yml
         - agent-coordinator/src/work_queue.py
         - agent-coordinator/src/coordination_api.py
         - agent-coordinator/src/coordination_mcp.py
@@ -121,7 +127,7 @@ packages:
       steps:
         - name: Run queue tests
           kind: command
-          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_mcp_work_projection.py agent-coordinator/tests/test_http_proxy.py agent-coordinator/tests/test_coordination_cli_axi.py agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py -q
+          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_migrations.py agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/test_coordination_api.py agent-coordinator/tests/test_mcp_work_projection.py agent-coordinator/tests/test_http_proxy.py agent-coordinator/tests/test_coordination_cli_axi.py agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py -q
           cwd: .
           expect_exit_code: 0
           evidence:
@@ -136,6 +142,9 @@ packages:
       result_keys: [queue_tests_pass]
       artifacts:
         - agent-coordinator/database/migrations/035_work_queue_projection.sql
+        - agent-coordinator/database/migrations/999_record_schema_migrations.sh
+        - .github/workflows/ci.yml
+        - agent-coordinator/tests/test_migrations.py
 
   - package_id: wp-bridge-projection
     title: Outbox projection seam

@@ -532,9 +532,14 @@ class TestWorkQueueTrustResolution:
 def test_projection_migration_declares_full_head_and_atomic_paths():
     from pathlib import Path
 
-    sql = Path("agent-coordinator/database/migrations/035_work_queue_projection.sql").read_text()
+    sql = (
+        Path(__file__).resolve().parents[1]
+        / "database/migrations/035_work_queue_projection.sql"
+    ).read_text()
     for token in (
-        "CREATE TABLE work_queue_projection_heads",
+        "DROP FUNCTION IF EXISTS coordinator_notify(TEXT,TEXT,TEXT,TEXT,TEXT);",
+        "CREATE TABLE IF NOT EXISTS work_queue_projection_heads",
+        "CREATE UNIQUE INDEX IF NOT EXISTS work_queue_projection_key_uidx",
         "phase TEXT NOT NULL",
         "pg_advisory_xact_lock(hashtextextended",
         "projection_generation_mismatch",

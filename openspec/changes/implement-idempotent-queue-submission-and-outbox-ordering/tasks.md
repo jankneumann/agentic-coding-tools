@@ -103,3 +103,11 @@ Tasks use the plan-feature sizing scale. Test tasks precede the behavior they ve
 - [x] 4.2 (S) Forbid undeclared projection request fields and validate dependency UUIDs at the Pydantic boundary.
 - [x] 4.3 (S) Preserve service policy/guardrail denial reasons and map every HTTP failure to an RFC 7807 4xx response.
 - [x] Checkpoint: focused regressions, affected coordinator suite, Ruff, OpenAPI, and strict OpenSpec validation green.
+
+## Phase 5 — PR CI remediation
+
+- [x] 5.1 (S) Add RED regressions for cwd-independent migration-contract tests and static typing of projection parsing and HTTP exception responses.
+- [x] 5.2 (S) Narrow projection-key values before construction, type the exception handler at the FastAPI response boundary, and resolve migration files relative to their test modules.
+- [x] 5.3 (M) Add RED bootstrap-ledger tests proving Python ignores shell helpers, the final init helper records exact Python-compatible SHA-256 values idempotently, and CI invokes it only after a fail-fast SQL loop.
+- [x] 5.4 (M) Add the lexically final `999_record_schema_migrations.sh`, invoke it from integration CI, and remove migration 015's obsolete five-argument notification overload in idempotent migration 035.
+- [x] Checkpoint: fresh raw Podman bootstrap records every SQL migration; `ensure_schema` apply/retry sets are empty; migration 019/026 semantic checks, migration 035 overload cleanup, projection tests, lifecycle E2E, mypy, Ruff, and teardown are green.

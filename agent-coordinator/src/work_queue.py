@@ -212,10 +212,21 @@ class ProjectionKey:
         if isinstance(value, cls):
             key = value
         elif isinstance(value, dict) and set(value) == _RESERVED_PROJECTION_KEYS:
+            change_id = value.get("change_id")
+            phase = value.get("phase")
+            transition_sequence = value.get("transition_sequence")
+            if not isinstance(change_id, str):
+                return None
+            if not isinstance(phase, str):
+                return None
+            if isinstance(transition_sequence, bool) or not isinstance(
+                transition_sequence, int
+            ):
+                return None
             key = cls(
-                change_id=value.get("change_id"),
-                phase=value.get("phase"),
-                transition_sequence=value.get("transition_sequence"),
+                change_id=change_id,
+                phase=phase,
+                transition_sequence=transition_sequence,
             )
         else:
             return None

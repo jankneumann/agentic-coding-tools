@@ -96,3 +96,49 @@ No pull request or workflow run exists yet for the feature branch.
 1. Correct architecture source-root configuration and refresh the graph.
 2. Address legacy fresh-schema migration-runner and `audit_log.delegated_from` bootstrap noise separately.
 3. Repair repository-wide test isolation failures recorded by the first validation run.
+---
+
+## PR CI Remediation Validation (2026-09-02)
+
+**Trigger**: PR #457, workflow run `33587266198`
+
+### Stop-the-line diagnosis
+
+The required `test`, `test-integration`, and `coverage-ratchet` jobs exposed three defects that local validation had not reproduced:
+
+1. mypy rejected un-narrowed `ProjectionKey` dictionary values and the too-specific FastAPI exception-handler return type;
+2. two migration-contract tests resolved migration 035 from the repository root and failed when CI ran from `agent-coordinator`;
+3. raw SQL bootstrap did not populate `schema_migrations`, so the application runner replayed historical migrations and reintroduced migration 015's five-argument `coordinator_notify` overload before the lifecycle E2E call.
+
+The static-contract path failure also caused `coverage-ratchet` to fail after 2,430 tests passed and 11 skipped; it was not a coverage-percentage regression.
+
+### TDD evidence
+
+RED regressions reproduced the cwd-dependent paths, mypy failures, raw-bootstrap ledger gap, and ambiguous five-literal notification call. A temporary migration-019 `UniqueViolationError` allowance was rejected after live semantic inspection showed three legacy profile names remained following rollback (`codex_local_worker`, `gemini_cloud_worker`, and `gemini_local_worker`). Historical migrations 019 and 026 were not modified, and no exception masking remains.
+
+GREEN coverage now proves:
+
+- Python migration discovery ignores the final shell helper;
+- `999_record_schema_migrations.sh` records every SQL filename with the exact SHA-256 used by `_checksum`, updates idempotently in one transaction, and fails on unsafe filenames or psql errors;
+- CI uses `set -euo pipefail` and `ON_ERROR_STOP`, then calls the same helper only after the SQL loop succeeds;
+- migration 035 idempotently removes only the obsolete five-argument overload and tolerates the already-bootstrapped projection table/index;
+- projection-key parsing and FastAPI response typing pass mypy without weakening runtime validation.
+
+### Fresh PostgreSQL proof
+
+A fresh isolated rootless Podman deployment executed all 38 SQL migrations in lexical order and then the final tracking helper. The resulting ledger contained 38 distinct rows: `missing=[]`, `unexpected=[]`, and `checksum_mismatches=[]` against Python discovery. Consecutive `ensure_schema` calls both returned `[]`.
+
+Post-bootstrap semantic checks passed:
+
+- migration 019 left zero targeted legacy profile names;
+- the `evaluator` row exactly matched migration 026's expected payload;
+- `pg_proc` retained only `coordinator_notify(text,text,text,text,text,text,jsonb)`;
+- an uncast five-literal call resolved without ambiguity;
+- live projection tests passed 4/4 and `TestWorkQueueLifecycleLive::test_submit_claim_complete` passed 1/1;
+- after retry the ledger remained 38/38 and the obsolete overload remained absent.
+
+The affected non-live suite passed 55 tests with 16 PostgreSQL-environment skips after teardown; the earlier broader affected run passed 142 with the same 16 skips. Mypy passed all 77 source files, Ruff passed, and `bash -n` passed for the tracking helper. Teardown removed the isolated containers, volumes, networks, and port listener.
+
+### Result
+
+**PASS for VAL_FIX implementation evidence.** No critical or high residual remains. Canonical VALIDATE and independent VAL_REVIEW must still complete before the PR returns to the merge gate, and required GitHub CI must be green at the exact final head.

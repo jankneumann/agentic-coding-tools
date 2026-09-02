@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "implement-idempotent-queue-submission-and-outbox-ordering",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "VAL_FIX",
   "iteration": 2,
-  "total_iterations": 26,
+  "total_iterations": 27,
   "max_phase_iterations": 3,
   "findings_trend": [
     5,
@@ -168,11 +168,17 @@
       "at": "2026-09-02T03:19:17.453677+00:00",
       "outcome": "converged",
       "phase": "VAL_REVIEW"
+    },
+    {
+      "at": "2026-09-02T03:35:24.056821+00:00",
+      "note": "PR #457 required CI failed in run 33587266198: job 100113910883 failed coordinator mypy and job 100113911117 failed live integration; merge authorization remained unanswered.",
+      "outcome": "ci_failed",
+      "phase": "SUBMIT_PR"
     }
   ],
   "last_handoff_id": "validation-review-3-1",
   "started_at": "2026-09-01T22:47:26.224636+00:00",
-  "phase_started_at": "2026-09-02T03:19:17.504282+00:00",
+  "phase_started_at": "2026-09-02T03:35:24.056821+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
@@ -262,22 +268,6 @@
       "recorded_at": "2026-09-02T03:27:16.550488+00:00"
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "implement-idempotent-queue-submission-and-outbox-ordering",
-    "gate": "merge",
-    "phase": "SUBMIT_PR",
-    "requested_at": "2026-09-02T03:27:16.550870+00:00",
-    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
-    "context": {
-      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/457",
-      "branch": "openspec/implement-idempotent-queue-submission-and-outbox-ordering",
-      "change_id": "implement-idempotent-queue-submission-and-outbox-ordering"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
