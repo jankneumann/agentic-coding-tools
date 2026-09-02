@@ -741,3 +741,61 @@ Created PR #457 against openspec/roadmap-roadmap-supervisor-orchestration at val
 
 ### Context
 Reproduced and fixed the required PR CI failures with TDD, then proved raw bootstrap and migration-runner convergence on a fresh PostgreSQL stack.
+
+---
+
+## Phase: Validation 5 (2026-09-02)
+
+**Agent**: codex | **Session**: canonical-validation-5
+
+### Completed Work
+- Audited exact commit/tree and reused conclusive fresh raw-bootstrap, PostgreSQL projection, lifecycle E2E, and teardown evidence
+- Passed strict OpenSpec, task drift, change traceability, package schema/DAG/overlap/context, and validation report gates
+- Reproduced retained ZAP evidence hashes and confirmed zero high-threshold findings with no dependency changes
+- Passed 55 focused tests, mypy across 77 source files, Ruff, and tracking-script shell syntax
+- Confirmed every substantive PR #457 check is green at exact head 0106b8fa
+
+### Next Steps
+- Run independent canonical validation review, then return PR #457 to the merge authorization gate
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md` — Canonical Validation 5 evidence
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/architecture-impact.md` — Advisory architecture audit
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/handoffs/validation-5-1.json` — Local PhaseRecord fallback handoff
+
+### Context
+Canonical validation passed at exact pushed commit 0106b8fa without waivers. Fresh non-live spec, package, traceability, unit, type, lint, security-evidence, and CI audits corroborated the conclusive exact-head PostgreSQL deploy and E2E evidence; architecture remains advisory and degraded only by the pre-existing source-root configuration defect.
+
+---
+
+## Phase: Validation Review 4 (2026-09-02)
+
+**Agent**: codex | **Session**: val-review-round-4
+
+### Decisions
+1. **Do not claim convergence without real quorum** — Antigravity found no blocker, but Codex, Grok, and Claude timed out at 90 seconds and Pi authentication was expired; one completed vendor cannot satisfy the required 2/2 review quorum.
+2. **Preserve every bounded vendor outcome** — The canonical manifest records the successful Antigravity review plus every timeout/auth failure, while consensus keeps all four positive findings unconfirmed.
+
+### Capability Gaps Observed
+- **vendor_timeout**: Codex, Grok, and Claude returned no findings before their enforced 90-second caps. (skill: autopilot, severity: high)
+- **vendor_auth**: Pi could not dispatch because its OpenRouter authentication was expired. (skill: autopilot, severity: medium)
+
+### Completed Work
+- Validated Antigravity's four schema-valid positive findings across security, correctness, resilience, and compatibility.
+- Recorded quorum_received=1/2, blocking_count=0, disagreement_count=0, and verdict=not_converged.
+- Preserved all five actual vendor dispatch outcomes without altering product or validation evidence.
+
+### In Progress
+- A second independent vendor review required for convergence.
+
+### Next Steps
+- Restore one configured vendor capability, then rerun the bounded validation review; do not return to the merge gate before real 2/2 quorum.
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-4/review-manifest.json` — All bounded dispatch outcomes and quorum
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-4/consensus-validation.json` — Fail-closed 1/2 consensus
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-4/findings-antigravity-implementation.json` — Only completed independent findings
+
+### Context
+Validation evidence remains substantively passing, but the final review failed closed because only Antigravity returned findings before the bounded vendor roster was exhausted.
+

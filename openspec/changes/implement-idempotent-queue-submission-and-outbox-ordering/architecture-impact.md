@@ -14,3 +14,7 @@
 - Package scope and lock overlap validation passed independently; `wp-coordinator-queue` and `wp-bridge-projection` remain the only declared parallel pair.
 
 Correct the architecture source-root configuration, refresh the graph, and rerun baseline diff and scoped flows before treating architecture evidence as current. This baseline is not accepted as current architecture evidence for ri-08.
+
+## Canonical Validation 5 Audit
+
+At commit `0106b8fab44c6c7e61eb0c045205afb2779fb764` (tree `04610c62774d7b1dffe5aa62e3d6849823daf39a`), the architecture status remains **DEGRADED (advisory)** for the same source-root configuration reason. Fresh package schema, DAG, lock, parallel-overlap, and context-impact gates passed, and the bounded CI-remediation diff adds no blocking architecture finding. No architecture artifact was refreshed or promoted during this audit.
