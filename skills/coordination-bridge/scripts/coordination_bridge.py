@@ -11,6 +11,7 @@ import argparse
 import json
 import logging
 import os
+import re
 from typing import Any
 from urllib import error as url_error
 from urllib import parse as url_parse
@@ -449,9 +450,7 @@ def _skipped_operation(
         "status": "skipped",
         "operation": operation,
         "reason": reason,
-        "COORDINATOR_AVAILABLE": bool(
-            state and state.get("COORDINATOR_AVAILABLE", False)
-        ),
+        "COORDINATOR_AVAILABLE": bool(state and state.get("COORDINATOR_AVAILABLE", False)),
         "COORDINATION_TRANSPORT": (
             state.get("COORDINATION_TRANSPORT", "none") if state else "none"
         ),
@@ -688,7 +687,7 @@ def try_submit_work(
             "input_data": input_data,
             "priority": priority,
             "depends_on": depends_on,
-            "projection_key": projection_key,
+            **({"projection_key": projection_key} if projection_key is not None else {}),
         },
         http_url=http_url,
         api_key=api_key,
@@ -696,27 +695,87 @@ def try_submit_work(
 
 
 _PROJECTION_IDENTITY_FIELDS = frozenset({"change_id", "phase", "transition_sequence"})
+_PROJECTION_PHASES = frozenset(
+    {
+        "INIT",
+        "GATEKEEPER",
+        "PLAN",
+        "PLAN_ITERATE",
+        "PLAN_REVIEW",
+        "PLAN_FIX",
+        "IMPLEMENT",
+        "IMPL_ITERATE",
+        "IMPL_REVIEW",
+        "IMPL_FIX",
+        "VALIDATE",
+        "VAL_REVIEW",
+        "VAL_FIX",
+        "SUBMIT_PR",
+        "ESCALATE",
+        "DONE",
+    }
+)
 
-def _validate_projection_payload(projection_key: dict[str, Any] | None, input_data: dict[str, Any] | None) -> None:
-    """Reject ambiguous projection identity before a coordinator request."""
-    if projection_key is not None and set(projection_key) != _PROJECTION_IDENTITY_FIELDS:
-        raise ValueError("projection_key must contain change_id, phase, transition_sequence")
+
+def _validate_projection_payload(
+    projection_key: dict[str, Any] | None, input_data: dict[str, Any] | None
+) -> None:
+    """Reject malformed or ambiguous projection identity before a request."""
+    if projection_key is not None:
+        if set(projection_key) != _PROJECTION_IDENTITY_FIELDS:
+            raise ValueError("projection_key must contain change_id, phase, transition_sequence")
+        change_id = projection_key["change_id"]
+        phase = projection_key["phase"]
+        sequence = projection_key["transition_sequence"]
+        if (
+            not isinstance(change_id, str)
+            or re.fullmatch(r"[a-z0-9][a-z0-9-]{0,127}", change_id) is None
+        ):
+            raise ValueError("projection_key change_id is invalid")
+        if phase not in _PROJECTION_PHASES:
+            raise ValueError("projection_key phase is invalid")
+        if (
+            isinstance(sequence, bool)
+            or not isinstance(sequence, int)
+            or not 0 <= sequence <= 2147483647
+        ):
+            raise ValueError("projection_key transition_sequence is invalid")
     duplicated = _PROJECTION_IDENTITY_FIELDS.intersection(input_data or {})
     if duplicated:
         names = ", ".join(sorted(duplicated))
         raise ValueError(f"input_data contains reserved projection identity: {names}")
 
-def try_reconcile_work_projection(*, projection_key: dict[str, Any], task_type: str, task_description: str, input_data: dict[str, Any] | None = None, priority: int = 5, agent_requirements: dict[str, Any] | None = None, http_url: str | None = None, api_key: str | None = None) -> dict[str, Any]:
+
+def try_reconcile_work_projection(
+    *,
+    projection_key: dict[str, Any],
+    task_type: str,
+    task_description: str,
+    input_data: dict[str, Any] | None = None,
+    priority: int = 5,
+    agent_requirements: dict[str, Any] | None = None,
+    http_url: str | None = None,
+    api_key: str | None = None,
+) -> dict[str, Any]:
     """Reconcile a queue projection without raising transport failures."""
     _validate_projection_payload(projection_key, input_data)
     return _execute_single_endpoint_operation(
-        operation="try_reconcile_work_projection", capability_flag="CAN_QUEUE_WORK",
-        method="POST", path="/work/reconcile",
-        payload={"projection_key": projection_key, "task_type": task_type,
-                 "task_description": task_description, "input_data": input_data,
-                 "priority": priority, "agent_requirements": agent_requirements},
-        http_url=http_url, api_key=api_key,
+        operation="try_reconcile_work_projection",
+        capability_flag="CAN_QUEUE_WORK",
+        method="POST",
+        path="/work/reconcile",
+        payload={
+            "projection_key": projection_key,
+            "task_type": task_type,
+            "task_description": task_description,
+            "input_data": input_data,
+            "priority": priority,
+            "agent_requirements": agent_requirements,
+        },
+        http_url=http_url,
+        api_key=api_key,
     )
+
 
 def try_get_work(
     *,
@@ -1044,17 +1103,20 @@ def _github_issue_dispatch(operation: str, **kwargs: Any) -> dict[str, Any] | No
         client = github_issues._default_client()
     except RuntimeError:
         return github_issues._unconfigured(operation)
-    method = getattr(client, {
-        "try_issue_create": "create",
-        "try_issue_list": "list_issues",
-        "try_issue_show": "show",
-        "try_issue_update": "update",
-        "try_issue_close": "close",
-        "try_issue_comment": "comment",
-        "try_issue_ready": "ready",
-        "try_issue_blocked": "blocked",
-        "try_issue_search": "search",
-    }[operation])
+    method = getattr(
+        client,
+        {
+            "try_issue_create": "create",
+            "try_issue_list": "list_issues",
+            "try_issue_show": "show",
+            "try_issue_update": "update",
+            "try_issue_close": "close",
+            "try_issue_comment": "comment",
+            "try_issue_ready": "ready",
+            "try_issue_blocked": "blocked",
+            "try_issue_search": "search",
+        }[operation],
+    )
     return method(**kwargs)
 
 
@@ -1299,9 +1361,7 @@ def try_issue_ready(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     """List issues with no unresolved dependencies via GitHub or the coordinator."""
-    github = _github_issue_dispatch(
-        "try_issue_ready", parent_id=parent_id, limit=limit
-    )
+    github = _github_issue_dispatch("try_issue_ready", parent_id=parent_id, limit=limit)
     if github is not None:
         return github
     payload: dict[str, Any] = {}
@@ -1398,9 +1458,7 @@ def classify_code_search_state(state: Any) -> dict[str, Any] | None:
     if state == _CODE_SEARCH_READY_STATE:
         return None
     key = state if isinstance(state, str) else ""
-    trigger, reason = _CODE_SEARCH_STATE_FALLBACKS.get(
-        key, _CODE_SEARCH_UNKNOWN_STATE_FALLBACK
-    )
+    trigger, reason = _CODE_SEARCH_STATE_FALLBACKS.get(key, _CODE_SEARCH_UNKNOWN_STATE_FALLBACK)
     return _code_search_fallback(
         trigger=trigger,
         reason=reason,
@@ -1412,9 +1470,7 @@ def _code_search_transport_fallback(reason: str) -> dict[str, Any]:
     """Fallback record for an outcome that never produced a response state."""
     return _code_search_fallback(
         trigger="unavailable",
-        reason=_CODE_SEARCH_REASON_FALLBACKS.get(
-            reason, _CODE_SEARCH_DEFAULT_FALLBACK_REASON
-        ),
+        reason=_CODE_SEARCH_REASON_FALLBACKS.get(reason, _CODE_SEARCH_DEFAULT_FALLBACK_REASON),
         state=None,
     )
 
@@ -1555,9 +1611,7 @@ def try_code_search(
 
     status_code = response.get("status_code")
     if status_code is None:
-        return _failed_code_search(
-            reason="coordinator_unreachable", state=state, response=response
-        )
+        return _failed_code_search(reason="coordinator_unreachable", state=state, response=response)
     if not 200 <= status_code < 300:
         reason = _CODE_SEARCH_STATUS_REASONS.get(status_code)
         if reason is None:
@@ -1566,17 +1620,11 @@ def try_code_search(
 
     data = response.get("data")
     if not isinstance(data, dict) or not isinstance(data.get("state"), str):
-        return _failed_code_search(
-            reason="malformed_response", state=state, response=response
-        )
+        return _failed_code_search(reason="malformed_response", state=state, response=response)
 
     wire_state: str = data["state"]
-    if wire_state == _CODE_SEARCH_READY_STATE and not _code_search_ready_is_consistent(
-        data
-    ):
-        return _failed_code_search(
-            reason="malformed_response", state=state, response=response
-        )
+    if wire_state == _CODE_SEARCH_READY_STATE and not _code_search_ready_is_consistent(data):
+        return _failed_code_search(reason="malformed_response", state=state, response=response)
 
     return {
         "status": "ok",
