@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T01:23:52.691145+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "coordinator handoff rejected by policy",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": "impl-fix-round-2",
+    "summary": "Fixed the round-two HTTP policy-status blocker with a RED-to-GREEN regression for a realistic prefixed denial. An explicit service-origin category now maps policy denials to 403 without interpreting guardrail, validation, or database reasons as authorization failures.",
+    "completed_work": [
+      "Added and observed a failing realistic prefixed-policy HTTP regression before implementation.",
+      "Tagged only submit and reconcile policy-engine denials as policy failures.",
+      "Preserved guardrail and validation 422 mappings and prevented RPC payloads from assigning policy provenance.",
+      "Passed 5 focused regressions, 142 affected coordinator tests with 16 PostgreSQL skips, Ruff, strict OpenSpec, and semantic OpenAPI validation."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Classify policy origin explicitly",
+        "rationale": "PolicyDecision.reason is open-ended, so transport status must depend on the trusted service branch that produced the denial rather than a reason-string allowlist or prefix heuristic.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Repeat implementation review against the remediation commit."
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/work_queue.py",
+        "description": "Trusted service policy-origin category"
+      },
+      {
+        "path": "agent-coordinator/src/coordination_api.py",
+        "description": "RFC 7807 policy status mapping"
+      },
+      {
+        "path": "agent-coordinator/tests/test_coordination_api.py",
+        "description": "Realistic prefixed policy-denial regression"
+      },
+      {
+        "path": "agent-coordinator/tests/test_work_queue.py",
+        "description": "Service provenance regressions"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/impl-findings.md",
+        "description": "Round-two remediation evidence"
+      }
+    ]
+  }
+}

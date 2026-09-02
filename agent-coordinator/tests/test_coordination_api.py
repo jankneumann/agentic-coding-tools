@@ -1111,6 +1111,37 @@ def test_projection_submit_maps_service_denial_to_problem(
     assert response.json()["detail"] == reason
 
 
+def test_projection_submit_maps_prefixed_policy_denial_to_403_problem(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.work_queue import SubmitResult
+
+    reason = "write_denied: trust_level=1 < 2"
+    mock_service = AsyncMock()
+    mock_service.submit.return_value = SubmitResult(
+        success=False,
+        created=False,
+        reason=reason,
+        failure_category="policy",
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={"task_type": "implement", "task_description": "denied by policy"},
+    )
+
+    assert response.status_code == 403
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == 403
+    assert response.json()["detail"] == reason
+
+
 def test_projection_authentication_returns_401_problem(client: TestClient) -> None:
     response = client.post(
         "/work/reconcile",
