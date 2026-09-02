@@ -1,0 +1,254 @@
+{
+  "schema_version": 5,
+  "change_id": "implement-idempotent-queue-submission-and-outbox-ordering",
+  "current_phase": "SUBMIT_PR",
+  "iteration": 2,
+  "total_iterations": 26,
+  "max_phase_iterations": 3,
+  "findings_trend": [
+    5,
+    10,
+    7,
+    3,
+    3,
+    6,
+    1,
+    2,
+    4
+  ],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-ri08-1",
+    "plan-iteration-1-1",
+    "plan-review-1",
+    "plan-review-2",
+    "plan-review-3",
+    "implementation-1",
+    "implementation-iteration-1-1",
+    "implementation-review-1",
+    "implementation-fix-1",
+    "implementation-review-2",
+    "implementation-fix-2-1",
+    "implementation-review-3-1",
+    "validation-1",
+    "validation-fix-1-1",
+    "validation-2-1",
+    "validation-review-1-1",
+    "validation-fix-2-1",
+    "validation-3-1",
+    "validation-review-2-1",
+    "validation-fix-3-1",
+    "validation-4-1",
+    "validation-review-3-1"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-09-01T22:49:31.251374+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-09-01T23:11:30.818189+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-09-01T23:28:52.533801+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-01T23:32:08.934153+00:00",
+      "note": "Added monotonic projection head, explicit authorization mapping, and direct MCP verification.",
+      "outcome": "fixed",
+      "phase": "PLAN_FIX"
+    },
+    {
+      "at": "2026-09-01T23:45:25.528225+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-01T23:50:18.503493+00:00",
+      "note": "Bound the high-water record to the full phase/sequence generation; added 409 contracts and final direct-MCP coverage.",
+      "outcome": "fixed",
+      "phase": "PLAN_FIX"
+    },
+    {
+      "at": "2026-09-02T00:00:26.296899+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-02T00:32:29.823321+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-09-02T00:48:53.839918+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-09-02T00:57:40.016194+00:00",
+      "outcome": "not_converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-02T01:09:51.351943+00:00",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-02T01:17:18.799148+00:00",
+      "outcome": "not_converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-02T01:26:15.000376+00:00",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-02T01:34:17.603495+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-02T01:46:49.900910+00:00",
+      "outcome": "failed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-09-02T02:07:24.744789+00:00",
+      "outcome": "fixed",
+      "phase": "VAL_FIX"
+    },
+    {
+      "at": "2026-09-02T02:20:47.564186+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-09-02T02:28:07.991873+00:00",
+      "outcome": "not_converged",
+      "phase": "VAL_REVIEW"
+    },
+    {
+      "at": "2026-09-02T02:43:49.782595+00:00",
+      "outcome": "fixed",
+      "phase": "VAL_FIX"
+    },
+    {
+      "at": "2026-09-02T02:58:41.015563+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-09-02T03:09:59.060317+00:00",
+      "outcome": "not_converged",
+      "phase": "VAL_REVIEW"
+    },
+    {
+      "at": "2026-09-02T03:11:01.041873+00:00",
+      "outcome": "fixed",
+      "phase": "VAL_FIX"
+    },
+    {
+      "at": "2026-09-02T03:11:53.005747+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-09-02T03:19:17.453677+00:00",
+      "outcome": "converged",
+      "phase": "VAL_REVIEW"
+    }
+  ],
+  "last_handoff_id": "validation-review-3-1",
+  "started_at": "2026-09-01T22:47:26.224636+00:00",
+  "phase_started_at": "2026-09-02T03:19:17.504282+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "runner",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": true,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 3,
+    "total_loc_estimate": 710
+  },
+  "gate_verdict": "proceed_with_review",
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "outcome": "blocked",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-01T22:49:44.023779+00:00",
+      "resolution": "posture_block"
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "note": "Approved by the existing roadmap batch authorization for roadmap-supervisor-orchestration ri-08; exact acceptance outcomes and ri-07 dependency govern scope.",
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 Approved by the existing roadmap batch authorization for roadmap-supervisor-orchestration ri-08; exact acceptance outcomes and ri-07 dependency govern scope.",
+      "recorded_at": "2026-09-01T22:49:55.971874+00:00",
+      "resolution": "console_approved"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-02T03:20:43.035519+00:00"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' approved by the operator \u2014 Approved by the user's explicit create PR request for the authorized autopilot-roadmap ri-08 lifecycle; target base is openspec/roadmap-roadmap-supervisor-orchestration.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-02T03:20:53.377661+00:00",
+      "note": "Approved by the user's explicit create PR request for the authorized autopilot-roadmap ri-08 lifecycle; target base is openspec/roadmap-roadmap-supervisor-orchestration."
+    }
+  ],
+  "pending_gate": null,
+  "goal_gate": null
+}
