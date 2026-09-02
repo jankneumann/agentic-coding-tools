@@ -478,6 +478,41 @@ class TestWorkQueueAtomicity:
         assert result.success is False
         assert "not_claimed_by_agent" in result.reason
 
+    @pytest.mark.asyncio
+    async def test_complete_refused_after_cancellation_surfaces_status_and_warns(
+        self, mock_supabase, db_client, caplog
+    ):
+        """A completion refused because the task is already terminal (e.g.
+
+        cancelled by projection reconciliation) must surface a clear reason
+        and status on the result, and log a warning rather than passing
+        silently — migration 036 makes complete_task return
+        'task_not_active' with the row's current status for this case.
+        """
+        task_id = UUID(int=2)
+        response = {
+            "success": False,
+            "reason": "task_not_active",
+            "status": "cancelled",
+            "task_id": str(task_id),
+        }
+        mock_supabase.post("https://test.supabase.co/rest/v1/rpc/complete_task").mock(
+            return_value=Response(200, json=response)
+        )
+
+        service = WorkQueueService(db_client)
+
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="src.work_queue"):
+            result = await service.complete(task_id=task_id, success=True)
+
+        assert result.success is False
+        assert result.reason == "task_not_active"
+        assert result.status == "cancelled"
+        assert "no longer active" in caplog.text
+        assert "cancelled" in caplog.text
+
 
 class TestWorkQueueTrustResolution:
     """The guardrail paths must use the same resolver as the HTTP endpoints.

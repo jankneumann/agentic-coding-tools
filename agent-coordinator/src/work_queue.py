@@ -630,6 +630,19 @@ class WorkQueueService:
 
             complete_result = CompleteResult.from_dict(result_data)
 
+            if not complete_result.success and complete_result.reason == "task_not_active":
+                # The row was claimed by this agent but is no longer active
+                # (e.g. cancelled by projection reconciliation while this
+                # worker was still running) — surface a clear, actionable
+                # warning instead of letting the refusal pass silently.
+                logger.warning(
+                    "complete_task refused for task %s: no longer active "
+                    "(current status=%s, agent=%s)",
+                    task_id,
+                    result_data.get("status"),
+                    resolved_agent_id,
+                )
+
             # Record task duration only after completion succeeds
             if (
                 complete_result.success
@@ -900,7 +913,33 @@ class WorkQueueService:
                 ),
             },
         )
-        return ReconcileResult.from_dict(result)
+        reconcile_result = ReconcileResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=config.agent.agent_id,
+                operation="reconcile_work_projection",
+                parameters={
+                    "change_id": key.change_id,
+                    "phase": key.phase,
+                    "transition_sequence": key.transition_sequence,
+                    "task_type": task_type,
+                },
+                result={
+                    "task_id": (
+                        str(reconcile_result.task_id) if reconcile_result.task_id else None
+                    ),
+                    "created": reconcile_result.created,
+                    "cancelled_task_ids": [
+                        str(cancelled_id) for cancelled_id in reconcile_result.cancelled_task_ids
+                    ],
+                },
+                success=reconcile_result.success,
+            )
+        except Exception:
+            logger.warning("Audit log failed for reconcile_work_projection", exc_info=True)
+
+        return reconcile_result
 
     async def get_pending(
         self,
