@@ -668,3 +668,36 @@ Final validation review converged with real 2/2 distinct-vendor quorum. Codex an
 
 ### Context
 The SUBMIT_PR pre-publication audit caught contradictory derived state before any PR was created. The repair was explicitly authorized after disclosure, changes no review artifact or product result, and makes loop-state summarize the committed consensus evidence accurately.
+
+---
+
+## Phase: Submit PR Final (2026-09-02)
+
+**Agent**: codex-autopilot | **Session**: N/A
+
+### Decisions
+1. **Stop at merge authorization** — Autopilot records authorization only; cleanup-feature remains the sole merge and archive executor.
+
+### Capability Gaps Observed
+- **local_review_helper_unavailable**: The code CLI is not installed, so curated artifacts could not be opened automatically. (skill: review-artifacts, severity: low)
+- **state_refresh_defect**: apply-outcome did not refresh review-derived summary fields; the pre-publication consistency audit repaired them from committed consensus evidence. (skill: autopilot, severity: high)
+
+### Completed Work
+- Opened https://github.com/jankneumann/agentic-coding-tools/pull/457
+- Recorded the merge gate as pending without answering it
+- Preserved final PLAN, IMPL, and VAL review quorum evidence
+
+### In Progress
+- Human merge authorization for PR #457
+
+### Next Steps
+- Review PR #457
+- If approved, answer the merge gate; cleanup-feature performs merge and archive
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/loop-state.json` — Canonical lifecycle and pending merge gate
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md` — Passing validation evidence
+- `openspec/roadmaps/roadmap-supervisor-orchestration/learnings/ri-08.md` — Roadmap learning and lifecycle defect record
+
+### Context
+Created PR #457 against openspec/roadmap-roadmap-supervisor-orchestration at validated head b2fa3a14; merge authorization is pending and autopilot has not merged or archived.
