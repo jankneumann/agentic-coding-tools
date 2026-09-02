@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "validation-evidence",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity-local",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 48.96460619405843,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex-local",
+      "success": false,
+      "findings_count": 0,
+      "elapsed_seconds": 90.02166943112388,
+      "error": "Timeout after 90s"
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok-local",
+      "success": false,
+      "findings_count": 0,
+      "elapsed_seconds": 90.09801816381514,
+      "error": "Timeout after 90s"
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude-local",
+      "success": false,
+      "findings_count": 0,
+      "elapsed_seconds": 90.11625398090109,
+      "error": "Timeout after 90s"
+    },
+    {
+      "vendor": "pi",
+      "agent_id": "pi-local",
+      "success": false,
+      "findings_count": 0,
+      "elapsed_seconds": 38.69358935696073,
+      "error": "Authentication expired; OPENROUTER_API_KEY unavailable"
+    }
+  ],
+  "quorum_met": false,
+  "quorum_requested": 2,
+  "quorum_received": 1,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Retained OWASP ZAP DAST evidence SHA-256 hashes for zap.stdout.log and zap-report.json match raw execution.json entries exactly, and canonical risk gate returns PASS with zero high-threshold findings."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Raw PostgreSQL bootstrap tracking helper correctly validates migration filename patterns, computes SHA-256 checksums matching Python migration runner checksums, and updates schema_migrations idempotently within a single transaction."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Migration 035 idempotently removes obsolete 5-argument coordinator_notify overload and takes a SHARE ROW EXCLUSIVE lock during projection table/index creation, preventing notification call ambiguity and concurrency race conditions during schema migration."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Exact PR #457 GitHub CI head 0106b8fab44c6c7e61eb0c045205afb2779fb764 passed all 15 substantive status checks including test, test-integration, docker-smoke-import, and coverage-ratchet without failure."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 4,
+    "confirmed_count": 0,
+    "unconfirmed_count": 4,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  },
+  "verdict": "not_converged"
+}

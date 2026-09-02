@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "implement-idempotent-queue-submission-and-outbox-ordering",
-  "current_phase": "VAL_FIX",
+  "current_phase": "VAL_REVIEW",
   "iteration": 2,
-  "total_iterations": 27,
+  "total_iterations": 29,
   "max_phase_iterations": 3,
   "findings_trend": [
     5,
@@ -44,7 +44,9 @@
     "validation-review-2-1",
     "validation-fix-3-1",
     "validation-4-1",
-    "validation-review-3-1"
+    "validation-review-3-1",
+    "validation-fix-4-1",
+    "validation-5-1"
   ],
   "phase_history": [
     {
@@ -174,17 +176,27 @@
       "note": "PR #457 required CI failed in run 33587266198: job 100113910883 failed coordinator mypy and job 100113911117 failed live integration; merge authorization remained unanswered.",
       "outcome": "ci_failed",
       "phase": "SUBMIT_PR"
+    },
+    {
+      "at": "2026-09-02T04:24:00.392839+00:00",
+      "outcome": "fixed",
+      "phase": "VAL_FIX"
+    },
+    {
+      "at": "2026-09-02T04:34:24.055948+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
     }
   ],
-  "last_handoff_id": "validation-review-3-1",
+  "last_handoff_id": "validation-5-1",
   "started_at": "2026-09-01T22:47:26.224636+00:00",
-  "phase_started_at": "2026-09-02T03:35:24.056821+00:00",
+  "phase_started_at": "2026-09-02T04:34:24.103736+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "runner",
+  "phase_archetype": "validator",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -228,44 +240,44 @@
       "resolution": "console_approved"
     },
     {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
       "gate": "pr_creation",
       "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
+      "phase": "SUBMIT_PR",
+      "posture_present": false,
       "reason": "gate 'pr_creation' parked: trust posture disposition is block",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": false,
-      "disposition": "block",
-      "phase": "SUBMIT_PR",
-      "recorded_at": "2026-09-02T03:20:43.035519+00:00"
+      "recorded_at": "2026-09-02T03:20:43.035519+00:00",
+      "resolution": "posture_block"
     },
     {
-      "gate": "pr_creation",
-      "outcome": "proceed",
-      "resolution": "console_approved",
+      "approval_id": null,
       "authorizing_disposition": "block",
-      "reason": "gate 'pr_creation' approved by the operator \u2014 Approved by the user's explicit create PR request for the authorized autopilot-roadmap ri-08 lifecycle; target base is openspec/roadmap-roadmap-supervisor-orchestration.",
-      "approval_id": null,
       "default_action": null,
-      "posture_present": false,
       "disposition": "block",
+      "gate": "pr_creation",
+      "note": "Approved by the user's explicit create PR request for the authorized autopilot-roadmap ri-08 lifecycle; target base is openspec/roadmap-roadmap-supervisor-orchestration.",
+      "outcome": "proceed",
       "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'pr_creation' approved by the operator \u2014 Approved by the user's explicit create PR request for the authorized autopilot-roadmap ri-08 lifecycle; target base is openspec/roadmap-roadmap-supervisor-orchestration.",
       "recorded_at": "2026-09-02T03:20:53.377661+00:00",
-      "note": "Approved by the user's explicit create PR request for the authorized autopilot-roadmap ri-08 lifecycle; target base is openspec/roadmap-roadmap-supervisor-orchestration."
+      "resolution": "console_approved"
     },
     {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
       "gate": "merge",
       "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'merge' parked: trust posture disposition is block",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": false,
-      "disposition": "block",
       "phase": "SUBMIT_PR",
-      "recorded_at": "2026-09-02T03:27:16.550488+00:00"
+      "posture_present": false,
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-02T03:27:16.550488+00:00",
+      "resolution": "posture_block"
     }
   ],
   "pending_gate": null,

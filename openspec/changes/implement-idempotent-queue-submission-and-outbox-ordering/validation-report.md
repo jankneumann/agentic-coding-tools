@@ -142,3 +142,101 @@ The affected non-live suite passed 55 tests with 16 PostgreSQL-environment skips
 ### Result
 
 **PASS for VAL_FIX implementation evidence.** No critical or high residual remains. Canonical VALIDATE and independent VAL_REVIEW must still complete before the PR returns to the merge gate, and required GitHub CI must be green at the exact final head.
+
+---
+
+## Canonical Validation 5 (2026-09-02)
+
+**Commit**: `0106b8fab44c6c7e61eb0c045205afb2779fb764`
+**Validated tree**: `04610c62774d7b1dffe5aa62e3d6849823daf39a`
+**Branch**: `openspec/implement-idempotent-queue-submission-and-outbox-ordering`
+
+### Result
+
+**PASS** — The exact pushed PR head satisfies every required validation phase without a waiver or degraded-phase override. The fresh exact-head PostgreSQL/Podman evidence was internally consistent and conclusive, so this canonical audit did not repeat the live stack.
+
+### Deploy
+
+**Status**: pass
+
+The exact product fix was deployed on a fresh isolated rootless Podman/PostgreSQL stack. Raw init ran all 38 SQL migrations and then `999_record_schema_migrations.sh`; the ledger contained 38/38 distinct files with `missing=[]`, `unexpected=[]`, and `checksum_mismatches=[]`. Consecutive runtime `ensure_schema` calls returned `[]` and `[]`. Teardown left zero matching containers, volumes, networks, or listeners.
+
+## Smoke Tests
+
+**Status**: pass
+
+The prior fresh deployment passed 11/11 reusable HTTP smoke checks. At the exact final head, GitHub's `docker-smoke-import`, `test-integration`, and coordinator lifecycle paths also completed successfully.
+
+## Security
+
+**Status**: pass
+
+The retained bounded ZAP evidence remains independently auditable: SHA-256 values for `zap.stdout.log` and `zap-report.json` exactly match `execution.json`, and the canonical high-threshold gate reports PASS with zero triggered findings. No dependency manifest changed after that scan. The CI bootstrap helper constrains migration filenames before SQL interpolation and invokes psql with `ON_ERROR_STOP`; fresh bootstrap and retry evidence confirms the ledger cannot mask a failed SQL migration.
+
+## E2E Tests
+
+**Status**: pass
+
+Exact-head live PostgreSQL validation passed the projection class 4/4 and `TestWorkQueueLifecycleLive::test_submit_claim_complete` 1/1. Post-retry state retained only `coordinator_notify(text,text,text,text,text,text,jsonb)`, and an uncast five-literal call resolved without ambiguity.
+
+## Spec Compliance
+
+**Status**: pass
+
+- Strict OpenSpec validation passed.
+- Task drift gate passed with zero unchecked tasks.
+- Change-scoped traceability passed: 68 operations cite 36 requirements.
+- Work-package schema, dependency references, DAG, lock keys, parallel overlap, and context-impact gates passed.
+- The canonical report gate returned `action=continue` with no degraded override.
+
+### Package Evidence
+
+**Status**: pass with warning
+
+All package/schema/overlap/context gates are green. Earlier coordinator dispatches did not retain canonical per-package work-result JSON, but exact context checkpoints, the full local CI run, exact-head GitHub CI, and the durable live validation cover every affected package surface.
+
+### Tests and CI/CD
+
+**Status**: pass
+
+- Durable full local CI unit run: 2,434 passed, 11 skipped, 95 deselected.
+- Fresh bounded non-live audit: 55 passed in 0.98s.
+- Mypy: success across 77 source files.
+- Ruff: all checks passed.
+- `bash -n database/migrations/999_record_schema_migrations.sh`: passed.
+- PR #457 head equals `0106b8fab44c6c7e61eb0c045205afb2779fb764`; all 15 substantive checks are SUCCESS, including `test`, `test-integration`, `coverage-ratchet`, `validate-specs`, traceability, and context gates. `dependency-update-remediation` is SKIPPED by design.
+
+### Architecture
+
+**Status**: DEGRADED (advisory)
+
+The previously documented repository source-root configuration defect still prevents current architecture artifact refresh. The configured gate is advisory, and the product/evidence diff introduces no new blocking architecture finding.
+
+### Log Analysis
+
+**Status**: pass
+
+Fresh bootstrap evidence contains no migration replay, notification-overload ambiguity, or projection lifecycle error. The exact stack teardown was clean.
+
+### Residual Advisories
+
+1. Correct the repository architecture source-root configuration in a separate change.
+2. Restore canonical per-package work-result persistence for future coordinated validations.
+---
+
+## Canonical Validation Review 4 (2026-09-02)
+
+**Status**: NOT CONVERGED — required independent quorum unavailable.
+
+Antigravity completed a schema-valid review in 48.96 seconds with four positive findings spanning security, correctness, resilience, and compatibility. It independently confirmed the retained ZAP hashes/gate, raw-bootstrap checksum ledger, migration-035 overload cleanup, and exact-head PR checks. It found zero blocking findings and zero disagreements.
+
+The required second vote did not complete. Codex, Grok, and Claude each returned no findings before the enforced 90-second per-vendor cap. Pi failed in 38.69 seconds because its OpenRouter authentication was expired. The canonical manifest therefore records:
+
+- quorum requested: 2;
+- quorum received: 1;
+- blocking product/evidence findings: 0;
+- disagreements: 0;
+- verdict: `not_converged`.
+
+Validation 5 and all substantive GitHub checks remain green at exact pushed head `0106b8fab44c6c7e61eb0c045205afb2779fb764`, but the lifecycle fails closed at validation review. One configured vendor must become capable and independently confirm the evidence before the PR can return to the merge authorization gate.
+
