@@ -40,7 +40,13 @@ from typing import Any, Iterable, Sequence
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
-_RUNTIME = Path(__file__).resolve().parents[2] / "roadmap-runtime" / "scripts"
+_SKILLS_ROOT = Path(__file__).resolve().parents[2]
+_RUNTIME = _SKILLS_ROOT / "roadmap-runtime" / "scripts"
+if str(_SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SKILLS_ROOT))
+
+from shared.trust_posture import Disposition as _Disposition  # noqa: E402
+from shared.trust_posture import Gate as _Gate  # noqa: E402
 
 
 def _load_runtime_models():
@@ -81,12 +87,11 @@ MIRROR_PATH = "openspec/supervise/supervisor-record.json"
 LEDGER_SCHEMA_VERSION = 1
 SUPERVISOR_RECORD_SCHEMA_VERSION = 1
 
-_GATES = frozenset({
-    "gatekeeper_escalation", "proposal_approval",
-    "plan_review_convergence_failure", "validation_failure",
-    "escalate_resume", "replan_required", "pr_creation", "merge",
-})
-_DISPOSITIONS = frozenset({"auto", "notify_with_timeout", "block"})
+# D1 (ri-04): tracks shared.trust_posture.Gate/Disposition rather than a
+# hand-copied literal, so a gate added to the enum (e.g. `roadmap_approval`)
+# is accepted here with no separate edit.
+_GATES = frozenset(g.value for g in _Gate)
+_DISPOSITIONS = frozenset(d.value for d in _Disposition)
 _GATE_SOURCES = frozenset({"autopilot", "supervise", "escalation"})
 _STUB_DECISIONS = frozenset({"approved", "deferred", "rejected", "pending"})
 _CHANGE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -257,6 +262,14 @@ def _clean_pending_gate(value: Any) -> dict[str, Any] | None:
             cleaned["approval_id"] = _clean_optional_text(approval_id)
     source = value.get("source", "supervise")
     cleaned["source"] = source if source in _GATE_SOURCES else "supervise"
+    # D7: the router's gate-decision record id this pending entry projects, so a
+    # rehydrated session can resolve `gate-decision:<decision_id>` back to its
+    # record. Without this passthrough the allowlist cleaner silently strips it
+    # on every write_mirror call.
+    decision_id = value.get("decision_id")
+    if decision_id is None or isinstance(decision_id, str):
+        if "decision_id" in value:
+            cleaned["decision_id"] = _clean_optional_text(decision_id)
     return cleaned
 
 
