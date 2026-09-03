@@ -348,6 +348,28 @@ def test_notify_server_expired_maps_to_default() -> None:
     assert decision.notified is True
 
 
+def test_notify_server_expired_undelivered_keeps_polling_until_local_timeout() -> None:
+    """`_interpret_status`'s expired branch returns None when `notified` is
+    False (skill-workflow "Late coordinator answer"), so a server-side
+    `expired` status arriving during the FIRST evaluate()'s poll loop reads
+    as "keep waiting", not an immediate decision. The loop's own
+    local-timeout fallback (`_apply_default` called directly after the
+    deadline, unaffected by this branch) still produces the correct
+    fail-closed block exactly once."""
+    posture = posture_with(Gate.MERGE, NOTIFY_BLOCK)
+    coord = FakeCoordinator(statuses=["expired"], notify_return=False)
+    gate, coord, audit, clock = make_gate(posture=posture, coordinator=coord)
+
+    decision = gate.evaluate(Gate.MERGE)
+
+    assert decision.blocked
+    assert decision.resolution is Resolution.TIMEOUT_BLOCK
+    assert decision.notified is False
+    # Did not resolve on the first poll -- kept polling past a bare "expired".
+    assert coord.calls.count("check_approval") > 1
+    assert len(audit.records) == 1
+
+
 def test_notify_soft_notification_failure_is_nonfatal() -> None:
     # push_notification returns False (no channel) but the approval still resolves.
     posture = posture_with(Gate.MERGE, NOTIFY_BLOCK)
@@ -706,19 +728,20 @@ def test_check_filed_expired_default_proceed_notified_true_proceeds() -> None:
 
 
 def test_check_filed_expired_undelivered_stays_blocked() -> None:
-    """Security case (D4 step 0.3): an expired approval whose notification was
-    never delivered must never be upgraded to proceed by a late check_filed call —
-    the fail-closed block from _apply_default must stand."""
+    """Skill-workflow scenario "Late coordinator answer is interpreted by the
+    gate service": when the coordinator reports `expired` and the caller
+    passes `notified=False`, check_filed SHALL return None and record
+    nothing — the fail-closed block a prior evaluate() already decided and
+    audited stands unchanged; a late poll of an undelivered notification is
+    not itself a new decision."""
     posture = posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_PROCEED)
     coord = FakeCoordinator(statuses=["expired"])
     gate, coord, audit, _ = make_gate(posture=posture, coordinator=coord)
 
     decision = gate.check_filed(Gate.ROADMAP_APPROVAL, "appr-123", notified=False)
 
-    assert decision is not None
-    assert decision.blocked
-    assert decision.resolution is Resolution.TIMEOUT_BLOCK
-    assert decision.notified is False
+    assert decision is None
+    assert audit.records == []
 
 
 def test_check_filed_coordinator_unreachable_blocks() -> None:

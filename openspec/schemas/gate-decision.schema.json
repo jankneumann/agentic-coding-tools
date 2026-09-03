@@ -97,6 +97,7 @@
     },
     "decision_id": {
       "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
       "description": "uuid4 identifying this record; `approval_ref` is `gate-decision:<decision_id>`."
     },
     "source": {
@@ -144,11 +145,9 @@
       "description": "Whether push_notification's return value reported delivery when this approval was filed; stamped whenever an approval is filed."
     },
     "roadmap_fingerprint": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "sha256 of the roadmap's authorized DAG shape; stamped on every roadmap_approval record."
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 of the roadmap's authorized DAG shape; stamped on every roadmap_approval record. Absent (not null) on every other gate."
     },
     "timeout_seconds": {
       "type": [
