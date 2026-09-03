@@ -140,6 +140,11 @@ class ApprovalDecision:
     ``default_action`` — the applied default, when the timer expired.
     ``posture_present`` — whether a TRUST_POSTURE.md was loaded (vs. the absent-file
                           all-block default), so audit can distinguish them.
+    ``timeout_seconds`` — the posture's `notify_with_timeout` window in effect when
+                          this decision was made, when `approval_id` is set. A caller
+                          computing a pending-gate deadline for a filed approval needs
+                          this window; it is not otherwise recoverable from a persisted
+                          record.
     """
 
     gate: Gate
@@ -151,6 +156,7 @@ class ApprovalDecision:
     default_action: Optional[DefaultAction] = None
     posture_present: bool = False
     notified: Optional[bool] = None
+    timeout_seconds: Optional[int] = None
 
     @property
     def proceed(self) -> bool:
@@ -174,6 +180,7 @@ class ApprovalDecision:
             ),
             "posture_present": self.posture_present,
             "notified": self.notified,
+            "timeout_seconds": self.timeout_seconds,
         }
 
 
@@ -494,6 +501,7 @@ class ApprovalGate:
                 reason=f"gate {gate.value!r} approved by human",
                 approval_id=approval_id,
                 notified=notified,
+                timeout_seconds=gd.timeout_seconds,
             )
         if normalized in ("denied", "rejected"):
             return _Draft(
@@ -504,6 +512,7 @@ class ApprovalGate:
                 reason=f"gate {gate.value!r} denied by human",
                 approval_id=approval_id,
                 notified=notified,
+                timeout_seconds=gd.timeout_seconds,
             )
         if normalized == "expired":
             # Server-side expiry is the same terminal condition as our local timeout.
@@ -544,6 +553,7 @@ class ApprovalGate:
                 approval_id=approval_id,
                 default_action=DefaultAction.BLOCK,
                 notified=notified,
+                timeout_seconds=gd.timeout_seconds,
             )
         if default_action is DefaultAction.PROCEED:
             return _Draft(
@@ -557,6 +567,7 @@ class ApprovalGate:
                 approval_id=approval_id,
                 default_action=DefaultAction.PROCEED,
                 notified=notified,
+                timeout_seconds=gd.timeout_seconds,
             )
         return _Draft(
             gate=gate,
@@ -567,6 +578,7 @@ class ApprovalGate:
             approval_id=approval_id,
             default_action=DefaultAction.BLOCK,
             notified=notified,
+            timeout_seconds=gd.timeout_seconds,
         )
 
     def _unreachable(
@@ -588,6 +600,7 @@ class ApprovalGate:
             disposition=gd.disposition,
             reason=f"gate {gate.value!r} parked: coordinator unreachable ({detail})",
             approval_id=approval_id,
+            timeout_seconds=gd.timeout_seconds if approval_id else None,
         )
 
     # -- finalize + audit ---------------------------------------------------- #
@@ -603,6 +616,7 @@ class ApprovalGate:
             default_action=draft.default_action,
             posture_present=posture.present,
             notified=draft.notified,
+            timeout_seconds=draft.timeout_seconds,
         )
         self._record_audit(decision)
         return decision
@@ -661,6 +675,7 @@ class _Draft:
     approval_id: Optional[str] = None
     default_action: Optional[DefaultAction] = None
     notified: Optional[bool] = None
+    timeout_seconds: Optional[int] = None
 
 
 # --------------------------------------------------------------------------- #
