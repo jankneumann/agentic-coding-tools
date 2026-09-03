@@ -419,6 +419,12 @@ class TestNotifyPosture:
         assert routed.decision.resolution is Resolution.COORDINATOR_UNREACHABLE
         assert routed.decision.approval_id == "appr-1"
         assert routed.decision.default_action is None
+        # push_notification succeeded before check_approval raised -- notified
+        # is known True, not the unreachable default's usual None. Locks the
+        # `_unreachable(..., notified=notified)` threading fix on both the
+        # returned decision and the persisted record.
+        assert routed.decision.notified is True
+        assert routed.record["notified"] is True
 
         mirror = read_mirror(repo)
         entry = mirror["pending_gates"][0]
