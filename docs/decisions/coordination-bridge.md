@@ -5,25 +5,25 @@
 
 ---
 
-## 2026-09-01 — implement-idempotent-queue-submission-and-outbox-ordering
+## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
 
 ### Phase: Plan
 
 **Preserve coordinator-free fallback tiers** — The projection callback defaults to absent; local-parallel and sequential execution import or call no coordinator queue surface.
 
 - Status: `active`
-- Source: [openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D3)
 
 ---
 
-## 2026-09-01 — implement-idempotent-queue-submission-and-outbox-ordering
+## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
 
 ### Phase: Plan Iteration 1
 
 **Keep failure shapes transport-appropriate** — HTTP uses RFC 7807 4xx errors while MCP and CLI use discriminated no-raise envelopes, so success-only fields remain truthful.
 
 - Status: `active`
-- Source: [openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D3)
 
 ---
 
