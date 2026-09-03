@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-03 — add-model-usage-ledger
+
+### Phase: Plan
+
+**Thinking forwarded via per-provider argv template in agents.yaml** — agents.yaml stays the single source of truth for CLI shape; missing template warns and proceeds. Design D4.
+
+- Status: `active`
+- Source: [openspec/changes/add-model-usage-ledger/session-log.md](/openspec/changes/add-model-usage-ledger/session-log.md) (D4)
+
+---
+
 ## 2026-08-16 — add-local-model-provider-tier
 
 ### Phase: Implementation

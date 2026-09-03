@@ -1,0 +1,346 @@
+openapi: 3.1.0
+info:
+  title: Coordinator Usage Ledger API
+  version: 1.0.0
+  description: >-
+    Usage ledger routes added by add-model-usage-ledger. Writes require the coordinator
+    API key (Authorization: Bearer, X-Coordinator-API-Key, or legacy X-API-Key).
+    GET routes are unauthenticated, matching existing coordinator conventions.
+servers:
+  - url: https://coord.example.test
+paths:
+  /usage/ingest:
+    post:
+      operationId: ingestUsage
+      summary: Ingest a batch of usage records and sanitized transcript events
+      security: [{ ApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngestBatch' }
+            example:
+              host: ccr-container-7f3a
+              sanitized: true
+              records:
+                - ts: "2026-09-03T10:31:02Z"
+                  vendor: claude_code
+                  model: claude-opus-5
+                  effort: high
+                  input_tokens: 2
+                  output_tokens: 2309
+                  cache_creation_tokens: 26643
+                  cache_read_tokens: 38687
+                  thinking_tokens: 662
+                  session_id: 2a6069d0-68cd-5c3e-95c8-f13f4e765d2e
+                  agent_id: ad4118f0bd29192ec
+                  parent_session_id: 2a6069d0-68cd-5c3e-95c8-f13f4e765d2e
+                  project: /home/user/agentic-coding-tools
+                  git_branch: claude/model-usage-observability-dk9kuq
+                  message_id: msg_01ABC
+                  record_hash: 6f1c…
+              events: []
+              cursors:
+                - file_path: /root/.claude/projects/x/2a60…/subagents/agent-ad41….jsonl
+                  vendor: claude_code
+                  last_mtime: 1788000000.0
+                  line_offset: 115
+      responses:
+        '200':
+          description: Batch accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IngestResult' }
+              example: { inserted_records: 12, duplicate_records: 0, inserted_events: 40, unpriced_records: 1, pricing_version: "2026.09.1" }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: Batch not sanitized or schema invalid
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example: { type: about:blank, title: Unsanitized batch, status: 422, detail: "sanitized must be true" }
+  /usage/dispatch:
+    post:
+      operationId: upsertDispatch
+      summary: Create or patch a dispatch record by dispatch_id
+      security: [{ ApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DispatchRecordUpsert' }
+            example:
+              dispatch_id: d-01J8…
+              change_id: add-model-usage-ledger
+              phase: IMPL_REVIEW
+              archetype: reviewer
+              intended_tier: premium
+              intended_model: claude-opus-5
+              intended_thinking: high
+              provider: claude_code
+              signals: { loc_estimate: 120 }
+              override_source: null
+              session_id: 2a6069d0-68cd-5c3e-95c8-f13f4e765d2e
+      responses:
+        '200':
+          description: Upserted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DispatchRecord' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /usage/summary:
+    get:
+      operationId: usageSummary
+      summary: Token and cost totals with per-vendor and per-model breakdown
+      parameters: [ { $ref: '#/components/parameters/since' }, { $ref: '#/components/parameters/until' }, { $ref: '#/components/parameters/change_id' }, { $ref: '#/components/parameters/vendor' }, { $ref: '#/components/parameters/model' } ]
+      responses:
+        '200':
+          description: Summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsageSummary' }
+  /usage/by-phase:
+    get:
+      operationId: usageByPhase
+      summary: Intended vs actual per (change_id, phase, dispatch_id)
+      parameters: [ { $ref: '#/components/parameters/since' }, { $ref: '#/components/parameters/until' }, { $ref: '#/components/parameters/change_id' } ]
+      responses:
+        '200':
+          description: Rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows: { type: array, items: { $ref: '#/components/schemas/PhaseUsageRow' } }
+              example:
+                rows:
+                  - change_id: add-model-usage-ledger
+                    phase: PLAN_REVIEW
+                    dispatch_id: d-01J8…
+                    archetype: reviewer
+                    intended_model: claude-fable-5-1
+                    intended_thinking: high
+                    actual_models: [claude-opus-5]
+                    actual_efforts: [high]
+                    input_tokens: 1200
+                    output_tokens: 8800
+                    cache_creation_tokens: 30000
+                    cache_read_tokens: 91000
+                    thinking_tokens: 2100
+                    cost_usd: 0.31
+                    pricing_version: "2026.09.1"
+                    estimated: true
+                    model_mismatch: true
+                    thinking_mismatch: false
+                    unattributed: false
+  /usage/by-model:
+    get:
+      operationId: usageByModel
+      summary: Totals per (vendor, model)
+      parameters: [ { $ref: '#/components/parameters/since' }, { $ref: '#/components/parameters/until' }, { $ref: '#/components/parameters/vendor' } ]
+      responses:
+        '200':
+          description: Rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows: { type: array, items: { $ref: '#/components/schemas/ModelUsageRow' } }
+  /usage/mismatches:
+    get:
+      operationId: usageMismatches
+      summary: Dispatches flagged model_mismatch, thinking_mismatch, or unattributed
+      parameters: [ { $ref: '#/components/parameters/since' }, { $ref: '#/components/parameters/until' }, { $ref: '#/components/parameters/change_id' } ]
+      responses:
+        '200':
+          description: Rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows: { type: array, items: { $ref: '#/components/schemas/PhaseUsageRow' } }
+  /usage/events:
+    get:
+      operationId: usageEvents
+      summary: Sanitized transcript events for central analysis
+      parameters:
+        - { $ref: '#/components/parameters/since' }
+        - { $ref: '#/components/parameters/until' }
+        - { name: session_id, in: query, schema: { type: string } }
+        - { name: agent_id, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 1000, maximum: 5000 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Events page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events: { type: array, items: { $ref: '#/components/schemas/TranscriptEvent' } }
+                  next_cursor: { type: [string, 'null'] }
+components:
+  securitySchemes:
+    ApiKey: { type: apiKey, in: header, name: X-Coordinator-API-Key }
+  parameters:
+    since: { name: since, in: query, schema: { type: string, format: date-time } }
+    until: { name: until, in: query, schema: { type: string, format: date-time } }
+    change_id: { name: change_id, in: query, schema: { type: string } }
+    vendor: { name: vendor, in: query, schema: { type: string } }
+    model: { name: model, in: query, schema: { type: string } }
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example: { type: about:blank, title: Unauthorized, status: 401, detail: "API key required" }
+  schemas:
+    Problem:
+      type: object
+      required: [title, status]
+      properties:
+        type: { type: string, default: about:blank }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+    UsageRecord:
+      type: object
+      required: [ts, vendor, model, input_tokens, output_tokens, session_id, record_hash]
+      properties:
+        ts: { type: string, format: date-time }
+        vendor: { type: string, example: claude_code }
+        model: { type: string, example: claude-opus-5 }
+        effort: { type: [string, 'null'], example: high }
+        input_tokens: { type: integer, minimum: 0 }
+        output_tokens: { type: integer, minimum: 0 }
+        cache_creation_tokens: { type: integer, minimum: 0, default: 0 }
+        cache_read_tokens: { type: integer, minimum: 0, default: 0 }
+        thinking_tokens: { type: [integer, 'null'] }
+        vendor_cost_usd: { type: [number, 'null'] }
+        session_id: { type: string }
+        agent_id: { type: [string, 'null'] }
+        parent_session_id: { type: [string, 'null'] }
+        project: { type: [string, 'null'] }
+        principal: { type: [string, 'null'] }
+        git_branch: { type: [string, 'null'] }
+        message_id: { type: [string, 'null'] }
+        record_hash: { type: string }
+    TranscriptEvent:
+      type: object
+      required: [ts, vendor, session_id, event_type, schema_version, event, event_hash]
+      properties:
+        ts: { type: string, format: date-time }
+        vendor: { type: string }
+        session_id: { type: string }
+        agent_id: { type: [string, 'null'] }
+        parent_session_id: { type: [string, 'null'] }
+        event_type: { type: string, enum: [user, assistant, tool_call, tool_result, system] }
+        schema_version: { type: string }
+        event: { type: object, additionalProperties: true }
+        event_hash: { type: string }
+    IngestCursor:
+      type: object
+      required: [file_path, vendor, last_mtime, line_offset]
+      properties:
+        file_path: { type: string }
+        vendor: { type: string }
+        last_mtime: { type: number }
+        line_offset: { type: integer, minimum: 0 }
+    IngestBatch:
+      type: object
+      required: [host, sanitized, records]
+      properties:
+        host: { type: string }
+        sanitized: { type: boolean, description: Must be true; batches with false are rejected with 422 }
+        records: { type: array, items: { $ref: '#/components/schemas/UsageRecord' } }
+        events: { type: array, items: { $ref: '#/components/schemas/TranscriptEvent' }, default: [] }
+        cursors: { type: array, items: { $ref: '#/components/schemas/IngestCursor' }, default: [] }
+    IngestResult:
+      type: object
+      required: [inserted_records, duplicate_records, inserted_events, unpriced_records, pricing_version]
+      properties:
+        inserted_records: { type: integer }
+        duplicate_records: { type: integer }
+        inserted_events: { type: integer }
+        unpriced_records: { type: integer }
+        pricing_version: { type: string }
+    DispatchRecordUpsert:
+      type: object
+      required: [dispatch_id]
+      properties:
+        dispatch_id: { type: string }
+        change_id: { type: string }
+        phase: { type: string }
+        archetype: { type: [string, 'null'] }
+        intended_tier: { type: [string, 'null'] }
+        intended_model: { type: string }
+        intended_thinking: { type: [string, 'null'] }
+        provider: { type: [string, 'null'] }
+        signals: { type: object, additionalProperties: true }
+        override_source: { type: [string, 'null'], enum: [null, env, config] }
+        session_id: { type: string }
+        agent_id: { type: [string, 'null'] }
+        transcript_path: { type: [string, 'null'] }
+        completed_at: { type: [string, 'null'], format: date-time }
+    DispatchRecord:
+      allOf:
+        - { $ref: '#/components/schemas/DispatchRecordUpsert' }
+        - type: object
+          required: [dispatched_at, created_at, updated_at]
+          properties:
+            dispatched_at: { type: string, format: date-time }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+    TokenTotals:
+      type: object
+      properties:
+        input_tokens: { type: integer }
+        output_tokens: { type: integer }
+        cache_creation_tokens: { type: integer }
+        cache_read_tokens: { type: integer }
+        thinking_tokens: { type: integer }
+        cost_usd: { type: [number, 'null'] }
+        vendor_cost_usd: { type: [number, 'null'] }
+        unpriced_records: { type: integer }
+        pricing_version: { type: string }
+        estimated: { type: boolean, const: true }
+    ModelUsageRow:
+      allOf:
+        - { $ref: '#/components/schemas/TokenTotals' }
+        - type: object
+          required: [vendor, model, records]
+          properties:
+            vendor: { type: string }
+            model: { type: string }
+            records: { type: integer }
+    UsageSummary:
+      type: object
+      required: [total, by_vendor, by_model]
+      properties:
+        total: { $ref: '#/components/schemas/TokenTotals' }
+        by_vendor: { type: array, items: { allOf: [ { $ref: '#/components/schemas/TokenTotals' }, { type: object, properties: { vendor: { type: string } } } ] } }
+        by_model: { type: array, items: { $ref: '#/components/schemas/ModelUsageRow' } }
+    PhaseUsageRow:
+      allOf:
+        - { $ref: '#/components/schemas/TokenTotals' }
+        - type: object
+          required: [change_id, phase, dispatch_id, intended_model, actual_models, actual_efforts, model_mismatch, thinking_mismatch, unattributed]
+          properties:
+            change_id: { type: string }
+            phase: { type: string }
+            dispatch_id: { type: string }
+            archetype: { type: [string, 'null'] }
+            intended_model: { type: string }
+            intended_thinking: { type: [string, 'null'] }
+            override_source: { type: [string, 'null'] }
+            actual_models: { type: array, items: { type: string } }
+            actual_efforts: { type: array, items: { type: string } }
+            model_mismatch: { type: boolean }
+            thinking_mismatch: { type: boolean }
+            unattributed: { type: boolean }

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/contracts/dispatch-record.schema.json",
+  "title": "DispatchRecord",
+  "description": "Intent for one autopilot phase dispatch, written before the adapter is invoked and patched with agent_id afterwards. Design D2.",
+  "type": "object",
+  "required": ["dispatch_id", "change_id", "phase", "intended_model", "session_id", "dispatched_at"],
+  "additionalProperties": false,
+  "properties": {
+    "dispatch_id": { "type": "string", "minLength": 1 },
+    "change_id": { "type": "string", "minLength": 1 },
+    "phase": { "type": "string", "enum": ["INIT", "PLAN", "PLAN_ITERATE", "PLAN_REVIEW", "PLAN_FIX", "IMPLEMENT", "IMPL_ITERATE", "IMPL_REVIEW", "IMPL_FIX", "VALIDATE", "VAL_REVIEW", "VAL_FIX", "SUBMIT_PR", "REVIEW_PANEL"] },
+    "archetype": { "type": ["string", "null"] },
+    "intended_tier": { "type": ["string", "null"], "enum": [null, "frontier", "premium", "standard", "economy", "local"] },
+    "intended_model": { "type": "string", "minLength": 1 },
+    "intended_thinking": { "type": ["string", "null"] },
+    "provider": { "type": ["string", "null"] },
+    "signals": { "type": "object", "additionalProperties": true, "default": {} },
+    "override_source": { "type": ["string", "null"], "enum": [null, "env", "config"] },
+    "session_id": { "type": "string", "minLength": 1 },
+    "agent_id": { "type": ["string", "null"] },
+    "transcript_path": { "type": ["string", "null"] },
+    "dispatched_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}
