@@ -57,6 +57,7 @@ _SKILLS_ROOT = _SCRIPTS_DIR.parent.parent
 if str(_SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(_SKILLS_ROOT))
 
+from shared import approval_gate as shared_approval_gate  # noqa: E402
 from shared.approval_gate import (  # noqa: E402
     ApprovalDecision,
     Resolution,
@@ -480,22 +481,11 @@ class _GateSession:
         save_state(state, self.state_path)
 
 
-def build_gate_decision_record(
-    decision: ApprovalDecision,
-    *,
-    phase: str,
-    extra: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Flatten an ApprovalDecision to a gate-decision.schema.json record."""
-    record = decision.to_audit_record()
-    # The schema names `disposition`; to_audit_record() calls the same value
-    # `authorizing_disposition`. Carry both so neither reader has to translate.
-    record["disposition"] = record.get("authorizing_disposition")
-    record["phase"] = phase
-    record["recorded_at"] = _now_iso()
-    if extra:
-        record.update(extra)
-    return record
+# Thin delegating alias (ri-04, D2): the record shape now lives in
+# shared.approval_gate so supervise's gate_router.py can share it without
+# importing autopilot.py. This module's own seven call sites (and
+# test_gate_call_sites' single-call-site invariant per gate) are untouched.
+build_gate_decision_record = shared_approval_gate.build_gate_decision_record
 
 
 # ---------------------------------------------------------------------------
