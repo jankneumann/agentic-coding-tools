@@ -235,7 +235,19 @@ packages:
       reason: "Integrate and verify"
     scope:
       write_allow:
-        - "**"
+        - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/**"
+        - "openspec/changes/add-supervisor-candidate-work-digest/proposal.md"
+        - "skills/shared/**"
+        - "skills/supervise/**"
+        - "skills/autopilot/**"
+        - "skills/autopilot-roadmap/SKILL.md"
+        - "skills/tests/**"
+        - "openspec/schemas/**"
+        - "openspec/contracts/roadmap-orchestration/schemas/**"
+        - "TRUST_POSTURE.template.md"
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+        - "docs/decisions/**"
       read_allow:
         - "**"
       deny:
