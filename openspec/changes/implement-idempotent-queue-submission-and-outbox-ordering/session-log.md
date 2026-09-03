@@ -961,3 +961,43 @@ Validation Review 5 converged and PR #457 returned to VAL_FIX for four Codex rev
 
 ### Context
 Canonical Validation 6 FAILed on a single identified root cause: `DirectPostgresClient.query()` never JSON-decoded `jsonb` columns, so `Task.result` came back as a raw string instead of a dict, breaking `TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused`'s `.get("reason")` assertion — reproduced both locally and in GitHub's required `test-integration` job at head `d07699d0`. This phase registers a jsonb/json type codec on the asyncpg pool (the preferred fix named in the dispatch), reconciling it with the existing pre-serialization path in `_serialize_for_asyncpg` so neither path can double-encode the other's output, and proves the fix against a fresh live PostgreSQL deployment rather than only unit tests.
+
+---
+
+## Phase: Validation 7 (2026-09-03)
+
+**Agent**: claude | **Session**: canonical-validation-7
+
+### Decisions
+1. **Reuse retained ZAP evidence without a rescan, again** — no dependency manifest changed between the retained-scan commit and this head (`git log --name-only 0106b8fa..HEAD` for `pyproject.toml`/`uv.lock`/`package.json`/`package-lock.json` is empty); reproduced SHA-256 hashes and `gate.json` PASS match exactly.
+2. **Trust the fresh live-PostgreSQL run over the prior static FAIL**, not just the presence of the fix commit — Validation 6 failed on a real, reproducible database defect, so this round re-ran `tests/integration/postgres/` and `tests/e2e/postgres/` against a brand-new isolated Podman/PostgreSQL stack rather than assuming the fix commit's own unit tests were sufficient evidence of resolution.
+3. **Report the now-passing `test_interpreter_resolution.py` as an observed change, not a fix** — Validation Fix 6's session log carried forward a "pre-existing environmental failure" note for `refresh-architecture/scripts/tests/test_interpreter_resolution.py`. It passed 8/8 in isolation this round. Nothing in this change's product diff touches that skill, so this is recorded as a baseline observation for the next session, not attributed to this fix.
+
+### Capability Gaps Observed
+None new this round. The `jsonb_readback_type_mismatch` gap opened at Validation 6 is confirmed closed by this round's fresh live-database evidence.
+
+### Completed Work
+- Ran spec/evidence gates: `openspec validate --strict` (valid), task-drift gate (0 unchecked boxes), requirement-traceability gate (68 operations cite 36 requirements, unchanged), work-package schema/DAG/lock-key validation (`--check-overlap`), and context-impact validation for all four packages — all pass.
+- Deployed a fresh rootless Podman/PostgreSQL 18.3 stack (`docker.io/paradedb/paradedb:v0.22.2`, isolated network `val7-net`, port `55451`), raw-initialized all 39 SQL migrations plus `999_record_schema_migrations.sh` via `docker-entrypoint-initdb.d`; verified the ledger is 39/39 against Python `discover_migrations()` with zero missing/unexpected/checksum-mismatched entries, and that two consecutive `ensure_schema()` calls both returned `[]`.
+- Ran `tests/integration/postgres/` against the live database: 38 passed, 6 skipped — `TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused` (the Validation 6 regression) now passes, alongside `test_complete_still_succeeds_for_active_claimed_task`. Ran `tests/e2e/postgres/`: 13 passed.
+- Started `src.coordination_api` (uvicorn) against the fresh stack and ran 11/11 reusable HTTP smoke checks, plus a direct proxied-transport exercise of `http_proxy.proxy_submit_work()`/`proxy_reconcile_work_projection()` — created, deduplicated, and cancelled tasks correctly with no 422, confirming the HTTP submit/reconcile path over the now-fixed jsonb read-back.
+- Confirmed the retained ZAP evidence stays valid (hashes reproduce, `gate.json` PASS, no dependency manifest changed) and ran a preventive diff of the sole product change since Validation 6 (`db_postgres.py`, 49 insertions/2 deletions) for dynamic-execution/TLS-bypass/secret/unparameterized-SQL patterns — none found.
+- Ran the coordinator full non-live suite (2,447 passed, 11 skipped — matches Validation Fix 6 exactly), `mypy src/` (77 files clean), `ruff check .` (clean); the skills infrastructure `testpaths` session (2,974 passed, 13 skipped, 0 failed) and `skills/tests/autopilot` (375 passed). Also ran `autopilot/scripts/tests` + `autopilot/tests` (188 passed, 2 failed — the same sandbox-network-policy failures noted at Validation 6, contradicted by CI's green `test-skills`/`test-infra-skills` jobs) and confirmed `refresh-architecture/scripts/tests/test_interpreter_resolution.py` now passes 8/8 in isolation (previously reported as a pre-existing environmental failure; not reproduced this round).
+- Polled PR #457 CI at exact head `377b9deb` to completion: all 15 substantive checks pass, `dependency-update-remediation` skips by design, and **`test-integration` is green** — the exact check that failed at Validation 6's head (`d07699d0`) on this defect.
+- Tore down the Podman stack and background API process; confirmed zero remaining containers (`podman ps -a` empty) and both the database (55451) and API (18194) ports closed by direct socket probe.
+
+### In Progress
+- None — VALIDATE passes this round.
+
+### Next Steps
+- Proceed to VAL_REVIEW for independent quorum confirmation of this canonical PASS before returning to the merge gate.
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md` — Canonical Validation 7 evidence
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/architecture-impact.md` — Canonical Validation 7 Audit subsection
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/handoffs/validation-7-1.json` — Local PhaseRecord fallback handoff
+- `agent-coordinator/src/db_postgres.py` — The Validation Fix 6 change this round's live-database run confirms fixes the Validation 6 regression
+- `agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py` — `TestCompleteTaskTerminalCancellation`, now passing against a live database at this head
+
+### Context
+Validation Fix 6 registered an asyncpg jsonb/json type codec on the pool (`bd0c0fdc`) to fix the single root cause Validation 6 identified. This canonical VALIDATE round exercised that exact head (`377b9deb`) end-to-end against a brand-new live PostgreSQL deployment, independently confirming the previously-failing `TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused` now passes, and reconfirming PR #457's required `test-integration` CI job is green at this exact head. Every other phase (deploy, smoke, security, spec/evidence, unit/type/lint suites, and all 15 required CI checks) also passes cleanly. Overall result: **PASS**.
