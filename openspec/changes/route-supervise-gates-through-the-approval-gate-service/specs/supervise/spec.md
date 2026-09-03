@@ -116,7 +116,7 @@ The supervise skill MUST start each delegated Autopilot item as a background sub
 
 ### Requirement: Supervise Gate Routing
 
-The supervise skill SHALL evaluate every gate it raises — `roadmap_approval` at the end of `cycle`, the `execute` precondition, and the resolution of parked `pending_gate` and `policy_pause` attempts — exclusively through `skills/supervise/scripts/gate_router.py`, which SHALL call `shared.approval_gate.ApprovalGate.evaluate` against the repository's `TRUST_POSTURE.md` and SHALL append a `gate-decision.schema.json` record carrying `decision_id`, `source: "supervise"`, `roadmap_id`, and any correlating `change_id` / `dispatch_id` to the roadmap workspace's `checkpoint.json` `gate_decisions` ledger before acting on the decision. No other module under `skills/supervise/scripts/` SHALL import or call the approval gate. `cycle_state.py` SHALL expose `gate-check`, `gate-answer`, and `gate-log` subcommands and SHALL import the `Gate` and `Disposition` enums from `shared.trust_posture` rather than duplicating them. `skills/supervise/SKILL.md` SHALL contain no gate whose only enforcement is prose.
+The supervise skill SHALL evaluate every gate it raises — `roadmap_approval` at the end of `cycle`, the `execute` precondition, and the resolution of parked `pending_gate` and `policy_pause` attempts — exclusively through `skills/supervise/scripts/gate_router.py`, which SHALL call `shared.approval_gate.ApprovalGate.evaluate` against the repository's `TRUST_POSTURE.md` and SHALL append a `gate-decision.schema.json` record carrying `decision_id`, `source: "supervise"`, `roadmap_id`, and any correlating `change_id` / `dispatch_id` to the roadmap workspace's `checkpoint.json` `gate_decisions` ledger before acting on the decision. Records SHALL be built with `shared.approval_gate.build_gate_decision_record` and console answers with `shared.approval_gate.console_decision`; the router SHALL NOT import `autopilot.py`. Before evaluating, the router SHALL apply a prior-record rule to the ledger keyed by the decision's subject (`gate`, `roadmap_id`, and `dispatch_id` for parked attempts or `roadmap_fingerprint` for `roadmap_approval`): a `proceed` record is reused without evaluating; an open `posture_block` record is re-surfaced unchanged unless the posture's disposition for that gate changed; a blocked record carrying an `approval_id` is checked through `ApprovalGate.check_filed` before any new approval is filed; a `rejected` or `console_rejected` record is terminal until the subject changes or a console answer is recorded. No other module under `skills/supervise/scripts/` SHALL import or call the approval gate. `cycle_state.py` SHALL expose `gate-check`, `gate-answer`, and `gate-log` subcommands and SHALL import the `Gate` and `Disposition` enums from `shared.trust_posture` rather than duplicating them. `gate-answer` SHALL require a prior parked record for every gate except `roadmap_approval`, whose console answer MAY originate a record. `skills/supervise/SKILL.md` SHALL contain no gate whose only enforcement is prose.
 
 #### Scenario: Auto posture takes a conversation to execution without a human touch
 - **GIVEN** a `TRUST_POSTURE.md` with `roadmap_approval: auto`
@@ -130,11 +130,23 @@ The supervise skill SHALL evaluate every gate it raises — `roadmap_approval` a
 - **THEN** it records a `posture_block` decision, prints a `pending_gates` entry with `gate: roadmap_approval`, a deadline, and `source: supervise`, and exits 0
 - **AND** `gate-answer --roadmap R --gate roadmap_approval --decision approved` records a `console_approved` decision, mirrors it into `standing_decisions`, and prints the `roadmap_approval_ref`
 
-#### Scenario: Notify posture files one coordinator approval and never re-files while pending
-- **GIVEN** `roadmap_approval: notify_with_timeout` and a reachable coordinator
-- **WHEN** `gate-check` runs and the approval is still pending at the next cycle
-- **THEN** the first run files exactly one approval request and records its `approval_id`
-- **AND** the second run checks that `approval_id` and re-surfaces the same deadline without filing a second request
+#### Scenario: Notify posture waits for the posture timeout and honours a late answer without re-filing
+- **GIVEN** `roadmap_approval: notify_with_timeout` with `timeout_seconds: T` and `default_action: block`, and a reachable coordinator that leaves the approval unanswered
+- **WHEN** `gate-check --roadmap R` runs
+- **THEN** it files exactly one approval request, waits no longer than T, records a `timeout_default_block` decision carrying the `approval_id`, prints a `pending_gates` entry whose `deadline` is `requested_at + T`, and exits 4
+- **AND** when the operator approves that request in the coordinator after the timeout and the next `gate-check --roadmap R` runs, the router calls `ApprovalGate.check_filed` with the recorded `approval_id`, records an `approved` decision with outcome `proceed`, files no second request, and exits 3
+- **AND** when the coordinator still reports the request `pending`, the second run re-surfaces the same entry and deadline and files nothing
+
+#### Scenario: Approved roadmap is not re-asked until its DAG changes
+- **GIVEN** a `proceed` `roadmap_approval` record for roadmap R whose `roadmap_fingerprint` matches R's current sorted `(item_id, change_id, depends_on)` tuples
+- **WHEN** `gate-check --roadmap R` runs again after an item of R completes
+- **THEN** it reuses the existing record, appends nothing to the ledger, prints the reused record, and exits 3
+- **AND** when `refine-roadmap` adds or splits an item so the fingerprint changes, the next `gate-check` evaluates `roadmap_approval` anew
+
+#### Scenario: Direct invocation records an originating console decision
+- **WHEN** `/autopilot-roadmap` is invoked directly and runs `gate-answer --roadmap R --gate roadmap_approval --decision approved --note "direct invocation"` with no prior parked record
+- **THEN** a `console_approved` `roadmap_approval` decision with outcome `proceed` is recorded, its posture snapshot taken from the live posture, and `roadmap_approval_ref` is printed
+- **AND** `gate-answer --gate pr_creation` for a dispatch with no parked record is refused without recording anything
 
 #### Scenario: Parked child unparks after a posture flip
 - **GIVEN** a `pending_gate` attempt parked on `pr_creation` under `block`
@@ -149,12 +161,13 @@ The supervise skill SHALL evaluate every gate it raises — `roadmap_approval` a
 
 #### Scenario: Evaluation log covers every supervised gate
 - **WHEN** a full simulated run (cycle → execute → parked child → resume) completes and `cycle_state.py gate-log --roadmap R` runs
-- **THEN** the output lists one record per `ApprovalGate.evaluate` or console answer made by the supervisor, plus the child's own `loop-state.json` `gate_decisions`, each with the posture disposition that was applied
+- **THEN** the output lists one record per `ApprovalGate.evaluate`, `check_filed` decision, or console answer made by the supervisor — and none for a reused or re-surfaced record — plus the `loop-state.json` `gate_decisions` of every change named by R's items, each with the posture disposition that was applied and its origin
 - **AND** every `approval_ref` used during the run resolves to one of those records
 
 #### Scenario: Router is the only seam
 - **WHEN** the test scans `skills/supervise/scripts/*.py` by AST
-- **THEN** `ApprovalGate`, `build_default_gate`, and `.evaluate(` appear only in `gate_router.py`
+- **THEN** `ApprovalGate`, `build_default_gate`, `check_filed`, and `.evaluate(` appear only in `gate_router.py`
+- **AND** no module under `skills/supervise/scripts/` imports `autopilot`
 
 #### Scenario: Unknown parked gate is a schema error, not a decision
 - **WHEN** a parked snapshot names a gate outside `trust_posture.Gate`

@@ -21,8 +21,21 @@ review artifact and the diff target for `wp-contracts`.
 |---|---|---|
 | `trust-posture.schema.json` | `openspec/schemas/trust-posture.schema.json` | `gates.roadmap_approval` added (same shape as the other eight) |
 | `gate-decision.schema.json` | `openspec/schemas/gate-decision.schema.json` | `gate` enum grows to nine; optional `decision_id`, `source`, `roadmap_id`, `change_id`, `dispatch_id`, `item_id` documented (the schema already allowed additional properties) |
+| `gate-request.schema.json` | `openspec/schemas/gate-request.schema.json` | `gate` enum grows to nine (`test_gate_schemas.py::test_gate_enum_matches_trust_posture` pins it to `Gate`; the supervise router never writes a GateRequest, but the enum must agree) |
 | `supervisor-record.schema.json` | `openspec/schemas/supervisor-record.schema.json` | `$defs.gate` enum grows to nine; `pendingGate.decision_id` optional |
+| `supervisor-record-mirror.schema.json` | `openspec/schemas/supervisor-record-mirror.schema.json` | Same two edits as the canonical record schema — the mirror embeds the gate enum literally rather than referencing it |
 | `delegated-dispatch-attempt.continuation.patch.json` | `openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json` (and the echo in `supervised-dispatch-request.schema.json`) | JSON Merge Patch: `continuation.approval_ref` gains the `gate-decision:<uuid>` pattern |
 
 `approval_ref` format: `gate-decision:<decision_id>` where `decision_id` is the uuid4 stamped by
 `gate_router` on the record it appended to `checkpoint.json` `gate_decisions`.
+
+## Python surface (no schema; listed for reviewers)
+
+`shared.approval_gate` gains three public members that the router depends on and that
+`wp-contracts` lands first:
+
+| Member | Today | After |
+|---|---|---|
+| `build_gate_decision_record(decision, *, phase, extra=None)` | private to `skills/autopilot/scripts/autopilot.py` | shared; `autopilot.build_gate_decision_record` delegates |
+| `console_decision(gate, posture, approved, note)` | `runner._console_decision(gate, pending, …)` reading `pending["posture"]` | shared; takes the `{disposition, posture_present}` snapshot directly; runner delegates |
+| `ApprovalGate.check_filed(gate, approval_id) -> ApprovalDecision \| None` | — (`_interpret_status` is private and only reachable from inside the notify poll loop) | public; same status mapping; `None` while the coordinator reports `pending`; records audit for terminal decisions |

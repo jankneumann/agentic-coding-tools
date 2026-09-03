@@ -15,7 +15,9 @@ contracts:
       - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/README.md"
       - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/trust-posture.schema.json"
       - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/gate-decision.schema.json"
+      - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/gate-request.schema.json"
       - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/supervisor-record.schema.json"
+      - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/supervisor-record-mirror.schema.json"
       - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/delegated-dispatch-attempt.continuation.patch.json"
 
 defaults:
@@ -32,9 +34,10 @@ packages:
     task_type: contracts
     description: |
       Tasks 1.1-1.5. Add roadmap_approval to the trust-posture enum, template, and
-      the three canonical schemas (tests first), then extract the shared
-      console_decision helper that the autopilot runner delegates to. Additive only;
-      no behaviour change while TRUST_POSTURE.md is absent.
+      the five gate-bearing canonical schemas (tests first), then move the shared
+      console_decision and build_gate_decision_record helpers into shared.approval_gate
+      (runner.py and autopilot.py delegate) and add ApprovalGate.check_filed. Additive
+      only; no behaviour change while TRUST_POSTURE.md is absent.
     role: implementer
     priority: 1
     depends_on: []
@@ -42,9 +45,14 @@ packages:
       files:
         - "skills/shared/trust_posture.py"
         - "skills/shared/approval_gate.py"
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/scripts/runner.py"
+        - "TRUST_POSTURE.template.md"
         - "openspec/schemas/trust-posture.schema.json"
         - "openspec/schemas/gate-decision.schema.json"
+        - "openspec/schemas/gate-request.schema.json"
         - "openspec/schemas/supervisor-record.schema.json"
+        - "openspec/schemas/supervisor-record-mirror.schema.json"
       keys:
         - "feature:route-supervise-gates-through-the-approval-gate-service:contracts"
         - "contract:trust-posture.gates"
@@ -61,12 +69,15 @@ packages:
         - "TRUST_POSTURE.template.md"
         - "openspec/schemas/trust-posture.schema.json"
         - "openspec/schemas/gate-decision.schema.json"
+        - "openspec/schemas/gate-request.schema.json"
         - "openspec/schemas/supervisor-record.schema.json"
         - "openspec/schemas/supervisor-record-mirror.schema.json"
         - "skills/autopilot/scripts/runner.py"
+        - "skills/autopilot/scripts/autopilot.py"
         - "skills/tests/autopilot/test_gate_schemas.py"
         - "skills/tests/autopilot/test_gate_call_sites.py"
-        - "skills/autopilot/tests/**"
+        - "skills/tests/autopilot/test_console_interviewer.py"
+        - "skills/tests/autopilot/fixtures/**"
         - "skills/tests/supervise/test_supervisor_record_schema.py"
       read_allow:
         - "**"
@@ -93,7 +104,7 @@ packages:
             result_keys: ["shared_suite"]
         - name: "Autopilot gate schema and call-site tests pass"
           kind: command
-          command: "cd skills && uv run pytest tests/autopilot/test_gate_schemas.py tests/autopilot/test_gate_call_sites.py -q"
+          command: "cd skills && uv run pytest tests/autopilot/test_gate_schemas.py tests/autopilot/test_gate_call_sites.py tests/autopilot/test_console_interviewer.py -q"
           evidence:
             artifacts: []
             result_keys: ["autopilot_gate_suite"]
@@ -116,6 +127,7 @@ packages:
         - "skills/supervise/scripts/execution.py"
         - "skills/supervise/scripts/cycle_state.py"
         - "openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json"
+        - "openspec/contracts/roadmap-orchestration/schemas/supervised-dispatch-request.schema.json"
       keys:
         - "feature:route-supervise-gates-through-the-approval-gate-service:router"
         - "contract:supervised.dispatch"
@@ -171,7 +183,8 @@ packages:
     description: |
       Tasks 3.1-3.4. Write the prose-free gate test for skills/supervise/SKILL.md, then
       rewrite the cycle stop and execute approval sections as gate-check / gate-answer /
-      gate-log protocol blocks; record the direct-invocation approval in the
+      gate-log protocol blocks (keeping the headings and phrase test_workflow_contract.py
+      pins, or updating that test alongside); record the direct-invocation approval in the
       autopilot-roadmap SKILL; leave a rebase note on the unstarted digest change.
       Report completed 3.x checkboxes to wp-integration, which owns tasks.md at merge.
     role: implementer
@@ -190,6 +203,7 @@ packages:
         - "skills/supervise/SKILL.md"
         - "skills/autopilot-roadmap/SKILL.md"
         - "skills/tests/supervise/test_prose_free_gates.py"
+        - "skills/tests/supervise/test_workflow_contract.py"
         - "openspec/changes/add-supervisor-candidate-work-digest/proposal.md"
       read_allow:
         - "**"
@@ -210,7 +224,7 @@ packages:
       steps:
         - name: "Prose-free gate test passes"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_prose_free_gates.py -q"
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_prose_free_gates.py skills/tests/supervise/test_workflow_contract.py -q"
           evidence:
             artifacts: []
             result_keys: ["prose_free"]
