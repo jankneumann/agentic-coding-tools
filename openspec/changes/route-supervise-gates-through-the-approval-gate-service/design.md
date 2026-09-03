@@ -180,6 +180,40 @@ the note) so a rehydrated session sees it, and the printed `roadmap_approval_ref
 direct invocation runs `gate-answer --roadmap <id> --gate roadmap_approval --decision approved
 --note "direct invocation"` before `execute`.
 
+Two protocol rules complete the picture. **`execute` always starts with `gate-check`**: the
+`### Approval gate` section runs `gate-check --roadmap <id>`; exit 3 prints the (usually reused)
+record whose `decision_id` becomes the `roadmap_approval_ref` handed to `prepare`, exit 0 / 4
+stops before `prepare` — so a rehydrated `execute` session never has to find the approval in
+conversation history, and "Refuse unapproved roadmap execution" is the exit-0 path.
+**`cycle --dry-run` never runs `gate-check`**: a dry run stops at the digest, since evaluating
+would append to `checkpoint.json` and project into the mirror, and a dry run writes no
+supervisor state by contract.
+
+### D7 — The router projects gate state into the supervisor record's mirror
+`pending_gates` and `standing_decisions` are non-derivable sections that
+`build_supervisor_record` only carries forward from the prior record; today nothing
+deterministic adds or removes an entry. The router becomes that writer, and it writes the
+tracked mirror (`openspec/supervise/supervisor-record.json`) rather than the coordinator
+handoff, because the mirror is what `rehydrate` prefers when its `written_at` is newer:
+- `BLOCKED` (posture_block, terminal block, or re-surface of an existing entry) → upsert a
+  `pending_gates` entry keyed by `decision_id`, `{gate, change_id, requested_at, deadline,
+  disposition, approval_id, decision_id, source: "supervise"}`; `change_id` is the parked
+  attempt's change for a child gate and the roadmap's first ready item's change (the
+  `roadmap_ref` convention) for `roadmap_approval`.
+- `PROCEED` (evaluate, `check_filed`, console answer, or reuse) → remove every
+  `pending_gates` entry for the same subject key; for `roadmap_approval` also upsert the
+  standing decision from D5.
+- `BLOCKED/rejected` or `console_rejected` → the entry stays, with its `disposition`, so the
+  digest keeps showing the terminal answer until the subject key changes.
+Writes go through the existing `cycle_state.write_mirror` (atomic, schema-validated,
+idempotent — an unchanged section preserves `written_at`, so a reused decision leaves the
+cycle fingerprint untouched). The mirror path is inside `_ALLOWED_WRITE_PREFIXES`
+(`openspec/supervise/`), as is `openspec/roadmaps/<id>/checkpoint.json`, so `audit-since`
+passes. The `cycle` SKILL's final record step must **re-select** the prior at write time
+(`rehydrate --handoff "$SUPERVISE_HANDOFF"` again, not `supervisor-record --prior
+"$SUPERVISE_RECORD"` captured before the gate ran); otherwise the pre-gate snapshot would
+overwrite the router's projection. Task 3.2 makes that edit; task 2.1 pins the projection.
+
 ### D6 — The evaluation log is tracked state; coordinator memory is best-effort
 `gate-log --roadmap <id>` reads the workspace's `checkpoint.json` `gate_decisions` plus the
 `gate_decisions` of `openspec/changes/<change_id>/loop-state.json` for every `change_id` named
@@ -199,6 +233,7 @@ verified against `gate-log`.
 | Ask once: an approved roadmap is not re-asked until its DAG changes | `test_gate_router.py::test_roadmap_approval_reused_until_fingerprint_changes` | new |
 | Late answer honoured, nothing re-filed: a coordinator approval answered after the local timeout resolves on the next cycle without a second request | `test_gate_router.py::test_check_filed_before_refiling`, `shared/tests/test_approval_gate.py::test_check_filed_*` | new |
 | Originating console answer is limited to `roadmap_approval` | `test_cycle_state.py::test_gate_answer_refuses_unparked_gate` | new |
+| Projection: a blocked decision appears in the mirror's `pending_gates` and disappears on proceed; a reused decision writes nothing | `test_gate_router.py::test_projection_*`, `test_gate_router_e2e.py` (rehydrate after each step shows the entry) | new |
 | Compatibility: absent posture identical to today | `shared/tests/test_trust_posture.py` (nine gates all block), `test_execution.py` parked/resume paths with console answers | existing + updated |
 | Host-assisted: 0 LLM SDK imports under `skills/supervise/scripts/` | existing invariant test extended to `gate_router.py` | existing |
 | Router is the single seam | `test_gate_router.py::test_only_gate_router_imports_approval_gate` (AST scan) | new |
@@ -233,11 +268,11 @@ verified against `gate-log`.
 |---|---|
 | `prepare` signature change churns `test_execution.py` (1,259 lines) | One `approve_roadmap(workspace)` fixture; grep-driven update; contract test pins the new signature |
 | Nine-gate growth breaks "eight" assertions in `shared/tests`, autopilot tests, spec text | All sites enumerated in tasks 1.x; `test_gate_call_sites` unaffected (it iterates autopilot's seven and asserts `replan_required` is not autopilot's — `roadmap_approval` is added to that non-autopilot set) |
-| Re-evaluating a `notify_with_timeout` gate every cycle spams approvals | D4 step 2 checks the filed `approval_id` first and never re-files while it is pending |
 | `add-supervisor-candidate-work-digest` rewrites `cycle` §2–§5 of `SKILL.md` (it does not touch `cycle_state.py`) | It is unstarted; task 3.4 leaves a rebase note naming the §5 protocol block; this change's `SKILL.md` edits stay inside §5, `### Approval gate`, and `### Reconcile and resume` |
 | `test_workflow_contract.py` slices `SKILL.md` on `## Verb: \`execute\``, `### Approval gate`, `### Prepare and launch`, `### Reconcile and resume` and pins ``durable `approval_ref` `` | Task 3.2 keeps those headings and the phrase (the new prose says "a durable `approval_ref` of the form `gate-decision:<decision_id>`"); wp-skill-docs may edit the test if a pin must move |
 | A forged `proceed` record in the tracked ledger would pass `require_approval_ref` | Same trust boundary as `TRUST_POSTURE.md` (repository write access); the ledger is reviewed in the PR like any tracked file; no signing (out of scope) |
 | Re-notification under `notify_with_timeout` | Bounded by D4 step 0.3: one request per expired approval per operator-run cycle; a `pending` server status is never re-filed |
+| The `cycle` SKILL's final `supervisor-record --prior "$SUPERVISE_RECORD"` step would overwrite the router's mirror projection with the pre-gate snapshot | D7: the final step re-selects the prior via `rehydrate`; the e2e test rehydrates after `gate-check` and after the final write and asserts the entry survives |
 | Coordinator unreachable during `notify_with_timeout` | Unchanged `ApprovalGate` semantics: `coordinator_unreachable` → BLOCKED, recorded, surfaced |
 | `BridgeCoordinatorClient.push_notification` always returns `False` (diagnostic endpoint) so `default_action: proceed` fails closed | Pre-existing ri-05 behaviour; documented in the SKILL, not changed here |
 

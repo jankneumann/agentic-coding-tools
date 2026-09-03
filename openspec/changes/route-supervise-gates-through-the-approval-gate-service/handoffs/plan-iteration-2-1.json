@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-03T03:50:50.368571+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Iteration 2 found that nothing deterministic writes pending_gates or standing_decisions into the supervisor record, and that the cycle SKILL's final record write would overwrite anything the gate wrote. Added D7 (router projects gate state into the tracked mirror through cycle_state.write_mirror; the final record step re-selects the prior via rehydrate), made execute open with gate-check to source roadmap_approval_ref, and excluded gate-check from dry-run cycles. No findings at or above medium remain.",
+    "completed_work": [
+      "[high] completeness: D7 mirror projection; scenario 11; tasks 2.1/2.2",
+      "[high] consistency: final record step re-selects prior via rehydrate (D7, task 3.2)",
+      "[medium] clarity: execute opens with gate-check to source roadmap_approval_ref (D5)",
+      "[medium] clarity: gate-check excluded from cycle --dry-run (D5, tasks 2.7/3.2)",
+      "[low] feasibility: audit-writes prefixes and fingerprint exclusion verified (D7)"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "The router is the writer of pending_gates and standing_decisions",
+        "rationale": "Those sections are carried forward, never derived; the router projects blocked decisions in (keyed by decision_id) and proceeds out through the existing atomic, idempotent write_mirror, so a fresh session rehydrates the gate state from the mirror.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "The cycle SKILL re-selects the prior at write time",
+        "rationale": "supervisor-record --prior $SUPERVISE_RECORD uses the pre-gate snapshot and would clobber the projection; rehydrate --handoff picks the newer mirror.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "execute opens with gate-check; cycle --dry-run never runs it",
+        "rationale": "Gives a rehydrated execute a deterministic roadmap_approval_ref (exit 3) and keeps dry runs write-free.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}
