@@ -32,7 +32,6 @@ if str(_SKILLS_ROOT) not in sys.path:  # pragma: no cover - import wiring
 from shared.approval_gate import (  # noqa: E402
     ApprovalGate,
     CoordinatorUnavailable,
-    Outcome,
     Resolution,
 )
 from shared.trust_posture import Disposition, Gate, GateDisposition, TrustPosture  # noqa: E402
@@ -499,7 +498,7 @@ class TestAskOnce:
 
     def test_external_dependency_edge_change_moves_the_fingerprint(self, repo: Path) -> None:
         base = [_item("ri-01", change_id="demo-change")]
-        workspace = _write_roadmap(repo, "alpha", base)
+        _write_roadmap(repo, "alpha", base)
         roadmap_a = cycle_state.load_all_roadmaps(repo)["alpha"]
         fp_before = gate_router.roadmap_fingerprint(roadmap_a)
 
