@@ -34,7 +34,18 @@ def test_execute_requires_one_durable_roadmap_altitude_approval_before_mutation(
     assert "inherits that approval for every dependency-ready item" in approval
     assert "without discovery, direction, plan, or per-item approval questions" in approval
     assert "before `ExecutionAdapter.prepare`" in approval
-    assert "before any roadmap checkpoint or execution-state mutation" in approval
+    # ri-04: execute now opens with the same roadmap_approval gate-check
+    # `cycle` runs, and that gate-check's own gate-decision record IS a
+    # checkpoint write -- the one write that legitimately precedes approval,
+    # since recording the approval is what it does. The bare claim "before
+    # any roadmap checkpoint or execution-state mutation" would now be false;
+    # the qualified claim is what the section must make instead.
+    assert (
+        "before any roadmap checkpoint or execution-state mutation other than "
+        "its own gate-decision record"
+    ) in approval
+    assert "gate-check" in approval
+    assert "roadmap_approval_ref" in approval
 
 
 def test_execute_starts_an_isolated_batch_before_awaiting_any_child() -> None:
