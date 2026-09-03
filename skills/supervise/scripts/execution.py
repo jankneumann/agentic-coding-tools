@@ -32,7 +32,11 @@ for _directory in (_SCRIPTS_ROOT, _SKILLS_ROOT, _RUNTIME_SCRIPTS, _ORCHESTRATOR_
         sys.path.insert(0, str(_directory))
 
 from checkpoint import CheckpointManager  # type: ignore[import-untyped]  # noqa: E402
-from models import load_roadmap, validate_delegated_dispatch_attempt  # type: ignore[import-untyped]  # noqa: E402
+from models import (  # type: ignore[import-untyped]  # noqa: E402
+    Checkpoint,
+    load_roadmap,
+    validate_delegated_dispatch_attempt,
+)
 from orchestrator import (  # type: ignore[import-untyped]  # noqa: E402
     apply_delegated_batch,
     prepare_delegated_batch,
@@ -483,9 +487,19 @@ class ExecutionAdapter:
 
         roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
         approval_manager = CheckpointManager(workspace, repo_root)
-        approval_checkpoint = (
-            approval_manager.load() if approval_manager.exists() else approval_manager.create(roadmap)
-        )
+        if approval_manager.exists():
+            approval_checkpoint = approval_manager.load()
+        else:
+            # Build in-memory only -- do NOT persist. A checkpoint that has
+            # never been saved has no gate_decisions, so require_approval_ref
+            # legitimately refuses below rather than this call silently
+            # writing checkpoint.json ahead of the approval it exists to gate.
+            ready = roadmap.ready_items()
+            first_id = (
+                ready[0].item_id if ready
+                else (roadmap.items[0].item_id if roadmap.items else "none")
+            )
+            approval_checkpoint = Checkpoint.create(roadmap.roadmap_id, first_id)
         gate_router.require_approval_ref(
             approval_checkpoint,
             roadmap_approval_ref,

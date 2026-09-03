@@ -239,6 +239,9 @@ python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
 #   (supervise's own divergence from runner.py's EXIT_GATE_PARKED 4, which
 #   clears pending_gate and enters ESCALATE — the supervisor has no ESCALATE state
 #   to fall into, so gate-answer remains the only way forward)
+# exit 2 → refused before recording anything (a malformed roadmap that names
+#   no change_id anywhere): report the printed reason and stop; there is no
+#   pending entry to answer
 ```
 
 `gate-check` waits up to the posture's `timeout_seconds` under

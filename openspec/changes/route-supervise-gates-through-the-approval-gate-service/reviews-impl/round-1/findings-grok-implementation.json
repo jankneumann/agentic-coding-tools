@@ -1,0 +1,161 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: `ApprovalGate.check_filed` maps coordinator `expired` + `notified=False` through `_apply_default` and returns a fresh `TIMEOUT_BLOCK` decision instead of `None`. skill-workflow spec \"Late coordinator answer\", supervise Gate Routing, design D4 step 0.3, and task 1.4 all require returning no decision so the prior fail-closed block is re-surfaced unchanged. `gate_router._apply_prior_record` treats every non-`None` `check_filed` result as a new terminal record, so once the coordinator reports `expired` (the production path after a local timeout, with Bridge always leaving `notified: false`) every subsequent `gate-check` appends another `gate_decisions` row and churns `decision_id` / pending-gate projection \u2014 violating \"reusing or re-surfacing SHALL append nothing\". The undelivered-proceed NFR still holds (outcome stays blocked), but the nominated fitness test `test_check_filed_expired_undelivered_stays_blocked` currently asserts the wrong shape (`decision is not None`) and there is no router regression for a second-cycle `expired` re-surface.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "In `check_filed`/`_interpret_status`, when status is `expired` and `notified` is false, return `None` (leave the prior fail-closed block standing). Update `test_check_filed_expired_undelivered_stays_blocked` to assert `None`, and add a router test that a second `evaluate` after server `expired` reuses the same `decision_id` and does not append. Separately, only record a non-`None` `check_filed` result when it changes authorization (e.g. late `approved`), not when it re-states the same timeout block.",
+      "package_id": "whole-branch",
+      "file_path": "skills/shared/approval_gate.py",
+      "line_range": {
+        "start": 517,
+        "end": 522
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `ExecutionAdapter.prepare` bootstraps a missing checkpoint with `CheckpointManager.create(roadmap)` before `require_approval_ref`. Design D3 and the supervise \"Refuse unapproved roadmap execution\" scenario require `load()` only: a workspace with no `checkpoint.json` means nothing recorded the approval, and `FileNotFoundError` must be reported as the missing-approval refusal without mutating roadmap execution state. Today a bad/missing `roadmap_approval_ref` on a fresh workspace still writes `checkpoint.json`, then raises \u2014 state mutation on the refusal path. Design fitness cites `test_prepare_refuses_without_roadmap_approval`; that test is absent, and the unsafe-context test only proves rejection before the approval path runs.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Replace the load-or-create with load-only (or `exists()` then load). Map a missing checkpoint to `ApprovalRefError` / the same refusal shape as an unresolvable ref, with a test that asserts `checkpoint.json` is not created when prepare refuses.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/execution.py",
+      "line_range": {
+        "start": 486,
+        "end": 495
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: `_apply_prior_record` handles `prior.get(\"approval_id\")` before `resolution in {rejected, console_rejected}`. A coordinator `denied` decision is persisted as `resolution=rejected` with `approval_id` set; the next `gate-check` therefore calls `check_filed` again and can append another rejected record instead of re-surfacing the terminal answer. Design D4 step 0.4 says rejected/console_rejected are terminal until the subject key changes or `gate-answer` runs. `test_rejected_prior_record_exits_terminal_block` only covers console reject (no `approval_id`), so this path is untested.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Check `_TERMINAL_BLOCK_RESOLUTIONS` before the `approval_id`/`check_filed` branch, or only invoke `check_filed` for non-terminal resolutions that still carry an approval (`timeout_default_block`, `coordinator_unreachable`). Add a router test for a denied coordinator answer that a second evaluate appends nothing.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": {
+        "start": 462,
+        "end": 481
+      }
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: On a BLOCKED `roadmap_approval` evaluation, `evaluate` calls `manager.record_gate_decision` before `_project`. If the roadmap names no `change_id` anywhere, `_pending_gate_entry` raises `GateRefusalError` after the ledger append \u2014 half-applied state (checkpoint has `posture_block`, mirror has no pending entry). Spec/D7 require refusing with a reported reason rather than parking; refusal should happen before append (or the append must roll back). `cycle_state` `gate-check` also does not catch `GateRefusalError` (unlike `gate-answer`), so the CLI surfaces a traceback instead of a reported reason. No test covers \"roadmap names no change at all\".",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Resolve/validate the pending `change_id` (and refuse) before `record_gate_decision` on blocked `roadmap_approval`. Catch `GateRefusalError` in `_cmd_gate_check` like `_cmd_gate_answer` does, and add a unit test for the no-`change_id` refusal.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": {
+        "start": 427,
+        "end": 434
+      }
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: `_pending_gate_entry` only reads `timeout_seconds` when `approval_id and decision.default_action is not None`. Design D4 says the deadline is `requested_at + timeout_seconds` whenever an approval was filed, else `+ DEFAULT_BLOCK_HORIZON`. `coordinator_unreachable` after a successful file can carry `approval_id` and `timeout_seconds` with `default_action is None`, so the pending entry incorrectly gets the 7-day horizon. Tests cover notify-timeout (+30s) and posture_block (+7d), not unreachable-after-file.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Anchor the filed-approval deadline on `approval_id` plus a present `timeout_seconds` on the record/decision, not on `default_action is not None`. Add a resolve_parked / pending-entry case for coordinator_unreachable after filing.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": {
+        "start": 232,
+        "end": 243
+      }
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "medium",
+      "description": "Nit: The router passes `notified=prior.get(\"notified\")` into `check_filed(..., notified: bool)`, so a missing field becomes `None`. Specs require supplying the persisted boolean and never a literal/default; today's `not notified` fail-closed arm happens to treat `None` as undelivered (safe), but the typed contract is violated and is fragile if a future caller uses truthiness the other way. Separately, `_unreachable` after a successful `push_notification` never stamps `notified`, so a delivered-but-poll-failed filing persists `notified: null` and later looks undelivered.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "resolution": "When `approval_id` is set, coerce missing `notified` to `False` (fail closed) before calling `check_filed`, and thread the local `notified` value into `_unreachable` after notify. Prefer making `notified` required (no default `True`) on `_interpret_status`/`_apply_default`.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": {
+        "start": 462,
+        "end": 463
+      }
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Optional: Canonical `openspec/schemas/gate-decision.schema.json` and the change-local `contracts/schemas/gate-decision.schema.json` disagree on `roadmap_fingerprint` (canonical allows string|null with no pattern; change contract requires a sha256 string) and on `decision_id` pattern strictness. Ninth-gate enum/`notified`/`timeout_seconds`/`verb` are otherwise present in both, but implementers validating against one schema vs the other can disagree about a stamped fingerprint.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "resolution": "Resync the change contract and canonical schema for `roadmap_fingerprint` and `decision_id` (pattern + nullability) so `test_gate_enum_matches_trust_posture`-style parity extends to these new fields.",
+      "package_id": "whole-branch",
+      "file_path": "openspec/schemas/gate-decision.schema.json",
+      "line_range": {
+        "start": 146,
+        "end": 151
+      }
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Optional: `gate_log` silently `continue`s when `_resolve_child_loop_state_path` returns `None` (attempt present but no worktree/evidence path, and supervisor change dir absent). Supervise Gate Routing / D6 require a degraded origin for an unreadable child loop-state rather than omitting it. The e2e path only asserts a readable empty child log outside the supervisor root.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "optional",
+      "resolution": "When an attempt exists for a change but no loop-state path can be resolved (or the file is missing), append a `{origin: change_id, degraded: true, ...}` row instead of skipping.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": {
+        "start": 721,
+        "end": 726
+      }
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Optional: `_project` merges only into the on-disk mirror via `_read_current_mirror`, not into rehydrate's currently selected durable prior (mirror or newer handoff) as D7 describes. If a handoff is newer and holds `back_edge` / standing decisions not yet mirrored, a gate projection can rewrite an older mirror with a newer `written_at` and the next rehydrate (newer mirror wins) can drop handoff-only durable state. Projection tests do not cover handoff-newer-than-mirror.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "optional",
+      "resolution": "Have the projection helper select the same prior `rehydrate` would (handoff vs mirror by `written_at`), merge into that, then `write_mirror`. Add a test where handoff is newer and carries a standing decision / `back_edge` that must survive projection.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": {
+        "start": 294,
+        "end": 301
+      }
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Verified the intended seam and the parts that match design: ninth `roadmap_approval` gate across enum/template/five schemas; shared `console_decision`/`build_gate_decision_record`/`check_filed` landed in `approval_gate.py` with autopilot/runner delegates; router is the only supervise `ApprovalGate` seam (AST scan); proceed reuse / posture_block hot-reload / pending `check_filed` re-surface / late approve-without-refile; fingerprint covers superseded + external edges and `require_approval_ref` rejects stale refs; `resolve_parked` maps `policy_pause`\u2192`escalate_resume` and unknown gates refuse without recording; resume checks provenance before mutating parked state; `decision_id` survives `_clean_pending_gate`; gate-check/answer/log exit codes and originating `roadmap_approval` answer; prose-free SKILL protocol blocks + workflow-contract updates; e2e evaluation-log path with child loop-state outside the supervisor root. Findings 1\u20136 are the merge-relevant gaps against that otherwise solid skeleton.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "whole-branch"
+    }
+  ]
+}

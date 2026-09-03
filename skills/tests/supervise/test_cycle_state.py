@@ -703,6 +703,20 @@ class TestGateCheckCli:
         with pytest.raises(SystemExit):
             cycle_state.main(["gate-check", "--roadmap", "alpha", "--dry-run"])
 
+    def test_no_change_id_anywhere_reports_the_reason_instead_of_a_traceback(
+        self, repo: Path, capsys
+    ) -> None:
+        """`gate-answer` already caught `GateRefusalError` and reported it;
+        `gate-check` must too, matching that CLI contract exactly."""
+        _install_schemas(repo)
+        _roadmap(repo, "alpha", [_item("ri-01")])  # no change_id anywhere
+        _write_posture(repo, "roadmap_approval", "block")
+
+        rc = cycle_state.main(["--repo-root", str(repo), "gate-check", "--roadmap", "alpha"])
+
+        assert rc == 2
+        assert "cycle_state:" in capsys.readouterr().err
+
 
 class TestGateAnswerCli:
     def test_roadmap_approval_originates_a_record_with_no_prior_park(self, repo: Path, capsys) -> None:

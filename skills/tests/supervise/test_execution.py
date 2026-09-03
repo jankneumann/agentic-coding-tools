@@ -411,6 +411,21 @@ def test_prepare_rejects_unsafe_nested_context_before_any_checkpoint_write(
     assert not (workspace / "checkpoint.json").exists()
 
 
+def test_prepare_rejects_missing_approval_ref_without_creating_checkpoint(tmp_path: Path) -> None:
+    """A checkpoint that has never been saved has no gate_decisions, so an
+    approval_ref can never resolve against it -- require_approval_ref must
+    refuse before prepare() bootstraps checkpoint.json, not after."""
+    repo, workspace, managed_root = _workspace(tmp_path)
+
+    with pytest.raises(gate_router.ApprovalRefError):
+        _prepare(
+            _adapter(managed_root, FakeClock()), workspace, repo, managed_root,
+            roadmap_approval_ref="gate-decision:00000000-0000-0000-0000-000000000000",
+        )
+
+    assert not (workspace / "checkpoint.json").exists()
+
+
 def test_prepare_rejects_managed_isolation_before_launch_or_attempt_persistence(
     tmp_path: Path,
 ) -> None:
