@@ -176,7 +176,10 @@ requested.
   consumed by the router); Durable Delegated Attempt Ledger (`approval_ref` must resolve
   to a recorded decision).
 - `skill-workflow` — ADDED: Roadmap Approval Gate (ninth contract gate; template and
-  schema parity; prose-free enforcement extended to `skills/supervise/SKILL.md`).
+  schema parity; prose-free enforcement extended to `skills/supervise/SKILL.md`). MODIFIED:
+  Autopilot Gate Call Sites (extends the non-autopilot carve-out to `roadmap_approval`,
+  matching `replan_required`, and de-numbers the all-auto scenario so it does not read
+  "eight gates" once a ninth exists).
 
 **Code:**
 - `skills/shared/trust_posture.py` (enum), `TRUST_POSTURE.template.md`,
