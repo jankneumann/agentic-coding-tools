@@ -360,24 +360,29 @@
       "disposition": "block",
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-09-03T01:51:49.726667+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 Operator approved merging PR #457 via console after Canonical Validation 7 and validation review round 6 (2/2 quorum, 0 blocking) at head 31d41995.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-03T02:47:45.427969+00:00",
+      "note": "Operator approved merging PR #457 via console after Canonical Validation 7 and validation review round 6 (2/2 quorum, 0 blocking) at head 31d41995."
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "implement-idempotent-queue-submission-and-outbox-ordering",
-    "gate": "merge",
-    "phase": "SUBMIT_PR",
-    "requested_at": "2026-09-03T01:51:49.727092+00:00",
-    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
-    "context": {
-      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/457",
-      "branch": "openspec/implement-idempotent-queue-submission-and-outbox-ordering",
-      "change_id": "implement-idempotent-queue-submission-and-outbox-ordering"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
+  "pending_gate": null,
+  "goal_gate": {
+    "verdict": "pending",
+    "reason": "merge authorized; DONE evidence not yet checked",
+    "evidence": {
+      "merge_authorized": true,
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/457"
     }
-  },
-  "goal_gate": null
+  }
 }
