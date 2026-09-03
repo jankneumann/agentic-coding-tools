@@ -438,17 +438,23 @@ class TestNotifyPosture:
         """A `push_notification` transport failure leaves `notified` genuinely
         unknown (`None`) on the persisted record. Re-checking must coerce that
         to the fail-closed `False` before calling `check_filed`, never pass the
-        `None` straight through as if it were a typed `bool`."""
+        `None` straight through as if it were a typed `bool`. Observed via a
+        late `approved` answer, not `expired` -- `check_filed`'s expired
+        branch now returns `None` (re-surfacing the prior unchanged) whenever
+        `notified` is falsy, so `None` and the coerced `False` are no longer
+        distinguishable through that status; `approved` threads `notified`
+        straight onto the returned decision, so the coercion is observable."""
         coord = FakeCoordinator(raise_on="notify")
         service = make_service(posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK), coordinator=coord)
         first = gate_router.evaluate(Gate.ROADMAP_APPROVAL, {}, workspace=workspace, repo_root=repo, evaluator=service)
         assert first.decision.resolution is Resolution.COORDINATOR_UNREACHABLE
         assert first.record["notified"] is None
 
-        coord2 = FakeCoordinator(statuses=["expired"])
+        coord2 = FakeCoordinator(statuses=["approved"])
         service2 = make_service(posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK), coordinator=coord2)
         second = gate_router.evaluate(Gate.ROADMAP_APPROVAL, {}, workspace=workspace, repo_root=repo, evaluator=service2)
 
+        assert second.decision.proceed
         assert second.decision.notified is False
 
 
