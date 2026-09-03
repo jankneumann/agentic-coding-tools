@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "route-supervise-gates-through-the-approval-gate-service",
-  "current_phase": "IMPL_REVIEW",
+  "current_phase": "VALIDATE",
   "iteration": 0,
-  "total_iterations": 7,
+  "total_iterations": 8,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -18,7 +18,8 @@
     "plan-iteration-ri04-1",
     "plan-review-ri04-1",
     "implementation-ri04-inline-1",
-    "impl-iterate-ri04-inline-1"
+    "impl-iterate-ri04-inline-1",
+    "impl-review-ri04-inline-1"
   ],
   "phase_history": [
     {
@@ -50,17 +51,22 @@
       "at": "2026-09-03T17:03:03.787562+00:00",
       "outcome": "complete",
       "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-09-03T17:52:27.604133+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
     }
   ],
-  "last_handoff_id": "impl-iterate-ri04-inline-1",
+  "last_handoff_id": "impl-review-ri04-inline-1",
   "started_at": "2026-09-03T03:29:01.132491+00:00",
-  "phase_started_at": "2026-09-03T17:03:03.837629+00:00",
+  "phase_started_at": "2026-09-03T17:52:32.767339+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "implementer",
+  "phase_archetype": null,
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
