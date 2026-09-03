@@ -270,6 +270,32 @@ class TestBlockPosture:
         on_disk = read_checkpoint_json(workspace)
         assert on_disk.get("gate_decisions", []) == []
 
+    def test_blocked_evaluate_with_no_change_id_anywhere_refuses_without_partial_write(
+        self, repo: Path
+    ) -> None:
+        # No item in this roadmap carries a change_id, so `_pending_gate_entry`
+        # refuses rather than project an entry that would vanish on write --
+        # that refusal must not follow a `record_gate_decision` append.
+        workspace = _write_roadmap(repo, "alpha", [_item("ri-01")])
+        service = make_service(posture_with(Gate.ROADMAP_APPROVAL, GateDisposition(Disposition.BLOCK)))
+
+        with pytest.raises(gate_router.GateRefusalError):
+            gate_router.evaluate(Gate.ROADMAP_APPROVAL, {}, workspace=workspace, repo_root=repo, evaluator=service)
+
+        assert read_checkpoint_json(workspace).get("gate_decisions", []) == []
+
+    def test_console_answer_reject_with_no_change_id_refuses_without_partial_write(
+        self, repo: Path
+    ) -> None:
+        workspace = _write_roadmap(repo, "alpha", [_item("ri-01")])
+
+        with pytest.raises(gate_router.GateRefusalError):
+            gate_router.answer(
+                Gate.ROADMAP_APPROVAL, workspace=workspace, repo_root=repo, approved=False, note="no",
+            )
+
+        assert read_checkpoint_json(workspace).get("gate_decisions", []) == []
+
 
 # --------------------------------------------------------------------------- #
 # .3 notify posture waits + late answer honoured without re-filing
@@ -330,6 +356,94 @@ class TestNotifyPosture:
         assert len(on_disk["gate_decisions"]) == 1
         mirror_after = read_mirror(repo)
         assert mirror_after["pending_gates"] == mirror_before["pending_gates"]
+
+    def test_repeated_expired_check_resurfaces_unchanged_instead_of_duplicating(
+        self, repo: Path, workspace: Path
+    ) -> None:
+        """`check_filed` returns a terminal decision for a server-side `expired`
+        status, never `None` -- so re-surfacing a still-expired approval has to
+        be detected by comparing the fresh decision to the prior record, not by
+        `checked is None`. Without that comparison every re-check would append
+        another `timeout_block` row for the same never-answered approval."""
+        coord = FakeCoordinator(statuses=["pending"], notify_return=False)
+        service = make_service(posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK), coordinator=coord)
+        first = gate_router.evaluate(Gate.ROADMAP_APPROVAL, {}, workspace=workspace, repo_root=repo, evaluator=service)
+        assert first.decision.resolution is Resolution.TIMEOUT_BLOCK
+
+        coord2 = FakeCoordinator(statuses=["expired"])
+        service2 = make_service(posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK), coordinator=coord2)
+        second = gate_router.evaluate(Gate.ROADMAP_APPROVAL, {}, workspace=workspace, repo_root=repo, evaluator=service2)
+
+        assert second.reused is True
+        assert second.record["decision_id"] == first.record["decision_id"]
+        assert coord2.calls == ["check_approval"]
+        on_disk = read_checkpoint_json(workspace)
+        assert len(on_disk["gate_decisions"]) == 1
+
+    def test_terminal_rejected_prior_with_approval_id_is_not_repolled(
+        self, repo: Path, workspace: Path
+    ) -> None:
+        """D4 step 0.4: a denied coordinator answer is terminal even though the
+        record still carries the `approval_id` it was filed under -- the
+        terminal-resolution check must run before the `approval_id` branch, or
+        a second evaluate re-polls and can append another rejected record."""
+        coord = FakeCoordinator(statuses=["denied"], notify_return=True)
+        service = make_service(posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK), coordinator=coord)
+        first = gate_router.evaluate(Gate.ROADMAP_APPROVAL, {}, workspace=workspace, repo_root=repo, evaluator=service)
+        assert first.decision.resolution is Resolution.REJECTED
+        assert first.record["approval_id"] == "appr-1"
+
+        coord2 = FakeCoordinator(statuses=["denied"])
+        service2 = make_service(posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK), coordinator=coord2)
+        second = gate_router.evaluate(Gate.ROADMAP_APPROVAL, {}, workspace=workspace, repo_root=repo, evaluator=service2)
+
+        assert second.reused is True
+        assert second.record["decision_id"] == first.record["decision_id"]
+        assert coord2.calls == []  # never re-polled a terminal answer
+        on_disk = read_checkpoint_json(workspace)
+        assert len(on_disk["gate_decisions"]) == 1
+
+    def test_pending_entry_deadline_after_unreachable_following_a_filed_notification(
+        self, repo: Path, workspace: Path
+    ) -> None:
+        """The deadline anchors on `approval_id` + a persisted `timeout_seconds`,
+        not on `default_action is not None` -- `coordinator_unreachable` after a
+        successful filing carries both but no `default_action` (the timer never
+        got to expire), and must still get the posture's window, not the
+        multi-day block-horizon default."""
+        coord = FakeCoordinator(raise_on="check", notify_return=True)
+        service = make_service(posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK), coordinator=coord)
+
+        routed = gate_router.evaluate(Gate.ROADMAP_APPROVAL, {}, workspace=workspace, repo_root=repo, evaluator=service)
+
+        assert routed.decision.resolution is Resolution.COORDINATOR_UNREACHABLE
+        assert routed.decision.approval_id == "appr-1"
+        assert routed.decision.default_action is None
+
+        mirror = read_mirror(repo)
+        entry = mirror["pending_gates"][0]
+        requested = gate_router._parse_iso(entry["requested_at"])
+        deadline = gate_router._parse_iso(entry["deadline"])
+        assert (deadline - requested) == timedelta(seconds=30)
+
+    def test_missing_notified_on_prior_record_is_coerced_to_false_not_none(
+        self, repo: Path, workspace: Path
+    ) -> None:
+        """A `push_notification` transport failure leaves `notified` genuinely
+        unknown (`None`) on the persisted record. Re-checking must coerce that
+        to the fail-closed `False` before calling `check_filed`, never pass the
+        `None` straight through as if it were a typed `bool`."""
+        coord = FakeCoordinator(raise_on="notify")
+        service = make_service(posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK), coordinator=coord)
+        first = gate_router.evaluate(Gate.ROADMAP_APPROVAL, {}, workspace=workspace, repo_root=repo, evaluator=service)
+        assert first.decision.resolution is Resolution.COORDINATOR_UNREACHABLE
+        assert first.record["notified"] is None
+
+        coord2 = FakeCoordinator(statuses=["expired"])
+        service2 = make_service(posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK), coordinator=coord2)
+        second = gate_router.evaluate(Gate.ROADMAP_APPROVAL, {}, workspace=workspace, repo_root=repo, evaluator=service2)
+
+        assert second.decision.notified is False
 
 
 # --------------------------------------------------------------------------- #

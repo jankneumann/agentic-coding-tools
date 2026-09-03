@@ -368,7 +368,8 @@ class ApprovalGate:
         except CoordinatorUnavailable as exc:
             return self._finalize(
                 self._unreachable(
-                    gate_enum, gd, f"check_approval failed: {exc}", approval_id=approval_id
+                    gate_enum, gd, f"check_approval failed: {exc}",
+                    approval_id=approval_id, notified=notified,
                 ),
                 posture,
             )
@@ -458,8 +459,13 @@ class ApprovalGate:
             try:
                 status = self.coordinator.check_approval(approval_id)
             except CoordinatorUnavailable as exc:
+                # `notified` was already resolved by the push_notification call
+                # above (True/False, never re-attempted here) -- carry it
+                # through so a delivered-but-poll-failed filing is not later
+                # mistaken for an undelivered one.
                 return self._unreachable(
-                    gate, gd, f"check_approval failed: {exc}", approval_id=approval_id
+                    gate, gd, f"check_approval failed: {exc}",
+                    approval_id=approval_id, notified=notified,
                 )
 
             resolved = self._interpret_status(
@@ -587,6 +593,7 @@ class ApprovalGate:
         gd: GateDisposition,
         detail: str,
         approval_id: Optional[str] = None,
+        notified: Optional[bool] = None,
     ) -> _Draft:
         self._logger.warning(
             "approval gate %s degrading to block: coordinator unreachable (%s)",
@@ -600,6 +607,7 @@ class ApprovalGate:
             disposition=gd.disposition,
             reason=f"gate {gate.value!r} parked: coordinator unreachable ({detail})",
             approval_id=approval_id,
+            notified=notified,
             timeout_seconds=gd.timeout_seconds if approval_id else None,
         )
 

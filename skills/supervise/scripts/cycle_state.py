@@ -1183,7 +1183,11 @@ def _cmd_gate_check(args: argparse.Namespace) -> int:
         key, _, value = pair.partition("=")
         context[key] = value
 
-    routed = gate_router.evaluate(Gate.ROADMAP_APPROVAL, context, workspace=workspace, repo_root=repo)
+    try:
+        routed = gate_router.evaluate(Gate.ROADMAP_APPROVAL, context, workspace=workspace, repo_root=repo)
+    except gate_router.GateRefusalError as exc:
+        print(f"cycle_state: {exc}", file=sys.stderr)
+        return 2
     exit_code = _gate_decision_exit_code(routed.decision)
     if exit_code == GATE_EXIT_PROCEED:
         payload = dict(routed.record)

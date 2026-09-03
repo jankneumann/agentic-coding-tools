@@ -229,12 +229,13 @@ def _pending_gate_entry(
             "entry that would silently vanish on write"
         )
     requested_at = record.get("recorded_at") or now.isoformat()
-    timeout_seconds = None
     approval_id = decision.approval_id
-    if approval_id and decision.default_action is not None:
-        # A notify_with_timeout evaluation: the deadline is anchored to the
-        # window the posture actually granted, not the block-horizon default.
-        timeout_seconds = _timeout_seconds_from_context(record)
+    # Anchored on `approval_id` plus a persisted `timeout_seconds`, not on
+    # `default_action is not None` -- a `coordinator_unreachable` decision
+    # after a successful filing carries both but no `default_action` (the
+    # timer never got to expire), and still deserves the window the posture
+    # granted rather than the multi-day block-horizon default.
+    timeout_seconds = _timeout_seconds_from_context(record) if approval_id else None
     if approval_id and timeout_seconds:
         parsed = _parse_iso(requested_at) or now
         deadline = (parsed + timedelta(seconds=timeout_seconds)).isoformat()
@@ -404,13 +405,19 @@ def evaluate(
 
     prior = _latest_record_for_subject(checkpoint, gate_enum, key)
     if prior is not None:
-        routed = _apply_prior_record(prior, gate_enum, key, service=service, checkpoint=checkpoint, manager=manager)
+        routed = _apply_prior_record(prior, gate_enum, key, service=service)
         if routed is not None:
+            # Project (which can refuse, e.g. `GateRefusalError` for a blocked
+            # decision naming no `change_id`) BEFORE persisting a NEW record --
+            # a refusal must never follow a partial write. A reused record was
+            # already persisted on a prior call and is not re-recorded here.
             _project(
                 gate_enum, routed.decision, routed.record, key,
                 roadmap=roadmap, repo_root=repo_root,
                 prior_decision_id=prior.get("decision_id"), now=moment,
             )
+            if not routed.reused:
+                manager.record_gate_decision(checkpoint, routed.record)
             return routed
 
     verb = str(ctx.get("verb", "cycle"))
@@ -425,13 +432,14 @@ def evaluate(
         decision = service.evaluate(gate_enum, ctx)
     extra = _correlation_extra(gate_enum, ctx, roadmap=roadmap, fingerprint=fingerprint, verb=verb)
     record = build_gate_decision_record(decision, phase=_PHASE, extra=extra)
-    manager.record_gate_decision(checkpoint, record)
+    # Project before persisting -- see the prior-record branch above for why.
     _project(
         gate_enum, decision, record, key,
         roadmap=roadmap, repo_root=repo_root,
         prior_decision_id=prior.get("decision_id") if prior is not None else None,
         now=moment,
     )
+    manager.record_gate_decision(checkpoint, record)
     return RoutedDecision(decision=decision, record=record, reused=False)
 
 
@@ -441,12 +449,15 @@ def _apply_prior_record(
     key: tuple,
     *,
     service: ApprovalGate,
-    checkpoint: Any,
-    manager: CheckpointManager,
 ) -> Optional[RoutedDecision]:
     """D4 step 0. Returns a `RoutedDecision` when the prior record settles this
     evaluation without a fresh `ApprovalGate.evaluate` call, or `None` to fall
-    through to a fresh evaluation (a posture flip on an open `posture_block`)."""
+    through to a fresh evaluation (a posture flip on an open `posture_block`).
+
+    Never persists: a `reused=False` result carries a freshly built, unpersisted
+    `record` that the caller must `_project` (which can refuse) before it calls
+    `manager.record_gate_decision` -- refusal must never follow a partial write.
+    """
     outcome = prior.get("outcome")
     if outcome == "proceed":
         return RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
@@ -459,14 +470,38 @@ def _apply_prior_record(
             return RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
         return None  # hot reload: fall through and re-evaluate
 
+    # A denied/rejected coordinator or console answer is terminal (D4 step 0.4)
+    # regardless of whether the record still carries the `approval_id` it was
+    # filed under -- checked BEFORE the `approval_id` branch below so a
+    # terminal rejection is never re-polled through `check_filed`.
+    if resolution in _TERMINAL_BLOCK_RESOLUTIONS:
+        return RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
+
     if prior.get("approval_id"):
-        checked = service.check_filed(gate, prior["approval_id"], notified=prior.get("notified"))
+        # A missing `notified` is coerced to the fail-closed `False`, never
+        # passed through as `None` -- `check_filed`'s contract takes a `bool`.
+        prior_notified = prior.get("notified")
+        checked = service.check_filed(
+            gate, prior["approval_id"],
+            notified=prior_notified if prior_notified is not None else False,
+        )
         if checked is None:
             # still pending server-side: re-surface, record nothing new
             return RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
-        # A late answer resolved: record a new terminal decision for the same
+        if (
+            checked.outcome.value == prior.get("outcome")
+            and checked.resolution.value == prior.get("resolution")
+        ):
+            # Same terminal state as before (e.g. still `expired` ->
+            # `timeout_block`, or still coordinator-unreachable): `check_filed`
+            # always returns a terminal decision for a terminal server status,
+            # never `None`, so this equality check is what tells "unchanged"
+            # apart from "a late answer resolved" -- re-surface, record nothing new.
+            return RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
+        # A late answer resolved: build a new terminal decision for the same
         # subject (carrying the same correlation ids the original filing had),
-        # never re-filing or re-notifying (D4 step 0.3).
+        # never re-filing or re-notifying (D4 step 0.3). Left unpersisted --
+        # the caller records it only after `_project` succeeds.
         extra = {
             k: prior[k]
             for k in ("source", "verb", "roadmap_id", "change_id", "dispatch_id", "item_id", "roadmap_fingerprint")
@@ -474,11 +509,7 @@ def _apply_prior_record(
         }
         extra["decision_id"] = str(uuid.uuid4())
         record = build_gate_decision_record(checked, phase=_PHASE, extra=extra)
-        manager.record_gate_decision(checkpoint, record)
         return RoutedDecision(decision=checked, record=record, reused=False)
-
-    if resolution in _TERMINAL_BLOCK_RESOLUTIONS:
-        return RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
 
     return None
 
@@ -558,13 +589,15 @@ def answer(
     if note is not None:
         extra["note"] = note
     record = build_gate_decision_record(decision, phase=_PHASE, extra=extra)
-    manager.record_gate_decision(checkpoint, record)
+    # Project before persisting -- a `GateRefusalError` (e.g. a blocked answer
+    # naming no `change_id`) must never follow a partial write.
     _project(
         gate_enum, decision, record, key,
         roadmap=roadmap, repo_root=repo_root,
         prior_decision_id=prior.get("decision_id") if prior is not None else None,
         now=moment,
     )
+    manager.record_gate_decision(checkpoint, record)
     return RoutedDecision(decision=decision, record=record, reused=False)
 
 
