@@ -82,3 +82,54 @@ grok's severity.
 Not adopted: nothing. Every round-1 finding above `fyi` was applied. Parallelizability
 unchanged (wp-contracts → wp-router ∥ wp-skill-docs → wp-integration); the new task 2.0
 lengthens wp-router's critical chain by one XS/S step but adds no cross-package edge.
+
+## Round 2 (`/parallel-review-plan`, 2026-09-03)
+
+grok (grok-4.5, 444s) and antigravity (gemini-3.6-flash-medium, 89s) participated; claude_code's
+dispatch produced findings that failed `review-findings.schema.json` validation (invalid `type`
+enum values) and was dropped from synthesis. Every one of antigravity's seven findings described
+an issue round-1's fixes above (findings 22-31) already resolved — verified each against the
+current file content before discarding rather than trusting the vendor's read; its dispatch
+appears to have captured a pre-round-1-fix snapshot despite running after those commits.
+
+| # | axis | severity | finding | resolution |
+|---|---|---|---|---|
+| 38 | security | high | **(grok)** Finding #22 gave `check_filed` a `notified` parameter, but nothing declared where the bit is stored, and `_apply_default` overwrites `default_action` to `block` on the undelivered-proceed path — so a genuine `default_action: block` timeout and an undelivered `proceed` looked identical on the persisted record. | `notified` (bool) and `roadmap_fingerprint` declared on `gate-decision.schema.json` and task 1.3; D2 stamps `notified` from `push_notification`'s own return value whenever an approval files, and D4 step 3 reads it from the record's own field, never a default. |
+| 39 | security | high | **(grok)** D4's subject-key dedup stops a *fresh* `gate-check` from reusing a stale decision, but `require_approval_ref` never checked `roadmap_fingerprint`, so a caller holding an old `gate-decision:<id>` from before a `refine-roadmap` could still authorize `prepare`. | D3: `require_approval_ref` recomputes and compares `roadmap_fingerprint` for `roadmap_approval` references; task 2.5 adds `test_prepare_rejects_stale_fingerprint`. |
+| 40 | consistency | high | **(grok)** The skill-workflow delta only ADDED `Roadmap Approval Gate`; it never MODIFIED the live `Autopilot Gate Call Sites` requirement, which still SHALLs an eight-gate world and a `GIVEN a TRUST_POSTURE.md whose eight gates are all auto` scenario that would contradict the ADDED text after archive. | New MODIFIED delta extends the non-autopilot carve-out to `roadmap_approval` and de-numbers the all-auto scenario. |
+| 41 | testability | nit | **(grok)** The "Late coordinator answer" scenario's `WHEN check_filed(Gate.ROADMAP_APPROVAL, approval_id)` omitted the keyword-only `notified` the API requires — not a valid call of the method under test. | WHEN clause now passes `notified=True`/`notified=False` explicitly per arm; added bullet stating the caller always sources it from the record's own field. |
+| 42 | clarity | nit | **(grok)** wp-router's blurb still read "Tasks 2.1-2.10" after round-1 inserted task 2.0 ahead of it. | Description corrected to "Tasks 2.0-2.10" and task 2.0's prerequisite role named. |
+
+Not adopted: antigravity's seven round-2 findings (stale re-reports of 22, 23, 22, 27, 30/D6,
+26, 27 respectively — cross-checked against current `tasks.md` line 40, `work-packages.yaml`
+`wp-router.scope.write_allow`, and design D2/D4/D5/D6 before rejecting). Parallelizability
+unchanged.
+
+## Round 3 (`/parallel-review-plan`, 2026-09-03, final round)
+
+grok (grok-4.5, 454s) and antigravity (gemini-3.6-flash-medium, 105s) participated; codex
+failed dispatch (non-JSON output, ~3s) and pi failed on an expired OpenRouter key — both
+recorded in the round-3 manifest, quorum held at 2. This is the third and final round
+`max_phase_iterations` allows; no round 4 was dispatched.
+
+grok's six findings all traced concretely to round-2's own fixes (28-38 vs 40) being
+correct in intent but incompletely wired across files — a real, narrower class of gap than
+rounds 1-2 found. antigravity's two findings were genuine documentation-only misses in
+files round-1/round-2 touched; its third finding confirmed all 42 prior findings resolved.
+
+| # | axis | severity | finding | resolution |
+|---|---|---|---|---|
+| 43 | security | high | **(grok)** Finding #38 declared `notified` on the schema but never on `ApprovalDecision` / `to_audit_record()` — `_notify` keeps the bit local, so `build_gate_decision_record` had nothing to copy, and a `default_action: block` timeout and an undelivered `proceed` still persisted identically. | `ApprovalDecision`/`_Draft` gain `notified: Optional[bool] = None`, threaded from `_notify`'s local value through `_interpret_status`/`_apply_default` and exposed by `to_audit_record()`; task 1.4 covers the round-trip. |
+| 44 | security | high | **(grok)** The ADDED `Supervise Gate Routing` requirement's own SHALL text still said `check_filed` reads delivery from "the prior record's resolution" — the exact approach #38 proved doesn't work — while the skill-workflow twin had already been fixed. | Requirement body rewritten to source `notified` from the record's own field; matches the skill-workflow scenario. |
+| 45 | security | high | **(grok)** `roadmap_fingerprint` (finding #39) was only specified as stamped on a fresh `evaluate`, not on the `check_filed`-reuse or console-`answer` paths that produce the *common* case (console approval under an absent posture). A missing stamp compares unequal to any current hash, so `prepare` would refuse every console-approved roadmap. Separately, `require_approval_ref`'s signature had no way to obtain the roadmap to hash. | D2: fingerprint stamped at the one point both `evaluate` and `answer` build a record, covering all three paths. D3: `require_approval_ref` gains a `roadmap` keyword, required for `roadmap_approval`; `prepare` loads `roadmap.yaml` before calling it. |
+| 46 | testability | nit | **(grok)** "Refuse unapproved roadmap execution" never named the still-`proceed`-but-stale-fingerprint case as a refusal, leaving the D3/task-2.5 rule unpinned in the live spec. | WHEN clause extended with the stale-fingerprint arm. |
+| 47 | testability | nit | **(grok)** The supervise spec's own late-answer scenario called `check_filed` without the keyword-only `notified` the API requires (mirroring #41's skill-workflow fix, this file was missed). | `notified=False` added with the reasoning (a `default_action: block` timeout has no delivery), matching the skill-workflow twin. |
+| 48 | clarity | nit | **(grok)** `gate-decision.schema.json`'s `default_action` description claimed the field preserves the posture's *declared* value; live `_apply_default` overwrites it to `block` on a fail-closed proceed, and this change doesn't retask that. | Description corrected to describe the *applied* value and point readers at `notified` for distinguishability; `notified`'s own description states the pairing. |
+| 49 | clarity | nit | **(antigravity)** `contracts/schemas/trust-posture.schema.json`'s `gates` description still said "eight enumerated gates" after task 1.3 added a ninth. | Corrected to "nine". |
+| 50 | clarity | nit | **(antigravity)** `gate-decision.schema.json` and `gate-request.schema.json` `$id` URIs still pointed at the parent change `encode-autopilot-gates-and-goal-gate-in-code`. | `$id`s updated to this change's path. |
+
+Not adopted: nothing. Parallelizability unchanged; no task moved packages or introduced a
+new cross-package dependency. `openspec validate --strict` green; work-packages VALID;
+every MODIFIED requirement carries all live-spec scenarios; the D2 bullet-list restatement
+of `require_approval_ref`'s signature was also synced with D3's (a drift the reviewers
+didn't catch, found on self-review before commit).

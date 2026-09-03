@@ -17,7 +17,7 @@
     },
     "gates": {
       "type": "object",
-      "description": "Per-gate disposition map. Keys are restricted to the eight enumerated gates; an unknown gate key is a validation error. A gate omitted here resolves to 'block' (fail-closed).",
+      "description": "Per-gate disposition map. Keys are restricted to the nine enumerated gates; an unknown gate key is a validation error. A gate omitted here resolves to 'block' (fail-closed).",
       "additionalProperties": false,
       "properties": {
         "gatekeeper_escalation": {
