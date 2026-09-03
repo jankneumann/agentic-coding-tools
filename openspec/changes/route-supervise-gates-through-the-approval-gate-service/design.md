@@ -78,7 +78,14 @@ text. Absent or omitted entry → `block`, preserving fail-closed semantics.
   `decision_id` (uuid4), `source: "supervise"`, `verb` (`cycle` / `execute` / `resume` —
   declared as an optional property with that enum in the change's `gate-decision.schema.json`
   so implementers and tests cannot disagree about it),
-  `roadmap_id`, optional `change_id` / `dispatch_id` / `item_id`, and appends it with
+  `roadmap_id`, optional `change_id` / `dispatch_id` / `item_id`. A `roadmap_approval`
+  evaluation additionally stamps `roadmap_fingerprint` (D5's sha256, so `require_approval_ref`
+  can reject a stale reference — D3) on every record, and any evaluation that files a
+  coordinator approval (`notify_with_timeout`) stamps `notified` from the `push_notification`
+  call's own return value at filing time — `BridgeCoordinatorClient.push_notification` always
+  returns `False` in production today (ri-05), so every filed approval is stamped
+  `notified: false` until that changes, which is exactly the fail-closed input `check_filed`
+  needs (D4 step 3). The router appends it with
   `CheckpointManager.record_gate_decision`. `CheckpointManager.load()` raises
   `FileNotFoundError` when the workspace has no `checkpoint.json`, and nine of the ten
   workspaces under `openspec/roadmaps/` have none (only an executed roadmap does), so the
@@ -124,7 +131,7 @@ forbid a bare `.evaluate(` token: `cycle_state.py` calls the router's own module
 heavy import-time work in `_load_runtime_models`. Both directions therefore import lazily
 inside the calling function, never at module top level.
 
-### D3 — `approval_ref` is `gate-decision:<decision_id>` and must resolve
+### D3 — `approval_ref` is `gate-decision:<decision_id>` and must resolve, and a `roadmap_approval` reference must still match the roadmap's shape
 `ExecutionAdapter.resume(...)` calls `require_approval_ref(checkpoint, ref, gate=<parked gate or
 escalate_resume>, dispatch_id=…)`; the record must have `outcome == "proceed"`. `prepare`
 holds no checkpoint today — it validates isolation and delegates straight to
@@ -146,6 +153,8 @@ ledger: whoever can write `checkpoint.json` can forge a record, which is exactly
 boundary `TRUST_POSTURE.md` itself sits on (repository write access), so no signing is
 added. Test fixtures get `approve_roadmap(workspace)` / `approve_parked(workspace, attempt)`
 helpers that record console decisions.
+
+The subject-key dedup in D4 step 0 stops a *fresh* `gate-check` from reusing a stale decision, but a caller that retained an old `gate-decision:<id>` string across a `refine-roadmap` or replan is not going through `gate-check` at all — the reference alone would still satisfy `require_approval_ref`'s outcome/gate/roadmap_id checks. Closing that, `require_approval_ref` recomputes `roadmap_fingerprint(roadmap)` for the checkpoint's roadmap and rejects a `roadmap_approval` record whose stamped `roadmap_fingerprint` differs, with the same refusal shape as an unresolvable reference (`ApprovalRefError`, "Refuse unapproved roadmap execution"). Only `roadmap_approval` records carry a fingerprint; the check is skipped for every other gate.
 
 ### D4 — Every router evaluation applies a prior-record rule; parked children are re-evaluated against the current posture
 
@@ -171,7 +180,8 @@ evaluation, keyed by the decision's subject:
    `_interpret_status` needs cannot be recovered from an `approval_id` alone, so the router
    supplies them: the `GateDisposition` comes from the **live** posture (consistent with the
    hot-reload rule — a posture flip between cycles is meant to be honoured), and `notified`
-   comes from the prior record rather than defaulting to `True`. That second point is a
+   is read from the prior record's own `notified` field (stamped at filing time per D2) rather
+   than defaulting to `True`. That second point is a
    security property, not a detail: `_apply_default` fails a `default_action: proceed` gate
    closed when `notified` is false, and `BridgeCoordinatorClient.push_notification` always
    returns `False` today (ri-05), so a `check_filed` that assumed delivery could turn an
