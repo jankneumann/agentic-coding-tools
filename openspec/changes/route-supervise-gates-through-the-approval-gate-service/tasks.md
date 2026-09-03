@@ -37,7 +37,7 @@ functions, each an M-or-smaller task below).
 
 ## 2. Gate router and provenance (wp-router)
 
-- [ ] 2.0 Prepare `cycle_state.py` for the projection, before any router code depends on it — replace the `_GATES` / `_DISPOSITIONS` literals with `shared.trust_posture` imports (so `_clean_pending_gate` stops rejecting `gate: roadmap_approval`) and add a `decision_id` passthrough to `_clean_pending_gate` (it is an allowlist, so an unmodified cleaner silently strips the projection key on every `write_mirror`). Pin the round trip in `test_cycle_state.py`: an entry carrying `decision_id` and `gate: roadmap_approval` survives `write_mirror` unchanged (S)
+- [x] 2.0 Prepare `cycle_state.py` for the projection, before any router code depends on it — replace the `_GATES` / `_DISPOSITIONS` literals with `shared.trust_posture` imports (so `_clean_pending_gate` stops rejecting `gate: roadmap_approval`) and add a `decision_id` passthrough to `_clean_pending_gate` (it is an allowlist, so an unmodified cleaner silently strips the projection key on every `write_mirror`). Pin the round trip in `test_cycle_state.py`: an entry carrying `decision_id` and `gate: roadmap_approval` survives `write_mirror` unchanged (S)
   **Spec scenarios**: supervise.Supervise Gate Routing.11 (projection); supervise.Supervisor Rehydration Record "Pending gate carries the deadline"
   **Design decisions**: D7
   **Dependencies**: 1.3

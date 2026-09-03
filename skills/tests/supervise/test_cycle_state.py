@@ -17,6 +17,7 @@ Plus the host-assisted invariant: no LLM SDK may appear in this skill's scripts.
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -24,6 +25,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+_SCHEMAS = Path(__file__).resolve().parents[3] / "openspec" / "schemas"
 _SCRIPTS = Path(__file__).resolve().parents[2] / "supervise" / "scripts"
 _SKILL_MD = _SCRIPTS.parent / "SKILL.md"
 if str(_SCRIPTS) not in sys.path:  # pragma: no cover - import wiring
@@ -100,6 +102,14 @@ def _stub(change_id: str | None = None, *, source: str = "report.md", findings=(
     if change_id:
         stub["suggested_change_id"] = change_id
     return stub
+
+
+def _install_schemas(repo: Path) -> None:
+    """Copy the two supervisor-record schemas write_mirror validates against."""
+    schema_target = repo / "openspec" / "schemas"
+    schema_target.mkdir(parents=True, exist_ok=True)
+    for name in ("supervisor-record.schema.json", "supervisor-record-mirror.schema.json"):
+        shutil.copy2(_SCHEMAS / name, schema_target / name)
 
 
 @pytest.fixture
@@ -561,3 +571,45 @@ class TestCli:
             ["--repo-root", str(repo), "dedupe", "--stubs", str(stubs)]
         )
         assert rc == 0
+
+
+# --------------------------------------------------------------------------- #
+# D1/D7 (ri-04): _GATES tracks shared.trust_posture.Gate; decision_id survives
+# the pendingGate allowlist cleaner through a write_mirror round trip.
+# --------------------------------------------------------------------------- #
+class TestPendingGateDecisionIdRoundTrip:
+    def test_roadmap_approval_gate_is_accepted_by_the_gate_set(self) -> None:
+        """D1: _GATES must track shared.trust_posture.Gate, not a hand-copied
+        literal — otherwise a ninth gate added to the enum silently fails to
+        validate here even though every schema now accepts it."""
+        assert "roadmap_approval" in cycle_state._GATES
+
+    def test_roadmap_approval_entry_with_decision_id_survives_write_mirror(
+        self, repo: Path
+    ) -> None:
+        _install_schemas(repo)
+        record = {
+            "schema_version": 1,
+            "written_at": "2026-09-01T00:00:00Z",
+            "pending_gates": [
+                {
+                    "gate": "roadmap_approval",
+                    "change_id": "demo-change",
+                    "requested_at": "2026-09-01T00:00:00Z",
+                    "deadline": "2026-09-08T00:00:00Z",
+                    "decision_id": "11111111-1111-4111-8111-111111111111",
+                }
+            ],
+            "standing_decisions": [],
+            "back_edge": {
+                "last_digest_at": None,
+                "last_fingerprint": None,
+                "digested_stubs": [],
+            },
+        }
+
+        mirror = cycle_state.write_mirror(repo, record, now="2026-09-01T00:00:00Z")
+
+        entry = mirror["pending_gates"][0]
+        assert entry["gate"] == "roadmap_approval"
+        assert entry["decision_id"] == "11111111-1111-4111-8111-111111111111"
