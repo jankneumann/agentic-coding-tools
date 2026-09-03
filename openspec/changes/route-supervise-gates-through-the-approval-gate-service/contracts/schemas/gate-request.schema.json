@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agentic-coding-tools/openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/events/gate-request.schema.json",
+  "$id": "https://agentic-coding-tools/openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/events/gate-request.schema.json",
   "title": "GateRequest",
   "description": "A gate the autopilot loop is parked on, awaiting a host-recorded decision. Stored as LoopState.pending_gate and printed by `runner.py gate-check`.",
   "type": "object",

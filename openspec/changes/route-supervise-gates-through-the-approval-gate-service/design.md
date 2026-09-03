@@ -78,14 +78,22 @@ text. Absent or omitted entry → `block`, preserving fail-closed semantics.
   `decision_id` (uuid4), `source: "supervise"`, `verb` (`cycle` / `execute` / `resume` —
   declared as an optional property with that enum in the change's `gate-decision.schema.json`
   so implementers and tests cannot disagree about it),
-  `roadmap_id`, optional `change_id` / `dispatch_id` / `item_id`. A `roadmap_approval`
-  evaluation additionally stamps `roadmap_fingerprint` (D5's sha256, so `require_approval_ref`
-  can reject a stale reference — D3) on every record, and any evaluation that files a
-  coordinator approval (`notify_with_timeout`) stamps `notified` from the `push_notification`
-  call's own return value at filing time — `BridgeCoordinatorClient.push_notification` always
-  returns `False` in production today (ri-05), so every filed approval is stamped
-  `notified: false` until that changes, which is exactly the fail-closed input `check_filed`
-  needs (D4 step 3). The router appends it with
+  `roadmap_id`, optional `change_id` / `dispatch_id` / `item_id`. Every record the router
+  writes for `gate=roadmap_approval` — whether from a fresh `evaluate`, a `check_filed` reuse
+  of a filed approval (D4 step 0.3), or a console `answer` — additionally stamps
+  `roadmap_fingerprint` (D5's sha256, so `require_approval_ref` can reject a stale reference —
+  D3) at the single point where the router builds and appends the record, so no internal path
+  can produce an unstamped `roadmap_approval` record; only `roadmap_approval` records carry
+  one. Separately, this change adds an optional `notified: Optional[bool] = None` field to the existing
+  `_Draft` / `ApprovalDecision` dataclasses in `shared.approval_gate` (ri-05's, unmodified
+  otherwise) and threads `_notify`'s already-local `notified` value into every `_Draft` it
+  builds via `_interpret_status` / `_apply_default`, so `to_audit_record()` exposes it and
+  `build_gate_decision_record` copies it onto the ledger record with no separate stamping
+  step. `BridgeCoordinatorClient.push_notification` always returns `False` in production
+  today (ri-05), so every filed approval is recorded `notified: false` until that changes,
+  which is exactly the fail-closed input `check_filed` needs (D4 step 3); a console-originated
+  `roadmap_approval` answer has no coordinator delivery concept and records `notified: null`.
+  The router appends it with
   `CheckpointManager.record_gate_decision`. `CheckpointManager.load()` raises
   `FileNotFoundError` when the workspace has no `checkpoint.json`, and nine of the ten
   workspaces under `openspec/roadmaps/` have none (only an executed roadmap does), so the
@@ -105,11 +113,12 @@ text. Absent or omitted entry → `block`, preserving fail-closed semantics.
   key set, so a supervise-side parked attempt carries no posture at all. (The autopilot
   `pending_gate` in `loop-state.json` that `runner._console_decision` reads *does* carry one;
   that is the difference.) For an originating `roadmap_approval` answer (D5) the snapshot
-  comes from the live posture. The runner delegates to the same helper; same record shape,
-  design D4 of ri-06.
+  comes from the live posture, and — like every other `roadmap_approval` record the router
+  writes — it stamps `roadmap_fingerprint`. The runner delegates to the same helper; same
+  record shape, design D4 of ri-06.
 - `resolve_parked(attempt, *, workspace, repo_root, adapter, evaluator=None, now=None) -> ParkedResolution`.
-- `require_approval_ref(checkpoint, approval_ref, *, gate, dispatch_id=None, roadmap_id=None) -> record`
-  — raises `ApprovalRefError` unless the reference resolves.
+- `require_approval_ref(checkpoint, approval_ref, *, gate, dispatch_id=None, roadmap_id=None, roadmap=None) -> record`
+  — raises `ApprovalRefError` unless the reference resolves; `roadmap` is required when `gate is Gate.ROADMAP_APPROVAL` (D3).
 - `gate_log(workspace, repo_root) -> list[record]` — sidecar ∪ each item's child
   `gate_decisions`, resolved through the attempt's worktree (D6).
 
@@ -132,6 +141,8 @@ heavy import-time work in `_load_runtime_models`. Both directions therefore impo
 inside the calling function, never at module top level.
 
 ### D3 — `approval_ref` is `gate-decision:<decision_id>` and must resolve, and a `roadmap_approval` reference must still match the roadmap's shape
+
+`require_approval_ref(checkpoint, approval_ref, *, gate, dispatch_id=None, roadmap_id=None, roadmap=None)` gains a `roadmap: Roadmap | None` keyword, required exactly when `gate is Gate.ROADMAP_APPROVAL`, so the fingerprint recompute below has a DAG to hash against — `Checkpoint` itself carries no item shape. `ExecutionAdapter.prepare` loads `roadmap.yaml` (the same file `cycle_state.py` reads) before calling it, so the check runs against the roadmap's on-disk state at prepare-time, not at the time the reference was minted.
 `ExecutionAdapter.resume(...)` calls `require_approval_ref(checkpoint, ref, gate=<parked gate or
 escalate_resume>, dispatch_id=…)`; the record must have `outcome == "proceed"`. `prepare`
 holds no checkpoint today — it validates isolation and delegates straight to
@@ -154,7 +165,7 @@ boundary `TRUST_POSTURE.md` itself sits on (repository write access), so no sign
 added. Test fixtures get `approve_roadmap(workspace)` / `approve_parked(workspace, attempt)`
 helpers that record console decisions.
 
-The subject-key dedup in D4 step 0 stops a *fresh* `gate-check` from reusing a stale decision, but a caller that retained an old `gate-decision:<id>` string across a `refine-roadmap` or replan is not going through `gate-check` at all — the reference alone would still satisfy `require_approval_ref`'s outcome/gate/roadmap_id checks. Closing that, `require_approval_ref` recomputes `roadmap_fingerprint(roadmap)` for the checkpoint's roadmap and rejects a `roadmap_approval` record whose stamped `roadmap_fingerprint` differs, with the same refusal shape as an unresolvable reference (`ApprovalRefError`, "Refuse unapproved roadmap execution"). Only `roadmap_approval` records carry a fingerprint; the check is skipped for every other gate.
+The subject-key dedup in D4 step 0 stops a *fresh* `gate-check` from reusing a stale decision, but a caller that retained an old `gate-decision:<id>` string across a `refine-roadmap` or replan is not going through `gate-check` at all — the reference alone would still satisfy `require_approval_ref`'s outcome/gate/roadmap_id checks. Closing that, `require_approval_ref` recomputes `roadmap_fingerprint(roadmap)` for the checkpoint's roadmap and rejects a `roadmap_approval` record whose stamped `roadmap_fingerprint` differs, with the same refusal shape as an unresolvable reference (`ApprovalRefError`, "Refuse unapproved roadmap execution"). Only `roadmap_approval` records carry a fingerprint; the check is skipped for every other gate Because every `roadmap_approval` record is now stamped regardless of which router path produced it (D2), the recompute-and-compare has a value to check on every reference `prepare` sees.
 
 ### D4 — Every router evaluation applies a prior-record rule; parked children are re-evaluated against the current posture
 

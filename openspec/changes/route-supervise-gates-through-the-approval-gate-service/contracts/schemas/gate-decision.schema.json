@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agentic-coding-tools/openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/events/gate-decision.schema.json",
+  "$id": "https://agentic-coding-tools/openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/events/gate-decision.schema.json",
   "title": "GateDecisionRecord",
   "description": "One entry of LoopState.gate_decisions (autopilot) or Checkpoint.gate_decisions (autopilot-roadmap). Superset of ApprovalDecision.to_audit_record().",
   "type": "object",
@@ -76,7 +76,8 @@
         "proceed",
         "block",
         null
-      ]
+      ],
+      "description": "The posture's default_action as APPLIED, not necessarily as declared: `_apply_default` overwrites this to `block` when a `proceed` default fires on an undelivered notification (`notified: false`). It is not safe to infer the posture's *declared* default_action from this field alone -- combine it with `notified` (present when an approval was filed) to distinguish a genuine `default_action: block` timeout (`notified: true`) from an undelivered `proceed` forced closed (`notified: false`)."
     },
     "posture_present": {
       "type": "boolean"
@@ -140,7 +141,7 @@
         "boolean",
         "null"
       ],
-      "description": "Whether push_notification reported delivery when this decision's approval was filed. Present only on notify_with_timeout records; combined with default_action (the posture's declared value, unchanged by the fail-closed override) it lets a reader distinguish a genuine default_action:block timeout (notified=true) from an undelivered proceed forced to block (notified=false)."
+      "description": "Whether the coordinator's push_notification call reported delivery when this decision's approval was filed, threaded from ApprovalDecision.notified (added to the existing ri-05 dataclass by this change) through to_audit_record(). Present only on notify_with_timeout records that filed an approval; null for a console-originated roadmap_approval answer, where no coordinator delivery concept applies. Combined with default_action it lets a reader distinguish a genuine default_action:block timeout (notified=true) from an undelivered proceed forced to block (notified=false)."
     },
     "roadmap_fingerprint": {
       "type": "string",

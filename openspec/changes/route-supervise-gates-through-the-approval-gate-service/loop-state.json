@@ -1,0 +1,91 @@
+{
+  "schema_version": 5,
+  "change_id": "route-supervise-gates-through-the-approval-gate-service",
+  "current_phase": "PLAN_REVIEW",
+  "iteration": 0,
+  "total_iterations": 4,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-ri04-1",
+    "plan-ri04-1",
+    "plan-iteration-ri04-1"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-09-03T03:31:00.003361+00:00",
+      "outcome": "proceed_with_review",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-09-03T03:31:19.179883+00:00",
+      "outcome": "exists",
+      "phase": "PLAN"
+    },
+    {
+      "at": "2026-09-03T03:52:38.894879+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    }
+  ],
+  "last_handoff_id": "plan-iteration-ri04-1",
+  "started_at": "2026-09-03T03:29:01.132491+00:00",
+  "phase_started_at": "2026-09-03T03:52:38.946559+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
+  "val_review_enabled": true,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "architect",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 3,
+    "total_loc_estimate": null
+  },
+  "gate_verdict": "proceed_with_review",
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "outcome": "blocked",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-03T03:31:21.414462+00:00",
+      "resolution": "posture_block"
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "note": "Approved under the standing roadmap authorization for roadmap-supervisor-orchestration ri-04 (approved in roadmap.yaml; operator instruction for this run: 'start with ri-04'); scope governed by the item's acceptance outcomes and the ri-03 / always-on ri-06 dependencies.",
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 Approved under the standing roadmap authorization for roadmap-supervisor-orchestration ri-04 (approved in roadmap.yaml; operator instruction for this run: 'start with ri-04'); scope governed by the item's acceptance outcomes and the ri-03 / always-on ri-06 dependencies.",
+      "recorded_at": "2026-09-03T03:31:21.482934+00:00",
+      "resolution": "console_approved"
+    }
+  ],
+  "pending_gate": null,
+  "goal_gate": null
+}
