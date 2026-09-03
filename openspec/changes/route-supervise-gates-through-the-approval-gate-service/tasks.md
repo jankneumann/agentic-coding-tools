@@ -56,7 +56,7 @@ functions, each an M-or-smaller task below).
   **Dependencies**: 2.1
   **Files**: skills/supervise/scripts/gate_router.py
 
-- [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/tests/supervise -q`, review diff, verify scope
+- [x] Checkpoint: run `skills/.venv/bin/python -m pytest skills/tests/supervise -q`, review diff, verify scope
 
 - [x] 2.3 Write tests for `resolve_parked` — `pending_gate` re-evaluated against the current posture (the child snapshot carries no `approval_id`; a flip to `auto` resumes with no console answer), a prior router record for the same `dispatch_id` follows the prior-record rule, `policy_pause` → `escalate_resume`, unknown gate raises without recording, `BLOCKED` yields a `pending_gates` entry whose `deadline` is `requested_at + timeout_seconds` when an approval was filed and `+ 7 days` otherwise (M)
   **Spec scenarios**: supervise.Supervise Gate Routing.6 (posture flip), .7 (policy pause), .10 (unknown gate); supervise.Background Worktree Isolation "Child parks at a pending gate"
@@ -79,7 +79,7 @@ functions, each an M-or-smaller task below).
   **Dependencies**: 2.5
   **Files**: skills/supervise/scripts/execution.py, skills/tests/supervise/fixtures/execution/contracts/invalid-continuation-without-kind.json, openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json, openspec/contracts/roadmap-orchestration/schemas/supervised-dispatch-request.schema.json
 
-- [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/tests/supervise -q` and `cd skills && uv run pytest tests/roadmap-runtime tests/autopilot-roadmap -q`, review diff, verify scope
+- [x] Checkpoint: run `skills/.venv/bin/python -m pytest skills/tests/supervise -q` and `cd skills && uv run pytest tests/roadmap-runtime tests/autopilot-roadmap -q`, review diff, verify scope
 
 - [x] 2.7 Write tests for `cycle_state.py` `gate-check`, `gate-answer`, `gate-log` — exit codes 3 (proceed, including a reused decision) / 0 (`posture_block`) / 4 (terminal block: `rejected`, `timeout_default_block`, `coordinator_unreachable`), printed `pending_gates` entry validates against the record schema, `gate-answer --gate roadmap_approval` originates a record and prints `roadmap_approval_ref` while `gate-answer` for any other gate is refused without a parked record, `gate-log --roadmap R` unions the sidecar with the child `gate_decisions` of R's items only, resolved through each attempt's recorded worktree, a `--dry-run` guard is not needed because the SKILL never runs `gate-check` under `--dry-run` (assert the subcommand has no `--dry-run` flag) (S)
   Also cover: `gate-check` on a workspace with no `checkpoint.json` bootstraps one instead of raising `FileNotFoundError`, and `gate-log` on such a workspace prints an empty array; exit 4 keeps the entry answerable (the documented divergence from `runner.py`'s `EXIT_GATE_PARKED`, which clears `pending_gate` and enters ESCALATE).
