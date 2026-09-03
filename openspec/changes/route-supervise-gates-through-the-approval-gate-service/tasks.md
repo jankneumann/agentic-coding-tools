@@ -123,7 +123,7 @@ functions, each an M-or-smaller task below).
 
 ## 4. Integration (wp-integration)
 
-- [ ] 4.1 Run `install.sh` to resync `.claude/skills/` and `.agents/skills/` mirrors; confirm `git status` shows only mirror updates (XS)
+- [x] 4.1 Run `install.sh` to resync `.claude/skills/` and `.agents/skills/` mirrors; confirm `git status` shows only mirror updates (XS)
   **Dependencies**: 3.2, 3.3
   **Files**: .claude/skills/**, .agents/skills/**
 
