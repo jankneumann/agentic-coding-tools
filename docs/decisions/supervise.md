@@ -5,36 +5,36 @@
 
 ---
 
-## 2026-09-03 — route-supervise-gates-through-the-approval-gate-service
+## 2026-09-03 — 2026-09-03-route-supervise-gates-through-the-approval-gate-service
 
 ### Phase: Plan
 
 **gate_router.py is the only supervise path to ApprovalGate** — One seam makes 'no gate decision bypasses approval_gate.py' testable by AST scan and gives every decision a decision_id, source, and correlation ids in the checkpoint gate_decisions sidecar.
 
 - Status: `active`
-- Source: [openspec/changes/route-supervise-gates-through-the-approval-gate-service/session-log.md](/openspec/changes/route-supervise-gates-through-the-approval-gate-service/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-03-route-supervise-gates-through-the-approval-gate-service/session-log.md](/openspec/changes/archive/2026-09-03-route-supervise-gates-through-the-approval-gate-service/session-log.md) (D2)
 
 ---
 
-## 2026-09-03 — route-supervise-gates-through-the-approval-gate-service
+## 2026-09-03 — 2026-09-03-route-supervise-gates-through-the-approval-gate-service
 
 ### Phase: Plan
 
 **Parked children check the filed coordinator approval before re-filing** — Avoids one approval request per supervise cycle under notify_with_timeout while still honouring hot-reloaded posture flips.
 
 - Status: `active`
-- Source: [openspec/changes/route-supervise-gates-through-the-approval-gate-service/session-log.md](/openspec/changes/route-supervise-gates-through-the-approval-gate-service/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-03-route-supervise-gates-through-the-approval-gate-service/session-log.md](/openspec/changes/archive/2026-09-03-route-supervise-gates-through-the-approval-gate-service/session-log.md) (D4)
 
 ---
 
-## 2026-09-03 — route-supervise-gates-through-the-approval-gate-service
+## 2026-09-03 — 2026-09-03-route-supervise-gates-through-the-approval-gate-service
 
 ### Phase: Plan
 
 **Change branch is based on the roadmap branch, not main** — openspec/roadmap-roadmap-supervisor-orchestration contains main plus 108 commits including the ri-03 supervise seam; main lacks them.
 
 - Status: `active`
-- Source: [openspec/changes/route-supervise-gates-through-the-approval-gate-service/session-log.md](/openspec/changes/route-supervise-gates-through-the-approval-gate-service/session-log.md) (D5)
+- Source: [openspec/changes/archive/2026-09-03-route-supervise-gates-through-the-approval-gate-service/session-log.md](/openspec/changes/archive/2026-09-03-route-supervise-gates-through-the-approval-gate-service/session-log.md) (D5)
 
 ---
 

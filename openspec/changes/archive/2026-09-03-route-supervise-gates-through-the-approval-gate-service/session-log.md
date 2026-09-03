@@ -247,3 +247,26 @@ worktree contract — the dispatch launchpad starts elsewhere. Orchestrator stat
 (`loop-state.json`, `current_phase`) was left untouched; the orchestrator applies the
 outcome after this phase returns `(outcome="passed", handoff_id=...)`.
 
+---
+
+## Phase: Cleanup (2026-09-03)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Rebase merge strategy (openspec origin default)** — Agent-authored commits follow conventional format and encode design intent (gate service -> router -> execution wiring -> tests); preserving that history aids future git blame/bisect over squashing the branch's commits into one.
+2. **No task migration needed** — The two unchecked tasks.md items were TDD checkpoint markers (run tests, review diff), not undone deliverables -- the named suites had already run repeatedly across IMPLEMENT/IMPL_REVIEW/VAL_REVIEW. Re-ran both once more and checked them off rather than opening a follow-up proposal for zero remaining work.
+3. **context-drift-gate CI failure left unresolved (pre-existing, unrelated)** — Fails on drift in openspec/specs/convert-failure-record-to-regression-scenarios/spec.md, a different in-flight change's spec inherited from the base branch -- not introduced by ri-04 and not this PR's to fix. The roadmap branch has no branch protection requiring it, so it did not block the merge.
+4. **gh pr merge run from the shared checkout, not a change worktree** — The first invocation (from the feature-branch worktree) failed with 'branch already used by worktree' -- gh's rebase-merge path collided with this repo's dedicated openspec/roadmap-roadmap-supervisor-orchestration worktree. The merge had actually already succeeded server-side by then; a second invocation from the shared checkout confirmed 'already merged' and only local branch deletion needed a manual follow-up (git push origin --delete) since a leftover sub-agent worktree still held the local ref.
+
+### Completed Work
+- merge
+- task-migration (none needed)
+- archive
+
+### Next Steps
+- roadmap-supervisor-orchestration: ri-09 (p2, M), ri-10 (p2, S), ri-12 (p2, M), ri-16 (p2, S) are next in priority order
+
+### Context
+PR #470 merged (rebase, --delete-branch) into openspec/roadmap-roadmap-supervisor-orchestration after operator authorization ('merge PR' in chat, recorded via the merge gate); merge commit 69b0c901. No open tasks to migrate -- the two unchecked TDD checkpoints were re-verified and checked off during cleanup, not deferred. Change archived; specs merged; decision index regenerated.
+

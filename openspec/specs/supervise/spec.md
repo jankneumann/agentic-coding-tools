@@ -53,7 +53,8 @@ The `/supervise` skill SHALL rehydrate a fresh session from a supervisor record 
 #### Scenario: Pending gate carries the deadline downstream writers need
 - **WHEN** a `pending_gates[]` entry is validated against the record schema
 - **THEN** `gate`, `change_id`, `requested_at`, and `deadline` SHALL be required
-- **AND** `gate` SHALL be one of the eight `trust_posture.Gate` values
+- **AND** `gate` SHALL be one of the nine `trust_posture.Gate` values, including `roadmap_approval`
+- **AND** an entry written by the supervise gate router SHALL carry `decision_id`, `disposition`, and `source: "supervise"`
 
 #### Scenario: Newer ordinary handoff does not mask supervisor state
 - **GIVEN** a supervisor handoff followed by a newer ordinary handoff
@@ -80,16 +81,17 @@ The `/supervise` skill SHALL rehydrate a fresh session from a supervisor record 
 
 ### Requirement: Approved Roadmap Execution
 
-The supervise skill SHALL expose an execution path that drives an operator-approved roadmap through the separate delegated prepare/apply entry points and their existing synchronous `dispatch_fn` normalization seam without requiring per-item approval.
+The supervise skill SHALL expose an execution path that drives an operator-approved roadmap through the separate delegated prepare/apply entry points and their existing synchronous `dispatch_fn` normalization seam without requiring per-item approval. Roadmap-altitude approval SHALL be a `roadmap_approval` gate decision with outcome `proceed` recorded in the roadmap workspace's `checkpoint.json` `gate_decisions` ledger, and `ExecutionAdapter.prepare` SHALL require a `roadmap_approval_ref` of the form `gate-decision:<decision_id>` that resolves to that record.
 
 #### Scenario: Execute an inherited-approved roadmap
 - **WHEN** the operator invokes `/autopilot-roadmap` or approves a roadmap batch from `/supervise`
-- **THEN** the supervisor supplies the delegated dispatch callback and exact roadmap item `change_id` values
+- **THEN** a `roadmap_approval` gate decision with outcome `proceed` is recorded through the gate router before any dispatch (auto under an `auto` posture, coordinator-approved under `notify_with_timeout`, or console-approved via `cycle_state.py gate-answer`)
+- **AND** the supervisor supplies the delegated dispatch callback, the resulting `roadmap_approval_ref`, and exact roadmap item `change_id` values
 - **AND** execution continues through ready items without new discovery, direction, or per-item plan questions
 
 #### Scenario: Refuse unapproved roadmap execution
-- **WHEN** no durable roadmap-altitude approval can be established
-- **THEN** the supervisor does not dispatch an implementation agent
+- **WHEN** no `roadmap_approval_ref` is supplied, or the supplied reference does not resolve to a `proceed` decision for that roadmap, or the reference resolves to a `proceed` decision whose stamped `roadmap_fingerprint` no longer matches the roadmap's current DAG shape
+- **THEN** `ExecutionAdapter.prepare` raises before writing any attempt and the supervisor does not dispatch an implementation agent
 - **AND** it reports the missing approval without mutating roadmap execution state
 
 ### Requirement: Background Worktree Isolation
@@ -111,6 +113,7 @@ The supervise skill MUST start each delegated Autopilot item as a background sub
 - **THEN** the host returns a parked result containing the bounded gate or pause snapshot
 - **AND** success and parked results include worktree path, branch, and loop-state evidence that exactly match the prepared attempt
 - **AND** the supervisor retains the next action without retaining the child transcript or marking the item failed
+- **AND** the supervisor resolves the parked gate only through `gate_router.resolve_parked`, which records a gate decision and either resumes the attempt with `approval_ref = gate-decision:<decision_id>` or surfaces the gate in `pending_gates` with its disposition, approval id, and deadline
 
 ### Requirement: Router-Neutral Supervisor Dispatch
 
@@ -130,3 +133,76 @@ The supervise skill SHALL pass through router-owned dispatch context and SHALL N
 - **WHEN** dispatch context contains a secret-like or token key, raw response or transcript content, nesting deeper than four levels, or canonical JSON larger than 16 KiB
 - **THEN** preparation fails before persistence or dispatch with a bounded deterministic reason
 - **AND** valid bounded router-owned fields pass through unchanged
+
+### Requirement: Supervise Gate Routing
+
+The supervise skill SHALL evaluate every gate it raises — `roadmap_approval` at the end of `cycle`, the `execute` precondition, and the resolution of parked `pending_gate` and `policy_pause` attempts — exclusively through `skills/supervise/scripts/gate_router.py`, which SHALL call `shared.approval_gate.ApprovalGate.evaluate` against the supervisor repository root's `TRUST_POSTURE.md`. Whenever the router produces a new decision it SHALL append a `gate-decision.schema.json` record carrying `decision_id`, `source: "supervise"`, `verb`, `roadmap_id`, and any correlating `change_id` / `dispatch_id` to the roadmap workspace's `checkpoint.json` `gate_decisions` ledger before acting on that decision; reusing or re-surfacing a prior record SHALL append nothing. When the workspace has no `checkpoint.json` the router SHALL create one from the roadmap before recording, and `gate-log` SHALL report an absent workspace as empty rather than failing. Records SHALL be built with `shared.approval_gate.build_gate_decision_record` and console answers with `shared.approval_gate.console_decision`; the router SHALL NOT import `autopilot.py`. Before evaluating, the router SHALL apply a prior-record rule to the ledger keyed by the decision's subject (`gate`, `roadmap_id`, and `dispatch_id` for parked attempts or `roadmap_fingerprint` for `roadmap_approval`): a `proceed` record is reused without evaluating; an open `posture_block` record is re-surfaced unchanged unless the posture's disposition for that gate changed; a blocked record carrying an `approval_id` is checked through `ApprovalGate.check_filed` before any new approval is filed; a `rejected` or `console_rejected` record is terminal until the subject changes or a console answer is recorded. `check_filed` SHALL NOT upgrade a prior fail-closed block to `proceed`: it SHALL be called with `notified` sourced from the prior record's own `notified` field (never a literal or a default), and when the coordinator reports `expired` and that `notified` value is `False`, it SHALL return no decision rather than apply a `proceed` default. No other module under `skills/supervise/scripts/` SHALL import or call the approval gate. `cycle_state.py` SHALL expose `gate-check`, `gate-answer`, and `gate-log` subcommands and SHALL import the `Gate` and `Disposition` enums from `shared.trust_posture` rather than duplicating them. `gate-answer` SHALL require a prior parked record for every gate except `roadmap_approval`, whose console answer MAY originate a record; the posture snapshot a console answer records SHALL come from the router's own prior blocked record for that subject, or from the live posture when the answer originates one. The router SHALL project every blocked decision into the tracked mirror's `pending_gates` (keyed by `decision_id`) and every `proceed` decision out of it — upserting the `roadmap_approval` standing decision — through `cycle_state.write_mirror`, merging its change into the currently selected durable state so `back_edge` and unrelated standing decisions survive, and a reused decision SHALL leave the mirror untouched. `cycle_state._clean_pending_gate` SHALL carry `decision_id` through, since it is an allowlist that would otherwise strip the projection key. `gate-check` SHALL NOT run under `cycle --dry-run`, and `execute` SHALL begin with `gate-check`, whose exit-3 record supplies the `roadmap_approval_ref`. `skills/supervise/SKILL.md` SHALL contain no gate whose only enforcement is prose.
+
+#### Scenario: Auto posture takes a conversation to execution without a human touch
+- **GIVEN** a `TRUST_POSTURE.md` with `roadmap_approval: auto`
+- **WHEN** `cycle_state.py gate-check --roadmap R` runs after the digest
+- **THEN** it records a `roadmap_approval` decision with resolution `auto` and exits 3
+- **AND** the skill proceeds into `/plan-roadmap` approval and `execute` without asking the operator
+
+#### Scenario: Block posture parks the roadmap approval for a console answer
+- **GIVEN** no `TRUST_POSTURE.md` (or `roadmap_approval: block`)
+- **WHEN** `gate-check --roadmap R` runs
+- **THEN** it records a `posture_block` decision, prints a `pending_gates` entry with `gate: roadmap_approval`, a deadline, and `source: supervise`, and exits 0
+- **AND** `gate-answer --roadmap R --gate roadmap_approval --decision approved` records a `console_approved` decision, mirrors it into `standing_decisions`, and prints the `roadmap_approval_ref`
+
+#### Scenario: Notify posture waits for the posture timeout and honours a late answer without re-filing
+- **GIVEN** `roadmap_approval: notify_with_timeout` with `timeout_seconds: T` and `default_action: block`, and a reachable coordinator that leaves the approval unanswered
+- **WHEN** `gate-check --roadmap R` runs
+- **THEN** it files exactly one approval request, waits no longer than T, records a `timeout_default_block` decision carrying the `approval_id`, prints a `pending_gates` entry whose `deadline` is `requested_at + T`, and exits 4
+- **AND** when the operator approves that request in the coordinator after the timeout and the next `gate-check --roadmap R` runs, the router calls `ApprovalGate.check_filed(Gate.ROADMAP_APPROVAL, approval_id, notified=False)` — `notified` sourced from the timed-out record's own field, and `False` here because `default_action: block` reached the timeout with no delivery — records an `approved` decision with outcome `proceed`, files no second request, and exits 3
+- **AND** when the coordinator still reports the request `pending`, the second run re-surfaces the same entry and deadline and files nothing
+
+#### Scenario: Approved roadmap is not re-asked until its DAG changes
+- **GIVEN** a `proceed` `roadmap_approval` record for roadmap R whose `roadmap_fingerprint` matches R's current sorted `(item_id, change_id, depends_on, external_depends_on, status)` tuples, where `status` is normalized so completion-only transitions do not change it
+- **WHEN** `gate-check --roadmap R` runs again after an item of R completes
+- **THEN** it reuses the existing record, appends nothing to the ledger, prints the reused record, and exits 3
+- **AND** when `refine-roadmap` adds, splits, or supersedes an item, or an external dependency edge changes, so the fingerprint changes, the next `gate-check` evaluates `roadmap_approval` anew
+
+#### Scenario: Direct invocation records an originating console decision
+- **WHEN** `/autopilot-roadmap` is invoked directly and runs `gate-answer --roadmap R --gate roadmap_approval --decision approved --note "direct invocation"` with no prior parked record
+- **THEN** a `console_approved` `roadmap_approval` decision with outcome `proceed` is recorded, its posture snapshot taken from the live posture, and `roadmap_approval_ref` is printed
+- **AND** `gate-answer --gate pr_creation` for a dispatch with no parked record is refused without recording anything
+
+#### Scenario: Parked child unparks after a posture flip
+- **GIVEN** a `pending_gate` attempt parked on `pr_creation` under `block`
+- **WHEN** the operator edits `TRUST_POSTURE.md` to `pr_creation: auto` and the supervisor runs `resolve_parked`
+- **THEN** the router records an `auto` decision and calls `ExecutionAdapter.resume` with `approval_ref = gate-decision:<decision_id>`
+- **AND** no console answer is required
+
+#### Scenario: Policy pause resolves through escalate_resume
+- **WHEN** a `policy_pause` attempt (child in `ESCALATE`) is resolved
+- **THEN** the router evaluates `Gate.ESCALATE_RESUME`, not a new gate
+- **AND** a `BLOCKED` decision leaves the attempt parked and surfaces `escalate_resume` in `pending_gates`
+
+#### Scenario: Evaluation log covers every supervised gate
+- **WHEN** a full simulated run (cycle → execute → parked child → resume) completes and `cycle_state.py gate-log --roadmap R` runs
+- **THEN** the output lists one record per `ApprovalGate.evaluate`, `check_filed` decision, or console answer made by the supervisor — and none for a reused or re-surfaced record — plus each item's child `gate_decisions`, each with the posture disposition that was applied and its origin
+- **AND** each child's `loop-state.json` SHALL be resolved through the attempt's recorded worktree (`isolation.worktree_path`, or the result's `evidence.loop_state_path`) rather than the supervisor's own `openspec/changes/<change_id>/`, because a child's loop state is untracked and lives only in that child's worktree
+- **AND** a child whose loop state cannot be read SHALL be reported as a degraded origin rather than omitted silently
+- **AND** every `approval_ref` used during the run resolves to one of those records
+
+#### Scenario: Router is the only seam
+- **WHEN** the test scans `skills/supervise/scripts/*.py` by AST
+- **THEN** the names `ApprovalGate`, `build_default_gate`, and `check_filed`, and any `.evaluate(...)` call whose receiver is an approval-gate object, appear only in `gate_router.py`
+- **AND** `cycle_state.py` MAY call the router's own module-level `evaluate` / `answer` / `resolve_parked` functions, which the scan SHALL NOT treat as a gate-service call site
+- **AND** no module under `skills/supervise/scripts/` imports `autopilot`
+
+#### Scenario: Unknown parked gate is a schema error, not a decision
+- **WHEN** a parked snapshot names a gate outside `trust_posture.Gate`, or is of kind `pending_gate` with a null `gate` (which the result contract permits)
+- **THEN** `resolve_parked` raises without recording a decision or resuming
+- **AND** the attempt stays parked
+
+#### Scenario: Router projects gate state into the mirror a fresh session rehydrates
+- **GIVEN** no `TRUST_POSTURE.md` and a handoff `supervisor_record` written at T1
+- **WHEN** `gate-check --roadmap R` parks `roadmap_approval` at T2 > T1 and a fresh session runs `cycle_state.py rehydrate`
+- **THEN** the rehydrated record's `pending_gates` contains the entry with that `decision_id`, `disposition: block`, `source: supervise`, and a deadline, sourced from the mirror
+- **AND** the entry's `change_id` is R's first ready item's change, falling back to R's first item carrying a `change_id` when no item is ready, and the gate SHALL be refused with a reported reason rather than parked when R names no change at all
+- **AND** the projection preserves the prior record's `back_edge` and every standing decision it did not itself upsert
+- **AND** after `gate-answer --roadmap R --gate roadmap_approval --decision approved` the next rehydrate shows no such entry and a standing decision `roadmap_approval:proceed` scoped to R
+- **AND** a subsequent `gate-check --roadmap R` that reuses the decision leaves the mirror's `written_at` unchanged
+
