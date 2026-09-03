@@ -92,13 +92,13 @@ functions, each an M-or-smaller task below).
   **Dependencies**: 2.7
   **Files**: skills/supervise/scripts/cycle_state.py
 
-- [ ] 2.10 Write the end-to-end evaluation-log test — fake coordinator + in-memory evaluator drive cycle → execute → parked child → posture flip → resume, plus a second cycle that reuses the roadmap approval and honours a late coordinator answer; assert `gate-log` has one record per evaluate/answer/`check_filed` decision (and none for reuse or re-surface), every `approval_ref` resolves, and a contract test round-trips an undelivered proceed (`notified: false`) against a genuine `default_action: block` timeout, proving both are distinguishable from the persisted record alone without parsing `reason`. Place at least one child's `loop-state.json` in a worktree outside the supervisor repo root, so the test exercises the attempt-resolved path of D6 rather than a co-located tmp tree (M)
+- [x] 2.10 Write the end-to-end evaluation-log test — fake coordinator + in-memory evaluator drive cycle → execute → parked child → posture flip → resume, plus a second cycle that reuses the roadmap approval and honours a late coordinator answer; assert `gate-log` has one record per evaluate/answer/`check_filed` decision (and none for reuse or re-surface), every `approval_ref` resolves, and a contract test round-trips an undelivered proceed (`notified: false`) against a genuine `default_action: block` timeout, proving both are distinguishable from the persisted record alone without parsing `reason`. Place at least one child's `loop-state.json` in a worktree outside the supervisor repo root, so the test exercises the attempt-resolved path of D6 rather than a co-located tmp tree (M)
   **Spec scenarios**: supervise.Supervise Gate Routing.8; proposal acceptance outcomes 1–3
   **Design decisions**: D2–D6
   **Dependencies**: 2.9
   **Files**: skills/tests/supervise/test_gate_router_e2e.py
 
-- [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/tests/supervise -q`, review diff, verify scope
+- [x] Checkpoint: run `skills/.venv/bin/python -m pytest skills/tests/supervise -q`, review diff, verify scope
 
 ## 3. Skill text and prose-free enforcement (wp-skill-docs)
 
