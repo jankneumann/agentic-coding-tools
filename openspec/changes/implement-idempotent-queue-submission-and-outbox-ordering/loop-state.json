@@ -1,7 +1,7 @@
 {
   "schema_version": 5,
   "change_id": "implement-idempotent-queue-submission-and-outbox-ordering",
-  "current_phase": "VALIDATE",
+  "current_phase": "VAL_FIX",
   "iteration": 2,
   "total_iterations": 29,
   "max_phase_iterations": 3,
@@ -48,7 +48,8 @@
     "validation-fix-4-1",
     "validation-5-1",
     "validation-review-5-1",
-    "validation-fix-5-1"
+    "validation-fix-5-1",
+    "validation-6-1"
   ],
   "phase_history": [
     {
@@ -204,17 +205,22 @@
       "at": "2026-09-02T13:39:51.605536+00:00",
       "outcome": "fixed",
       "phase": "VAL_FIX"
+    },
+    {
+      "at": "2026-09-03T01:13:40.625521+00:00",
+      "outcome": "failed",
+      "phase": "VALIDATE"
     }
   ],
-  "last_handoff_id": "validation-fix-5-1",
+  "last_handoff_id": "validation-6-1",
   "started_at": "2026-09-01T22:47:26.224636+00:00",
-  "phase_started_at": "2026-09-02T13:39:51.654695+00:00",
-  "previous_phase": "VAL_FIX",
+  "phase_started_at": "2026-09-03T01:13:40.675412+00:00",
+  "previous_phase": "VALIDATE",
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "implementer",
+  "phase_archetype": "validator",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -296,6 +302,33 @@
       "reason": "gate 'merge' parked: trust posture disposition is block",
       "recorded_at": "2026-09-02T03:27:16.550488+00:00",
       "resolution": "posture_block"
+    },
+    {
+      "gate": "validation_failure",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'validation_failure' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "VAL_FIX",
+      "recorded_at": "2026-09-03T01:13:42.702145+00:00"
+    },
+    {
+      "gate": "validation_failure",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'validation_failure' approved by the operator \u2014 Operator instructed this session to continue the autopilot-roadmap ri-08 run where Codex left off; Validation 6 failed on one identified root cause (DirectPostgresClient.query does not decode jsonb), which proceeds to VAL_FIX as in earlier iterations.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "VAL_FIX",
+      "recorded_at": "2026-09-03T01:14:27.307698+00:00",
+      "note": "Operator instructed this session to continue the autopilot-roadmap ri-08 run where Codex left off; Validation 6 failed on one identified root cause (DirectPostgresClient.query does not decode jsonb), which proceeds to VAL_FIX as in earlier iterations."
     }
   ],
   "pending_gate": null,
