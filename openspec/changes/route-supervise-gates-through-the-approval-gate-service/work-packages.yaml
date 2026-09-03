@@ -125,7 +125,9 @@ packages:
     title: "Gate router, provenance, and cycle_state subcommands"
     task_type: implementation
     description: |
-      Tasks 2.1-2.10. Add gate_router.py as the only supervise path to ApprovalGate,
+      Tasks 2.0-2.10. Task 2.0 first prepares cycle_state.py (Gate/Disposition imports,
+      decision_id passthrough in _clean_pending_gate) so the router's projection has
+      somewhere to land. Then add gate_router.py as the only supervise path to ApprovalGate,
       make ExecutionAdapter.prepare/resume demand a resolving approval_ref, add the
       gate-check / gate-answer / gate-log subcommands, and prove the evaluation log with
       an end-to-end simulated run.

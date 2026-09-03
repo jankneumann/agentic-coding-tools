@@ -20,7 +20,7 @@ review artifact and the diff target for `wp-contracts`.
 | File | Stable location | Delta |
 |---|---|---|
 | `trust-posture.schema.json` | `openspec/schemas/trust-posture.schema.json` | `gates.roadmap_approval` added (same shape as the other eight) |
-| `gate-decision.schema.json` | `openspec/schemas/gate-decision.schema.json` | `gate` enum grows to nine; optional `decision_id`, `source`, `verb` (`cycle` / `execute` / `resume`), `roadmap_id`, `change_id`, `dispatch_id`, `item_id` documented — the schema already allowed additional properties, but declaring them is what keeps implementers and tests from disagreeing about their shape |
+| `gate-decision.schema.json` | `openspec/schemas/gate-decision.schema.json` | `gate` enum grows to nine; optional `decision_id`, `source`, `verb` (`cycle` / `execute` / `resume`), `roadmap_id`, `change_id`, `dispatch_id`, `item_id`, `notified` (bool), `roadmap_fingerprint` (sha256) documented — the schema already allowed additional properties, but declaring them is what keeps implementers and tests from disagreeing about their shape |
 | `gate-request.schema.json` | `openspec/schemas/gate-request.schema.json` | `gate` enum grows to nine (`test_gate_schemas.py::test_gate_enum_matches_trust_posture` pins it to `Gate`; the supervise router never writes a GateRequest, but the enum must agree) |
 | `supervisor-record.schema.json` | `openspec/schemas/supervisor-record.schema.json` | `$defs.gate` enum grows to nine; `pendingGate.decision_id` optional |
 | `supervisor-record-mirror.schema.json` | `openspec/schemas/supervisor-record-mirror.schema.json` | Same two edits as the canonical record schema — the mirror embeds the gate enum literally rather than referencing it |

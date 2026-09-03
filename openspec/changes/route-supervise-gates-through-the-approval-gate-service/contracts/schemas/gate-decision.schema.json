@@ -134,6 +134,18 @@
     "item_id": {
       "type": "string",
       "minLength": 1
+    },
+    "notified": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Whether push_notification reported delivery when this decision's approval was filed. Present only on notify_with_timeout records; combined with default_action (the posture's declared value, unchanged by the fail-closed override) it lets a reader distinguish a genuine default_action:block timeout (notified=true) from an undelivered proceed forced to block (notified=false)."
+    },
+    "roadmap_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 over the roadmap's authorized DAG shape (item_id, change_id, depends_on, external_depends_on, normalized_status) at evaluation time. Stamped on every roadmap_approval record; require_approval_ref rejects a reference whose stored fingerprint does not match the roadmap's current shape."
     }
   }
 }

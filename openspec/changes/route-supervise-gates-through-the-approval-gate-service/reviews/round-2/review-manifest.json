@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "plan",
+  "created_at": "2026-09-03T04:35:54Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": [
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 89.18889449513517,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": false,
+      "model_used": "(default)",
+      "models_attempted": [
+        "(default)"
+      ],
+      "elapsed_seconds": 530.0671105731744,
+      "error": "Findings failed review-findings schema validation: findings/1/type: 'spec-delta' is not one of ['spec_gap', 'contract_mismatch', 'architecture', 'security', 'performance', 'style', 'correctness', 'observability', 'compatibility', 'resilience', 'behavioral_failure']; findings/2/type: 'sequencing' is not one of ['spec_gap', 'contract_mismatch', 'architecture', 'security', 'performance', 'style', 'correctness', 'observability', 'compatibility', 'resilience', 'behavioral_failure']; findings/6/type: 'feasibility' is not one of ['spec_gap', 'contract_mismatch', 'architecture', 'security', 'performance', 'style', 'correctness', 'observability', 'compatibility', 'resilience', 'behavioral_failure']; findings/7/type: 'sequencing' is not one of ['spec_gap', 'contract_mismatch', 'architecture', 'security', 'performance', 'style', 'correctness', 'observability', 'compatibility', 'resilience', 'behavioral_failure']; findings/8/type: 'clarity' is not one of ['spec_gap', 'contract_mismatch', 'architecture', 'security', 'performance', 'style', 'correctness', 'observability', 'compatibility', 'resilience', 'behavioral_failure']",
+      "error_class": null
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 444.150932649849,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "qwen/qwen3-coder",
+      "models_attempted": [
+        "qwen/qwen3-coder"
+      ],
+      "elapsed_seconds": 113.31974984519184,
+      "error": "Findings failed review-findings schema validation: findings/5/type: 'consistency' is not one of ['spec_gap', 'contract_mismatch', 'architecture', 'security', 'performance', 'style', 'correctness', 'observability', 'compatibility', 'resilience', 'behavioral_failure']; findings/6/axis: 'completeness' is not one of ['correctness', 'readability', 'architecture', 'security', 'performance', 'observability', 'resilience', 'compatibility']; findings/6/type: 'coverage' is not one of ['spec_gap', 'contract_mismatch', 'architecture', 'security', 'performance', 'style', 'correctness', 'observability', 'compatibility', 'resilience', 'behavioral_failure']",
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 2,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-plan.json",
+      "finding_count": 8
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-plan.json",
+      "finding_count": 8
+    }
+  ]
+}
