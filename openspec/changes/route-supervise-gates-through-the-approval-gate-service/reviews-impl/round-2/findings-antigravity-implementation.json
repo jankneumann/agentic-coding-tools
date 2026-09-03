@@ -1,0 +1,18 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Verified commit dc8bacf7 closes round 1's findings 1-6 cleanly and introduces no new gaps. 1) ExecutionAdapter.prepare() in skills/supervise/scripts/execution.py constructs an in-memory Checkpoint without calling CheckpointManager.create(roadmap), preventing checkpoint.json creation on disk when require_approval_ref refuses. 2) gate_router.evaluate() and answer() in skills/supervise/scripts/gate_router.py invoke _project() prior to manager.record_gate_decision(), ensuring GateRefusalError aborts before mutating state; cycle_state.py gate-check catches GateRefusalError and exits 2. 3) _apply_prior_record checks _TERMINAL_BLOCK_RESOLUTIONS before checking approval_id, preventing re-polling check_filed on terminal rejected prior records. 4) _apply_prior_record compares fresh check_filed outcome and resolution against prior records to re-surface recurring expired statuses without appending duplicate timeout_block records. 5) _pending_gate_entry anchors the filed-approval deadline on approval_id + timeout_seconds regardless of default_action presence. 6) _unreachable in skills/shared/approval_gate.py threads notified through on poll failure and missing notified fields are coerced to False. All 8 regression tests exercise these exact gaps directly and fail on un-fixed code.",
+      "resolution": "None required \u2014 all round-1 findings are resolved and verified.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "whole-branch"
+    }
+  ]
+}

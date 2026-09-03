@@ -1,0 +1,39 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Commit dc8bacf7 closes round-1 findings 1\u20136 with no new correctness gap. (1) `ExecutionAdapter.prepare` builds an in-memory `Checkpoint.create(...)` when no file exists and only then calls `require_approval_ref` \u2014 `test_prepare_rejects_missing_approval_ref_without_creating_checkpoint` would fail under the old `CheckpointManager.create` write. (2) `evaluate`/`answer` call `_project` before `record_gate_decision` (and only persist a non-reused prior after project succeeds); both no-`change_id` tests assert `gate_decisions == []` after `GateRefusalError`, and `cycle_state` gate-check now catches that refusal as exit 2. (3) `_TERMINAL_BLOCK_RESOLUTIONS` is checked before the `approval_id`/`check_filed` branch; `test_terminal_rejected_prior_with_approval_id_is_not_repolled` asserts `coord2.calls == []`, so it would still fail if only the outcome/resolution equality guard existed. (4) Unchanged `check_filed` results are detected by outcome/resolution equality and re-surfaced without append; `test_repeated_expired_check_resurfaces_unchanged_instead_of_duplicating` pins a single `gate_decisions` row and stable `decision_id`. (5) `_pending_gate_entry` anchors the filed deadline on `approval_id` + persisted `timeout_seconds`; the unreachable-after-file test asserts a 30s window with `default_action is None`. (6) Missing `notified` is coerced to `False` before `check_filed`, and `_unreachable` threads a known `notified` after a successful `push_notification` (and on `check_filed`'s poll failure). All eight named regression tests pass.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No code action. Round-1 gaps 1\u20136 are closed; keep the new regressions as the lock for this fix pass.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": {
+        "start": 405,
+        "end": 512
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: Finding 6's coerce half is locked by `test_missing_notified_on_prior_record_is_coerced_to_false_not_none` (`second.decision.notified is False` fails if `None` is passed through). The `_unreachable(..., notified=notified)` half after a successful `push_notification` is correct in `approval_gate.py` (live evaluate with `raise_on=\"check\"` yields `notified is True`), but neither that shared path (`test_unreachable_on_check_preserves_approval_id`) nor `test_pending_entry_deadline_after_unreachable_following_a_filed_notification` asserts `notified is True` / persisted `notified: true`. Dropping the kwarg would still leave those tests green.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Add `assert decision.notified is True` (and/or `assert routed.record[\"notified\"] is True`) on the filed-then-poll-unreachable path so a future regression of the threading fix cannot land silently.",
+      "package_id": "whole-branch",
+      "file_path": "skills/shared/approval_gate.py",
+      "line_range": {
+        "start": 461,
+        "end": 470
+      }
+    }
+  ]
+}
