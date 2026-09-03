@@ -173,6 +173,17 @@ periodic checkpoint. The digest logic lands in a new `scripts/digest.py` so
   ri-02 shipped. Sequence after ri-16 only if the roadmap ordering is enforced.
 - `refine-roadmap` skill — on main (`e610553c`)
 
+> **Rebase note (ri-04, `route-supervise-gates-through-the-approval-gate-service`).**
+> That change rewrote `skills/supervise/SKILL.md`'s `cycle` **§5. Digest, then stop**
+> as a `cycle_state.py gate-check` / `gate-answer` protocol block (the roadmap-approval
+> gate that was prose is now recorded), and lightly touched the closing "Why the gate
+> sits here" / "On approval" paragraphs. This plan's own rewrite of `cycle` §2–§5
+> should land on top of that block rather than reintroducing the retired
+> `Then **stop**.` prose. `skills/supervise/scripts/cycle_state.py` itself needs no
+> rebase note — ri-04 only added new `gate-check` / `gate-answer` / `gate-log`
+> subcommands there; it did not touch the digest/rank/dedupe functions this change
+> extends.
+
 ## Acceptance Outcomes
 
 - A supervise session produces a ranked digest of schema-valid candidate stubs on request or at its periodic checkpoint.
