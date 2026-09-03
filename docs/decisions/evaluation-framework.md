@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-09-02 — add-harbor-benchmark-routing
+
+### Phase: Plan review remediation
+
+**Metered cap enforced by pre-launch reservation, not observed spend (D4)** — Trial cost is only known on completion, so `accumulated >= cap` admits trials that overshoot by one or more full trial costs when attempts run in parallel; admission is now spent + reserved + conservative estimate ≤ cap
+
+- Status: `active`
+- Source: [openspec/changes/add-harbor-benchmark-routing/session-log.md](/openspec/changes/add-harbor-benchmark-routing/session-log.md) (D2)
+
+---
+
+## 2026-09-02 — add-harbor-benchmark-routing
+
+### Phase: Plan review remediation
+
+**`task_type` is a specified deterministic reduction over `package_kind`, not a lookup (D7)** — only 34 of 115 archived changes declare any `package_kind` and 28 of those declare two or more distinct kinds, so multi-kind is the common case, not an edge case; without a rule, conversion either fails or labels trials arbitrarily and corrupts the posteriors it feeds
+
+- Status: `active`
+- Source: [openspec/changes/add-harbor-benchmark-routing/session-log.md](/openspec/changes/add-harbor-benchmark-routing/session-log.md) (D3)
+
+---
+
 ## 2026-09-01 — add-harbor-benchmark-routing
 
 ### Phase: Plan
