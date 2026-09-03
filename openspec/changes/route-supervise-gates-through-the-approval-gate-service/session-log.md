@@ -115,3 +115,77 @@ Iteration 1 addressed 12 findings (5 high, 5 medium, 2 low). The largest correct
 ### Context
 Iteration 2 found that nothing deterministic writes pending_gates or standing_decisions into the supervisor record, and that the cycle SKILL's final record write would overwrite anything the gate wrote. Added D7 (router projects gate state into the tracked mirror through cycle_state.write_mirror; the final record step re-selects the prior via rehydrate), made execute open with gate-check to source roadmap_approval_ref, and excluded gate-check from dry-run cycles. No findings at or above medium remain.
 
+
+## Phase: Implement — Acceptance Outcome 1 Walk (2026-09-03)
+
+**Agent**: claude_code (inline, wp-integration task 4.3) | **Session**: N/A
+
+### What was verified
+
+The supervise-side portion of acceptance outcome 1 ("a single conversation takes a
+natural-language request to a merged PR with the human touched only at gates whose
+posture is not `auto`"): a `cycle` → `gate-check` → `execute` walk reaches dispatch
+with **zero console interaction**, against a scratch copy of `TRUST_POSTURE.template.md`
+with every one of its nine gates flipped from `block` to `auto`.
+
+**Setup**: a scratch repo (outside this worktree) with the all-`auto` posture at
+`TRUST_POSTURE.md`, one roadmap `walk-alpha` (item `ri-01`, `change_id: walk-change`),
+and a minimal `work-packages.yaml` + child `loop-state.json` for `walk-change`.
+
+**Command sequence, exactly as `skills/supervise/SKILL.md` documents it, real code, no mocks**:
+
+```bash
+skills/.venv/bin/python skills/supervise/scripts/cycle_state.py \
+  --repo-root "$SCRATCH_REPO" gate-check --roadmap walk-alpha
+# exit 3 (proceed) — no console answer. Record:
+#   decision_id 11e5071f-50f3-4cf8-8ed1-bdede420b378
+#   resolution "auto", outcome "proceed"
+#   roadmap_approval_ref "gate-decision:11e5071f-50f3-4cf8-8ed1-bdede420b378"
+```
+
+That `roadmap_approval_ref` was then passed straight to `ExecutionAdapter.prepare`
+(`execute`'s own opening step, per D3): `prepare` returned **1 request** with a real
+`dispatch_id` (`batch-ca8a8a244323ef6cab46eaed:ri-01:attempt-1`) — dispatch reached,
+again with no console answer.
+
+**`gate-log --roadmap walk-alpha` output** (the full evaluation log for this run — one
+record, matching the one real decision the walk made; no duplicate for any reuse,
+since there was only one `gate-check` call):
+
+```json
+[
+  {
+    "gate": "roadmap_approval",
+    "outcome": "proceed",
+    "resolution": "auto",
+    "authorizing_disposition": "auto",
+    "decision_id": "11e5071f-50f3-4cf8-8ed1-bdede420b378",
+    "roadmap_id": "walk-alpha",
+    "roadmap_fingerprint": "fbf4338a1e6a0db75a535e7d46816cf5307f3e69843bda354b8616b775fbb384",
+    "posture_present": true,
+    "origin": "checkpoint",
+    "phase": "SUPERVISE",
+    "verb": "cycle",
+    "recorded_at": "2026-09-03T16:55:48.428496+00:00"
+  }
+]
+```
+
+(A benign `audit sink reported failure` stderr line appeared on `gate-check` — the
+coordinator is unreachable from this scratch context; `_record_audit` is best-effort by
+design (ri-05) and did not block the walk. The checkpoint-sidecar record above is the
+durable one `gate-log` reads.)
+
+### What this walk does NOT cover
+
+Per task 4.3's own scope note: the dispatched child's own `pr_creation` and `merge`
+gates are evaluated **inside the child's own `/autopilot` run**, against the posture
+committed on *the child's branch* — that is `roadmap-always-on-agent-automation` ri-06's
+already-verified surface (`skills/tests/autopilot/test_gate_call_sites.py` and
+`test_prose_free_gates.py`), not against this walk's scratch `TRUST_POSTURE.md`. This
+walk proves the supervisor never asks a human when every posture is `auto`; it does not
+itself prove a child reaches SUBMIT_PR/DONE, since that requires a full `/autopilot`
+run this scratch fixture's stub `work-packages.yaml`/`loop-state.json` never starts.
+**"To a merged PR" is only genuinely end-to-end when the same all-`auto` posture is
+committed on both the supervisor's `TRUST_POSTURE.md` and the dispatched item's own
+branch** — two separately-verified surfaces this task deliberately does not conflate.

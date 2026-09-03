@@ -127,10 +127,10 @@ functions, each an M-or-smaller task below).
   **Dependencies**: 3.2, 3.3
   **Files**: .claude/skills/**, .agents/skills/**
 
-- [ ] 4.2 Run the full skills suites one process per directory as CI does — `skills/shared/tests`, `skills/tests/supervise`, `skills/tests/autopilot`, `skills/tests/autopilot-roadmap`, `skills/tests/roadmap-runtime`, `skills/autopilot/tests`, `skills/tests/ci_coverage` — plus `openspec validate route-supervise-gates-through-the-approval-gate-service --strict` (S)
+- [x] 4.2 Run the full skills suites one process per directory as CI does — `skills/shared/tests`, `skills/tests/supervise`, `skills/tests/autopilot`, `skills/tests/autopilot-roadmap`, `skills/tests/roadmap-runtime`, `skills/autopilot/tests`, `skills/tests/ci_coverage` — plus `openspec validate route-supervise-gates-through-the-approval-gate-service --strict` (S)
   **Dependencies**: 2.10, 3.4, 4.1
   **Files**: (none)
 
-- [ ] 4.3 Verify the supervise-side portion of acceptance outcome 1 manually against a copy of the template with every gate set to `auto` — a `cycle` → `gate-check` → `execute` walk reaches dispatch with no console answer; record the `gate-log` output in `session-log.md`. State in that record what the walk does *not* cover: the child's own `pr_creation` and `merge` gates are evaluated against the posture committed on the child's branch (ri-06's already-verified surface), not against this template copy, so "to a merged PR" is only end-to-end when the posture is committed (S)
+- [x] 4.3 Verify the supervise-side portion of acceptance outcome 1 manually against a copy of the template with every gate set to `auto` — a `cycle` → `gate-check` → `execute` walk reaches dispatch with no console answer; record the `gate-log` output in `session-log.md`. State in that record what the walk does *not* cover: the child's own `pr_creation` and `merge` gates are evaluated against the posture committed on the child's branch (ri-06's already-verified surface), not against this template copy, so "to a merged PR" is only end-to-end when the posture is committed (S)
   **Dependencies**: 4.2
   **Files**: openspec/changes/route-supervise-gates-through-the-approval-gate-service/session-log.md
