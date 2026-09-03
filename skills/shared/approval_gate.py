@@ -349,16 +349,19 @@ class ApprovalGate:
         re-implementing any of the timeout / default-action / undelivered-
         notification-fail-closed logic outside this module.
 
-        Returns ``None`` for a still-``pending`` status (nothing to record — the
-        caller should re-surface its existing parked entry unchanged) or a
-        terminal :class:`ApprovalDecision` for ``approved`` / ``denied`` /
-        ``expired`` (the latter resolved through the SAME ``notified``-aware
-        fail-closed path :meth:`evaluate` uses, so an expired approval whose
-        notification was never delivered is never upgraded to ``proceed`` here
-        either). The disposition is resolved from the LIVE posture (hot reload),
-        never from the stale record that filed the original approval. Audit is
-        recorded only for a terminal decision — a still-pending status is not an
-        event worth logging on every poll.
+        Returns ``None`` — nothing to record, the caller should re-surface its
+        existing parked entry unchanged — for a still-``pending`` status, OR
+        for an ``expired`` status when ``notified`` is ``False``: an
+        undelivered notification means the human never had a chance to
+        answer, so a server-side ``expired`` tells us nothing new beyond the
+        block a prior :meth:`evaluate` already decided and audited. Otherwise
+        returns a terminal :class:`ApprovalDecision` for ``approved`` /
+        ``denied`` / an ``expired`` status with ``notified=True`` (resolved
+        through the SAME fail-closed :meth:`_apply_default` path
+        :meth:`evaluate` uses on its own local timeout). The disposition is
+        resolved from the LIVE posture (hot reload), never from the stale
+        record that filed the original approval. Audit is recorded only for a
+        terminal (non-``None``) decision.
         """
         gate_enum = gate if isinstance(gate, Gate) else Gate(gate)
         posture = self.posture_loader(self.repo_root, path=self.posture_path)

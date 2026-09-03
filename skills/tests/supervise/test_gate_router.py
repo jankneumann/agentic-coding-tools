@@ -360,11 +360,16 @@ class TestNotifyPosture:
     def test_repeated_expired_check_resurfaces_unchanged_instead_of_duplicating(
         self, repo: Path, workspace: Path
     ) -> None:
-        """`check_filed` returns a terminal decision for a server-side `expired`
-        status, never `None` -- so re-surfacing a still-expired approval has to
-        be detected by comparing the fresh decision to the prior record, not by
-        `checked is None`. Without that comparison every re-check would append
-        another `timeout_block` row for the same never-answered approval."""
+        """`check_filed` returns `None` for a repeated `expired` status when
+        the prior filing's `notified` was `False` (undelivered -- nothing new
+        to report), so this re-surfaces via the `checked is None` branch, the
+        same as a still-`pending` status -- NOT via `_apply_prior_record`'s
+        outcome/resolution equality comparison, which exists for a case
+        `check_filed` DOES return a fresh terminal decision on every call
+        (e.g. a repeated `expired`+`notified=True`, or `coordinator_unreachable`).
+        Either mechanism must produce the same externally-observable result:
+        no duplicate `timeout_block` row for the same never-answered
+        approval."""
         coord = FakeCoordinator(statuses=["pending"], notify_return=False)
         service = make_service(posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK), coordinator=coord)
         first = gate_router.evaluate(Gate.ROADMAP_APPROVAL, {}, workspace=workspace, repo_root=repo, evaluator=service)

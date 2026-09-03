@@ -1,0 +1,39 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Commit b8ce3dd7 closes both round-1 gaps with no new behavioral trust-boundary divergence. (1) `_interpret_status`'s `expired` branch returns `None` when `not notified` before `_apply_default`, covering both `check_filed` (re-check \u2192 prior stands, unaudited) and `_notify`'s poll loop (server `expired` + undelivered \u2192 keep waiting; local-timeout still calls `_apply_default` directly once). (2) `test_check_filed_expired_undelivered_stays_blocked` now asserts `decision is None` and `audit.records == []`, matching skill-workflow \"Late coordinator answer\". (3) `test_notify_server_expired_undelivered_keeps_polling_until_local_timeout` is discriminating: `assert check_approval count > 1` fails if the early return is removed (outcome alone would still be TIMEOUT_BLOCK). (4) `test_missing_notified_on_prior_record_is_coerced_to_false_not_none` was correctly moved to a late `approved` re-check where coercion is observable (`notified is False`), not silently weakened. (5) Canonical vs change-local `gate-decision.schema.json` now match on `roadmap_fingerprint`/`decision_id` type+pattern (descriptions still differ, harmless). Broad pass over `approval_gate.py` / `gate_router.py` / `execution.py` found no further spec-vs-code behavioral gap of the round-1 kind; prepare/resume `require_approval_ref`, notified coerce-to-False, and terminal-rejected-before-`approval_id` paths remain coherent with supervise Gate Routing.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No merge-blocking action. Optional cleanup of residual inverted-contract comments is tracked separately as finding 2.",
+      "package_id": "whole-branch",
+      "file_path": "skills/shared/approval_gate.py",
+      "line_range": {
+        "start": 523,
+        "end": 535
+      }
+    },
+    {
+      "id": 2,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: Residual docs still assert the pre-fix inverted contract that `check_filed` never returns `None` for server-side `expired`. `gate_router._apply_prior_record` (lines 495\u2013499) says equality comparison is required because `check_filed` \"always returns a terminal decision for a terminal server status, never `None`\" \u2014 but undelivered `expired` now correctly returns `None` and is handled by the preceding `checked is None` branch. Sibling `test_repeated_expired_check_resurfaces_unchanged_instead_of_duplicating` still documents the same false mechanism (test still passes via the None path). `ApprovalGate.check_filed`'s docstring still lists `expired` only as a terminal arm and omits the undelivered\u2192None case. Behavior matches the spec; these comments are landmines for a future \"fix\".",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Update the three sites to state: `expired`+`notified=False` \u2192 `None` (re-surface / keep polling); `expired`+`notified=True` \u2192 `_apply_default`; equality reuse remains for other unchanged terminals (e.g. delivered expired \u2192 same TIMEOUT_*).",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": {
+        "start": 488,
+        "end": 499
+      }
+    }
+  ]
+}
