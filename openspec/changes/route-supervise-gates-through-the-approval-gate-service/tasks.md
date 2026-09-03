@@ -6,9 +6,9 @@ functions, each an M-or-smaller task below).
 
 ## 1. Contracts — ninth gate and shared console decision (wp-contracts)
 
-- [ ] 1.1 Write tests for the `roadmap_approval` gate — enum has nine members, template validates and resolves every gate to `block`, absent posture blocks `roadmap_approval`, schemas accept it (S)
-  **Spec scenarios**: skill-workflow.Roadmap Approval Gate.1 (nine gates), .2 (absent posture), supervise.Supervisor Rehydration Record "Pending gate carries the deadline" (nine values)
-  **Contracts**: contracts/schemas/trust-posture.schema.json, contracts/schemas/gate-decision.schema.json, contracts/schemas/supervisor-record.schema.json
+- [ ] 1.1 Write tests for the `roadmap_approval` gate — enum has nine members, template validates and resolves every gate to `block`, absent posture blocks `roadmap_approval`, all five gate-bearing schemas (`trust-posture`, `gate-decision`, `gate-request`, `supervisor-record`, `supervisor-record-mirror`) accept it and `test_gate_enum_matches_trust_posture` stays pinned to `Gate` (S)
+  **Spec scenarios**: skill-workflow.Roadmap Approval Gate.1 (nine gates in every schema), .2 (absent posture), supervise.Supervisor Rehydration Record "Pending gate carries the deadline" (nine values)
+  **Contracts**: contracts/schemas/trust-posture.schema.json, contracts/schemas/gate-decision.schema.json, contracts/schemas/gate-request.schema.json, contracts/schemas/supervisor-record.schema.json, contracts/schemas/supervisor-record-mirror.schema.json
   **Design decisions**: D1
   **Dependencies**: None
   **Files**: skills/shared/tests/test_trust_posture.py, skills/shared/tests/test_approval_gate.py, skills/tests/autopilot/test_gate_schemas.py, skills/tests/supervise/test_supervisor_record_schema.py
@@ -17,41 +17,41 @@ functions, each an M-or-smaller task below).
   **Dependencies**: 1.1
   **Files**: skills/shared/trust_posture.py, TRUST_POSTURE.template.md
 
-- [ ] 1.3 Grow the three canonical schemas to nine gates — `trust-posture.schema.json` `gates` properties, `gate-decision.schema.json` `gate` enum plus documented optional `decision_id`, `source`, `roadmap_id`, `change_id`, `dispatch_id`, `item_id`, `supervisor-record.schema.json` `$defs.gate` and `pendingGate.decision_id`; check the mirror schema for an embedded enum (S)
+- [ ] 1.3 Grow the five gate-bearing canonical schemas to nine gates — `trust-posture.schema.json` `gates` properties; `gate-decision.schema.json` `gate` enum plus documented optional `decision_id`, `source`, `verb`, `roadmap_id`, `change_id`, `dispatch_id`, `item_id`; `gate-request.schema.json` `gate` enum; `supervisor-record.schema.json` and `supervisor-record-mirror.schema.json` `$defs.gate` and `pendingGate.decision_id` (both embed the enum literally and both `pendingGate` defs are `additionalProperties: false`) (S)
   **Dependencies**: 1.1
-  **Files**: openspec/schemas/trust-posture.schema.json, openspec/schemas/gate-decision.schema.json, openspec/schemas/supervisor-record.schema.json, openspec/schemas/supervisor-record-mirror.schema.json
+  **Files**: openspec/schemas/trust-posture.schema.json, openspec/schemas/gate-decision.schema.json, openspec/schemas/gate-request.schema.json, openspec/schemas/supervisor-record.schema.json, openspec/schemas/supervisor-record-mirror.schema.json
 
 - [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/autopilot/test_gate_schemas.py -q`, review diff, verify scope
 
-- [ ] 1.4 Write tests for the shared `console_decision` helper — same record shape as `runner._console_decision`, runner delegates to it, `test_gate_call_sites` treats `roadmap_approval` like `replan_required` (S)
-  **Spec scenarios**: skill-workflow.Roadmap Approval Gate.3 (call-site invariant)
-  **Design decisions**: D2
+- [ ] 1.4 Write tests for the shared record helpers — `console_decision(gate, posture, approved, note)` produces the same record shape as `runner._console_decision`; `build_gate_decision_record` produces byte-identical records to today's `autopilot.build_gate_decision_record`; `ApprovalGate.check_filed(gate, approval_id)` maps `approved`/`denied`/`expired`/`pending` exactly as `_interpret_status` does (returning `None` for pending) and records audit for terminal decisions; runner and autopilot delegate to the shared helpers (existing `test_console_interviewer.py` cases stay green); `test_gate_call_sites` lists `roadmap_approval` next to `replan_required` as a non-autopilot gate (S)
+  **Spec scenarios**: skill-workflow.Roadmap Approval Gate.3 (call-site invariant), .5 (late coordinator answer)
+  **Design decisions**: D2, D4
   **Dependencies**: 1.2
-  **Files**: skills/shared/tests/test_approval_gate.py, skills/tests/autopilot/test_gate_call_sites.py, skills/autopilot/tests/test_runner_gates.py (or nearest existing runner gate test)
+  **Files**: skills/shared/tests/test_approval_gate.py, skills/tests/autopilot/test_gate_call_sites.py, skills/tests/autopilot/test_console_interviewer.py
 
-- [ ] 1.5 Extract `console_decision(gate, posture, approved, note)` into `shared.approval_gate` — make `runner._console_decision` a thin delegate (S)
+- [ ] 1.5 Move `build_gate_decision_record` and `console_decision` into `shared.approval_gate` and add `ApprovalGate.check_filed` — `autopilot.build_gate_decision_record` and `runner._console_decision` become thin delegates (autopilot call sites untouched) (S)
   **Dependencies**: 1.4
-  **Files**: skills/shared/approval_gate.py, skills/autopilot/scripts/runner.py
+  **Files**: skills/shared/approval_gate.py, skills/autopilot/scripts/runner.py, skills/autopilot/scripts/autopilot.py
 
 - [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/shared/tests -q` and `cd skills && uv run pytest tests/autopilot -q`, review diff, verify scope
 
 ## 2. Gate router and provenance (wp-router)
 
-- [ ] 2.1 Write tests for `gate_router.evaluate` and `answer` — record carries `decision_id`/`source`/correlation ids, lands in the checkpoint sidecar, console answer mirrors to `standing_decisions`, hot reload reflected on next evaluate, router is the only seam (AST scan) (M)
-  **Spec scenarios**: supervise.Supervise Gate Routing.1 (auto), .2 (block + console), .3 (notify files once), .7 (only seam)
+- [ ] 2.1 Write tests for `gate_router.evaluate` and `answer` — record carries `decision_id`/`source`/`verb`/correlation ids, lands in the checkpoint sidecar, console answer mirrors to `standing_decisions`, hot reload reflected on next evaluate, prior-record rule (a `proceed` record for the same subject key is reused without evaluating; an open `posture_block` is re-surfaced with the same `decision_id`/`deadline` unless the disposition changed; a blocked record with an `approval_id` goes through `check_filed` before anything is re-filed; a `rejected` record is terminal until the subject key changes or `gate-answer` runs), `roadmap_fingerprint` changes on a DAG edit but not on item completion, originating `gate-answer` accepted only for `roadmap_approval`, router is the only seam (AST scan) (M)
+  **Spec scenarios**: supervise.Supervise Gate Routing.1 (auto), .2 (block + console), .3 (notify waits, late answer), .4 (ask once), .5 (originating console answer), .9 (only seam)
   **Contracts**: contracts/schemas/gate-decision.schema.json
-  **Design decisions**: D2, D5, D6
+  **Design decisions**: D2, D4, D5, D6
   **Dependencies**: 1.3, 1.5
   **Files**: skills/tests/supervise/test_gate_router.py
 
-- [ ] 2.2 Implement `gate_router.py` `evaluate`, `answer`, `require_approval_ref`, `gate_log` — default evaluator `build_default_gate(agent_id="supervise", repo_root=…)`, records via `CheckpointManager.record_gate_decision`, `approval_ref` format `gate-decision:<uuid4>` (M)
+- [ ] 2.2 Implement `gate_router.py` `evaluate`, `answer`, `require_approval_ref`, `gate_log`, `roadmap_fingerprint` — default evaluator `build_default_gate(agent_id="supervise", repo_root=…)`, records via `CheckpointManager.record_gate_decision`, `approval_ref` format `gate-decision:<uuid4>`, prior-record rule per D4 step 0 (M)
   **Dependencies**: 2.1
   **Files**: skills/supervise/scripts/gate_router.py
 
 - [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/tests/supervise -q`, review diff, verify scope
 
-- [ ] 2.3 Write tests for `resolve_parked` — `pending_gate` re-evaluated against current posture, filed `approval_id` checked before re-filing, `policy_pause` → `escalate_resume`, unknown gate raises without recording, `BLOCKED` yields a `pending_gates` entry with 7-day block horizon (M)
-  **Spec scenarios**: supervise.Supervise Gate Routing.4 (posture flip), .5 (policy pause), .8 (unknown gate); supervise.Background Worktree Isolation "Child parks at a pending gate"
+- [ ] 2.3 Write tests for `resolve_parked` — `pending_gate` re-evaluated against the current posture (the child snapshot carries no `approval_id`; a flip to `auto` resumes with no console answer), a prior router record for the same `dispatch_id` follows the prior-record rule, `policy_pause` → `escalate_resume`, unknown gate raises without recording, `BLOCKED` yields a `pending_gates` entry whose `deadline` is `requested_at + timeout_seconds` when an approval was filed and `+ 7 days` otherwise (M)
+  **Spec scenarios**: supervise.Supervise Gate Routing.6 (posture flip), .7 (policy pause), .10 (unknown gate); supervise.Background Worktree Isolation "Child parks at a pending gate"
   **Design decisions**: D4
   **Dependencies**: 2.2
   **Files**: skills/tests/supervise/test_gate_router.py
@@ -73,8 +73,8 @@ functions, each an M-or-smaller task below).
 
 - [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/tests/supervise -q` and `cd skills && uv run pytest tests/roadmap-runtime tests/autopilot-roadmap -q`, review diff, verify scope
 
-- [ ] 2.7 Write tests for `cycle_state.py` `gate-check`, `gate-answer`, `gate-log` — exit codes 3/0/4, printed `pending_gates` entry validates against the record schema, `gate-log` unions sidecar and active-change `loop-state.json` records, enums imported not duplicated (S)
-  **Spec scenarios**: supervise.Supervise Gate Routing.1, .2, .6 (evaluation log)
+- [ ] 2.7 Write tests for `cycle_state.py` `gate-check`, `gate-answer`, `gate-log` — exit codes 3 (proceed, including a reused decision) / 0 (`posture_block`) / 4 (terminal block: `rejected`, `timeout_default_block`, `coordinator_unreachable`), printed `pending_gates` entry validates against the record schema, `gate-answer --gate roadmap_approval` originates a record and prints `roadmap_approval_ref` while `gate-answer` for any other gate is refused without a parked record, `gate-log --roadmap R` unions the sidecar with the `loop-state.json` records of R's item change_ids only, enums imported not duplicated (S)
+  **Spec scenarios**: supervise.Supervise Gate Routing.1, .2, .5, .8 (evaluation log)
   **Design decisions**: D5, D6
   **Dependencies**: 2.4
   **Files**: skills/tests/supervise/test_cycle_state.py
@@ -87,8 +87,8 @@ functions, each an M-or-smaller task below).
   **Dependencies**: 2.8
   **Files**: skills/supervise/scripts/cycle_state.py
 
-- [ ] 2.10 Write the end-to-end evaluation-log test — fake coordinator + in-memory evaluator drive cycle → execute → parked child → posture flip → resume; assert `gate-log` has one record per evaluate/answer and every `approval_ref` resolves (M)
-  **Spec scenarios**: supervise.Supervise Gate Routing.6; proposal acceptance outcomes 1–3
+- [ ] 2.10 Write the end-to-end evaluation-log test — fake coordinator + in-memory evaluator drive cycle → execute → parked child → posture flip → resume, plus a second cycle that reuses the roadmap approval and honours a late coordinator answer; assert `gate-log` has one record per evaluate/answer/`check_filed` decision (and none for reuse or re-surface), and every `approval_ref` resolves (M)
+  **Spec scenarios**: supervise.Supervise Gate Routing.8; proposal acceptance outcomes 1–3
   **Design decisions**: D2–D6
   **Dependencies**: 2.9
   **Files**: skills/tests/supervise/test_gate_router_e2e.py
@@ -102,15 +102,15 @@ functions, each an M-or-smaller task below).
   **Dependencies**: 1.2
   **Files**: skills/tests/supervise/test_prose_free_gates.py
 
-- [ ] 3.2 Rewrite the supervise `cycle` §5 stop and the `execute` "Approval gate" and "Reconcile and resume" sections as `gate-check` / `gate-answer` / `gate-log` protocol blocks; document the notify-with-timeout notification caveat (S)
+- [ ] 3.2 Rewrite the supervise `cycle` §5 stop and the `execute` `### Approval gate` and `### Reconcile and resume` sections as `cycle_state.py gate-check` / `gate-answer` / `gate-log` protocol blocks (exit 3/0/4 semantics, the `notify_with_timeout` wait of up to `timeout_seconds`, and the ri-05 undelivered-notification caveat); keep the headings `test_workflow_contract.py` slices on and its pinned phrase ``durable `approval_ref` `` (write "a durable `approval_ref` of the form `gate-decision:<decision_id>`"), or update that test in the same commit (S)
   **Dependencies**: 3.1
-  **Files**: skills/supervise/SKILL.md
+  **Files**: skills/supervise/SKILL.md, skills/tests/supervise/test_workflow_contract.py
 
 - [ ] 3.3 Record the direct-invocation approval in `skills/autopilot-roadmap/SKILL.md` — run `gate-answer --roadmap <id> --gate roadmap_approval --decision approved --note "direct invocation"` before execution and pass the printed `roadmap_approval_ref` (S)
   **Dependencies**: 3.1
   **Files**: skills/autopilot-roadmap/SKILL.md
 
-- [ ] 3.4 Add a rebase note to `add-supervisor-candidate-work-digest/proposal.md` naming the `cycle_state.py` and `SKILL.md` regions this change moved (XS)
+- [ ] 3.4 Add a rebase note to `add-supervisor-candidate-work-digest/proposal.md` naming the `SKILL.md` §5 protocol block this change introduced (that change rewrites `cycle` §2–§5 and leaves `cycle_state.py` untouched, so `cycle_state.py` needs no note) (XS)
   **Dependencies**: 3.2
   **Files**: openspec/changes/add-supervisor-candidate-work-digest/proposal.md
 
