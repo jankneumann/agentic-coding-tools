@@ -151,8 +151,46 @@
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-09-03T19:28:59.864296+00:00",
       "note": "operator approved via chat: 'open PR'"
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-03T19:47:08.900487+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 operator approved via chat: 'merge PR'",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-03T19:47:16.954100+00:00",
+      "note": "operator approved via chat: 'merge PR'"
     }
   ],
   "pending_gate": null,
-  "goal_gate": null
+  "goal_gate": {
+    "verdict": "pending",
+    "reason": "merge authorized; DONE evidence not yet checked",
+    "evidence": {
+      "merge_authorized": true,
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/470"
+    }
+  }
 }
