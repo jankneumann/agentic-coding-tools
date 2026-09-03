@@ -11,6 +11,7 @@ import json
 import re
 from datetime import datetime
 from typing import Any
+from urllib.parse import unquote
 from uuid import UUID
 
 import asyncpg  # noqa: I001
@@ -67,6 +68,53 @@ def _coerce_filter_value(val: str) -> Any:
     if parsed is not None:
         return parsed
     return val
+
+
+def _decode_query_value(val: str) -> str:
+    """Reverse ``issue_service._encode_query_value``.
+
+    ``query()`` splits ``query_params`` on ``&`` before it reaches here, so a
+    filter value that contained a delimiter arrives percent-encoded. Decoding
+    is exact because the encoder escaped ``%`` first.
+    """
+    return unquote(val)
+
+
+def _parse_postgrest_array_literal(val: str) -> list[str]:
+    """Parse a PostgREST ``cs.{a,b,"c:d"}`` array literal into strings.
+
+    Label filters are TEXT[]; do not coerce items through ``_coerce_filter_value``
+    or a task key like ``1.1`` would become a float.
+    """
+    inner = val.strip()
+    if inner.startswith("{") and inner.endswith("}"):
+        inner = inner[1:-1]
+    if not inner:
+        return []
+    items: list[str] = []
+    current: list[str] = []
+    in_quotes = False
+    i = 0
+    while i < len(inner):
+        ch = inner[i]
+        if ch == "\\" and in_quotes and i + 1 < len(inner):
+            current.append(inner[i + 1])
+            i += 2
+            continue
+        if ch == '"':
+            in_quotes = not in_quotes
+            i += 1
+            continue
+        if ch == "," and not in_quotes:
+            items.append("".join(current))
+            current = []
+            i += 1
+            continue
+        current.append(ch)
+        i += 1
+    if current:
+        items.append("".join(current))
+    return [item.strip() for item in items if item.strip()]
 
 
 def _validate_identifier(identifier: str, *, allow_qualified: bool = False) -> str:
@@ -283,6 +331,15 @@ class DirectPostgresClient:
                     where_clauses.append(f"{col} IN ({placeholders})")
                     values.extend(_coerce_filter_value(v) for v in in_values)
                     param_idx += len(in_values)
+                elif "=cs." in part:
+                    col, val = part.split("=cs.", 1)
+                    _validate_identifier(col, allow_qualified=True)
+                    cs_values = _parse_postgrest_array_literal(
+                        _decode_query_value(val)
+                    )
+                    where_clauses.append(f"{col} @> ${param_idx}::text[]")
+                    values.append(cs_values)
+                    param_idx += 1
 
         where = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         safe_select = _validate_select_clause(select)

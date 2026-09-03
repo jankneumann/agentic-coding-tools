@@ -43,6 +43,43 @@ STATUS_WRITE_MAP: dict[str, str] = {
 VALID_ISSUE_TYPES = {"task", "epic", "bug", "feature"}
 
 
+def _postgrest_array_literal(values: list[str]) -> str:
+    """Render a PostgREST array literal for the ``cs`` (contains) operator.
+
+    Values that are not bare identifiers are double-quoted so labels such as
+    ``change:foo`` survive the filter parser.
+    """
+    parts: list[str] = []
+    for value in values:
+        if value.isascii() and value.replace("-", "").replace("_", "").isalnum():
+            parts.append(value)
+        else:
+            escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+            parts.append(f'"{escaped}"')
+    return _encode_query_value("{" + ",".join(parts) + "}")
+
+
+def _encode_query_value(literal: str) -> str:
+    """Percent-encode the characters that would split a PostgREST query string.
+
+    Filter parts are joined with ``&``, and both backends take that join
+    literally: ``SupabaseClient`` puts it in a URL, ``DirectPostgresClient``
+    splits on ``&`` before parsing. Labels accept any character, so a value
+    containing a delimiter would truncate the filter or invent a parameter.
+
+    Only the four characters that actually break that parse are encoded, so
+    ordinary labels such as ``change:foo`` stay readable in logs. ``%`` is
+    encoded first, which is what makes ``urllib.parse.unquote`` an exact
+    inverse; ``db_postgres._decode_query_value`` is the other half.
+    """
+    return (
+        literal.replace("%", "%25")
+        .replace("&", "%26")
+        .replace("#", "%23")
+        .replace("+", "%2B")
+    )
+
+
 @dataclass
 class Issue:
     """Represents an issue in the tracker."""
@@ -269,12 +306,12 @@ class IssueService:
         """
         limit = min(limit, MAX_PAGE_SIZE)
 
-        # Build PostgREST-style query
-        parts = [
-            "task_type=eq.issue",
-            "order=priority.asc,created_at.asc",
-            f"limit={limit}",
-        ]
+        # Filters first, then order/limit. Label matching used to be a Python
+        # post-filter after LIMIT, which hid newly inserted rows once
+        # work_queue had >= 100 issue rows (#429). PostgREST `cs` is
+        # array-contains; the GIN index on work_queue.labels (migration 017)
+        # covers it.
+        parts = ["task_type=eq.issue"]
 
         if status and status != "all":
             statuses = STATUS_MAP.get(status, [status])
@@ -289,12 +326,17 @@ class IssueService:
         if assignee:
             parts.append(f"assignee=eq.{assignee}")
 
+        if labels:
+            parts.append(f"labels=cs.{_postgrest_array_literal(list(labels))}")
+
+        parts.append("order=priority.asc,created_at.asc")
+        parts.append(f"limit={limit}")
+
         query = "&".join(parts)
         rows = await self.db.query("work_queue", query)
 
         issues = [Issue.from_row(r) for r in rows]
 
-        # Post-filter by labels (array containment not in PostgREST syntax)
         if labels:
             issues = [
                 i for i in issues

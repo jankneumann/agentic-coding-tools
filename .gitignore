@@ -298,3 +298,7 @@ docs/architecture-analysis/architecture.diagnostics.scoped.json
 docs/architecture-analysis/treesitter_enrichment.json
 docs/architecture-analysis/python_analysis.json
 docs/architecture-analysis/parallel_zones.json
+# Rendered codebase atlas — derived from architecture.graph.json by `make atlas`.
+# ~650 KB of generated HTML with an embedded JSON payload: regenerable in about a
+# second, and not meaningfully diffable, so tracking it would only add noise.
+docs/architecture-analysis/atlas/

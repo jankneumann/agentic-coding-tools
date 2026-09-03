@@ -99,6 +99,39 @@ class TestCheckpointManager:
         next_id = mgr.advance_to_next(cp, roadmap)
         assert next_id == "ri-02"
 
+    def test_advance_to_next_enters_planning(self, tmp_path):
+        """A newly advanced item still needs its plan refined.
+
+        Its change directory holds only the preliminary scaffold written when the
+        roadmap was created; the refinement pass is informed by what was learned
+        implementing the dependencies, so it cannot have happened yet.
+        """
+        mgr = CheckpointManager(tmp_path)
+        roadmap = _make_roadmap()
+        cp = mgr.create(roadmap)
+
+        roadmap.get_item("ri-01").status = ItemStatus.COMPLETED
+        mgr.advance_to_next(cp, roadmap)
+
+        assert cp.phase == CheckpointPhase.PLANNING
+        assert mgr.load().phase == CheckpointPhase.PLANNING
+
+    def test_advanced_item_does_not_skip_planning(self, tmp_path):
+        """The regression this guards: planning reported as already done.
+
+        `should_skip_phase` orders PLANNING before IMPLEMENTING, so advancing
+        straight to IMPLEMENTING made the refinement pass look complete and it was
+        skipped silently rather than deliberately.
+        """
+        mgr = CheckpointManager(tmp_path)
+        roadmap = _make_roadmap()
+        cp = mgr.create(roadmap)
+
+        roadmap.get_item("ri-01").status = ItemStatus.COMPLETED
+        next_id = mgr.advance_to_next(cp, roadmap)
+
+        assert not mgr.should_skip_phase(cp, next_id, CheckpointPhase.PLANNING)
+
     def test_advance_to_next_none(self, tmp_path):
         mgr = CheckpointManager(tmp_path)
         roadmap = _make_roadmap()

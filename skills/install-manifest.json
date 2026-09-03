@@ -175,6 +175,9 @@
     ]
   },
   "skills": {
+    "agent-ergonomics": {
+      "distribution": "portable"
+    },
     "agent-metrics": {
       "distribution": "portable"
     },
@@ -210,6 +213,9 @@
       "distribution": "portable"
     },
     "cleanup-feature": {
+      "distribution": "portable"
+    },
+    "codebase-atlas": {
       "distribution": "portable"
     },
     "collect-transcripts": {

@@ -121,6 +121,32 @@ class TestPostgresFilterParsing:
         assert ">=" in source, "gte should translate to >= operator"
         assert "<=" in source, "lte should translate to <= operator"
 
+    def test_cs_filter_parsing(self):
+        """Array-contains (cs) must translate to @> so label filters work.
+
+        Silently ignoring cs was how list_issues post-filtered after LIMIT
+        and hid newly inserted issues (#429).
+        """
+        import inspect
+
+        from src.db_postgres import DirectPostgresClient
+
+        source = inspect.getsource(DirectPostgresClient.query)
+        assert "=cs." in source, "query() should handle cs (contains) filters"
+        assert "@>" in source, "cs should translate to PostgreSQL @>"
+
+    def test_parse_postgrest_array_literal(self):
+        from src.db_postgres import _parse_postgrest_array_literal
+
+        assert _parse_postgrest_array_literal("{api,followup}") == ["api", "followup"]
+        assert _parse_postgrest_array_literal('{"change:__probe__"}') == [
+            "change:__probe__"
+        ]
+        assert _parse_postgrest_array_literal('{"task:1.1","change:foo"}') == [
+            "task:1.1",
+            "change:foo",
+        ]
+
     def test_validate_identifier_accepts_safe_names(self):
         assert _validate_identifier("work_queue") == "work_queue"
         result = _validate_identifier("public.work_queue", allow_qualified=True)

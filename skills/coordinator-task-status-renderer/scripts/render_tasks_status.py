@@ -436,8 +436,8 @@ def render(
                 print(
                     "ERROR: coordinator returned page cap ("
                     f"{_PAGE_CAP}) for change {change_id!r}; refusing to render "
-                    "(silent truncation risk). See follow-up "
-                    "query-issues-by-change-label-server-side.",
+                    "(silent truncation risk). The change has too many task "
+                    "issues to list in one page.",
                     file=sys.stderr,
                 )
                 return 1
