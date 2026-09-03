@@ -74,7 +74,7 @@ class SupabaseClient:
     """Async Supabase client for coordination operations.
 
     Uses httpx to communicate with Supabase's PostgREST API.
-    This is the default backend (DB_BACKEND=supabase).
+    Opt-in cloud-managed backend (DB_BACKEND=supabase); the default is postgres.
     """
 
     def __init__(self, config: SupabaseConfig | None = None):
@@ -244,7 +244,7 @@ class SupabaseClient:
 def create_db_client() -> DatabaseClient:
     """Factory: returns the appropriate DatabaseClient based on config.
 
-    Uses DB_BACKEND env var (default: "supabase").
+    Uses DB_BACKEND env var (default: "postgres").
     """
     config = get_config()
     backend = config.database.backend

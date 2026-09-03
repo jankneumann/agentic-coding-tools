@@ -40,10 +40,22 @@ class TestDatabaseClientProtocol:
 class TestCreateDbClient:
     """Tests for the create_db_client factory function."""
 
-    def test_factory_returns_supabase_by_default(self):
-        """Default DB_BACKEND=supabase should return SupabaseClient."""
+    @pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
+    def test_factory_returns_postgres_by_default(self, monkeypatch):
+        """With DB_BACKEND unset the factory must pick PostgreSQL.
+
+        This asserted ``supabase`` until the default was flipped (#456). It also
+        read the *ambient* ``DB_BACKEND`` instead of clearing it, so it silently
+        tested whatever the developer's shell happened to export rather than the
+        default — clearing the variable is what makes this a default test at all.
+        """
+        from src.db_postgres import DirectPostgresClient
+
+        monkeypatch.delenv("DB_BACKEND", raising=False)
+        reset_config()
+        reset_db()
         client = create_db_client()
-        assert isinstance(client, SupabaseClient)
+        assert isinstance(client, DirectPostgresClient)
 
     def test_factory_returns_supabase_explicitly(self, monkeypatch):
         """DB_BACKEND=supabase should return SupabaseClient."""
