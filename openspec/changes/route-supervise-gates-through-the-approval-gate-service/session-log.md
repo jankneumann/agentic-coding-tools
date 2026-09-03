@@ -189,3 +189,61 @@ run this scratch fixture's stub `work-packages.yaml`/`loop-state.json` never sta
 **"To a merged PR" is only genuinely end-to-end when the same all-`auto` posture is
 committed on both the supervisor's `TRUST_POSTURE.md` and the dispatched item's own
 branch** — two separately-verified surfaces this task deliberately does not conflate.
+
+## Phase: Validate (2026-09-03)
+
+**Agent**: claude_code (autopilot ri-04 VALIDATE phase sub-agent) | **Session**: N/A
+
+### Decisions
+
+Ran the full validate-feature phase set (spec, evidence, deploy, smoke, security,
+e2e) against branch `openspec/route-supervise-gates-through-the-approval-gate-service`
+@ `bf0d8cf7`. Outcome: **passed**. Full detail in
+`validation-report.md` (this directory); summary below.
+
+- **spec**: `openspec validate route-supervise-gates-through-the-approval-gate-service --strict`
+  → valid.
+- **evidence**: three full suites, 1,065 tests passed / 0 failed / 0 errors —
+  `skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/supervise -q`
+  (341 passed), `cd skills && uv run pytest tests/autopilot tests/autopilot-roadmap
+  tests/roadmap-runtime -q` (598 passed, 2 pre-existing unrelated warnings),
+  `cd skills && uv run pytest autopilot/tests tests/ci_coverage -q` (126 passed).
+- **deploy / smoke**: skipped — this is a skills-library change with no deployable
+  service to stand up or smoke-test.
+- **security**: targeted read pass over `skills/shared/approval_gate.py`,
+  `skills/supervise/scripts/gate_router.py`, `skills/supervise/scripts/execution.py`
+  — the change's entire purpose is a trust/approval boundary. Checked and confirmed
+  closed: (1) privilege bypass — the single-seam invariant (only `gate_router.py`
+  may import the approval gate) holds by grep, matching its own AST-scan test;
+  `execution.py`'s `prepare`/`resume` both call `require_approval_ref` before any
+  state-mutating transition. (2) fail-open on coordinator errors — every
+  `CoordinatorUnavailable` (including 401/403/404/5xx from the bridge client)
+  degrades to `BLOCKED`, and a `default_action=proceed` timeout does not fire if the
+  approval notification was undelivered. (3) unaudited proceed — every terminal path
+  funnels through `_finalize()` → `_record_audit()`; the router's mirror projection
+  runs before checkpoint persistence so a refusal never follows a partial write.
+  (4) `approval_ref` replay/forgery — refs resolve only through a `uuid4`
+  `decision_id` looked up in the persisted checkpoint (never trusted verbatim), and
+  `roadmap_approval` refs additionally re-check the stamped `roadmap_fingerprint`
+  against the roadmap's *current* DAG shape, closing reuse across a `refine-roadmap`
+  or replan. No findings.
+- **e2e**: `test_gate_router_e2e.py` and the two `test_supervised_dispatch*_e2e.py`
+  suites are covered by the evidence run above; the Implement-phase Acceptance
+  Outcome 1 walk (previous entry, this file) remains the manual end-to-end record
+  and is not re-run here.
+
+### Completed Work
+
+- Wrote `validation-report.md` in this change directory with the full phase-by-phase
+  detail and evidence transcripts.
+- No code changes made — VALIDATE is read-only against an already-converged
+  implementation (two-round multi-vendor IMPL_REVIEW, no open findings).
+
+### Context
+
+Re-rooted into this change's actual worktree (`.git-worktrees/route-supervise-gates-through-the-approval-gate-service`,
+branch tip `bf0d8cf7`) before running anything, per the autopilot VALIDATE phase's
+worktree contract — the dispatch launchpad starts elsewhere. Orchestrator state
+(`loop-state.json`, `current_phase`) was left untouched; the orchestrator applies the
+outcome after this phase returns `(outcome="passed", handoff_id=...)`.
+
