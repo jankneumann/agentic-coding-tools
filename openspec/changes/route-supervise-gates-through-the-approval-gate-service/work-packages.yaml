@@ -1,0 +1,269 @@
+schema_version: 1
+
+feature:
+  id: route-supervise-gates-through-the-approval-gate-service
+  title: "Route supervise gates through the approval gate service"
+  plan_revision: 1
+  created_by: plan-feature
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/README.md"
+    files:
+      - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/README.md"
+      - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/trust-posture.schema.json"
+      - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/gate-decision.schema.json"
+      - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/supervisor-record.schema.json"
+      - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/delegated-dispatch-attempt.continuation.patch.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 120
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Ninth gate and shared console decision"
+    task_type: contracts
+    description: |
+      Tasks 1.1-1.5. Add roadmap_approval to the trust-posture enum, template, and
+      the three canonical schemas (tests first), then extract the shared
+      console_decision helper that the autopilot runner delegates to. Additive only;
+      no behaviour change while TRUST_POSTURE.md is absent.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/shared/trust_posture.py"
+        - "skills/shared/approval_gate.py"
+        - "openspec/schemas/trust-posture.schema.json"
+        - "openspec/schemas/gate-decision.schema.json"
+        - "openspec/schemas/supervisor-record.schema.json"
+      keys:
+        - "feature:route-supervise-gates-through-the-approval-gate-service:contracts"
+        - "contract:trust-posture.gates"
+        - "contract:gate-decision"
+      ttl_minutes: 60
+      reason: "Grow the gate enum and decision record contract"
+    scope:
+      write_allow:
+        - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/tasks.md"
+        - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/**"
+        - "skills/shared/trust_posture.py"
+        - "skills/shared/approval_gate.py"
+        - "skills/shared/tests/**"
+        - "TRUST_POSTURE.template.md"
+        - "openspec/schemas/trust-posture.schema.json"
+        - "openspec/schemas/gate-decision.schema.json"
+        - "openspec/schemas/supervisor-record.schema.json"
+        - "openspec/schemas/supervisor-record-mirror.schema.json"
+        - "skills/autopilot/scripts/runner.py"
+        - "skills/tests/autopilot/test_gate_schemas.py"
+        - "skills/tests/autopilot/test_gate_call_sites.py"
+        - "skills/autopilot/tests/**"
+        - "skills/tests/supervise/test_supervisor_record_schema.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: contracts
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Shared gate tests pass with nine gates"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/shared/tests -q"
+          evidence:
+            artifacts: []
+            result_keys: ["shared_suite"]
+        - name: "Autopilot gate schema and call-site tests pass"
+          kind: command
+          command: "cd skills && uv run pytest tests/autopilot/test_gate_schemas.py tests/autopilot/test_gate_call_sites.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["autopilot_gate_suite"]
+    outputs:
+      result_keys: ["shared_suite", "autopilot_gate_suite"]
+
+  - package_id: wp-router
+    title: "Gate router, provenance, and cycle_state subcommands"
+    task_type: implementation
+    description: |
+      Tasks 2.1-2.10. Add gate_router.py as the only supervise path to ApprovalGate,
+      make ExecutionAdapter.prepare/resume demand a resolving approval_ref, add the
+      gate-check / gate-answer / gate-log subcommands, and prove the evaluation log with
+      an end-to-end simulated run.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    locks:
+      files:
+        - "skills/supervise/scripts/execution.py"
+        - "skills/supervise/scripts/cycle_state.py"
+        - "openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json"
+      keys:
+        - "feature:route-supervise-gates-through-the-approval-gate-service:router"
+        - "contract:supervised.dispatch"
+      ttl_minutes: 120
+      reason: "Gate router and approval_ref provenance"
+    scope:
+      write_allow:
+        - "openspec/changes/route-supervise-gates-through-the-approval-gate-service/tasks.md"
+        - "skills/supervise/scripts/**"
+        - "skills/tests/supervise/test_gate_router.py"
+        - "skills/tests/supervise/test_gate_router_e2e.py"
+        - "skills/tests/supervise/test_execution.py"
+        - "skills/tests/supervise/test_execution_contract.py"
+        - "skills/tests/supervise/test_cycle_state.py"
+        - "skills/tests/supervise/fixtures/**"
+        - "openspec/contracts/roadmap-orchestration/schemas/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "skills/supervise/SKILL.md"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+        - "apis"
+    worktree:
+      name: router
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Supervise suite passes in its own process"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise -q"
+          evidence:
+            artifacts: []
+            result_keys: ["supervise_suite"]
+        - name: "Roadmap runtime and orchestrator suites still pass"
+          kind: command
+          command: "cd skills && uv run pytest tests/roadmap-runtime tests/autopilot-roadmap -q"
+          evidence:
+            artifacts: []
+            result_keys: ["roadmap_suites"]
+    outputs:
+      result_keys: ["supervise_suite", "roadmap_suites"]
+
+  - package_id: wp-skill-docs
+    title: "Prose-free supervise SKILL.md and direct-invocation approval"
+    task_type: documentation
+    description: |
+      Tasks 3.1-3.4. Write the prose-free gate test for skills/supervise/SKILL.md, then
+      rewrite the cycle stop and execute approval sections as gate-check / gate-answer /
+      gate-log protocol blocks; record the direct-invocation approval in the
+      autopilot-roadmap SKILL; leave a rebase note on the unstarted digest change.
+      Report completed 3.x checkboxes to wp-integration, which owns tasks.md at merge.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    locks:
+      files:
+        - "skills/supervise/SKILL.md"
+        - "skills/autopilot-roadmap/SKILL.md"
+      keys:
+        - "feature:route-supervise-gates-through-the-approval-gate-service:skilldocs"
+      ttl_minutes: 60
+      reason: "Replace prose gates with protocol blocks"
+    scope:
+      write_allow:
+        - "skills/supervise/SKILL.md"
+        - "skills/autopilot-roadmap/SKILL.md"
+        - "skills/tests/supervise/test_prose_free_gates.py"
+        - "openspec/changes/add-supervisor-candidate-work-digest/proposal.md"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "skills/supervise/scripts/**"
+    context_impact:
+      surfaces:
+        - "documentation"
+    worktree:
+      name: skill-docs
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Prose-free gate test passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_prose_free_gates.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["prose_free"]
+    outputs:
+      result_keys: ["prose_free"]
+
+  - package_id: wp-integration
+    title: "Mirror resync, full suites, acceptance walk"
+    task_type: integration
+    description: |
+      Tasks 4.1-4.3. Merge the three package worktrees, resync runtime skill mirrors,
+      run every affected suite one process per directory as CI does, validate the change
+      strictly, and record the acceptance-outcome-1 walk in session-log.md.
+    role: integrator
+    priority: 3
+    depends_on: ["wp-router", "wp-skill-docs"]
+    locks:
+      files: []
+      keys:
+        - "feature:route-supervise-gates-through-the-approval-gate-service:integration"
+      ttl_minutes: 60
+      reason: "Integrate and verify"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+        - "documentation"
+    worktree:
+      name: integration
+      mode: shared
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Strict OpenSpec validation"
+          kind: command
+          command: "openspec validate route-supervise-gates-through-the-approval-gate-service --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict"]
+        - name: "All affected suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/shared/tests -q && skills/.venv/bin/python -m pytest skills/tests/supervise -q && cd skills && uv run pytest tests/autopilot tests/autopilot-roadmap tests/roadmap-runtime tests/ci_coverage -q"
+          evidence:
+            artifacts: []
+            result_keys: ["all_suites"]
+    outputs:
+      result_keys: ["openspec_strict", "all_suites"]

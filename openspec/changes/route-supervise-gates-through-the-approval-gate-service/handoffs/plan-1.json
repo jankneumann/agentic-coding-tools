@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-03T03:25:36.785194+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Refined roadmap item ri-04 (roadmap-supervisor-orchestration) into a plan that routes every supervise gate through skills/shared/approval_gate.py: a ninth roadmap_approval gate in the trust-posture contract, a single gate_router.py seam in the supervise skill, and an approval_ref that must resolve to a recorded gate decision. Coordinated tier (coordinator reachable). Gate 1 and Gate 2 were satisfied by the roadmap's standing approval (ri-04 approved in roadmap.yaml; operator instruction 'start with ri-04'), per the supervise inherited-approval contract; no per-item questions were asked.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Add a ninth gate, roadmap_approval, instead of reusing proposal_approval",
+        "rationale": "Roadmap approval authorizes a DAG of items; proposal approval authorizes one change. Operators must set them independently. Absent/omitted entry resolves to block, preserving fail-closed behaviour.",
+        "capability": "trust-posture",
+        "supersedes": null
+      },
+      {
+        "title": "gate_router.py is the only supervise path to ApprovalGate",
+        "rationale": "One seam makes 'no gate decision bypasses approval_gate.py' testable by AST scan and gives every decision a decision_id, source, and correlation ids in the checkpoint gate_decisions sidecar.",
+        "capability": "supervise",
+        "supersedes": null
+      },
+      {
+        "title": "approval_ref = gate-decision:<decision_id> and must resolve",
+        "rationale": "ExecutionAdapter.resume and prepare verify the reference against the checkpoint ledger (outcome proceed, matching gate and dispatch). The opaque-string path is removed; the only callers were tests.",
+        "capability": "roadmap-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "Parked children check the filed coordinator approval before re-filing",
+        "rationale": "Avoids one approval request per supervise cycle under notify_with_timeout while still honouring hot-reloaded posture flips.",
+        "capability": "supervise",
+        "supersedes": null
+      },
+      {
+        "title": "Change branch is based on the roadmap branch, not main",
+        "rationale": "openspec/roadmap-roadmap-supervisor-orchestration contains main plus 108 commits including the ri-03 supervise seam; main lacks them.",
+        "capability": "supervise",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement wp-contracts first (tasks 1.1-1.5): tests for the ninth gate, then enum/template/schemas, then the shared console_decision helper.",
+      "Then wp-router and wp-skill-docs in parallel; wp-integration resyncs mirrors and runs each skills suite in its own process as CI does."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/proposal.md",
+        "description": "proposal with selected Approach 2"
+      },
+      {
+        "path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md",
+        "description": "decisions D1-D6 and fitness functions"
+      },
+      {
+        "path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/tasks.md",
+        "description": "22 tasks, 6 checkpoints, TDD-ordered"
+      },
+      {
+        "path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/work-packages.yaml",
+        "description": "wp-contracts -> (wp-router || wp-skill-docs) -> wp-integration"
+      },
+      {
+        "path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/README.md",
+        "description": "schema deltas and approval_ref format"
+      }
+    ]
+  }
+}

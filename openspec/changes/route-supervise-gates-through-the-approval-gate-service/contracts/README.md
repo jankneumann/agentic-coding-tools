@@ -1,0 +1,28 @@
+# Contracts: route-supervise-gates-through-the-approval-gate-service
+
+Sub-types evaluated:
+
+| Sub-type | Applies? | Where |
+|---|---|---|
+| OpenAPI | No — no HTTP endpoints are added or changed; the coordinator `/approvals/*` and `/memory/store` routes are consumed as-is via `BridgeCoordinatorClient` / `BridgeAuditSink`. | — |
+| Database | No — no tables or migrations. | — |
+| Events / records | **Yes** — JSON Schema deltas for the gate-decision record, the trust-posture contract, the supervisor record, and the delegated-dispatch continuation. | `schemas/` |
+| Generated types | No — the consumers are Python dataclasses already present in `shared.approval_gate` and `shared.trust_posture`. | — |
+
+## `schemas/`
+
+These are the **target** versions of stable schemas that live under `openspec/schemas/` and
+`openspec/contracts/roadmap-orchestration/schemas/`. Per the ri-03 learning ("promote any
+machine-readable contract needed by live code or tests before archiving its originating
+change"), the implementation edits the stable files directly; the copies here are the
+review artifact and the diff target for `wp-contracts`.
+
+| File | Stable location | Delta |
+|---|---|---|
+| `trust-posture.schema.json` | `openspec/schemas/trust-posture.schema.json` | `gates.roadmap_approval` added (same shape as the other eight) |
+| `gate-decision.schema.json` | `openspec/schemas/gate-decision.schema.json` | `gate` enum grows to nine; optional `decision_id`, `source`, `roadmap_id`, `change_id`, `dispatch_id`, `item_id` documented (the schema already allowed additional properties) |
+| `supervisor-record.schema.json` | `openspec/schemas/supervisor-record.schema.json` | `$defs.gate` enum grows to nine; `pendingGate.decision_id` optional |
+| `delegated-dispatch-attempt.continuation.patch.json` | `openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json` (and the echo in `supervised-dispatch-request.schema.json`) | JSON Merge Patch: `continuation.approval_ref` gains the `gate-decision:<uuid>` pattern |
+
+`approval_ref` format: `gate-decision:<decision_id>` where `decision_id` is the uuid4 stamped by
+`gate_router` on the record it appended to `checkpoint.json` `gate_decisions`.
