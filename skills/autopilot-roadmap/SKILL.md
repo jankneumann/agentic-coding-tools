@@ -45,6 +45,25 @@ python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 
 `--dry-run` remains read-only and may run from the shared checkout.
 
+## Approval gate
+
+A direct `/autopilot-roadmap` invocation is itself the operator's approval — there is
+no separate `/supervise cycle` session to have asked first. Before execution starts,
+record that approval as a `roadmap_approval` gate decision (mirroring `/supervise`'s
+own gate router) and pass the resulting reference through, rather than letting
+`ExecutionAdapter.prepare` refuse for want of one (`route-supervise-gates-through-the-
+approval-gate-service`, D2/D5):
+
+```bash
+python3 "<skill-base-dir>/../supervise/scripts/cycle_state.py" --repo-root . \
+  gate-answer --roadmap "$ROADMAP_ID" --gate roadmap_approval \
+  --decision approved --note "direct invocation"
+```
+
+The command prints the recorded decision, including a `roadmap_approval_ref` of the
+form `gate-decision:<decision_id>` — pass that value to `ExecutionAdapter.prepare`
+(and to any dispatched `execute` call) for this run.
+
 ## Input
 
 A roadmap workspace path containing:

@@ -222,8 +222,34 @@ Report to the operator, decision-first, rendering durable supervisor state expli
   a human decision (does not).
 - **Degraded** — any sensor that did not run.
 
-Then **stop**. Do not create roadmaps, scaffold changes, dispatch implementers, push,
-or open PRs.
+Then, for every roadmap the digest lists under "Ready now", evaluate the
+roadmap-approval gate for that roadmap and stop:
+
+```bash
+python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
+  gate-check --roadmap "$ROADMAP_ID"
+# exit 3 → proceed: the printed record's `roadmap_approval_ref` authorizes a
+#   later `/plan-roadmap` or `/execute` invocation for this roadmap to run
+#   without asking again (a reused decision also exits 3 and prints the
+#   reused record) — this cycle still does not run them
+# exit 0 → parked on posture_block: already rendered above under
+#   "Needs a decision"; nothing further to do here
+# exit 4 → blocked terminally (rejected / timeout_default_block /
+#   coordinator_unreachable): the entry stays answerable via `gate-answer`
+#   (supervise's own divergence from runner.py's EXIT_GATE_PARKED 4, which
+#   clears pending_gate and enters ESCALATE — the supervisor has no ESCALATE state
+#   to fall into, so gate-answer remains the only way forward)
+```
+
+`gate-check` waits up to the posture's `timeout_seconds` under
+`notify_with_timeout`, and never runs under `cycle --dry-run` — a dry run stops at
+the digest, since evaluating would append to `checkpoint.json` and project into
+the mirror, and a dry run writes no supervisor state by contract.
+
+Regardless of the exit code, this cycle does not itself create roadmaps, scaffold
+changes, dispatch implementers, push, or open PRs — a `gate-check` proceed
+authorizes the *next* invocation of `/plan-roadmap` or `/execute` to skip asking
+the operator again; it does not run either of them here.
 
 Before stopping, enforce state and write boundaries in this order:
 
@@ -236,12 +262,14 @@ Before stopping, enforce state and write boundaries in this order:
    ```
 
    Do not run `record` under `--dry-run`.
-2. Still only for a non-`--dry-run` cycle, rebuild the full record from the rehydrated
-   prior and write its non-derivable mirror:
+2. Still only for a non-`--dry-run` cycle, re-select the prior and write its
+   non-derivable mirror. **Re-select, not the pre-gate `$SUPERVISE_RECORD` snapshot**:
+   `gate-check` above already projected the gate's decision into the tracked mirror
+   (D7), and writing from the stale snapshot would overwrite that projection.
 
    ```bash
    python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
-     supervisor-record --prior "$SUPERVISE_RECORD" > "$SUPERVISE_FINAL_RECORD"
+     rehydrate --handoff "$SUPERVISE_HANDOFF" > "$SUPERVISE_FINAL_RECORD"
    python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
      mirror --record "$SUPERVISE_FINAL_RECORD"
    ```
@@ -268,11 +296,15 @@ and proves the read-only boundary.
 > one decision at roadmap altitude authorizes a DAG of work. Human attention goes to
 > intent — what gets built and in what order — while correctness is delegated to
 > structural checks (validation phases, vendor-diverse review, goal gates). A cycle
-> that planned work autonomously would quietly move that gate.
+> that planned work autonomously would quietly move that gate. The `gate-check` above
+> is how that decision is now recorded rather than assumed: under an `auto` posture it
+> needs no human at all, under `notify_with_timeout` it is a coordinator approval, and
+> only under `block` does it wait on `gate-answer`.
 
-On approval, the operator's "yes" flows into `/plan-roadmap`, and execution proceeds
-through `/autopilot-roadmap` — dispatching to archetype workers under the routing cost
-policy (ri-18: subscription+local → subscription+cloud → metered).
+On a proceed, the resulting `roadmap_approval_ref` flows into `/plan-roadmap`, and
+execution proceeds through `/autopilot-roadmap` — dispatching to archetype workers
+under the routing cost policy (ri-18: subscription+local → subscription+cloud →
+metered).
 
 ## Verb: `execute`
 
@@ -285,7 +317,28 @@ remains the sole owner of each change's phase machine.
 Accept only durable roadmap-altitude approval established by either a direct `/autopilot-roadmap` invocation or an approved `/supervise` roadmap batch.
 The supervisor inherits that approval for every dependency-ready item and continues without discovery, direction, plan, or per-item approval questions.
 
-If neither durable approval is present, report the missing approval and stop before `ExecutionAdapter.prepare`, before any implementation dispatch, and before any roadmap checkpoint or execution-state mutation.
+That approval is a recorded roadmap-approval decision, not an assumption: `execute` opens with the same gate-check the `cycle` digest runs, before `ExecutionAdapter.prepare`, before any implementation dispatch, and before any roadmap checkpoint or execution-state mutation other than its own gate-decision record — the one checkpoint write that legitimately precedes approval, since recording the approval is what it does.
+
+```bash
+python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
+  gate-check --roadmap "$ROADMAP_ID"
+# exit 3 → proceed: the printed record's `roadmap_approval_ref` is what
+#   `ExecutionAdapter.prepare` is called with below (a reused decision also
+#   exits 3 and needs no fresh gate-answer)
+# exit 0 / exit 4 → no durable approval is present yet
+```
+
+On exit 0 or exit 4, a direct `/autopilot-roadmap` invocation records its own approval —
+the operator's command is the human answer — before proceeding:
+
+```bash
+python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
+  gate-answer --roadmap "$ROADMAP_ID" --gate roadmap_approval \
+  --decision approved --note "direct invocation"
+```
+
+Any other caller reports the missing approval and stops; it does not call
+`ExecutionAdapter.prepare`, and it does not mutate roadmap execution state.
 
 ### Prepare and launch
 
@@ -327,7 +380,25 @@ Reconcile durable task evidence conservatively:
 
 After go, never infer death from an absent or expired post-go heartbeat.
 Quarantine is not an approval gate and cannot be approval-resumed.
-Only a parked `pending_gate` or `policy_pause` may resume with a durable `approval_ref`; the authorized CAS performs a generation increment while preserving the same dispatch ID, attempt, launch token, worktree, and branch, then repeats the normal child lifecycle.
+
+Only a parked `pending_gate` or `policy_pause` may resume, and only through
+`gate_router.resolve_parked` — never a raw `ExecutionAdapter.resume` call:
+
+```python
+resolution = gate_router.resolve_parked(
+    attempt, workspace=roadmap_workspace, repo_root=repo, adapter=adapter,
+)
+```
+
+`resolve_parked` maps `policy_pause` to the ESCALATE-resume gate and `pending_gate` to
+the child's own recorded gate, then re-evaluates against the *current* posture — a
+flip to `auto` unparks with no console answer — and reuses a prior filed approval
+through `check_filed` rather than re-notifying. On `proceed` it calls
+`ExecutionAdapter.resume` with a durable `approval_ref` of the form
+`gate-decision:<decision_id>`; the authorized CAS then performs a generation increment
+while preserving the same dispatch ID, attempt, launch token, worktree, and branch,
+then repeats the normal child lifecycle. On `blocked` it returns the same pending-gate
+entry shape `gate-check` prints, so the digest renders it without a special case.
 
 ---
 

@@ -542,7 +542,11 @@ class TestWorkflowContract:
         closing = self._section(text, "### 5. Digest, then stop", "On approval")
 
         assert "non-`--dry-run`" in closing
-        assert closing.index("supervisor-record") < closing.index("mirror --record")
+        # ri-04: the final-record step now re-selects the prior via `rehydrate
+        # --handoff` rather than `supervisor-record --prior` (D7) -- writing
+        # from the pre-gate snapshot would overwrite the router's own mirror
+        # projection from this cycle's gate-check.
+        assert closing.index("rehydrate --handoff") < closing.index("mirror --record")
         assert closing.index("mirror --record") < closing.index("audit-since")
         assert closing.index("audit-since") < closing.index("try_handoff_write(")
 
