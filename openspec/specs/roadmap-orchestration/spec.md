@@ -276,7 +276,7 @@ The roadmap orchestrator SHALL persist only structured dispatch outcomes and han
 #### Scenario: Preserve a parked child
 - **WHEN** a child Autopilot run returns a schema-valid parked result for a pending gate or paused policy state
 - **THEN** the attempt is recorded as parked and the roadmap item is not marked failed or completed
-- **AND** dependents are not failure-blocked while the pending gate metadata remains available to ri-04
+- **AND** dependents are not failure-blocked while the parked snapshot's bounded metadata (`kind`, `reason`, and the nullable `gate`, `deadline`, `resume_hint` the result contract permits — never an `approval_id`, which lives only in the supervise gate router's own ledger) remains available to that router, which is the only consumer permitted to resume it
 
 ### Requirement: Durable Delegated Attempt Ledger
 
@@ -299,9 +299,11 @@ The roadmap checkpoint SHALL record every delegated dispatch attempt before its 
 - **AND** duplicate owners, active-lease token reuse, and stale owners that fail compare-and-swap are refused
 
 #### Scenario: Resume an authorized parked attempt
-- **WHEN** ri-04 supplies a durable approval reference for a `pending_gate` or `policy_pause` parked dispatch
-- **THEN** the resume command compare-and-swaps parked to prepared, increments the lease generation, and emits one continuation with the same dispatch ID, attempt, token, worktree, and loop-state
+- **WHEN** the supervise gate router supplies an `approval_ref` of the form `gate-decision:<decision_id>` for a `pending_gate` or `policy_pause` parked dispatch
+- **THEN** the resume command verifies the reference resolves to a `gate_decisions` record in the same checkpoint with outcome `proceed`, a gate equal to the parked gate (or `escalate_resume` for `policy_pause`), and a matching `dispatch_id`, then compare-and-swaps parked to prepared, increments the lease generation, and emits one continuation with the same dispatch ID, attempt, token, worktree, and loop-state
+- **AND** a reference that does not resolve, resolves to a `blocked` decision, or names a different gate or dispatch is rejected without mutating the attempt
 - **AND** the normal child-start protocol transitions it to launched while duplicate or unauthorized resumes are rejected
+- **AND** `ExecutionAdapter.prepare` likewise requires a `roadmap_approval_ref` resolving to a `proceed` `roadmap_approval` decision for the checkpoint's roadmap before any attempt is written
 
 #### Scenario: Quarantine unknown post-go liveness
 - **WHEN** a post-go generation has no terminal result and its durable task handle cannot positively establish live or dead status

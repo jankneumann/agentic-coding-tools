@@ -5,14 +5,14 @@
 
 ---
 
-## 2026-09-03 — route-supervise-gates-through-the-approval-gate-service
+## 2026-09-03 — 2026-09-03-route-supervise-gates-through-the-approval-gate-service
 
 ### Phase: Plan
 
 **approval_ref = gate-decision:<decision_id> and must resolve** — ExecutionAdapter.resume and prepare verify the reference against the checkpoint ledger (outcome proceed, matching gate and dispatch). The opaque-string path is removed; the only callers were tests.
 
 - Status: `active`
-- Source: [openspec/changes/route-supervise-gates-through-the-approval-gate-service/session-log.md](/openspec/changes/route-supervise-gates-through-the-approval-gate-service/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-03-route-supervise-gates-through-the-approval-gate-service/session-log.md](/openspec/changes/archive/2026-09-03-route-supervise-gates-through-the-approval-gate-service/session-log.md) (D3)
 
 ---
 
