@@ -78,7 +78,7 @@
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "reviewer",
+  "phase_archetype": "runner",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -120,6 +120,37 @@
       "reason": "gate 'proposal_approval' approved by the operator \u2014 Approved under the standing roadmap authorization for roadmap-supervisor-orchestration ri-04 (approved in roadmap.yaml; operator instruction for this run: 'start with ri-04'); scope governed by the item's acceptance outcomes and the ri-03 / always-on ri-06 dependencies.",
       "recorded_at": "2026-09-03T03:31:21.482934+00:00",
       "resolution": "console_approved"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-03T19:24:19.224422+00:00"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' approved by the operator \u2014 operator approved via chat: 'open PR'",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-03T19:28:59.864296+00:00",
+      "note": "operator approved via chat: 'open PR'"
     }
   ],
   "pending_gate": null,
