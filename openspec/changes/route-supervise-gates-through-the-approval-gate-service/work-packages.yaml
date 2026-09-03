@@ -108,8 +108,18 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["autopilot_gate_suite"]
+        # test_supervisor_record_schema.py pins BOTH supervisor-record schemas to `Gate`,
+        # so task 1.2 reddens it the moment the ninth member lands. This package edits
+        # that file, so it must also run it — otherwise the failure surfaces two
+        # packages later, in wp-integration.
+        - name: "Supervisor-record gate enum parity holds at nine gates"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_supervisor_record_schema.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["supervisor_record_schema"]
     outputs:
-      result_keys: ["shared_suite", "autopilot_gate_suite"]
+      result_keys: ["shared_suite", "autopilot_gate_suite", "supervisor_record_schema"]
 
   - package_id: wp-router
     title: "Gate router, provenance, and cycle_state subcommands"
@@ -126,6 +136,8 @@ packages:
       files:
         - "skills/supervise/scripts/execution.py"
         - "skills/supervise/scripts/cycle_state.py"
+        - "skills/tests/autopilot-roadmap/test_supervised_dispatch.py"
+        - "skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py"
         - "openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json"
         - "openspec/contracts/roadmap-orchestration/schemas/supervised-dispatch-request.schema.json"
       keys:
@@ -143,6 +155,12 @@ packages:
         - "skills/tests/supervise/test_execution_contract.py"
         - "skills/tests/supervise/test_cycle_state.py"
         - "skills/tests/supervise/fixtures/**"
+        # Both break on this package's own changes and are exercised by its own
+        # verification step: the e2e test calls adapter.prepare directly (new required
+        # roadmap_approval_ref), and test_supervised_dispatch.py writes a literal
+        # approval_ref that stops matching the gate-decision pattern.
+        - "skills/tests/autopilot-roadmap/test_supervised_dispatch.py"
+        - "skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py"
         - "openspec/contracts/roadmap-orchestration/schemas/**"
       read_allow:
         - "**"

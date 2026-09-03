@@ -38,7 +38,7 @@ gated it.
   `replan_required` gate writes to). Record construction and console answers use helpers
   that this change moves into `shared.approval_gate` — `build_gate_decision_record`
   (today a private of `autopilot.py`), `console_decision` (today
-  `runner._console_decision`), and a new `ApprovalGate.check_filed(gate, approval_id)`
+  `runner._console_decision`), and a new `ApprovalGate.check_filed(gate, approval_id, *, notified)`
   that interprets a previously filed coordinator approval — so autopilot and supervise
   share one record shape and every decision, including a late coordinator answer, is
   constructed inside `approval_gate.py`. The router inherits `ApprovalGate.evaluate`'s
@@ -73,9 +73,11 @@ gated it.
   matching `dispatch_id`. The opaque-string path is removed. **BREAKING** for callers that
   passed literals; the only callers are supervise tests.
 - **Expose the evaluation log.** `cycle_state.py gate-log --roadmap <id>` prints the union
-  of the workspace sidecar and the `gate_decisions` of each active change's
-  `loop-state.json`, so "every gate raised during a supervised run" is answerable from
-  tracked state even when the coordinator's episodic memory is unreachable.
+  of the workspace sidecar and each item's child `gate_decisions`, so "every gate raised
+  during a supervised run" is answerable from durable local state even when the
+  coordinator's episodic memory is unreachable. A child's `loop-state.json` is untracked
+  per-worktree state, so `gate-log` resolves it through the attempt's recorded worktree
+  rather than the supervisor's own `openspec/changes/<id>/`.
 - **Remove the prose gates from `skills/supervise/SKILL.md`** and extend the prose-free
   gate test to cover it. `cycle_state.py` imports the `Gate` / `Disposition` enums instead
   of duplicating them as string literals.
@@ -88,7 +90,9 @@ gated it.
 |-----------|--------|--------|---------------------|
 | Governance (prose-free gates) | Occurrences of any `Gate` name in `skills/supervise/SKILL.md` outside a `gate-check` / `gate-answer` / `gate-log` protocol block | 0 | `skills/tests/supervise/test_prose_free_gates.py` (Validation) |
 | Auditability (decision provenance) | `approval_ref` values accepted by `prepare` or `resume` that do not resolve to a `proceed` gate-decision record | 0 | `test_execution.py` + `test_gate_router.py` contract tests (Validation) |
-| Observability (evaluation completeness) | Supervise gate evaluations in a full simulated run without a durable gate-decision record | 0 | `test_gate_router_e2e.py` full cycle→execute→park→resume run (Validation) |
+| Observability (evaluation completeness) | Supervise gate evaluations in a full simulated run without a durable gate-decision record | 0 | `test_gate_router_e2e.py` full cycle→execute→park→resume run, with a child loop-state placed outside the supervisor repo root (Validation) |
+| Safety (no undelivered auto-proceed) | `check_filed` decisions that turn an undelivered `default_action: proceed` timeout into `proceed` | 0 | `shared/tests/test_approval_gate.py::test_check_filed_expired_undelivered_stays_blocked` (Validation) |
+| Authorization freshness | Roadmap DAG edits (superseded item, changed external edge) that do not re-ask `roadmap_approval` | 0 | `test_gate_router.py::test_roadmap_fingerprint_covers_status_and_external_edges` (Validation) |
 | Operability (hot reload) | Posture edits reflected at the next gate evaluation without a process restart | 100% of evaluations | `test_gate_router.py` (Validation) |
 | Compatibility (absent posture) | Behavioural difference with `TRUST_POSTURE.md` absent vs. today | none — every gate resolves to `block` and the operator answers in-conversation | `shared/tests/test_trust_posture.py` + supervise contract tests (Validation) |
 | Host-assisted invariant | Direct LLM SDK or provider-network imports under `skills/supervise/scripts/` | 0 | existing host-assisted invariant test (Validation) |

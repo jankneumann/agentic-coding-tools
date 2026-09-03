@@ -17,7 +17,7 @@ The roadmap orchestrator SHALL persist only structured dispatch outcomes and han
 #### Scenario: Preserve a parked child
 - **WHEN** a child Autopilot run returns a schema-valid parked result for a pending gate or paused policy state
 - **THEN** the attempt is recorded as parked and the roadmap item is not marked failed or completed
-- **AND** dependents are not failure-blocked while the pending gate metadata (gate, deadline, any filed `approval_id`) remains available to the supervise gate router, which is the only consumer permitted to resume it
+- **AND** dependents are not failure-blocked while the parked snapshot's bounded metadata (`kind`, `reason`, and the nullable `gate`, `deadline`, `resume_hint` the result contract permits — never an `approval_id`, which lives only in the supervise gate router's own ledger) remains available to that router, which is the only consumer permitted to resume it
 
 ### Requirement: Durable Delegated Attempt Ledger
 

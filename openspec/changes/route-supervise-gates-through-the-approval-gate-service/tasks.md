@@ -17,13 +17,13 @@ functions, each an M-or-smaller task below).
   **Dependencies**: 1.1
   **Files**: skills/shared/trust_posture.py, TRUST_POSTURE.template.md
 
-- [ ] 1.3 Grow the five gate-bearing canonical schemas to nine gates — `trust-posture.schema.json` `gates` properties; `gate-decision.schema.json` `gate` enum plus documented optional `decision_id`, `source`, `verb`, `roadmap_id`, `change_id`, `dispatch_id`, `item_id`; `gate-request.schema.json` `gate` enum; `supervisor-record.schema.json` and `supervisor-record-mirror.schema.json` `$defs.gate` and `pendingGate.decision_id` (both embed the enum literally and both `pendingGate` defs are `additionalProperties: false`) (S)
+- [ ] 1.3 Grow the five gate-bearing canonical schemas to nine gates — `trust-posture.schema.json` `gates` properties; `gate-decision.schema.json` `gate` enum plus documented optional `decision_id`, `source`, `verb` (enum `cycle` / `execute` / `resume`), `roadmap_id`, `change_id`, `dispatch_id`, `item_id` — declaring them explicitly even though the schema is `additionalProperties: true`, so implementers and tests cannot disagree about their shape; `gate-request.schema.json` `gate` enum; `supervisor-record.schema.json` and `supervisor-record-mirror.schema.json` `$defs.gate` and `pendingGate.decision_id` (both embed the enum literally and both `pendingGate` defs are `additionalProperties: false`) (S)
   **Dependencies**: 1.1
   **Files**: openspec/schemas/trust-posture.schema.json, openspec/schemas/gate-decision.schema.json, openspec/schemas/gate-request.schema.json, openspec/schemas/supervisor-record.schema.json, openspec/schemas/supervisor-record-mirror.schema.json
 
 - [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/shared/tests skills/tests/autopilot/test_gate_schemas.py -q`, review diff, verify scope
 
-- [ ] 1.4 Write tests for the shared record helpers — `console_decision(gate, posture, approved, note)` produces the same record shape as `runner._console_decision`; `build_gate_decision_record` produces byte-identical records to today's `autopilot.build_gate_decision_record`; `ApprovalGate.check_filed(gate, approval_id)` maps `approved`/`denied`/`expired`/`pending` exactly as `_interpret_status` does (returning `None` for pending) and records audit for terminal decisions; runner and autopilot delegate to the shared helpers (existing `test_console_interviewer.py` cases stay green); `test_gate_call_sites` lists `roadmap_approval` next to `replan_required` as a non-autopilot gate (S)
+- [ ] 1.4 Write tests for the shared record helpers — `console_decision(gate, posture, approved, note)` produces the same record shape as `runner._console_decision`; `build_gate_decision_record` produces byte-identical records to today's `autopilot.build_gate_decision_record`; `ApprovalGate.check_filed(gate, approval_id, *, notified)` maps `approved`/`denied`/`expired`/`pending` exactly as `_interpret_status` does (returning `None` for pending), resolves the disposition from the live posture, and — the security case — returns `None` rather than applying a `proceed` default when the status is `expired` and `notified` is `False`, so an undelivered notification is never upgraded past `_apply_default`'s fail-closed branch; records audit for terminal decisions; runner and autopilot delegate to the shared helpers (existing `test_console_interviewer.py` cases stay green); `test_gate_call_sites` lists `roadmap_approval` next to `replan_required` as a non-autopilot gate (S)
   **Spec scenarios**: skill-workflow.Roadmap Approval Gate.3 (call-site invariant), .5 (late coordinator answer)
   **Design decisions**: D2, D4
   **Dependencies**: 1.2
@@ -37,14 +37,22 @@ functions, each an M-or-smaller task below).
 
 ## 2. Gate router and provenance (wp-router)
 
+- [ ] 2.0 Prepare `cycle_state.py` for the projection, before any router code depends on it — replace the `_GATES` / `_DISPOSITIONS` literals with `shared.trust_posture` imports (so `_clean_pending_gate` stops rejecting `gate: roadmap_approval`) and add a `decision_id` passthrough to `_clean_pending_gate` (it is an allowlist, so an unmodified cleaner silently strips the projection key on every `write_mirror`). Pin the round trip in `test_cycle_state.py`: an entry carrying `decision_id` and `gate: roadmap_approval` survives `write_mirror` unchanged (S)
+  **Spec scenarios**: supervise.Supervise Gate Routing.11 (projection); supervise.Supervisor Rehydration Record "Pending gate carries the deadline"
+  **Design decisions**: D7
+  **Dependencies**: 1.3
+  **Files**: skills/supervise/scripts/cycle_state.py, skills/tests/supervise/test_cycle_state.py
+
 - [ ] 2.1 Write tests for `gate_router.evaluate` and `answer` — record carries `decision_id`/`source`/`verb`/correlation ids, lands in the checkpoint sidecar, console answer mirrors to `standing_decisions`, hot reload reflected on next evaluate, prior-record rule (a `proceed` record for the same subject key is reused without evaluating; an open `posture_block` is re-surfaced with the same `decision_id`/`deadline` unless the disposition changed; a blocked record with an `approval_id` goes through `check_filed` before anything is re-filed; a `rejected` record is terminal until the subject key changes or `gate-answer` runs), `roadmap_fingerprint` changes on a DAG edit but not on item completion, originating `gate-answer` accepted only for `roadmap_approval`, projection into the mirror (blocked → `pending_gates` entry keyed by `decision_id`; proceed → entry removed and `roadmap_approval` standing decision upserted; reuse → mirror untouched, `written_at` preserved), router is the only seam (AST scan) (M)
   **Spec scenarios**: supervise.Supervise Gate Routing.1 (auto), .2 (block + console), .3 (notify waits, late answer), .4 (ask once), .5 (originating console answer), .9 (only seam), .11 (projection); supervise.Supervisor Rehydration Record "Mirror write preserves unchanged-cycle idempotency"
   **Contracts**: contracts/schemas/gate-decision.schema.json, contracts/schemas/supervisor-record-mirror.schema.json
   **Design decisions**: D2, D4, D5, D6, D7
-  **Dependencies**: 1.3, 1.5
+  **Dependencies**: 1.3, 1.5, 2.0
   **Files**: skills/tests/supervise/test_gate_router.py
 
-- [ ] 2.2 Implement `gate_router.py` `evaluate`, `answer`, `require_approval_ref`, `gate_log`, `roadmap_fingerprint`, and the mirror projection — default evaluator `build_default_gate(agent_id="supervise", repo_root=…)`, records via `CheckpointManager.record_gate_decision`, `approval_ref` format `gate-decision:<uuid4>`, prior-record rule per D4 step 0, projection through the existing `cycle_state.write_mirror` per D7 (M)
+  Also cover: the fingerprint moves when an item is superseded or an external edge changes but not when an item merely completes; the projection merges into the currently selected durable state so `back_edge` and unrelated standing decisions survive `write_mirror`'s whole-record replace; the `roadmap_approval` entry's `change_id` falls back to the first item carrying one when nothing is ready and the gate is refused with a reason when the roadmap names no change; a console answer for a non-`roadmap_approval` gate snapshots the posture from the router's prior blocked record, since the parked attempt carries none.
+
+- [ ] 2.2 Implement `gate_router.py` `evaluate`, `answer`, `require_approval_ref`, `gate_log`, `roadmap_fingerprint`, and the mirror projection — default evaluator `build_default_gate(agent_id="supervise", repo_root=<the supervisor's root, never a child worktree>)`, checkpoint bootstrap via `manager.load() if manager.exists() else manager.create(roadmap)` (nine of ten roadmap workspaces have no `checkpoint.json` and `CheckpointManager.load()` raises), records via `CheckpointManager.record_gate_decision`, `approval_ref` format `gate-decision:<uuid4>`, prior-record rule per D4 step 0, projection through the existing `cycle_state.write_mirror` per D7. Import `cycle_state` lazily inside the projection helper — `cycle_state` imports the router from its subcommand handlers and does heavy import-time work in `_load_runtime_models`, so a top-level import in either direction is a cycle (M)
   **Dependencies**: 2.1
   **Files**: skills/supervise/scripts/gate_router.py
 
@@ -60,34 +68,31 @@ functions, each an M-or-smaller task below).
   **Dependencies**: 2.3
   **Files**: skills/supervise/scripts/gate_router.py
 
-- [ ] 2.5 Write tests for `ExecutionAdapter` provenance — `prepare` refuses without a resolving `roadmap_approval_ref`, `resume` rejects unresolvable / blocked / wrong-gate / wrong-dispatch references, accepted references round-trip; add `approve_roadmap` / `approve_parked` fixtures and migrate existing callers (M)
+- [ ] 2.5 Write tests for `ExecutionAdapter` provenance — `prepare` refuses without a resolving `roadmap_approval_ref`, `resume` rejects unresolvable / blocked / wrong-gate / wrong-dispatch references, accepted references round-trip; add `approve_roadmap` / `approve_parked` fixtures and migrate existing callers. Migrate the two `tests/autopilot-roadmap` callers too: `test_supervised_dispatch_e2e.py` calls `adapter.prepare(...)` directly, and `test_supervised_dispatch.py` writes `approval_ref: "approval-1"` into a checkpoint that `apply_delegated_batch` validates — both break on the new argument / pattern, and wp-router's own verification runs that directory (M)
   **Spec scenarios**: supervise.Approved Roadmap Execution (both scenarios); roadmap-orchestration.Durable Delegated Attempt Ledger "Resume an authorized parked attempt"; roadmap-orchestration.Outcome-Only Resume Contract "Preserve a parked child"
   **Contracts**: contracts/schemas/delegated-dispatch-attempt.continuation.patch.json
   **Design decisions**: D3
   **Dependencies**: 2.2
-  **Files**: skills/tests/supervise/test_execution.py, skills/tests/supervise/test_execution_contract.py
+  **Files**: skills/tests/supervise/test_execution.py, skills/tests/supervise/test_execution_contract.py, skills/tests/autopilot-roadmap/test_supervised_dispatch.py, skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py
 
-- [ ] 2.6 Implement the `prepare` `roadmap_approval_ref` argument and the `resume` provenance check — both via `gate_router.require_approval_ref`; add the `pattern` to `continuation.approval_ref` in the stable schema (M)
+- [ ] 2.6 Implement the `prepare` `roadmap_approval_ref` argument and the `resume` provenance check — both via `gate_router.require_approval_ref`, with the `resume` check running on the loaded attempt before `_remove_owned_marker` and the field strip (the expected gate comes from `attempt["parked"]["gate"]`, which `resume` pops); add the `pattern` to `continuation.approval_ref` in the stable schema. Note that `skills/tests/supervise/fixtures/execution/contracts/invalid-continuation-without-kind.json` becomes invalid for two reasons once the pattern lands — give it a conforming `approval_ref` so it still isolates the missing-`kind` failure (M)
   **Dependencies**: 2.5
-  **Files**: skills/supervise/scripts/execution.py, openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json, openspec/contracts/roadmap-orchestration/schemas/supervised-dispatch-request.schema.json
+  **Files**: skills/supervise/scripts/execution.py, skills/tests/supervise/fixtures/execution/contracts/invalid-continuation-without-kind.json, openspec/contracts/roadmap-orchestration/schemas/delegated-dispatch-attempt.schema.json, openspec/contracts/roadmap-orchestration/schemas/supervised-dispatch-request.schema.json
 
 - [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/tests/supervise -q` and `cd skills && uv run pytest tests/roadmap-runtime tests/autopilot-roadmap -q`, review diff, verify scope
 
-- [ ] 2.7 Write tests for `cycle_state.py` `gate-check`, `gate-answer`, `gate-log` — exit codes 3 (proceed, including a reused decision) / 0 (`posture_block`) / 4 (terminal block: `rejected`, `timeout_default_block`, `coordinator_unreachable`), printed `pending_gates` entry validates against the record schema, `gate-answer --gate roadmap_approval` originates a record and prints `roadmap_approval_ref` while `gate-answer` for any other gate is refused without a parked record, `gate-log --roadmap R` unions the sidecar with the `loop-state.json` records of R's item change_ids only, a `--dry-run` guard is not needed because the SKILL never runs `gate-check` under `--dry-run` (assert the subcommand has no `--dry-run` flag), enums imported not duplicated (S)
+- [ ] 2.7 Write tests for `cycle_state.py` `gate-check`, `gate-answer`, `gate-log` — exit codes 3 (proceed, including a reused decision) / 0 (`posture_block`) / 4 (terminal block: `rejected`, `timeout_default_block`, `coordinator_unreachable`), printed `pending_gates` entry validates against the record schema, `gate-answer --gate roadmap_approval` originates a record and prints `roadmap_approval_ref` while `gate-answer` for any other gate is refused without a parked record, `gate-log --roadmap R` unions the sidecar with the child `gate_decisions` of R's items only, resolved through each attempt's recorded worktree, a `--dry-run` guard is not needed because the SKILL never runs `gate-check` under `--dry-run` (assert the subcommand has no `--dry-run` flag) (S)
+  Also cover: `gate-check` on a workspace with no `checkpoint.json` bootstraps one instead of raising `FileNotFoundError`, and `gate-log` on such a workspace prints an empty array; exit 4 keeps the entry answerable (the documented divergence from `runner.py`'s `EXIT_GATE_PARKED`, which clears `pending_gate` and enters ESCALATE).
   **Spec scenarios**: supervise.Supervise Gate Routing.1, .2, .5, .8 (evaluation log)
   **Design decisions**: D5, D6
   **Dependencies**: 2.4
   **Files**: skills/tests/supervise/test_cycle_state.py
 
-- [ ] 2.8 Replace the `_GATES` / `_DISPOSITIONS` literals in `cycle_state.py` with `shared.trust_posture` imports (XS)
+- [ ] 2.9 Implement the `gate-check`, `gate-answer`, and `gate-log` subcommands in `cycle_state.py`, importing `gate_router` lazily inside each handler (S)
   **Dependencies**: 2.7
   **Files**: skills/supervise/scripts/cycle_state.py
 
-- [ ] 2.9 Implement the `gate-check`, `gate-answer`, and `gate-log` subcommands in `cycle_state.py` (S)
-  **Dependencies**: 2.8
-  **Files**: skills/supervise/scripts/cycle_state.py
-
-- [ ] 2.10 Write the end-to-end evaluation-log test — fake coordinator + in-memory evaluator drive cycle → execute → parked child → posture flip → resume, plus a second cycle that reuses the roadmap approval and honours a late coordinator answer; assert `gate-log` has one record per evaluate/answer/`check_filed` decision (and none for reuse or re-surface), and every `approval_ref` resolves (M)
+- [ ] 2.10 Write the end-to-end evaluation-log test — fake coordinator + in-memory evaluator drive cycle → execute → parked child → posture flip → resume, plus a second cycle that reuses the roadmap approval and honours a late coordinator answer; assert `gate-log` has one record per evaluate/answer/`check_filed` decision (and none for reuse or re-surface), and every `approval_ref` resolves. Place at least one child's `loop-state.json` in a worktree outside the supervisor repo root, so the test exercises the attempt-resolved path of D6 rather than a co-located tmp tree (M)
   **Spec scenarios**: supervise.Supervise Gate Routing.8; proposal acceptance outcomes 1–3
   **Design decisions**: D2–D6
   **Dependencies**: 2.9
@@ -97,12 +102,12 @@ functions, each an M-or-smaller task below).
 
 ## 3. Skill text and prose-free enforcement (wp-skill-docs)
 
-- [ ] 3.1 Write `skills/tests/supervise/test_prose_free_gates.py` — scans `skills/supervise/SKILL.md` for the three retired phrases and for any `Gate` name outside a `gate-check` / `gate-answer` / `gate-log` block (S)
+- [ ] 3.1 Write `skills/tests/supervise/test_prose_free_gates.py` — scans `skills/supervise/SKILL.md` for the three retired phrases and for any backticked or `Gate.`-qualified gate name outside a `gate-check` / `gate-answer` / `gate-log` block. The backtick rule matters: `skills/supervise/SKILL.md:216` already contains `merge` as an ordinary English word ("PRs awaiting review or merge"), which a bare name scan would flag. Key the section map by `trust_posture.Gate` (as `skills/tests/autopilot/test_prose_free_gates.py` does) but only for the gates supervise raises — `roadmap_approval`, `escalate_resume`, and a parked child's gate — since the other six have no supervise section. Do **not** copy that file's `test_mirror_is_byte_identical` cases: `install.sh` runs in wp-integration (task 4.1) and `.claude/skills/**` is outside this package's scope (S)
   **Spec scenarios**: skill-workflow.Roadmap Approval Gate.4
   **Dependencies**: 1.2
   **Files**: skills/tests/supervise/test_prose_free_gates.py
 
-- [ ] 3.2 Rewrite the supervise `cycle` §5 stop and the `execute` `### Approval gate` and `### Reconcile and resume` sections as `cycle_state.py gate-check` / `gate-answer` / `gate-log` protocol blocks (exit 3/0/4 semantics, the `notify_with_timeout` wait of up to `timeout_seconds`, the ri-05 undelivered-notification caveat, `gate-check` never under `--dry-run`, `execute` opening with `gate-check` whose exit-3 record supplies `roadmap_approval_ref`); change the final-record step to re-select the prior with `rehydrate --handoff "$SUPERVISE_HANDOFF"` instead of `supervisor-record --prior "$SUPERVISE_RECORD"` so the router's mirror projection survives (D7); keep the headings `test_workflow_contract.py` slices on and its pinned phrase ``durable `approval_ref` `` (write "a durable `approval_ref` of the form `gate-decision:<decision_id>`"), or update that test in the same commit (S)
+- [ ] 3.2 Rewrite the supervise `cycle` §5 stop and the `execute` `### Approval gate` and `### Reconcile and resume` sections as `cycle_state.py gate-check` / `gate-answer` / `gate-log` protocol blocks (exit 3/0/4 semantics, the `notify_with_timeout` wait of up to `timeout_seconds`, the ri-05 undelivered-notification caveat, `gate-check` never under `--dry-run`, `execute` opening with `gate-check` whose exit-3 record supplies `roadmap_approval_ref`); change the final-record step to re-select the prior with `rehydrate --handoff "$SUPERVISE_HANDOFF"` instead of `supervisor-record --prior "$SUPERVISE_RECORD"` so the router's mirror projection survives (D7); keep the headings `test_workflow_contract.py` slices on and its pinned phrase ``durable `approval_ref` `` (write "a durable `approval_ref` of the form `gate-decision:<decision_id>`"); and update `test_execute_requires_one_durable_roadmap_altitude_approval_before_mutation` in the same commit — it pins six phrases inside `### Approval gate`, and one of them, `before any roadmap checkpoint or execution-state mutation`, becomes false by design once `execute` opens with `gate-check`, whose gate-decision record is the one checkpoint write that legitimately precedes approval. State the exit-4 divergence from `runner.py` (the entry stays answerable via supervise `gate-answer`) in the protocol block (S)
   **Dependencies**: 3.1
   **Files**: skills/supervise/SKILL.md, skills/tests/supervise/test_workflow_contract.py
 
@@ -126,6 +131,6 @@ functions, each an M-or-smaller task below).
   **Dependencies**: 2.10, 3.4, 4.1
   **Files**: (none)
 
-- [ ] 4.3 Verify acceptance outcome 1 manually against a copy of the template with `roadmap_approval: auto` and `pr_creation: auto` — a dry `cycle` → `gate-check` → `execute` walk reaches dispatch with no console answer; record the `gate-log` output in `session-log.md` (S)
+- [ ] 4.3 Verify the supervise-side portion of acceptance outcome 1 manually against a copy of the template with every gate set to `auto` — a `cycle` → `gate-check` → `execute` walk reaches dispatch with no console answer; record the `gate-log` output in `session-log.md`. State in that record what the walk does *not* cover: the child's own `pr_creation` and `merge` gates are evaluated against the posture committed on the child's branch (ri-06's already-verified surface), not against this template copy, so "to a merged PR" is only end-to-end when the posture is committed (S)
   **Dependencies**: 4.2
   **Files**: openspec/changes/route-supervise-gates-through-the-approval-gate-service/session-log.md

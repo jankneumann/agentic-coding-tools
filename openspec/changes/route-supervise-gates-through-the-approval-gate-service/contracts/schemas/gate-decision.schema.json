@@ -110,6 +110,15 @@
       ],
       "description": "Which layer evaluated the gate."
     },
+    "verb": {
+      "type": "string",
+      "enum": [
+        "cycle",
+        "execute",
+        "resume"
+      ],
+      "description": "Which supervise verb raised the gate. Optional, and only meaningful when source is 'supervise'."
+    },
     "roadmap_id": {
       "type": "string",
       "minLength": 1
