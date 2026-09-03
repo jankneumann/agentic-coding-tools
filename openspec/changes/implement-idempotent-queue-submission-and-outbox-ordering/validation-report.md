@@ -357,4 +357,85 @@ The fresh bootstrap log contains no migration-replay or notification-overload am
 
 1. Correct the repository architecture source-root configuration in a separate change.
 2. Restore canonical per-package work-result persistence for future coordinated validations.
+
+---
+
+## Canonical Validation 7 (2026-09-03)
+
+**Commit**: `377b9deb80d2c5f7869b5151d63d63b0d71824d0`
+**Validated tree**: `d403701f6c32a7fbb406391d8d5e200a7df32ca2`
+**Branch**: `openspec/implement-idempotent-queue-submission-and-outbox-ordering`
+
+### Result
+
+**PASS** — The exact pushed PR head satisfies every required validation phase. Validation Fix 6's jsonb-codec fix (`bd0c0fdc`) is the only product change since the Validation 6 FAIL; a fresh live-PostgreSQL run independently confirms `TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused` now passes, and GitHub's required `test-integration` check is green at this exact head.
+
+### Deploy
+
+**Status**: pass
+
+A fresh rootless Podman/PostgreSQL 18.3 stack (`docker.io/paradedb/paradedb:v0.22.2`, isolated network `val7-net`, port `55451`) raw-initialized all 39 SQL migrations (000 through 036) via `docker-entrypoint-initdb.d`, followed automatically by `999_record_schema_migrations.sh`. The resulting ledger contained 39/39 distinct files, matching Python `discover_migrations()` exactly: `missing=[]`, `unexpected=[]`, `checksum_mismatches=[]`. Two consecutive runtime `ensure_schema()` calls both returned `[]`. Teardown (`podman rm -f`, `podman network rm`) left zero matching containers — `podman ps -a` returned an empty list — and both the database port (55451) and the API port (18194, see Smoke below) were confirmed closed by direct socket probe after teardown.
+
+### Smoke Tests
+
+**Status**: pass
+
+The reusable HTTP smoke suite ran against a coordinator API instance (`src.coordination_api`, uvicorn on `127.0.0.1:18194`) backed by the fresh Postgres stack: 11/11 passed (health, readiness, valid/invalid/missing credentials, CORS, error sanitization).
+
+A direct proxied-transport exercise confirmed the HTTP submit/reconcile path end-to-end: `http_proxy.proxy_submit_work()` created a task with `success: true` (no 422, no identity injected into the body); `http_proxy.proxy_reconcile_work_projection()` with the identical `projection_key` returned the same task id with `deduplicated: true`; a follow-up reconcile with an advanced `transition_sequence` created a new canonical task and correctly reported the prior task's id in `cancelled_task_ids`. This reproduces the same proxied dedup/cancel behavior Validation 6 confirmed, now against the fixed jsonb read-back path.
+
+### Security
+
+**Status**: pass
+
+No dependency manifest (`pyproject.toml`, `uv.lock`, `package.json`, `package-lock.json`, or equivalent) changed between the retained-evidence commit and this head — `git log --name-only 0106b8fa..HEAD` for those paths is empty. The retained ZAP evidence remains valid without a rerun: `sha256sum` of `validation-evidence/security/validation-fix-2/zap.stdout.log` and `zap-report.json` reproduce `1899f028...` and `c2c4b377...` exactly as recorded in `execution.json`, and `gate.json` still reads `{"decision": "PASS", "fail_on": "high", "triggered_count": 0}`. A preventive diff of the sole product change since Validation 6 (`git diff d07699d0..HEAD -- agent-coordinator/src/db_postgres.py`, 49 insertions / 2 deletions) found no new dynamic-execution, TLS-bypass, hardcoded-secret, or unparameterized/string-interpolated SQL pattern — the change registers an asyncpg codec keyed on Postgres's declared column type, not runtime string interpolation.
+
+### E2E Tests
+
+**Status**: pass
+
+`tests/integration/postgres/` ran against the fresh live database: 38 passed, 6 skipped — including both `TestCompleteTaskTerminalCancellation` tests. `test_late_complete_after_reconcile_cancel_is_refused` (the test that failed at Validation 6 with `AttributeError: 'str' object has no attribute 'get'`) now passes; `test_complete_still_succeeds_for_active_claimed_task` also passes. `tests/e2e/postgres/` ran against the same database: 13 passed, 0 failed, 0 skipped.
+
+### Spec Compliance
+
+**Status**: pass
+
+- Strict OpenSpec validation (`openspec validate ... --strict`): valid.
+- Task checkbox drift gate: 0 unchecked boxes in `tasks.md` — pass.
+- Requirement-to-contract traceability gate (`check_traceability.py --scope change`): pass, 68 operations cite 36 requirements (unchanged from Validation 5/6).
+- Work-package schema, dependency refs, DAG, lock keys: valid (`validate_work_packages.py --check-overlap`).
+- Context-impact: pass for all four packages (`wp-contracts`, `wp-coordinator-queue`, `wp-bridge-projection`, `wp-integration`) — no undeclared or spurious surfaces (`validate_context_impact.py --base main`).
+
+### Tests and CI/CD
+
+**Status**: pass
+
+- Coordinator full non-live suite (`-m "not e2e and not integration"`): 2,447 passed, 11 skipped, 97 deselected — matches Validation Fix 6's count exactly (the 8-test increase over Validation 6's 2,439 is the new `db_postgres.py` codec unit tests added by the fix).
+- Coordinator `mypy src/`: success, 77 source files, no issues.
+- Coordinator `ruff check .`: all checks passed.
+- Skills infrastructure `testpaths` session (`skills/.venv/bin/python -m pytest -q` from `skills/`, matching CI's `test-infra-skills` "Run infrastructure skill tests" step): 2,974 passed, 13 skipped, 0 failed.
+- `skills/tests/autopilot`: 375 passed.
+- `autopilot/scripts/tests` + `autopilot/tests` (isolated per-directory suite matching CI's loop): 188 passed, 2 failed — the same two local-only sandbox-network-policy failures noted at Validation 6 (`test_smoke_local_real_mode_refuses_an_unresolved_archetype`, `test_smoke_local_real_mode_unreachable_endpoint_refuses_before_dispatch`), which probe a real local-inference endpoint unreachable in this sandbox. Not a product regression: CI's `test-skills` and `test-infra-skills` jobs are green at this exact head (below).
+- The one previously-reported "pre-existing" failure in `refresh-architecture/scripts/tests/test_interpreter_resolution.py` (noted as environmental at Validation Fix 6) did **not** reproduce this round — run in isolation it passed 8/8. Reported as a change from the prior baseline, not fixed by this change's product diff.
+- `bash -n database/migrations/999_record_schema_migrations.sh`: passes.
+- **PR #457 CI at exact head `377b9deb`**: polled to completion, no pending checks remained. All 15 substantive checks are `pass` (`check-docker-imports`, `context-drift-gate`, `context-eval`, `coverage-ratchet`, `docker-smoke-import`, `formal-coordination`, `gen-eval`, `gen-eval-tests`, `requirement-traceability-sweep`, `semantic-enablement-gate`, `test`, `test-infra-skills`, `test-integration`, `test-skills`, `validate-specs`); `dependency-update-remediation` is `skipping` by design. **`test-integration` is now `pass`** — the exact defect that failed this check at Validation 6's head (`d07699d0`) is resolved.
+
+### Architecture
+
+**Status**: DEGRADED (advisory)
+
+Unchanged from Validation 5/6: the pre-existing repository source-root configuration defect still prevents architecture artifact refresh. Advisory mode; the product diff since Validation 6 (`db_postgres.py` only) introduces no new blocking architecture finding.
+
+### Log Analysis
+
+**Status**: pass with baseline warnings
+
+The fresh bootstrap log contains no migration-replay, notification-overload ambiguity, or projection lifecycle error. No `TestCompleteTaskTerminalCancellation`-related error remains in either the local live run or the CI `test-integration` job log.
+
+### Residual Advisories (non-blocking, carried forward)
+
+1. Correct the repository architecture source-root configuration in a separate change.
+2. Restore canonical per-package work-result persistence for future coordinated validations.
+3. `architecture-impact.md` header still names an earlier validated commit than the most recent audit subsection (documentation drift only, noted since Validation Review 5).
+4. Two sandbox-network-policy test failures in `autopilot/scripts/tests/test_autopilot.py` (local-inference smoke probes) remain sandbox-only; CI's equivalent job is green.
 3. `architecture-impact.md` header still names an earlier validated commit than the most recent audit subsection (documentation drift only, noted at Validation Review 5).
