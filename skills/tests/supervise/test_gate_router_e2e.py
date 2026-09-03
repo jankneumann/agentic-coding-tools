@@ -32,13 +32,11 @@ for _dir in (_SUPERVISE_SCRIPTS, _RUNTIME_SCRIPTS, _SKILLS_ROOT):
     if str(_dir) not in sys.path:  # pragma: no cover - import wiring
         sys.path.insert(0, str(_dir))
 
-import cycle_state  # noqa: E402
 import gate_router  # noqa: E402
 from execution import ExecutionAdapter  # noqa: E402
 from models import Effort, ItemStatus, Roadmap, RoadmapItem  # noqa: E402
 from shared.approval_gate import (  # noqa: E402
     ApprovalGate,
-    CoordinatorUnavailable,
     DefaultAction,
 )
 from shared.trust_posture import Disposition, Gate, GateDisposition, TrustPosture  # noqa: E402
@@ -318,7 +316,7 @@ def test_cycle_execute_parked_flip_resume_second_cycle_late_answer(scenario) -> 
     request = prepared["requests"][0]
 
     # child_start / acknowledge / enter -- the normal ack/go sequence.
-    claimed = adapter.child_start(
+    adapter.child_start(
         workspace, dispatch_id=request["dispatch_id"], launch_token=request["launch_token"],
         lease_generation=request["lease_generation"], owner_nonce="owner-nonce-0001",
     )
