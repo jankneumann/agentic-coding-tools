@@ -89,6 +89,50 @@ def _validate_select_clause(select: str) -> str:
     return ", ".join(columns)
 
 
+def _encode_jsonb_param(value: Any) -> str:
+    """Encode a jsonb/json codec parameter for asyncpg's text wire format.
+
+    ``_serialize_for_asyncpg`` (and some callers, e.g. ``work_queue.py``'s
+    manual ``json.dumps`` for ``agent_requirements``) already turn dicts and
+    lists into JSON text before the value reaches asyncpg, so this pass
+    through the value untouched when it is already a ``str`` — encoding an
+    already-serialized string again would double-encode it (the column would
+    store a quoted JSON string instead of the object). Anything that was
+    *not* pre-serialized (e.g. a raw list or dict that reached asyncpg
+    without going through ``_serialize_for_asyncpg``) still gets encoded
+    correctly here. asyncpg binds a Python ``None`` parameter to SQL NULL
+    without invoking a registered codec's encoder, but the ``"null"``
+    fallback here is defensive in case that ever changes: it round-trips
+    through ``json.loads`` back to ``None``, matching prior NULL semantics.
+    """
+    if value is None:
+        return "null"
+    return value if isinstance(value, str) else json.dumps(value)
+
+
+async def _register_jsonb_codecs(conn: asyncpg.Connection) -> None:
+    """Register jsonb/json type codecs so query() results decode natively.
+
+    asyncpg returns ``jsonb``/``json`` columns as raw text unless a type
+    codec is registered on the connection — this is why
+    ``DirectPostgresClient.query()`` previously handed back ``Task.result``
+    (and ``input_data``/``agent_requirements``) as a JSON string instead of a
+    dict. ``rpc()`` masked this for function results with an ad hoc
+    ``isinstance(result, str)`` decode; registering the codec here makes
+    decoding uniform (by declared column/return type) across ``query()``,
+    ``insert()``, ``update()``, and ``rpc()``, and makes that ad hoc decode
+    in ``rpc()`` a harmless no-op going forward.
+    """
+    for typename in ("jsonb", "json"):
+        await conn.set_type_codec(
+            typename,
+            schema="pg_catalog",
+            encoder=_encode_jsonb_param,
+            decoder=json.loads,
+            format="text",
+        )
+
+
 def _serialize_for_asyncpg(value: Any) -> Any:
     """Adapt Python values to asyncpg parameter types.
 
@@ -126,6 +170,7 @@ class DirectPostgresClient:
                 dsn=self._config.dsn,
                 min_size=self._config.pool_min,
                 max_size=self._config.pool_max,
+                init=_register_jsonb_codecs,
             )
         return self._pool
 
@@ -150,8 +195,10 @@ class DirectPostgresClient:
             if row is None:
                 return None
             result = row[0]
-            # asyncpg returns function JSONB results as strings (not dicts)
-            # because function return types aren't introspected from the schema.
+            # Belt-and-suspenders: the jsonb/json codec registered in
+            # _register_jsonb_codecs() should already decode a JSONB function
+            # result to a dict/list. Keep this as a harmless fallback in case
+            # a result column ever resolves to a type the codec doesn't cover.
             if isinstance(result, str):
                 try:
                     return json.loads(result)
