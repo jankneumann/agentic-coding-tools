@@ -4,6 +4,33 @@
 
 The system SHALL provide task assignment, tracking, dependency management, and atomic projection submission through a work queue. An ordinary submission without `projection_key` SHALL create a new row. A submission with the complete `(change_id, phase, transition_sequence)` key SHALL use submit-if-absent semantics enforced by PostgreSQL uniqueness and per-change transaction serialization. `transition_sequence` SHALL be the strict bounded integer copied from `LoopState.total_iterations`; phase-local `iteration` SHALL NOT identify a projection. A replay SHALL return the canonical row and SHALL NOT create a second row.
 
+- Tasks SHALL support priority levels
+- Task claiming SHALL be atomic (no double-claiming)
+- Tasks SHALL support dependencies on other tasks
+- Blocked tasks (with unmet dependencies) SHALL NOT be claimable
+
+#### Scenario: Agent claims task from queue
+- **WHEN** agent calls `get_work(task_types?)`
+- **THEN** system atomically claims the highest-priority pending task
+- **AND** returns `{success: true, task_id, task_type, task_description, input_data}`
+
+#### Scenario: No tasks available
+- **WHEN** agent calls `get_work()` with no pending tasks matching criteria
+- **THEN** system returns `{success: false, reason: "no_tasks_available"}`
+
+#### Scenario: Agent completes task
+- **WHEN** agent calls `complete_work(task_id, success, result?, error_message?)`
+- **THEN** system returns `{success: true, status: "completed"}`
+- **AND** dependent tasks become unblocked if applicable
+
+#### Scenario: Agent submits new task
+- **WHEN** agent calls `submit_work(task_type, task_description, input_data?, priority?, depends_on?)`
+- **THEN** system returns `{success: true, task_id: uuid}`
+
+#### Scenario: Task with unmet dependencies
+- **WHEN** agent attempts to claim a task with pending dependencies
+- **THEN** the task SHALL NOT be returned by `get_work()`
+
 #### Scenario: Agent submits ordinary new task
 
 - **WHEN** an agent calls `submit_work` without `projection_key`

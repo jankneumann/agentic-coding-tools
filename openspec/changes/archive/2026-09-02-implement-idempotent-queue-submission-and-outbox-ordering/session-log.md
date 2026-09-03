@@ -860,8 +860,7 @@ Round four failed closed at 1/2 quorum purely because of a 90-second per-vendor 
 - Added `agent-coordinator/tests/test_work_queue.py::test_complete_refused_after_cancellation_surfaces_status_and_warns` proving the Python-side warning and the surfaced `status`/`reason`.
 - Routed the exception handler, the phase-raise branch, and the `GoalGateRefused` handler in `skills/autopilot/scripts/autopilot.py::run_loop` through `persist_and_project(..., mode="submit")`.
 - Added three `run_loop`-level tests in `skills/tests/autopilot/test_queue_projection_ordering.py` (`test_exception_branch_projects_the_escalate_transition`, `test_phase_raise_branch_projects_the_escalate_transition`, `test_goal_gate_refusal_branch_projects_the_escalate_transition`) proving each branch now calls the projection callback with `mode="submit"` for the ESCALATE transition.
-- Added `WorkQueueService.reconcile_projection` audit logging (`operation="reconcile_work_projection"`, result carries `task_id`/`created`/`cancelled_task_ids`), a matching unit test (`test_successful_reconcile_audited` in `agent-coordinator/tests/test_audit_completeness.py`), and registered the operation in `TestMutationSurfaceCoverage.MUTATION_SURFACE`.
-- Reworked `persist_and_project` to classify a mapping callback response whose `status` is present and not `"ok"` as that status (preserving `reason`/`error`) with a logged warning, and added six unit tests covering failed/skipped/error-key/success/statusless-mapping envelopes plus the warning log.
+- Added `WorkQueueService.reconcile_projection` audit logging (`operation="reconcile_work_projection[REDACTED:high-entropy]ok"` as that status (preserving `reason`/`error`) with a logged warning, and added six unit tests covering failed/skipped/error-key/success/statusless-mapping envelopes plus the warning log.
 - Ran the full relevant suites: coordinator pytest (`tests/test_migrations.py`, `tests/test_work_queue.py`, `tests/test_work_queue_invariants.py`, `tests/test_audit_completeness.py` = 86 passed; full `-m "not e2e and not integration"` = 2439 passed, 11 skipped), coordinator `mypy src/` (77 files, no issues) and `ruff check .` (clean), skills `skills/tests/autopilot` (369 passed, 6 skipped) and full `skills` suite (2973 passed, 13 skipped, 1 pre-existing unrelated failure in `refresh-architecture/scripts/tests/test_interpreter_resolution.py` caused by the local environment's system Python lacking `tree_sitter` — untouched by this change), and `openspec validate ... --strict` (valid).
 
 ### Next Steps
@@ -1046,3 +1045,27 @@ Validation Fix 6 registered an asyncpg jsonb/json type codec on the pool (`bd0c0
 
 ### Context
 Round five converged on the Canonical Validation 5 evidence at `be1bada1`, but four product commits landed afterwards — the proxy identity/guardrail fix, migration 036's terminal-completion guard with its reconcile audit trail, the autopilot escalation projection, and the asyncpg jsonb codec. Round six therefore reviewed the new code alongside the Canonical Validation 7 evidence at head `937a1829` (product tree unchanged since `377b9deb`). Both completed reviewers accepted every claim; the reviewing agent's own re-derivation of the head/tree, ZAP hashes, encoder semantics, migration guard, local suites, and exact-head CI reproduced the report exactly. Two new advisories are documentation-only or non-exploitable. Outcome: **converged**.
+
+---
+
+## Phase: Cleanup (2026-09-03)
+
+**Agent**: claude | **Session**: N/A
+
+### Decisions
+1. **Rebase merge into the roadmap branch** — OpenSpec-origin PRs rebase-merge to preserve the agent-authored conventional commit history; PR #457 targets the roadmap integration branch, as ri-03 did, not main.
+2. **No task migration** — tasks.md had zero unchecked items after Validation 7 and review round 6.
+3. **Goal gate ordering defect filed rather than worked around** — autopilot's goal gate refused DONE because VAL_REVIEW appended its required section after the VALIDATE record; filed as issue #461 instead of altering file timestamps.
+
+### Completed Work
+- merge
+- archive
+- decision-index
+- branch-cleanup
+
+### Next Steps
+- roadmap-supervisor-orchestration ri-09 (mirror autopilot phase state into the work queue) is now unblocked
+
+### Context
+Merged PR #457 into openspec/roadmap-roadmap-supervisor-orchestration by rebase after the validation-report gate passed on all four required phases; no open tasks to migrate; change archived and decision index regenerated in the same commit.
+

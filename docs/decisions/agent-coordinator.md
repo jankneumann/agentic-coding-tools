@@ -5,36 +5,36 @@
 
 ---
 
-## 2026-09-01 — implement-idempotent-queue-submission-and-outbox-ordering
+## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
 
 ### Phase: Plan
 
 **Enforce projection identity in PostgreSQL** — A partial unique expression index plus ON CONFLICT is the only considered approach that atomically arbitrates concurrent submitters.
 
 - Status: `active`
-- Source: [openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D1)
 
 ---
 
-## 2026-09-01 — implement-idempotent-queue-submission-and-outbox-ordering
+## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
 
 ### Phase: Plan Iteration 1
 
 **Use one bounded monotonic projection identity** — A single explicit projection_key with transition_sequence copied from LoopState.total_iterations removes ambiguous iteration sources and reserved embedded fields.
 
 - Status: `active`
-- Source: [openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D1)
 
 ---
 
-## 2026-09-01 — implement-idempotent-queue-submission-and-outbox-ordering
+## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
 
 ### Phase: Plan Iteration 1
 
 **Serialize keyed mutations per change** — A shared transaction advisory lock closes different-tuple submit/reconcile races while the unique text-expression index arbitrates same-key concurrency.
 
 - Status: `active`
-- Source: [openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D2)
 
 ---
 

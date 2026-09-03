@@ -2062,6 +2062,41 @@
       "primary_key": [],
       "file": "030_incremental_code_search_indexes.sql",
       "line": 210
+    },
+    {
+      "name": "public.work_queue_projection_heads",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "change_id",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "phase",
+          "type": "TEXT",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "transition_sequence",
+          "type": "INTEGER",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "NOW()"
+        }
+      ],
+      "primary_key": [
+        "change_id"
+      ],
+      "file": "035_work_queue_projection.sql",
+      "line": 50
     }
   ],
   "foreign_keys": [
@@ -2773,6 +2808,16 @@
         "git_blob_id"
       ],
       "unique": false
+    },
+    {
+      "name": "work_queue_projection_key_uidx",
+      "table": "public.work_queue",
+      "columns": [
+        "(input_data ->> 'change_id')",
+        "(input_data ->> 'phase')",
+        "(input_data ->> 'transition_sequence')"
+      ],
+      "unique": true
     }
   ],
   "stored_functions": [
@@ -2883,8 +2928,8 @@
     },
     {
       "name": "public.complete_task",
-      "file": "001_core_schema.sql",
-      "line": 262,
+      "file": "036_terminal_completion_guard.sql",
+      "line": 1,
       "language": "plpgsql",
       "parameters": [
         {
@@ -2910,47 +2955,7 @@
       ],
       "return_type": "jsonb",
       "referenced_tables": [
-        "public.work_queue"
-      ]
-    },
-    {
-      "name": "public.submit_task",
-      "file": "021_agent_requirements.sql",
-      "line": 88,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "P_TASK_TYPE TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_DESCRIPTION TEXT"
-        },
-        {
-          "name": "",
-          "type": "P_INPUT_DATA JSONB DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_PRIORITY INTEGER DEFAULT 5"
-        },
-        {
-          "name": "",
-          "type": "P_DEPENDS_ON UUID[] DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_DEADLINE TIMESTAMPTZ DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "P_AGENT_REQUIREMENTS JSONB DEFAULT NULL"
-        }
-      ],
-      "return_type": "jsonb",
-      "referenced_tables": [
-        "public.v_task_id",
+        "public.v_current_status",
         "public.work_queue"
       ]
     },
@@ -3359,48 +3364,6 @@
       "referenced_tables": []
     },
     {
-      "name": "public.coordinator_notify",
-      "file": "025_notify_enrich_change_id.sql",
-      "line": 1,
-      "language": "plpgsql",
-      "parameters": [
-        {
-          "name": "",
-          "type": "CHANNEL TEXT"
-        },
-        {
-          "name": "",
-          "type": "EVENT_TYPE TEXT"
-        },
-        {
-          "name": "",
-          "type": "ENTITY_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "AGENT_ID TEXT"
-        },
-        {
-          "name": "",
-          "type": "SUMMARY TEXT DEFAULT ''"
-        },
-        {
-          "name": "",
-          "type": "CHANGE_ID TEXT DEFAULT NULL"
-        },
-        {
-          "name": "",
-          "type": "CONTEXT JSONB DEFAULT '{}'"
-        },
-        {
-          "name": "",
-          "type": "::JSONB"
-        }
-      ],
-      "return_type": "void",
-      "referenced_tables": []
-    },
-    {
       "name": "public.notify_approval_queue_change",
       "file": "015_notification_triggers.sql",
       "line": 34,
@@ -3583,6 +3546,99 @@
         "public.handoff_documents",
         "public.v_handoffs"
       ]
+    },
+    {
+      "name": "public.submit_task",
+      "file": "035_work_queue_projection.sql",
+      "line": 66,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_TASK_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_DESCRIPTION TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_INPUT_DATA JSONB DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_PRIORITY INTEGER DEFAULT 5"
+        },
+        {
+          "name": "",
+          "type": "P_DEPENDS_ON UUID[] DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_DEADLINE TIMESTAMPTZ DEFAULT NULL"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_REQUIREMENTS JSONB DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.v_head_phase",
+        "public.v_id",
+        "public.work_queue",
+        "public.work_queue_projection_heads"
+      ]
+    },
+    {
+      "name": "public.reconcile_work_projection",
+      "file": "035_work_queue_projection.sql",
+      "line": 139,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_CHANGE_ID TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_PHASE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_TRANSITION_SEQUENCE INTEGER"
+        },
+        {
+          "name": "",
+          "type": "P_TASK_TYPE TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_DESCRIPTION TEXT"
+        },
+        {
+          "name": "",
+          "type": "P_INPUT_DATA JSONB"
+        },
+        {
+          "name": "",
+          "type": "P_PRIORITY INTEGER DEFAULT 5"
+        },
+        {
+          "name": "",
+          "type": "P_AGENT_REQUIREMENTS JSONB DEFAULT NULL"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.cancelled",
+        "public.set",
+        "public.v_cancelled",
+        "public.v_head_seq",
+        "public.v_id",
+        "public.work_queue",
+        "public.work_queue_projection_heads"
+      ]
     }
   ],
   "triggers": [
@@ -3730,10 +3786,10 @@
     }
   ],
   "summary": {
-    "total_tables": 27,
-    "total_columns": 295,
+    "total_tables": 28,
+    "total_columns": 299,
     "total_foreign_keys": 11,
-    "total_indexes": 69,
+    "total_indexes": 70,
     "most_referenced_tables": [
       {
         "table": "public.code_search_indexes",

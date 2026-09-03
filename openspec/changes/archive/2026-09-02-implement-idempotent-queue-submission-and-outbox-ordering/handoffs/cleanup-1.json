@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-03T02:53:45.155911+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude",
+    "session_id": null,
+    "summary": "Merged PR #457 into openspec/roadmap-roadmap-supervisor-orchestration by rebase after the validation-report gate passed on all four required phases; no open tasks to migrate; change archived and decision index regenerated in the same commit.",
+    "completed_work": [
+      "merge",
+      "archive",
+      "decision-index",
+      "branch-cleanup"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Rebase merge into the roadmap branch",
+        "rationale": "OpenSpec-origin PRs rebase-merge to preserve the agent-authored conventional commit history; PR #457 targets the roadmap integration branch, as ri-03 did, not main.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "No task migration",
+        "rationale": "tasks.md had zero unchecked items after Validation 7 and review round 6.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Goal gate ordering defect filed rather than worked around",
+        "rationale": "autopilot's goal gate refused DONE because VAL_REVIEW appended its required section after the VALIDATE record; filed as issue #461 instead of altering file timestamps.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "roadmap-supervisor-orchestration ri-09 (mirror autopilot phase state into the work queue) is now unblocked"
+    ],
+    "relevant_files": []
+  }
+}

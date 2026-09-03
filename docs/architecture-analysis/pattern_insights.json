@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-01T22:12:21+00:00",
+  "generated_at": "2026-09-03T02:53:13+00:00",
   "python_patterns": {
     "assertions": {
       "count": 2,
@@ -13,10 +13,10 @@
       "files": {}
     },
     "broad_except": {
-      "count": 131,
+      "count": 133,
       "files": {
         "coordination_api.py": 29,
-        "work_queue.py": 15,
+        "work_queue.py": 17,
         "policy_engine.py": 9,
         "code_search_runtime.py": 7,
         "langfuse_tracing.py": 7,
@@ -63,28 +63,28 @@
       }
     },
     "type_hints": {
-      "count": 2023,
+      "count": 2060,
       "files": {
-        "coordination_api.py": 182,
-        "coordination_mcp.py": 133,
-        "http_proxy.py": 122,
+        "coordination_api.py": 194,
+        "coordination_mcp.py": 137,
+        "http_proxy.py": 126,
         "agents_config.py": 95,
         "policy_engine.py": 71,
         "code_search_runtime.py": 68,
+        "coordination_cli.py": 68,
         "merge_train.py": 67,
         "code_search_authorization.py": 66,
-        "coordination_cli.py": 66,
         "code_search.py": 49,
+        "work_queue.py": 40,
         "db.py": 39,
         "merge_train_service.py": 39,
         "git_adapter.py": 38,
         "openspec_proposals_api.py": 38,
         "event_bus.py": 33,
         "feature_flags.py": 33,
-        "work_queue.py": 31,
+        "db_postgres.py": 31,
         "github_openspec_fetcher.py": 30,
-        "notifications/gmail.py": 28,
-        "db_postgres.py": 27
+        "notifications/gmail.py": 28
       }
     }
   },
@@ -121,13 +121,13 @@
     }
   },
   "type_hint_coverage": {
-    "functions_with_return_type": 994,
-    "typed_parameters": 954
+    "functions_with_return_type": 1007,
+    "typed_parameters": 976
   },
   "exception_handling": {
     "bare_except": 0,
-    "broad_except": 131,
-    "total_except_issues": 131
+    "broad_except": 133,
+    "total_except_issues": 133
   },
   "security": {
     "total": 10,
