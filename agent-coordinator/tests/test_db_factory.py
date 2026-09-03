@@ -1,5 +1,7 @@
 """Tests for the database client factory pattern."""
 
+import json
+
 import pytest
 
 from src.config import reset_config
@@ -9,6 +11,8 @@ try:
     from src.db_postgres import (
         DirectPostgresClient,
         _coerce_filter_value,
+        _encode_jsonb_param,
+        _register_jsonb_codecs,
         _serialize_for_asyncpg,
         _validate_identifier,
         _validate_select_clause,
@@ -247,3 +251,124 @@ class TestPostgresUpdateTimestampBinding:
         )
         assert isinstance(args[2], datetime)
         assert args[3] == issue_id
+
+
+@pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
+class TestEncodeJsonbParam:
+    """DirectPostgresClient._encode_jsonb_param — the jsonb codec's encoder.
+
+    Regression coverage for Canonical Validation 6: DirectPostgresClient.query()
+    never decoded jsonb columns, so Task.result came back as a raw JSON string
+    instead of a dict under DB_BACKEND=postgres. The fix registers a jsonb/json
+    type codec on the pool; this encoder is the write side of that codec and
+    must not double-encode values _serialize_for_asyncpg (or a caller) already
+    turned into JSON text.
+    """
+
+    def test_pre_serialized_string_passes_through_unchanged(self):
+        """A string already produced by json.dumps() must not be re-encoded.
+
+        _serialize_for_asyncpg() already turns dicts into JSON strings before
+        asyncpg sees them; some callers (e.g. work_queue.py's
+        agent_requirements) do the same by hand. If the encoder re-encoded an
+        already-serialized string, the column would store a quoted JSON
+        string instead of the object.
+        """
+        already_serialized = json.dumps({"reason": "cancelled_by_projection_reconcile"})
+        assert _encode_jsonb_param(already_serialized) == already_serialized
+
+    def test_dict_not_pre_serialized_gets_encoded(self):
+        out = _encode_jsonb_param({"a": 1})
+        assert out == json.dumps({"a": 1})
+        assert json.loads(out) == {"a": 1}
+
+    def test_list_not_pre_serialized_gets_encoded(self):
+        out = _encode_jsonb_param(["x", "y"])
+        assert out == json.dumps(["x", "y"])
+
+    def test_none_encodes_to_json_null(self):
+        """Defensive: even if asyncpg ever invoked the encoder for a NULL
+        parameter, it must round-trip to Python None, not raise or store the
+        literal string 'None'.
+        """
+        out = _encode_jsonb_param(None)
+        assert json.loads(out) is None
+
+    def test_plain_string_that_is_not_json_passes_through(self):
+        # e.g. a caller that (incorrectly) binds a bare string to a jsonb
+        # column — still must not be double-json-encoded.
+        assert _encode_jsonb_param("not json") == "not json"
+
+
+@pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
+class TestRegisterJsonbCodecs:
+    """DirectPostgresClient._register_jsonb_codecs — the pool init hook."""
+
+    @pytest.mark.asyncio
+    async def test_registers_jsonb_and_json_with_text_codec(self):
+        calls: list[dict] = []
+
+        class FakeConn:
+            async def set_type_codec(self, typename, *, schema, encoder, decoder, format):
+                calls.append(
+                    {
+                        "typename": typename,
+                        "schema": schema,
+                        "encoder": encoder,
+                        "decoder": decoder,
+                        "format": format,
+                    }
+                )
+
+        await _register_jsonb_codecs(FakeConn())  # type: ignore[arg-type]
+
+        typenames = {call["typename"] for call in calls}
+        assert typenames == {"jsonb", "json"}
+        for call in calls:
+            assert call["schema"] == "pg_catalog"
+            assert call["format"] == "text"
+            assert call["encoder"] is _encode_jsonb_param
+            assert call["decoder"] is json.loads
+
+    @pytest.mark.asyncio
+    async def test_registered_codec_round_trips_a_dict(self):
+        """Prove the encoder/decoder pair registered here actually round-trips."""
+        registered: dict = {}
+
+        class FakeConn:
+            async def set_type_codec(self, typename, *, schema, encoder, decoder, format):
+                registered[typename] = (encoder, decoder)
+
+        await _register_jsonb_codecs(FakeConn())  # type: ignore[arg-type]
+
+        encoder, decoder = registered["jsonb"]
+        payload = {"reason": "cancelled_by_projection_reconcile"}
+        # Simulate asyncpg's write path (encoder) followed by its read path
+        # from the same wire text (decoder) — this is the exact regression
+        # covered by TestCompleteTaskTerminalCancellation in
+        # tests/integration/postgres/test_work_queue_postgres.py.
+        wire_text = encoder(payload)
+        assert decoder(wire_text) == payload
+
+
+@pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
+class TestPoolRegistersJsonbCodecInit:
+    """DirectPostgresClient._get_pool() must wire the codec into the pool."""
+
+    @pytest.mark.asyncio
+    async def test_get_pool_passes_init_hook_to_create_pool(self, monkeypatch):
+        import src.db_postgres as db_postgres_module
+
+        captured_kwargs: dict = {}
+
+        async def fake_create_pool(**kwargs):
+            captured_kwargs.update(kwargs)
+            return "fake-pool"
+
+        monkeypatch.setattr(db_postgres_module.asyncpg, "create_pool", fake_create_pool)
+
+        client = DirectPostgresClient()
+        pool = await client._get_pool()
+
+        assert pool == "fake-pool"
+        assert captured_kwargs.get("init") is db_postgres_module._register_jsonb_codecs
