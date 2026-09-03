@@ -255,7 +255,7 @@ def _pending_gate_entry(
 
 
 def _timeout_seconds_from_context(record: dict[str, Any]) -> Optional[int]:
-    value = record.get("_timeout_seconds")
+    value = record.get("timeout_seconds")
     return int(value) if isinstance(value, int) else None
 
 
@@ -500,6 +500,7 @@ def _decision_from_record(record: dict[str, Any]) -> ApprovalDecision:
         default_action=DefaultAction(default_action) if default_action else None,
         posture_present=bool(record.get("posture_present", False)),
         notified=record.get("notified"),
+        timeout_seconds=record.get("timeout_seconds"),
     )
 
 
@@ -607,8 +608,10 @@ def resolve_parked(
         "verb": "resume",
         "reason": parked.get("reason"),
     }
+    moment = now or datetime.now(timezone.utc)
+    roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
     routed = evaluate(
-        gate_enum, context, workspace=workspace, repo_root=repo_root, evaluator=evaluator, now=now
+        gate_enum, context, workspace=workspace, repo_root=repo_root, evaluator=evaluator, now=moment
     )
 
     if routed.decision.outcome is Outcome.PROCEED:
@@ -618,15 +621,15 @@ def resolve_parked(
         )
         return ParkedResolution(outcome="proceed", routed=routed, resume_result=resume_result)
 
-    entry = {
-        "gate": gate_enum.value,
-        "change_id": attempt.get("change_id"),
-        "requested_at": routed.record.get("recorded_at"),
-        "disposition": routed.record.get("disposition"),
-        "approval_id": routed.decision.approval_id,
-        "source": "supervise",
-        "decision_id": routed.record.get("decision_id"),
-    }
+    # Reuse the same deadline computation every other blocked path gets
+    # (`requested_at + timeout_seconds` when an approval was filed, else
+    # `+ DEFAULT_BLOCK_HORIZON`) — gate_enum here is never ROADMAP_APPROVAL
+    # (a parked attempt's gate is one of autopilot's own, or escalate_resume),
+    # so `roadmap` only satisfies the helper's signature and is not consulted
+    # for change_id resolution.
+    entry = _pending_gate_entry(
+        gate_enum, routed.decision, routed.record, roadmap=roadmap, repo_root=repo_root, now=moment
+    )
     return ParkedResolution(outcome="blocked", routed=routed, pending_gate_entry=entry)
 
 
