@@ -268,3 +268,93 @@ The reviewing agent independently reproduced the load-bearing claims: `zap.stdou
 ### Residual Advisory (non-blocking, new this round)
 
 Grok noted that the `architecture-impact.md` header still records validated commit `59fdb05f` while its own `Canonical Validation 5 Audit` subsection correctly cites `0106b8fa` / tree `04610c62`. This is documentation drift only; it neither contradicts the advisory DEGRADED conclusion nor invalidates the Validation 5 PASS.
+
+---
+
+## Canonical Validation 6 (2026-09-02)
+
+**Commit**: `d07699d0bcb7419375ade797c895164805f147f7`
+**Validated tree**: `a37851937da4993d2b764bdbf36a1bb96a62f3eb`
+**Branch**: `openspec/implement-idempotent-queue-submission-and-outbox-ordering`
+
+### Result
+
+**FAIL** — A fresh live-PostgreSQL run reproduces a real defect in the exact head under validation: `TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused` fails against a real database, both in GitHub's required `test-integration` job and in an independent local reproduction. The migration-036 guardrail itself works correctly (the WARNING log line confirms `complete_task` refuses the late call), but the read-back path used to assert on it is broken: `DirectPostgresClient.query()` (used by `WorkQueueService.get_task()`) does not JSON-decode `jsonb` columns the way `DirectPostgresClient.rpc()` does, so `Task.result` comes back as a raw JSON `str` instead of a `dict` on this backend, and `still_cancelled.result.get("reason")` raises `AttributeError: 'str' object has no attribute 'get'`. This is a genuine, reproducible regression exposed for the first time by validation-fix-5's new PostgreSQL-backed test — not CI flakiness, not environmental noise — and it must return to VAL_FIX before this PR can proceed.
+
+### What changed since Validation 5
+
+Three product commits landed after the `0106b8fa` head that Validation 5 and Validation Review 5 passed:
+
+1. `dda2834f` (a separate session) — `http_proxy.py` stops injecting undeclared `agent_id`/`agent_type` into proxied `submit`/`reconcile` bodies (fixing a 422-on-every-proxied-submission regression from `extra="forbid"`), and `work_queue.py` screens `reconcile_projection()` content through the same guardrail service `submit()` uses before the mutating RPC.
+2. `e973d77a` — new migration `036_terminal_completion_guard.sql` restricts `complete_task`'s `UPDATE` to `status IN ('claimed', 'running')` and returns `reason='task_not_active'` when refused for that reason; `WorkQueueService.complete()` logs a warning on that refusal; `reconcile_projection()` now writes an audit `log_operation` record with the created and cancelled task ids.
+3. `760e1415` — `autopilot.py`'s exception handler, phase-raise branch, and `GoalGateRefused` handler now route ESCALATE persistence through `persist_and_project(..., mode="submit")`; `persist_and_project` classifies `{"status": "skipped"|"failed", ...}` callback envelopes by their declared status instead of reporting every non-raising response as `"ok"`.
+
+### Deploy
+
+**Status**: pass
+
+A fresh rootless Podman/PostgreSQL 18.3 stack (`docker.io/paradedb/paradedb:v0.22.2`, isolated network/ports) raw-initialized all 39 SQL migrations (000 through 036) via `docker-entrypoint-initdb.d`, followed automatically by `999_record_schema_migrations.sh` (it sorts last alphabetically). The resulting ledger contained 39/39 distinct files, matched exactly against Python `discover_migrations()`: `missing=[]`, `unexpected=[]`, `checksum_mismatches=[]`. Two consecutive runtime `ensure_schema()` calls both returned `[]`. Teardown (`podman rm -f`, `podman network rm`) left zero matching containers, volumes, networks, or listeners — confirmed by `podman ps -a` and a process-table check.
+
+### Smoke Tests
+
+**Status**: pass
+
+The reusable live smoke suite passed 11/11 (health, readiness, valid/invalid/missing credentials, CORS, error sanitization) against a coordinator API instance backed by the fresh Postgres stack.
+
+An additional proxied-transport check exercised the dda2834f fix directly: `http_proxy.proxy_submit_work()` and `http_proxy.proxy_reconcile_work_projection()` were called against the live deployed API with a real `HttpProxyConfig` (no identity injected into the body). Both returned `success: true` with no 422 — `proxy_submit_work` created a task, and `proxy_reconcile_work_projection` created a new canonical task and correctly reported the prior task's id in `cancelled_task_ids`. This directly confirms the proxied-submission regression that `dda2834f` fixed stays fixed on the HTTP transport path.
+
+### Security
+
+**Status**: pass
+
+No dependency manifest (`pyproject.toml`, `uv.lock`, `package.json`, `package-lock.json`, or equivalent) changed between the retained-evidence commit and this head — `git log --name-only 0106b8fa..HEAD` for those paths is empty. The retained ZAP evidence therefore remains valid without a rerun: `sha256sum` of `validation-evidence/security/validation-fix-2/zap.stdout.log` and `zap-report.json` reproduce `1899f028...` and `c2c4b377...` exactly as recorded in `execution.json`, and `gate.json` still reads `{"decision": "PASS", "fail_on": "high", "triggered_count": 0}`. A preventive diff of the product changes since `0106b8fa` (`http_proxy.py`, `work_queue.py`, `036_terminal_completion_guard.sql`, `autopilot.py`) found no new Tier-3 dynamic execution, TLS bypass, hardcoded secret, or unparameterized/string-interpolated SQL boundary.
+
+### E2E Tests
+
+**Status**: fail
+
+`tests/integration/postgres/test_work_queue_postgres.py::TestCompleteTaskTerminalCancellation` was run against the fresh live database: `test_complete_still_succeeds_for_active_claimed_task` passed, but `test_late_complete_after_reconcile_cancel_is_refused` failed with `AttributeError: 'str' object has no attribute 'get'` at its final assertion — reproducing GitHub's `test-integration` job failure exactly (same test, same error). See "What changed since Validation 5" above for root cause. Every other live PostgreSQL/E2E test in the same session passed (50 passed, 1 failed, 6 skipped, matching CI's count precisely).
+
+### Spec Compliance
+
+**Status**: pass
+
+- Strict OpenSpec validation (`openspec validate ... --strict`): valid.
+- Task checkbox drift gate: 0 unchecked boxes in `tasks.md` — pass.
+- Requirement-to-contract traceability gate (`check_traceability.py --scope change`): pass, 68 operations cite 36 requirements (unchanged from Validation 5).
+- Work-package schema, dependency refs, DAG, lock keys: valid (`validate_work_packages.py`).
+- Context-impact: pass for all four packages (`wp-contracts`, `wp-coordinator-queue`, `wp-bridge-projection`, `wp-integration`) — no undeclared or spurious surfaces (`validate_context_impact.py --base main`).
+
+### Tests and CI/CD
+
+**Status**: fail (CI required check red at exact head)
+
+- Coordinator full non-live suite (`-m "not e2e and not integration"`): 2,439 passed, 11 skipped, 97 deselected.
+- Coordinator `mypy src/`: success, 77 source files, no issues.
+- Coordinator `ruff check .`: all checks passed.
+- Skills infrastructure suite (`skills/.venv/bin/python -m pytest` from `skills/`, i.e. the `testpaths`-scoped session CI's `test-infra-skills` job runs as "Run infrastructure skill tests"): 2,974 passed, 13 skipped, 0 failed.
+- Isolated per-directory skills suites matching CI's "Run in-skill test suites (isolated processes)" step: `skills/tests/autopilot` 375 passed; `tests/agent-coordinator` + `tests/integration` + `tests/roadmap-runtime` 173 passed. `autopilot/scripts/tests` + `autopilot/tests` showed 2 local-only failures (`test_smoke_local_real_mode_refuses_an_unresolved_archetype`, `test_smoke_local_real_mode_unreachable_endpoint_refuses_before_dispatch`) in subprocess smoke tests that probe a real local-inference endpoint; these are sandbox network-policy artifacts, not product regressions — the identical directory is green in GitHub's `test-infra-skills` job at this exact head (see below), which is authoritative.
+- `bash -n database/migrations/999_record_schema_migrations.sh`: passes.
+- **PR #457 CI at exact head `d07699d0`**: polled to completion (no pending checks remained). 15 of 16 checks are `pass` (`check-docker-imports`, `context-drift-gate`, `context-eval`, `docker-smoke-import`, `formal-coordination`, `gen-eval`, `gen-eval-tests`, `requirement-traceability-sweep`, `coverage-ratchet`, `semantic-enablement-gate`, `test`, `test-infra-skills`, `test-skills`, `validate-specs`), `dependency-update-remediation` is `skipping` by design, and **`test-integration` is `fail`** (job `100270642698`, step "Run integration and E2E tests (DirectPostgresClient)"). The CI failure is the identical `TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused` `AttributeError` reproduced locally above — 1 failed, 50 passed, 6 skipped in that job's live-Postgres session.
+
+### Architecture
+
+**Status**: DEGRADED (advisory)
+
+Unchanged from Validation 5: the pre-existing repository source-root configuration defect still prevents architecture artifact refresh. Advisory mode; the product diff since `0106b8fa` introduces no new blocking architecture finding.
+
+### Log Analysis
+
+**Status**: pass with baseline warnings
+
+The fresh bootstrap log contains no migration-replay or notification-overload ambiguity. It does contain the same pre-existing `column "delegated_from" of relation "audit_log" does not exist` noise from the fresh-schema/legacy-migration-runner interaction documented as a residual advisory since Canonical Validation 5 (and reproduced identically in GitHub's `test-integration` log) — unrelated to the `test_late_complete_after_reconcile_cancel_is_refused` assertion failure, which is a distinct, separately diagnosed `AttributeError`.
+
+### Root Cause (for VAL_FIX)
+
+`agent-coordinator/src/db_postgres.py::DirectPostgresClient.query()` (used by `WorkQueueService.get_task()` and `get_my_tasks()`) returns `dict(row)` straight from `asyncpg`'s `conn.fetch()` with no JSONB decoding step. asyncpg returns `jsonb` columns as raw `str` unless a type codec is registered on the connection/pool. `DirectPostgresClient.rpc()` already handles this for function results (`if isinstance(result, str): json.loads(result)`), but `query()` has no equivalent, so `Task.from_dict()`'s `result=data.get("result")` (and, by the same defect, `input_data` and `agent_requirements`) come back as JSON text instead of a `dict` on this backend. This is a pre-existing latent defect in `DirectPostgresClient`, not introduced by any of the three commits under review this round — it was simply never exercised by an assertion that calls `.get()` on a `Task.result` until validation-fix-5's new test did so. It is real and blocking regardless of when it was introduced: any production code path reading `task.result` (or `input_data`/`agent_requirements`) through `get_task()`/`get_my_tasks()` under the `DB_BACKEND=postgres` (DirectPostgresClient) backend is subject to the same failure, not just this test.
+
+### Residual Advisories (non-blocking, carried forward)
+
+1. Correct the repository architecture source-root configuration in a separate change.
+2. Restore canonical per-package work-result persistence for future coordinated validations.
+3. `architecture-impact.md` header still names an earlier validated commit than the most recent audit subsection (documentation drift only, noted at Validation Review 5).
