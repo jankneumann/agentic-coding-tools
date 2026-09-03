@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "route-supervise-gates-through-the-approval-gate-service",
-  "current_phase": "VAL_REVIEW",
+  "current_phase": "SUBMIT_PR",
   "iteration": 0,
-  "total_iterations": 9,
+  "total_iterations": 10,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -20,7 +20,8 @@
     "implementation-ri04-inline-1",
     "impl-iterate-ri04-inline-1",
     "impl-review-ri04-inline-1",
-    "validate-ri04-1"
+    "validate-ri04-1",
+    "val-review-ri04-inline-1"
   ],
   "phase_history": [
     {
@@ -62,17 +63,22 @@
       "at": "2026-09-03T18:35:39.019726+00:00",
       "outcome": "passed",
       "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-09-03T19:23:33.566361+00:00",
+      "outcome": "converged",
+      "phase": "VAL_REVIEW"
     }
   ],
-  "last_handoff_id": "validate-ri04-1",
+  "last_handoff_id": "val-review-ri04-inline-1",
   "started_at": "2026-09-03T03:29:01.132491+00:00",
-  "phase_started_at": "2026-09-03T18:35:39.073226+00:00",
+  "phase_started_at": "2026-09-03T19:23:33.615534+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "validator",
+  "phase_archetype": "reviewer",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
