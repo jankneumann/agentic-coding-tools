@@ -2,8 +2,22 @@
 
 You are an independent plan reviewer. Review the OpenSpec change plan for
 `route-supervise-gates-through-the-approval-gate-service` in this repository.
-The plan has already been through two `/iterate-on-plan` passes; obvious
-first-order gaps are likely already fixed. Look for what a second pass missed.
+The plan has been through two `/iterate-on-plan` passes AND one multi-vendor
+review round whose 20 findings were all applied. Obvious first-order gaps are
+already fixed. Look for what those three passes missed, and — this round
+especially — for anything the round-1 fixes themselves broke or left half-done.
+
+Round-1 fixes you should scrutinise rather than re-report:
+- a new task 2.0 that teaches `cycle_state._clean_pending_gate` to carry
+  `decision_id` and imports the `Gate` / `Disposition` enums, ordered ahead of
+  the router (the old task 2.8 is gone — check no reference dangles)
+- `ApprovalGate.check_filed(gate, approval_id, *, notified)` and its `expired`
+  fail-closed arm
+- checkpoint bootstrap in `gate_router.evaluate`
+- `gate-log` resolving child loop-state through the attempt's worktree
+- `roadmap_fingerprint` growing `external_depends_on` and a normalized `status`
+- lazy imports between `gate_router` and `cycle_state`
+- wp-router taking write scope over two `skills/tests/autopilot-roadmap/` files
 
 ## Read these artifacts (read-only — do NOT modify any file)
 
@@ -14,7 +28,7 @@ first-order gaps are likely already fixed. Look for what a second pass missed.
 - `openspec/changes/route-supervise-gates-through-the-approval-gate-service/specs/**/spec.md`
 - `openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/**`
 - `openspec/changes/route-supervise-gates-through-the-approval-gate-service/plan-findings.md`
-  (what two prior iterations already fixed — do NOT re-report these)
+  (what three prior passes already fixed, findings #1-#37 — do NOT re-report any of these)
 
 ## Ground the review in the real code
 

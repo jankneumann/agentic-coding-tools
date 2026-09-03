@@ -38,7 +38,9 @@ surface unchanged. Two facts about the gate service shape everything below:
 
 **Goals**
 - Every supervise decision point is a `Gate` evaluated through `ApprovalGate.evaluate`.
-- Every evaluation leaves a durable, correlated gate-decision record readable from tracked state.
+- Every evaluation leaves a durable, correlated gate-decision record: tracked, in the roadmap
+  workspace's `checkpoint.json`, for the supervisor's own gates; readable through the
+  attempt's recorded worktree for a child's (D6).
 - Every `approval_ref` used to prepare or resume delegated work resolves to such a record.
 - Absent `TRUST_POSTURE.md` behaves exactly as today (human answers in-conversation).
 
@@ -47,7 +49,7 @@ surface unchanged. Two facts about the gate service shape everything below:
   approval gates and stay as they are.
 - Quarantine remains non-resumable by design (ri-03).
 - No coordinator-side query API for `approval_gate_decision` memory events; the durable log
-  is local tracked state, coordinator memory stays best-effort.
+  is durable local state, coordinator memory stays best-effort.
 - No change to autopilot's seven call sites or to `replan_required`.
 
 ## Decisions
@@ -124,7 +126,13 @@ inside the calling function, never at module top level.
 
 ### D3 — `approval_ref` is `gate-decision:<decision_id>` and must resolve
 `ExecutionAdapter.resume(...)` calls `require_approval_ref(checkpoint, ref, gate=<parked gate or
-escalate_resume>, dispatch_id=…)`; the record must have `outcome == "proceed"`. The check runs
+escalate_resume>, dispatch_id=…)`; the record must have `outcome == "proceed"`. `prepare`
+holds no checkpoint today — it validates isolation and delegates straight to
+`prepare_delegated_batch` — so it loads one (`CheckpointManager(workspace, repo_root).load()`)
+solely to resolve the reference, and does so before `prepare_delegated_batch` writes any
+attempt. A workspace with no checkpoint at that point means nothing recorded the approval, so
+the `FileNotFoundError` is reported as the missing-approval refusal rather than propagated.
+The `resume` check runs
 on the loaded attempt **before** `_remove_owned_marker` and the field strip, because `resume`
 pops `parked` as part of the transition — so the expected gate must be read from
 `attempt["parked"]["gate"]` while it still exists, and a rejected reference must leave the
@@ -190,8 +198,11 @@ evaluation, keyed by the decision's subject:
    `BLOCKED` → returns a `pending_gates` entry `{gate, change_id, requested_at, deadline,
    disposition, approval_id, decision_id, source: "supervise"}` whose `deadline` is
    `requested_at + timeout_seconds` when an approval was filed and
-   `requested_at + DEFAULT_BLOCK_HORIZON` (7 days) otherwise — the record schema requires a
-   deadline and a blocked gate has none of its own.
+   `requested_at + DEFAULT_BLOCK_HORIZON` otherwise — the record schema requires a deadline
+   and a blocked gate has none of its own. `DEFAULT_BLOCK_HORIZON` is new (7 days, a module
+   constant in `gate_router.py`): neither `autopilot.build_gate_request` nor `cycle_state`
+   has a precedent to reuse, since autopilot's `pending_gate` carries no deadline and
+   `_clean_pending_gate` only validates that one is present.
 
 ### D5 — `cycle` gate protocol replaces the prose stop
 `cycle_state.py gate-check --roadmap <id> [--context K=V…]` evaluates `roadmap_approval` with
