@@ -1,0 +1,50 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: `ApprovalGate.check_filed` still maps coordinator `expired` + `notified=False` through `_interpret_status` \u2192 `_apply_default` and returns a fresh `TIMEOUT_BLOCK` decision (and audits it) instead of `None`. skill-workflow scenario \"Late coordinator answer\" and supervise Gate Routing both require: when status is `expired` and `notified` is false, `check_filed` SHALL return no decision so the prior fail-closed block stands unchanged. Round-1 finding 1 correctly flagged this; round-2 closed only the router symptom (outcome/resolution equality avoids duplicate `gate_decisions` rows) while leaving the gate-service contract wrong. The nominated fitness test `test_check_filed_expired_undelivered_stays_blocked` still asserts `decision is not None`, and `test_repeated_expired_check_resurfaces_unchanged_instead_of_duplicating` now documents the incorrect shape (`check_filed` returns a terminal decision for expired, never `None`). Security NFR \"no undelivered proceed\" happens to hold because outcome stays blocked, but the OpenSpec API contract, audit-on-None rule, and the locked regression tests remain wrong \u2014 live reproduction: `check_filed(..., notified=False)` on `expired` returns `timeout_default_block` and writes an audit record.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "resolution": "In `check_filed` (not in `evaluate`'s local-timeout path), when status is `expired` and `notified` is false, return `None` without `_finalize`/audit. Update `test_check_filed_expired_undelivered_stays_blocked` to assert `None`, and keep the router equality guard for other unchanged terminals (e.g. expired + notified=True + default block). Re-run the supervise prior-record expired re-surface test; with `None` it should hit the existing `checked is None` re-surface branch.",
+      "package_id": "whole-branch",
+      "file_path": "skills/shared/approval_gate.py",
+      "line_range": {
+        "start": 523,
+        "end": 528
+      }
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Optional: Canonical `openspec/schemas/gate-decision.schema.json` and the change-local `contracts/schemas/gate-decision.schema.json` still disagree on `roadmap_fingerprint` (canonical allows string|null with no pattern; change contract requires `^[0-9a-f]{64}$`) and on `decision_id` pattern strictness. Round-1 finding 7 raised this; it was outside the 2 CRITICAL + 4 NIT set verified closed in round 2 and remains open. Code always stamps a sha256 fingerprint on `roadmap_approval` records and uuid4 `decision_id`s, so runtime behavior is fine, but validators pointed at one schema vs the other can disagree.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "resolution": "Resync canonical and change-local `gate-decision.schema.json` for `roadmap_fingerprint` and `decision_id` (pattern + nullability) so schema consumers cannot diverge.",
+      "package_id": "whole-branch",
+      "file_path": "openspec/schemas/gate-decision.schema.json",
+      "line_range": {
+        "start": 146,
+        "end": 151
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Validation-stage trust-boundary review otherwise clean across the requested axes. Verified: (1) `ExecutionAdapter.prepare`/`resume` both call `require_approval_ref` before any attempt mutation, with prepare using load-only/in-memory empty checkpoint on missing file (no refusal-path write); (2) resume reads parked gate before popping `parked`; (3) `require_approval_ref` enforces `gate-decision:` prefix, proceed outcome, gate/dispatch/roadmap match, and recomputed `roadmap_fingerprint` for `roadmap_approval`; (4) supervise scripts other than `gate_router.py` do not import `ApprovalGate`/`check_filed`; (5) coordinator-unreachable and undelivered `default_action=proceed` stay BLOCKED; (6) prior-record terminal rejected-before-`approval_id`, notified coerce-to-False, project-before-persist, and filed-deadline-on-`timeout_seconds` fixes from dc8bacf7 hold; (7) `gate_log` / subject scans are linear in ledger size \u2014 acceptable for operator-driven gate-check, not a hot-path blowup; (8) delegated-dispatch / supervised-dispatch `approval_ref` patterns match what the router emits. Finding 1 is the only merge-blocking gap against the OpenSpec `check_filed` contract.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No action on the verified-clean surface; fix finding 1 before opening the PR.",
+      "package_id": "whole-branch"
+    }
+  ]
+}

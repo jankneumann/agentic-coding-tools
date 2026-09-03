@@ -521,6 +521,18 @@ class ApprovalGate:
                 timeout_seconds=gd.timeout_seconds,
             )
         if normalized == "expired":
+            if not notified:
+                # An undelivered notification means the human never had a
+                # chance to answer, so a server-side "expired" tells us
+                # nothing new -- there is no fresh decision to report or
+                # audit. In evaluate()'s own poll loop this is equivalent to
+                # "keep waiting": the loop's local-timeout fallback still
+                # applies the posture's default_action exactly once after the
+                # deadline via a direct _apply_default call, unaffected by
+                # this branch. In check_filed's caller (a later re-check of
+                # an already-decided block), None means "nothing changed" --
+                # the prior decision stands, unaudited again.
+                return None
             # Server-side expiry is the same terminal condition as our local timeout.
             default_action = gd.default_action or DefaultAction.BLOCK
             return self._apply_default(
