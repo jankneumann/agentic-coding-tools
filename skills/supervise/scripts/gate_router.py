@@ -486,17 +486,21 @@ def _apply_prior_record(
             notified=prior_notified if prior_notified is not None else False,
         )
         if checked is None:
-            # still pending server-side: re-surface, record nothing new
+            # Either still pending server-side, or server-side `expired` with
+            # `notified=False` (the notification was never delivered, so an
+            # `expired` status tells us nothing new -- check_filed returns
+            # `None` rather than manufacture a decision). Either way: nothing
+            # changed, re-surface the prior unchanged, record nothing new.
             return RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
         if (
             checked.outcome.value == prior.get("outcome")
             and checked.resolution.value == prior.get("resolution")
         ):
-            # Same terminal state as before (e.g. still `expired` ->
-            # `timeout_block`, or still coordinator-unreachable): `check_filed`
-            # always returns a terminal decision for a terminal server status,
-            # never `None`, so this equality check is what tells "unchanged"
-            # apart from "a late answer resolved" -- re-surface, record nothing new.
+            # Same terminal state as before for a case `check_filed` DOES
+            # re-decide every call (e.g. still `expired` + notified=True ->
+            # `_apply_default`, or still coordinator-unreachable): this
+            # equality check is what tells "unchanged" apart from "a late
+            # answer resolved" for those -- re-surface, record nothing new.
             return RoutedDecision(decision=_decision_from_record(prior), record=prior, reused=True)
         # A late answer resolved: build a new terminal decision for the same
         # subject (carrying the same correlation ids the original filing had),
