@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "route-supervise-gates-through-the-approval-gate-service",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "iteration": 0,
-  "total_iterations": 10,
+  "total_iterations": 11,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -21,7 +21,8 @@
     "impl-iterate-ri04-inline-1",
     "impl-review-ri04-inline-1",
     "validate-ri04-1",
-    "val-review-ri04-inline-1"
+    "val-review-ri04-inline-1",
+    "validate-ri04-report-fix-1"
   ],
   "phase_history": [
     {
@@ -68,17 +69,22 @@
       "at": "2026-09-03T19:23:33.566361+00:00",
       "outcome": "converged",
       "phase": "VAL_REVIEW"
+    },
+    {
+      "at": "2026-09-03T19:49:16.435250+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
     }
   ],
-  "last_handoff_id": "val-review-ri04-inline-1",
+  "last_handoff_id": "validate-ri04-report-fix-1",
   "started_at": "2026-09-03T03:29:01.132491+00:00",
-  "phase_started_at": "2026-09-03T19:23:33.615534+00:00",
+  "phase_started_at": "2026-09-03T19:49:26.114655+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "runner",
+  "phase_archetype": null,
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -122,75 +128,88 @@
       "resolution": "console_approved"
     },
     {
-      "gate": "pr_creation",
-      "outcome": "blocked",
-      "resolution": "posture_block",
+      "approval_id": null,
       "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "pr_creation",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "SUBMIT_PR",
+      "posture_present": false,
       "reason": "gate 'pr_creation' parked: trust posture disposition is block",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
-      "disposition": "block",
-      "phase": "SUBMIT_PR",
-      "recorded_at": "2026-09-03T19:24:19.224422+00:00"
-    },
-    {
-      "gate": "pr_creation",
-      "outcome": "proceed",
-      "resolution": "console_approved",
-      "authorizing_disposition": "block",
-      "reason": "gate 'pr_creation' approved by the operator \u2014 operator approved via chat: 'open PR'",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
-      "disposition": "block",
-      "phase": "SUBMIT_PR",
-      "recorded_at": "2026-09-03T19:28:59.864296+00:00",
-      "note": "operator approved via chat: 'open PR'"
-    },
-    {
-      "gate": "merge",
-      "outcome": "blocked",
+      "recorded_at": "2026-09-03T19:24:19.224422+00:00",
       "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'merge' parked: trust posture disposition is block",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
-      "disposition": "block",
-      "phase": "SUBMIT_PR",
-      "recorded_at": "2026-09-03T19:47:08.900487+00:00"
+      "timeout_seconds": null
     },
     {
-      "gate": "merge",
-      "outcome": "proceed",
-      "resolution": "console_approved",
-      "authorizing_disposition": "block",
-      "reason": "gate 'merge' approved by the operator \u2014 operator approved via chat: 'merge PR'",
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "block",
+      "gate": "pr_creation",
+      "note": "operator approved via chat: 'open PR'",
+      "notified": null,
+      "outcome": "proceed",
       "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'pr_creation' approved by the operator \u2014 operator approved via chat: 'open PR'",
+      "recorded_at": "2026-09-03T19:28:59.864296+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "merge",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-03T19:47:08.900487+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "merge",
+      "note": "operator approved via chat: 'merge PR'",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'merge' approved by the operator \u2014 operator approved via chat: 'merge PR'",
       "recorded_at": "2026-09-03T19:47:16.954100+00:00",
-      "note": "operator approved via chat: 'merge PR'"
+      "resolution": "console_approved",
+      "timeout_seconds": null
     }
   ],
   "pending_gate": null,
   "goal_gate": {
-    "verdict": "pending",
-    "reason": "merge authorized; DONE evidence not yet checked",
+    "verdict": "passed",
+    "reason": "all required evidence present",
     "evidence": {
       "merge_authorized": true,
-      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/470"
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/470",
+      "report_path": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/route-supervise-gates-through-the-approval-gate-service/openspec/changes/route-supervise-gates-through-the-approval-gate-service/validation-report.md",
+      "checked_at": "2026-09-03T19:49:26.105812+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-09-03T19:49:16.435250+00:00",
+      "report_mtime": "2026-09-03T19:49:02.582904+00:00",
+      "required_sections": [
+        "Spec Compliance",
+        "Validation Review"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "pass",
+        "Validation Review": "pass"
+      }
     }
   }
 }

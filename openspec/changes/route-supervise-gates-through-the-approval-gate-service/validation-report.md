@@ -20,6 +20,16 @@ service). Recommend `outcome: passed`.
 | security | PASS    | targeted read pass over the approval/trust boundary — no bypass, fail-open, unaudited-proceed, or replay/forgery path found |
 | e2e      | PASS    | covered by `test_gate_router_e2e.py` / `test_supervised_dispatch_e2e.py` in the evidence run, plus the manual Acceptance-Outcome-1 walk already recorded in `session-log.md` (Implement phase) |
 
+## Spec Compliance
+
+**Status**: pass
+
+`openspec validate route-supervise-gates-through-the-approval-gate-service --strict`
+is valid (see §1 below). The change's specs, contracts, and implementation stayed in
+agreement through two rounds of implementation review and two rounds of validation
+review, both converged with no open findings — see `reviews-impl/` and `reviews-val/`
+in this directory.
+
 ## 1. Spec validation
 
 ```
@@ -179,6 +189,33 @@ posture and inspecting the resulting checkpoint sidecar record — that walk's s
 note (it does not itself drive a dispatched child to a merged PR, since that requires
 a full separate `/autopilot` run against the child's own posture) still applies and is
 not re-litigated here.
+
+## Validation Review
+
+**Status**: pass
+
+Two multi-vendor rounds (grok + antigravity), matching the GATEKEEPER judge's
+`proceed_with_review` verdict for this security-relevant change:
+
+- **Round 1**: grok (383s) flagged a CRITICAL gap: `ApprovalGate.check_filed`
+  (`skills/shared/approval_gate.py`) mapped a coordinator `expired` status with
+  `notified=False` through `_apply_default`, returning (and auditing) a fresh
+  `TIMEOUT_BLOCK` decision instead of `None` — violating the skill-workflow
+  spec's "Late coordinator answer" scenario. Also flagged an optional
+  canonical-vs-change-local schema drift on `gate-decision.schema.json`.
+  antigravity (192s) returned a clean `none`-severity accept covering
+  correctness, security, contract adherence, and performance.
+- Both fixed in commit `b8ce3dd7`: `_interpret_status`'s `expired` branch now
+  returns `None` when `not notified`, covering both `check_filed` (a later
+  re-check) and `_notify`'s own poll loop (unaffected first-time-evaluate
+  behavior, verified by a new regression test); the two schemas resynced.
+- **Round 2**: grok (159s) and antigravity (59s) both independently confirmed
+  `b8ce3dd7` closed the CRITICAL cleanly with no new gaps; grok's one
+  remaining nit (stale comments describing the pre-fix contract) was closed
+  in commit `35d3a9ea`.
+
+Full findings in `reviews-val/round-1/` and `reviews-val/round-2/` in this
+directory.
 
 ## Recommendation
 
