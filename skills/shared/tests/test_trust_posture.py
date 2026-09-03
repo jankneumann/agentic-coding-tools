@@ -69,10 +69,13 @@ def test_validate_posture_file_returns_no_errors_for_valid(tmp_path: Path) -> No
 
 
 # --------------------------------------------------------------------------- #
-# The eight gates are all present / representable
+# The nine gates are all present / representable
 # --------------------------------------------------------------------------- #
 
-def test_all_eight_gates_enumerated() -> None:
+def test_all_nine_gates_enumerated() -> None:
+    """D1: `roadmap_approval` joins the eight autopilot/roadmap gates as its own
+    gate — authorizing a DAG of items, never conflated with `proposal_approval`
+    (which authorizes one change)."""
     assert {g.value for g in tp.Gate} == {
         "gatekeeper_escalation",
         "proposal_approval",
@@ -82,21 +85,34 @@ def test_all_eight_gates_enumerated() -> None:
         "replan_required",
         "pr_creation",
         "merge",
+        "roadmap_approval",
     }
-    assert len(list(tp.Gate)) == 8
+    assert len(list(tp.Gate)) == 9
 
 
-def test_all_eight_gates_representable_in_contract(tmp_path: Path) -> None:
+def test_all_nine_gates_representable_in_contract(tmp_path: Path) -> None:
     write_contract(tmp_path, VALID_FULL)
     posture = tp.load_posture(tmp_path)
     # every gate resolves to a concrete disposition without raising
     for gate in tp.Gate:
         assert isinstance(posture.disposition_for(gate), tp.GateDisposition)
-    # and the template ships all eight too
+    # and the template ships all nine too
     template = Path(__file__).resolve().parents[3] / tp.TEMPLATE_FILENAME
     assert template.exists(), "TRUST_POSTURE.template.md must ship at repo root"
     errors = tp.validate_posture_file(template)
     assert errors == [], errors
+
+
+# --------------------------------------------------------------------------- #
+# skill-workflow.Roadmap Approval Gate.2 — absent posture blocks roadmap_approval
+# --------------------------------------------------------------------------- #
+
+def test_absent_posture_blocks_roadmap_approval(tmp_path: Path) -> None:
+    posture = tp.load_posture(tmp_path)  # no TRUST_POSTURE.md in tmp_path
+    assert posture.present is False
+    gd = posture.disposition_for(tp.Gate.ROADMAP_APPROVAL)
+    assert gd.disposition is tp.Disposition.BLOCK
+    assert gd.is_block is True
 
 
 # --------------------------------------------------------------------------- #
