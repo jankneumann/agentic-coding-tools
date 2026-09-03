@@ -920,3 +920,44 @@ Fixed all four findings from the Codex GitHub review of PR #457 that sent the lo
 
 ### Context
 Validation Review 5 converged and PR #457 returned to VAL_FIX for four Codex review findings, fixed in commit range `dda2834f`..`760e1415`. This canonical VALIDATE round exercised that exact head (`d07699d0`) end-to-end, including — per the dispatch instructions — actually running the new PostgreSQL-backed `TestCompleteTaskTerminalCancellation` tests against a real database rather than trusting their static presence. They do not pass: a pre-existing, previously-unexercised defect in `DirectPostgresClient.query()`'s `jsonb` handling breaks the new test's read-back assertion, and the identical failure is independently confirmed in GitHub's required `test-integration` job at this exact head. Every other phase (deploy, smoke, security, spec/evidence, the broader unit/type/lint suites, and 15 of 16 CI checks) passes cleanly. Overall result: **FAIL**.
+
+---
+
+## Phase: Validation Fix 6 (2026-09-03)
+
+**Agent**: claude | **Session**: val-fix-6
+
+### Decisions
+1. **Register an asyncpg jsonb/json type codec on the pool instead of ad hoc decoding in `query()`** — The alternative (mirroring `rpc()`'s `isinstance(result, str): json.loads(...)` fallback inside `query()`) only fixes that one call site; `insert()`/`update()`'s `RETURNING *` rows have the identical defect and would still hand back JSON text for any jsonb column. Registering `jsonb`/`json` codecs via `asyncpg.create_pool(..., init=_register_jsonb_codecs)` (`agent-coordinator/src/db_postgres.py`) makes decoding uniform across every method that talks to the pool, keyed off Postgres's own declared column/return type rather than a runtime string-sniffing heuristic.
+2. **Reconcile the codec's encoder with the pre-serialization `_serialize_for_asyncpg` already does** — `_serialize_for_asyncpg` (and some callers, e.g. `work_queue.py`'s manual `json.dumps` for `agent_requirements`) already turn dicts into JSON text before a value reaches asyncpg. A codec `encoder=json.dumps` would double-encode those already-serialized strings (the column would store a quoted JSON string instead of the object). The new `_encode_jsonb_param` passes an already-`str` value through unchanged and only calls `json.dumps` on anything that was *not* pre-serialized (a raw dict/list that reached asyncpg without going through `_serialize_for_asyncpg`), so both paths produce identical wire text and neither can double-encode the other's output.
+3. **Keep `rpc()`'s existing `isinstance(result, str)` decode as a harmless fallback** — Left in place rather than removed: with the codec registered it becomes dead code for the normal path (asyncpg now decodes the JSONB return value itself), but it costs nothing and is defense-in-depth if a future return type ever resolves outside the codec's coverage.
+
+### Capability Gaps Observed
+- **jsonb_readback_type_mismatch** (carried forward from Validation 6, now closed): `DirectPostgresClient.query()`/`insert()`/`update()` returned `jsonb` columns as raw JSON strings instead of decoded dicts/lists because no type codec was registered on the asyncpg pool. Fixed by registering `jsonb`/`json` codecs in `_get_pool()`. (skill: agent-coordinator, severity: high)
+
+### Completed Work
+- Added `_encode_jsonb_param()` and `_register_jsonb_codecs()` to `agent-coordinator/src/db_postgres.py`, and passed `init=_register_jsonb_codecs` to `asyncpg.create_pool()` in `DirectPostgresClient._get_pool()`, so every jsonb/json column asyncpg returns through this backend (`query()`, `insert()`, `update()`, `rpc()`) decodes to native Python dicts/lists instead of raw JSON text.
+- Added unit tests in `agent-coordinator/tests/test_db_factory.py`: `TestEncodeJsonbParam` (pre-serialized strings pass through unchanged, non-pre-serialized dicts/lists get encoded, `None` round-trips to JSON `null`, non-JSON plain strings are not touched), `TestRegisterJsonbCodecs` (registers both `jsonb` and `json` with `schema="pg_catalog"`, `format="text"`, the module's encoder/decoder; and an explicit round-trip proof using the exact `{"reason": "cancelled_by_projection_reconcile"}` payload shape from the failing live test), and `TestPoolRegistersJsonbCodecInit` (`_get_pool()` passes `init=_register_jsonb_codecs` to `asyncpg.create_pool`).
+- Deployed a fresh rootless Podman/PostgreSQL 18.3 stack (`docker.io/paradedb/paradedb:v0.22.2`, isolated network `valfix6-net` and port `55447`), raw-initializing all 39 SQL migrations plus `999_record_schema_migrations.sh` via `docker-entrypoint-initdb.d`; confirmed 39/39 migrations recorded in `schema_migrations`.
+- Ran `tests/integration/postgres/` against that live database: 38 passed, 6 skipped — including `TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused` (previously the reproducing failure) and `test_complete_still_succeeds_for_active_claimed_task`, both now passing.
+- Ran `tests/e2e/postgres/` against the same live database: 13 passed.
+- Ran `tests/test_work_queue.py`, `tests/test_work_queue_invariants.py`, and `tests/test_db_factory.py` (the module holding the `db_postgres.py` unit tests — no `tests/test_db_postgres*.py` file exists in this repo): 79 passed.
+- Tore down the Podman stack (`podman rm -f valfix6-pg`, `podman network rm valfix6-net`); confirmed zero remaining containers, networks, or listeners on port 55447.
+- Ran the coordinator full non-live suite (`-m "not e2e and not integration"`): 2,447 passed, 11 skipped, 97 deselected (the 8-test increase over Validation 6's 2,439 is exactly the new `db_postgres.py` codec unit tests).
+- Ran `mypy src/` (77 source files, no issues) and `ruff check .` (all checks passed).
+
+### In Progress
+- None.
+
+### Next Steps
+- VALIDATE: rerun the canonical validation round against this head, including a fresh live-PostgreSQL run of `tests/integration/postgres/`, and reconfirm PR #457's `test-integration` job goes green at the new head.
+
+### Relevant Files
+- `agent-coordinator/src/db_postgres.py` — `_encode_jsonb_param()`, `_register_jsonb_codecs()`, and the `init=` wiring in `_get_pool()`
+- `agent-coordinator/tests/test_db_factory.py` — `TestEncodeJsonbParam`, `TestRegisterJsonbCodecs`, `TestPoolRegistersJsonbCodecInit`
+- `agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py` — `TestCompleteTaskTerminalCancellation`, now passing against a live database
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md` — Canonical Validation 6 root-cause section this fix addresses
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/handoffs/validation-6-1.json` — Incoming handoff with the diagnosed root cause and next steps
+
+### Context
+Canonical Validation 6 FAILed on a single identified root cause: `DirectPostgresClient.query()` never JSON-decoded `jsonb` columns, so `Task.result` came back as a raw string instead of a dict, breaking `TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused`'s `.get("reason")` assertion — reproduced both locally and in GitHub's required `test-integration` job at head `d07699d0`. This phase registers a jsonb/json type codec on the asyncpg pool (the preferred fix named in the dispatch), reconciling it with the existing pre-serialization path in `_serialize_for_asyncpg` so neither path can double-encode the other's output, and proves the fix against a fresh live PostgreSQL deployment rather than only unit tests.
