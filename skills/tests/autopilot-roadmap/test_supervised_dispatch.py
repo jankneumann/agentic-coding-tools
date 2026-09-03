@@ -480,7 +480,7 @@ def test_apply_terminal_attempt_drops_continuation_state(tmp_path: Path) -> None
     checkpoint = json.loads(checkpoint_path.read_text())
     checkpoint["dispatch_attempts"][0].update(
         lease_generation=2,
-        continuation={"kind": "pending_gate", "approval_ref": "approval-1"},
+        continuation={"kind": "pending_gate", "approval_ref": "gate-decision:22222222-3333-4444-8555-666666666666"},
     )
     checkpoint_path.write_text(json.dumps(checkpoint, indent=2) + "\n")
     _mark_batch_launched(workspace)

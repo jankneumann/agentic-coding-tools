@@ -10,7 +10,7 @@
   "parked": {
     "kind": "pending_gate",
     "reason": "operator approval required",
-    "gate": "deploy",
+    "gate": "pr_creation",
     "resume_hint": "continue after approval"
   },
   "evidence": {

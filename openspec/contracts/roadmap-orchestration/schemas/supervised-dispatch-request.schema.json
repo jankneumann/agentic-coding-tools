@@ -136,7 +136,9 @@
         "approval_ref": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 256
+          "maxLength": 256,
+          "pattern": "^gate-decision:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "description": "Must resolve to a checkpoint gate_decisions record with outcome proceed and a matching gate and dispatch_id (D3)."
         },
         "kind": {
           "enum": [
