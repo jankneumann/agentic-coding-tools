@@ -203,6 +203,8 @@ def test_auto_proceeds_and_audits() -> None:
     assert rec["authorizing_disposition"] == "auto"
     assert rec["operation"] == ag.AUDIT_OPERATION
     assert rec["agent_id"] == "test-agent"
+    assert decision.notified is None
+    assert rec["notified"] is None
 
 
 # --------------------------------------------------------------------------- #
@@ -221,6 +223,7 @@ def test_block_parks_and_audits_without_hanging() -> None:
     assert coord.calls == []          # never contacts coordinator
     assert clock.sleeps == []          # never sleeps → never hangs
     assert audit.records[0]["resolution"] == "posture_block"
+    assert decision.notified is None
 
 
 def test_absent_posture_defaults_to_block() -> None:
@@ -276,6 +279,9 @@ def test_notify_resolved_approved() -> None:
     assert len(coord.notifications) == 1
     assert audit.records[0]["resolution"] == "approved"
     assert audit.records[0]["approval_id"] == "appr-123"
+    # D2: `notified` round-trips from `_notify`'s local push_notification result.
+    assert decision.notified is True
+    assert audit.records[0]["notified"] is True
 
 
 def test_notify_resolved_rejected() -> None:
@@ -289,6 +295,7 @@ def test_notify_resolved_rejected() -> None:
     assert decision.resolution is Resolution.REJECTED
     assert audit.records[0]["outcome"] == "blocked"
     assert audit.records[0]["resolution"] == "rejected"
+    assert decision.notified is True
 
 
 # --------------------------------------------------------------------------- #
@@ -309,6 +316,7 @@ def test_notify_timeout_default_proceed() -> None:
     assert sum(clock.sleeps) >= 30
     assert audit.records[0]["resolution"] == "timeout_default_proceed"
     assert audit.records[0]["default_action"] == "proceed"
+    assert decision.notified is True
 
 
 def test_notify_timeout_default_block() -> None:
@@ -323,6 +331,7 @@ def test_notify_timeout_default_block() -> None:
     assert decision.default_action is DefaultAction.BLOCK
     assert audit.records[0]["resolution"] == "timeout_default_block"
     assert audit.records[0]["default_action"] == "block"
+    assert decision.notified is True
 
 
 def test_notify_server_expired_maps_to_default() -> None:
@@ -336,6 +345,7 @@ def test_notify_server_expired_maps_to_default() -> None:
     assert decision.resolution is Resolution.TIMEOUT_BLOCK
     # resolved on first poll, so no full-timeout sleeping needed
     assert coord.calls.count("check_approval") == 1
+    assert decision.notified is True
 
 
 def test_notify_soft_notification_failure_is_nonfatal() -> None:
@@ -541,6 +551,7 @@ def test_notify_timeout_proceed_fails_closed_when_undelivered() -> None:
     assert not decision.proceed
     assert decision.resolution is Resolution.TIMEOUT_BLOCK
     assert "push_notification" in coord.calls
+    assert decision.notified is False
 
 
 def test_notify_timeout_proceed_applies_when_delivered() -> None:
@@ -553,6 +564,7 @@ def test_notify_timeout_proceed_applies_when_delivered() -> None:
 
     assert decision.proceed
     assert decision.resolution is Resolution.TIMEOUT_PROCEED
+    assert decision.notified is True
 
 
 def test_bridge_audit_sink_records_to_memory(monkeypatch) -> None:
@@ -637,3 +649,174 @@ def test_evaluate_never_returns_a_console_resolution(gd: GateDisposition) -> Non
         Resolution.CONSOLE_APPROVED,
         Resolution.CONSOLE_REJECTED,
     )
+
+
+# --------------------------------------------------------------------------- #
+# D2/D4: ApprovalGate.check_filed — the late-answer path (no re-filing)
+# --------------------------------------------------------------------------- #
+
+
+def test_check_filed_approved_returns_proceed_and_audits() -> None:
+    posture = posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK)
+    coord = FakeCoordinator(statuses=["approved"])
+    gate, coord, audit, _ = make_gate(posture=posture, coordinator=coord)
+
+    decision = gate.check_filed(Gate.ROADMAP_APPROVAL, "appr-123", notified=False)
+
+    assert decision is not None
+    assert decision.proceed
+    assert decision.resolution is Resolution.APPROVED
+    assert coord.calls == ["check_approval"]  # never re-files, never re-notifies
+    assert len(audit.records) == 1
+
+
+def test_check_filed_denied_returns_blocked_rejected() -> None:
+    posture = posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK)
+    coord = FakeCoordinator(statuses=["denied"])
+    gate, coord, audit, _ = make_gate(posture=posture, coordinator=coord)
+
+    decision = gate.check_filed(Gate.ROADMAP_APPROVAL, "appr-123", notified=True)
+
+    assert decision is not None
+    assert decision.blocked
+    assert decision.resolution is Resolution.REJECTED
+
+
+def test_check_filed_pending_returns_none_and_does_not_audit() -> None:
+    posture = posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK)
+    coord = FakeCoordinator(statuses=["pending"])
+    gate, coord, audit, _ = make_gate(posture=posture, coordinator=coord)
+
+    decision = gate.check_filed(Gate.ROADMAP_APPROVAL, "appr-123", notified=True)
+
+    assert decision is None
+    assert audit.records == []
+
+
+def test_check_filed_expired_default_proceed_notified_true_proceeds() -> None:
+    posture = posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_PROCEED)
+    coord = FakeCoordinator(statuses=["expired"])
+    gate, coord, audit, _ = make_gate(posture=posture, coordinator=coord)
+
+    decision = gate.check_filed(Gate.ROADMAP_APPROVAL, "appr-123", notified=True)
+
+    assert decision is not None
+    assert decision.proceed
+    assert decision.resolution is Resolution.TIMEOUT_PROCEED
+
+
+def test_check_filed_expired_undelivered_stays_blocked() -> None:
+    """Security case (D4 step 0.3): an expired approval whose notification was
+    never delivered must never be upgraded to proceed by a late check_filed call —
+    the fail-closed block from _apply_default must stand."""
+    posture = posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_PROCEED)
+    coord = FakeCoordinator(statuses=["expired"])
+    gate, coord, audit, _ = make_gate(posture=posture, coordinator=coord)
+
+    decision = gate.check_filed(Gate.ROADMAP_APPROVAL, "appr-123", notified=False)
+
+    assert decision is not None
+    assert decision.blocked
+    assert decision.resolution is Resolution.TIMEOUT_BLOCK
+    assert decision.notified is False
+
+
+def test_check_filed_coordinator_unreachable_blocks() -> None:
+    posture = posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK)
+    coord = FakeCoordinator(statuses=["pending"], raise_on="check")
+    gate, coord, audit, _ = make_gate(posture=posture, coordinator=coord)
+
+    decision = gate.check_filed(Gate.ROADMAP_APPROVAL, "appr-123", notified=True)
+
+    assert decision is not None
+    assert decision.blocked
+    assert decision.resolution is Resolution.COORDINATOR_UNREACHABLE
+
+
+def test_check_filed_resolves_disposition_from_the_live_posture() -> None:
+    """A posture flip between the original filing and the late check is honoured —
+    the disposition on the returned decision reflects the *current* posture."""
+    posture = posture_with(Gate.ROADMAP_APPROVAL, NOTIFY_BLOCK)
+    coord = FakeCoordinator(statuses=["approved"])
+    gate, coord, audit, _ = make_gate(posture=posture, coordinator=coord)
+
+    decision = gate.check_filed(Gate.ROADMAP_APPROVAL, "appr-123", notified=True)
+
+    assert decision.disposition is Disposition.NOTIFY_WITH_TIMEOUT
+
+
+# --------------------------------------------------------------------------- #
+# D2: console_decision / build_gate_decision_record moved into shared.approval_gate
+# --------------------------------------------------------------------------- #
+
+
+def test_console_decision_matches_runner_console_decision_shape() -> None:
+    """`shared.approval_gate.console_decision` must produce the exact
+    ApprovalDecision shape `runner._console_decision` builds today."""
+    pending_posture = {"disposition": "block", "posture_present": False}
+
+    approved = ag.console_decision(
+        Gate.PROPOSAL_APPROVAL, pending_posture, True, None
+    )
+    assert approved.gate is Gate.PROPOSAL_APPROVAL
+    assert approved.outcome is Outcome.PROCEED
+    assert approved.resolution is Resolution.CONSOLE_APPROVED
+    assert approved.disposition is Disposition.BLOCK
+    assert approved.posture_present is False
+    assert "approved by the operator" in approved.reason
+
+    rejected = ag.console_decision(
+        Gate.PROPOSAL_APPROVAL, pending_posture, False, "scope too wide"
+    )
+    assert rejected.outcome is Outcome.BLOCKED
+    assert rejected.resolution is Resolution.CONSOLE_REJECTED
+    assert "scope too wide" in rejected.reason
+
+
+def test_console_decision_defaults_to_block_on_missing_or_bad_posture() -> None:
+    decision = ag.console_decision(Gate.MERGE, {}, True, None)
+    assert decision.disposition is Disposition.BLOCK
+
+    decision = ag.console_decision(
+        Gate.MERGE, {"disposition": "not-a-real-disposition"}, True, None
+    )
+    assert decision.disposition is Disposition.BLOCK
+
+
+def test_build_gate_decision_record_is_byte_identical_to_autopilots() -> None:
+    """`shared.approval_gate.build_gate_decision_record` must produce the exact
+    record `autopilot.build_gate_decision_record` builds today (task 1.5 makes
+    autopilot's a delegating alias, so this pins the shared shape first)."""
+    decision = ag.ApprovalDecision(
+        gate=Gate.MERGE,
+        outcome=Outcome.PROCEED,
+        resolution=Resolution.AUTO,
+        disposition=Disposition.AUTO,
+        reason="gate 'merge' auto-approved by trust posture",
+        posture_present=True,
+    )
+    record = ag.build_gate_decision_record(decision, phase="SUBMIT_PR", extra={"note": None})
+
+    assert record["gate"] == "merge"
+    assert record["outcome"] == "proceed"
+    assert record["resolution"] == "auto"
+    assert record["disposition"] == "auto"
+    assert record["authorizing_disposition"] == "auto"
+    assert record["phase"] == "SUBMIT_PR"
+    assert record["note"] is None
+    assert "recorded_at" in record
+
+
+def test_build_gate_decision_record_carries_notified() -> None:
+    decision = ag.ApprovalDecision(
+        gate=Gate.ROADMAP_APPROVAL,
+        outcome=Outcome.PROCEED,
+        resolution=Resolution.APPROVED,
+        disposition=Disposition.NOTIFY_WITH_TIMEOUT,
+        reason="approved",
+        approval_id="appr-1",
+        posture_present=True,
+        notified=False,
+    )
+    record = ag.build_gate_decision_record(decision, phase="cycle")
+    assert record["notified"] is False

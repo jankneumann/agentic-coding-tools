@@ -34,9 +34,13 @@ _AUTOPILOT_PY = Path(autopilot.__file__).resolve()
 _ORCHESTRATOR_PY = (
     _AUTOPILOT_PY.parents[2] / "autopilot-roadmap" / "scripts" / "orchestrator.py"
 )
+_GATE_ROUTER_PY = (
+    _AUTOPILOT_PY.parents[2] / "supervise" / "scripts" / "gate_router.py"
+)
 
-# `replan_required` is the roadmap orchestrator's gate, not autopilot's (D2).
-_ROADMAP_GATES = {Gate.REPLAN_REQUIRED}
+# `replan_required` is the roadmap orchestrator's gate, and `roadmap_approval` is
+# supervise's gate_router's — neither is autopilot's (D2, ri-04).
+_ROADMAP_GATES = {Gate.REPLAN_REQUIRED, Gate.ROADMAP_APPROVAL}
 _AUTOPILOT_GATES = [g for g in Gate if g not in _ROADMAP_GATES]
 
 
@@ -195,6 +199,18 @@ def test_replan_required_is_not_autopilots_gate() -> None:
 def test_replan_required_has_a_call_site_in_the_roadmap_orchestrator() -> None:
     counts = _gate_call_sites(_ORCHESTRATOR_PY)
     assert counts.get(Gate.REPLAN_REQUIRED.name, 0) == 1
+
+
+@pytest.mark.skipif(
+    not _GATE_ROUTER_PY.exists(), reason="supervise gate_router not present"
+)
+def test_roadmap_approval_has_a_call_site_in_the_gate_router() -> None:
+    """Mirrors the replan_required/orchestrator case above (D2, ri-04): exclusion
+    from autopilot's per-gate call-site set must not silently exempt
+    `roadmap_approval` from the "exactly one call site" invariant every other
+    gate has — its call site just lives in `gate_router.py` instead."""
+    counts = _gate_call_sites(_GATE_ROUTER_PY)
+    assert counts.get(Gate.ROADMAP_APPROVAL.name, 0) == 1
 
 
 def test_transition_stays_a_pure_state_outcome_function() -> None:
