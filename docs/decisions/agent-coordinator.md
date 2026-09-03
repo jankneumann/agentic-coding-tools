@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-09-03 — standardize-port-leases
+
+### Phase: Plan
+
+**Persist leases in Postgres, in-memory remains standalone mode** — A coordinator restart must not forget leases while compose stacks still hold the ports. Write-through to a port_leases table shaped like file_locks; standalone mode unchanged.
+
+- Status: `active`
+- Source: [openspec/changes/standardize-port-leases/session-log.md](/openspec/changes/standardize-port-leases/session-log.md) (D2)
+
+---
+
+## 2026-09-03 — standardize-port-leases
+
+### Phase: Plan
+
+**Leases belong to agent sessions** — cleanup_dead_agents releases leases and reports ports_released; heartbeat refreshes; TTL is only a backstop. One staleness definition, not two clocks.
+
+- Status: `active`
+- Source: [openspec/changes/standardize-port-leases/session-log.md](/openspec/changes/standardize-port-leases/session-log.md) (D3)
+
+---
+
+## 2026-09-03 — standardize-port-leases
+
+### Phase: Plan
+
+**Isolation gate is client-reported and downgrade-only** — The coordinator does not know a session's environment; the client sends isolation_provided from EnvironmentProfile.detect(). Once true it cannot be lowered. Worktree is not isolation for ports.
+
+- Status: `active`
+- Source: [openspec/changes/standardize-port-leases/session-log.md](/openspec/changes/standardize-port-leases/session-log.md) (D4)
+
+---
+
+## 2026-09-03 — standardize-port-leases
+
+### Phase: Plan
+
+**Five-port block with ui_port at offset +4** — Lets the kanban dev server origin be leased and derived into CORS instead of hardcoded 5173.
+
+- Status: `active`
+- Source: [openspec/changes/standardize-port-leases/session-log.md](/openspec/changes/standardize-port-leases/session-log.md) (D5)
+
+---
+
 ## 2026-08-16 — derive-agent-identity-from-registry
 
 ### Phase: Validate

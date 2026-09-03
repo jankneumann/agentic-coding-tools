@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-03T11:14:08.101714+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned standardizing host port allocation on the coordinator's PortAllocatorService, fixed for persistence, session ownership, conflict reporting, reconciliation, and an isolation gate, with a shared PortLease client in skills/shared that falls back to a same-arithmetic file registry and emits one env contract every consumer reads. Tier: coordinated (coordinator at coord.rotkohl.ai reachable with all capabilities). Gate 1 direction was taken from the preceding conversation, where the user chose to standardize on the coordinator allocator; Gate 2 is pending.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Coordinator is the lease ledger; the client is the host's eyes",
+        "rationale": "The coordinator runs in a container with no host socket or compose visibility; bind probes and reconciliation must run client-side and be reported. Keeps the tunnel-exposed surface unchanged.",
+        "capability": "port-lease-client",
+        "supersedes": null
+      },
+      {
+        "title": "Persist leases in Postgres, in-memory remains standalone mode",
+        "rationale": "A coordinator restart must not forget leases while compose stacks still hold the ports. Write-through to a port_leases table shaped like file_locks; standalone mode unchanged.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Leases belong to agent sessions",
+        "rationale": "cleanup_dead_agents releases leases and reports ports_released; heartbeat refreshes; TTL is only a backstop. One staleness definition, not two clocks.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Isolation gate is client-reported and downgrade-only",
+        "rationale": "The coordinator does not know a session's environment; the client sends isolation_provided from EnvironmentProfile.detect(). Once true it cannot be lowered. Worktree is not isolation for ports.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "Five-port block with ui_port at offset +4",
+        "rationale": "Lets the kanban dev server origin be leased and derived into CORS instead of hardcoded 5173.",
+        "capability": "agent-coordinator",
+        "supersedes": null
+      },
+      {
+        "title": "File backend keeps the coordinator's slot arithmetic",
+        "rationale": "Both backends compute identical blocks from PORT_ALLOC_* so a host flipping between them cannot overlap; the 15432-25432 range is retired.",
+        "capability": "port-lease-client",
+        "supersedes": null
+      },
+      {
+        "title": "SKILL.md edits confined to env-default lines",
+        "rationale": "extract-gen-eval-package and factory-missions-architecture-alignment are in-flight writers of validate-feature phase 4b; restructuring that block would create a three-way conflict.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Gate 2 approval, then /implement-feature standardize-port-leases",
+      "wp-contracts first; wp-coordinator, wp-skills-client, wp-consumers run in parallel against the contract"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/standardize-port-leases/proposal.md",
+        "description": "proposal with three approaches, Approach 1 selected"
+      },
+      {
+        "path": "openspec/changes/standardize-port-leases/design.md",
+        "description": "decisions D1-D11 and fitness functions"
+      },
+      {
+        "path": "openspec/changes/standardize-port-leases/tasks.md",
+        "description": "TDD-ordered tasks with checkpoints"
+      },
+      {
+        "path": "openspec/changes/standardize-port-leases/work-packages.yaml",
+        "description": "five-package DAG, validated"
+      },
+      {
+        "path": "openspec/changes/standardize-port-leases/contracts/schemas/port-lease-env.schema.json",
+        "description": "env contract every backend emits"
+      }
+    ]
+  }
+}

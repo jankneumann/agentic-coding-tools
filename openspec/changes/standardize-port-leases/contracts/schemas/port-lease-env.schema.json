@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/contracts/port-lease-env.schema.json",
+  "title": "PortLeaseEnv",
+  "description": "Environment contract emitted by every PortLease backend. Consumers read these keys and never a literal port.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "AGENT_COORDINATOR_DB_PORT",
+    "AGENT_COORDINATOR_REST_PORT",
+    "AGENT_COORDINATOR_REALTIME_PORT",
+    "API_PORT",
+    "UI_PORT",
+    "DB_PORT",
+    "COMPOSE_PROJECT_NAME",
+    "SUPABASE_URL",
+    "API_BASE_URL",
+    "UI_ORIGIN",
+    "COORDINATOR_CORS_ALLOWED_ORIGINS",
+    "PORT_LEASE_BACKEND",
+    "PORT_LEASE_SESSION_ID"
+  ],
+  "properties": {
+    "AGENT_COORDINATOR_DB_PORT": { "$ref": "#/$defs/portString", "description": "Host port for PostgreSQL in the compose stack (block offset +0)." },
+    "AGENT_COORDINATOR_REST_PORT": { "$ref": "#/$defs/portString", "description": "Host port for the coordinator REST API container (block offset +1)." },
+    "AGENT_COORDINATOR_REALTIME_PORT": { "$ref": "#/$defs/portString", "description": "Host port for the realtime service (block offset +2)." },
+    "API_PORT": { "$ref": "#/$defs/portString", "description": "Host port for the host-run coordination API started by the stack launcher (block offset +3)." },
+    "UI_PORT": { "$ref": "#/$defs/portString", "description": "Host port for the kanban-viz dev server (block offset +4)." },
+    "DB_PORT": { "$ref": "#/$defs/portString", "description": "Alias of AGENT_COORDINATOR_DB_PORT kept for the TestEnvironment protocol." },
+    "COMPOSE_PROJECT_NAME": { "type": "string", "pattern": "^ac-[0-9a-f]{8}$", "description": "Compose project name, ac- plus the first 8 hex chars of sha256(session_id)." },
+    "SUPABASE_URL": { "$ref": "#/$defs/localhostUrl", "description": "http://localhost:<AGENT_COORDINATOR_REST_PORT>." },
+    "API_BASE_URL": { "$ref": "#/$defs/localhostUrl", "description": "http://localhost:<API_PORT>." },
+    "UI_ORIGIN": { "$ref": "#/$defs/localhostUrl", "description": "http://localhost:<UI_PORT>." },
+    "COORDINATOR_CORS_ALLOWED_ORIGINS": { "type": "string", "description": "Comma-separated origins; always contains UI_ORIGIN." },
+    "PORT_LEASE_BACKEND": { "type": "string", "enum": ["coordinator", "file", "none"] },
+    "PORT_LEASE_SESSION_ID": { "type": "string", "minLength": 1, "maxLength": 128 }
+  },
+  "$defs": {
+    "portString": { "type": "string", "pattern": "^[1-9][0-9]{3,4}$", "description": "Decimal port between 1024 and 65535, as a string because it is an env var." },
+    "localhostUrl": { "type": "string", "pattern": "^http://localhost:[1-9][0-9]{3,4}$" }
+  },
+  "examples": [
+    {
+      "AGENT_COORDINATOR_DB_PORT": "10000",
+      "AGENT_COORDINATOR_REST_PORT": "10001",
+      "AGENT_COORDINATOR_REALTIME_PORT": "10002",
+      "API_PORT": "10003",
+      "UI_PORT": "10004",
+      "DB_PORT": "10000",
+      "COMPOSE_PROJECT_NAME": "ac-3f9a1c2e",
+      "SUPABASE_URL": "http://localhost:10001",
+      "API_BASE_URL": "http://localhost:10003",
+      "UI_ORIGIN": "http://localhost:10004",
+      "COORDINATOR_CORS_ALLOWED_ORIGINS": "http://localhost:10004",
+      "PORT_LEASE_BACKEND": "coordinator",
+      "PORT_LEASE_SESSION_ID": "validate-standardize-port-leases-a1b2c3"
+    }
+  ]
+}

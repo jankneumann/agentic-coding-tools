@@ -1,0 +1,452 @@
+schema_version: 1
+
+feature:
+  id: standardize-port-leases
+  title: "Standardize host port allocation on coordinator-owned leases with a shared client"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/standardize-port-leases/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/standardize-port-leases/contracts/openapi/v1.yaml"
+      - "openspec/changes/standardize-port-leases/contracts/db/schema.sql"
+      - "openspec/changes/standardize-port-leases/contracts/db/seed.sql"
+      - "openspec/changes/standardize-port-leases/contracts/schemas/port-lease-env.schema.json"
+      - "openspec/changes/standardize-port-leases/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ── wp-contracts — freeze env schema, OpenAPI delta, DB contract (tasks 1.1–1.4)
+  - package_id: wp-contracts
+    title: "Contracts — lease env schema, /ports OpenAPI delta, port_leases DB contract"
+    task_type: contracts
+    description: |
+      Tasks 1.1–1.4: validate and freeze contracts/schemas/port-lease-env.schema.json,
+      contracts/openapi/v1.yaml, contracts/db/schema.sql + seed.sql. Coordination boundary
+      for every downstream package; design D2, D9, D10.
+    role: contracts-author
+    archetype: architect
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "contract:port-lease-env"
+        - "contract:port-lease-openapi"
+        - "contract:port-lease-db"
+      ttl_minutes: 60
+      reason: "Contract definitions for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/changes/standardize-port-leases/contracts/**"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces:
+        - "apis"
+    worktree:
+      name: port-leases-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Env schema validates its example; OpenAPI parses"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json, yaml, jsonschema; s=json.load(open(\"openspec/changes/standardize-port-leases/contracts/schemas/port-lease-env.schema.json\")); jsonschema.Draft202012Validator.check_schema(s); jsonschema.Draft202012Validator(s).validate(s[\"examples\"][0]); yaml.safe_load(open(\"openspec/changes/standardize-port-leases/contracts/openapi/v1.yaml\"))'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contracts_valid"
+    metadata:
+      loc_estimate: 400
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "contracts_valid"
+
+  # ── wp-coordinator — allocator persistence, session tie-in, gate, new endpoints, CORS (tasks 2.1–2.12)
+  - package_id: wp-coordinator
+    title: "Coordinator — five-port leases, Postgres persistence, session tie-in, isolation gate, conflict/reconcile endpoints"
+    task_type: backend
+    description: |
+      Tasks 2.1–2.12: extend PortAllocation to five ports (D4); migration 035_port_leases.sql and
+      write-through persistence with startup load/prune (D2); agent_id on allocate, heartbeat
+      refresh, cleanup_dead_agents releases leases and reports ports_released (D3); isolation
+      gate, downgrade-only (D5); POST /ports/conflict and /ports/reconcile plus MCP tools and
+      proxy functions (D1, D6); CORS test for COORDINATOR_CORS_ALLOWED_ORIGINS (D9). TDD order
+      per tasks.md.
+    role: backend-implementer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/src/port_allocator.py"
+        - "agent-coordinator/src/discovery.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
+        - "agent-coordinator/src/config.py"
+      keys:
+        - "db:schema:port_leases"
+        - "db:schema:agent_sessions"
+        - "api:POST /ports/allocate"
+        - "api:POST /ports/release"
+        - "api:POST /ports/conflict"
+        - "api:POST /ports/reconcile"
+        - "api:GET /ports/status"
+        - "api:POST /discovery/cleanup"
+      ttl_minutes: 180
+      reason: "Port lease ledger, session lifecycle, and API surface"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/port_allocator.py"
+        - "agent-coordinator/src/discovery.py"
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/coordination_mcp.py"
+        - "agent-coordinator/src/http_proxy.py"
+        - "agent-coordinator/src/config.py"
+        - "agent-coordinator/src/help_service.py"
+        - "agent-coordinator/database/migrations/035_port_leases.sql"
+        - "agent-coordinator/tests/test_port_allocator.py"
+        - "agent-coordinator/tests/test_port_allocator_api.py"
+        - "agent-coordinator/tests/test_discovery.py"
+        - "agent-coordinator/tests/test_cors_origins.py"
+        - "agent-coordinator/tests/integration/test_port_leases_persist.py"
+        - "agent-coordinator/tests/integration/test_cleanup_releases_ports.py"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/**"
+        - "apps/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "semantic_code"
+    worktree:
+      name: port-leases-wp-coordinator
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Allocator, discovery, API, and CORS unit tests pass"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_port_allocator.py agent-coordinator/tests/test_port_allocator_api.py agent-coordinator/tests/test_discovery.py agent-coordinator/tests/test_cors_origins.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_unit_passed"
+        - name: "Persistence and cleanup integration tests pass against local Postgres"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/integration/test_port_leases_persist.py agent-coordinator/tests/integration/test_cleanup_releases_ports.py -q -m integration"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_integration_passed"
+    metadata:
+      loc_estimate: 1100
+      complexity: high
+      package_kind: data_model
+    inputs: {}
+    outputs:
+      result_keys:
+        - "coordinator_unit_passed"
+        - "coordinator_integration_passed"
+
+  # ── wp-skills-client — PortLease client, bridge helpers, docker_stack/stack_launcher routing (tasks 3.1–3.9)
+  - package_id: wp-skills-client
+    title: "Shared PortLease client — backends, bind probe, reconcile CLI, docker_stack routing"
+    task_type: backend
+    description: |
+      Tasks 3.1–3.9: skills/shared/port_lease.py with none/coordinator/file backends (D7, D8),
+      env contract emission in shell and JSON (D9), bind probe with conflict retry (D6),
+      context-managed release, port-lease reconcile (D1); try_allocate_ports /
+      try_release_ports / try_report_port_conflict / try_reconcile_ports in the bridge;
+      docker_stack.py, stack_launcher.py, phase_deploy.py consume the client and the local
+      registry is deleted. Runs in parallel with wp-coordinator against the contract; the
+      coordinator backend tests use a stub server.
+    role: backend-implementer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/validate-feature/scripts/environments/docker_stack.py"
+        - "skills/validate-feature/scripts/stack_launcher.py"
+        - "skills/validate-feature/scripts/phase_deploy.py"
+      keys:
+        - "env:port-lease-client"
+      ttl_minutes: 180
+      reason: "Shared lease client and its first consumers"
+    scope:
+      write_allow:
+        - "skills/shared/port_lease.py"
+        - "skills/tests/shared/test_port_lease.py"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+        - "skills/coordination-bridge/scripts/tests/test_coordination_bridge.py"
+        - "skills/validate-feature/scripts/environments/docker_stack.py"
+        - "skills/validate-feature/scripts/environments/protocol.py"
+        - "skills/validate-feature/scripts/stack_launcher.py"
+        - "skills/validate-feature/scripts/phase_deploy.py"
+        - "skills/validate-feature/scripts/tests/test_docker_stack.py"
+        - "skills/validate-feature/scripts/tests/test_stack_launcher.py"
+        - "skills/validate-feature/scripts/tests/test_phase_deploy.py"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "skills/validate-feature/SKILL.md"
+        - "apps/**"
+    context_impact:
+      surfaces:
+        - "semantic_code"
+    worktree:
+      name: port-leases-wp-skills-client
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Client, bridge, and environment tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/shared/test_port_lease.py skills/coordination-bridge/scripts/tests/test_coordination_bridge.py skills/validate-feature/scripts/tests/test_docker_stack.py skills/validate-feature/scripts/tests/test_stack_launcher.py skills/validate-feature/scripts/tests/test_phase_deploy.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "client_tests_passed"
+    metadata:
+      loc_estimate: 900
+      complexity: medium
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys:
+        - "client_tests_passed"
+
+  # ── wp-consumers — SKILL.md routing, smoke/ZAP/gen-eval/playwright defaults, kanban dev port, docs (tasks 4.1–4.7)
+  - package_id: wp-consumers
+    title: "Consumers — validate-feature phases, gen-eval, playwright, kanban-viz, docs, port-literal gate"
+    task_type: implement
+    description: |
+      Tasks 4.1–4.7: port-literal regression check and allowlist (port-lease-client.7);
+      validate-feature SKILL.md deploy/smoke/security/teardown lines route through the lease
+      env with no literal defaults (D9, edits confined to env-default lines because of in-flight
+      writers of phase 4b); CORS smoke test and phase_smoke read the contract; gen-eval and
+      playwright-validator defaults; kanban-viz UI_PORT with strictPort, aligned 8081 default,
+      make e2e-kanban through port-lease acquire; docs. Depends only on the contract so it can
+      run alongside the other two; the SKILL.md `port-lease` invocations are exercised in
+      wp-integration once the client exists.
+    role: implementer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "skills/validate-feature/SKILL.md"
+        - "apps/kanban-viz/vite.config.ts"
+        - "apps/kanban-viz/src/App.tsx"
+        - "agent-coordinator/Makefile"
+      keys:
+        - "env:validate-feature-deploy-phase"
+        - "env:kanban-viz-dev-server"
+      ttl_minutes: 180
+      reason: "Consumer routing through the lease env contract"
+    scope:
+      write_allow:
+        - "skills/validate-feature/SKILL.md"
+        - "skills/validate-feature/scripts/check_port_literals.py"
+        - "skills/validate-feature/scripts/port_literal_allowlist.txt"
+        - "skills/validate-feature/scripts/phase_smoke.py"
+        - "skills/validate-feature/scripts/smoke_tests/**"
+        - "skills/validate-feature/scripts/tests/test_check_port_literals.py"
+        - "skills/validate-feature/scripts/tests/test_phase_smoke.py"
+        - "skills/playwright-validator/scripts/**"
+        - "skills/tests/playwright-validator/**"
+        - "packages/gen-eval/src/gen_eval/coordinator.py"
+        - "packages/gen-eval/src/gen_eval/orchestrator.py"
+        - "packages/gen-eval/tests/**"
+        - "apps/kanban-viz/vite.config.ts"
+        - "apps/kanban-viz/src/App.tsx"
+        - "apps/kanban-viz/package.json"
+        - "apps/kanban-viz/src/__tests__/**"
+        - "agent-coordinator/scripts/e2e_kanban.sh"
+        - "agent-coordinator/Makefile"
+        - "docs/guides/worktree-management.md"
+        - "docs/guides/workflow.md"
+        - "docs/local-migration.md"
+        - "docs/kanban-viz/README.md"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "skills/shared/**"
+        - "skills/validate-feature/scripts/environments/**"
+        - "skills/validate-feature/scripts/stack_launcher.py"
+        - "skills/validate-feature/scripts/phase_deploy.py"
+    context_impact:
+      surfaces:
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: port-leases-wp-consumers
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Port-literal gate, smoke, playwright, gen-eval tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-feature/scripts/tests/test_check_port_literals.py skills/validate-feature/scripts/tests/test_phase_smoke.py skills/tests/playwright-validator packages/gen-eval/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "consumer_python_tests_passed"
+        - name: "kanban-viz unit tests and typecheck pass"
+          kind: command
+          command: "cd apps/kanban-viz && npm run typecheck && npm run test:run"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "kanban_tests_passed"
+        - name: "No new port literals outside the allowlist"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-feature/scripts/check_port_literals.py --changed-only"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "port_literal_gate_passed"
+    metadata:
+      loc_estimate: 700
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "consumer_python_tests_passed"
+        - "kanban_tests_passed"
+        - "port_literal_gate_passed"
+
+  # ── wp-integration — merge, mirrors, dispatch allowlist, full suites, two-agent proof (tasks 5.1–5.4)
+  - package_id: wp-integration
+    title: "Integration — merge worktrees, install.sh mirrors, dispatch allowlist, full suites, concurrent validate proof"
+    task_type: integration
+    description: |
+      Tasks 5.1–5.4: merge the three implementation branches; run install.sh so skills/shared
+      and changed skills are mirrored (D11); add contract keys to skills/shared/dispatch_env.py
+      if present, else record in deferred-tasks.md (D10); run coordinator, skills, and kanban-viz
+      suites plus the port-literal gate; run two concurrent validate-feature deploys on one host
+      and record distinct blocks and compose projects in validation-report.md.
+    role: integrator
+    archetype: reviewer
+    priority: 4
+    depends_on: [wp-coordinator, wp-skills-client, wp-consumers]
+    locks:
+      files: []
+      keys:
+        - "env:standardize-port-leases-integration"
+      ttl_minutes: 120
+      reason: "Merge and full verification"
+    scope:
+      write_allow:
+        - "**"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: port-leases-wp-integration
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 1
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: "Coordinator suite passes"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_suite_passed"
+        - name: "Skills suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests skills/validate-feature/scripts/tests skills/coordination-bridge/scripts/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "skills_suite_passed"
+        - name: "Mirrors are in sync"
+          kind: command
+          command: "./install.sh --check"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "mirrors_in_sync"
+        - name: "Two concurrent validate deploys get distinct blocks"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-feature/scripts/stack_launcher.py --concurrency-proof 2 --report openspec/changes/standardize-port-leases/validation-report.md"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "openspec/changes/standardize-port-leases/validation-report.md"
+            result_keys:
+              - "concurrency_proof_passed"
+    metadata:
+      loc_estimate: 200
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "coordinator_suite_passed"
+        - "skills_suite_passed"
+        - "mirrors_in_sync"
+        - "concurrency_proof_passed"
