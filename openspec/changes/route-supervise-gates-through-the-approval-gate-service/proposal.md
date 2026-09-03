@@ -24,25 +24,43 @@ gated it.
 - **Add a ninth gate, `roadmap_approval`, to the trust-posture contract.** The supervise
   `cycle` verb's "approve this roadmap" decision becomes a `Gate` value with a disposition
   in `TRUST_POSTURE.md` (absent file → `block`, i.e. today's chat approval). The enum,
-  template, `trust-posture.schema.json`, `gate-decision.schema.json`, and
-  `supervisor-record.schema.json` gate enums grow from eight to nine entries.
+  the template, and every schema that embeds the gate enum — `trust-posture.schema.json`,
+  `gate-decision.schema.json`, `gate-request.schema.json`, `supervisor-record.schema.json`,
+  and `supervisor-record-mirror.schema.json` — grow from eight to nine entries.
+  (`test_gate_schemas.py::test_gate_enum_matches_trust_posture` pins `gate-request` and
+  `gate-decision` to `Gate`, so all five move together or CI goes red.)
 - **Add a deterministic gate router to the supervise skill**
   (`skills/supervise/scripts/gate_router.py`). It is the only path by which supervise
   evaluates a gate: it wraps `ApprovalGate.evaluate`, stamps every decision with a
   `decision_id`, `source: "supervise"`, and the correlating `roadmap_id` /
   `change_id` / `dispatch_id`, and appends it to the roadmap workspace's
   `checkpoint.json` `gate_decisions` sidecar (the same ledger the orchestrator's
-  `replan_required` gate writes to). Console answers use the same record shape as the
-  autopilot runner's `gate-answer`.
+  `replan_required` gate writes to). Record construction and console answers use helpers
+  that this change moves into `shared.approval_gate` — `build_gate_decision_record`
+  (today a private of `autopilot.py`), `console_decision` (today
+  `runner._console_decision`), and a new `ApprovalGate.check_filed(gate, approval_id)`
+  that interprets a previously filed coordinator approval — so autopilot and supervise
+  share one record shape and every decision, including a late coordinator answer, is
+  constructed inside `approval_gate.py`. The router inherits `ApprovalGate.evaluate`'s
+  synchronous semantics: under `notify_with_timeout` an evaluation files the approval,
+  notifies, and waits up to the posture's `timeout_seconds` before applying the default
+  action; there is no asynchronous "pending" state inside the gate service.
 - **Route the three supervise gates through the router.**
   - `cycle`: after the digest, `cycle_state.py gate-check --roadmap <id>` evaluates
     `roadmap_approval`. `auto` proceeds into `/plan-roadmap` approval and `execute`;
-    `notify_with_timeout` files a coordinator approval with a deadline and surfaces it in
-    `pending_gates`; `block` surfaces it and waits for `cycle_state.py gate-answer`.
+    `notify_with_timeout` files one coordinator approval, waits up to the posture timeout,
+    and on timeout surfaces the terminal decision in `pending_gates` with its
+    `approval_id` (the next cycle checks that approval through `check_filed` before it
+    evaluates — and re-notifies — again); `block` surfaces it and waits for
+    `cycle_state.py gate-answer`. A `proceed` decision is reused by later cycles until
+    the roadmap's DAG fingerprint changes, so an approved roadmap is asked once, not once
+    per cycle.
   - `execute`: `ExecutionAdapter.prepare` takes a required `roadmap_approval_ref` and
     refuses to prepare unless it resolves to a `roadmap_approval` decision with outcome
-    `proceed` for that roadmap. A direct `/autopilot-roadmap` invocation records a
-    console-approved decision first, so it keeps its inherited-approval semantics.
+    `proceed` for that roadmap. A direct `/autopilot-roadmap` invocation records an
+    originating console-approved decision first (`gate-answer --gate roadmap_approval` is
+    the one answer that needs no prior parked record — the operator's command is the
+    human answer), so it keeps its inherited-approval semantics.
   - parked children: `gate_router.resolve_parked` re-evaluates a `pending_gate` attempt
     against the *current* posture (hot reload) — checking an already-filed coordinator
     approval before filing a new one — and a `policy_pause` attempt through
@@ -104,11 +122,12 @@ demand an `approval_ref` that resolves to a recorded decision, and expose the le
   the roadmap-altitude gate keeps its own disposition instead of borrowing the per-change
   `proposal_approval` one; reuses the checkpoint sidecar and console-decision shape ri-06
   already established.
-- Cons: touches the trust-posture contract (enum, template, three schemas, "eight gates"
-  tests and spec text); `prepare` gains a required argument, so `test_execution.py`
+- Cons: touches the trust-posture contract (enum, template, five schema files, "eight
+  gates" tests and spec text); `prepare` gains a required argument, so `test_execution.py`
   callers need an approval fixture; a second in-flight change
-  (`add-supervisor-candidate-work-digest`, unstarted) also edits `cycle_state.py` and
-  `SKILL.md` and must be rebased after this lands.
+  (`add-supervisor-candidate-work-digest`, unstarted) rewrites the `cycle` §2–§5 region
+  of `skills/supervise/SKILL.md` (it leaves `cycle_state.py` untouched) and must be
+  rebased after this lands.
 - Effort: M
 
 ### Approach 3: Reuse `proposal_approval` at roadmap altitude
@@ -131,8 +150,8 @@ member.
 Approach 2. Approach 1 fails acceptance outcome 3 and leaves the most-hit gate outside the
 posture. Approach 3 saves a handful of enum edits at the cost of conflating two decisions
 the operator needs to set independently. The contract growth in Approach 2 is mechanical
-(nine places, all enumerated in `tasks.md`) and is the honest cost of turning the last
-prose gate into policy.
+(enum, template, five schema files, two tests, spec text — all enumerated in `tasks.md`)
+and is the honest cost of turning the last prose gate into policy.
 
 ### Selected Approach
 
@@ -157,18 +176,27 @@ requested.
 
 **Code:**
 - `skills/shared/trust_posture.py` (enum), `TRUST_POSTURE.template.md`,
-  `skills/shared/approval_gate.py` (public `console_decision` helper shared with the
-  runner), `skills/shared/tests/test_trust_posture.py` (eight → nine).
+  `skills/shared/approval_gate.py` (public `console_decision` and
+  `build_gate_decision_record` helpers, `ApprovalGate.check_filed`),
+  `skills/shared/tests/test_trust_posture.py` and `test_approval_gate.py` (eight → nine;
+  helper coverage).
 - `openspec/schemas/trust-posture.schema.json`, `gate-decision.schema.json`,
-  `supervisor-record.schema.json` (+ mirror schema if it embeds the gate enum).
+  `gate-request.schema.json`, `supervisor-record.schema.json`,
+  `supervisor-record-mirror.schema.json` (the last three embed the gate enum literally).
 - `skills/supervise/scripts/gate_router.py` (new), `execution.py` (`prepare` approval
   argument, `resume` provenance check), `cycle_state.py` (enum imports; `gate-check`,
   `gate-answer`, `gate-log` subcommands), `skills/supervise/SKILL.md`.
 - `skills/autopilot/scripts/runner.py` (delegate `_console_decision` to the shared
-  helper), `skills/autopilot-roadmap/SKILL.md` (record the direct-invocation approval).
+  helper), `skills/autopilot/scripts/autopilot.py` (delegate `build_gate_decision_record`
+  to the shared helper; call sites unchanged), `skills/autopilot-roadmap/SKILL.md` (record
+  the direct-invocation approval). The roadmap orchestrator's private
+  `_gate_decision_record` is left as-is (out of scope; it already writes the same shape).
 - Tests: `skills/tests/supervise/test_gate_router.py`, `test_gate_router_e2e.py`,
   `test_prose_free_gates.py` (new); `test_execution.py`, `test_execution_contract.py`,
-  `test_cycle_state.py`, `test_supervisor_record_schema.py` (updated).
+  `test_cycle_state.py`, `test_supervisor_record_schema.py`, `test_workflow_contract.py`
+  (updated — it pins `### Approval gate` / `### Reconcile and resume` headings and the
+  phrase ``durable `approval_ref` ``); `skills/tests/autopilot/test_gate_schemas.py`,
+  `test_gate_call_sites.py`, `test_console_interviewer.py` (updated).
 
 **Rollback:** the enum addition and schema growth are additive; a posture file without a
 `roadmap_approval` entry resolves to `block`. Reverting the change restores prose gates

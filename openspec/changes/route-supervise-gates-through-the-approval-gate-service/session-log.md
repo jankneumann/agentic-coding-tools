@@ -44,3 +44,46 @@
 ### Context
 Refined roadmap item ri-04 (roadmap-supervisor-orchestration) into a plan that routes every supervise gate through skills/shared/approval_gate.py: a ninth roadmap_approval gate in the trust-posture contract, a single gate_router.py seam in the supervise skill, and an approval_ref that must resolve to a recorded gate decision. Coordinated tier (coordinator reachable). Gate 1 and Gate 2 were satisfied by the roadmap's standing approval (ri-04 approved in roadmap.yaml; operator instruction 'start with ri-04'), per the supervise inherited-approval contract; no per-item questions were asked.
 
+---
+
+## Phase: Plan Iteration 1 (2026-09-03)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Router applies a prior-record rule before every evaluation** — evaluate() never returns pending; reuse proceed, re-surface an open posture_block, check a filed approval_id via ApprovalGate.check_filed before re-filing, treat rejected as terminal. Keeps every decision constructed inside approval_gate.py while bounding re-notification to one request per expired approval per cycle.
+2. **Roadmap approval is keyed by DAG fingerprint, not time** — sha256 over sorted (item_id, change_id, depends_on): an approved roadmap is asked once, item completion does not re-ask, refine-roadmap/replan does. Closes the plan-phase open question on expires_at (stays null).
+3. **build_gate_decision_record and console_decision move into shared.approval_gate** — The builder was private to autopilot.py; supervise must not import the autopilot loop. Autopilot and runner delegate; the orchestrator's private copy is left alone as out of scope.
+4. **gate-answer may originate a record only for roadmap_approval** — The operator's /autopilot-roadmap command is the human answer; every other gate mirrors runner.py and refuses an answer with no parked record.
+5. **All five gate-bearing schemas move together** — test_gate_schemas pins gate-request and gate-decision to Gate; the supervisor-record mirror embeds the enum literally. Leaving any one out fails CI.
+
+### Alternatives Considered
+- Asynchronous notify path in the router (file, return pending, poll on later cycles): rejected because Re-implements ApprovalGate._notify outside approval_gate.py (timeout, default action, undelivered-notification fail-closed) — the bypass acceptance outcome 3 forbids.
+- Re-ask roadmap_approval on every cycle: rejected because One notification per cycle for an already-approved roadmap is the interruption ri-04 exists to remove.
+- Let supervise import autopilot.build_gate_decision_record directly: rejected because Couples the supervisor to the 1,700-line autopilot loop module for a ten-line record builder.
+
+### Trade-offs
+- Accepted A third public member on shared.approval_gate (check_filed) over Calling coordinator.check_approval from the router because Keeps status interpretation in one place and the AST invariant literal.
+- Accepted gate-check blocking up to timeout_seconds under notify_with_timeout over A non-blocking gate-check because It is the contract ri-06 established for every other gate; the SKILL protocol block documents the wait.
+
+### Open Questions
+- [ ] Should the roadmap orchestrator's private _gate_decision_record be consolidated onto the shared builder in a follow-up?
+- [ ] roadmap_fingerprint excludes item status by design; confirm refine-roadmap 'supersede' edits change depends_on/change_id so they re-raise the gate.
+
+### Completed Work
+- [high] consistency/feasibility: D4 rewritten as prior-record rule; notify scenario rewritten; gate-service facts recorded in design Context
+- [high] completeness: gate-request and mirror schemas added to every enumeration; contract copies added
+- [high] consistency: build_gate_decision_record moved to shared.approval_gate; autopilot.py in scope
+- [high] clarity: console_decision posture snapshot defined; originating gate-answer for roadmap_approval; scenario 5
+- [high] assumptions: roadmap approval reuse keyed by DAG fingerprint; scenario 4
+- [medium] consistency: digest-change overlap corrected to SKILL.md only
+- [medium] testability: test_workflow_contract.py pins preserved; file added to wp-skill-docs
+- [medium] scope: task 1.4 test file corrected to test_console_interviewer.py
+- [medium] parallelizability: lock lists completed for wp-contracts and wp-router
+- [medium] clarity: gate-log scope and gate-check exit-4 semantics defined
+- [low] security: ledger trust boundary documented
+- [low] clarity: approval_ref pattern aligned
+
+### Context
+Iteration 1 addressed 12 findings (5 high, 5 medium, 2 low). The largest correction is that ApprovalGate.evaluate is synchronous and the child's pending_gate snapshot never carries an approval_id, so D4 became a prior-record rule over the router's own ledger with a new ApprovalGate.check_filed for late coordinator answers. The ninth gate now touches five schema files (gate-request and the mirror embed the enum), build_gate_decision_record moves into shared.approval_gate, and roadmap approval is reused until the roadmap's DAG fingerprint changes.
+
