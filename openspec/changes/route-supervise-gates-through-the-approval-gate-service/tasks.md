@@ -81,14 +81,14 @@ functions, each an M-or-smaller task below).
 
 - [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/tests/supervise -q` and `cd skills && uv run pytest tests/roadmap-runtime tests/autopilot-roadmap -q`, review diff, verify scope
 
-- [ ] 2.7 Write tests for `cycle_state.py` `gate-check`, `gate-answer`, `gate-log` — exit codes 3 (proceed, including a reused decision) / 0 (`posture_block`) / 4 (terminal block: `rejected`, `timeout_default_block`, `coordinator_unreachable`), printed `pending_gates` entry validates against the record schema, `gate-answer --gate roadmap_approval` originates a record and prints `roadmap_approval_ref` while `gate-answer` for any other gate is refused without a parked record, `gate-log --roadmap R` unions the sidecar with the child `gate_decisions` of R's items only, resolved through each attempt's recorded worktree, a `--dry-run` guard is not needed because the SKILL never runs `gate-check` under `--dry-run` (assert the subcommand has no `--dry-run` flag) (S)
+- [x] 2.7 Write tests for `cycle_state.py` `gate-check`, `gate-answer`, `gate-log` — exit codes 3 (proceed, including a reused decision) / 0 (`posture_block`) / 4 (terminal block: `rejected`, `timeout_default_block`, `coordinator_unreachable`), printed `pending_gates` entry validates against the record schema, `gate-answer --gate roadmap_approval` originates a record and prints `roadmap_approval_ref` while `gate-answer` for any other gate is refused without a parked record, `gate-log --roadmap R` unions the sidecar with the child `gate_decisions` of R's items only, resolved through each attempt's recorded worktree, a `--dry-run` guard is not needed because the SKILL never runs `gate-check` under `--dry-run` (assert the subcommand has no `--dry-run` flag) (S)
   Also cover: `gate-check` on a workspace with no `checkpoint.json` bootstraps one instead of raising `FileNotFoundError`, and `gate-log` on such a workspace prints an empty array; exit 4 keeps the entry answerable (the documented divergence from `runner.py`'s `EXIT_GATE_PARKED`, which clears `pending_gate` and enters ESCALATE).
   **Spec scenarios**: supervise.Supervise Gate Routing.1, .2, .5, .8 (evaluation log)
   **Design decisions**: D5, D6
   **Dependencies**: 2.4
   **Files**: skills/tests/supervise/test_cycle_state.py
 
-- [ ] 2.9 Implement the `gate-check`, `gate-answer`, and `gate-log` subcommands in `cycle_state.py`, importing `gate_router` lazily inside each handler (S)
+- [x] 2.9 Implement the `gate-check`, `gate-answer`, and `gate-log` subcommands in `cycle_state.py`, importing `gate_router` lazily inside each handler (S)
   **Dependencies**: 2.7
   **Files**: skills/supervise/scripts/cycle_state.py
 

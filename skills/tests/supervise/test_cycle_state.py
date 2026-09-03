@@ -105,10 +105,15 @@ def _stub(change_id: str | None = None, *, source: str = "report.md", findings=(
 
 
 def _install_schemas(repo: Path) -> None:
-    """Copy the two supervisor-record schemas write_mirror validates against."""
+    """Copy the schemas write_mirror / load_roadmap / CheckpointManager validate against."""
     schema_target = repo / "openspec" / "schemas"
     schema_target.mkdir(parents=True, exist_ok=True)
-    for name in ("supervisor-record.schema.json", "supervisor-record-mirror.schema.json"):
+    for name in (
+        "supervisor-record.schema.json",
+        "supervisor-record-mirror.schema.json",
+        "roadmap.schema.json",
+        "checkpoint.schema.json",
+    ):
         shutil.copy2(_SCHEMAS / name, schema_target / name)
 
 
@@ -613,3 +618,133 @@ class TestPendingGateDecisionIdRoundTrip:
         entry = mirror["pending_gates"][0]
         assert entry["gate"] == "roadmap_approval"
         assert entry["decision_id"] == "11111111-1111-4111-8111-111111111111"
+
+
+# --------------------------------------------------------------------------- #
+# gate-check / gate-answer / gate-log (D5, D6) -- ri-04 tasks 2.7-2.9
+# --------------------------------------------------------------------------- #
+def _gated_repo(repo: Path) -> Path:
+    """The base `repo` fixture's roadmap has no change_id; roadmap_approval's
+    parked-entry projection needs one (D7)."""
+    _install_schemas(repo)
+    _roadmap(repo, "alpha", [_item("ri-01", change_id="demo-change")])
+    return repo
+
+
+def _write_posture(repo: Path, gate: str, disposition: str, **extra: object) -> None:
+    lines = ["---", "schema_version: 1", "gates:", f"  {gate}:", f"    disposition: {disposition}"]
+    for key, value in extra.items():
+        lines.append(f"    {key}: {value}")
+    lines.append("---\n")
+    (repo / "TRUST_POSTURE.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+class TestGateCheckCli:
+    def test_auto_posture_exits_proceed_and_prints_the_ref(self, repo: Path, capsys) -> None:
+        repo = _gated_repo(repo)
+        _write_posture(repo, "roadmap_approval", "auto")
+
+        rc = cycle_state.main(["--repo-root", str(repo), "gate-check", "--roadmap", "alpha"])
+
+        assert rc == cycle_state.GATE_EXIT_PROCEED
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["gate"] == "roadmap_approval"
+        assert payload["outcome"] == "proceed"
+        assert payload["roadmap_approval_ref"] == f"gate-decision:{payload['decision_id']}"
+
+    def test_reused_proceed_still_exits_proceed(self, repo: Path, capsys) -> None:
+        repo = _gated_repo(repo)
+        _write_posture(repo, "roadmap_approval", "auto")
+        cycle_state.main(["--repo-root", str(repo), "gate-check", "--roadmap", "alpha"])
+        capsys.readouterr()
+
+        rc = cycle_state.main(["--repo-root", str(repo), "gate-check", "--roadmap", "alpha"])
+
+        assert rc == cycle_state.GATE_EXIT_PROCEED
+
+    def test_absent_posture_blocks_and_prints_pending_gate_entry(self, repo: Path, capsys) -> None:
+        repo = _gated_repo(repo)
+
+        rc = cycle_state.main(["--repo-root", str(repo), "gate-check", "--roadmap", "alpha"])
+
+        assert rc == cycle_state.GATE_EXIT_PARKED
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["gate"] == "roadmap_approval"
+        assert payload["change_id"] == "demo-change"
+        assert payload["deadline"]
+        assert payload["source"] == "supervise"
+
+    def test_rejected_prior_record_exits_terminal_block(self, repo: Path, capsys) -> None:
+        repo = _gated_repo(repo)
+        cycle_state.main(
+            ["--repo-root", str(repo), "gate-answer", "--roadmap", "alpha",
+             "--gate", "roadmap_approval", "--decision", "rejected"]
+        )
+        capsys.readouterr()
+
+        rc = cycle_state.main(["--repo-root", str(repo), "gate-check", "--roadmap", "alpha"])
+
+        assert rc == cycle_state.GATE_EXIT_TERMINAL_BLOCK
+
+    def test_bootstraps_a_missing_checkpoint_instead_of_raising(self, repo: Path) -> None:
+        repo = _gated_repo(repo)
+        assert not (repo / "openspec" / "roadmaps" / "alpha" / "checkpoint.json").exists()
+
+        rc = cycle_state.main(["--repo-root", str(repo), "gate-check", "--roadmap", "alpha"])
+
+        assert rc in (cycle_state.GATE_EXIT_PARKED, cycle_state.GATE_EXIT_PROCEED, cycle_state.GATE_EXIT_TERMINAL_BLOCK)
+        assert (repo / "openspec" / "roadmaps" / "alpha" / "checkpoint.json").exists()
+
+    def test_has_no_dry_run_flag(self) -> None:
+        with pytest.raises(SystemExit):
+            cycle_state.main(["gate-check", "--roadmap", "alpha", "--dry-run"])
+
+
+class TestGateAnswerCli:
+    def test_roadmap_approval_originates_a_record_with_no_prior_park(self, repo: Path, capsys) -> None:
+        repo = _gated_repo(repo)
+
+        rc = cycle_state.main(
+            ["--repo-root", str(repo), "gate-answer", "--roadmap", "alpha",
+             "--gate", "roadmap_approval", "--decision", "approved", "--note", "direct invocation"]
+        )
+
+        assert rc == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["outcome"] == "proceed"
+        assert payload["resolution"] == "console_approved"
+        assert payload["roadmap_approval_ref"] == f"gate-decision:{payload['decision_id']}"
+
+    def test_other_gate_without_a_parked_record_is_refused(self, repo: Path) -> None:
+        repo = _gated_repo(repo)
+
+        rc = cycle_state.main(
+            ["--repo-root", str(repo), "gate-answer", "--roadmap", "alpha",
+             "--gate", "pr_creation", "--decision", "approved", "--dispatch-id", "d-1"]
+        )
+
+        assert rc == 2
+
+
+class TestGateLogCli:
+    def test_empty_workspace_prints_empty_array(self, repo: Path, capsys) -> None:
+        repo = _gated_repo(repo)
+
+        rc = cycle_state.main(["--repo-root", str(repo), "gate-log", "--roadmap", "alpha"])
+
+        assert rc == 0
+        assert json.loads(capsys.readouterr().out) == []
+
+    def test_one_entry_per_evaluate_none_for_reuse(self, repo: Path, capsys) -> None:
+        repo = _gated_repo(repo)
+        _write_posture(repo, "roadmap_approval", "auto")
+        cycle_state.main(["--repo-root", str(repo), "gate-check", "--roadmap", "alpha"])
+        cycle_state.main(["--repo-root", str(repo), "gate-check", "--roadmap", "alpha"])
+        capsys.readouterr()
+
+        rc = cycle_state.main(["--repo-root", str(repo), "gate-log", "--roadmap", "alpha"])
+
+        assert rc == 0
+        log = json.loads(capsys.readouterr().out)
+        assert len(log) == 1
+        assert log[0]["origin"] == "checkpoint"

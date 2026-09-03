@@ -1118,6 +1118,118 @@ def _cmd_rehydrate(args: argparse.Namespace) -> int:
     return 0
 
 
+# --------------------------------------------------------------------------- #
+# gate-check / gate-answer / gate-log (D5, D6) -- gate_router imported lazily
+# per-handler: cycle_state does heavy import-time work of its own
+# (_load_runtime_models) and gate_router imports cycle_state.write_mirror, so
+# a module-level import in either direction is a cycle.
+# --------------------------------------------------------------------------- #
+
+# Exit codes (D5): 3 mirrors runner.py's EXIT_NO_PENDING_GATE (proceed,
+# including a reused decision -- nothing to ask); 0 = parked on posture_block
+# (prints the pending entry; the SKILL renders it and stops); 4 = terminal
+# block (rejected / timeout_default_block / coordinator_unreachable) -- the
+# entry stays answerable via gate-answer, unlike runner.py's EXIT_GATE_PARKED
+# (4), which clears pending_gate and enters ESCALATE. That divergence is
+# deliberate: the supervisor has no ESCALATE state to fall into.
+GATE_EXIT_PROCEED = 3
+GATE_EXIT_PARKED = 0
+GATE_EXIT_TERMINAL_BLOCK = 4
+
+_TERMINAL_BLOCK_RESOLUTIONS = frozenset(
+    {"rejected", "console_rejected", "timeout_default_block", "coordinator_unreachable"}
+)
+
+
+def _roadmap_workspace(repo_root: Path, roadmap_id: str) -> Path:
+    return repo_root / "openspec" / "roadmaps" / roadmap_id
+
+
+def _gate_decision_exit_code(decision: Any) -> int:
+    if decision.proceed:
+        return GATE_EXIT_PROCEED
+    if decision.resolution.value == "posture_block":
+        return GATE_EXIT_PARKED
+    return GATE_EXIT_TERMINAL_BLOCK
+
+
+def _pending_entry_for(mirror_repo_root: Path, decision_id: str | None) -> dict[str, Any] | None:
+    """Read back the `pending_gates` entry `evaluate`/`answer` just projected
+    into the mirror (D7), by `decision_id` -- the entry shape is the router's
+    own, not duplicated here."""
+    if decision_id is None:
+        return None
+    mirror_path = mirror_repo_root / MIRROR_PATH
+    try:
+        mirror = json.loads(mirror_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    for entry in _extract_supervisor_record(mirror).get("pending_gates", []) if mirror else []:
+        if entry.get("decision_id") == decision_id:
+            return entry
+    return None
+
+
+def _cmd_gate_check(args: argparse.Namespace) -> int:
+    import gate_router  # lazy (see module preamble)
+    from shared.trust_posture import Gate
+
+    repo = Path(args.repo_root).resolve()
+    workspace = _roadmap_workspace(repo, args.roadmap)
+    roadmap = load_all_roadmaps(repo).get(args.roadmap)
+    item_count = len(roadmap.items) if roadmap is not None else None
+    context = {"item_count": item_count, "verb": "cycle"}
+    for pair in args.context or []:
+        key, _, value = pair.partition("=")
+        context[key] = value
+
+    routed = gate_router.evaluate(Gate.ROADMAP_APPROVAL, context, workspace=workspace, repo_root=repo)
+    exit_code = _gate_decision_exit_code(routed.decision)
+    if exit_code == GATE_EXIT_PROCEED:
+        payload = dict(routed.record)
+        payload["roadmap_approval_ref"] = f"gate-decision:{routed.record['decision_id']}"
+    else:
+        payload = _pending_entry_for(repo, routed.record.get("decision_id")) or dict(routed.record)
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return exit_code
+
+
+def _cmd_gate_answer(args: argparse.Namespace) -> int:
+    import gate_router  # lazy
+    from shared.trust_posture import Gate
+
+    repo = Path(args.repo_root).resolve()
+    workspace = _roadmap_workspace(repo, args.roadmap)
+    gate_enum = Gate(args.gate)
+    approved = args.decision == "approved"
+    context: dict[str, Any] = {"verb": "cycle"}
+    if args.dispatch_id:
+        context["dispatch_id"] = args.dispatch_id
+
+    try:
+        routed = gate_router.answer(
+            gate_enum, workspace=workspace, repo_root=repo, approved=approved, note=args.note, context=context
+        )
+    except gate_router.GateRefusalError as exc:
+        print(f"cycle_state: {exc}", file=sys.stderr)
+        return 2
+
+    payload = dict(routed.record)
+    if gate_enum is Gate.ROADMAP_APPROVAL and routed.decision.proceed:
+        payload["roadmap_approval_ref"] = f"gate-decision:{routed.record['decision_id']}"
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _cmd_gate_log(args: argparse.Namespace) -> int:
+    import gate_router  # lazy
+
+    repo = Path(args.repo_root).resolve()
+    workspace = _roadmap_workspace(repo, args.roadmap)
+    print(json.dumps(gate_router.gate_log(workspace, repo), indent=2, sort_keys=True))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Deterministic supervise-cycle state.")
     parser.add_argument("--repo-root", default=".")
@@ -1151,6 +1263,28 @@ def main(argv: list[str] | None = None) -> int:
     p_rehydrate.add_argument("--mirror", help=f"Mirror JSON (default: {MIRROR_PATH}).")
     p_rehydrate.add_argument("--now", help="Explicit RFC3339 clock input (tests/replay).")
 
+    p_gate_check = sub.add_parser(
+        "gate-check",
+        help="Evaluate roadmap_approval (D5). Exit 3 proceed, 0 parked (posture_block), 4 terminal block.",
+    )
+    p_gate_check.add_argument("--roadmap", required=True)
+    p_gate_check.add_argument(
+        "--context", action="append", metavar="KEY=VALUE",
+        help="Additional context key=value (repeatable).",
+    )
+
+    p_gate_answer = sub.add_parser(
+        "gate-answer", help="Record a console decision for a gate (originates roadmap_approval)."
+    )
+    p_gate_answer.add_argument("--roadmap", required=True)
+    p_gate_answer.add_argument("--gate", required=True)
+    p_gate_answer.add_argument("--decision", required=True, choices=["approved", "rejected"])
+    p_gate_answer.add_argument("--note")
+    p_gate_answer.add_argument("--dispatch-id", dest="dispatch_id")
+
+    p_gate_log = sub.add_parser("gate-log", help="Print the sidecar + child gate_decisions for a roadmap (D6).")
+    p_gate_log.add_argument("--roadmap", required=True)
+
     args = parser.parse_args(argv)
     return {
         "fingerprint": _cmd_fingerprint,
@@ -1163,6 +1297,9 @@ def main(argv: list[str] | None = None) -> int:
         "supervisor-record": _cmd_supervisor_record,
         "mirror": _cmd_mirror,
         "rehydrate": _cmd_rehydrate,
+        "gate-check": _cmd_gate_check,
+        "gate-answer": _cmd_gate_answer,
+        "gate-log": _cmd_gate_log,
     }[args.command](args)
 
 
