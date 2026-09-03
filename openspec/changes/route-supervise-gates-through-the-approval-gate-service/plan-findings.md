@@ -26,3 +26,19 @@ scenarios of the live spec (checked by script against `openspec/specs/`).
 Deferred / out of scope:
 - The roadmap orchestrator's private `_gate_decision_record` duplicates the shared builder; consolidating it is a follow-up, not part of ri-04.
 - `BridgeCoordinatorClient.push_notification` always returning `False` (ri-05) still fails a `default_action: proceed` closed; documented, unchanged.
+
+## Iteration 2 (2026-09-03)
+
+Re-review of the iteration-1 documents against `cycle_state.py` and the `cycle` SKILL flow.
+
+| # | Type | Criticality | Description | Fix |
+|---|------|-------------|-------------|-----|
+| 13 | completeness | high | `pending_gates` and `standing_decisions` are non-derivable sections that `build_supervisor_record` only carries forward; nothing deterministic adds or clears an entry, so the router's blocked decisions would never reach a rehydrated session and answered gates would never leave the digest. | New D7: the router projects blocked decisions into the tracked mirror's `pending_gates` (keyed by `decision_id`) and proceeds out of it, upserting the `roadmap_approval` standing decision, through the existing `cycle_state.write_mirror`; requirement sentence and scenario 11 added; tasks 2.1/2.2 cover it. |
+| 14 | consistency | high | The `cycle` SKILL's final step rebuilds the record from the pre-gate `$SUPERVISE_RECORD` snapshot and writes the mirror, which would overwrite the router's projection made at the gate. | D7 and task 3.2: re-select the prior with `rehydrate --handoff` at write time; e2e test rehydrates after the gate and after the final write. |
+| 15 | clarity | medium | `execute` had no deterministic source for `roadmap_approval_ref` in a rehydrated session. | D5: `execute` always opens with `gate-check`; its exit-3 record supplies the ref; exit 0/4 is the refuse path. |
+| 16 | clarity | medium | `cycle --dry-run` writes no supervisor state, but `gate-check` appends to `checkpoint.json` and the mirror. | D5: `gate-check` never runs under `--dry-run`; task 2.7 asserts the subcommand has no dry-run mode to hide behind; task 3.2 documents it. |
+| 17 | feasibility | low | Checked that `openspec/roadmaps/` and `openspec/supervise/` are inside `_ALLOWED_WRITE_PREFIXES`, so the router's checkpoint and mirror writes pass `audit-since`; the fingerprint excludes the mirror, so a projection never forces a re-sense. | Recorded in D7; no change needed. |
+
+Remaining below threshold: none identified. Parallelizability unchanged
+(wp-contracts → wp-router ∥ wp-skill-docs → wp-integration; max width 2 packages, 3 task
+chains inside wp-router after 2.2).

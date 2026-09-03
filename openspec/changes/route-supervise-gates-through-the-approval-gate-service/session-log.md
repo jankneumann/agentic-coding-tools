@@ -87,3 +87,31 @@ Refined roadmap item ri-04 (roadmap-supervisor-orchestration) into a plan that r
 ### Context
 Iteration 1 addressed 12 findings (5 high, 5 medium, 2 low). The largest correction is that ApprovalGate.evaluate is synchronous and the child's pending_gate snapshot never carries an approval_id, so D4 became a prior-record rule over the router's own ledger with a new ApprovalGate.check_filed for late coordinator answers. The ninth gate now touches five schema files (gate-request and the mirror embed the enum), build_gate_decision_record moves into shared.approval_gate, and roadmap approval is reused until the roadmap's DAG fingerprint changes.
 
+---
+
+## Phase: Plan Iteration 2 (2026-09-03)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **The router is the writer of pending_gates and standing_decisions** — Those sections are carried forward, never derived; the router projects blocked decisions in (keyed by decision_id) and proceeds out through the existing atomic, idempotent write_mirror, so a fresh session rehydrates the gate state from the mirror.
+2. **The cycle SKILL re-selects the prior at write time** — supervisor-record --prior $SUPERVISE_RECORD uses the pre-gate snapshot and would clobber the projection; rehydrate --handoff picks the newer mirror.
+3. **execute opens with gate-check; cycle --dry-run never runs it** — Gives a rehydrated execute a deterministic roadmap_approval_ref (exit 3) and keeps dry runs write-free.
+
+### Alternatives Considered
+- Make pending_gates derivable from the checkpoint ledger: rejected because Changes the Rehydration Record contract (non-derivable sections) and the mirror's purpose; projection reuses the existing write path instead.
+- Write the projection to the coordinator handoff instead of the mirror: rejected because The handoff is best-effort and loses to a newer mirror; the mirror is tracked and wins at rehydrate.
+
+### Trade-offs
+- Accepted gate_router imports cycle_state for write_mirror over A new cycle_state subcommand for projection because Keeps the projection next to the decision that causes it and avoids a task-ordering inversion inside wp-router.
+
+### Completed Work
+- [high] completeness: D7 mirror projection; scenario 11; tasks 2.1/2.2
+- [high] consistency: final record step re-selects prior via rehydrate (D7, task 3.2)
+- [medium] clarity: execute opens with gate-check to source roadmap_approval_ref (D5)
+- [medium] clarity: gate-check excluded from cycle --dry-run (D5, tasks 2.7/3.2)
+- [low] feasibility: audit-writes prefixes and fingerprint exclusion verified (D7)
+
+### Context
+Iteration 2 found that nothing deterministic writes pending_gates or standing_decisions into the supervisor record, and that the cycle SKILL's final record write would overwrite anything the gate wrote. Added D7 (router projects gate state into the tracked mirror through cycle_state.write_mirror; the final record step re-selects the prior via rehydrate), made execute open with gate-check to source roadmap_approval_ref, and excluded gate-check from dry-run cycles. No findings at or above medium remain.
+
