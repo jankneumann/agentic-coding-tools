@@ -10,6 +10,7 @@ import ast
 import json
 import shutil
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -402,6 +403,86 @@ class TestResolveParked:
         def resume(self, workspace, *, dispatch_id, approval_ref, kind):
             self.resumed.append((dispatch_id, approval_ref, kind))
             return {"resumed": True, "approval_ref": approval_ref}
+
+    def test_blocked_deadline_is_requested_at_plus_timeout_when_an_approval_was_filed(
+        self, repo: Path, workspace: Path
+    ) -> None:
+        adapter = self.FakeAdapter()
+        coord = FakeCoordinator(statuses=["pending"], notify_return=False)
+        service = make_service(posture_with(Gate.PR_CREATION, NOTIFY_BLOCK), coordinator=coord)
+
+        resolution = gate_router.resolve_parked(
+            self._attempt(), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=service
+        )
+
+        assert resolution.outcome == "blocked"
+        assert resolution.pending_gate_entry["approval_id"] == "appr-1"
+        requested = gate_router._parse_iso(resolution.pending_gate_entry["requested_at"])
+        deadline = gate_router._parse_iso(resolution.pending_gate_entry["deadline"])
+        assert deadline - requested == timedelta(seconds=30)
+
+    def test_blocked_deadline_is_requested_at_plus_seven_days_when_no_approval_was_filed(
+        self, repo: Path, workspace: Path
+    ) -> None:
+        adapter = self.FakeAdapter()
+        service = make_service(posture_with(Gate.PR_CREATION, GateDisposition(Disposition.BLOCK)))
+
+        resolution = gate_router.resolve_parked(
+            self._attempt(), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=service
+        )
+
+        assert resolution.outcome == "blocked"
+        assert resolution.pending_gate_entry["approval_id"] is None
+        requested = gate_router._parse_iso(resolution.pending_gate_entry["requested_at"])
+        deadline = gate_router._parse_iso(resolution.pending_gate_entry["deadline"])
+        assert deadline - requested == gate_router.DEFAULT_BLOCK_HORIZON
+
+    def test_a_prior_router_record_for_the_same_dispatch_id_is_reused_without_reevaluating(
+        self, repo: Path, workspace: Path
+    ) -> None:
+        adapter = self.FakeAdapter()
+        service = make_service(posture_with(Gate.PR_CREATION, GateDisposition(Disposition.AUTO)))
+        first = gate_router.resolve_parked(
+            self._attempt(), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=service
+        )
+        assert first.outcome == "proceed"
+        assert len(adapter.resumed) == 1
+
+        # A second resolution attempt for the SAME dispatch_id (e.g. a retried
+        # reconciliation pass) must reuse the recorded decision rather than
+        # calling the evaluator or the adapter again.
+        service2 = make_service(posture_with(Gate.PR_CREATION, GateDisposition(Disposition.AUTO)))
+        second = gate_router.resolve_parked(
+            self._attempt(), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=service2
+        )
+
+        assert second.outcome == "proceed"
+        assert second.routed.reused is True
+        assert second.routed.record["decision_id"] == first.routed.record["decision_id"]
+        assert len(adapter.resumed) == 2  # resume() is still called each time; only evaluation is deduped
+        on_disk = read_checkpoint_json(workspace)
+        assert len(on_disk["gate_decisions"]) == 1
+
+    def test_a_prior_blocked_record_for_the_same_dispatch_id_is_resurfaced_not_refiled(
+        self, repo: Path, workspace: Path
+    ) -> None:
+        adapter = self.FakeAdapter()
+        service = make_service(posture_with(Gate.PR_CREATION, GateDisposition(Disposition.BLOCK)))
+        first = gate_router.resolve_parked(
+            self._attempt(), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=service
+        )
+        assert first.outcome == "blocked"
+
+        service2 = make_service(posture_with(Gate.PR_CREATION, GateDisposition(Disposition.BLOCK)))
+        second = gate_router.resolve_parked(
+            self._attempt(), workspace=workspace, repo_root=repo, adapter=adapter, evaluator=service2
+        )
+
+        assert second.outcome == "blocked"
+        assert second.routed.reused is True
+        assert second.pending_gate_entry["decision_id"] == first.pending_gate_entry["decision_id"]
+        on_disk = read_checkpoint_json(workspace)
+        assert len(on_disk["gate_decisions"]) == 1
 
     def test_pending_gate_unparks_after_a_posture_flip_to_auto(self, repo: Path, workspace: Path) -> None:
         adapter = self.FakeAdapter()

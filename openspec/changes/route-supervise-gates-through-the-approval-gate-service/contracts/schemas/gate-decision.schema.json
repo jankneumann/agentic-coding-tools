@@ -147,6 +147,13 @@
       "type": "string",
       "pattern": "^[0-9a-f]{64}$",
       "description": "sha256 over the roadmap's authorized DAG shape (item_id, change_id, depends_on, external_depends_on, normalized_status) at evaluation time. Stamped on every roadmap_approval record; require_approval_ref rejects a reference whose stored fingerprint does not match the roadmap's current shape."
+    },
+    "timeout_seconds": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "The posture's notify_with_timeout window in effect when this decision was made, when approval_id is set; used to compute a pending-gate deadline for a filed approval (requested_at + timeout_seconds)."
     }
   }
 }

@@ -58,13 +58,13 @@ functions, each an M-or-smaller task below).
 
 - [ ] Checkpoint: run `skills/.venv/bin/python -m pytest skills/tests/supervise -q`, review diff, verify scope
 
-- [ ] 2.3 Write tests for `resolve_parked` — `pending_gate` re-evaluated against the current posture (the child snapshot carries no `approval_id`; a flip to `auto` resumes with no console answer), a prior router record for the same `dispatch_id` follows the prior-record rule, `policy_pause` → `escalate_resume`, unknown gate raises without recording, `BLOCKED` yields a `pending_gates` entry whose `deadline` is `requested_at + timeout_seconds` when an approval was filed and `+ 7 days` otherwise (M)
+- [x] 2.3 Write tests for `resolve_parked` — `pending_gate` re-evaluated against the current posture (the child snapshot carries no `approval_id`; a flip to `auto` resumes with no console answer), a prior router record for the same `dispatch_id` follows the prior-record rule, `policy_pause` → `escalate_resume`, unknown gate raises without recording, `BLOCKED` yields a `pending_gates` entry whose `deadline` is `requested_at + timeout_seconds` when an approval was filed and `+ 7 days` otherwise (M)
   **Spec scenarios**: supervise.Supervise Gate Routing.6 (posture flip), .7 (policy pause), .10 (unknown gate); supervise.Background Worktree Isolation "Child parks at a pending gate"
   **Design decisions**: D4
   **Dependencies**: 2.2
   **Files**: skills/tests/supervise/test_gate_router.py
 
-- [ ] 2.4 Implement `gate_router.resolve_parked` (M)
+- [x] 2.4 Implement `gate_router.resolve_parked` (M)
   **Dependencies**: 2.3
   **Files**: skills/supervise/scripts/gate_router.py
 
