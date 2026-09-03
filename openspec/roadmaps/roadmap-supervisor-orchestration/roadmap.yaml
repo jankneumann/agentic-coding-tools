@@ -187,7 +187,7 @@ items:
     semantics for later enforcement.
 - item_id: ri-08
   title: Implement idempotent queue submission and outbox ordering
-  status: in_progress
+  status: completed
   priority: 2
   effort: L
   depends_on:
@@ -446,4 +446,4 @@ items:
     spend is auditable after a run.'
   external_depends_on:
   - dispatch-governance:dg-04
-updated_at: '2026-09-01T22:28:39.141208+00:00'
+updated_at: '2026-09-03T02:55:06.597478+00:00'

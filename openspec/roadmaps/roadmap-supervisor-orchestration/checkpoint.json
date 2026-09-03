@@ -2,9 +2,9 @@
   "schema_version": 1,
   "roadmap_id": "roadmap-supervisor-orchestration",
   "current_item_id": "ri-08",
-  "phase": "planning",
+  "phase": "completed",
   "created_at": "2026-09-01T02:35:00.134952+00:00",
-  "updated_at": "2026-09-01T22:28:39.137903+00:00",
+  "updated_at": "2026-09-03T02:55:06.584373+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -14,7 +14,8 @@
     "ri-14",
     "ri-15",
     "ri-17",
-    "ri-03"
+    "ri-03",
+    "ri-08"
   ],
   "gate_decisions": [
     {
