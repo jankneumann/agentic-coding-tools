@@ -142,7 +142,7 @@ def test_only_gate_or_policy_parking_authorizes_continuation(
     request = _load_json(_FIXTURE_ROOT / "invalid-continuation-without-kind.json")
     attempt = _load_json(_FIXTURE_ROOT / "valid-prepared-attempt.json")
     attempt["lease_generation"] = 2
-    attempt["continuation"] = {"approval_ref": "approval-ri04-001"}
+    attempt["continuation"] = {"approval_ref": "gate-decision:33333333-4444-4555-8666-777777777777"}
 
     assert _errors(validators["attempt"], attempt)
     for parked_kind in ("pending_gate", "policy_pause"):

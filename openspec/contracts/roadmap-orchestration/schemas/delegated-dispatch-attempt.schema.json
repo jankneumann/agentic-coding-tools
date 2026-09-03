@@ -141,7 +141,9 @@
         "bound_at"
       ],
       "properties": {
-        "schema_version": {"const": 1},
+        "schema_version": {
+          "const": 1
+        },
         "state": {
           "enum": [
             "result_bound",
@@ -151,13 +153,33 @@
             "effects_applied"
           ]
         },
-        "result": {"$ref": "./supervised-dispatch-result.schema.json"},
-        "result_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "bound_at": {"type": "string", "format": "date-time"},
-        "callback_started_at": {"type": "string", "format": "date-time"},
-        "callback_acknowledged_at": {"type": "string", "format": "date-time"},
-        "terminal_persisted_at": {"type": "string", "format": "date-time"},
-        "effects_applied_at": {"type": "string", "format": "date-time"}
+        "result": {
+          "$ref": "./supervised-dispatch-result.schema.json"
+        },
+        "result_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "bound_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "callback_started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "callback_acknowledged_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "terminal_persisted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "effects_applied_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "continuation": {
@@ -171,7 +193,9 @@
         "approval_ref": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 256
+          "maxLength": 256,
+          "pattern": "^gate-decision:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "description": "Must resolve to a checkpoint gate_decisions record with outcome proceed and a matching gate and dispatch_id (D3)."
         },
         "kind": {
           "enum": [

@@ -14,7 +14,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
-from models import Effort, ItemStatus, Roadmap, RoadmapItem
+from models import Effort, ItemStatus, Roadmap, RoadmapItem, load_roadmap
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -22,6 +22,16 @@ _SUPERVISE_SCRIPTS = _REPO_ROOT / "skills" / "supervise" / "scripts"
 sys.path.insert(0, str(_SUPERVISE_SCRIPTS))
 
 from execution import ExecutionAdapter  # noqa: E402
+import gate_router  # noqa: E402
+from checkpoint import CheckpointManager  # noqa: E402
+from shared.approval_gate import (  # noqa: E402
+    ApprovalDecision,
+    Disposition as _ApprovalDisposition,
+    Outcome as _ApprovalOutcome,
+    Resolution as _ApprovalResolution,
+    build_gate_decision_record,
+)
+from shared.trust_posture import Gate  # noqa: E402
 
 
 _FIXTURE = (
@@ -298,6 +308,38 @@ class FakeHostCapture:
         return results, live_before_await
 
 
+def _approve_roadmap(workspace: Path, roadmap_id: str = "roadmap-e2e") -> str:
+    """Inject a `proceed` roadmap_approval gate-decision record, stamped with
+    the roadmap's current fingerprint (D3/D5 -- `require_approval_ref` always
+    recomputes and compares it), and return the resulting `approval_ref`."""
+    import uuid as _uuid
+
+    roadmap = load_roadmap(workspace / "roadmap.yaml", None)
+    decision = ApprovalDecision(
+        gate=Gate.ROADMAP_APPROVAL,
+        outcome=_ApprovalOutcome.PROCEED,
+        resolution=_ApprovalResolution.AUTO,
+        disposition=_ApprovalDisposition.AUTO,
+        reason="roadmap_approval auto-approved by e2e fixture",
+        posture_present=True,
+    )
+    record = build_gate_decision_record(
+        decision,
+        phase="SUPERVISE",
+        extra={
+            "decision_id": str(_uuid.uuid4()),
+            "source": "supervise",
+            "verb": "execute",
+            "roadmap_id": roadmap_id,
+            "roadmap_fingerprint": gate_router.roadmap_fingerprint(roadmap),
+        },
+    )
+    manager = CheckpointManager(workspace)
+    checkpoint = manager.load() if manager.exists() else manager.create(roadmap)
+    manager.record_gate_decision(checkpoint, record)
+    return f"gate-decision:{record['decision_id']}"
+
+
 def _run_scenario(
     tmp_path: Path,
     scenario: list[dict[str, Any]],
@@ -347,11 +389,13 @@ def _run_scenario(
     live_counts: list[int] = []
     calls: list[str] = []
     all_results: list[dict[str, Any]] = []
+    roadmap_approval_ref = _approve_roadmap(workspace)
     while True:
         prepared = adapter.prepare(
             workspace,
             repo_root=repo,
             isolation_resolver=isolate,
+            roadmap_approval_ref=roadmap_approval_ref,
             context=context,
         )
         if not prepared["requests"]:
