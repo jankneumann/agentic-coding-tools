@@ -1001,3 +1001,48 @@ None new this round. The `jsonb_readback_type_mismatch` gap opened at Validation
 
 ### Context
 Validation Fix 6 registered an asyncpg jsonb/json type codec on the pool (`bd0c0fdc`) to fix the single root cause Validation 6 identified. This canonical VALIDATE round exercised that exact head (`377b9deb`) end-to-end against a brand-new live PostgreSQL deployment, independently confirming the previously-failing `TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused` now passes, and reconfirming PR #457's required `test-integration` CI job is green at this exact head. Every other phase (deploy, smoke, security, spec/evidence, unit/type/lint suites, and all 15 required CI checks) also passes cleanly. Overall result: **PASS**.
+
+---
+
+## Phase: Validation Review 6 (2026-09-03)
+
+**Agent**: claude_code | **Session**: val-review-round-6
+
+### Decisions
+1. **Scope round six to the product commits, not only the report** — Four product commits (`dda2834f`, `e973d77a`, `760e1415`, `bd0c0fdc`) landed after round five converged at `be1bada1`, so the review prompt named each one and directed the reviewers at the new code and its tests in the working tree. A review that only re-read the validation report would have attested nothing about the code that changed since the last converged round.
+2. **Converge canonical validation review at round six** — Two distinct-provider reviewers (Antigravity/Google and Grok/xAI) independently accepted the Validation 7 evidence *and* the four product commits with zero blocking findings and zero disagreements, satisfying the vendor-diverse 2/2 quorum.
+3. **Verify the four load-bearing claims independently rather than trusting the report** — Exact head/tree, ZAP hash reproduction, the `bd0c0fdc` encoder's double-encode safety, and migration `036`'s inability to refuse a legitimately `claimed`/`running` completion were each re-derived from the repository; the coordinator, skills, and autopilot suites, the spec/traceability/package/context gates, and PR #457's check-runs at `377b9deb` were re-run or re-queried and reproduced the reported numbers exactly.
+4. **Record both new Grok advisories as non-blocking** — The duplicated residual-advisory number in the Validation 7 report (`1, 2, 3, 4, 3`) is a documentation slip, and the reconcile-vs-submit scan-text asymmetry is not a practical guardrail bypass because projection-key fields are tightly validated and carry no free text.
+
+### Capability Gaps Observed
+- **vendor_timeout**: Claude Code returned no findings before the 300-second cap (same as round five). (skill: autopilot, severity: medium)
+- **vendor_output_contract**: Codex failed in 3.5 seconds by emitting its interactive banner to stderr instead of review-findings JSON — the identical failure mode observed at round five; raw output retained in `review-manifest.json`. (skill: parallel-infrastructure, severity: medium)
+- **vendor_auth**: Pi remained excluded because its OpenRouter authentication is still expired. (skill: autopilot, severity: low)
+- **sandbox_write_isolation**: The first dispatch attempt was launched from a sandboxed shell whose repository writes were discarded, so the round-6 prompt file and dispatcher output never reached disk; the run was killed and relaunched with the sandbox override. (skill: autopilot, severity: low)
+
+### Completed Work
+- Wrote `reviews/validation/round-6/review-prompt.md` scoped to the Canonical Validation 7 evidence **and** the four post-round-five product commits, with explicit questions about jsonb double-encoding, the migration `036` guard, and the proxy identity removal.
+- Dispatched the bounded multi-vendor validation-evidence review at the dispatcher default 300s per-vendor timeout with `pi` excluded; collected schema-valid findings from Antigravity (5) and Grok (7) and synthesized consensus at `min_quorum=2`.
+- Recorded `quorum_received=2/2`, `confirmed=3`, `unconfirmed=6`, `disagreement_count=0`, `blocking_count=0`, `verdict=converged`.
+- Independently reproduced: tree `d403701f` at `377b9deb`; the evidence-only `377b9deb..HEAD` diff; the ZAP SHA-256 digests and `PASS` gate; the empty dependency-manifest diff since `0106b8fa`; the exact four-commit product diff since `be1bada1`.
+- Independently analysed `_encode_jsonb_param` (str pass-through cannot double-encode a pre-serialized payload; `None` never reaches the encoder; the codec is keyed on `pg_catalog.jsonb`/`json`) and migration `036` (`claimed_by` is only ever set alongside `status='claimed'`, so no legitimate active completion can be refused; only repeat completion of a terminal row changes behaviour).
+- Re-ran locally at this head: coordinator non-live suite (2,447 passed / 11 skipped / 97 deselected), `mypy src/` (77 files clean), `ruff check .` (clean), skills infrastructure session (2,974 passed / 13 skipped), `skills/tests/autopilot` (375 passed), `autopilot/scripts/tests` + `autopilot/tests` (188 passed / 2 sandbox-only failures), `openspec validate --strict`, the task-drift, traceability (68 operations cite 36 requirements), work-package and context-impact gates — every number matches the Validation 7 report.
+- Re-queried PR #457 check-runs at exact head `377b9deb`: 15 substantive checks `success`, `dependency-update-remediation` `skipped`, `test-integration` green.
+
+### In Progress
+- None.
+
+### Next Steps
+- Apply the converged VAL_REVIEW outcome and return PR #457 to the merge authorization gate.
+- When the validation report is next edited, renumber the Validation 7 residual advisories and refresh the `architecture-impact.md` header validated-commit field.
+
+### Relevant Files
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-6/consensus-validation.json` — 2/2 distinct-vendor consensus, 0 blocking, 0 disagreements
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-6/review-manifest.json` — All four bounded dispatch outcomes, quorum, and verdict
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-6/findings-antigravity-implementation.json` — Antigravity's five schema-valid findings
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-6/findings-grok-implementation.json` — Grok's seven schema-valid findings, including one nit and one FYI
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/reviews/validation/round-6/review-prompt.md` — Round-six prompt scoped to evidence plus the four product commits
+- `openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/handoffs/validation-review-6-1.json` — Local PhaseRecord fallback handoff
+
+### Context
+Round five converged on the Canonical Validation 5 evidence at `be1bada1`, but four product commits landed afterwards — the proxy identity/guardrail fix, migration 036's terminal-completion guard with its reconcile audit trail, the autopilot escalation projection, and the asyncpg jsonb codec. Round six therefore reviewed the new code alongside the Canonical Validation 7 evidence at head `937a1829` (product tree unchanged since `377b9deb`). Both completed reviewers accepted every claim; the reviewing agent's own re-derivation of the head/tree, ZAP hashes, encoder semantics, migration guard, local suites, and exact-head CI reproduced the report exactly. Two new advisories are documentation-only or non-exploitable. Outcome: **converged**.

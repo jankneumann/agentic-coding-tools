@@ -439,3 +439,45 @@ The fresh bootstrap log contains no migration-replay, notification-overload ambi
 3. `architecture-impact.md` header still names an earlier validated commit than the most recent audit subsection (documentation drift only, noted since Validation Review 5).
 4. Two sandbox-network-policy test failures in `autopilot/scripts/tests/test_autopilot.py` (local-inference smoke probes) remain sandbox-only; CI's equivalent job is green.
 3. `architecture-impact.md` header still names an earlier validated commit than the most recent audit subsection (documentation drift only, noted at Validation Review 5).
+
+---
+
+## Canonical Validation Review 6 (2026-09-03)
+
+**Status**: CONVERGED — real vendor-diverse 2/2 quorum, zero blocking findings, zero disagreements.
+
+This round re-scoped the bounded validation-evidence review to cover **both** the Canonical Validation 7 evidence **and the four product commits that postdate the round-five convergence** at `be1bada1` — `dda2834f` (proxy identity removal plus the reconcile guardrail screen), `e973d77a` (migration `036_terminal_completion_guard.sql` plus the reconcile audit-log call), `760e1415` (autopilot escalation projection and envelope classification), and `bd0c0fdc` (asyncpg `jsonb`/`json` codec) — so the reviewers critiqued the new code, not only the report. Dispatch ran at the dispatcher's default 300-second per-vendor timeout with `pi` excluded for expired OpenRouter authentication. Two distinct providers completed schema-valid reviews:
+
+- **Antigravity** (`gemini-3.6-flash-medium`, 52.1s) — 5 findings, all `severity: none` / `disposition: accept`.
+- **Grok** (`grok-4.5`, 266.9s) — 7 findings: 5 `severity: none` / `accept`, 1 `nit`, 1 `fyi`.
+
+Claude Code returned nothing before the 300-second cap; Codex failed in 3.5 seconds by emitting its interactive banner instead of review-findings JSON. Both raw outcomes are retained in `reviews/validation/round-6/review-manifest.json`.
+
+Consensus over the two completed reviewers confirmed three findings cross-vendor — the `bd0c0fdc` jsonb codec's correctness (no double-encoding, no NULL mishandling), migration `036`'s completion guard and `task_not_active` refusal semantics, and the advisory architecture scoping — and left six unconfirmed single-vendor acceptances covering the proxy identity removal, the reconcile guardrail screen, the retained ZAP/CI evidence, and two non-blocking advisories. The canonical manifest records:
+
+- quorum requested: 2;
+- quorum received: 2 (antigravity, grok — distinct providers);
+- confirmed: 3; unconfirmed: 6;
+- blocking product/evidence findings: 0;
+- disagreements: 0;
+- verdict: `converged`.
+
+### Independent Verification by the Reviewing Agent
+
+The reviewing agent re-derived the load-bearing Validation 7 claims from the repository rather than trusting the report:
+
+- **Exact head/tree** — product commit `377b9deb` has tree `d403701f6c32a7fbb406391d8d5e200a7df32ca2`, matching the recorded validated tree; `git diff 377b9deb..HEAD` touches only this change's OpenSpec artifacts, so evidence head `937a1829` attests the same product tree. `git log be1bada1..HEAD -- agent-coordinator/ skills/` returns exactly the four product commits reviewed above.
+- **ZAP evidence** — `sha256sum` of `zap.stdout.log` and `zap-report.json` reproduce `1899f028…` and `c2c4b377…` exactly as recorded in `execution.json`; `gate.json` is `{"decision": "PASS", "fail_on": "high", "triggered_count": 0}`. No dependency manifest changed since the retained scan base (`git log --name-only 0106b8fa..HEAD` for `pyproject.toml`/`uv.lock`/`package.json`/`package-lock.json` is empty).
+- **`bd0c0fdc` cannot double-encode** — `_encode_jsonb_param` returns a `str` parameter unchanged, so a payload already serialized by `_serialize_for_asyncpg` (or by `work_queue.py`'s manual `json.dumps` for `agent_requirements`) is bound exactly once; only non-`str` values are `json.dumps`-ed. This matches asyncpg's own `jsonb` contract (which expects JSON text), so the pass-through is behaviour-preserving rather than a new hazard, and `None` never reaches the encoder because asyncpg binds a Python `None` to SQL `NULL` directly. The codec is keyed on `pg_catalog.jsonb`/`json`, not on runtime string sniffing, so no non-JSON column is affected.
+- **Migration `036` cannot regress a legitimate completion** — `complete_task` requires `claimed_by = p_agent_id`, and `claimed_by` is only set by `claim_task`, which also sets `status='claimed'`; no migration or service path returns a row to `pending` while retaining `claimed_by`. The guard therefore admits every genuinely `claimed` or `running` row, and `tests/integration/postgres/test_work_queue_postgres.py::TestCompleteTaskTerminalCancellation::test_complete_still_succeeds_for_active_claimed_task` pins that direction explicitly. The only behaviour change for a previously-succeeding call is a *repeat* completion of an already-terminal row, which now returns `success=false` / `reason='task_not_active'` instead of silently overwriting the terminal result — the intended effect of the fix.
+- **`dda2834f` loses no authorization signal** — `/work/submit` and `/work/reconcile` both call `resolve_identity(principal, None, None)` and `authorize_operation(...)` from the authenticated principal and never read identity from the body, so the removed injection was inert; the service-layer guardrail in `reconcile_projection()` uses the same `config.agent` identity and the same `scan_text[:2000]` construction as `submit()`.
+- **Re-ran gates locally at this head** — coordinator non-live suite 2,447 passed / 11 skipped / 97 deselected (exactly the reported count); `mypy src/` clean over 77 files; `ruff check .` clean; skills infrastructure session 2,974 passed / 13 skipped; `skills/tests/autopilot` 375 passed; `autopilot/scripts/tests` + `autopilot/tests` 188 passed / 2 failed (the same two sandbox-network-policy probes); strict OpenSpec validation valid; task-drift gate 0 unchecked boxes; traceability gate "68 operations cite 36 requirements"; work-package schema/DAG/lock/overlap all pass; context-impact valid for all four packages.
+- **PR #457 CI at exact head `377b9deb`** — re-queried GitHub check-runs directly: 15 substantive checks `success` (including `test`, `test-integration`, `test-skills`, `test-infra-skills`, `coverage-ratchet`, `docker-smoke-import`, `validate-specs`) with `dependency-update-remediation` `skipped`. `test-integration` is green at this exact SHA.
+
+### Residual Advisories (non-blocking, this round)
+
+1. **Report numbering slip** (Grok, `nit`, independently observed by the reviewing agent): the Canonical Validation 7 "Residual Advisories" list numbers items `1, 2, 3, 4, 3` — the `architecture-impact.md` header-drift advisory appears twice. Documentation-only; renumber when the report is next edited.
+2. **Reconcile scan-text asymmetry** (Grok, `fyi`): `reconcile_projection()` scans `description` plus the caller's `input_data` before the projection key is merged into the RPC payload, whereas `submit()` merges the parsed projection key into `input_data` first, so the two scan texts are not byte-identical on keyed calls. The projection-key fields are tightly validated (`change_id` pattern, phase enum, non-negative sequence) and carry no free text, so this is not a practical bypass of the new guardrail screen.
+3. The `architecture-impact.md` header still names validated commit `59fdb05f` while the Canonical Validation 7 Audit subsection correctly cites `377b9deb` / tree `d403701f` (carried forward from Validation Review 5).
+
+Neither reviewer, nor the reviewing agent's independent checks, produced a finding that invalidates the Canonical Validation 7 **PASS**.
