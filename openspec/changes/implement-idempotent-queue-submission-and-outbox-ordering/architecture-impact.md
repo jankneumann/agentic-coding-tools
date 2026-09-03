@@ -18,3 +18,7 @@ Correct the architecture source-root configuration, refresh the graph, and rerun
 ## Canonical Validation 5 Audit
 
 At commit `0106b8fab44c6c7e61eb0c045205afb2779fb764` (tree `04610c62774d7b1dffe5aa62e3d6849823daf39a`), the architecture status remains **DEGRADED (advisory)** for the same source-root configuration reason. Fresh package schema, DAG, lock, parallel-overlap, and context-impact gates passed, and the bounded CI-remediation diff adds no blocking architecture finding. No architecture artifact was refreshed or promoted during this audit.
+
+## Canonical Validation 6 Audit
+
+At commit `d07699d0bcb7419375ade797c895164805f147f7` (tree `a37851937da4993d2b764bdbf36a1bb96a62f3eb`), the architecture status remains **DEGRADED (advisory)** for the same pre-existing source-root configuration reason. Fresh package schema, DAG, lock, parallel-overlap, and context-impact gates passed for all four declared packages, and the product diff since Validation 5 (`http_proxy.py`, `work_queue.py`, `036_terminal_completion_guard.sql`, `autopilot.py`) adds no blocking architecture finding. This round's overall VALIDATE result is **FAIL** on unrelated grounds — a real `TestCompleteTaskTerminalCancellation` regression against live PostgreSQL, reproduced both locally and in GitHub's required `test-integration` job — not an architecture finding. No architecture artifact was refreshed or promoted during this audit.
