@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools/openspec/changes/encode-autopilot-gates-and-goal-gate-in-code/contracts/events/gate-decision.schema.json",
+  "title": "GateDecisionRecord",
+  "description": "One entry of LoopState.gate_decisions (autopilot) or Checkpoint.gate_decisions (autopilot-roadmap). Superset of ApprovalDecision.to_audit_record().",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "gate",
+    "outcome",
+    "resolution",
+    "disposition",
+    "reason",
+    "posture_present",
+    "recorded_at"
+  ],
+  "properties": {
+    "gate": {
+      "type": "string",
+      "enum": [
+        "gatekeeper_escalation",
+        "proposal_approval",
+        "plan_review_convergence_failure",
+        "validation_failure",
+        "escalate_resume",
+        "replan_required",
+        "pr_creation",
+        "merge",
+        "roadmap_approval"
+      ]
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "proceed",
+        "blocked"
+      ]
+    },
+    "resolution": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "approved",
+        "rejected",
+        "timeout_default_proceed",
+        "timeout_default_block",
+        "posture_block",
+        "coordinator_unreachable",
+        "console_approved",
+        "console_rejected"
+      ]
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "notify_with_timeout",
+        "block"
+      ]
+    },
+    "reason": {
+      "type": "string"
+    },
+    "approval_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "default_action": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "proceed",
+        "block",
+        null
+      ]
+    },
+    "posture_present": {
+      "type": "boolean"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "note": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Operator note supplied to `gate-answer --note`."
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "decision_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "description": "Stable id assigned by the supervise gate router; approval_ref = 'gate-decision:<decision_id>'."
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "autopilot",
+        "supervise",
+        "autopilot-roadmap",
+        "escalation"
+      ],
+      "description": "Which layer evaluated the gate."
+    },
+    "roadmap_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "change_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dispatch_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "item_id": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
