@@ -15,6 +15,7 @@ from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
 from .telemetry import get_queue_meter, start_span
+from .trust_resolution import TrustResolutionError
 
 logger = logging.getLogger(__name__)
 
@@ -429,6 +430,12 @@ class WorkQueueService:
                                     f"{', '.join(patterns)}"
                                 ),
                             )
+                except TrustResolutionError:
+                    # Must not land in the blanket handler below: swallowing it
+                    # skips the guardrail scan entirely and lets the operation
+                    # proceed unscanned — the exact fail-open that
+                    # _resolve_trust_level documents as unacceptable (#408).
+                    raise
                 except Exception:
                     logger.error(
                         "Guardrails check failed during claim", exc_info=True
@@ -529,6 +536,12 @@ class WorkQueueService:
                                 f"{', '.join(patterns)}"
                             ),
                         )
+                except TrustResolutionError:
+                    # Must not land in the blanket handler below: swallowing it
+                    # skips the guardrail scan entirely and lets the operation
+                    # proceed unscanned — the exact fail-open that
+                    # _resolve_trust_level documents as unacceptable (#408).
+                    raise
                 except Exception:
                     logger.error(
                         "Guardrails check failed during complete", exc_info=True
@@ -672,6 +685,12 @@ class WorkQueueService:
                         success=False,
                         task_id=None,
                     )
+            except TrustResolutionError:
+                # Must not land in the blanket handler below: swallowing it
+                # skips the guardrail scan entirely and lets the operation
+                # proceed unscanned — the exact fail-open that
+                # _resolve_trust_level documents as unacceptable (#408).
+                raise
             except Exception:
                 logger.error(
                     "Guardrails check failed during submit", exc_info=True
