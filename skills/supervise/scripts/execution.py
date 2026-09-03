@@ -23,19 +23,23 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
+_SCRIPTS_ROOT = Path(__file__).resolve().parent
 _SKILLS_ROOT = Path(__file__).resolve().parents[2]
 _RUNTIME_SCRIPTS = _SKILLS_ROOT / "roadmap-runtime" / "scripts"
 _ORCHESTRATOR_SCRIPTS = _SKILLS_ROOT / "autopilot-roadmap" / "scripts"
-for _directory in (_RUNTIME_SCRIPTS, _ORCHESTRATOR_SCRIPTS):
+for _directory in (_SCRIPTS_ROOT, _SKILLS_ROOT, _RUNTIME_SCRIPTS, _ORCHESTRATOR_SCRIPTS):
     if str(_directory) not in sys.path:
         sys.path.insert(0, str(_directory))
 
 from checkpoint import CheckpointManager  # type: ignore[import-untyped]  # noqa: E402
-from models import validate_delegated_dispatch_attempt  # type: ignore[import-untyped]  # noqa: E402
+from models import load_roadmap, validate_delegated_dispatch_attempt  # type: ignore[import-untyped]  # noqa: E402
 from orchestrator import (  # type: ignore[import-untyped]  # noqa: E402
     apply_delegated_batch,
     prepare_delegated_batch,
 )
+
+import gate_router  # type: ignore[import-untyped]  # noqa: E402
+from shared.trust_posture import Gate  # noqa: E402
 
 
 Clock = Callable[[], datetime]
@@ -462,10 +466,34 @@ class ExecutionAdapter:
         *,
         repo_root: Path,
         isolation_resolver: IsolationResolver,
+        roadmap_approval_ref: str,
         context: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Sanitize before persistence, verify isolation, then prepare a batch."""
+        """Verify roadmap-altitude approval, sanitize, verify isolation, then prepare a batch.
+
+        `roadmap_approval_ref` must resolve to a `proceed` `roadmap_approval` gate-decision
+        record whose stamped `roadmap_fingerprint` matches this roadmap's CURRENT shape
+        (D3) -- raised via `gate_router.require_approval_ref` before any attempt is
+        written, so a missing or stale approval never mutates roadmap execution state
+        (supervise spec "Refuse unapproved roadmap execution").
+        """
+        # Pure context validation first, with zero I/O — an unsafe context is
+        # rejected before this call touches the checkpoint at all.
         sanitized = _bounded_context(dict(context or {}))
+
+        roadmap = load_roadmap(workspace / "roadmap.yaml", repo_root)
+        approval_manager = CheckpointManager(workspace, repo_root)
+        approval_checkpoint = (
+            approval_manager.load() if approval_manager.exists() else approval_manager.create(roadmap)
+        )
+        gate_router.require_approval_ref(
+            approval_checkpoint,
+            roadmap_approval_ref,
+            gate=Gate.ROADMAP_APPROVAL,
+            roadmap_id=roadmap.roadmap_id,
+            roadmap=roadmap,
+        )
+
         seen_paths: set[Path] = set()
         seen_branches: set[str] = set()
 
@@ -832,6 +860,18 @@ class ExecutionAdapter:
             raise ExecutionStateError("dispatch attempt is not parked")
         if attempt["parked"]["kind"] != kind:
             raise ExecutionStateError("parked continuation kind mismatch")
+        # The expected gate is the parked attempt's own -- escalate_resume for a
+        # policy_pause (resolve_parked's own mapping, D4), the child's recorded
+        # gate for a pending_gate -- checked while "parked" is still present,
+        # since it is popped below. Only roadmap_approval references carry a
+        # fingerprint, and a parked child's gate is never that one, so no
+        # `roadmap` is passed.
+        expected_gate = (
+            Gate.ESCALATE_RESUME if kind == "policy_pause" else Gate(attempt["parked"]["gate"])
+        )
+        gate_router.require_approval_ref(
+            checkpoint, approval_ref, gate=expected_gate, dispatch_id=dispatch_id
+        )
         _remove_owned_marker(attempt)
         attempt["status"] = "prepared"
         attempt["lease_generation"] += 1

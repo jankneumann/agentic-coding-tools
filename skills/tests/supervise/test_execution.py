@@ -25,7 +25,9 @@ for script_dir in (_RUNTIME_SCRIPTS, _SCRIPTS):
 
 from models import Effort, ItemStatus, Roadmap, RoadmapItem  # noqa: E402
 import execution  # noqa: E402
+import gate_router  # noqa: E402
 from execution import ExecutionAdapter  # noqa: E402
+from shared.trust_posture import Gate  # noqa: E402
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -90,7 +92,12 @@ def _workspace(tmp_path: Path) -> tuple[Path, Path, Path]:
     repo = tmp_path / "repo"
     schema_root = repo / "openspec" / "schemas"
     schema_root.mkdir(parents=True)
-    for schema_name in ("roadmap.schema.json", "checkpoint.schema.json"):
+    for schema_name in (
+        "roadmap.schema.json",
+        "checkpoint.schema.json",
+        "supervisor-record.schema.json",
+        "supervisor-record-mirror.schema.json",
+    ):
         (schema_root / schema_name).write_text(
             (_REPO_ROOT / "openspec" / "schemas" / schema_name).read_text()
         )
@@ -184,6 +191,68 @@ def _isolation(managed_root: Path) -> dict[str, str]:
     }
 
 
+def approve_roadmap(workspace: Path, repo: Path, *, note: str = "test fixture") -> str:
+    """Console-approve `roadmap_approval` for the fixture roadmap and return the
+    resulting `gate-decision:<id>` reference, for tests that need a valid
+    `roadmap_approval_ref` to pass to `ExecutionAdapter.prepare`."""
+    routed = gate_router.answer(
+        Gate.ROADMAP_APPROVAL, workspace=workspace, repo_root=repo, approved=True, note=note
+    )
+    return f"gate-decision:{routed.record['decision_id']}"
+
+
+def approve_parked(
+    workspace: Path, repo: Path, attempt: dict[str, Any], *, gate: str = "pr_creation"
+) -> str:
+    """Append a `proceed` gate-decision record for a parked child's own gate,
+    correlated to its `dispatch_id`, and return the resulting `approval_ref`,
+    for tests exercising the lease/generation state machine directly (not
+    through `resolve_parked`, so no prior parked router record exists for
+    `gate_router.answer` to require)."""
+    from shared.approval_gate import (
+        ApprovalDecision,
+        Disposition as _ApprovalDisposition,
+        Outcome as _ApprovalOutcome,
+        Resolution as _ApprovalResolution,
+        build_gate_decision_record,
+    )
+
+    import uuid as _uuid
+
+    gate_enum = gate if isinstance(gate, Gate) else Gate(gate)
+    decision = ApprovalDecision(
+        gate=gate_enum,
+        outcome=_ApprovalOutcome.PROCEED,
+        resolution=_ApprovalResolution.AUTO,
+        disposition=_ApprovalDisposition.AUTO,
+        reason=f"gate {gate_enum.value!r} auto-approved by test fixture",
+        posture_present=True,
+    )
+    record = build_gate_decision_record(
+        decision,
+        phase="SUPERVISE",
+        extra={
+            "decision_id": str(_uuid.uuid4()),
+            "source": "supervise",
+            "verb": "resume",
+            "roadmap_id": "roadmap-host-adapter",
+            "dispatch_id": attempt["dispatch_id"],
+            "change_id": attempt.get("change_id"),
+        },
+    )
+    # No repo_root: matches execution.py's own _load_attempt, which loads
+    # unvalidated (checkpoint.schema.json disallows the delegated-dispatch
+    # `resume_hint` field the parked fixture legitimately carries -- a
+    # pre-existing schema/fixture mismatch outside ri-04's scope; validating
+    # here would fail on state execution.py itself never validates).
+    manager = gate_router.CheckpointManager(workspace)
+    checkpoint = manager.load() if manager.exists() else manager.create(
+        gate_router.load_roadmap(workspace / "roadmap.yaml", repo)
+    )
+    manager.record_gate_decision(checkpoint, record)
+    return f"gate-decision:{record['decision_id']}"
+
+
 def _prepare(
     adapter: ExecutionAdapter,
     workspace: Path,
@@ -191,11 +260,13 @@ def _prepare(
     managed_root: Path,
     *,
     context: dict[str, Any] | None = None,
+    roadmap_approval_ref: str | None = None,
 ) -> dict[str, Any]:
     return adapter.prepare(
         workspace,
         repo_root=repo,
         isolation_resolver=lambda _: _isolation(managed_root),
+        roadmap_approval_ref=roadmap_approval_ref or approve_roadmap(workspace, repo),
         context=context,
     )
 
@@ -329,7 +400,13 @@ def test_prepare_rejects_unsafe_nested_context_before_any_checkpoint_write(
     repo, workspace, managed_root = _workspace(tmp_path)
 
     with pytest.raises(ValueError, match="dispatch context"):
-        _prepare(_adapter(managed_root, FakeClock()), workspace, repo, managed_root, context=unsafe)
+        # Context validation is the cheapest, first-run check inside prepare() --
+        # it must reject before the approval-ref check ever touches the
+        # checkpoint, so a placeholder ref (never resolved) proves that.
+        _prepare(
+            _adapter(managed_root, FakeClock()), workspace, repo, managed_root, context=unsafe,
+            roadmap_approval_ref="gate-decision:00000000-0000-0000-0000-000000000000",
+        )
 
     assert not (workspace / "checkpoint.json").exists()
 
@@ -350,6 +427,7 @@ def test_prepare_rejects_managed_isolation_before_launch_or_attempt_persistence(
             "worktree_path": str(outside),
             "branch": "openspec/change-alpha",
         },
+        roadmap_approval_ref=approve_roadmap(workspace, repo),
     )
 
     assert prepared["requests"] == []
@@ -739,6 +817,7 @@ def test_harness_provided_isolation_preserves_exact_external_path_and_branch(
             "worktree_path": str(harness_path),
             "branch": "harness/session-123",
         },
+        roadmap_approval_ref=approve_roadmap(workspace, repo),
     )
 
     assert prepared["requests"][0]["isolation"] == {
@@ -821,10 +900,11 @@ def test_parked_attempt_releases_lease_and_authorized_resume_increments_generati
     assert applied["parked_item_ids"] == ["ri-01"]
     assert _attempt(workspace)["lease"]["state"] == "released"
 
+    ref = approve_parked(workspace, repo, _attempt(workspace), gate="pr_creation")
     resumed = adapter.resume(
         workspace,
         dispatch_id=request["dispatch_id"],
-        approval_ref="approval-001",
+        approval_ref=ref,
         kind="pending_gate",
     )
     assert resumed["dispatch_id"] == request["dispatch_id"]
@@ -833,13 +913,13 @@ def test_parked_attempt_releases_lease_and_authorized_resume_increments_generati
     assert resumed["lease_generation"] == 2
     assert resumed["continuation"] == {
         "kind": "pending_gate",
-        "approval_ref": "approval-001",
+        "approval_ref": ref,
     }
     with pytest.raises(ValueError, match="not parked"):
         adapter.resume(
             workspace,
             dispatch_id=request["dispatch_id"],
-            approval_ref="approval-002",
+            approval_ref=ref,
             kind="pending_gate",
         )
 
@@ -863,7 +943,7 @@ def test_resumed_parked_generation_runs_normal_ack_go_with_exact_continuation(
     resumed = adapter.resume(
         workspace,
         dispatch_id=request["dispatch_id"],
-        approval_ref="approval-001",
+        approval_ref=approve_parked(workspace, repo, _attempt(workspace), gate="pr_creation"),
         kind="pending_gate",
     )
 
@@ -920,7 +1000,7 @@ def test_pre_go_stale_takeover_preserves_parked_continuation(tmp_path: Path) -> 
     resumed = adapter.resume(
         workspace,
         dispatch_id=request["dispatch_id"],
-        approval_ref="approval-001",
+        approval_ref=approve_parked(workspace, repo, _attempt(workspace), gate="pr_creation"),
         kind="pending_gate",
     )
     adapter.child_start(
