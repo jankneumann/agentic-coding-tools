@@ -60,7 +60,8 @@ mechanical but touches every place that spells the enum out: the enum and its do
 `TRUST_POSTURE.template.md`, five schema files (`trust-posture.schema.json` `gates`,
 `gate-decision.schema.json` `gate`, `gate-request.schema.json` `gate`,
 `supervisor-record.schema.json` `$defs.gate`, `supervisor-record-mirror.schema.json`
-`$defs.gate` — the mirror does embed the enum literally), `cycle_state._GATES` → import, the
+`$defs.gate` — the mirror does embed the enum literally), `cycle_state._GATES` → import
+(task 2.0, which must land before the router's projection — see D7), the
 two "eight gates" tests in `shared/tests/test_trust_posture.py`, `test_gate_schemas.py`
 (which pins `gate-request` and `gate-decision` to `Gate`), `test_gate_call_sites.py` (which
 must list `roadmap_approval` next to `replan_required` as a non-autopilot gate), and spec
@@ -72,30 +73,62 @@ text. Absent or omitted entry → `block`, preserving fail-closed semantics.
   — applies the prior-record rule (D4 step 0), then calls `ApprovalGate.evaluate` (default
   `build_default_gate(agent_id="supervise", repo_root=…)`), builds a gate-decision record via
   `shared.approval_gate.build_gate_decision_record(decision, phase="SUPERVISE", extra=…)` with
-  `decision_id` (uuid4), `source: "supervise"`, `verb` (`cycle` / `execute` / `resume`),
+  `decision_id` (uuid4), `source: "supervise"`, `verb` (`cycle` / `execute` / `resume` —
+  declared as an optional property with that enum in the change's `gate-decision.schema.json`
+  so implementers and tests cannot disagree about it),
   `roadmap_id`, optional `change_id` / `dispatch_id` / `item_id`, and appends it with
-  `CheckpointManager.record_gate_decision`. The record builder is **moved** from
+  `CheckpointManager.record_gate_decision`. `CheckpointManager.load()` raises
+  `FileNotFoundError` when the workspace has no `checkpoint.json`, and nine of the ten
+  workspaces under `openspec/roadmaps/` have none (only an executed roadmap does), so the
+  router bootstraps exactly as `orchestrator.py` does — `manager.load() if manager.exists()
+  else manager.create(roadmap)` — before its first record. Creating the checkpoint at the
+  `cycle` gate is why `gate-check` never runs under `--dry-run` (D5). The record builder is **moved** from
   `autopilot.py` into `shared.approval_gate` (autopilot keeps a delegating alias so its call
   sites and `test_gate_call_sites` are untouched); supervise must not import `autopilot.py`.
   The roadmap orchestrator's private `_gate_decision_record` already emits the same shape
   and is left alone (out of scope).
 - `answer(gate, *, workspace, approved, note, context) -> RoutedDecision` — console answer using
   the shared `approval_gate.console_decision(gate, posture, approved, note)` helper (extracted
-  from `runner._console_decision`; `posture` is the `{disposition, posture_present}` snapshot
-  a parked record carries, or — for an originating `roadmap_approval` answer, D5 — the
-  snapshot the router takes from the live posture). The runner delegates to it; same record
-  shape, design D4 of ri-06.
+  from `runner._console_decision`). `posture` is the `{disposition, posture_present}` snapshot
+  of **the router's own prior blocked record** for that subject, not of the parked attempt:
+  `supervised-dispatch-result.schema.json` caps `parked` at `{kind, reason, gate, deadline,
+  resume_hint}` with `additionalProperties: false`, and `execution.py` re-checks that same
+  key set, so a supervise-side parked attempt carries no posture at all. (The autopilot
+  `pending_gate` in `loop-state.json` that `runner._console_decision` reads *does* carry one;
+  that is the difference.) For an originating `roadmap_approval` answer (D5) the snapshot
+  comes from the live posture. The runner delegates to the same helper; same record shape,
+  design D4 of ri-06.
 - `resolve_parked(attempt, *, workspace, repo_root, adapter, evaluator=None, now=None) -> ParkedResolution`.
 - `require_approval_ref(checkpoint, approval_ref, *, gate, dispatch_id=None, roadmap_id=None) -> record`
   — raises `ApprovalRefError` unless the reference resolves.
-- `gate_log(workspace, repo_root) -> list[record]` — sidecar ∪ the roadmap's changes'
-  `loop-state.json` `gate_decisions` (D6).
-A test asserts by AST that `ApprovalGate`, `build_default_gate`, `check_filed`, and
-`.evaluate(` appear in no supervise script other than `gate_router.py`.
+- `gate_log(workspace, repo_root) -> list[record]` — sidecar ∪ each item's child
+  `gate_decisions`, resolved through the attempt's worktree (D6).
+
+The router's `repo_root` is always the **supervisor's** repository root, never a child
+worktree: `ApprovalGate.evaluate` re-reads `TRUST_POSTURE.md` from `repo_root` on every
+call, and `runner._evaluate_gate` deliberately uses the child's `Path.cwd()` so a child
+decides under the posture committed on its own branch. Re-evaluating a parked child under
+the supervisor's posture is therefore the intended hot-reload seam (D4 step 1), and it is
+also why a posture edit must be committed before it reaches a running child.
+
+A test asserts by AST that the names `ApprovalGate`, `build_default_gate`, and
+`check_filed`, and any `.evaluate(...)` whose receiver is an approval-gate object, appear
+in no supervise script other than `gate_router.py`. The scan deliberately does **not**
+forbid a bare `.evaluate(` token: `cycle_state.py` calls the router's own module-level
+`evaluate` / `answer` / `resolve_parked`, and that call is the seam working, not a bypass.
+
+`cycle_state.py` and `gate_router.py` reference each other (the router projects through
+`cycle_state.write_mirror`; the subcommands call the router), and `cycle_state.py` does
+heavy import-time work in `_load_runtime_models`. Both directions therefore import lazily
+inside the calling function, never at module top level.
 
 ### D3 — `approval_ref` is `gate-decision:<decision_id>` and must resolve
 `ExecutionAdapter.resume(...)` calls `require_approval_ref(checkpoint, ref, gate=<parked gate or
-escalate_resume>, dispatch_id=…)`; the record must have `outcome == "proceed"`. `prepare(...)`
+escalate_resume>, dispatch_id=…)`; the record must have `outcome == "proceed"`. The check runs
+on the loaded attempt **before** `_remove_owned_marker` and the field strip, because `resume`
+pops `parked` as part of the transition — so the expected gate must be read from
+`attempt["parked"]["gate"]` while it still exists, and a rejected reference must leave the
+attempt untouched, as the roadmap-orchestration scenario requires. `prepare(...)`
 gains a required keyword `roadmap_approval_ref` checked against a `roadmap_approval` record for
 `checkpoint.roadmap_id`. The `continuation.approval_ref` schema gains the uuid4 pattern in
 `contracts/schemas/delegated-dispatch-attempt.continuation.patch.json` (`^gate-decision:` +
@@ -124,9 +157,19 @@ evaluation, keyed by the decision's subject:
    otherwise re-surface the existing `pending_gates` entry (same `decision_id`, same
    `deadline`) without recording a second `posture_block`.
 3. `outcome == blocked`, `approval_id` set (`timeout_default_block`, `coordinator_unreachable`
-   after filing) → call `ApprovalGate.check_filed(gate, approval_id)` first. It wraps the
-   gate service's own `_interpret_status`: `approved` → `PROCEED/approved`, `denied` →
-   `BLOCKED/rejected`, `expired` → the default action, `pending` → `None`. A non-`None`
+   after filing) → call `ApprovalGate.check_filed(gate, approval_id, notified=…)` first. It
+   wraps the gate service's own `_interpret_status`: `approved` → `PROCEED/approved`, `denied`
+   → `BLOCKED/rejected`, `expired` → the default action, `pending` → `None`. Two arguments
+   `_interpret_status` needs cannot be recovered from an `approval_id` alone, so the router
+   supplies them: the `GateDisposition` comes from the **live** posture (consistent with the
+   hot-reload rule — a posture flip between cycles is meant to be honoured), and `notified`
+   comes from the prior record rather than defaulting to `True`. That second point is a
+   security property, not a detail: `_apply_default` fails a `default_action: proceed` gate
+   closed when `notified` is false, and `BridgeCoordinatorClient.push_notification` always
+   returns `False` today (ri-05), so a `check_filed` that assumed delivery could turn an
+   `expired` status into a `proceed` that unparks work no human was ever told about. With
+   `notified=False` the `expired` arm returns `None` and the fail-closed block stands. A
+   non-`None`
    decision is recorded and acted on — a human who answered in the coordinator after the
    local timeout is honoured, and nothing is re-filed. `None` (still pending server-side)
    re-surfaces the existing entry and deadline. Only after the prior approval is terminal
@@ -153,17 +196,31 @@ evaluation, keyed by the decision's subject:
 ### D5 — `cycle` gate protocol replaces the prose stop
 `cycle_state.py gate-check --roadmap <id> [--context K=V…]` evaluates `roadmap_approval` with
 `{roadmap_id, item_count, roadmap_fingerprint}`, where `roadmap_fingerprint` is the sha256 of
-the roadmap's sorted `(item_id, change_id, sorted(depends_on))` tuples — the DAG's structure,
-not its progress — so an approved roadmap is asked once and re-asked only when `refine-roadmap`
-or a replan changes the DAG (this answers the plan-phase open question: a `proceed` decision
-has no time expiry, `standing_decisions.expires_at` stays `null`, and expiry is structural).
-Exit codes mirror `runner.py gate-check`: 3 = proceed (SKILL continues into `/plan-roadmap`
+the roadmap's sorted `(item_id, change_id, sorted(depends_on), sorted(external_depends_on),
+normalized_status)` tuples — the shape the operator authorized, not its progress — so an
+approved roadmap is asked once and re-asked only when `refine-roadmap` or a replan changes
+that shape (this answers the plan-phase open question: a `proceed` decision has no time
+expiry, `standing_decisions.expires_at` stays `null`, and expiry is structural).
+`external_depends_on` is in the tuple because `cycle_state.py ready` resolves external edges
+to decide what runs, so a changed external edge changes what an approval authorizes;
+`normalized_status` collapses the progress statuses to one value but keeps `superseded` and
+`skipped` (`cycle_state._CEDED`) distinct, because `refine-roadmap` superseding an item
+narrows the approved scope without touching any `item_id`, `change_id`, or `depends_on`.
+Without those two components an approval could silently outlive the DAG it was given for.
+
+Exit codes reuse `runner.py gate-check`'s numbers deliberately, with one documented
+divergence: 3 = proceed (SKILL continues into `/plan-roadmap`
 approval and `execute`; a reused decision also exits 3 and prints the reused record), 0 =
 parked on `posture_block` (prints the pending entry; SKILL renders it under "Needs a decision"
 and stops), 4 = blocked terminally (`rejected`, `timeout_default_block`,
 `coordinator_unreachable`; the entry is printed with its resolution and the SKILL stops — the
 operator may still answer it with `gate-answer`, since a human answer satisfies every
-disposition). Under `notify_with_timeout` a `gate-check` waits up to the posture's
+disposition). **That last clause is the divergence**: `runner.py`'s `EXIT_GATE_PARKED = 4`
+means the run entered ESCALATE and cleared `pending_gate`, so `runner.py gate-answer` refuses
+it as "no gate pending". Supervise's exit 4 keeps the `pending_gates` entry answerable on
+purpose, because the supervisor has no ESCALATE state to fall into and the operator is the
+only way forward. The SKILL protocol block states the difference so nobody carries runner's
+reading across. Under `notify_with_timeout` a `gate-check` waits up to the posture's
 `timeout_seconds`; the SKILL's protocol block says so.
 
 `gate-answer --roadmap <id> --gate <gate> --decision approved|rejected [--note] [--dispatch-id]`
@@ -198,8 +255,35 @@ handoff, because the mirror is what `rehydrate` prefers when its `written_at` is
 - `BLOCKED` (posture_block, terminal block, or re-surface of an existing entry) → upsert a
   `pending_gates` entry keyed by `decision_id`, `{gate, change_id, requested_at, deadline,
   disposition, approval_id, decision_id, source: "supervise"}`; `change_id` is the parked
-  attempt's change for a child gate and the roadmap's first ready item's change (the
-  `roadmap_ref` convention) for `roadmap_approval`.
+  attempt's change for a child gate, and for `roadmap_approval` it is the roadmap's first
+  ready item's change, falling back to the first item carrying a `change_id` when nothing is
+  ready. `$defs.pendingGate` makes `change_id` required and `_clean_pending_gate` drops any
+  entry failing `^[a-z0-9]+(-[a-z0-9]+)*$`, so a roadmap naming no change at all cannot be
+  projected: the router refuses the gate with a reported reason rather than parking an entry
+  that would silently vanish on write.
+
+`decision_id` needs one code change to survive the write. `_clean_pending_gate`
+(`cycle_state.py`) is an **allowlist**: it rebuilds each entry from `gate`, `change_id`,
+`requested_at`, `deadline`, and optional `disposition` / `approval_id` / `source`, dropping
+everything else — so an unmodified cleaner strips `decision_id` and the projection key never
+reaches a rehydrated session. The same function rejects any entry whose `gate` is outside
+`_GATES`, which is still the eight-name literal until the enum import lands. Both edits
+therefore belong to `cycle_state.py` and must precede the projection, which is why they are
+task 2.0 — ordered ahead of the router tests and implementation, rather than after 2.7 where
+the enum swap originally sat.
+
+`write_mirror(repo_root, record, *, now)` is a whole-record replace, not a patch: it derives
+`pending_gates`, `standing_decisions`, and `back_edge` from its `record` argument alone via
+`_durable_sections`. The router therefore reads the currently selected durable state first
+(the mirror, or `rehydrate`'s selection when the handoff is newer), merges its upsert or
+removal into all three sections, and passes the merged record — otherwise a projection would
+erase `back_edge` and every unrelated standing decision.
+
+One consequence to state rather than discover: `_tree_listing` excludes only `LEDGER_PATH`
+and `MIRROR_PATH`, and `openspec/roadmaps/<id>/checkpoint.json` is tracked. Appending a gate
+decision therefore *does* move `compute_fingerprint`. Only the reuse and re-surface paths are
+fingerprint-neutral; a first evaluation deliberately marks the tree as changed, and a blocked
+gate settles on the following cycle, when the prior-record rule writes nothing.
 - `PROCEED` (evaluate, `check_filed`, console answer, or reuse) → remove every
   `pending_gates` entry for the same subject key; for `roadmap_approval` also upsert the
   standing decision from D5.
@@ -214,13 +298,23 @@ passes. The `cycle` SKILL's final record step must **re-select** the prior at wr
 "$SUPERVISE_RECORD"` captured before the gate ran); otherwise the pre-gate snapshot would
 overwrite the router's projection. Task 3.2 makes that edit; task 2.1 pins the projection.
 
-### D6 — The evaluation log is tracked state; coordinator memory is best-effort
-`gate-log --roadmap <id>` reads the workspace's `checkpoint.json` `gate_decisions` plus the
-`gate_decisions` of `openspec/changes/<change_id>/loop-state.json` for every `change_id` named
-by that roadmap's items (not every change under `openspec/changes/`), and prints one JSON array
-sorted by `recorded_at`, each record tagged with its `origin` (`checkpoint` or the change id).
-`BridgeAuditSink` remains the remote path (unchanged, never raises). Acceptance outcome 2 is
-verified against `gate-log`.
+### D6 — The evaluation log is durable local state; coordinator memory is best-effort
+`gate-log --roadmap <id>` reads the workspace's `checkpoint.json` `gate_decisions` plus each
+item's child `gate_decisions`, prints one JSON array sorted by `recorded_at`, and tags each
+record with its `origin` (`checkpoint` or the change id). `BridgeAuditSink` remains the remote
+path (unchanged, never raises). Acceptance outcome 2 is verified against `gate-log`.
+
+The child half cannot be read from the supervisor's own tree. `loop-state.json` is untracked
+per-worktree state — `git ls-files openspec/changes` returns loop-state files only under
+`archive/`, and a second worktree of the same branch does not have one — and a child's copy
+lives in that child's isolated worktree, not in the supervisor's `openspec/changes/<id>/`. So
+`gate-log` resolves each item through the attempt the checkpoint already records: its
+`isolation.worktree_path`, or the result's `evidence.loop_state_path`, falling back to the
+supervisor path only for a change that has since merged. A child whose loop state cannot be
+read is reported as a degraded origin, never omitted silently, because a missing origin and an
+empty one are the difference between "no gates fired" and "the log is incomplete". The e2e
+test (task 2.10) must place at least one child's loop state outside the supervisor repo root,
+or it would pass on a co-located tmp tree while the real path finds nothing.
 
 ### Fitness Functions
 
@@ -232,6 +326,10 @@ verified against `gate-log`.
 | Hot reload: posture edits reflected at next evaluation | `test_gate_router.py::test_parked_child_unparks_after_posture_flip` | new |
 | Ask once: an approved roadmap is not re-asked until its DAG changes | `test_gate_router.py::test_roadmap_approval_reused_until_fingerprint_changes` | new |
 | Late answer honoured, nothing re-filed: a coordinator approval answered after the local timeout resolves on the next cycle without a second request | `test_gate_router.py::test_check_filed_before_refiling`, `shared/tests/test_approval_gate.py::test_check_filed_*` | new |
+| An undelivered notification is never upgraded to proceed: `expired` + `notified=False` leaves the fail-closed block standing | `shared/tests/test_approval_gate.py::test_check_filed_expired_undelivered_stays_blocked` | new |
+| Ask-once cannot outlive its scope: a superseded item or a changed external edge moves the fingerprint | `test_gate_router.py::test_roadmap_fingerprint_covers_status_and_external_edges` | new |
+| The evaluation log reaches child worktrees: `gate-log` resolves a child's loop state through the attempt's worktree, not the supervisor's tree | `test_gate_router_e2e.py` (child loop state placed outside the supervisor repo root) | new |
+| First `gate-check` on a workspace with no `checkpoint.json` bootstraps instead of raising | `test_cycle_state.py::test_gate_check_bootstraps_missing_checkpoint` | new |
 | Originating console answer is limited to `roadmap_approval` | `test_cycle_state.py::test_gate_answer_refuses_unparked_gate` | new |
 | Projection: a blocked decision appears in the mirror's `pending_gates` and disappears on proceed; a reused decision writes nothing | `test_gate_router.py::test_projection_*`, `test_gate_router_e2e.py` (rehydrate after each step shows the entry) | new |
 | Compatibility: absent posture identical to today | `shared/tests/test_trust_posture.py` (nine gates all block), `test_execution.py` parked/resume paths with console answers | existing + updated |
@@ -267,9 +365,11 @@ verified against `gate-log`.
 | Risk | Mitigation |
 |---|---|
 | `prepare` signature change churns `test_execution.py` (1,259 lines) | One `approve_roadmap(workspace)` fixture; grep-driven update; contract test pins the new signature |
+| The `prepare` argument and the `approval_ref` pattern also break `skills/tests/autopilot-roadmap/`, which no package could write: `test_supervised_dispatch_e2e.py` calls `adapter.prepare(...)` directly, and `test_supervised_dispatch.py` writes `approval_ref: "approval-1"` into a checkpoint that `apply_delegated_batch` validates | Both files added to wp-router's `write_allow`, lock set, and tasks 2.5/2.6 — wp-router's own verification runs `tests/autopilot-roadmap`, so without this the package cannot make its own gate green |
 | Nine-gate growth breaks "eight" assertions in `shared/tests`, autopilot tests, spec text | All sites enumerated in tasks 1.x; `test_gate_call_sites` unaffected (it iterates autopilot's seven and asserts `replan_required` is not autopilot's — `roadmap_approval` is added to that non-autopilot set) |
 | `add-supervisor-candidate-work-digest` rewrites `cycle` §2–§5 of `SKILL.md` (it does not touch `cycle_state.py`) | It is unstarted; task 3.4 leaves a rebase note naming the §5 protocol block; this change's `SKILL.md` edits stay inside §5, `### Approval gate`, and `### Reconcile and resume` |
-| `test_workflow_contract.py` slices `SKILL.md` on `## Verb: \`execute\``, `### Approval gate`, `### Prepare and launch`, `### Reconcile and resume` and pins ``durable `approval_ref` `` | Task 3.2 keeps those headings and the phrase (the new prose says "a durable `approval_ref` of the form `gate-decision:<decision_id>`"); wp-skill-docs may edit the test if a pin must move |
+| `test_workflow_contract.py` slices `SKILL.md` on `## Verb: \`execute\``, `### Approval gate`, `### Prepare and launch`, `### Reconcile and resume`, pins ``durable `approval_ref` ``, **and** pins six separate phrases inside `### Approval gate` | Task 3.2 keeps the headings and the `approval_ref` phrase, but `test_execute_requires_one_durable_roadmap_altitude_approval_before_mutation` must be updated in the same commit: its `before any roadmap checkpoint or execution-state mutation` assertion becomes false by design, since `gate-check` appends the gate-decision record to `checkpoint.json` before any approval exists. That ledger write is the one checkpoint mutation that legitimately precedes approval |
+| A supervise prose-free test that mirrors `test_prose_free_gates.py` inherits its `test_mirror_is_byte_identical` cases, which wp-skill-docs cannot satisfy: `install.sh` runs in wp-integration (task 4.1) and `.claude/skills/**` is outside wp-skill-docs' `write_allow` | Task 3.1 states that the supervise test carries no mirror-parity case; mirror resync stays wp-integration's job and is already covered for `supervise` by task 4.1 |
 | A forged `proceed` record in the tracked ledger would pass `require_approval_ref` | Same trust boundary as `TRUST_POSTURE.md` (repository write access); the ledger is reviewed in the PR like any tracked file; no signing (out of scope) |
 | Re-notification under `notify_with_timeout` | Bounded by D4 step 0.3: one request per expired approval per operator-run cycle; a `pending` server status is never re-filed |
 | The `cycle` SKILL's final `supervisor-record --prior "$SUPERVISE_RECORD"` step would overwrite the router's mirror projection with the pre-gate snapshot | D7: the final step re-selects the prior via `rehydrate`; the e2e test rehydrates after `gate-check` and after the final write and asserts the entry survives |
