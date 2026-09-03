@@ -1,26 +1,24 @@
 {
-  "generated_at": "2026-09-02T10:23:05+00:00",
-  "git_sha": "51f1dad3216f8435df6d5deb9e754826a3bf297a",
+  "generated_at": "2026-09-03T03:01:23+00:00",
+  "git_sha": "e55aa0f30de3f31019d19f81432c0d106724c25c",
   "stats": {
-    "total_nodes": 1908,
-    "total_edges": 1203,
+    "total_nodes": 1882,
+    "total_edges": 1219,
     "by_language": {
-      "python": 1471,
-      "sql": 437
+      "python": 1439,
+      "sql": 443
     },
     "by_kind": {
       "module": 77,
-      "class": 250,
-      "function": 1092,
-      "table": 27,
-      "column": 295,
-      "index": 69,
+      "class": 255,
+      "function": 1107,
+      "table": 28,
+      "column": 299,
+      "index": 70,
       "stored_function": 37,
-      "trigger": 9,
-      "test_class": 7,
-      "test_function": 45
+      "trigger": 9
     },
-    "entrypoint_count": 96
+    "entrypoint_count": 97
   },
   "cross_layer_flows": [],
   "disconnected_endpoints": [
@@ -55,6 +53,10 @@
     {
       "node_id": "py:coordination_api.create_coordination_api.submit_work",
       "path": "/work/submit"
+    },
+    {
+      "node_id": "py:coordination_api.create_coordination_api.reconcile_work_projection",
+      "path": "/work/reconcile"
     },
     {
       "node_id": "py:coordination_api.create_coordination_api.get_task_endpoint",
@@ -417,27 +419,27 @@
     },
     {
       "id": "py:http_proxy._error_response",
-      "dependent_count": 109
+      "dependent_count": 111
     },
     {
       "id": "py:http_proxy.get_client",
-      "dependent_count": 109
+      "dependent_count": 111
     },
     {
       "id": "py:http_proxy._request",
-      "dependent_count": 108
+      "dependent_count": 110
     },
     {
       "id": "py:http_proxy._agent_identity",
-      "dependent_count": 72
+      "dependent_count": 70
     },
     {
       "id": "py:policy_engine.get_policy_engine",
-      "dependent_count": 43
+      "dependent_count": 45
     },
     {
       "id": "py:audit.get_audit_service",
-      "dependent_count": 42
+      "dependent_count": 43
     },
     {
       "id": "py:config",
@@ -445,10 +447,18 @@
     },
     {
       "id": "py:coordination_api.resolve_identity",
-      "dependent_count": 31
+      "dependent_count": 32
     },
     {
       "id": "py:coordination_cli._print_dict",
+      "dependent_count": 29
+    },
+    {
+      "id": "py:coordination_api.authorize_operation",
+      "dependent_count": 28
+    },
+    {
+      "id": "py:coordination_cli._output",
       "dependent_count": 28
     },
     {
@@ -456,16 +466,12 @@
       "dependent_count": 28
     },
     {
-      "id": "py:coordination_api.authorize_operation",
-      "dependent_count": 27
-    },
-    {
-      "id": "py:coordination_cli._output",
-      "dependent_count": 27
-    },
-    {
       "id": "py:db.get_db",
       "dependent_count": 27
+    },
+    {
+      "id": "py:coordination_cli._run",
+      "dependent_count": 26
     },
     {
       "id": "py:db_postgres",
@@ -474,10 +480,6 @@
     {
       "id": "py:profile_loader.interpolate",
       "dependent_count": 26
-    },
-    {
-      "id": "py:coordination_cli._run",
-      "dependent_count": 25
     },
     {
       "id": "py:db",
@@ -536,6 +538,10 @@
       "dependent_count": 17
     },
     {
+      "id": "py:work_queue.get_work_queue_service",
+      "dependent_count": 17
+    },
+    {
       "id": "py:profiles.get_profiles_service",
       "dependent_count": 15
     },
@@ -545,10 +551,6 @@
     },
     {
       "id": "py:openspec_proposals_api._run_git",
-      "dependent_count": 14
-    },
-    {
-      "id": "py:work_queue.get_work_queue_service",
       "dependent_count": 14
     },
     {
@@ -589,6 +591,10 @@
     },
     {
       "id": "py:github_openspec_fetcher._github_headers",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:guardrails.get_guardrails_service",
       "dependent_count": 9
     },
     {
@@ -633,10 +639,6 @@
     },
     {
       "id": "py:github_openspec_fetcher._count_outside_changes",
-      "dependent_count": 8
-    },
-    {
-      "id": "py:guardrails.get_guardrails_service",
       "dependent_count": 8
     },
     {
@@ -865,6 +867,10 @@
     },
     {
       "id": "py:migrations._checksum",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:migrations._unwrap_explicit_transaction",
       "dependent_count": 5
     },
     {
