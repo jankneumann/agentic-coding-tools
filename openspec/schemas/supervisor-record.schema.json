@@ -10,7 +10,8 @@
     "gate": {
       "type": "string",
       "enum": ["gatekeeper_escalation", "proposal_approval", "plan_review_convergence_failure",
-               "validation_failure", "escalate_resume", "replan_required", "pr_creation", "merge"]
+               "validation_failure", "escalate_resume", "replan_required", "pr_creation", "merge",
+               "roadmap_approval"]
     },
     "changeId": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
     "activeChange": {
@@ -44,7 +45,8 @@
         "deadline": {"type": "string", "format": "date-time"},
         "disposition": {"type": ["string", "null"], "enum": ["auto", "notify_with_timeout", "block", null]},
         "approval_id": {"type": ["string", "null"]},
-        "source": {"type": "string", "enum": ["autopilot", "supervise", "escalation"], "default": "supervise"}
+        "source": {"type": "string", "enum": ["autopilot", "supervise", "escalation"], "default": "supervise"},
+        "decision_id": {"type": ["string", "null"], "description": "The router's gate-decision record id this pending entry projects, so a rehydrated session can resolve `gate-decision:<decision_id>` back to its record."}
       }
     },
     "standingDecision": {

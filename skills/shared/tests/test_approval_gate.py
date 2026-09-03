@@ -236,6 +236,20 @@ def test_absent_posture_defaults_to_block() -> None:
     assert audit.records[0]["posture_present"] is False
 
 
+def test_absent_posture_blocks_roadmap_approval_through_the_gate_service() -> None:
+    """D1: `roadmap_approval` is a full ninth gate — the service can evaluate it
+    like any other, and an absent posture blocks it exactly like the other eight."""
+    posture = TrustPosture(gates={}, present=False)
+    gate, coord, audit, _ = make_gate(posture=posture)
+
+    decision = gate.evaluate(Gate.ROADMAP_APPROVAL)
+
+    assert decision.blocked
+    assert decision.resolution is Resolution.POSTURE_BLOCK
+    assert coord.calls == []
+    assert audit.records[0]["gate"] == "roadmap_approval"
+
+
 # --------------------------------------------------------------------------- #
 # notify_with_timeout — human resolves
 # --------------------------------------------------------------------------- #

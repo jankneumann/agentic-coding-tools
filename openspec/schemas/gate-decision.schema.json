@@ -11,7 +11,8 @@
       "type": "string",
       "enum": [
         "gatekeeper_escalation", "proposal_approval", "plan_review_convergence_failure",
-        "validation_failure", "escalate_resume", "replan_required", "pr_creation", "merge"
+        "validation_failure", "escalate_resume", "replan_required", "pr_creation", "merge",
+        "roadmap_approval"
       ]
     },
     "outcome": {"type": "string", "enum": ["proceed", "blocked"]},
@@ -29,6 +30,15 @@
     "posture_present": {"type": "boolean"},
     "phase": {"type": "string"},
     "note": {"type": ["string", "null"], "description": "Operator note supplied to `gate-answer --note`."},
-    "recorded_at": {"type": "string", "format": "date-time"}
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "decision_id": {"type": "string", "description": "uuid4 identifying this record; `approval_ref` is `gate-decision:<decision_id>`."},
+    "source": {"type": "string", "description": "Who/what produced this record, e.g. `supervise`."},
+    "verb": {"type": "string", "enum": ["cycle", "execute", "resume"], "description": "The supervise verb in effect when the router evaluated this gate."},
+    "roadmap_id": {"type": ["string", "null"]},
+    "change_id": {"type": ["string", "null"]},
+    "dispatch_id": {"type": ["string", "null"]},
+    "item_id": {"type": ["string", "null"]},
+    "notified": {"type": ["boolean", "null"], "description": "Whether push_notification's return value reported delivery when this approval was filed; stamped whenever an approval is filed."},
+    "roadmap_fingerprint": {"type": ["string", "null"], "description": "sha256 of the roadmap's authorized DAG shape; stamped on every roadmap_approval record."}
   }
 }
