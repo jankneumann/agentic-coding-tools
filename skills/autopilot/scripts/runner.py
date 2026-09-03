@@ -44,12 +44,9 @@ if str(_SKILLS_ROOT) not in sys.path:
 
 import autopilot  # type: ignore[import-not-found]  # noqa: E402
 import phase_agent  # type: ignore[import-not-found]  # noqa: E402
-from shared.approval_gate import (  # noqa: E402
-    ApprovalDecision,
-    Outcome,
-    Resolution,
-)
-from shared.trust_posture import Disposition, Gate  # noqa: E402
+from shared import approval_gate as shared_approval_gate  # noqa: E402
+from shared.approval_gate import ApprovalDecision  # noqa: E402
+from shared.trust_posture import Gate  # noqa: E402
 
 logger = logging.getLogger("autopilot.runner")
 
@@ -196,28 +193,12 @@ def _console_decision(
 ) -> ApprovalDecision:
     """Build the ApprovalDecision for an answer the operator gave in-conversation.
 
-    Deliberately the SAME record shape a coordinator decision produces (design
-    D4) — the console is a different interviewer, not a different concept.
+    Thin delegate (ri-04, D2): the shared shape now lives in
+    shared.approval_gate.console_decision, so supervise's gate_router.py can
+    build the identical record without importing autopilot.py.
     """
-    posture = pending.get("posture") or {}
-    try:
-        disposition = Disposition(posture.get("disposition", Disposition.BLOCK.value))
-    except ValueError:
-        disposition = Disposition.BLOCK
-    suffix = f" — {note}" if note else ""
-    return ApprovalDecision(
-        gate=gate,
-        outcome=Outcome.PROCEED if approved else Outcome.BLOCKED,
-        resolution=(
-            Resolution.CONSOLE_APPROVED if approved else Resolution.CONSOLE_REJECTED
-        ),
-        disposition=disposition,
-        reason=(
-            f"gate {gate.value!r} "
-            f"{'approved' if approved else 'rejected'} by the operator"
-            f"{suffix}"
-        ),
-        posture_present=bool(posture.get("posture_present", False)),
+    return shared_approval_gate.console_decision(
+        gate, pending.get("posture") or {}, approved, note
     )
 
 
