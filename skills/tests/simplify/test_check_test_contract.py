@@ -67,6 +67,11 @@ def _commit(repo: Path, message: str) -> None:
     )
 
 
+def _sha(repo: Path) -> str:
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
 def test_prod_only_change_is_clean(git_repo: Path):
     mod = _load()
     base = subprocess.check_output(
@@ -181,3 +186,43 @@ diff --git a/tests/test_new.py b/tests/test_new.py
     assert files
     # Strict: +assert lines count — baseline must be set after characterization
     assert findings
+
+
+def test_mock_assertions_are_contract_lines(git_repo: Path):
+    """A weakened mock assertion is an expectation edit like any other."""
+    mod = _load()
+    (git_repo / "tests" / "test_app.py").write_text(
+        "from unittest.mock import Mock\n\n"
+        "def test_f_calls_backend():\n"
+        "    m = Mock()\n"
+        "    m.run(1)\n"
+        "    m.run.assert_called_once_with(1)\n",
+        encoding="utf-8",
+    )
+    _commit(git_repo, "test: pin backend call")
+    base = _sha(git_repo)
+    (git_repo / "tests" / "test_app.py").write_text(
+        "from unittest.mock import Mock\n\n"
+        "def test_f_calls_backend():\n"
+        "    m = Mock()\n"
+        "    m.run(1)\n"
+        "    m.run.assert_called()\n",
+        encoding="utf-8",
+    )
+    _commit(git_repo, "refactor: weaken the mock assertion")
+    result = mod.evaluate(git_repo, base, "HEAD")
+    assert result.clean is False, "mock assertion edits must break the contract"
+
+
+def test_non_assertion_lines_are_not_contract_lines(git_repo: Path):
+    """Ordinary test setup must stay editable during a simplify."""
+    mod = _load()
+    base = _sha(git_repo)
+    (git_repo / "tests" / "test_app.py").write_text(
+        "from src.app import f\n\n"
+        "def test_f():\n    value = f()\n    assert f() == 1\n",
+        encoding="utf-8",
+    )
+    _commit(git_repo, "refactor: rename a local in the test")
+    result = mod.evaluate(git_repo, base, "HEAD")
+    assert result.clean is True, result.findings

@@ -96,3 +96,50 @@ def test_related_includes_tdd_and_tech_debt():
     # frontmatter related list
     assert "test-driven-development" in text
     assert "tech-debt-analysis" in text
+
+
+# --- Test-pruning phase -------------------------------------------------
+#
+# These guard the *ordering* and *two-sidedness* of the prune doctrine — the two
+# properties whose loss would make the skill unsafe. They deliberately do not
+# keyword-check the prose; a prune sweep on this file should be able to reword
+# every catalog row without touching these tests.
+
+
+def test_prune_phase_is_ordered_after_characterization():
+    """Pruning before pins exist drops the surface to zero coverage."""
+    text = (SKILL_DIR / "SKILL.md").read_text()
+    coverage_gate = text.index("## Coverage Gate")
+    prune_section = text.index("## Test Pruning")
+    assert coverage_gate < prune_section, (
+        "Test Pruning must be documented after the Coverage Gate — characterize first"
+    )
+    characterize_step = text.index("### 2. Coverage gate")
+    prune_step = text.index("### 3. Test prune")
+    candidate_step = text.index("### 4. Candidate list")
+    assert characterize_step < prune_step < candidate_step, (
+        "workflow order must be characterize -> prune -> simplify"
+    )
+
+
+def test_prune_catalog_is_two_sided():
+    """A delete catalog with no keep catalog licenses unbounded test deletion."""
+    text = (SKILL_DIR / "SKILL.md").read_text()
+    assert "### Delete catalog" in text
+    keep = next(
+        (line for line in text.splitlines() if line.startswith("### Keep catalog")),
+        None,
+    )
+    assert keep is not None, (
+        "Delete catalog must be paired with a Keep catalog (Chesterton's Fence for tests)"
+    )
+
+
+def test_prune_gate_is_wired_into_verification():
+    """A documented phase with no gate in the checklist is unenforced."""
+    text = (SKILL_DIR / "SKILL.md").read_text()
+    assert (SKILL_DIR / "scripts" / "check_test_prune.py").exists()
+    verification = text[text.index("## Verification"):]
+    assert "check_test_prune.py" in verification, (
+        "the prune gate must appear in the Verification checklist, not only in prose"
+    )

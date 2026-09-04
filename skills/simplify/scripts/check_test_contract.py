@@ -50,7 +50,7 @@ ASSERT_LINE_RE = re.compile(
         | assert(?:equal|Equals|True|False|In|Is|IsNone|Raises|AlmostEqual)?\b
         | expect\s*\(
         | expect\w*\s*\(
-        | self\.assert\w+\s*\(
+        | [\w.\[\]]+\.assert\w*\s*\(     # self.assertEqual(, mock.assert_called_with(
         | pytest\.raises\s*\(
         | should\s*\(
         | assertThat\s*\(

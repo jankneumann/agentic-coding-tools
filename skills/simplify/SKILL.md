@@ -3,10 +3,12 @@ name: simplify
 description: >
   Review changed code for reuse, quality, and efficiency, then apply low-risk
   simplifications that preserve behavior exactly. Requires a coverage gate and
-  characterization tests when the surface is unpinned; dual-run verification
-  proves the suite stays green without changing test expectations.
+  characterization tests when the surface is unpinned; optionally prunes tests
+  that assert implementation instead of behavior, then removes the production
+  seams those tests held open. Dual-run verification proves the suite stays
+  green without changing test expectations.
 category: Engineering Methodology
-tags: [refactor, simplification, code-quality, review, characterization, isomorphic]
+tags: [refactor, simplification, code-quality, review, characterization, isomorphic, test-pruning]
 triggers:
   - "simplify"
   - "simplify the code"
@@ -16,6 +18,11 @@ triggers:
   - "code-simplify"
   - "isomorphic refactor"
   - "reduce duplication without changing behavior"
+  - "prune low-value tests"
+  - "delete tests that assert implementation"
+  - "remove duplicative tests"
+  - "tests that only re-assert the source"
+  - "remove test-induced seams"
 user_invocable: true
 related:
   - test-driven-development
@@ -29,7 +36,9 @@ related:
 
 Inspect a focused diff, file, or module for **behavior-preserving** simplifications: dead code, deep nesting, long functions, premature abstractions, generic names, and isomorphic DRY extracts. The goal is fewer moving parts and faster comprehension — not stylistic preference and **not** fewer lines for their own sake.
 
-This skill is **read → pin → edit**: it reviews first, applies a **coverage gate**, writes characterization tests when needed, gates each candidate against Chesterton's Fence, applies changes one pattern at a time, and dual-runs the suite. Large surface areas are deferred (Rule of 500).
+This skill is **read → pin → (prune) → edit**: it reviews first, applies a **coverage gate**, writes characterization tests when needed, optionally prunes tests that assert implementation rather than behavior, gates each candidate against Chesterton's Fence, applies changes one pattern at a time, and dual-runs the suite. Large surface areas are deferred (Rule of 500).
+
+The test suite is part of the surface under review. A test that must be edited every time the source changes is asserting implementation, not behavior — it is a cost on every commit that catches nothing, and it frequently holds open a production seam that exists for no other reason. Removing both is a simplification; see [Test Pruning](#test-pruning-optional-phase--never-first).
 
 **Primary invoke:** `/simplify`  
 **Invocation mode:** **manual only** — operators (or explicit human request) run this skill. Autopilot and implement-feature do **not** auto-run simplify by default.
@@ -58,7 +67,8 @@ This skill is **read → pin → edit**: it reviews first, applies a **coverage 
 
 - Run on the current diff, a specified file/module, or a tech-debt finding ID.
 - Production edits only after the coverage gate passes.
-- Characterization commits may add tests; simplify commits must not change assertion **bodies**.
+- Characterization commits may add tests; prune commits may remove them; simplify commits must not change assertion **bodies**.
+- Test pruning is in scope for the named surface only, is test-only per commit, and is ledgered.
 - Single-PR / small-batch changes. Cross-cutting refactors follow Rule of 500 or escalate.
 
 ## Principles
@@ -115,6 +125,126 @@ Surface under edit
 
 Characterization tests are **not** a license to change behavior later in the same PR — they freeze today's behavior so refactors cannot silently drift.
 
+## Test Pruning (optional phase — never first)
+
+**Tests must justify their presence.** A test earns its place by failing when
+behavior breaks. A test that must be edited whenever the source changes fails
+that bar: it is rewritten to match whatever the code now does, so it never
+catches anything — it only taxes every commit and anchors the production
+structure it happens to reach into.
+
+Pruning such tests is a real simplification, and it is usually the *enabling*
+one: the seams that exist only so a test could reach inside can go with them
+(see [Test-induced seams](#test-induced-seams-only-after-pruning)).
+
+Pruning **removes** coverage, so it is ordered, bounded, and ledgered. It is not
+permission to delete a test that is merely inconvenient, slow, or failing.
+
+The repo-wide statement of this policy — and the half about which tests get
+*written* — lives in `docs/guides/testing-policy.md` (consumer-project-relative)
+and the `test-driven-development` skill.
+
+### Phase order — characterize before you prune
+
+```
+B0  tip before any simplify work
+ │
+ ├── Phase A — CHARACTERIZE   test(<scope>): pin behavior for <surface>
+ │      add state-based pins for behavior the surface really has
+ │
+B1' (optional intermediate — the pins now exist)
+ │
+ ├── Phase B — PRUNE          test(<scope>): remove <smell> tests for <surface>
+ │      test-only commits; every removal ledgered
+ │
+B1  post-prune tip  ◄── baseline for check_test_contract.py AND the dual-run
+ │
+ ├── Phase C — SIMPLIFY       refactor(<scope>): <pattern> — <brief>
+ │      production edits, one pattern at a time
+ │
+HEAD
+```
+
+**Characterize first, always.** Behavioral pins must exist *before*
+implementation-coupled tests come out. Prune first and the surface drops to zero
+coverage, and every "simplification" after it is unverified — you deleted the
+only thing that could have contradicted you.
+
+Do not prune a surface you are not also simplifying. Pruning alone is a coverage
+reduction with no offsetting gain; it belongs to whoever owns that surface.
+
+### Delete catalog
+
+| Smell | Signal | Verdict |
+|---|---|---|
+| **Source-mirroring** | Assertion restates a literal from the source (`assert TIMEOUT == 30` beside `TIMEOUT = 30`) | Delete — it asserts the source, not the behavior the value causes |
+| **Change-detector** | Any source edit forces an edit here; asserts call order, private names, or internal structure | Delete, or rewrite state-based first and keep the rewrite |
+| **Self-mocking** | Mocks the unit under test, then asserts the mock was called | Delete — it tests the mocking library |
+| **Duplicative** | Same behavior, same equivalence class, different name | Merge or parametrize; keep one |
+| **Accessor-only** | Asserts a dataclass returns what it was handed, with no validation or invariant | Delete unless it pins a constraint |
+| **Library-under-test** | Asserts stdlib / framework / ORM behavior you do not own | Delete |
+| **Vacuous** | No assertion, or one that cannot fail (`assert obj is not None` right after constructing `obj`) | Delete |
+| **Unreviewed snapshot** | Snapshot re-blessed on every change without anyone reading the diff | Delete, or narrow to the fields that carry meaning |
+
+### Keep catalog — Chesterton's Fence for tests
+
+A test that looks trivial is not automatically low value. **Keep** it when any of
+these hold, whatever it costs to maintain:
+
+- **Regression tests** tied to a bug, incident, or issue ID — the triviality is the point; someone paid for it in production.
+- The **only** test covering an error path, boundary, or empty/overflow case.
+- **Contract tests** on a public or multi-consumer API (Hyrum's Law — someone depends on it).
+- **Security, authz, injection, or PII** assertions.
+- **Property, fuzz, or concurrency** tests — non-obvious inputs are their whole value.
+- The only **executable documentation** of a subtle or surprising behavior.
+- A test you cannot explain the origin of. Unknown origin means investigate, not delete — the same rule as production code.
+
+If you cannot say what a test would catch *and* what it would cost to keep,
+you have not finished reading it. Keep it.
+
+### The coverage-preserving rule
+
+For every removal, exactly one of these must be true and written down:
+
+- **(a) No behavior was asserted** — reasons `source-mirroring`, `vacuous`, `library-under-test`, `accessor-only`, `self-mocking`. Nothing to preserve.
+- **(b) The behavior survives elsewhere** — reasons `change-detector`, `duplicative`, `unreviewed-snapshot`. Name the surviving test in `covered-by:`. If no test covers it, write that test **first** (Phase A), then prune.
+
+There is no **(c) "I'll re-add coverage later."** A removal you cannot justify
+today is a test you keep today.
+
+### Prune ledger
+
+One entry per removal, in a file that ships with the PR (e.g.
+`docs/simplify/test-prune-ledger.md`). A file-level `removed:` entry covers
+every test in that file.
+
+```markdown
+- removed: tests/test_config.py::test_timeout_is_thirty
+  reason: source-mirroring
+  covered-by: none
+
+- removed: tests/test_parser.py::test_calls_tokenize_then_normalize
+  reason: change-detector
+  covered-by: tests/test_parser.py::test_parses_iso_timestamps_to_utc
+
+- removed: tests/test_client_internals.py
+  reason: duplicative
+  covered-by: tests/test_client.py::test_retries_on_503_then_succeeds
+```
+
+### Gate
+
+```bash
+# Prune range must be test-only, and every removal must be ledgered.
+python3 "<skill-base-dir>/scripts/check_test_prune.py" \
+  --base <B0> --head <B1> --ledger docs/simplify/test-prune-ledger.md
+```
+
+Then re-baseline: `check_test_contract.py` and the dual-run both take `--base` /
+`--baseline` of **`<B1>`**, the post-prune tip. Pointing them at `<B0>` reports
+the pruned assertions as contract breaks — which is exactly what they are
+*outside* this phase, and why the prune gets its own range and its own gate.
+
 ## Rule of 500
 
 Simplifications that touch **more than 500 lines** OR **more than 5 files** SHALL NOT be done by hand.
@@ -155,11 +285,37 @@ python3 "<skill-base-dir>/scripts/check_scope.py" --base <baseline-sha>
 
 **Rebalance note:** Inlining premature abstractions is still valid for *single-use* abstractions that are not extension points. Extracting real duplication is the dual — do not “inline” away a helper that names a real domain concept used in multiple places.
 
+### Test-induced seams (only after pruning)
+
+The payoff of [Test Pruning](#test-pruning-optional-phase--never-first). Once an
+implementation-coupled test is gone, the production seam it reached through
+often has no remaining consumer — it was never a design, only an affordance for
+a test that itself asserted nothing.
+
+| Pattern | Signal | Move |
+|---|---|---|
+| Mock-only interface | Protocol / interface / ABC with exactly one production implementation, introduced so a test could inject a double | Inline the concrete type; delete the interface |
+| Test-only constructor param | `def __init__(self, ..., clock=None, _fetcher=None)` left default at every production call site | Drop the parameter; construct the dependency directly |
+| Visibility widened for tests | Symbol made public / module-level whose only non-test reference was the deleted test | Restore the narrower scope |
+| Factory-of-one | `build_x()` returning the single concrete `X`, existing so tests could patch the factory | Inline; construct `X` at the call site |
+| `_for_testing` / `reset_state()` hooks | Symbol named for tests, referenced only by tests you just removed | Remove |
+
+**Gate — stricter than the rest of the catalog.** A seam may come out only when
+**both** hold:
+
+1. A reference search over the whole repo (not just the diff) shows no remaining
+   non-test consumer — a green suite proves nothing here, since a seam with one
+   production caller and zero tests still looks unused to the suite.
+2. The behavior the seam served is still pinned by a surviving state-based test.
+
+A seam with a real production consumer is a design decision. Chesterton's Fence
+applies to it exactly as it does to any other construct.
+
 ## Workflow
 
 ### 0. Scope
 
-Identify target: `git diff`, path, module, or tech-debt finding ID. Record the **baseline SHA** (tip before any simplify production edit; after characterization commits if those land first).
+Identify target: `git diff`, path, module, or tech-debt finding ID. Record `<B0>`, the tip before any simplify work. The **baseline SHA** for the downstream gates is `<B1>` — the tip after characterization **and** prune commits, i.e. immediately before the first production edit. When neither phase produces a commit, `<B1>` is `<B0>`.
 
 ### 1. Understand (Chesterton's Fence)
 
@@ -169,15 +325,28 @@ Blame, callers, existing tests, edge cases. Read project conventions (AGENTS.md 
 
 Pin or characterize (see above). Run characterization tests and confirm green on baseline.
 
-### 3. Candidate list
+### 3. Test prune (optional)
 
-List opportunities by pattern. Drop any that fail Chesterton's Fence; note fences kept.
+Sweep the surface's tests against the [Delete catalog](#delete-catalog) and the
+[Keep catalog](#keep-catalog--chestertons-fence-for-tests). Remove what fails,
+one test-only commit per group: `test(<scope>): remove <smell> tests for <surface>`.
+Write the ledger entry as you delete, not afterwards. Run the suite; it must stay
+green with production code untouched. Record `<B1>` — the post-prune tip — as the
+baseline for everything downstream.
 
-### 4. Rule of 500
+Skip this step entirely if nothing in the suite fails the Delete catalog. Most
+runs of `/simplify` skip it.
+
+### 4. Candidate list
+
+List opportunities by pattern, including any [test-induced seams](#test-induced-seams-only-after-pruning)
+the prune just orphaned. Drop any that fail Chesterton's Fence; note fences kept.
+
+### 5. Rule of 500
 
 Group remaining work. Automate, split, or escalate if over budget.
 
-### 5. Apply incrementally
+### 6. Apply incrementally
 
 For each remaining candidate:
 
@@ -188,30 +357,39 @@ For each remaining candidate:
 
 Never mix `feat` / `fix` with simplify polish in the same commit.
 
-### 6. Dual-run verify
+### 7. Dual-run verify
 
 ```bash
+# Prune range (skip when no tests were removed): test-only diff, every removal ledgered.
+python3 "<skill-base-dir>/scripts/check_test_prune.py" \
+  --base <B0> --head <B1> --ledger docs/simplify/test-prune-ledger.md
+
 # Recommended mechanical dual-run (writes simplify-report.json by default).
 # Prefer a project-local interpreter so detached worktrees resolve tools;
 # the script also symlinks .venv / node_modules from the main repo when present.
 python3 "<skill-base-dir>/scripts/verify_behavior_preservation.py" \
-  --baseline <baseline-sha> \
+  --baseline <B1> \
   --test-cmd "python3 -m pytest -q"   # or: .venv/bin/python -m pytest / npm test
 
 # Assertion contract on the simplify range (should be clean for expectation bodies).
-# --base MUST be the tip AFTER characterization commits.
-python3 "<skill-base-dir>/scripts/check_test_contract.py" --base <baseline-sha>
-python3 "<skill-base-dir>/scripts/check_scope.py" --base <baseline-sha>
+# --base MUST be <B1> — the tip AFTER characterization AND prune commits.
+python3 "<skill-base-dir>/scripts/check_test_contract.py" --base <B1>
+python3 "<skill-base-dir>/scripts/check_scope.py" --base <B1>
 ```
+
+`<B1>` is the baseline for the dual-run precisely because it is the last commit
+where production code is untouched but the suite is already final: running that
+suite at `<B1>` and at `HEAD` isolates the production edits as the only variable.
+Baselining at `<B0>` instead compares two different suites and proves nothing.
 
 Source-contribution-only example (this monorepo, not portable to consumers):
 `skills/.venv/bin/python -m pytest -q skills/tests/simplify/`
 
-Manual equivalent: run the same suite on `<baseline-sha>` and on `HEAD`; both must pass.
+Manual equivalent: run the same suite on `<B1>` and on `HEAD`; both must pass.
 
-### 7. Report
+### 8. Report
 
-Summarize: patterns applied, fences kept, characterization tests added, dual-run evidence (commands + exit codes or report path), Rule of 500 status.
+Summarize: patterns applied, fences kept, characterization tests added, tests pruned (with the ledger, or "none"), seams removed and the reference search that cleared them, dual-run evidence (commands + exit codes or report path), Rule of 500 status.
 
 ## Script helpers
 
@@ -220,10 +398,11 @@ Scripts live in `<skill-base-dir>/scripts/` (installed copy under `.claude/skill
 | Script | Purpose | Exit |
 |---|---|---|
 | `check_scope.py` | Diff line/file counts vs Rule of 500 | `0` ok, `2` over limit without `--allow-codemod`, `1` error |
+| `check_test_prune.py` | Prune range is test-only; every removed test is ledgered with a valid reason (and `covered-by:` when it covered behavior) | `0` ok, `2` unjustified removal or production edit in range, `1` error |
 | `check_test_contract.py` | Detect assertion/expect body changes in test paths | `0` ok, `2` contract break, `1` error |
 | `verify_behavior_preservation.py` | Run tests at baseline and HEAD in detached worktrees; write JSON report | `0` both green, `2` failure, `1` error |
 
-`check_test_contract.py` expects `--base` at the tip **after** characterization commits. Within that range, any `+/-` assertion line (including deleted test files) is a contract break.
+`check_test_contract.py` expects `--base` at `<B1>` — the tip **after** characterization and prune commits. Within that range, any `+/-` assertion line (including deleted test files) is a contract break. Test removals belong in the prune range, where `check_test_prune.py` gates them; a removal inside the simplify range means you deleted a test to make a refactor go green.
 
 `verify_behavior_preservation.py` takes a **trusted** `--test-cmd` shell string (e.g. `pytest -q`). Both SHAs are checked out via temporary detached worktrees so a dirty working tree cannot skew results.
 
@@ -274,6 +453,8 @@ Prefer project idioms when they conflict with these sketches.
 | Dead public API / multi-consumer removal | `/deprecation-and-migration` |
 | Measured perf bottleneck | `/performance-optimization` |
 | Bug or missing behavior | `/test-driven-development` + fix (not simplify) |
+| Suite has no behavioral pins at all to prune against | `/test-driven-development` first — write pins, then return |
+| Whole-suite testing-strategy overhaul (pyramid, fixtures, harness) | `/test-driven-development` + `/plan-feature`, not a prune sweep |
 
 ## Common Rationalizations
 
@@ -286,6 +467,11 @@ Prefer project idioms when they conflict with these sketches.
 | "I'll simplify while finishing the feature" | Mixed feat+refactor PRs hide regressions and break revertability. Separate commits/PRs; use `NOTICED BUT NOT TOUCHING` during implement. |
 | "This abstraction will pay off later" | Speculative abstractions are cost without value. Inline until a second real implementation appears. |
 | "Fewer lines is always simpler" | Nested one-liners can be harder to read. Optimize for comprehension speed. |
+| "More tests are always better" | A test that never fails on a real break is not coverage, it is a maintenance tax that also freezes the code shape. Tests must justify their presence. |
+| "I'll delete these tests first, then write pins" | Backwards. Prune with zero pins in place and every later simplification is unverified. Characterize, then prune. |
+| "The test kept failing on every refactor, so I removed it" | That is a signal to check *why* it is coupled — a change-detector gets deleted with a `covered-by:` target, a real regression test gets kept and the refactor gets fixed. |
+| "It is just a test — deleting it is low risk" | Deleting a test is the one edit in this skill that reduces the evidence for every edit after it. It is the highest-risk change here, not the lowest. |
+| "The seam is unused now that the test is gone" | A green suite cannot tell an unused seam from an untested production caller. Do the reference search. |
 
 ## Red Flags
 
@@ -297,13 +483,23 @@ Prefer project idioms when they conflict with these sketches.
 - Autopilot or implement silently running simplify without operator request.
 - Inlined helper that deleted a comment documenting a non-obvious invariant (fence lost).
 - Isomorphic extract landed without tests covering all rewritten call sites.
+- Prune commits landing **before** characterization commits, or with no characterization at all.
+- A prune commit that also touches production code (`check_test_prune.py` exits 2).
+- A removed test with no ledger entry, or `reason: change-detector` / `duplicative` with `covered-by: none`.
+- A deleted regression test that cites a bug or incident ID.
+- Net coverage of an error path, boundary, or authz check dropping to zero after the prune.
+- A seam removed on the strength of a green suite alone, with no repo-wide reference search.
+- `check_test_contract.py --base <B0>` used instead of `<B1>` to make the prune look clean.
 
 ## Verification
 
 1. Cite each pattern catalog entry applied in the PR/report.
 2. For removed/renamed/inlined constructs, cite blame or introducing commit (Chesterton's Fence).
 3. Confirm coverage gate: either list existing pinning tests **or** show the characterization commit (`test(...): pin behavior…`) that is green on baseline.
-4. Confirm dual-run: suite green on baseline SHA and on HEAD (attach `simplify-report.json` from `verify_behavior_preservation.py` when used).
-5. Confirm assertion contract: `check_test_contract.py --base <baseline>` exits 0 for the simplify range (characterization commits may add tests; simplify commits must not mutate expectation bodies).
-6. Confirm scope: `check_scope.py --base <baseline>` exits 0, or `--allow-codemod` with the codemod named in the report.
-7. Confirm `git diff <baseline>..HEAD --stat` (or report) shows intentional surface only — no unrelated drive-by files.
+4. Confirm dual-run: suite green on `<B1>` and on HEAD (attach `simplify-report.json` from `verify_behavior_preservation.py` when used).
+5. If tests were pruned, confirm `check_test_prune.py --base <B0> --head <B1> --ledger <path>` exits 0, and attach the ledger. If none were pruned, say so explicitly.
+6. For each removed test, confirm the coverage-preserving rule: reason code recorded, and a named surviving test in `covered-by:` for every reason that is not a no-behavior code.
+7. For each removed seam, cite the repo-wide reference search showing no remaining non-test consumer.
+8. Confirm assertion contract: `check_test_contract.py --base <B1>` exits 0 for the simplify range (characterization commits may add tests, prune commits may remove them; simplify commits must not mutate expectation bodies).
+9. Confirm scope: `check_scope.py --base <B1>` exits 0, or `--allow-codemod` with the codemod named in the report.
+10. Confirm `git diff <B1>..HEAD --stat` (or report) shows intentional surface only — no unrelated drive-by files.
