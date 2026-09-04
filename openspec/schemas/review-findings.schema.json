@@ -5,7 +5,7 @@
   "type": "object",
   "required": ["review_type", "target", "findings"],
   "properties": {
-    "review_type": { "type": "string", "enum": ["plan", "implementation"] },
+    "review_type": { "type": "string", "enum": ["plan", "implementation", "simplify"] },
     "target": { "type": "string", "description": "feature_id for plan review, package_id for implementation review." },
     "reviewer_vendor": { "type": "string" },
     "findings": {
@@ -15,7 +15,7 @@
         "required": ["id", "type", "criticality", "description", "disposition", "axis", "severity"],
         "properties": {
           "id": { "type": "integer" },
-          "type": { "type": "string", "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness", "observability", "compatibility", "resilience", "behavioral_failure"] },
+          "type": { "type": "string", "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness", "observability", "compatibility", "resilience", "behavioral_failure", "simplification", "test_quality"] },
           "criticality": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
           "description": { "type": "string" },
           "resolution": { "type": "string" },

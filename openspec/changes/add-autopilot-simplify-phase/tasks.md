@@ -11,7 +11,7 @@ Contracts: `contracts/events/simplify-review.schema.json` (+ two fixtures).
 
 ## Phase 1 — wp-contracts: freeze the artifact and every enum
 
-- [ ] 1.1 Test: `simplify-review.schema.json` is a valid JSON Schema 2020-12 document;
+- [x] 1.1 Test: `simplify-review.schema.json` is a valid JSON Schema 2020-12 document;
       `fixtures/simplify-review.valid.json` validates against it **and** the canonical
       review-findings schema (registry with both `$id`s); `simplify-review.invalid.json` is
       rejected on the `covered_by: null` rule; a seam finding with non-empty
@@ -22,7 +22,7 @@ Contracts: `contracts/events/simplify-review.schema.json` (+ two fixtures).
       **Design decisions**: D2
       **Dependencies**: None
 
-- [ ] 1.2 Test: `type` and `review_type` enums are identical across canonical,
+- [x] 1.2 Test: `type` and `review_type` enums are identical across canonical,
       install mirror, both `consensus-report` copies, and `vendor_review._FALLBACK_ENUMS`,
       and include `test_quality`, `simplification`, `simplify`; every pre-existing value
       still present — **XS**
@@ -31,21 +31,21 @@ Contracts: `contracts/events/simplify-review.schema.json` (+ two fixtures).
       **Design decisions**: D9, D10
       **Dependencies**: None
 
-- [ ] 1.3 Implement the contract: confirm `simplify-review.schema.json`'s conditional rules (including
+- [x] 1.3 Implement the contract: confirm `simplify-review.schema.json`'s conditional rules (including
       the `consumer` → `keep` rule) against 1.1 and finalize the two fixtures — **S**
       **Spec scenarios**: all scenarios under 1.1
       **Contracts**: `contracts/events/simplify-review.schema.json`
       **Design decisions**: D2
       **Dependencies**: 1.1
 
-- [ ] 1.4 Implement the enum additions in all five copies (adding `behavioral_failure` to
+- [x] 1.4 Implement the enum additions in all five copies (adding `behavioral_failure` to
       `consensus-report` where missing, per D10); update the enum list in
       `skills/validate-feature/scripts/tests/test_linters.py` — **S**
       **Spec scenarios**: all scenarios under 1.2
       **Design decisions**: D9, D10
       **Dependencies**: 1.2
 
-- [ ] Checkpoint: `skills/tests/parallel-infrastructure/test_review_findings_schema.py`,
+- [x] Checkpoint: `skills/tests/parallel-infrastructure/test_review_findings_schema.py`,
       the new contract test, `skills/tests/merge-pull-requests/test_vendor_review_prompt.py`,
       and `test_linters.py` green; confirm only `wp-contracts.write_allow` changed
 
