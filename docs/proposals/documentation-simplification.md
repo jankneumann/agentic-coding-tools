@@ -48,7 +48,7 @@ Layer 2  reference                    generated or formal; never hand-edited pro
            openspec/specs/            requirements
            docs/decisions/            capability timelines (generated)
            docs/architecture-analysis/ inventories, graph, views (generated)
-           docs/skills-catalogue.md   → becomes a thin wrapper around skills-inventory.md, or is retired
+           docs/skills-catalogue.md   → retired; a short "how to read the inventory" preface moves into skills-inventory.md
            runbooks/ (cloudflare, openbao, cross-repo, migration) — setup procedures, dated
 ```
 
@@ -59,7 +59,7 @@ Rules that make the structure self-enforcing:
 1. **Every hand-authored doc carries frontmatter**: `layer: 0|1|2`, `owns: [<concept>]`, `sources: [<paths/specs/skills it describes>]`, `verified_against: <short SHA>`. `sources` is what the skill checks claims against; `verified_against` is how "stale" is defined without mtimes (see §3).
 2. **One concept, one home.** A concept named in `owns:` may appear in exactly one Layer 1 guide. The skill reports duplicates.
 3. **Layer 0 never explains mechanism.** README paragraphs link to a Layer 1 guide within two sentences of introducing a term.
-4. **Layer 2 is generated or formal.** Anything a producer can render is not hand-written. `skills-catalogue.md` is the first candidate to retire in favour of the generated inventory plus a short "how to read it" preface.
+4. **Layer 2 is generated or formal.** Anything a producer can render is not hand-written. `skills-catalogue.md` is retired in favour of the generated inventory plus a short hand-written preface outside the generated markers (decision 2026-09-04, §8).
 
 ## 3. The skill: `/simplify-docs`
 
@@ -115,14 +115,14 @@ Everything else (design rationale, "why local vs cloud") is `unverifiable` by to
 |---|---|---|---|
 | **Per change** | `implement-feature` / `iterate-on-implementation` doc-update step | Docs whose `sources:` intersect the touched paths. The existing mandatory update rule gains a second half: "and run the claim gate on the docs you touched" | Yes, on the docs in scope (extends `context-drift-gate` with the claim ledger for those files only) |
 | **Per autopilot run** | Opt-in `DOCS` phase, after IMPL_REVIEW, sibling of SIMPLIFY | Same as per change, plus `orphan` and `duplicate` checks on the map | No: findings go to the review ledger |
-| **Periodic sweep** | `supervise` discovery cycle or a roadmap item, roughly monthly | Whole Layer 0 and Layer 1; lesson candidates promotion; `verified_against` refresh | No: produces a report and a `docs(simplify)` PR |
+| **Periodic sweep** | Weekly, driven by the `supervise` discovery cycle, until a release cadence exists; then re-anchored to release tagging via `changelog-version` | Whole Layer 0 and Layer 1; lesson candidates promotion; `verified_against` refresh | No: produces a report and a `docs(simplify)` PR |
 
 A doc's staleness is defined as **the number of merged changes since `verified_against` whose diff touched any of its `sources:`**, never wall-clock time. That number is derivable from git alone and is stable across squashes, which the one-date-for-everything history shows is required here.
 
 ## 6. Phasing
 
 **Phase A — one-time restructure (manual, using the skill's checklist before the skill exists).**
-README rewritten to the Layer 0 shape and cut to one screen; `docs/guides/coordinator.md` and `docs/guides/execution-environments.md` written by merging the current five coordinator/cloud docs (the "why local vs cloud" rationale lives in exactly one place); `lessons-learned.md` triaged with `status:` and `evidence:` on every bullet; `docs/guides/documentation.md` promoted to the single map; frontmatter added to every hand-authored doc. Stale-count claims replaced by inventory links. This is an S/M change and can go through `/plan-feature` directly.
+`/vision` runs first to produce `VISION.md`, so the README's Layer 0 cites a vision statement instead of being one. Then: README rewritten to the Layer 0 shape and cut to one screen; `docs/guides/coordinator.md` and `docs/guides/execution-environments.md` written by merging the current five coordinator/cloud docs (the "why local vs cloud" rationale lives in exactly one place); `lessons-learned.md` triaged with `status:` and `evidence:` on every bullet; `docs/guides/documentation.md` promoted to the single map; frontmatter added to every hand-authored doc. Stale-count claims replaced by inventory links. This is an S/M change and can go through `/plan-feature` directly.
 
 **Phase B — the skill.** `skills/simplify-docs/SKILL.md` plus `scripts/claim_check.py` (claim extraction, verdicts, ledger), `scripts/doc_map.py` (orphan and duplicate detection from frontmatter), `scripts/lessons_candidates.py` (session-log mining). Register `doc-claims.json` and `lessons-candidates.md` as `project-context-refresh` producers so the existing drift gate, manifest, and CI job cover them with no new CI wiring. Spec delta on `skill-workflow`: *Documentation Simplification* requirement, and the existing *Documentation Update Per Iteration* requirement gains the claim-gate scenario.
 
@@ -133,9 +133,10 @@ README rewritten to the Layer 0 shape and cut to one screen; `docs/guides/coordi
 - Does not gate merges on prose freshness beyond the docs a change touched. A whole-repo blocking gate on hand-written prose would recreate the problem the superseded proposal had: every unrelated PR pays for global drift.
 - Does not auto-rewrite rationale. The skill can prove a path is gone; it cannot prove a design argument is wrong. Those findings are `unverifiable` and go to a human.
 - Does not reintroduce a hand-maintained skills catalogue. The generated inventory is the truth; prose links to it.
+- Does not wait for a release cadence. The weekly sweep starts immediately; the release anchor is a later, mechanical switch of the trigger.
 
-## 8. Open questions for the author
+## 8. Decisions (author, 2026-09-04)
 
-1. Retire `docs/skills-catalogue.md` outright, or keep a short hand-written "how to read the inventory" preface above a generated block?
-2. Should `VISION.md` be produced first (via `/vision`) so the README's Layer 0 has a source to cite, or is the current README opening sufficient as the vision statement?
-3. Is a monthly supervise-driven sweep the right cadence, or should the sweep be tied to release tagging (`changelog-version`)?
+1. **Skills catalogue: retire.** `docs/skills-catalogue.md` is removed; a short hand-written "how to read this" preface lives outside the generated markers in `docs/architecture-analysis/skills-inventory.md`. Inbound links (README, `docs/guides/documentation.md`, `docs/skill-flow/README.md`) are repointed in Phase A.
+2. **Vision first.** `/vision` produces `VISION.md` before the README rewrite, so Layer 0 has a source to cite for "what this repo is for and what it refuses to become".
+3. **Sweep cadence: weekly now, releases later.** No release cadence exists yet, so the periodic sweep runs weekly from the `supervise` discovery cycle. When `changelog-version` tagging becomes routine, the sweep trigger moves to release tagging; the sweep itself does not change.
