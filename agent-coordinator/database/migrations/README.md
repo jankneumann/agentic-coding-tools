@@ -26,7 +26,9 @@ been seeded out-of-band (Docker `initdb` running `seed.sql`), so a migration
 that fails because **its objects already exist** is recorded as applied instead
 of aborting the boot.
 
-That tolerance is limited to duplicate-object SQLSTATEs
+That tolerance is limited to duplicate-object SQLSTATEs plus `23505`
+(unique_violation — what a re-executed *data* migration such as 019's renames
+raises on a seeded database)
 (`_ALREADY_APPLIED_SQLSTATES` in `src/migrations.py`). Every other failure
 propagates and stops the boot.
 
