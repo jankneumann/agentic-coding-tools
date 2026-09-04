@@ -37,6 +37,8 @@ Within each phase, test tasks precede the implementation they verify (TDD RED â†
   **Dependencies**: 1.4
   **Size**: XS
 
+- [ ] Checkpoint: run `skills/tests/codebase-atlas`, confirm the SKILL.md flag table and CLI agree, review the cumulative package diff
+
 ## Phase 2 â€” `show-me` skill (package `wp-skill`, parallel with Phase 1)
 
 - [ ] 2.1 Write `skills/tests/show-me/test_skill_md.py`: frontmatter parses; `name`, `description`, `category`, `tags`, `user_invocable`, `related` present and non-empty (asserted explicitly, not via `assert_required_keys_present`); no `triggers` key; `assert_references_resolve`; `assert_related_resolve`; `assert_tail_block_present`; `SKILL.md â‰¤ 150` lines; no reference file links to another reference; description mentions `codebase-atlas`
@@ -71,6 +73,8 @@ Within each phase, test tasks precede the implementation they verify (TDD RED â†
   **Dependencies**: 2.3
   **Size**: S
 
+- [ ] Checkpoint: run `skills/tests/show-me`, confirm every `references/<form>.md` cited in SKILL.md exists, review diff
+
 - [ ] 2.6 Add `"show-me": {"distribution": "portable"}` to `skills/install-manifest.json` `skills`, plus `cross_skill_dependencies` `"show-me": ["codebase-atlas", "refresh-architecture"]`
   **Spec scenarios**: skill-workflow "Manifest validation passes"
   **Design decisions**: D1
@@ -83,13 +87,13 @@ Within each phase, test tasks precede the implementation they verify (TDD RED â†
   **Dependencies**: 2.1
   **Size**: XS
 
-- [ ] Checkpoint: run `bash skills/install.sh --check-only` and `skills/.venv/bin/python -m pytest skills/tests/show-me`, review diff, verify scope
-
 - [ ] 2.8 (conditional) Author three scenario fixtures under `skills/tests/show-me/scenarios/` in the trajectory-scenario harness format if that harness is present in the checkout; otherwise record "harness absent" in the session log
   **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Whole-repository question redirected"
   **Design decisions**: D7
   **Dependencies**: 2.5
   **Size**: S
+
+- [ ] Checkpoint: run `bash skills/install.sh --check-only` and `skills/.venv/bin/python -m pytest skills/tests/show-me`, verify scope stayed inside the package's write_allow
 
 ## Phase 3 â€” Integration (package `wp-integration`)
 
