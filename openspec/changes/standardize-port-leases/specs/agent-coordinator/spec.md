@@ -64,34 +64,6 @@ no "unknown session succeeds" case to collide with.
 - **THEN** the service SHALL NOT release that lease and SHALL NOT block its slot
 - **AND** SHALL return `{success: false, error: "not_lease_owner"}`
 
-### Requirement: Lease operations are scoped to the owning agent
-
-Every mutating port-lease operation SHALL verify that the authenticated caller's `agent_id`
-matches the `agent_id` recorded on the lease before acting, and SHALL refuse otherwise.
-
-This is not defence in depth, it is the only control. `GET /ports/status` is deliberately
-unauthenticated and returns each active lease's `session_id` and `agent_id`, so a `session_id` is
-public knowledge by design. Without an ownership check, any holder of any valid API key — the
-coordinator is reachable over the Cloudflare tunnel — can enumerate leases and then release a
-peer's lease mid-run, or force its slot into a `conflict_block_minutes` cooling period. The
-result is an agent whose stack is still bound to ports the coordinator has handed to someone
-else: the exact collision this capability exists to prevent, reachable on purpose rather than by
-accident.
-
-The repository already establishes this pattern for the sibling resource: `release_lock` in
-`001_core_schema.sql` deletes `WHERE file_path = p_file_path AND locked_by = p_agent_id`. Port
-leases SHALL carry the equivalent `AND agent_id = p_agent_id` guard.
-
-#### Scenario: Ownership is enforced in the data layer, not only the handler
-- **WHEN** a lease release is executed against the persistent store
-- **THEN** the delete SHALL be predicated on both `session_id` and the caller's `agent_id`
-- **AND** a mismatched caller SHALL delete zero rows
-
-#### Scenario: Unowned leases are releasable only by cleanup
-- **WHEN** a lease has a NULL `agent_id` because it was created before the owning agent registered
-- **THEN** no authenticated caller SHALL release it through `release_ports`
-- **AND** it SHALL be reclaimed only by TTL expiry or stale-session cleanup
-
 ### Requirement: Port allocation configuration
 
 The port allocator SHALL read configuration from environment variables with sensible defaults.
@@ -203,6 +175,34 @@ The system SHALL detect unresponsive agents and reclaim their resources through 
 - **AND** the agent continues operating without updated heartbeat
 
 ## ADDED Requirements
+
+### Requirement: Lease operations are scoped to the owning agent
+
+Every mutating port-lease operation SHALL verify that the authenticated caller's `agent_id`
+matches the `agent_id` recorded on the lease before acting, and SHALL refuse otherwise.
+
+This is not defence in depth, it is the only control. `GET /ports/status` is deliberately
+unauthenticated and returns each active lease's `session_id` and `agent_id`, so a `session_id` is
+public knowledge by design. Without an ownership check, any holder of any valid API key — the
+coordinator is reachable over the Cloudflare tunnel — can enumerate leases and then release a
+peer's lease mid-run, or force its slot into a `conflict_block_minutes` cooling period. The
+result is an agent whose stack is still bound to ports the coordinator has handed to someone
+else: the exact collision this capability exists to prevent, reachable on purpose rather than by
+accident.
+
+The repository already establishes this pattern for the sibling resource: `release_lock` in
+`001_core_schema.sql` deletes `WHERE file_path = p_file_path AND locked_by = p_agent_id`. Port
+leases SHALL carry the equivalent `AND agent_id = p_agent_id` guard.
+
+#### Scenario: Ownership is enforced in the data layer, not only the handler
+- **WHEN** a lease release is executed against the persistent store
+- **THEN** the delete SHALL be predicated on both `session_id` and the caller's `agent_id`
+- **AND** a mismatched caller SHALL delete zero rows
+
+#### Scenario: Unowned leases are releasable only by cleanup
+- **WHEN** a lease has a NULL `agent_id` because it was created before the owning agent registered
+- **THEN** no authenticated caller SHALL release it through `release_ports`
+- **AND** it SHALL be reclaimed only by TTL expiry or stale-session cleanup
 
 ### Requirement: Port lease persistence
 
