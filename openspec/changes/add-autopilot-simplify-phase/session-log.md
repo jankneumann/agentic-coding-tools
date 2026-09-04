@@ -90,3 +90,52 @@ Planned an opt-in SIMPLIFY phase for autopilot between IMPL_REVIEW and VALIDATE,
 ### Context
 Plan revision 2 after Gate 2 feedback: the simplify phase is two roles. SIMPLIFY_REVIEW (reviewer, writes only simplify-review.json) -> SIMPLIFY_APPLY (implementer, consumes it). The artifact is a review-findings document (review_type: simplify) with a real contract and fixtures; the prune ledger is rendered from it; the simplify-implementation skill itself is restructured into the same Review/Apply roles. Six work packages; wp-contracts is the DAG root.
 
+---
+
+## Phase: Implementation (2026-09-04)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Fell back from coordinated to local-parallel tier** `architectural: skill-workflow` — check_coordinator reports CAN_LOCK=true but try_lock returns 'unauthorized' for this session's key, so the per-package lock protocol cannot be honored; issues seeding and reads work. Sub-agent dispatch per package was preserved.
+2. **Commit tests and implementation together per package** `architectural: skill-workflow` — Rule 2 (every commit green) outranks a separate RED commit; TDD order was still followed inside each package and RED->GREEN is recorded in the agent reports.
+3. **Artifact carries an optional test_id nodeid; render-ledger falls back to a file-level entry** `architectural: skill-workflow` — The frozen contract permits extra properties; check_test_prune.parse_ledger accepts file-level entries, so both shapes round-trip.
+4. **Bundled contract copy under skills/simplify-implementation/schemas/ with a drift test** `architectural: skill-workflow` — The script needs a deterministic default --contract in installed layouts; the drift test against the change's frozen contract keeps the copy honest while the change is active.
+5. **Context-impact declarations corrected for four packages** `architectural: skill-workflow` — The ri-08 gate infers semantic_code for .py tests and apis for *.schema.json; work-packages.yaml now declares the inferred sets and checkpoints ran for all three landed packages.
+
+### Alternatives Considered
+- Drop the cross-skill import and duplicate schema resolution inside simplify_review.py: rejected because Duplicates find_schema_path; declaring the dependency in install-manifest.json is the documented mechanism.
+- Implement Phase 3 concurrently against the current autopilot shape: rejected because Design D10 / task 3.0: the dependency is rewriting the same enumerations; a rebase fight was the risk the plan chose to avoid.
+
+### Trade-offs
+- Accepted A partial implementation on the branch (Phases 1, 2, 4) over Waiting to land anything until Phase 3 unblocks because The landed packages are additive and independently valuable; every commit on the branch is green.
+
+### Open Questions
+- [ ] Open a PR now for Phases 1/2/4 with Phases 3/5/6 following in a second PR, or hold the branch until fix-autopilot-archetype-and-apply-outcome archives?
+- [ ] Should the bundled contract copy be removed at archive time in favor of an install-time projection from openspec/schemas?
+
+### Completed Work
+- wp-contracts: tasks 1.1-1.4 (a5b9578) - contract test, enum identity test, enum additions in all five copies
+- wp-review-diagnostic: tasks 4.1-4.3 (7d5e6e6) - checklist, finding types, characterization + content tests
+- wp-simplify-skill: tasks 2.1-2.5 (d29f0eb) - simplify_review.py, bundled schema, Roles restructure, invariants
+- Integration fix: cross_skill_dependencies declaration (715fbc9); context checkpoints for all three packages; change-context rows 4, 6, 7, 8, 9, 13 filled
+
+### In Progress
+- wp-autopilot-phases (Phase 3, 13 tasks) - blocked at task 3.0 until fix-autopilot-archetype-and-apply-outcome archives
+- wp-docs-and-mirrors (Phase 5) and wp-integration (Phase 6) - depend on Phase 3
+
+### Next Steps
+- When the dependency archives: rebase, run task 3.0, then dispatch wp-autopilot-phases (tasks 3.1-3.12) with the Review/Apply role prompts now defined in simplify-implementation/SKILL.md.
+- Then wp-docs-and-mirrors (5.1-5.4, including install.sh resync) and wp-integration (6.1-6.3).
+- validate-feature spec/evidence phases will fail the task-drift gate until Phases 3-6 land; do not run them on this partial state.
+
+### Relevant Files
+- `skills/simplify-implementation/scripts/simplify_review.py` — validate + render-ledger helper
+- `skills/simplify-implementation/SKILL.md` — Review/Apply roles, role-tagged workflow, review artifact section
+- `skills/parallel-review-implementation/SKILL.md` — Test quality checklist
+- `openspec/schemas/review-findings.schema.json` — simplify / simplification / test_quality enum values
+- `openspec/changes/add-autopilot-simplify-phase/change-context.md` — traceability matrix, Phase 2 partial
+
+### Context
+Landed the three packages that do not depend on the autopilot rewrite: wp-contracts (artifact contract, enum values in all five schema copies), wp-simplify-skill (Review/Apply roles, simplify_review.py validate + render-ledger), wp-review-diagnostic (test-quality checklist). Executed at local-parallel tier because coordinator lock claims are refused for this session's key; sub-agents were dispatched per package. wp-autopilot-phases (Phase 3) is gated on fix-autopilot-archetype-and-apply-outcome archiving (still 54/59); Phases 5-6 depend on it.
+
