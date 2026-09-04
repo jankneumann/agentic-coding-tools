@@ -3,161 +3,162 @@
 ## Context
 
 `simplify-implementation` gained its prune gate, mock-aware assertion contract, and
-phase-ordered workflow (characterize → prune → simplify) on this branch. The
-`skill-workflow` spec still says the orchestrator SHALL NOT run it, a decision recorded on
-2026-08-04 as operator preference plus a Rule 0.5 argument, with no exit criteria. This
-change gives autopilot an opt-in `SIMPLIFY` phase and gives implementation review a
-read-only `test_quality` finding type, and it names the measurables a default-on decision
-will be judged on. Approach 1 (Gate 1): a first-class phase, an additive enum value.
+phase-ordered workflow on this branch. The `skill-workflow` spec still says the orchestrator
+SHALL NOT run it — a 2026-08-04 decision recorded as operator preference plus a Rule 0.5
+argument, with no exit criteria. Gate 1 chose a first-class opt-in phase. Gate 2 corrected
+the shape: the skill is really **two roles** — a reviewer that produces an artifact and an
+implementer that applies it — and the orchestrated path should dispatch them to different
+archetypes with the artifact as the contract between them.
 
-## D1 — One dynamic target on two edges: `SIMPLIFY_OR_VALIDATE`
+## D1 — Two phases, one dynamic target: `SIMPLIFY_OR_VALIDATE`
 
-**Decision.** `TRANSITIONS["IMPL_REVIEW"]["converged"]` and the `--no-review` resolution of
-`IMPL_REVIEW_OR_VALIDATE` (from `IMPL_ITERATE` `complete`) both become
-`SIMPLIFY_OR_VALIDATE`. `transition()` resolves it: `"SIMPLIFY" if state.simplify_enabled
-else "VALIDATE"`. `TRANSITIONS["SIMPLIFY"] = {"complete": "VALIDATE", "skipped": "VALIDATE",
-"failed": "ESCALATE"}`.
+**Decision.** `TRANSITIONS["IMPL_REVIEW"]["converged"]` and the `--no-review` branch of
+`IMPL_REVIEW_OR_VALIDATE` both become `SIMPLIFY_OR_VALIDATE`, resolved in `transition()` as
+`"SIMPLIFY_REVIEW" if state.simplify_enabled else "VALIDATE"`. Then:
 
-**Why.** This is exactly how `VAL_REVIEW_OR_SUBMIT` gates the optional VAL_REVIEW phase
-(`autopilot.py:199, 229-230`), so `test_phase_transitions.py`'s "single centralised table"
-guard keeps holding. Resolving inside `transition()` rather than inside the two handlers
-means the `--no-review` path cannot silently lose the phase — discovery decision 2.
+```
+TRANSITIONS["SIMPLIFY_REVIEW"] = {"findings": "SIMPLIFY_APPLY", "clean": "VALIDATE", "failed": "ESCALATE"}
+TRANSITIONS["SIMPLIFY_APPLY"]  = {"complete": "VALIDATE", "skipped": "VALIDATE", "failed": "ESCALATE"}
+```
 
-**Rejected.** A `simplify_enabled` branch inside `_phase_impl_review` and
-`_phase_impl_iterate`. Two call sites for one decision, and it moves routing out of the
-table the tests guard.
+**Why.** Same mechanism as `VAL_REVIEW_OR_SUBMIT`, so the "single centralised table" guard in
+`test_phase_transitions.py` keeps holding and the `--no-review` path cannot lose the phases.
+Two phases rather than one with two internal dispatches (Gate 2 option) because each role
+then has its own archetype resolution, handoff boundary, token budget, resume point, and
+outcome record — an interruption between review and apply resumes at apply, with the
+artifact already on disk.
 
-## D2 — Soft outcomes; `skipped` never leaves a red head
+**Rejected.** One `SIMPLIFY` phase with two dispatches (resume boundary hidden inside a
+phase); branching inside the two upstream handlers (two call sites for one decision).
 
-**Decision.** Outcomes are `complete | skipped | failed`. Every refusal the skill can
-produce (Rule of 500, unpinnable surface, `check_test_prune` exit 2, `check_test_contract`
-exit 2, `verify_behavior_preservation` exit 2, nothing to do) maps to `skipped` with a
-`skipped_reason` string. If any production edit exists when a refusal is raised, the phase
-runs `git reset --hard <B1>` in its worktree before reporting. `failed` is reserved for the
-dispatch itself throwing (adapter unavailable, worktree setup error) and goes to `ESCALATE`.
+## D2 — The review artifact is a review-findings document
 
-**Why.** The phase is polish. An opt-in polish step that escalates on "nothing to do" or
-"too big to do by hand" would be worse than not having it. The reset guarantees VALIDATE
-always sees either the pre-simplify head (`B1`) or a dual-run-proven head, never a partial
-refactor. `B1` is the right reset point rather than `B0` because characterization and
-prune commits are test-only, independently gated, and still valuable.
+**Decision.** `SIMPLIFY_REVIEW` (and the manual Review role) writes
+`openspec/changes/<id>/simplify-review.json`: a review-findings envelope with
+`review_type: simplify`, `baseline_b0`, `scope`, and findings of `type: simplification |
+test_quality`. Each finding carries `pattern` (catalog entry), `fence` (verdict, rationale,
+evidence), `coverage` (pinned; behaviors to characterize), `consumer` (present / specified,
+for seams), and for `test_quality` + `disposition: fix`, `prune` (reason, covered_by).
+Contract: `contracts/events/simplify-review.schema.json`, composed by `allOf` over the
+canonical schema.
 
-**Rejected.** Treating dual-run failure as `failed`. That would escalate a run whose
-production code was never wrong — the simplification was.
+**Why.** One schema family: the same `test_quality` finding that `IMPL_REVIEW` emits is what
+`SIMPLIFY_REVIEW` refines, so `IMPL_REVIEW` output seeds the simplify review and both flow
+through the existing checkpoint, consensus, and fix-callback machinery. The fence verdict,
+coverage decision, and consumer check are exactly the judgments the skill's steps 1–4
+already require; the artifact makes them reviewable instead of implicit.
 
-## D3 — `LoopState` schema v6
+**Conditional rules in the schema.** `disposition: fix` requires `fence.verdict: remove`;
+`test_quality` + `fix` requires `prune` and `file_path`; `prune.reason` in the
+coverage-required group requires a non-null `covered_by`. The invalid fixture exercises
+the last rule.
 
-**Decision.** Add `simplify_enabled: bool = False`, `simplify_baselines: dict | None =
-None` (`{"b0": sha, "b1": sha}`), `simplify_report_path: str | None = None`. Bump
-`LOOP_STATE_SCHEMA_VERSION` 5 → 6. `load_state` fills defaults for v5 files and rewrites
-the version on next save, following the v3/v4/v5 precedent documented in the dataclass
-docstring.
+**Rejected.** A bespoke `simplify-plan` format (second vocabulary for the same concept; no
+seeding from `IMPL_REVIEW`).
 
-**Why baselines in state.** The dual-run is only meaningful against `B1`, the tip after
-characterization and prune commits. On resume, recomputing `B1` from the current head is
-wrong if any refactor commit already landed. Storing both SHAs makes resume reconstruct
-the same comparison the un-interrupted run would have made.
+## D3 — The prune ledger is rendered, not written
 
-## D4 — Dispatch shape: standard 3-step protocol, `implementer` archetype
+**Decision.** New `scripts/simplify_review.py` with `validate <artifact>` (contract +
+canonical schema, exit 0/2/1) and `render-ledger <artifact> --out <path>` (emits
+`test-prune-ledger.md` from every `test_quality` finding with `disposition: fix`, in the
+exact format `check_test_prune.py` parses). The Apply role runs `render-ledger`, never
+edits the ledger by hand, and `check_test_prune.py` gates it as before.
 
-**Decision.** SIMPLIFY uses `runner.py build-dispatch --phase SIMPLIFY` → adapter →
-`runner.py apply-outcome`, like IMPL_ITERATE. `_PHASE_TASKS["SIMPLIFY"]` is a prompt that
-invokes the `simplify-implementation` skill over `git diff <feature-base>...HEAD`, in the
-phase worktree, and returns the outcome plus the evidence counters (D6). `archetypes.yaml`
-maps SIMPLIFY → `implementer`; `_PHASE_SIGNAL_KEYS["SIMPLIFY"] = ["loc_estimate"]` so the
-existing size-based escalation applies. `token_budget_check` gives SIMPLIFY the same budget
-as IMPL_ITERATE and the same fallback model.
+**Why.** The ledger is the reviewer's decision. Rendering it from the artifact means the
+implementer cannot "justify" a deletion the reviewer did not make, and the existing prune
+gate becomes a check that the implementer did what the reviewer said — which is the whole
+point of splitting the roles. A round-trip test (artifact → ledger → `check_test_prune`
+exit 0 on a synthetic repo) pins this.
 
-**Why.** No new dispatch concepts. The skill is the unit of behavior; the phase is a
-thin, resumable wrapper that records outcome and evidence. `implementer` rather than
-`architect` because the skill forbids design changes by construction.
+## D4 — Role boundaries in the skill
 
-## D5 — Artifact routing: explicit paths into the change directory
+**Decision.** `simplify-implementation/SKILL.md` gains a `## Roles` section. **Review**
+(steps 0–4) is read-only with respect to code, may write only the artifact, and ends by
+running `simplify_review.py validate`. **Apply** (steps 5–8) starts by validating the
+artifact, MUST NOT change any finding's `fence.verdict` or `disposition`, characterizes
+per `coverage.characterize`, renders the ledger, prunes, applies `simplification` findings
+with `disposition: fix` one pattern at a time, dual-runs, and reports. A manual run may do
+both roles in one session but must write the artifact between them. A finding the Apply
+role cannot land becomes `skipped` with a reason in the report; a verdict it disagrees
+with is raised to a human, not overwritten.
 
-**Decision.** The phase passes `--report openspec/changes/<id>/simplify-report.json` and
-uses `openspec/changes/<id>/test-prune-ledger.md` as the ledger path in every script
-invocation. `simplify_report_path` in `LoopState` records the report location.
+**Why.** Manual and orchestrated paths share one contract, so autopilot's phase prompts are
+"run the Review role" / "run the Apply role" rather than a second description of the
+workflow. The no-verdict-change rule is what keeps the reviewer's Chesterton's Fence
+decisions load-bearing.
 
-**Why.** `verify_behavior_preservation.py` defaults to a CWD-relative report, which is
-right for manual use and wrong for an orchestrated phase that must leave evidence where
-VALIDATE and the PR can find it. The scripts' defaults are left alone so manual
-`/simplify-implementation` runs and external consumers are unaffected.
+## D5 — Soft outcomes; refusals never leave a red head
 
-**Rejected.** Changing the script default to the change directory. That couples a
-portable skill to this repo's OpenSpec layout.
+**Decision.** `SIMPLIFY_REVIEW`: `findings` when at least one finding has
+`disposition: fix`; `clean` otherwise, including Rule of 500 exceeded at review scope,
+nothing to do, or an artifact that fails `validate` (reason recorded as
+`skipped_reason: invalid_review_artifact` so a broken reviewer is visible, not silent);
+`failed` only for dispatch failure. `SIMPLIFY_APPLY`: `skipped` with a reason for
+unpinnable surface, `check_test_prune` / `check_test_contract` / dual-run exit 2, with
+`git reset --hard <B1>` first if any production edit exists; `failed` only for dispatch
+failure. Both `clean` and `skipped` transition to `VALIDATE`.
 
-## D6 — Evidence counters are the exit criteria the 2026-08-04 decision lacked
+**Why.** Opt-in polish must not escalate a run whose production code was never wrong.
+`B1` is the reset point because characterization and prune commits are test-only,
+independently gated, and still valuable.
 
-**Decision.** Every SIMPLIFY `phase_history` entry and `simplify-report.json` carry
-`lines_removed`, `files_touched`, `tests_pruned`, `seams_removed`, `dual_run_passed`,
-`skipped_reason`. Sources: `git diff --shortstat <B1>..HEAD` for the first two;
-`check_test_prune.py --json` `removed_tests` length for `tests_pruned`;
-`verify_behavior_preservation.py` exit code for `dual_run_passed`; `seams_removed` is
-self-reported by the phase agent in its outcome payload (an integer ≥ 0, validated by
-`apply-outcome`).
+## D6 — `LoopState` schema v6
 
-**Why.** A flag → measure → default-on path needs numbers, and `dual_run_passed=false`
-frequency is the one that would keep the phase opt-in. `seams_removed` being self-reported
-is a known weakness; a repo-wide reference-search diff is the mechanical replacement and is
-out of scope here.
+`simplify_enabled: bool = False`, `simplify_baselines: dict | None` (`{b0, b1}`),
+`simplify_review_path: str | None`, `simplify_report_path: str | None`.
+`LOOP_STATE_SCHEMA_VERSION` 5 → 6; v5 files load at defaults per the v3–v5 precedent.
+Baselines and the artifact path are what make resume at `SIMPLIFY_APPLY` reconstruct the
+same dual-run the uninterrupted run would have made.
 
-## D7 — `type: test_quality`, `criticality: low`, no new axis
+## D7 — Archetypes, signals, budgets
 
-**Decision.** Add `test_quality` to the `type` enum in the canonical review-findings
-schema, its install mirror, `consensus-report.schema.json` (both copies), and
-`vendor_review._FALLBACK_ENUMS`. Test-quality findings carry `axis: readability`
-(source-mirroring, change-detector, duplicative, accessor-only, and all seam patterns) or
-`axis: correctness` (self-mocking, vacuous). They are emitted at `criticality: low`.
+`SIMPLIFY_REVIEW` → `reviewer`, signals `files_changed`, `lines_changed`, worktree
+isolation "checkpoint-writing" like `IMPL_REVIEW` (writes only the artifact); budget ≤
+`IMPL_REVIEW`. `SIMPLIFY_APPLY` → `implementer`, signals `findings_count`, `loc_estimate`,
+write-capable; budget ≤ `IMPL_ITERATE`. `_PHASE_TO_REVIEW_TYPE["SIMPLIFY_REVIEW"] =
+"simplify"`. Both use the standard 3-step dispatch protocol.
 
-**Why.** `_is_blocking` keys on `criticality` only, so `low` makes these findings visible
-to the targeted fix path without ever blocking convergence on their own — the reviewer
-flags, the implementer decides. `type` is the precedented, additive extension point
-(`behavioral_failure`); `axis` participates in cross-vendor consensus matching and would
-ripple into the synthesizer and both review skills' 8-axis prose. Discovery decision 1.
+## D8 — Artifact routing and evidence
 
-**Rejected.** A ninth axis; reusing `style` with a description prefix (unmeasurable later).
+Explicit paths into the change directory: `simplify-review.json`,
+`test-prune-ledger.md`, `simplify-report.json` (the script's CWD-relative default stays
+for manual use). Evidence on every SIMPLIFY outcome, in `phase_history` and the report:
+`findings_reviewed`, `findings_applied`, `findings_kept`, `lines_removed`,
+`files_touched`, `tests_pruned`, `seams_removed`, `dual_run_passed`, `skipped_reason`.
+The first three come from the artifact; the next four from `git diff --shortstat`,
+`check_test_prune --json`, and the count of applied seam-pattern findings — so
+`seams_removed` is no longer self-reported, which the Gate 1 plan had flagged as a
+weakness. `dual_run_passed=false` frequency is the number that keeps the phases opt-in.
 
-## D8 — Sequencing: implement after `fix-autopilot-archetype-and-apply-outcome` archives
+## D9 — `type: test_quality` / `simplification`, `review_type: simplify`, no new axis
 
-**Decision.** Task 0.1 gates the implementation: confirm
-`openspec/changes/archive/*-fix-autopilot-archetype-and-apply-outcome/` exists, rebase,
-re-read `TRANSITIONS`, `LoopState`, and the `apply-outcome` contract, and adjust the Phase 1
-anchors before writing code. Planning artifacts are written now against the current shape.
+Additive enum values in the canonical schema, install mirror, both `consensus-report`
+copies, and `vendor_review._FALLBACK_ENUMS`. `criticality: low` on every simplify finding,
+so `_is_blocking` (which keys on criticality) never blocks convergence on them. `axis` is
+unchanged; `readability` for structure-coupled patterns, `correctness` for vacuous or
+self-mocking tests, `architecture` for kept seams. `consensus-report` also gains
+`behavioral_failure` where missing, because the new identity scenario covers that file.
 
-**Why.** That change is editing the same ~25 enumerations this one adds to, and is 54/59
-tasks done. Adding SIMPLIFY once to the landed shape is one edit; adding it concurrently is
-a rebase fight across every table. Discovery decision 3.
+## D10 — Sequencing and drift
 
-## D9 — Pre-existing drift is recorded, not fixed here
+`wp-autopilot-phases` starts only after `fix-autopilot-archetype-and-apply-outcome` is
+archived (task 0.1); the other packages do not wait. Drift recorded, not fixed:
+`convergence-state.schema.json` phase enums missing `GATEKEEPER`/`PLAN_ITERATE`/`IMPL_ITERATE`;
+spec "7 dispatching phases" vs SKILL.md "8" (this delta says 9 by adding two, leaving the
+GATEKEEPER gap); `parallel-review-implementation` Finding Types list missing
+`behavioral_failure` (added alongside the new values in 4.2); `spec.md` "5-axis" wording.
 
-The following are adjacent to this change and deliberately untouched; each is a one-line
-follow-up:
+## D11 — Packages
 
-- `convergence-state.schema.json` phase enums omit `GATEKEEPER`, `PLAN_ITERATE`,
-  `IMPL_ITERATE` and the v3–v5 `LoopState` fields. SIMPLIFY is added to the enum as-is.
-- `spec.md` "Per-Phase Archetype Resolution" lists 7 dispatching phases while SKILL.md says
-  8 (GATEKEEPER). This delta changes 7 → 8 by adding SIMPLIFY; the GATEKEEPER gap remains.
-- `consensus-report.schema.json` `type` enum lacks `behavioral_failure`. This change adds
-  `test_quality` to it and, since the identity test now covers this file, adds
-  `behavioral_failure` too so the test can pass — the one drift item fixed here, because
-  the new identity scenario cannot be satisfied otherwise.
-- `parallel-review-implementation` Finding Types list omits `behavioral_failure`; the
-  checklist edit in 2.4 adds both values to that list for the same reason.
-- `spec.md:4339` "5-axis" wording.
-
-## D10 — Two implementation packages with disjoint write scopes
-
-`wp-autopilot-phase` owns `skills/autopilot/**`, the coordinator archetype config, and the
-convergence-state schemas. `wp-review-diagnostic` owns the review-findings and
-consensus-report schemas, `vendor_review.py`, and `parallel-review-implementation/SKILL.md`.
-The single shared concern — a convergence test proving low-criticality `test_quality`
-findings do not block — lives under `skills/tests/parallel-infrastructure/`, allocated to `wp-review-diagnostic`,
-so the two write scopes share no path prefix. `wp-docs-and-mirrors` follows both and touches only
-prose in other skills plus `docs/`; `wp-integration` closes.
+`wp-contracts` (root: artifact schema, fixtures, every enum edit) → in parallel
+`wp-simplify-skill` (`skills/simplify-implementation/**`), `wp-autopilot-phases`
+(`skills/autopilot/**`, coordinator archetype config, convergence-state schemas), and
+`wp-review-diagnostic` (`parallel-review-implementation/SKILL.md`, its tests, one
+convergence test under `skills/tests/parallel-infrastructure/`) → `wp-docs-and-mirrors`
+→ `wp-integration`. Write scopes share no path prefix.
 
 ## Task sizing
 
-No task is L or XL. The two M-sized tasks (1.4 state machine + flag; 1.7 phase handler;
-1.8 enumeration registration) are each a single outcome in one module group. Titles were
-checked against the "and" heuristic; 1.8's "every enumeration" is one outcome (parity),
-guarded by the structural test in 1.9.
+No task is L or XL. The M-sized tasks (3.4 edge + state + flag; 3.9 apply handler; 3.10
+enumeration registration; 2.4 skill restructure) are each one outcome in one module
+group. Titles were checked against the "and" heuristic.

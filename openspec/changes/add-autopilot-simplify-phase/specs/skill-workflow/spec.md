@@ -4,7 +4,7 @@
 
 ### Requirement: State Machine Phases
 
-The state machine SHALL support phases: INIT, PLAN, PLAN_REVIEW, PLAN_FIX, IMPLEMENT, IMPL_REVIEW, IMPL_FIX, SIMPLIFY (opt-in), VALIDATE, VAL_REVIEW (optional), VAL_FIX, SUBMIT_PR, DONE, ESCALATE. The state machine SHALL persist its state to `loop-state.json` after every state transition, enabling resumability.
+The state machine SHALL support phases: INIT, PLAN, PLAN_REVIEW, PLAN_FIX, IMPLEMENT, IMPL_REVIEW, IMPL_FIX, SIMPLIFY_REVIEW (opt-in), SIMPLIFY_APPLY (opt-in), VALIDATE, VAL_REVIEW (optional), VAL_FIX, SUBMIT_PR, DONE, ESCALATE. The state machine SHALL persist its state to `loop-state.json` after every state transition, enabling resumability.
 
 #### Scenario: Normal phase progression (simple feature)
 
@@ -30,24 +30,30 @@ The state machine SHALL support phases: INIT, PLAN, PLAN_REVIEW, PLAN_FIX, IMPLE
 - **WHEN** validation passes
 - **THEN** phases SHALL include VAL_REVIEW before SUBMIT_PR
 
-#### Scenario: Opt-in SIMPLIFY phase after implementation review
+#### Scenario: Opt-in simplify phases after implementation review
 
 - **GIVEN** autopilot was invoked with `--simplify`
-- **WHEN** IMPL_REVIEW converges
-- **THEN** phases SHALL progress: IMPL_REVIEW -> SIMPLIFY -> VALIDATE
-- **AND** VALIDATE SHALL run against the head produced by SIMPLIFY
+- **WHEN** IMPL_REVIEW converges and the simplify review finds at least one applicable finding
+- **THEN** phases SHALL progress: IMPL_REVIEW -> SIMPLIFY_REVIEW -> SIMPLIFY_APPLY -> VALIDATE
+- **AND** VALIDATE SHALL run against the head produced by SIMPLIFY_APPLY
 
-#### Scenario: SIMPLIFY still runs when review is skipped
+#### Scenario: Clean simplify review skips apply
+
+- **GIVEN** autopilot was invoked with `--simplify`
+- **WHEN** SIMPLIFY_REVIEW finds no finding with `disposition: fix`
+- **THEN** phases SHALL progress: SIMPLIFY_REVIEW -> VALIDATE
+
+#### Scenario: Simplify phases still run when review is skipped
 
 - **GIVEN** autopilot was invoked with both `--simplify` and `--no-review`
 - **WHEN** IMPL_ITERATE completes
-- **THEN** phases SHALL progress: IMPL_ITERATE -> SIMPLIFY -> VALIDATE
+- **THEN** the next phase SHALL be SIMPLIFY_REVIEW
 
 #### Scenario: Default trace is unchanged without the flag
 
 - **GIVEN** autopilot was invoked without `--simplify`
 - **WHEN** the loop runs to completion
-- **THEN** `phase_history` SHALL contain no SIMPLIFY entry
+- **THEN** `phase_history` SHALL contain no SIMPLIFY_REVIEW or SIMPLIFY_APPLY entry
 - **AND** the sequence of phases and outcomes SHALL equal the pre-change sequence for the same inputs
 
 ### Requirement: Per-Phase Archetype Resolution in Autopilot
@@ -62,9 +68,9 @@ The resolution SHALL:
 4. Resolve a logical archetype and model tier to a provider-specific model identifier for the selected provider.
 5. Record the resolved archetype name in `state_dict["_resolved_archetype"]` for downstream use by `LoopState.phase_archetype`.
 
-The 14 non-terminal phases SHALL be: `INIT`, `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `IMPL_FIX`, `SIMPLIFY`, `VALIDATE`, `VAL_REVIEW`, `VAL_FIX`, `SUBMIT_PR`. `SIMPLIFY` is opt-in and resolves to the `implementer` archetype by default.
+The 15 non-terminal phases SHALL be: `INIT`, `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `IMPL_FIX`, `SIMPLIFY_REVIEW`, `SIMPLIFY_APPLY`, `VALIDATE`, `VAL_REVIEW`, `VAL_FIX`, `SUBMIT_PR`. `SIMPLIFY_REVIEW` and `SIMPLIFY_APPLY` are opt-in and resolve by default to the `reviewer` and `implementer` archetypes respectively.
 
-The `skills/autopilot/SKILL.md` orchestration prose SHALL dispatch the following 8 phases through the provider-neutral dispatch adapter when an adapter is available: `PLAN_ITERATE`, `PLAN_REVIEW`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `SIMPLIFY` (when enabled), `VALIDATE`, `VAL_REVIEW` (when enabled). For these phases the dispatch SHALL pass the provider-specific model ID and SHALL fold the resolved `system_prompt` into the prompt text using the fixed separator `\n\n---\n\n`.
+The `skills/autopilot/SKILL.md` orchestration prose SHALL dispatch the following 9 phases through the provider-neutral dispatch adapter when an adapter is available: `PLAN_ITERATE`, `PLAN_REVIEW`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `SIMPLIFY_REVIEW` (when enabled), `SIMPLIFY_APPLY` (when enabled), `VALIDATE`, `VAL_REVIEW` (when enabled). For these phases the dispatch SHALL pass the provider-specific model ID and SHALL fold the resolved `system_prompt` into the prompt text using the fixed separator `\n\n---\n\n`.
 
 State-only phases (`INIT`, `PLAN`, `SUBMIT_PR`) SHALL still record `LoopState.phase_archetype` for their resolved archetype via a state-only resolver, even though they do not dispatch a phase sub-agent.
 
@@ -110,13 +116,15 @@ Convergence-loop-driven phases (`PLAN_FIX`, `IMPL_FIX`, `VAL_FIX`) SHALL inherit
 - **THEN** the provider-neutral adapter MAY invoke the existing Claude harness `Agent(...)` surface internally
 - **AND** the public SKILL.md contract SHALL still describe the provider-neutral adapter rather than requiring non-Claude providers to expose `Agent(...)`
 
-#### Scenario: SIMPLIFY phase resolves an archetype and is dispatched
+#### Scenario: Simplify phases resolve distinct archetypes
 
 - **GIVEN** autopilot is running with `--simplify` under any configured provider
-- **WHEN** autopilot enters the `SIMPLIFY` phase
-- **THEN** `phase_mapping.SIMPLIFY` SHALL resolve (default archetype `implementer`)
-- **AND** the phase SHALL be dispatched through the provider-neutral adapter with the resolved model
-- **AND** `LoopState.phase_archetype` SHALL record the resolved archetype for the SIMPLIFY entry
+- **WHEN** autopilot enters `SIMPLIFY_REVIEW`
+- **THEN** `phase_mapping.SIMPLIFY_REVIEW` SHALL resolve (default archetype `reviewer`)
+- **WHEN** autopilot enters `SIMPLIFY_APPLY`
+- **THEN** `phase_mapping.SIMPLIFY_APPLY` SHALL resolve (default archetype `implementer`)
+- **AND** each phase SHALL be dispatched through the provider-neutral adapter with its own resolved model
+- **AND** `LoopState.phase_archetype` SHALL record each resolution
 
 ### Requirement: Autopilot Write-Capable Phases Use Worktree Isolation
 
@@ -137,9 +145,15 @@ local CLI execution.
 - **THEN** the phase MUST run in a managed worktree or isolated harness checkout
 - **AND** implementation artifacts MUST land on the feature branch
 
-#### Scenario: Simplify phase writes artifacts
+#### Scenario: Simplify review writes only the artifact
 
-- **WHEN** autopilot runs `SIMPLIFY`
+- **WHEN** autopilot runs `SIMPLIFY_REVIEW`
+- **THEN** the phase MUST run in a managed worktree or isolated harness checkout
+- **AND** the only file it writes MUST be `openspec/changes/<change-id>/simplify-review.json`
+
+#### Scenario: Simplify apply writes commits
+
+- **WHEN** autopilot runs `SIMPLIFY_APPLY`
 - **THEN** the phase MUST run in a managed worktree or isolated harness checkout
 - **AND** its `test(...)` and `refactor(...)` commits MUST land on the feature branch
 
@@ -161,7 +175,7 @@ The `simplify-implementation` skill SHALL preserve observable behavior of the co
 
 Simplification commits SHALL NOT modify test expectation bodies (`assert` / `expect` arguments or equivalent) to make the suite pass. If expectations must change for the suite to pass, the simplification SHALL be reverted and re-evaluated — the change is treated as a behavior change outside this skill's scope.
 
-The skill SHALL perform **dual-run verification**: the selected test suite SHALL pass on the pre-simplify baseline tip and on the post-simplify tip. Primary invoke remains `/simplify-implementation`; invocation SHALL NOT be default-on in autopilot. An explicit `--simplify` flag on `/autopilot` is an operator request and SHALL enable the opt-in `SIMPLIFY` phase.
+The skill SHALL perform **dual-run verification**: the selected test suite SHALL pass on the pre-simplify baseline tip and on the post-simplify tip. Primary invoke remains `/simplify-implementation`; invocation SHALL NOT be default-on in autopilot. An explicit `--simplify` flag on `/autopilot` is an operator request and SHALL enable the opt-in `SIMPLIFY_REVIEW` and `SIMPLIFY_APPLY` phases.
 
 #### Scenario: Unpinned surface blocks production edits
 
@@ -194,8 +208,8 @@ The skill SHALL perform **dual-run verification**: the selected test suite SHALL
 
 - **GIVEN** an autopilot run invoked with `--simplify`
 - **WHEN** implementation review converges (or IMPL_ITERATE completes under `--no-review`)
-- **THEN** the orchestrator SHALL run the `SIMPLIFY` phase
-- **AND** the phase SHALL honor this requirement's coverage gate, assertion contract, and dual-run unchanged
+- **THEN** the orchestrator SHALL run `SIMPLIFY_REVIEW`
+- **AND** the phases SHALL honor this requirement's coverage gate, assertion contract, and dual-run unchanged
 
 ### Requirement: Optional Post-Implementation Simplify Polish
 
@@ -227,14 +241,16 @@ The schema SHALL define:
   `compatibility`
 - A `severity` field on each finding with enum values: `critical`, `nit`, `optional`,
   `fyi`, `none`
-- A `type` enum that includes `test_quality` for read-only findings about tests that
-  assert implementation rather than behavior, or production seams that exist only for
-  tests (see the `simplify-implementation` Delete catalog and seam catalog)
+- A `review_type` enum that includes `simplify`, for the simplify review artifact
+- A `type` enum that includes `test_quality` (a test that asserts implementation rather
+  than behavior, or a production seam that exists only for tests) and `simplification`
+  (a behavior-preserving simplification candidate from the `simplify-implementation`
+  catalog)
 
 Both fields SHALL be required for new findings. Findings produced before this change
 SHALL be migratable by setting `axis: "correctness"` and `severity: "fyi"` as defaults.
 All copies of the schema (canonical, install-assets mirror, `agents.yaml` inline) SHALL
-carry the identical enum. The `type` enum SHALL also be identical in
+carry the identical enum. The `type` and `review_type` enums SHALL also be identical in
 `openspec/schemas/consensus-report.schema.json` and in the hand-maintained fallback enums of
 `skills/merge-pull-requests/scripts/vendor_review.py`.
 
@@ -267,129 +283,245 @@ is validated against the schema
 copy are compared
 **THEN** their `axis` and `severity` enums SHALL be identical
 
-#### Scenario: test_quality finding validates
+#### Scenario: Simplify findings validate
 
-**WHEN** a finding with `type: "test_quality"`, `axis: "readability"`, `criticality: "low"`
-is validated against the schema
+**WHEN** a finding with `type: "test_quality"` or `type: "simplification"`, `axis: "readability"`,
+`criticality: "low"` is validated against the schema inside a `review_type: "simplify"` envelope
 **THEN** validation SHALL pass
 
-#### Scenario: type enum identical across all copies
+#### Scenario: type and review_type enums identical across all copies
 
 **WHEN** the canonical schema, the install-assets mirror, the consensus-report schema,
 and `vendor_review.py`'s fallback enums are compared
-**THEN** their `type` enums SHALL be identical and SHALL include `test_quality`
+**THEN** their `type` and `review_type` enums SHALL be identical
+**AND** SHALL include `test_quality`, `simplification`, and `simplify` respectively
+
+### Requirement: Simplify Mechanical Helper Scripts
+
+The `simplify-implementation` skill SHALL ship optional helper scripts under `skills/simplify-implementation/scripts/`:
+
+| Script | Behavior |
+|---|---|
+| `check_scope.py` | Compares a git diff range to the Rule of 500 / 5-file limit; exits non-zero when exceeded unless `--allow-codemod` is set |
+| `check_test_contract.py` | Examines a git diff for changes to assertion/expect bodies in test paths; exits non-zero when expectation bodies change |
+| `verify_behavior_preservation.py` | Runs a configured test command at a baseline ref and at HEAD (or records dual-run results); writes a machine-readable report |
+| `check_test_prune.py` | Verifies a prune range is test-only and every removed test is justified in the prune ledger; exits non-zero otherwise |
+| `simplify_review.py` | `validate` checks a simplify review artifact against the contract and the canonical review-findings schema; `render-ledger` emits `test-prune-ledger.md` from the artifact's `test_quality` findings |
+
+Scripts SHALL be invocable via `<skill-base-dir>/scripts/...` and MUST NOT require agent-coordinator. The skill remains valid when scripts are unavailable; Verification SHOULD recommend running them when git history is present.
+
+#### Scenario: Scope check fails oversized manual diff
+
+- **GIVEN** a diff touching more than 5 files or more than 500 lines
+- **WHEN** `check_scope.py` runs without `--allow-codemod`
+- **THEN** the process exits non-zero
+- **AND** the message references Rule of 500
+
+#### Scenario: Test contract check fails expectation edits
+
+- **GIVEN** a diff that changes `assert result == 1` to `assert result == 2` in a test file
+- **WHEN** `check_test_contract.py` runs on that diff
+- **THEN** the process exits non-zero
+
+#### Scenario: Ledger rendered from the artifact is accepted by the prune gate
+
+- **GIVEN** a valid simplify review artifact with a `test_quality` finding of `disposition: fix`
+- **AND** a prune range that removes exactly that test
+- **WHEN** `simplify_review.py render-ledger` writes the ledger and `check_test_prune.py` runs with it
+- **THEN** `check_test_prune.py` SHALL exit 0
+
+#### Scenario: Invalid artifact is rejected
+
+- **GIVEN** an artifact whose `change-detector` prune has `covered_by: null`
+- **WHEN** `simplify_review.py validate` runs
+- **THEN** the process SHALL exit non-zero and name the failing finding
 
 ## ADDED Requirements
 
-### Requirement: Autopilot SIMPLIFY Phase
+### Requirement: Simplify Skill Review and Apply Roles
 
-`/autopilot` SHALL accept a `--simplify` flag. When present, the state machine SHALL run a
-`SIMPLIFY` phase after implementation has stabilized and before `VALIDATE`: after
-`IMPL_REVIEW` converges, or after `IMPL_ITERATE` completes when `--no-review` skipped
-review. Both edges SHALL resolve through one dynamic transition target
-(`SIMPLIFY_OR_VALIDATE`) so that the flag's absence leaves the existing edges unchanged.
+The `simplify-implementation` skill SHALL be structured as two roles sharing one artifact.
+The **Review role** (workflow steps 0–4: scope, Chesterton's Fence, coverage-gate
+decision, candidate list, Rule of 500) SHALL be read-only with respect to production and
+test code, SHALL write only the simplify review artifact, and SHALL end by validating it.
+The **Apply role** (steps 5–8) SHALL begin by validating the artifact, SHALL characterize
+per each finding's `coverage.characterize`, SHALL render the prune ledger from the artifact
+rather than writing it by hand, SHALL apply only findings with `disposition: fix`, and SHALL
+NOT change any finding's `fence.verdict` or `disposition`. A finding the Apply role cannot
+land SHALL be reported as skipped with a reason; a verdict it disagrees with SHALL be raised
+to a human rather than overwritten. A manual invocation MAY perform both roles in one
+session but SHALL write the artifact between them.
 
-The phase SHALL run the `simplify-implementation` skill over the change's diff in a managed
-worktree, honoring that skill's phase order (characterize → prune → simplify) and its gates
-(coverage gate, `check_test_prune.py`, `check_test_contract.py`, `check_scope.py`,
-`verify_behavior_preservation.py`).
+#### Scenario: Review role writes nothing but the artifact
 
-The phase SHALL be **soft**. Its outcomes SHALL be `complete`, `skipped`, and `failed`:
+- **WHEN** the Review role completes on a surface
+- **THEN** `git status` SHALL show no change outside `simplify-review.json`
+- **AND** `simplify_review.py validate` on that file SHALL exit 0
 
-- `skipped` SHALL be reported, with a `skipped_reason`, when the Rule of 500 is exceeded,
-  the surface cannot be pinned, the prune gate exits non-zero, the assertion contract
-  exits non-zero, the dual-run exits non-zero, or there is nothing to simplify. On
-  `skipped` after any production edit, the phase SHALL reset the branch to the post-prune
-  baseline `B1` before transitioning. `skipped` SHALL transition to `VALIDATE`.
-- `failed` SHALL be reserved for failure of the dispatch itself and SHALL transition to
-  `ESCALATE`.
-- `complete` SHALL transition to `VALIDATE`.
+#### Scenario: Apply role cannot promote a kept fence
 
-Commits produced by the phase SHALL be split by kind — `test(<scope>): pin …`,
-`test(<scope>): remove …`, `refactor(<scope>): …` — and SHALL NOT be squashed together
-by the phase.
+- **GIVEN** an artifact finding with `fence.verdict: keep` and `disposition: accept`
+- **WHEN** the Apply role runs
+- **THEN** the construct SHALL be unchanged on HEAD
+- **AND** the report SHALL list the finding under `findings_kept`
 
-`LoopState` SHALL gain `simplify_enabled: bool` (default `false`), `simplify_baselines`
-(`{"b0": sha, "b1": sha}` or `null`), and `simplify_report_path` (`str` or `null`), bumping
-`LOOP_STATE_SCHEMA_VERSION` to 6. Files written at schema version 5 SHALL load with the new
-fields at their defaults and no other field changed.
+#### Scenario: Skill documents both roles
 
-The phase SHALL write `simplify-report.json` to `openspec/changes/<change-id>/` (passing
-`--report` explicitly) and, whenever any test is removed, the prune ledger to
-`openspec/changes/<change-id>/test-prune-ledger.md`.
+- **WHEN** `simplify-implementation/SKILL.md` is read
+- **THEN** it SHALL contain a Roles section defining Review and Apply, in that order
+- **AND** the Workflow section SHALL mark which steps belong to which role
 
-`SIMPLIFY` SHALL be registered in every phase enumeration that gates dispatch or validation:
-`TRANSITIONS`, `_HANDOFF_BOUNDARIES`, `phase_agent` worktree/signal/task tables,
-`token_budget_check` dispatching phases, `audit_log_validator` phase model,
-`agents_config.WRITE_CAPABLE_PHASES` and `NON_TERMINAL_PHASES`, `archetypes.yaml`
-`phase_mapping`, and both copies of `convergence-state.schema.json`.
+### Requirement: Simplify Review Artifact
 
-#### Scenario: Flag enables the phase
+The simplify review artifact SHALL be a review-findings document with `review_type: simplify`
+conforming to `contracts/events/simplify-review.schema.json` (composed over the canonical
+review-findings schema). The envelope SHALL carry `baseline_b0` and `scope`; each finding
+SHALL carry `type` (`simplification` | `test_quality`), `pattern` (a catalog entry),
+`fence` (verdict, rationale, evidence), `criticality: low`, and `disposition`; `test_quality`
+findings with `disposition: fix` SHALL carry `prune.reason` and `file_path`, with a non-null
+`prune.covered_by` whenever the reason is `change-detector`, `duplicative`, or
+`unreviewed-snapshot`; seam findings SHALL carry `consumer.present` and
+`consumer.specified`, and a non-empty value in either SHALL force `fence.verdict: keep`.
+In autopilot the artifact SHALL live at `openspec/changes/<change-id>/simplify-review.json`.
+
+#### Scenario: Valid fixture passes both schemas
+
+- **WHEN** `contracts/fixtures/simplify-review.valid.json` is validated against the contract and the canonical review-findings schema
+- **THEN** both validations SHALL pass
+
+#### Scenario: Coverage-required prune without covered_by is rejected
+
+- **WHEN** `contracts/fixtures/simplify-review.invalid.json` is validated against the contract
+- **THEN** validation SHALL fail on the finding whose `prune.reason` is `change-detector` and `prune.covered_by` is null
+
+#### Scenario: Specified consumer forces keep
+
+- **GIVEN** a seam finding with `consumer.specified: ["<active-change-id>"]`
+- **WHEN** the artifact is validated
+- **THEN** `fence.verdict` SHALL be `keep` and `disposition` SHALL NOT be `fix`
+
+### Requirement: Autopilot SIMPLIFY_REVIEW Phase
+
+`/autopilot` SHALL accept a `--simplify` flag. When present, after `IMPL_REVIEW` converges,
+or after `IMPL_ITERATE` completes when `--no-review` skipped review, the state machine SHALL
+run `SIMPLIFY_REVIEW`. Both edges SHALL resolve through one dynamic target
+(`SIMPLIFY_OR_VALIDATE`) so the flag's absence leaves the existing edges unchanged.
+
+The phase SHALL dispatch the Review role of `simplify-implementation` over the change's
+diff to the `reviewer` archetype, in a managed worktree, writing only
+`openspec/changes/<change-id>/simplify-review.json`. When `IMPL_REVIEW` ran, its `test_quality`
+findings SHALL be supplied to the reviewer as seeds. `LoopState.simplify_review_path` SHALL
+record the artifact path and `simplify_baselines.b0` the pre-simplify tip.
+
+Outcomes SHALL be `findings` (at least one finding with `disposition: fix`) → `SIMPLIFY_APPLY`;
+`clean` → `VALIDATE`, with a recorded `skipped_reason` when the review was refused (Rule of
+500 exceeded at review scope, nothing to do) or the artifact failed validation
+(`invalid_review_artifact`); `failed` (dispatch failure) → `ESCALATE`.
+
+#### Scenario: Flag enables the review phase
 
 - **WHEN** `/autopilot <change-id> --simplify` is invoked
 - **THEN** `loop-state.json` SHALL record `simplify_enabled: true`
-- **AND** the transition from IMPL_REVIEW `converged` SHALL resolve to `SIMPLIFY`
+- **AND** the transition from IMPL_REVIEW `converged` SHALL resolve to `SIMPLIFY_REVIEW`
 
-#### Scenario: Flag absent leaves the edge unchanged
+#### Scenario: Flag absent leaves the edges unchanged
 
 - **WHEN** `/autopilot <change-id>` is invoked without `--simplify`
 - **THEN** the transition from IMPL_REVIEW `converged` SHALL resolve to `VALIDATE`
 - **AND** the transition from IMPL_ITERATE `complete` under `--no-review` SHALL resolve to `VALIDATE`
 
-#### Scenario: Rule of 500 exceeded is a skip, not a failure
+#### Scenario: Invalid artifact is visible, not fatal
 
-- **GIVEN** `check_scope.py` exits 2 for the change's diff
-- **WHEN** the SIMPLIFY phase runs
-- **THEN** the phase outcome SHALL be `skipped` with `skipped_reason` naming the Rule of 500
+- **GIVEN** the reviewer wrote an artifact that fails `simplify_review.py validate`
+- **WHEN** SIMPLIFY_REVIEW concludes
+- **THEN** the outcome SHALL be `clean` with `skipped_reason: invalid_review_artifact`
 - **AND** the next phase SHALL be `VALIDATE`
-- **AND** no `refactor(...)` commit SHALL exist on the feature branch from this phase
+
+#### Scenario: IMPL_REVIEW test-quality findings seed the review
+
+- **GIVEN** IMPL_REVIEW converged with two `test_quality` findings
+- **WHEN** SIMPLIFY_REVIEW is dispatched
+- **THEN** the dispatch prompt SHALL include those findings as seeds
+- **AND** the artifact MAY refine, keep, or drop each with a recorded fence verdict
+
+### Requirement: Autopilot SIMPLIFY_APPLY Phase
+
+`SIMPLIFY_APPLY` SHALL dispatch the Apply role of `simplify-implementation` to the
+`implementer` archetype in a managed worktree, consuming `simplify_review_path`. It SHALL
+honor the skill's gates (coverage gate, `check_test_prune.py` on the rendered ledger,
+`check_test_contract.py`, `check_scope.py`, `verify_behavior_preservation.py`) and SHALL
+record `simplify_baselines.b1` (the tip after characterization and prune commits) before the
+first production edit.
+
+Outcomes SHALL be `complete` → `VALIDATE`; `skipped` → `VALIDATE`, with a `skipped_reason`,
+for an unpinnable surface, a prune-gate, assertion-contract, or dual-run exit 2, or nothing
+applicable, and with the feature branch reset to `B1` first whenever any production edit
+exists; `failed` (dispatch failure) → `ESCALATE`. Commits SHALL be split by kind
+(`test(<scope>): pin …`, `test(<scope>): remove …`, `refactor(<scope>): …`).
+`simplify-report.json` SHALL be written to `openspec/changes/<change-id>/` via an explicit
+`--report`, and `test-prune-ledger.md` SHALL be rendered there from the artifact.
+
+`LoopState` SHALL gain `simplify_enabled: bool` (default `false`), `simplify_baselines`
+(`{"b0": sha, "b1": sha}` or `null`), `simplify_review_path`, and `simplify_report_path`
+(`str` or `null`), bumping `LOOP_STATE_SCHEMA_VERSION` to 6. Files written at version 5 SHALL
+load with the new fields at their defaults and no other field changed.
+
+Both phases SHALL be registered in every enumeration that gates dispatch or validation:
+`TRANSITIONS`, `_HANDOFF_BOUNDARIES`, `phase_agent` worktree/signal/task tables,
+`token_budget_check` dispatching phases, `audit_log_validator` phase model,
+`agents_config.WRITE_CAPABLE_PHASES` and `NON_TERMINAL_PHASES`, `archetypes.yaml`
+`phase_mapping`, `_PHASE_TO_REVIEW_TYPE` (`SIMPLIFY_REVIEW` → `simplify`), and both copies of
+`convergence-state.schema.json`.
 
 #### Scenario: Dual-run failure reverts to the post-prune baseline
 
-- **GIVEN** SIMPLIFY produced `refactor(...)` commits
+- **GIVEN** SIMPLIFY_APPLY produced `refactor(...)` commits
 - **AND** `verify_behavior_preservation.py --baseline <B1>` exits 2
 - **WHEN** the phase concludes
 - **THEN** the feature branch head SHALL equal `B1`
 - **AND** the outcome SHALL be `skipped` with `skipped_reason: dual_run_failed`
 
-#### Scenario: Prune commits are test-only and ledgered
+#### Scenario: Prune commits match the reviewer's ledger
 
-- **GIVEN** SIMPLIFY removed at least one test
-- **WHEN** the phase concludes with `complete`
-- **THEN** `check_test_prune.py --base <B0> --head <B1> --ledger openspec/changes/<change-id>/test-prune-ledger.md` SHALL exit 0
+- **GIVEN** the artifact has two `test_quality` findings with `disposition: fix`
+- **WHEN** SIMPLIFY_APPLY concludes with `complete`
+- **THEN** `test-prune-ledger.md` SHALL contain exactly those two `removed:` entries
+- **AND** `check_test_prune.py --base <B0> --head <B1> --ledger <that file>` SHALL exit 0
 - **AND** `check_test_contract.py --base <B1>` SHALL exit 0
 
 #### Scenario: Schema v5 loop-state loads under v6
 
 - **GIVEN** a `loop-state.json` written at schema version 5
 - **WHEN** `load_state` reads it
-- **THEN** `simplify_enabled` SHALL be `false`, `simplify_baselines` and `simplify_report_path` SHALL be `null`
+- **THEN** `simplify_enabled` SHALL be `false` and the three new path/baseline fields SHALL be `null`
 - **AND** every pre-existing field SHALL be unchanged
 
-#### Scenario: Resume mid-SIMPLIFY reconstructs the dual-run
+#### Scenario: Resume at apply reconstructs the dual-run
 
-- **GIVEN** the loop was interrupted during SIMPLIFY after characterization and prune commits
+- **GIVEN** the loop was interrupted during SIMPLIFY_APPLY after prune commits
 - **WHEN** the loop is re-invoked with the same change-id
-- **THEN** the phase SHALL read `simplify_baselines.b1` from `loop-state.json`
+- **THEN** the phase SHALL read `simplify_review_path` and `simplify_baselines.b1` from `loop-state.json`
 - **AND** SHALL run the dual-run against that baseline rather than recomputing it from the current head
 
-### Requirement: Autopilot SIMPLIFY Phase Evidence
+### Requirement: Autopilot SIMPLIFY Evidence
 
-Every SIMPLIFY run SHALL record, in its `phase_history` entry and in `simplify-report.json`,
-the measurables a later default-on decision is judged against: `lines_removed`,
+Every `SIMPLIFY_REVIEW` and `SIMPLIFY_APPLY` run SHALL record, in its `phase_history` entry
+and (for apply) in `simplify-report.json`, the measurables a later default-on decision is
+judged against: `findings_reviewed`, `findings_applied`, `findings_kept`, `lines_removed`,
 `files_touched`, `tests_pruned`, `seams_removed`, `dual_run_passed` (bool), and
-`skipped_reason` (string or `null`). The autopilot Convergence Report SHALL include a
-SIMPLIFY line carrying these counters when the phase ran.
+`skipped_reason` (string or `null`). `seams_removed` SHALL be the count of applied findings
+whose `pattern` is a Test-induced seam entry, not a self-reported number. The autopilot
+Convergence Report SHALL include a SIMPLIFY line carrying these counters when the phases ran.
 
 #### Scenario: Counters present on every outcome
 
-- **WHEN** SIMPLIFY concludes with any outcome
-- **THEN** the `phase_history` entry SHALL contain all six fields
-- **AND** on `skipped` the counters SHALL be `0`, `dual_run_passed` SHALL be `false`, and `skipped_reason` SHALL be non-null
+- **WHEN** either simplify phase concludes with any outcome
+- **THEN** the `phase_history` entry SHALL contain all nine fields
+- **AND** on `clean` or `skipped` the change counters SHALL be `0`, `dual_run_passed` SHALL be `false`, and `skipped_reason` SHALL be non-null
 
 #### Scenario: Report lands in the change directory
 
-- **WHEN** SIMPLIFY reaches the dual-run step
+- **WHEN** SIMPLIFY_APPLY reaches the dual-run step
 - **THEN** `openspec/changes/<change-id>/simplify-report.json` SHALL exist
 - **AND** `loop-state.json` `simplify_report_path` SHALL point at it
 
@@ -401,15 +533,16 @@ matching the `simplify-implementation` Delete catalog (source-mirroring, change-
 self-mocking, duplicative, accessor-only, vacuous) and new production seams that exist only
 for tests (mock-only interface, test-only constructor parameter, factory-of-one,
 `_for_testing` hook). Such findings SHALL carry `criticality: low` and an `axis` of
-`readability` (structure-coupled tests) or `correctness` (vacuous or self-mocking tests),
-and SHALL cite the offending test or seam by path. They are read-only: the reviewer SHALL
-NOT delete tests or seams. The targeted fix path MAY act on them like any other finding.
+`readability` (structure-coupled tests and seams) or `correctness` (vacuous or self-mocking
+tests), SHALL cite the offending test or seam by `file_path`, and SHALL be read-only: the
+reviewer SHALL NOT delete tests or seams. They are the seed input to `SIMPLIFY_REVIEW`
+when `--simplify` is set; the targeted fix path MAY act on them like any other finding.
 
 #### Scenario: Self-mocking test is flagged
 
 - **GIVEN** a PR adds a test that mocks the unit under test and asserts the mock was called
 - **WHEN** implementation review runs
-- **THEN** the findings SHALL include a `test_quality` finding citing that test
+- **THEN** the findings SHALL include a `test_quality` finding citing that test by `file_path`
 - **AND** its `criticality` SHALL be `low` and its `axis` SHALL be `correctness`
 
 #### Scenario: Test-quality findings do not block convergence alone

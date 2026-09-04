@@ -47,3 +47,46 @@
 ### Context
 Planned an opt-in SIMPLIFY phase for autopilot between IMPL_REVIEW and VALIDATE, a read-only test_quality review finding type, and the spec amendment that turns 'manual invocation only' into 'not default-on'. Gate 1 selected Approach 1 (first-class phase plus additive enum); implementation is sequenced after fix-autopilot-archetype-and-apply-outcome archives.
 
+---
+
+## Phase: Plan (2026-09-04)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Two phases, not one: SIMPLIFY_REVIEW -> SIMPLIFY_APPLY** `architectural: skill-workflow` — Each role gets its own archetype, handoff boundary, token budget, resume point, and outcome record; an interruption between review and apply resumes at apply with the artifact on disk. Same dynamic-target mechanism as VAL_REVIEW_OR_SUBMIT.
+2. **The review artifact is a review-findings document with review_type simplify** `architectural: skill-workflow` — One schema family: IMPL_REVIEW's test_quality findings seed SIMPLIFY_REVIEW, and the fence verdict, coverage decision, and consumer check the skill's steps 1-4 already require become reviewable fields. Contract composed by allOf over the canonical schema, with conditional rules (fix requires remove; coverage-required prune requires covered_by; any consumer forces keep).
+3. **The prune ledger is rendered from the artifact, never hand-written in the orchestrated path** `architectural: skill-workflow` — The ledger is the reviewer's decision; rendering it means the implementer cannot justify a deletion the reviewer did not make, and check_test_prune becomes a check that apply did what review said.
+4. **simplify-implementation is restructured into Review (steps 0-4) and Apply (steps 5-8) roles** `architectural: skill-workflow` — Manual and orchestrated paths share one contract; autopilot prompts become 'run the Review role' / 'run the Apply role'. Apply must not change a fence verdict or disposition; disagreements go to a human.
+5. **seams_removed is counted from applied seam-pattern findings, not self-reported** `architectural: skill-workflow` — The artifact carries the catalog pattern per finding, which removes the self-reporting weakness flagged in plan revision 1.
+
+### Alternatives Considered
+- One SIMPLIFY phase with two internal dispatches: rejected because Resume boundary between the roles would be hidden inside one phase record.
+- analyst archetype returning the artifact through apply-outcome: rejected because Coordinator-enforced read-only is attractive but no existing phase returns an artifact through apply-outcome; reviewer with checkpoint-writing matches IMPL_REVIEW.
+- A bespoke simplify-plan format: rejected because Second vocabulary for the same test-quality concept; no seeding from IMPL_REVIEW.
+- Split only the autopilot phases, leave the skill single-role: rejected because The contract between the roles would live only in autopilot prompts.
+
+### Trade-offs
+- Accepted One more phase in every enumeration (15 non-terminal, 9 dispatching) over A single SIMPLIFY phase because Buys per-role archetypes, budgets, handoffs, and a clean resume point.
+- Accepted A real contract file and a wp-contracts root package over Documenting the artifact in prose because The artifact is now the coordination boundary between three parallel packages; it must be frozen first and mechanically validated.
+
+### Open Questions
+- [ ] Should SIMPLIFY_REVIEW itself be multi-vendor (consensus over the artifact) like IMPL_REVIEW, or single-reviewer? Plan says single reviewer for the first cut; the findings-shaped artifact makes consensus a later drop-in.
+- [ ] When ambient-review-ledger lands, do simplify findings belong in the persistent ledger?
+- [ ] Default-on thresholds for dual_run_passed rate and seams_removed volume remain to be set from evidence.
+
+### Next Steps
+- wp-contracts first (no external dependency): land the enum edits and the contract test; the contract file and fixtures already validate with jsonschema.
+- wp-simplify-skill and wp-review-diagnostic can start immediately after wp-contracts.
+- wp-autopilot-phases task 3.0 blocks on fix-autopilot-archetype-and-apply-outcome archiving.
+
+### Relevant Files
+- `openspec/changes/add-autopilot-simplify-phase/contracts/events/simplify-review.schema.json` — the review artifact contract (validated against both fixtures)
+- `openspec/changes/add-autopilot-simplify-phase/design.md` — D1-D11, revision 2
+- `openspec/changes/add-autopilot-simplify-phase/specs/skill-workflow/spec.md` — 7 MODIFIED + 6 ADDED requirements
+- `openspec/changes/add-autopilot-simplify-phase/tasks.md` — 32 tasks across 6 phases
+- `openspec/changes/add-autopilot-simplify-phase/work-packages.yaml` — 6 packages; wp-contracts root, three parallel implementation packages
+
+### Context
+Plan revision 2 after Gate 2 feedback: the simplify phase is two roles. SIMPLIFY_REVIEW (reviewer, writes only simplify-review.json) -> SIMPLIFY_APPLY (implementer, consumes it). The artifact is a review-findings document (review_type: simplify) with a real contract and fixtures; the prune ledger is rendered from it; the simplify-implementation skill itself is restructured into the same Review/Apply roles. Six work packages; wp-contracts is the DAG root.
+

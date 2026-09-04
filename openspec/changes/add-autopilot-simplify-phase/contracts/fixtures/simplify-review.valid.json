@@ -1,0 +1,35 @@
+{
+  "review_type": "simplify",
+  "target": "add-autopilot-simplify-phase",
+  "reviewer_vendor": "claude",
+  "baseline_b0": "0ab6839c",
+  "scope": { "files": 3, "lines": 212, "rule_of_500": "within" },
+  "skipped_reason": null,
+  "findings": [
+    {
+      "id": 1, "type": "test_quality", "criticality": "low", "severity": "optional", "axis": "correctness",
+      "description": "Optional: test_fetch_calls_get_on_fetcher mocks the unit under test and asserts the mock was called.",
+      "disposition": "fix", "file_path": "tests/test_client.py", "line_range": "4-8",
+      "pattern": "self-mocking",
+      "fence": { "verdict": "remove", "rationale": "Asserts the mocking library, not Client behavior.", "evidence": ["blame 3f2a1c9"] },
+      "prune": { "reason": "self-mocking", "covered_by": null }
+    },
+    {
+      "id": 2, "type": "simplification", "criticality": "low", "severity": "optional", "axis": "readability",
+      "description": "Optional: Client.__init__(fetcher=None) and build_fetcher() exist only so the removed test could inject a Mock.",
+      "disposition": "fix", "file_path": "src/client.py", "line_range": { "start": 4, "end": 10 },
+      "pattern": "test-only-param",
+      "fence": { "verdict": "remove", "rationale": "No production caller passes fetcher; no active change specifies one.", "evidence": ["grep: 0 non-test callers", "openspec list: none"] },
+      "coverage": { "pinned": true, "characterize": [] },
+      "consumer": { "present": [], "specified": [] }
+    },
+    {
+      "id": 3, "type": "simplification", "criticality": "low", "severity": "fyi", "axis": "architecture",
+      "description": "FYI: RetryPolicy interface has one implementation but is specified as the seam for add-cross-harness-flow-display.",
+      "disposition": "accept", "file_path": "src/retry.py",
+      "pattern": "mock-only-interface",
+      "fence": { "verdict": "keep", "rationale": "Specified consumer in an active change.", "evidence": ["openspec/changes/add-cross-harness-flow-display"] },
+      "consumer": { "present": [], "specified": ["add-cross-harness-flow-display"] }
+    }
+  ]
+}

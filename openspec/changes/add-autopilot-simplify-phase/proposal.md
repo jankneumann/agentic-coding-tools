@@ -8,48 +8,95 @@ This change adds an **opt-in** `SIMPLIFY` phase to autopilot between implementat
 
 ## What Changes
 
-### Autopilot: opt-in `SIMPLIFY` phase
+### `simplify-implementation`: two roles, one artifact
 
-- New `--simplify` flag, parsed like `--no-review` (substring match on `$ARGUMENTS`) into `LoopState.simplify_enabled` (schema v5 → v6; v5 files load with `simplify_enabled=false`).
-- New phase `SIMPLIFY`, write-capable, dispatched through the standard 3-step protocol (`build-dispatch` → adapter → `apply-outcome`). Slot: after `IMPL_REVIEW` converges, **and** after `IMPL_ITERATE` completes when `--no-review` skipped review. Both edges resolve through a new dynamic target `SIMPLIFY_OR_VALIDATE`, mirroring `VAL_REVIEW_OR_SUBMIT`.
-- The phase runs `simplify-implementation` on the change's diff: characterize → prune → simplify → dual-run, per that skill's phase model. Baselines `B0`/`B1` and the report path are recorded in `loop-state.json` so the dual-run is reconstructible on resume.
-- **Soft phase.** Outcomes are `complete`, `skipped`, `failed`. `skipped` (with a reason: Rule of 500 exceeded, surface unpinnable, nothing to do, prune gate blocked, dual-run failed) always transitions to `VALIDATE`. Only an infrastructure failure of the dispatch itself yields `failed` → `ESCALATE`. A dual-run failure reverts the simplify range and reports `skipped`; it never leaves a red head for VALIDATE.
-- Commits land split: `test(<scope>): pin …`, `test(<scope>): remove …`, `refactor(<scope>): …`. The prune ledger, when any test is removed, is written to `openspec/changes/<change-id>/test-prune-ledger.md`; `simplify-report.json` is written to `openspec/changes/<change-id>/simplify-report.json` (explicit `--report`, since the script's default is CWD-relative).
-- Phase enumerations updated together: `TRANSITIONS`, `transition()`, `_HANDOFF_BOUNDARIES`, `phase_agent` tables (`_WORKTREE_PHASES`, `_PHASE_SIGNAL_KEYS`, `_PHASE_TASKS`, expected outcomes), `handoff_builder` labels, `token_budget_check._DISPATCHING_PHASES` and fallback model, `audit_log_validator` phase-model table and canonical-trace synthesis, `agents_config.WRITE_CAPABLE_PHASES` / `NON_TERMINAL_PHASES`, `archetypes.yaml` `phase_mapping` (SIMPLIFY → `implementer` archetype), `convergence-state.schema.json` phase enums (canonical + install mirror).
-- `goal_gate` is untouched: SIMPLIFY precedes VALIDATE, so DONE still binds to the latest VALIDATE record on the final head.
+- The skill's workflow is restructured into a **Review role** (steps 0–4: scope, Chesterton's
+  Fence, coverage-gate decision, candidate list, Rule of 500) that writes a
+  **simplify review artifact**, and an **Apply role** (steps 5–8: characterize, prune, apply,
+  dual-run, report) that consumes it. A manual run may perform both roles in one session but
+  MUST write the artifact between them; autopilot dispatches them to different archetypes.
+- The artifact is a review-findings document with `review_type: simplify`
+  (`contracts/events/simplify-review.schema.json`). Each finding carries the catalog
+  `pattern`, the fence verdict and evidence, the coverage decision, the consumer check for
+  seams, and, for `test_quality` findings, the prune reason and `covered_by`.
+- `test-prune-ledger.md` is **rendered from the artifact** by a new helper
+  `scripts/simplify_review.py` (`validate` and `render-ledger` subcommands), so the ledger
+  `check_test_prune.py` gates is the reviewer's decision, not the implementer's.
+- The Apply role MUST NOT change a finding's fence verdict or disposition; a finding it
+  cannot apply becomes `skipped` with a reason, and a verdict it disagrees with goes back
+  to a human.
+
+### Autopilot: two opt-in phases
+
+- New `--simplify` flag, parsed like `--no-review` into `LoopState.simplify_enabled`
+  (schema v5 → v6, with `simplify_baselines`, `simplify_review_path`,
+  `simplify_report_path`; v5 files load at defaults).
+- New phases `SIMPLIFY_REVIEW` (archetype `reviewer`, checkpoint-writing: may write only the
+  artifact) and `SIMPLIFY_APPLY` (archetype `implementer`, write-capable). Slot: after
+  `IMPL_REVIEW` converges **and** after `IMPL_ITERATE` completes under `--no-review`; both
+  edges resolve through one dynamic target `SIMPLIFY_OR_VALIDATE`.
+- `SIMPLIFY_REVIEW` outcomes: `findings` → `SIMPLIFY_APPLY`; `clean` (no applicable findings,
+  Rule of 500 exceeded at review, or an artifact that fails validation, each with a recorded
+  reason) → `VALIDATE`; `failed` (dispatch failure) → `ESCALATE`. When `IMPL_REVIEW` ran, its
+  `test_quality` findings seed the review.
+- `SIMPLIFY_APPLY` outcomes: `complete` → `VALIDATE`; `skipped` (unpinnable surface, prune
+  gate, assertion contract, or dual-run exit 2, with the branch reset to the post-prune
+  baseline `B1`) → `VALIDATE`; `failed` → `ESCALATE`. Commits land split
+  (`test(...): pin`, `test(...): remove`, `refactor(...)`).
+- Both phases are registered in every phase enumeration (`TRANSITIONS`, `transition()`,
+  `_HANDOFF_BOUNDARIES`, `phase_agent` tables, `handoff_builder`, `token_budget_check`,
+  `audit_log_validator`, `agents_config.WRITE_CAPABLE_PHASES` / `NON_TERMINAL_PHASES`,
+  `archetypes.yaml`, both `convergence-state.schema.json` copies,
+  `_PHASE_TO_REVIEW_TYPE`), guarded by a structural parity test. `goal_gate` is untouched.
 
 ### Implementation review: read-only `test_quality` findings
 
-- New value `test_quality` in the review-findings `type` enum (canonical schema, install mirror, `consensus-report.schema.json`, and the hand-copied `_FALLBACK_ENUMS` in `merge-pull-requests/scripts/vendor_review.py`), following the `behavioral_failure` precedent. `axis` stays 8-valued; test-quality findings carry `axis: readability` (change-detector, duplicative, source-mirroring) or `axis: correctness` (self-mocking, vacuous).
-- `parallel-review-implementation` gains a "Test quality" checklist under Code Quality Review that flags new tests matching the `simplify-implementation` Delete catalog and new test-induced seams (factory-of-one, mock-only interface, test-only constructor parameter, `_for_testing` hook). Findings are emitted at `criticality: low` so they never block convergence by themselves; the targeted fix path may still act on them.
-- No new axis, no synthesizer changes.
+- `type` enum gains `test_quality` and `simplification`; `review_type` gains `simplify`
+  (canonical schema, install mirror, both `consensus-report` copies, `vendor_review`
+  fallback enums). `axis` is unchanged.
+- `parallel-review-implementation` gains a **Test quality** checklist that flags new tests
+  matching the Delete catalog and new test-induced seams as `test_quality` findings at
+  `criticality: low`, which never block convergence on their own and are the seed for
+  `SIMPLIFY_REVIEW`.
 
 ### Spec amendment
 
-- `skill-workflow` › "Simplify Skill Behavior-Preservation Contract": the sentence "invocation SHALL remain operator-manual (not default-enabled in autopilot)" and the scenario "Manual invocation only" become **not default-on**: the orchestrator SHALL NOT run a simplify phase unless `--simplify` is passed, and the flag is an operator request.
-- `skill-workflow` › autopilot phase list / dispatching-phase list / write-capable phases: add `SIMPLIFY` (opt-in).
-- `skill-workflow` › "Optional Post-Implementation Simplify Polish": name the flag so `implement-feature` and `iterate-on-implementation` stop reading as forbidding the phase.
-- `skill-workflow` › "Review Findings Schema Extension": add `test_quality` to the `type` enum scenario set.
-- New requirement "Autopilot SIMPLIFY Phase Evidence": every SIMPLIFY run records, in `phase_history` and `simplify-report.json`, the counts that a default-on decision will be judged on (see Non-Functional Requirements).
+- "Simplify Skill Behavior-Preservation Contract": "operator-manual" becomes **not
+  default-on**; `--simplify` is the operator request. "Manual invocation only" is replaced by
+  "Not default-on" and "Flag is the operator request".
+- Phase lists (14 → 15 non-terminal; 7 → 9 dispatching), write-capable phases, "Optional
+  Post-Implementation Simplify Polish", "Review Findings Schema Extension", and "Simplify
+  Mechanical Helper Scripts" are MODIFIED accordingly.
+- ADDED: "Simplify Skill Review and Apply Roles", "Simplify Review Artifact",
+  "Autopilot SIMPLIFY_REVIEW Phase", "Autopilot SIMPLIFY_APPLY Phase", "Autopilot SIMPLIFY
+  Evidence", "Implementation Review Test-Quality Findings".
 
 ### Dependencies and sequencing
 
-- **Depends on** `fix-autopilot-archetype-and-apply-outcome` archiving first. That change is rewriting the same enumerations (54/59 tasks done). Implementation of this change starts against its landed shape; planning proceeds now.
-- **Adjacent, not blocking:** `ambient-review-ledger` and `factory-missions-architecture-alignment` reshape the findings schema. Adding one `type` value is additive and rebases cleanly; if either lands first, re-run the schema-identity tests.
-- Pre-existing drift this change is adjacent to but does **not** fix (filed as follow-ups in `design.md`): `convergence-state.schema.json` phase enums missing `GATEKEEPER`/`PLAN_ITERATE`/`IMPL_ITERATE`; spec line "7 dispatching phases" vs SKILL.md "8"; `consensus-report.schema.json` missing `behavioral_failure`; "5-axis" wording in one spec paragraph. The `SIMPLIFY` additions are made in a way that does not depend on those being fixed.
+- **Depends on** `fix-autopilot-archetype-and-apply-outcome` archiving before
+  `wp-autopilot-phases` starts (task 0.1). `wp-contracts`, `wp-simplify-skill`, and
+  `wp-review-diagnostic` do not wait.
+- **Adjacent, not blocking:** `ambient-review-ledger`, `factory-missions-architecture-alignment`
+  (findings schema); the enum additions are additive and rebase cleanly.
+- Pre-existing drift recorded in `design.md` D9, not fixed here, except where the new
+  identity scenario cannot otherwise hold.
 
-Nothing here is **BREAKING**: the flag is opt-in, the schema change is additive, and v5 loop-state files load unchanged.
+Nothing here is **BREAKING**: the flag is opt-in, every schema change is additive, v5
+loop-state files load unchanged, and a manual `/simplify-implementation` run that performs
+both roles behaves as before plus one artifact write.
 
 ## Non-Functional Requirements
 
 | Attribute | Metric | Target | Verified by (phase) |
 |-----------|--------|--------|---------------------|
-| Compatibility | Autopilot phase trace with `--simplify` absent, diffed against pre-change trace | Byte-identical (`phase_history` phases and outcomes) | Unit: `skills/tests/autopilot/test_phase_transitions.py`; CI |
-| Compatibility | Schema-v5 `loop-state.json` loaded by v6 `load_state` | Loads; `simplify_enabled == False`; no other field changed | Unit: loop-state migration test |
-| Resilience | SIMPLIFY refusal paths (Rule of 500, unpinnable, prune gate exit 2, dual-run exit 2) | 100% resolve to outcome `skipped` → `VALIDATE`; 0 leave HEAD ≠ `B1` on dual-run failure | Unit: phase outcome tests with scripted refusals |
-| Observability | SIMPLIFY `phase_history` entry and `simplify-report.json` | Every run records: `lines_removed`, `files_touched`, `tests_pruned`, `seams_removed`, `dual_run_passed`, `skipped_reason` | Unit: report-shape test; VALIDATE evidence-completeness check |
-| Performance | Token budget for SIMPLIFY in `token_budget_check` | ≤ the `IMPL_ITERATE` budget; counted in the CI token-budget gate | CI token-budget job |
-| Compatibility | Review-findings schema identity across canonical, install mirror, and `_FALLBACK_ENUMS` | Identical enums, `test_quality` present in all three | Unit: `test_review_findings_schema.py`, `test_vendor_review_prompt.py` |
+| Compatibility | Autopilot phase trace with `--simplify` absent vs pre-change trace | Byte-identical phases and outcomes | Unit: `test_phase_transitions.py`; CI |
+| Compatibility | Schema-v5 `loop-state.json` loaded by v6 `load_state` | Loads; new fields at defaults; no other field changed | Unit: loop-state migration test |
+| Compatibility | `simplify-review.json` validates against both the contract and the canonical review-findings schema | Valid fixture passes both; invalid fixture rejected by the conditional rule | Unit: contract schema test (`wp-contracts`) |
+| Compatibility | `type` / `review_type` enum identity across canonical, mirror, consensus-report, `_FALLBACK_ENUMS` | Identical; `simplify`, `simplification`, `test_quality` present | Unit: schema identity tests |
+| Resilience | Review-role refusals and Apply-role refusals | 100% resolve to `clean` / `skipped` → `VALIDATE`; 0 leave HEAD ≠ `B1` after an Apply refusal | Unit: phase outcome tests |
+| Resilience | Apply role cannot alter reviewer verdicts | `render-ledger` output equals the artifact's `prune` fields; a verdict change in Apply is a contract-test failure | Unit: `simplify_review.py` tests |
+| Observability | SIMPLIFY `phase_history` entries and `simplify-report.json` | Every run records `findings_reviewed`, `findings_applied`, `findings_kept`, `lines_removed`, `files_touched`, `tests_pruned`, `seams_removed`, `dual_run_passed`, `skipped_reason` | Unit: report-shape test; VALIDATE evidence-completeness |
+| Performance | Token budgets in `token_budget_check` | `SIMPLIFY_REVIEW` ≤ `IMPL_REVIEW`; `SIMPLIFY_APPLY` ≤ `IMPL_ITERATE` | CI token-budget job |
 
 ## Approaches Considered
 
@@ -81,29 +128,51 @@ When `--simplify` is set, `IMPL_ITERATE` runs `simplify-implementation` as its l
 
 ### Selected Approach
 
-**Approach 1 — first-class opt-in phase plus additive finding type** (Gate 1, 2026-09-04).
-Discovery decisions recorded at the same gate:
+**Approach 1 — first-class opt-in phase plus additive finding type** (Gate 1, 2026-09-04),
+**refined at Gate 2** into two roles with a review artifact between them:
 
-- Finding representation: new `type: test_quality`, emitted at `criticality: low`; `axis` unchanged.
-- `--no-review` runs still execute SIMPLIFY when `--simplify` is set (both edges intercepted).
-- Sequencing: this change **depends on** `fix-autopilot-archetype-and-apply-outcome` archiving first; implementation starts against its landed state-machine shape.
-- Scope: both the autopilot phase and the review-side diagnostic ship in this change, as two work packages with disjoint write scopes.
+- The single `SIMPLIFY` phase became `SIMPLIFY_REVIEW` (archetype `reviewer`,
+  checkpoint-writing) → `SIMPLIFY_APPLY` (archetype `implementer`), mirroring
+  `IMPL_REVIEW` / `IMPL_FIX`.
+- The review artifact reuses the review-findings schema (`review_type: simplify`) and is the
+  source the prune ledger is rendered from; `IMPL_REVIEW`'s `test_quality` findings seed it.
+- The `simplify-implementation` skill itself is restructured into the same Review / Apply
+  roles so the manual path and the orchestrated path share one contract.
 
-No modifications to the approach were requested. Approaches 2 and 3 are retained above as rejected alternatives.
+Discovery decisions retained from Gate 1: `type: test_quality` at `criticality: low`
+(no new axis); `--no-review` runs still get the phases; the autopilot package depends on
+`fix-autopilot-archetype-and-apply-outcome` archiving; both halves ship in this change.
+
+Approaches 2 and 3 remain rejected for the reasons above.
 
 ## Impact
 
 **Affected specs (delta files):**
-- `specs/skill-workflow/spec.md` — MODIFIED: Simplify Skill Behavior-Preservation Contract (manual → not default-on); Autopilot phase list, dispatching phases, write-capable phases (add SIMPLIFY); Optional Post-Implementation Simplify Polish (name the flag); Review Findings Schema Extension (add `test_quality`). ADDED: Autopilot SIMPLIFY Phase; Autopilot SIMPLIFY Phase Evidence; Implementation Review Test-Quality Findings.
+- `specs/skill-workflow/spec.md` — MODIFIED: State Machine Phases; Per-Phase Archetype
+  Resolution in Autopilot; Autopilot Write-Capable Phases Use Worktree Isolation; Simplify
+  Skill Behavior-Preservation Contract; Optional Post-Implementation Simplify Polish; Review
+  Findings Schema Extension; Simplify Mechanical Helper Scripts. ADDED: Simplify Skill
+  Review and Apply Roles; Simplify Review Artifact; Autopilot SIMPLIFY_REVIEW Phase;
+  Autopilot SIMPLIFY_APPLY Phase; Autopilot SIMPLIFY Evidence; Implementation Review
+  Test-Quality Findings.
 
 **Affected code:**
-- `skills/autopilot/SKILL.md`, `scripts/autopilot.py`, `scripts/phase_agent.py`, `scripts/handoff_builder.py`, `scripts/token_budget_check.py`, `scripts/audit_log_validator.py`, `install_assets/openspec/schemas/convergence-state.schema.json`
+- `skills/simplify-implementation/SKILL.md`, new `scripts/simplify_review.py`, tests
+- `skills/autopilot/SKILL.md`, `scripts/autopilot.py`, `scripts/phase_agent.py`,
+  `scripts/handoff_builder.py`, `scripts/token_budget_check.py`,
+  `scripts/audit_log_validator.py`, `install_assets/openspec/schemas/convergence-state.schema.json`
 - `agent-coordinator/src/agents_config.py`, `agent-coordinator/archetypes.yaml`
-- `openspec/schemas/convergence-state.schema.json`, `openspec/schemas/review-findings.schema.json`, `openspec/schemas/consensus-report.schema.json` and their `skills/parallel-infrastructure/install_assets/` mirrors
+- `openspec/schemas/{convergence-state,review-findings,consensus-report}.schema.json` and
+  their `skills/parallel-infrastructure/install_assets/` mirrors
 - `skills/merge-pull-requests/scripts/vendor_review.py` (`_FALLBACK_ENUMS`)
 - `skills/parallel-review-implementation/SKILL.md`
-- `skills/simplify-implementation/SKILL.md` (invocation-mode wording: flag is the operator request), `skills/implement-feature/SKILL.md`, `skills/iterate-on-implementation/SKILL.md` (polish paragraphs name the flag)
-- `docs/autopilot-phase-archetype-resolution.md`, `docs/skill-flow/README.md`, `docs/skills-catalogue.md`
-- Tests: `skills/tests/autopilot/*` phase-list fixtures, `skills/tests/parallel-infrastructure/test_review_findings_schema.py`, `skills/tests/merge-pull-requests/test_vendor_review_prompt.py`, `skills/validate-feature/scripts/tests/test_linters.py`
+- `skills/implement-feature/SKILL.md`, `skills/iterate-on-implementation/SKILL.md`
+- `docs/autopilot-phase-archetype-resolution.md`, `docs/skill-flow/README.md`,
+  `docs/skills-catalogue.md`, `docs/guides/testing-policy.md` (roles paragraph)
+- Tests: `skills/tests/autopilot/*` phase fixtures, `skills/tests/simplify-implementation/*`,
+  `skills/tests/parallel-infrastructure/*`, `skills/tests/merge-pull-requests/*`,
+  `skills/tests/parallel-review-implementation/*`, `skills/validate-feature/scripts/tests/test_linters.py`
 
-**Architecture layers:** Execution (autopilot dispatch, phase agent), Coordination (loop-state, handoffs, archetype config), Governance (spec amendment, evidence contract). Trust layer untouched.
+**Architecture layers:** Execution (dispatch, phase agent, skill scripts), Coordination
+(loop-state, handoffs, archetype config, review artifact), Governance (spec amendment,
+evidence contract). Trust layer untouched.

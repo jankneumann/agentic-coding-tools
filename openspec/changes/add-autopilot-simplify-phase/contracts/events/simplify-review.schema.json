@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/simplify-review.schema.json",
+  "title": "Simplify Review Artifact",
+  "description": "The artifact the Review role of simplify-implementation writes and the Apply role consumes. A review-findings document (review_type: simplify) whose findings carry the simplification catalog pattern, the Chesterton's Fence verdict, the coverage decision, and \u2014 for test_quality findings \u2014 the prune ledger fields. The prune ledger is rendered from this document, never hand-written, when the Apply role runs.",
+  "allOf": [
+    {
+      "$ref": "https://agentic-coding-tools.dev/schemas/review-findings.schema.json"
+    },
+    {
+      "type": "object",
+      "required": [
+        "review_type",
+        "target",
+        "baseline_b0",
+        "scope",
+        "findings"
+      ],
+      "properties": {
+        "review_type": {
+          "const": "simplify"
+        },
+        "target": {
+          "type": "string",
+          "description": "change-id (autopilot) or a free-form surface label (manual)."
+        },
+        "baseline_b0": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$",
+          "description": "Tip before any simplify work; B1 is derived later by the Apply role."
+        },
+        "scope": {
+          "type": "object",
+          "required": [
+            "files",
+            "lines"
+          ],
+          "properties": {
+            "files": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "lines": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "rule_of_500": {
+              "type": "string",
+              "enum": [
+                "within",
+                "exceeded"
+              ]
+            }
+          }
+        },
+        "skipped_reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Set by the Review role when there is nothing to apply (empty findings) or the surface cannot be reviewed; the Apply role then no-ops."
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "pattern",
+              "fence",
+              "disposition"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "simplification",
+                  "test_quality"
+                ]
+              },
+              "criticality": {
+                "const": "low"
+              },
+              "pattern": {
+                "type": "string",
+                "enum": [
+                  "guard-clauses",
+                  "extract-helper",
+                  "nested-ternary",
+                  "boolean-flag-split",
+                  "domain-naming",
+                  "premature-abstraction",
+                  "isomorphic-extract",
+                  "dead-code",
+                  "redundant-intermediate",
+                  "mock-only-interface",
+                  "test-only-param",
+                  "visibility-widened",
+                  "factory-of-one",
+                  "for-testing-hook",
+                  "source-mirroring",
+                  "change-detector",
+                  "self-mocking",
+                  "duplicative",
+                  "accessor-only",
+                  "library-under-test",
+                  "vacuous",
+                  "unreviewed-snapshot"
+                ],
+                "description": "Catalog entry from simplify-implementation: Local clarity, Isomorphic structure, Test-induced seams, or the Delete catalog."
+              },
+              "fence": {
+                "type": "object",
+                "required": [
+                  "verdict",
+                  "rationale"
+                ],
+                "properties": {
+                  "verdict": {
+                    "type": "string",
+                    "enum": [
+                      "remove",
+                      "keep",
+                      "investigate"
+                    ]
+                  },
+                  "rationale": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "blame SHAs, caller references, active OpenSpec change ids for specified consumers"
+                  }
+                }
+              },
+              "coverage": {
+                "type": "object",
+                "required": [
+                  "pinned"
+                ],
+                "properties": {
+                  "pinned": {
+                    "type": "boolean"
+                  },
+                  "characterize": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Behaviors the Apply role must pin (test nodeids to write) before touching this finding."
+                  }
+                }
+              },
+              "prune": {
+                "type": "object",
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "source-mirroring",
+                      "vacuous",
+                      "library-under-test",
+                      "accessor-only",
+                      "self-mocking",
+                      "change-detector",
+                      "duplicative",
+                      "unreviewed-snapshot"
+                    ]
+                  },
+                  "covered_by": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Surviving test nodeid; required (non-null) for change-detector, duplicative, unreviewed-snapshot."
+                  }
+                },
+                "description": "Present only on test_quality findings with disposition fix. Rendered into test-prune-ledger.md."
+              },
+              "consumer": {
+                "type": "object",
+                "properties": {
+                  "present": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "specified": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Active openspec/changes/<id> that specify a consumer."
+                  }
+                },
+                "description": "Present on Test-induced seam findings; a non-empty list in either key forces fence.verdict keep."
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "type": {
+                      "const": "test_quality"
+                    },
+                    "disposition": {
+                      "const": "fix"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "disposition"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "prune",
+                    "file_path"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "prune": {
+                      "properties": {
+                        "reason": {
+                          "enum": [
+                            "change-detector",
+                            "duplicative",
+                            "unreviewed-snapshot"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reason"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "prune"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "prune": {
+                      "properties": {
+                        "covered_by": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "covered_by"
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "disposition": {
+                      "const": "fix"
+                    }
+                  },
+                  "required": [
+                    "disposition"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "fence": {
+                      "properties": {
+                        "verdict": {
+                          "const": "remove"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "consumer": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "present": {
+                              "minItems": 1
+                            }
+                          },
+                          "required": [
+                            "present"
+                          ]
+                        },
+                        {
+                          "properties": {
+                            "specified": {
+                              "minItems": 1
+                            }
+                          },
+                          "required": [
+                            "specified"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "consumer"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "fence": {
+                      "properties": {
+                        "verdict": {
+                          "const": "keep"
+                        }
+                      }
+                    },
+                    "disposition": {
+                      "enum": [
+                        "accept",
+                        "escalate"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

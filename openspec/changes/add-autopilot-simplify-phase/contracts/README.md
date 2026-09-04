@@ -3,24 +3,32 @@
 Evaluated sub-types:
 
 - **OpenAPI** — none. No HTTP surface is introduced or modified. The coordinator's
-  `POST /archetypes/resolve_for_phase` is consumed unchanged for the new phase.
+  `POST /archetypes/resolve_for_phase` is consumed unchanged for the two new phases.
 - **Database** — none.
-- **Events** — none new. Two existing file-carried records gain fields and are
-  governed by their existing schemas rather than by new contracts here:
-  - `loop-state.json` (schema v5 → v6): `simplify_enabled: bool`,
-    `simplify_baselines: {b0: sha, b1: sha} | null`, `simplify_report_path: str | null`.
-    Governed by `LoopState` in `skills/autopilot/scripts/autopilot.py` and mirrored in
-    `openspec/schemas/convergence-state.schema.json`.
-  - `review-findings.schema.json`: one additional `type` enum value, `test_quality`.
-    Governed by the canonical schema and its install-assets mirror.
-- **Type generation** — none. Both records are consumed by existing Python dataclasses.
+- **Events** — one new file-carried record, plus two existing records that gain fields
+  and stay governed by their existing schemas:
+  - `events/simplify-review.schema.json` — **the coordination boundary of this change.**
+    The artifact the Review role of `simplify-implementation` writes to
+    `openspec/changes/<change-id>/simplify-review.json` and the Apply role consumes.
+    It is a review-findings document (`review_type: simplify`) whose findings carry the
+    catalog `pattern`, the Chesterton's Fence verdict, the coverage decision, and, for
+    `test_quality` findings, the prune-ledger fields. `test-prune-ledger.md` is rendered
+    from it (`simplify_review.py render-ledger`), never hand-written, in the orchestrated
+    path. Composed by `allOf` over the canonical review-findings schema by `$id`; validators
+    must register both documents. Fixtures: `fixtures/simplify-review.valid.json` (three
+    findings: a self-mocking test to prune, the seam it held open, and a seam kept for a
+    specified consumer) and `fixtures/simplify-review.invalid.json` (a change-detector
+    prune with `covered_by: null`, rejected by the conditional rule).
+  - `review-findings.schema.json` (canonical + install mirror; `consensus-report` copies;
+    `vendor_review._FALLBACK_ENUMS`): `review_type` gains `simplify`; `type` gains
+    `simplification` and `test_quality`. Additive.
+  - `loop-state.json` (schema v5 → v6): `simplify_enabled`, `simplify_baselines`
+    (`{b0, b1}`), `simplify_review_path`, `simplify_report_path`. Governed by `LoopState`
+    and mirrored in `convergence-state.schema.json`.
+- **Type generation** — none. All records are consumed by existing Python dataclasses
+  or by the new `simplify_review.py` helper.
 
-Coordination boundary between the two implementation packages is the **absence** of
-shared files: `wp-autopilot-phase` writes only under `skills/autopilot/**`,
-`agent-coordinator/{src/agents_config.py,archetypes.yaml}`, and the convergence-state
-schemas; `wp-review-diagnostic` writes only the review-findings / consensus-report
-schemas, `vendor_review.py`'s fallback enums, and `parallel-review-implementation/SKILL.md`.
-The `simplify-report.json` shape that SIMPLIFY writes is defined by the existing
-`verify_behavior_preservation.py` report plus the evidence counters named in the
-"Autopilot SIMPLIFY Phase Evidence" requirement; it is an output artifact, not an
-interface between packages.
+Package boundary: `wp-contracts` freezes every enum and the artifact schema first.
+`wp-simplify-skill` (Review/Apply roles, `simplify_review.py`), `wp-autopilot-phases`
+(`SIMPLIFY_REVIEW` / `SIMPLIFY_APPLY`), and `wp-review-diagnostic` (implementation-review
+checklist) then run in parallel against the frozen shape and share no writable path.
