@@ -9,9 +9,25 @@ on:
 permissions:
   contents: read
 
+# Cancel a superseded run rather than letting it finish alongside its successor.
+#
+# Only pull_request runs are cancelled. A push to main or a merge_group entry
+# must always run to completion, because nothing re-runs them later — cancelling
+# those would leave main with no recorded verdict.
+#
+# Two hung `test-integration` jobs on PR #463 ran concurrently for this reason:
+# the second push did not cancel the first, so both sat burning runner time.
+# The design here is taken from the earlier, unmerged `ci-pipeline-speedup`
+# branch, which measured 3 superseded runs out of 30 still executing to
+# completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: agent-coordinator
@@ -39,6 +55,7 @@ jobs:
 
   test-infra-skills:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: skills
@@ -144,6 +161,7 @@ jobs:
 
   test-skills:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -163,6 +181,7 @@ jobs:
 
   validate-specs:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -222,6 +241,7 @@ jobs:
   # rule itself lives in gate.py, not here — this job selects it and nothing more.
   context-drift-gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -403,6 +423,7 @@ jobs:
   # the gen-eval wheel isn't in .venv or evaluation/ isn't bundled).
   check-docker-imports:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: agent-coordinator
@@ -434,6 +455,7 @@ jobs:
   # third-party code).
   docker-smoke-import:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Build context is now repo root (D8 Strategy A) so the Dockerfile can
     # COPY both agent-coordinator/ and packages/gen-eval/ in a single build.
     # No working-directory override — the build-push-action uses context: .
@@ -502,6 +524,7 @@ jobs:
 
   formal-coordination:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     continue-on-error: true
 
     steps:
@@ -518,6 +541,7 @@ jobs:
 
   test-integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -731,6 +755,7 @@ jobs:
   # coincidence.
   requirement-traceability-sweep:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -1258,6 +1283,7 @@ jobs:
   #   * decisions.timeline  — already covered by validate-decision-index above.
   validate-context-producers:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -1293,6 +1319,7 @@ jobs:
   # The rendered HTML itself is gitignored, so it is never checked for drift here.
   test-codebase-atlas:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7

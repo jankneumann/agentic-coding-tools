@@ -52,6 +52,64 @@ def _checksum(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()
 
 
+#: SQLSTATE classes that mean "this migration's objects are already here".
+#:
+#: 42710 duplicate_object, 42P07 duplicate_table, 42723 duplicate_function,
+#: 42P06 duplicate_schema, 42701 duplicate_column. ``ALTER PUBLICATION ...
+#: ADD TABLE`` for a table already in the publication raises 42710
+#: (duplicate_object), not 42P16.
+#:
+#: 42P16 (invalid_table_definition) is deliberately *not* included: it means
+#: the table/column definition itself is malformed or schema-incompatible —
+#: e.g. a partition bound conflict or a generated-column error — the exact
+#: opposite of "already applied". Swallowing it here would let a genuinely
+#: broken migration roll back, get recorded as applied on the strength of
+#: that rollback, and be silently skipped on every later boot — the same
+#: failure mode this allowlist exists to prevent. See issue #456 and the P1
+#: review finding on PR #464.
+#:
+#: 23505 (unique_violation) IS included, for the same reason in the other
+#: direction: a *data* migration re-executed on a seeded database — 019's
+#: profile renames, whose target names already exist — fails with a duplicate
+#: key. That is the already-applied signal for data migrations, exactly as
+#: duplicate_table is for DDL. It matters more than it looks. Without it the
+#: first-run pass stops at 019, and by then it has already re-executed 015,
+#: which clobbers 025's rewrite of notify_work_queue_change(); claim_task then
+#: calls an ambiguous coordinator_notify overload on every claim. That was the
+#: test-integration failure on PR #464 at fa3c66f, reproduced locally against
+#: a psql-seeded database. The tolerance still applies only on a first run
+#: (empty schema_migrations), never to a tracked database.
+_ALREADY_APPLIED_SQLSTATES = frozenset(
+    {"42710", "42P07", "42723", "42P06", "42701", "23505"}
+)
+
+
+def _is_already_applied_error(exc: BaseException) -> bool:
+    """Does this error mean the migration was already applied out-of-band?
+
+    Only duplicate-object errors qualify. The bootstrap path used to treat
+    *every* first-run failure as "already applied" and record the migration as
+    done, which made a genuinely broken migration permanently invisible: the
+    tracking row said applied, so no later run ever retried it.
+
+    That is not hypothetical. ``000_bootstrap.sql`` hardcoded
+    ``GRANT anon TO postgres``, so on a database owned by any other role it
+    aborted with ``role "postgres" does not exist`` — an *undefined*-object
+    error, the opposite of a duplicate. It was recorded as applied, the ``auth``
+    schema and ``supabase_realtime`` publication it should have created never
+    existed, and 001, 002 and 015 then aborted and were recorded in turn. The
+    coordinator booted reporting every migration applied against a database
+    missing half its tables and ``coordinator_notify()`` — while 024's
+    ``audit_log`` trigger, which applied fine, called that missing function on
+    every insert. See issue #456.
+
+    Narrowing the swallow keeps the Docker-initdb case working (those failures
+    *are* duplicate-object errors) while letting a real failure stop the boot.
+    """
+    sqlstate = getattr(exc, "sqlstate", None)
+    return sqlstate in _ALREADY_APPLIED_SQLSTATES
+
+
 async def run_migrations(
     dsn: str,
     *,
@@ -115,10 +173,11 @@ async def run_migrations(
                     )
                 newly_applied.append(filename)
             except Exception as exc:  # noqa: BLE001
-                if bootstrapping:
-                    # First run with an empty tracking table — the database was
-                    # likely bootstrapped by Docker initdb.  Record the migration
-                    # as already applied so future runs skip it.
+                if bootstrapping and _is_already_applied_error(exc):
+                    # First run with an empty tracking table and the migration
+                    # failed *because its objects already exist* — the database
+                    # was bootstrapped by Docker initdb.  Record it as applied
+                    # so future runs skip it.
                     logger.info(
                         "Migration %s already applied (bootstrap, error: %s) — recording.",
                         filename,

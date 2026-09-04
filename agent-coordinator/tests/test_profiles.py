@@ -294,8 +294,14 @@ class TestProfileCacheInvalidation:
         first = await service.get_profile(agent_id="grok-local", agent_type="grok")
         assert first.source == "default"
 
+        # The cache hit must report the provenance of the read that filled it,
+        # not "cache". This assertion used to require the opposite, which pinned
+        # the escalation in place: callers gate on `source`, so replacing it on
+        # a cache hit silently changed what they computed (#408 defect 2). The
+        # call count below is what actually proves the cache was used.
         cached = await service.get_profile(agent_id="grok-local", agent_type="grok")
-        assert cached.source == "cache"
+        assert cached.source == "default"
+        assert route.call_count == 1, "second read should have been cached"
 
         service.invalidate_cache()
         refetched = await service.get_profile(agent_id="grok-local", agent_type="grok")
