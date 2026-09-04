@@ -54,10 +54,21 @@ class _PgError(Exception):
         "42723",  # duplicate_function
         "42P06",  # duplicate_schema
         "42701",  # duplicate_column
+        "23505",  # unique_violation — a re-executed data migration, see below
     ],
 )
 def test_duplicate_object_errors_are_treated_as_already_applied(sqlstate: str) -> None:
-    """The Docker-initdb case this branch exists for must keep working."""
+    """The Docker-initdb case this branch exists for must keep working.
+
+    23505 belongs here even though it is not a duplicate-*object* error: on a
+    seeded database the first-run pass re-executes every migration, and 019's
+    profile renames then fail with a duplicate key because their targets
+    already exist. That is what "already applied" looks like for a data
+    migration. Treating it as a real failure stopped the pass at 019 — after
+    015 had already re-run and clobbered 025's ``notify_work_queue_change``
+    rewrite — leaving ``claim_task`` calling an ambiguous overload on every
+    claim (the test-integration failure on PR #464 at fa3c66f).
+    """
     assert _is_already_applied_error(_PgError(sqlstate)) is True
 
 
@@ -68,7 +79,6 @@ def test_duplicate_object_errors_are_treated_as_already_applied(sqlstate: str) -
         "42P01",  # undefined_table — `relation "work_queue" does not exist`
         "42883",  # undefined_function — `coordinator_notify(...) does not exist`
         "42601",  # syntax_error
-        "23505",  # unique_violation
         "42P16",  # invalid_table_definition — see below
     ],
 )

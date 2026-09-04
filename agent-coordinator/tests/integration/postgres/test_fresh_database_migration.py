@@ -225,3 +225,46 @@ async def test_audit_inserts_survive_the_notify_trigger(migrated_database) -> No
         assert row is not None and row["id"] is not None
     finally:
         await conn.close()
+
+
+async def test_seeded_database_survives_the_first_run_pass(migrated_database) -> None:
+    """A schema seeded out-of-band must not be corrupted by the bootstrap pass.
+
+    CI and Docker apply the ``.sql`` files with psql, which leaves
+    ``schema_migrations`` empty. The runner's first-run pass then RE-EXECUTES
+    every migration and tolerates only "already applied" errors. Two things
+    have to hold, and the second is the one that bit:
+
+    * the pass must run to the end — 019's renames raise unique_violation on a
+      seeded database, and if that stops the pass, 015 has already been
+      re-executed and has clobbered 025's rewrite of
+      ``notify_work_queue_change``, so ``claim_task`` then calls an ambiguous
+      ``coordinator_notify`` overload (the test-integration failure on #464);
+    * afterwards the schema must be exactly what 025 left behind.
+    """
+    dsn, _applied = migrated_database
+
+    conn = await _connect(dsn)
+    try:
+        await conn.execute("DELETE FROM schema_migrations")  # simulate seeding
+    finally:
+        await conn.close()
+
+    await asyncio.wait_for(run_migrations(dsn), timeout=MIGRATE_TIMEOUT)
+
+    conn = await _connect(dsn)
+    try:
+        body = await conn.fetchval(
+            "SELECT pg_get_functiondef('notify_work_queue_change'::regproc)"
+        )
+        recorded = await conn.fetchval("SELECT count(*) FROM schema_migrations")
+    finally:
+        await conn.close()
+
+    assert "change_id" in body, (
+        "015 re-ran over 025: notify_work_queue_change lost its change_id form, "
+        "so claim_task now calls an ambiguous coordinator_notify overload"
+    )
+    assert recorded == len(discover_migrations()), (
+        "the first-run pass stopped early and left migrations unrecorded"
+    )

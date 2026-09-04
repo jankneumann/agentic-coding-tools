@@ -67,8 +67,20 @@ def _checksum(content: str) -> str:
 #: that rollback, and be silently skipped on every later boot — the same
 #: failure mode this allowlist exists to prevent. See issue #456 and the P1
 #: review finding on PR #464.
+#:
+#: 23505 (unique_violation) IS included, for the same reason in the other
+#: direction: a *data* migration re-executed on a seeded database — 019's
+#: profile renames, whose target names already exist — fails with a duplicate
+#: key. That is the already-applied signal for data migrations, exactly as
+#: duplicate_table is for DDL. It matters more than it looks. Without it the
+#: first-run pass stops at 019, and by then it has already re-executed 015,
+#: which clobbers 025's rewrite of notify_work_queue_change(); claim_task then
+#: calls an ambiguous coordinator_notify overload on every claim. That was the
+#: test-integration failure on PR #464 at fa3c66f, reproduced locally against
+#: a psql-seeded database. The tolerance still applies only on a first run
+#: (empty schema_migrations), never to a tracked database.
 _ALREADY_APPLIED_SQLSTATES = frozenset(
-    {"42710", "42P07", "42723", "42P06", "42701"}
+    {"42710", "42P07", "42723", "42P06", "42701", "23505"}
 )
 
 
