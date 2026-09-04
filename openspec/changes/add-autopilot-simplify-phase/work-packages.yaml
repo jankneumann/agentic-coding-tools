@@ -1,0 +1,309 @@
+schema_version: 1
+
+feature:
+  id: add-autopilot-simplify-phase
+  title: "Opt-in SIMPLIFY phase in autopilot and test-quality review findings"
+  plan_revision: 1
+  created_by: plan-feature
+  # Pure Python skill scripts, YAML config, JSON schemas, and SKILL.md prose.
+  # No running service: validate-feature must not derive a deployable surface.
+  deployable: false
+
+# No HTTP, DB, or event contracts. The two records that change (loop-state.json v6,
+# review-findings type enum) are governed by their existing schemas; see contracts/README.md.
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-autopilot-simplify-phase/contracts/README.md"
+    files:
+      - "openspec/changes/add-autopilot-simplify-phase/contracts/README.md"
+
+defaults:
+  priority: 10
+  lock_ttl_minutes: 90
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-autopilot-phase
+    title: "Opt-in SIMPLIFY phase: edge, state, handler, enumerations, SKILL.md"
+    task_type: implementation
+    description: |
+      Phase 0 precheck plus Phase 1, tasks 0.1 and 1.1-1.10. Task 0.1 is a hard gate:
+      fix-autopilot-archetype-and-apply-outcome must be archived before any Phase 1 edit
+      (design D8). Then: SIMPLIFY_OR_VALIDATE on both edges (D1), LoopState v6 (D3), the
+      soft-outcome handler with reset-to-B1 and evidence counters (D2, D5, D6),
+      registration of SIMPLIFY in every phase enumeration with a structural parity test
+      (D4), and the autopilot SKILL.md section. Owns the autopilot + parallel-infrastructure
+      zone entirely; denies the review-findings schema so it cannot collide with
+      wp-review-diagnostic.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/SKILL.md"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/archetypes.yaml"
+        - "openspec/schemas/convergence-state.schema.json"
+      keys:
+        - "feature:add-autopilot-simplify-phase:autopilot"
+        - "contract:archetypes:phase_mapping"
+      ttl_minutes: 120
+      reason: "Autopilot state machine, phase tables, archetype phase mapping"
+    scope:
+      write_allow:
+        - "skills/autopilot/**"
+        - "skills/tests/autopilot/**"
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/tests/test_agents_config*.py"
+        - "openspec/schemas/convergence-state.schema.json"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "openspec/schemas/review-findings.schema.json"
+        - "openspec/schemas/consensus-report.schema.json"
+        - "skills/parallel-infrastructure/install_assets/**"
+        - "skills/parallel-review-implementation/**"
+        - "skills/merge-pull-requests/**"
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "semantic_code"
+        - "documentation"
+    worktree:
+      name: autopilot-phase
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Autopilot suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot skills/autopilot/scripts/tests -q"
+          evidence:
+            artifacts: []
+            result_keys: ["autopilot_suite"]
+        - name: "Coordinator archetype config validates"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests -k agents_config -q"
+          evidence:
+            artifacts: []
+            result_keys: ["archetype_config_suite"]
+        - name: "Touched scripts are ruff-clean"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/autopilot/scripts"
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_clean"]
+    metadata:
+      loc_estimate: 450
+      complexity: medium
+      package_kind: algorithm
+    outputs:
+      result_keys: ["autopilot_suite", "archetype_config_suite", "ruff_clean"]
+
+  - package_id: wp-review-diagnostic
+    title: "test_quality finding type and review checklist"
+    task_type: implementation
+    description: |
+      Phase 2, tasks 2.1-2.5. Add test_quality to the review-findings type enum in all
+      five copies (canonical, install mirror, consensus-report x2, vendor_review fallback),
+      adding behavioral_failure to consensus-report where missing so the identity test can
+      hold (D7, D9); prove low-criticality test_quality findings do not block convergence;
+      add the Test quality checklist to parallel-review-implementation. Runs in parallel
+      with wp-autopilot-phase: no shared files, and the one convergence test it writes is
+      denied to the other package.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/schemas/review-findings.schema.json"
+        - "openspec/schemas/consensus-report.schema.json"
+        - "skills/merge-pull-requests/scripts/vendor_review.py"
+        - "skills/parallel-review-implementation/SKILL.md"
+      keys:
+        - "feature:add-autopilot-simplify-phase:review"
+        - "contract:review-findings:type"
+      ttl_minutes: 90
+      reason: "Review findings type enum and implementation-review checklist"
+    scope:
+      write_allow:
+        - "openspec/schemas/review-findings.schema.json"
+        - "openspec/schemas/consensus-report.schema.json"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/review-findings.schema.json"
+        - "skills/parallel-infrastructure/install_assets/openspec/schemas/consensus-report.schema.json"
+        - "skills/merge-pull-requests/scripts/vendor_review.py"
+        - "skills/parallel-review-implementation/SKILL.md"
+        - "skills/tests/parallel-infrastructure/test_review_findings_schema.py"
+        - "skills/tests/merge-pull-requests/test_vendor_review_prompt.py"
+        - "skills/tests/parallel-review-implementation/**"
+        - "skills/tests/parallel-infrastructure/test_test_quality_convergence.py"
+        - "skills/validate-feature/scripts/tests/test_linters.py"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+        - "skills/autopilot/**"
+        - "agent-coordinator/**"
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "apis"
+        - "documentation"
+    worktree:
+      name: review-diagnostic
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Schema identity and convergence tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_review_findings_schema.py skills/tests/merge-pull-requests/test_vendor_review_prompt.py skills/tests/parallel-review-implementation skills/tests/parallel-infrastructure/test_test_quality_convergence.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["review_schema_suite"]
+        - name: "validate-feature linters suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/validate-feature/scripts/tests/test_linters.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["linters_suite"]
+    metadata:
+      loc_estimate: 120
+      complexity: low
+      package_kind: data_model
+    outputs:
+      result_keys: ["review_schema_suite", "linters_suite"]
+
+  - package_id: wp-docs-and-mirrors
+    title: "Polish paragraphs, invocation-mode wording, docs, install resync"
+    task_type: documentation
+    description: |
+      Phase 3, tasks 3.1-3.4. Name /autopilot --simplify in implement-feature and
+      iterate-on-implementation, make simplify-implementation's invocation-mode line say
+      the flag is the operator request, update the archetype-resolution doc, skill-flow
+      graph, and catalogue, then resync installed mirrors. Depends on both implementation
+      packages so the documented flag and phase are the shipped ones.
+    role: implementer
+    priority: 2
+    depends_on: ["wp-autopilot-phase", "wp-review-diagnostic"]
+    locks:
+      files:
+        - "skills/simplify-implementation/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+      keys:
+        - "feature:add-autopilot-simplify-phase:docs"
+      ttl_minutes: 60
+      reason: "Prose in three SKILL.md files, docs, and install mirrors"
+    scope:
+      write_allow:
+        - "skills/simplify-implementation/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/iterate-on-implementation/SKILL.md"
+        - "skills/tests/simplify-implementation/test_skill_md.py"
+        - "skills/tests/implement-feature/**"
+        - "skills/tests/iterate-on-implementation/**"
+        - "docs/autopilot-phase-archetype-resolution.md"
+        - "docs/skill-flow/README.md"
+        - "docs/skills-catalogue.md"
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "documentation"
+    worktree:
+      name: docs-and-mirrors
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Content-invariant suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/simplify-implementation/test_skill_md.py skills/tests/implement-feature skills/tests/iterate-on-implementation skills/tests/install_sh -q"
+          evidence:
+            artifacts: []
+            result_keys: ["docs_suite"]
+    metadata:
+      loc_estimate: 80
+      complexity: low
+      package_kind: config
+    outputs:
+      result_keys: ["docs_suite"]
+
+  - package_id: wp-integration
+    title: "Full suites, spec validation, phase record"
+    task_type: integration
+    description: |
+      Phase 4, tasks 4.1-4.3. Merge the isolated worktrees, run the complete skills
+      suites and ruff, openspec validate --strict, confirm every SHALL scenario maps to a
+      test task, write the Implementation PhaseRecord, and push.
+    role: integrator
+    priority: 3
+    depends_on: ["wp-docs-and-mirrors"]
+    locks:
+      files: []
+      keys:
+        - "feature:add-autopilot-simplify-phase:integration"
+      ttl_minutes: 60
+      reason: "Integration and verification"
+    scope:
+      write_allow:
+        - "openspec/changes/add-autopilot-simplify-phase/tasks.md"
+        - "openspec/changes/add-autopilot-simplify-phase/session-log.md"
+        - "openspec/changes/add-autopilot-simplify-phase/handoffs/**"
+      read_allow:
+        - "**"
+      deny:
+        - "**/.venv/**"
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "documentation"
+    worktree:
+      name: integration
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Full skills suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests skills/autopilot/scripts/tests -q"
+          evidence:
+            artifacts: []
+            result_keys: ["full_suite"]
+        - name: "Change validates strictly"
+          kind: command
+          command: "openspec validate add-autopilot-simplify-phase --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_valid"]
+    metadata:
+      loc_estimate: 0
+      complexity: low
+      package_kind: integration
+    outputs:
+      result_keys: ["full_suite", "openspec_valid"]
