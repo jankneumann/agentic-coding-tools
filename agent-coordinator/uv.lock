@@ -24,6 +24,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aioimaplib" },
     { name = "aiosmtplib" },
+    { name = "asyncpg" },
     { name = "code-search-pkg" },
     { name = "email-validator" },
     { name = "fastmcp" },
@@ -50,7 +51,6 @@ cedar = [
     { name = "cedarpy" },
 ]
 dev = [
-    { name = "asyncpg" },
     { name = "cedarpy" },
     { name = "mypy" },
     { name = "pyjwt", extra = ["crypto"] },
@@ -68,9 +68,6 @@ observability = [
     { name = "opentelemetry-exporter-prometheus" },
     { name = "opentelemetry-sdk" },
     { name = "prometheus-client" },
-]
-postgres = [
-    { name = "asyncpg" },
 ]
 sdk = [
     { name = "anthropic" },
@@ -92,8 +89,7 @@ requires-dist = [
     { name = "aioimaplib", specifier = ">=2.0.1" },
     { name = "aiosmtplib", specifier = ">=5.1.1" },
     { name = "anthropic", marker = "extra == 'sdk'", specifier = ">=0.120.2" },
-    { name = "asyncpg", marker = "extra == 'dev'", specifier = ">=0.31.0" },
-    { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.31.0" },
+    { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "cedarpy", marker = "extra == 'cedar'", specifier = ">=4.8.7" },
     { name = "cedarpy", marker = "extra == 'dev'", specifier = ">=4.8.7" },
     { name = "code-search-pkg", directory = "../packages/code-search" },
@@ -135,7 +131,7 @@ requires-dist = [
     { name = "urllib3", specifier = ">=2.7.0" },
     { name = "uvicorn", marker = "extra == 'api'", specifier = ">=0.52.4" },
 ]
-provides-extras = ["api", "postgres", "cedar", "sdk", "analysis", "observability", "test", "dev"]
+provides-extras = ["api", "cedar", "sdk", "analysis", "observability", "test", "dev"]
 
 [[package]]
 name = "aiofile"

@@ -74,7 +74,7 @@ class SupabaseClient:
     """Async Supabase client for coordination operations.
 
     Uses httpx to communicate with Supabase's PostgREST API.
-    This is the default backend (DB_BACKEND=supabase).
+    Opt-in cloud-managed backend (DB_BACKEND=supabase); the default is postgres.
     """
 
     def __init__(self, config: SupabaseConfig | None = None):
@@ -244,7 +244,7 @@ class SupabaseClient:
 def create_db_client() -> DatabaseClient:
     """Factory: returns the appropriate DatabaseClient based on config.
 
-    Uses DB_BACKEND env var (default: "supabase").
+    Uses DB_BACKEND env var (default: "postgres").
     """
     config = get_config()
     backend = config.database.backend
@@ -255,9 +255,13 @@ def create_db_client() -> DatabaseClient:
         try:
             from .db_postgres import DirectPostgresClient
         except ImportError as e:
+            # asyncpg is a base dependency (see pyproject.toml) so this
+            # should be unreachable on any install that used pip/uv against
+            # the published metadata. Kept as a defensive guard for
+            # environments assembled by hand (e.g. a stripped-down venv).
             raise ImportError(
-                "asyncpg is required for DB_BACKEND=postgres. "
-                "Install with: pip install agent-coordinator[postgres]"
+                "asyncpg is required for DB_BACKEND=postgres but is not "
+                "installed. Install with: pip install agent-coordinator"
             ) from e
         return DirectPostgresClient(config.database.postgres)
     else:
@@ -285,6 +289,18 @@ async def close_db() -> None:
 
 
 def reset_db() -> None:
-    """Reset the global database client (for testing)."""
+    """Reset the global database client (for testing).
+
+    Terminates the outgoing client's pool rather than merely dropping the
+    reference. Dropping it leaked every pooled connection — including any left
+    mid-transaction by a task killed together with its event loop — and one
+    such connection holding a lock on ``audit_log`` blocked the next app
+    startup's migration pass forever (#463). That only became reachable once
+    audit inserts could actually succeed; while the column was missing every
+    insert failed fast and released its lock.
+    """
     global _db
-    _db = None
+    client, _db = _db, None
+    terminate = getattr(client, "terminate", None)
+    if callable(terminate):
+        terminate()

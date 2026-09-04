@@ -116,7 +116,7 @@ agents:
     description: Local agent
 """
 
-    def test_creates_approles_for_http_agents(self, tmp_path: Path) -> None:
+    def test_creates_approles_for_keyed_agents(self, tmp_path: Path) -> None:
         agents = tmp_path / "agents.yaml"
         _write(agents, self.AGENTS_YAML)
         client = MagicMock()
@@ -142,7 +142,7 @@ agents:
 
         client.sys.enable_auth_method.assert_called_once_with("approle")
 
-    def test_skips_mcp_agents(self, tmp_path: Path) -> None:
+    def test_skips_agents_without_a_key(self, tmp_path: Path) -> None:
         agents_yaml = """\
 agents:
   local-only:
@@ -160,6 +160,41 @@ agents:
         seed_approles(client, agents, "secret", "coordinator", 3600)
 
         client.auth.approle.create_or_update_approle.assert_not_called()
+
+    def test_creates_approle_for_keyed_mcp_agent(self, tmp_path: Path) -> None:
+        """An `mcp` agent that declares a key must get an AppRole.
+
+        This is the case the old `transport == "http"` selector dropped.
+        `get_api_key_identities()` already grants such an agent an identity row
+        regardless of transport (design D5), so seeding only HTTP agents left
+        the AppRole set narrower than the identity map it backs — the agent
+        held a key OpenBao was never told to serve.
+        """
+        agents_yaml = """\
+agents:
+  grok-local:
+    type: grok
+    profile: p
+    trust_level: 3
+    transport: mcp
+    api_key: "${GROK_LOCAL_API_KEY}"
+    openbao_role_id: grok-local
+    capabilities: [lock]
+    description: Local grok harness
+"""
+        agents = tmp_path / "agents.yaml"
+        _write(agents, agents_yaml)
+        client = MagicMock()
+        client.sys.list_auth_methods.return_value = {"approle/": {}}
+
+        seed_approles(client, agents, "secret", "coordinator", 3600)
+
+        client.auth.approle.create_or_update_approle.assert_called_once_with(
+            role_name="grok-local",
+            token_policies=["coordinator-read"],
+            token_ttl="3600s",
+            token_max_ttl="86400s",
+        )
 
     def test_missing_agents_file_warns(self, tmp_path: Path) -> None:
         client = MagicMock()
