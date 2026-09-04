@@ -36,7 +36,7 @@ There is also spec drift: `live-service-testing` LST.2 says `DockerStackEnvironm
 
 ## What Changes
 
-- **Persist port leases in Postgres.** New `port_leases` table (migration `035_port_leases.sql`);
+- **Persist port leases in Postgres.** New `port_leases` table (migration `036_port_leases.sql`);
   `PortAllocatorService` writes through to it when a DB backend is configured and reloads on start.
   In-memory mode remains for standalone operation. **MODIFIES** agent-coordinator "Standalone
   operation" scenario "Database configured but port allocator used".
@@ -182,7 +182,7 @@ playwright defaults).
 
 **Major code touchpoints:**
 - `agent-coordinator/src/port_allocator.py`, `discovery.py`, `coordination_api.py`,
-  `coordination_mcp.py`, `http_proxy.py`, `config.py`, `database/migrations/035_port_leases.sql`
+  `coordination_mcp.py`, `http_proxy.py`, `config.py`, `database/migrations/036_port_leases.sql`
 - `skills/shared/port_lease.py` (new), `skills/coordination-bridge/scripts/coordination_bridge.py`
 - `skills/validate-feature/scripts/environments/docker_stack.py`, `stack_launcher.py`,
   `phase_deploy.py`, `skills/validate-feature/SKILL.md`, `skills/validate-feature/scripts/smoke_tests/`

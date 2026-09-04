@@ -86,7 +86,7 @@ packages:
     title: "Coordinator — five-port leases, Postgres persistence, session tie-in, isolation gate, conflict/reconcile endpoints"
     task_type: backend
     description: |
-      Tasks 2.1–2.12: extend PortAllocation to five ports (D4); migration 035_port_leases.sql and
+      Tasks 2.1–2.12: extend PortAllocation to five ports (D4); migration 036_port_leases.sql and
       write-through persistence with startup load/prune (D2); agent_id on allocate, heartbeat
       refresh, cleanup_dead_agents releases leases and reports ports_released (D3); isolation
       gate, downgrade-only (D5); POST /ports/conflict and /ports/reconcile plus MCP tools and
@@ -124,7 +124,7 @@ packages:
         - "agent-coordinator/src/http_proxy.py"
         - "agent-coordinator/src/config.py"
         - "agent-coordinator/src/help_service.py"
-        - "agent-coordinator/database/migrations/035_port_leases.sql"
+        - "agent-coordinator/database/migrations/036_port_leases.sql"
         - "agent-coordinator/tests/test_port_allocator.py"
         - "agent-coordinator/tests/test_port_allocator_api.py"
         - "agent-coordinator/tests/test_discovery.py"

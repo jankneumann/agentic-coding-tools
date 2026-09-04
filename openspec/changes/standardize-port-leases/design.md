@@ -54,7 +54,7 @@ session id primary key, agent id, slot index, five ports, project name, `isolati
 `allocated_at`, `expires_at`, `blocked_until`. `PortAllocatorService` keeps its in-memory dict as
 the hot path and writes through when `get_db()` is configured. On startup it loads unexpired rows
 and prunes expired ones. Write failure aborts the allocation. Blocked slots are rows with a null
-session and a non-null `blocked_until`. The migration is `035_port_leases.sql`.
+session and a non-null `blocked_until`. The migration is `036_port_leases.sql`.
 
 ### D3. Leases belong to sessions; heartbeat refreshes, cleanup releases
 

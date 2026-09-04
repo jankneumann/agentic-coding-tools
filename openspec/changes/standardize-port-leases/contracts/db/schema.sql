@@ -1,4 +1,4 @@
--- Contract: port_leases (agent-coordinator migration 035_port_leases.sql)
+-- Contract: port_leases (agent-coordinator migration 036_port_leases.sql)
 -- Design D2: same shape as file_locks (001_core_schema.sql). A row with a NULL
 -- session_id and a non-NULL blocked_until is a blocked slot (design D6).
 

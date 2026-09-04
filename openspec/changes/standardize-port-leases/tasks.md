@@ -69,9 +69,9 @@ survives as a single unit of work.
   **Files**: agent-coordinator/tests/integration/test_port_leases_persist.py
   **Size**: M
 
-- [ ] 2.4b Add migration `035_port_leases.sql` from the DB contract
+- [ ] 2.4b Add migration `036_port_leases.sql` from the DB contract
   **Dependencies**: 2.4a
-  **Files**: agent-coordinator/database/migrations/035_port_leases.sql
+  **Files**: agent-coordinator/database/migrations/036_port_leases.sql
   **Size**: XS
 
 - [ ] 2.4c Implement write-through persistence, startup load, prune, and `backend` reporting in `PortAllocatorService`
