@@ -51,14 +51,14 @@ Contracts: `contracts/events/simplify-review.schema.json` (+ two fixtures).
 
 ## Phase 2 — wp-simplify-skill: Review / Apply roles and the rendering helper
 
-- [ ] 2.1 Test: `simplify_review.py validate` exits 0 on the valid fixture, 2 on the
+- [x] 2.1 Test: `simplify_review.py validate` exits 0 on the valid fixture, 2 on the
       invalid fixture naming the failing finding id, 1 on a missing file or missing
       `jsonschema`; `--json` emits the error list — **S**
       **Spec scenarios**: sw *Invalid artifact is rejected*
       **Design decisions**: D3
       **Dependencies**: None
 
-- [ ] 2.2 Test: round-trip on a synthetic git repo — `render-ledger` from an artifact with
+- [x] 2.2 Test: round-trip on a synthetic git repo — `render-ledger` from an artifact with
       one `self-mocking` and one `change-detector` (with `covered_by`) finding produces a
       ledger that `check_test_prune.py --base B0 --head B1` accepts (exit 0) after those two
       tests are removed; findings with `disposition: accept` produce no ledger entry — **S**
@@ -66,7 +66,7 @@ Contracts: `contracts/events/simplify-review.schema.json` (+ two fixtures).
       **Design decisions**: D3
       **Dependencies**: None
 
-- [ ] 2.3 Implement `skills/simplify-implementation/scripts/simplify_review.py` with
+- [x] 2.3 Implement `skills/simplify-implementation/scripts/simplify_review.py` with
       `validate` and `render-ledger` subcommands (stdlib + `jsonschema`, resolving the
       canonical schema via `review_findings_schema.find_schema_path()` with an
       `install_assets` fallback) — **S**
@@ -74,7 +74,7 @@ Contracts: `contracts/events/simplify-review.schema.json` (+ two fixtures).
       **Design decisions**: D3
       **Dependencies**: 2.1, 2.2
 
-- [ ] 2.4 Restructure `skills/simplify-implementation/SKILL.md`: add `## Roles` (Review =
+- [x] 2.4 Restructure `skills/simplify-implementation/SKILL.md`: add `## Roles` (Review =
       steps 0–4, artifact-only writes, ends with `validate`; Apply = steps 5–8, starts with
       `validate`, renders the ledger, never changes a fence verdict or disposition, raises
       disagreements to a human); tag each Workflow step with its role; add the artifact to
@@ -86,7 +86,7 @@ Contracts: `contracts/events/simplify-review.schema.json` (+ two fixtures).
       **Design decisions**: D4
       **Dependencies**: 2.3
 
-- [ ] 2.5 Test: content invariants in `skills/tests/simplify-implementation/test_skill_md.py`
+- [x] 2.5 Test: content invariants in `skills/tests/simplify-implementation/test_skill_md.py`
       — Roles section exists with Review before Apply; every Workflow step carries a role
       tag; `simplify_review.py` appears in the script table and in Verification; the
       existing phase-ordering and two-sided-catalog invariants still hold — **XS**
@@ -94,7 +94,7 @@ Contracts: `contracts/events/simplify-review.schema.json` (+ two fixtures).
       **Design decisions**: D4
       **Dependencies**: 2.4
 
-- [ ] Checkpoint: `skills/tests/simplify-implementation` green; `ruff check
+- [x] Checkpoint: `skills/tests/simplify-implementation` green; `ruff check
       skills/simplify-implementation/scripts`; confirm only `wp-simplify-skill.write_allow` changed
 
 ## Phase 3 — wp-autopilot-phases: SIMPLIFY_REVIEW and SIMPLIFY_APPLY

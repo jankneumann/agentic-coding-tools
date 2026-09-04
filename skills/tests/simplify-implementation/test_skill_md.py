@@ -1,4 +1,5 @@
 """Content invariants for the simplify-implementation skill."""
+import re
 from pathlib import Path
 
 from skill_invariants import (
@@ -142,4 +143,57 @@ def test_prune_gate_is_wired_into_verification():
     verification = text[text.index("## Verification"):]
     assert "check_test_prune.py" in verification, (
         "the prune gate must appear in the Verification checklist, not only in prose"
+    )
+
+
+# --- Review / Apply roles -----------------------------------------------
+#
+# The skill is two roles sharing one artifact: a reviewer that decides and an
+# implementer that applies. These guard the *structure* that keeps the split
+# legible — a Roles section in reviewer-then-implementer order, and a role tag
+# on every workflow step — not the prose that explains it.
+
+
+def _section(text: str, heading: str) -> str:
+    """Return the body of a `## <heading>` section, up to the next `## `."""
+    start = text.index(heading)
+    rest = text[start + len(heading):]
+    end = rest.find("\n## ")
+    return rest if end == -1 else rest[:end]
+
+
+def test_roles_section_defines_review_before_apply():
+    text = (SKILL_DIR / "SKILL.md").read_text()
+    assert "## Roles" in text, "the skill must document its Review and Apply roles"
+    roles = _section(text, "## Roles")
+    assert "Review" in roles and "Apply" in roles
+    assert roles.index("Review") < roles.index("Apply"), (
+        "the Review role produces the artifact the Apply role consumes — "
+        "document them in that order"
+    )
+
+
+def test_every_workflow_step_carries_a_role_tag():
+    """An untagged step is a step either role can claim — or neither runs."""
+    text = (SKILL_DIR / "SKILL.md").read_text()
+    workflow = _section(text, "## Workflow")
+    steps = [
+        line for line in workflow.splitlines() if re.match(r"^### \d+\.", line)
+    ]
+    assert steps, "Workflow must keep its numbered steps"
+    untagged = [s for s in steps if "[Review]" not in s and "[Apply]" not in s]
+    assert not untagged, f"workflow steps missing a role tag: {untagged}"
+
+
+def test_review_helper_is_documented_and_gated():
+    """A helper absent from the script table or Verification is unenforced."""
+    text = (SKILL_DIR / "SKILL.md").read_text()
+    assert (SKILL_DIR / "scripts" / "simplify_review.py").exists()
+    scripts = _section(text, "## Script helpers")
+    assert "simplify_review.py" in scripts, (
+        "simplify_review.py must appear in the script table"
+    )
+    verification = _section(text, "## Verification")
+    assert "simplify_review.py" in verification, (
+        "the artifact gate must appear in the Verification checklist, not only in prose"
     )

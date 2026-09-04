@@ -43,7 +43,7 @@ The test suite is part of the surface under review. A test that must be edited e
 
 **Primary invoke:** `/simplify-implementation`  
 **Naming:** deliberately not `/simplify` — Claude Code ships a bundled `simplify` skill (quality-only cleanup via parallel agents, no coverage gate). Ours is the stricter, gated variant and coexists with it under this name.  
-**Invocation mode:** **manual only** — operators (or explicit human request) run this skill. Autopilot and implement-feature do **not** auto-run simplify by default.
+**Invocation mode:** **manual only** by default — invocation is **not** default-on anywhere. Operators (or an explicit human request) run this skill directly; in the orchestrated path `/autopilot --simplify` **is** the operator request, and dispatches the [Review role](#roles) and then the Apply role to separate agents. Without that flag, autopilot and implement-feature do **not** run simplify.
 
 ## When to Use
 
@@ -216,11 +216,59 @@ For every removal, exactly one of these must be true and written down:
 There is no **(c) "I'll re-add coverage later."** A removal you cannot justify
 today is a test you keep today.
 
+### The review artifact
+
+The [Review role](#roles)'s single output is `simplify-review.json`: a review-findings
+document with `review_type: simplify`, governed by `schemas/simplify-review.schema.json`
+(composed over the canonical `review-findings.schema.json`). In an autopilot run it lives at
+`openspec/changes/<change-id>/simplify-review.json`; a manual run may put it anywhere that
+ships with the PR.
+
+**Envelope:** `target` (change id, or a surface label for a manual run), `baseline_b0` (the
+`<B0>` SHA), `scope` (`files`, `lines`, `rule_of_500: within | exceeded`), and
+`skipped_reason` — set when there is nothing to apply, so a refusal is *recorded* rather
+than inferred from an empty findings list.
+
+**Each finding** carries the usual review-findings fields (`id`, `description`,
+`disposition`, `axis`, `severity`, `criticality: low`) plus:
+
+| Field | Meaning |
+|---|---|
+| `type` | `simplification` (a production construct) or `test_quality` (a test to prune) |
+| `pattern` | Catalog entry: a Local clarity, Isomorphic structure, Test-induced seam, or Delete-catalog name |
+| `fence` | `verdict` (`remove` / `keep` / `investigate`), `rationale`, and `evidence` (blame SHAs, caller searches, active OpenSpec change ids) |
+| `coverage` | `pinned`, plus `characterize`: the behaviors the Apply role must pin **before** touching this finding |
+| `prune` | `reason` (a ledger reason code) and `covered_by` — required on `test_quality` findings with `disposition: fix` |
+| `consumer` | `present` / `specified` caller lists, on Test-induced seam findings |
+| `test_id` | Optional nodeid of the test to remove (`tests/test_client.py::test_x`). It is what the rendered ledger addresses; when absent, `file_path` becomes a file-level entry covering every test in that file |
+
+Four rules the artifact must satisfy, all enforced by `simplify_review.py validate`:
+
+1. `disposition: fix` requires `fence.verdict: remove` — you cannot apply a fence you kept.
+2. `type: test_quality` with `disposition: fix` requires `prune` and `file_path`.
+3. A `prune.reason` of `change-detector`, `duplicative`, or `unreviewed-snapshot` requires a
+   non-null `prune.covered_by` — the [coverage-preserving rule](#the-coverage-preserving-rule),
+   mechanized.
+4. A non-empty `consumer.present` or `consumer.specified` forces `fence.verdict: keep` and a
+   disposition other than `fix` — a seam with a consumer is a design decision.
+
 ### Prune ledger
 
 One entry per removal, in a file that ships with the PR (e.g.
 `docs/simplify-implementation/test-prune-ledger.md`). A file-level `removed:` entry covers
 every test in that file.
+
+Whenever a review artifact exists — always, in the orchestrated path — this file is
+**rendered from it**, never written by hand:
+
+```bash
+python3 "<skill-base-dir>/scripts/simplify_review.py" render-ledger <artifact> \
+  --out docs/simplify-implementation/test-prune-ledger.md
+```
+
+One entry per `test_quality` finding with `disposition: fix`; every other finding is
+skipped. Rendering is what makes the ledger the *reviewer's* decision: the prune gate below
+then checks that the implementer removed what the reviewer said, and nothing else.
 
 ```markdown
 - removed: tests/test_config.py::test_timeout_is_thirty
@@ -321,42 +369,90 @@ consumer keeps the seam's *contract*; simplifying its internals stays in scope.
 When the specifying change is later archived without landing, the seam becomes
 an orphan and comes back onto this list.
 
+## Roles
+
+This skill is **two roles sharing one artifact**: a **Review** role that decides, and an
+**Apply** role that executes those decisions. The artifact between them is
+[`simplify-review.json`](#the-review-artifact).
+
+### Review role (workflow steps 0–2, 4–5)
+
+Read-only with respect to production **and** test code. It records the scope and `<B0>`,
+runs Chesterton's Fence, makes the coverage-gate decision (which behaviors must be pinned,
+and by whom), sweeps the suite against the Delete and Keep catalogs, lists candidates by
+pattern, and applies the Rule of 500 at review scope. Its only write is the artifact, and it
+ends by validating it:
+
+```bash
+python3 "<skill-base-dir>/scripts/simplify_review.py" validate <artifact>
+```
+
+An artifact that does not validate is not a review. If there is nothing to apply — nothing
+fails the catalogs, or the surface exceeds the Rule of 500 at review scope — the role still
+writes an artifact, with `skipped_reason` set.
+
+### Apply role (workflow steps 3, 6–8)
+
+Starts by validating the same artifact, then works only from it: it characterizes exactly
+the behaviors each finding's `coverage.characterize` names, executes the Review role's
+`prune` findings in step 3 from a ledger it **renders** (`render-ledger`) rather than writes,
+applies only findings with `disposition: fix`, one pattern at a time, and dual-runs.
+
+The Apply role **MUST NOT** change any finding's `fence.verdict` or `disposition`. A finding
+it cannot land is reported as **skipped**, with the reason, in step 8 — not silently dropped
+and not re-dispositioned. A verdict it disagrees with goes back to a **human**; disagreement
+is not a licence to edit the artifact. Kept fences stay kept, and appear in the report under
+findings kept.
+
+A manual run **may** perform both roles in one session, but it **must write the artifact
+between them** — the artifact, not the agent's memory, is what the Apply role executes.
+`/autopilot --simplify` dispatches the two roles to different archetypes (`reviewer`, then
+`implementer`), which is the same contract with a process boundary in the middle.
+
 ## Workflow
 
-### 0. Scope
+Each step is tagged with the [role](#roles) that runs it. The order below does not change:
+the Review role records its decisions in the artifact, and the Apply role executes them —
+including the prune in step 3, whose removals come from the artifact's `prune` findings, not
+from the implementer's own judgment.
+
+### 0. Scope [Review]
 
 Identify target: `git diff`, path, module, or tech-debt finding ID. Record `<B0>`, the tip before any simplify work. The **baseline SHA** for the downstream gates is `<B1>` — the tip after characterization **and** prune commits, i.e. immediately before the first production edit. When neither phase produces a commit, `<B1>` is `<B0>`.
 
-### 1. Understand (Chesterton's Fence)
+### 1. Understand (Chesterton's Fence) [Review]
 
 Blame, callers, existing tests, edge cases. Read project conventions (AGENTS.md / CLAUDE.md / neighboring modules).
 
-### 2. Coverage gate
+### 2. Coverage gate [Review]
 
 Pin or characterize (see above). Run characterization tests and confirm green on baseline.
 
-### 3. Test prune (optional)
+### 3. Test prune (optional) [Apply]
 
-Sweep the surface's tests against the [Delete catalog](#delete-catalog) and the
-[Keep catalog](#keep-catalog--chestertons-fence-for-tests). Remove what fails,
-one test-only commit per group: `test(<scope>): remove <smell> tests for <surface>`.
-Write the ledger entry as you delete, not afterwards. Run the suite; it must stay
-green with production code untouched. Record `<B1>` — the post-prune tip — as the
-baseline for everything downstream.
+The [Review role](#roles) already swept the surface against the
+[Delete catalog](#delete-catalog) and the
+[Keep catalog](#keep-catalog--chestertons-fence-for-tests); this step executes its
+`test_quality` findings with `disposition: fix`, and nothing else. Render the ledger from
+the artifact (`simplify_review.py render-ledger`), remove exactly the tests it names, one
+test-only commit per group: `test(<scope>): remove <smell> tests for <surface>`. Run the
+suite; it must stay green with production code untouched. Record `<B1>` — the post-prune
+tip — as the baseline for everything downstream.
 
-Skip this step entirely if nothing in the suite fails the Delete catalog. Most
-runs of `/simplify-implementation` skip it.
+Skip this step entirely when the artifact has no `test_quality` finding to apply. Most runs
+of `/simplify-implementation` skip it. A run with no artifact cannot prune: the ledger is
+rendered from the artifact, not from memory.
 
-### 4. Candidate list
+### 4. Candidate list [Review]
 
 List opportunities by pattern, including any [test-induced seams](#test-induced-seams-only-after-pruning)
 the prune just orphaned. Drop any that fail Chesterton's Fence; note fences kept.
 
-### 5. Rule of 500
+### 5. Rule of 500 [Review]
 
 Group remaining work. Automate, split, or escalate if over budget.
 
-### 6. Apply incrementally
+### 6. Apply incrementally [Apply]
 
 For each remaining candidate:
 
@@ -367,7 +463,7 @@ For each remaining candidate:
 
 Never mix `feat` / `fix` with simplify polish in the same commit.
 
-### 7. Dual-run verify
+### 7. Dual-run verify [Apply]
 
 ```bash
 # Prune range (skip when no tests were removed): test-only diff, every removal ledgered.
@@ -397,13 +493,15 @@ Source-contribution-only example (this monorepo, not portable to consumers):
 
 Manual equivalent: run the same suite on `<B1>` and on `HEAD`; both must pass.
 
-### 8. Report
+### 8. Report [Apply]
 
-Summarize: patterns applied, fences kept, characterization tests added, tests pruned (with the ledger, or "none"), seams removed and the reference search that cleared them, dual-run evidence (commands + exit codes or report path), Rule of 500 status.
+Summarize: patterns applied, fences kept, characterization tests added, tests pruned (with the rendered ledger, or "none"), seams removed and the reference search that cleared them, dual-run evidence (commands + exit codes or report path), Rule of 500 status.
+
+Report **against the artifact**: findings reviewed, applied, kept, and skipped — each skip with its reason. A finding the Apply role could not land is reported, never re-dispositioned; a verdict it disagrees with is raised to a human here, with the evidence, not edited into the artifact.
 
 ## Script helpers
 
-Scripts live in `<skill-base-dir>/scripts/` (installed copy under `.claude/skills/simplify-implementation/scripts/` or `.agents/skills/simplify-implementation/scripts/`). They use only the standard library plus `git`.
+Scripts live in `<skill-base-dir>/scripts/` (installed copy under `.claude/skills/simplify-implementation/scripts/` or `.agents/skills/simplify-implementation/scripts/`). They use only the standard library plus `git` — except `simplify_review.py validate`, which also needs `jsonschema` and `referencing`, and exits `1` rather than reporting a pass when they are missing.
 
 | Script | Purpose | Exit |
 |---|---|---|
@@ -411,6 +509,12 @@ Scripts live in `<skill-base-dir>/scripts/` (installed copy under `.claude/skill
 | `check_test_prune.py` | Prune range is test-only; every removed test is ledgered with a valid reason (and `covered-by:` when it covered behavior) | `0` ok, `2` unjustified removal or production edit in range, `1` error |
 | `check_test_contract.py` | Detect assertion/expect body changes in test paths | `0` ok, `2` contract break, `1` error |
 | `verify_behavior_preservation.py` | Run tests at baseline and HEAD in detached worktrees; write JSON report | `0` both green, `2` failure, `1` error |
+| `simplify_review.py` | `validate <artifact>`: the [review artifact](#the-review-artifact) against its contract and the canonical review-findings schema, naming the failing finding and path (`--json` for the machine-readable error list); `render-ledger <artifact> --out <path>`: emit `test-prune-ledger.md` from the artifact's `test_quality` / `fix` findings | `0` valid or rendered, `2` invalid artifact, `1` error |
+
+`simplify_review.py` resolves the canonical `review-findings.schema.json` through the
+installed `parallel-infrastructure` skill (`<skill-base-dir>/../parallel-infrastructure/scripts`),
+falling back to an `install_assets` copy, and the contract from `schemas/` next to this skill
+(override with `--contract`).
 
 `check_test_contract.py` expects `--base` at `<B1>` — the tip **after** characterization and prune commits. Within that range, any `+/-` assertion line (including deleted test files) is a contract break. Test removals belong in the prune range, where `check_test_prune.py` gates them; a removal inside the simplify range means you deleted a test to make a refactor go green.
 
@@ -501,6 +605,8 @@ Prefer project idioms when they conflict with these sketches.
 - Net coverage of an error path, boundary, or authz check dropping to zero after the prune.
 - A seam removed on the strength of a green suite alone, with no repo-wide reference search.
 - `check_test_contract.py --base <B0>` used instead of `<B1>` to make the prune look clean.
+- The Apply role changed a finding's `fence.verdict` or `disposition` instead of reporting the finding skipped and raising the disagreement to a human.
+- A hand-written `test-prune-ledger.md` in the orchestrated path — or one whose entries do not match `simplify_review.py render-ledger` output.
 
 ## Verification
 
@@ -514,3 +620,5 @@ Prefer project idioms when they conflict with these sketches.
 8. Confirm assertion contract: `check_test_contract.py --base <B1>` exits 0 for the simplify range (characterization commits may add tests, prune commits may remove them; simplify commits must not mutate expectation bodies).
 9. Confirm scope: `check_scope.py --base <B1>` exits 0, or `--allow-codemod` with the codemod named in the report.
 10. Confirm `git diff <B1>..HEAD --stat` (or report) shows intentional surface only — no unrelated drive-by files.
+11. Confirm the review artifact: `simplify_review.py validate <artifact>` exits 0 (the Review role ran it, and the Apply role re-ran it before touching anything), and the ledger attached in (5) is `simplify_review.py render-ledger` output, not a hand-written file.
+12. Confirm no finding's `fence.verdict` or `disposition` differs from the artifact the Review role validated, and list every finding the Apply role reported skipped, with its reason.
