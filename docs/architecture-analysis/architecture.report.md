@@ -2,25 +2,25 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-09-01T02:13:39+00:00
-Git SHA: `d2f59cb06aa7e137fa98ae6c1fa1ac5a8b6ee00c`
+Generated: 2026-09-02T10:23:05+00:00  
+Git SHA: `51f1dad3216f8435df6d5deb9e754826a3bf297a`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **27 Postgres tables**. The codebase contains 1088 functions (436 async) and 250 classes.
+This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **27 Postgres tables**. The codebase contains 1092 functions (436 async) and 250 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1852 |
-| Total edges | 1199 |
+| Total nodes | 1908 |
+| Total edges | 1203 |
 | Python modules | 77 |
-| Functions | 1088 (436 async) |
+| Functions | 1092 (436 async) |
 | Classes | 250 |
 | Mcp Endpoints | 96 |
 | DB tables | 27 |
-| Python nodes | 1415 |
+| Python nodes | 1471 |
 | Sql nodes | 437 |
 
 ## Module Responsibility Map
@@ -60,7 +60,7 @@ This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (8
 | `handoffs` | Foundation | Get the global handoff service instance. | 11 / 9 |
 | `help_service` | Foundation | Return a compact overview of all capability groups. | 15 / 0 |
 | `http_proxy` | Service | Validate URL against SSRF allowlist. | 58 / 4 |
-| `issue_service` | Foundation | Get the global issue service instance. | 22 / 5 |
+| `issue_service` | Foundation | Render a PostgREST array literal for the ``cs`` (contains) operator. | 22 / 5 |
 | `kanban_viz_files` | Service | Load a schema file by name (e.g. ``saved-view.json``). | 5 / 5 |
 | `langfuse_middleware` | Service | Extract agent identity from the request API key. | 1 / 4 |
 | `langfuse_tracing` | Service | Initialize the Langfuse client from configuration. | 7 / 2 |
@@ -278,18 +278,18 @@ This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (8
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2747 findings** across 4 categories:
+**2755 findings** across 4 categories:
 
-### Orphan — 1217
+### Orphan — 1221
 
-1217 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+1221 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'PollConfig' is unreachable from any entrypoint or test
 - 'ModeConfig' is unreachable from any entrypoint or test
 - 'CliConfig' is unreachable from any entrypoint or test
-- ... and 1212 more
+- ... and 1216 more
 
 ### Reachability — 96
 
@@ -304,16 +304,16 @@ Breakdown: 88 info, 8 warning.
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
 - ... and 91 more
 
-### Test Coverage — 1338
+### Test Coverage — 1342
 
-1338 functions lack test references — consider adding tests for critical paths.
+1342 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 1333 more
+- ... and 1337 more
 
 ### Disconnected Flow (expected) — 96
 
@@ -374,8 +374,8 @@ Breakdown: 88 info, 8 warning.
 
 | Indicator | Value |
 |-----------|-------|
-| Async ratio | 436/1088 (40%) |
-| Docstring coverage | 777/1088 (71%) |
+| Async ratio | 436/1092 (40%) |
+| Docstring coverage | 781/1092 (72%) |
 | Dead code candidates | 502 |
 
 ### Hot Functions
@@ -460,7 +460,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1140 independent groups** identified. The largest interconnected group has 544 modules; 1444 modules are leaf nodes (safe to modify in isolation).
+**1192 independent groups** identified. The largest interconnected group has 544 modules; 1496 modules are leaf nodes (safe to modify in isolation).
 
 **41 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -478,7 +478,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 4** (14 members spanning 1 modules): `notifications`
 
-**Group 5** (10 members spanning 1 modules): `db_postgres`
+**Group 5** (12 members spanning 1 modules): `db_postgres`
 
 **Group 6** (9 members spanning 1 modules): `code_search_runtime`
 
@@ -488,9 +488,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1444)
+### Leaf Modules (1496)
 
-1444 modules have no dependents — changes are fully isolated. 1118 of the 1140 groups are singletons.
+1496 modules have no dependents — changes are fully isolated. 1169 of the 1192 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -500,7 +500,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1415 nodes)"]
+    Backend["Backend (1471 nodes)"]
     Database["Database (437 nodes)"]
 ```
 
@@ -524,7 +524,7 @@ flowchart TB
     coordination_cli["coordination_cli (34 symbols)"]
     coordination_mcp["coordination_mcp (80 symbols)"]
     db["db (23 symbols)"]
-    db_postgres["db_postgres (15 symbols)"]
+    db_postgres["db_postgres (17 symbols)"]
     discovery["discovery (20 symbols)"]
     docker_manager["docker_manager (8 symbols)"]
     event_bus["event_bus (22 symbols)"]
@@ -540,7 +540,7 @@ flowchart TB
     handoffs["handoffs (14 symbols)"]
     help_service["help_service (6 symbols)"]
     http_proxy["http_proxy (69 symbols)"]
-    issue_service["issue_service (21 symbols)"]
+    issue_service["issue_service (23 symbols)"]
     kanban_viz_files["kanban_viz_files (10 symbols)"]
     langfuse_middleware["langfuse_middleware (5 symbols)"]
     langfuse_tracing["langfuse_tracing (10 symbols)"]
@@ -580,6 +580,7 @@ flowchart TB
     sync_points["sync_points (5 symbols)"]
     teams["teams (14 symbols)"]
     telemetry["telemetry (20 symbols)"]
+    tests__test_architecture["tests.test_architecture (52 symbols)"]
     trust_levels["trust_levels (2 symbols)"]
     trust_resolution["trust_resolution (5 symbols)"]
     watchdog["watchdog (18 symbols)"]

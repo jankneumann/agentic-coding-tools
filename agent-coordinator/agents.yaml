@@ -59,6 +59,8 @@ agents:
     profile: claude_code_local
     trust_level: 3
     transport: mcp
+    api_key: "${CLAUDE_LOCAL_API_KEY}"
+    openbao_role_id: claude-code-local
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     # supervisor / gatekeeper are read-only adjudication roles and validator
@@ -146,6 +148,8 @@ agents:
     profile: codex_local
     trust_level: 3
     transport: mcp
+    api_key: "${CODEX_LOCAL_API_KEY}"
+    openbao_role_id: codex-local
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     # validator: teams.yaml rosters it to [claude_code, codex]. Keeping a second
@@ -234,6 +238,8 @@ agents:
     profile: antigravity_local
     trust_level: 3
     transport: mcp
+    api_key: "${ANTIGRAVITY_LOCAL_API_KEY}"
+    openbao_role_id: antigravity-local
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
@@ -280,6 +286,8 @@ agents:
     profile: grok_local
     trust_level: 3
     transport: mcp
+    api_key: "${GROK_LOCAL_API_KEY}"
+    openbao_role_id: grok-local
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     archetypes: [architect, analyst, implementer, reviewer, runner, documenter]
@@ -323,6 +331,26 @@ agents:
       model_fallbacks: []
       prompt_via_stdin: true
 
+  grok-remote:
+    type: grok
+    profile: grok_remote
+    trust_level: 2
+    transport: http
+    isolation: sandbox
+    api_key: "${GROK_REMOTE_API_KEY}"
+    openbao_role_id: grok-cloud
+    capabilities: [lock, queue, memory, guardrails, handoff, feature_registry]
+    archetypes: [implementer, reviewer]
+    description: Remote Grok agent (runs on xAI infrastructure)
+    # No `cli` section on purpose. The local entry's flags above are the ones
+    # verified empirically in add-agy-grok-pi-harnesses (E2/E5/E6); the cloud
+    # dispatch shape — submit/poll commands, task-id pattern, terminal-state
+    # patterns — has NOT been probed the same way, and guessing it would
+    # reproduce the class of bug that change spent a phase fixing (a dispatch
+    # mode that fails at runtime while looking configured). This entry exists
+    # so the cloud harness has a coordinator identity and key; add `cli` once
+    # the submit/poll shape is confirmed against the real CLI.
+
   # ---------------------------------------------------------------------------
   # pi (OpenRouter models — reaches models outside the subscription harnesses,
   # e.g. Kimi 3, Qwen3-Coder). E3: resolves OPENROUTER_API_KEY from the
@@ -335,6 +363,8 @@ agents:
     profile: pi_local
     trust_level: 3
     transport: mcp
+    api_key: "${PI_LOCAL_API_KEY}"
+    openbao_role_id: pi-local
     isolation: worktree
     capabilities: [lock, queue, memory, guardrails, handoff, discover, audit]
     archetypes: [architect, analyst, implementer, reviewer, runner, documenter]

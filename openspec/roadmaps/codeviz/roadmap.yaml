@@ -197,10 +197,10 @@ items:
     expected to score higher than WebGL renderers (Sigma, three.js) whose headless-GPU
     output may vary; the score MUST be recorded in render-comparison.md even though
     it does not by itself decide the winner.'
-  - 'The three.js CodeCity variant skeleton MAY be seeded from the architecture-map
+  - The three.js CodeCity variant skeleton MAY be seeded from the architecture-map
     skill (almendili/skills) isometric React/TSX assets, adapted to consume the measured
     subgraph payload instead of a hand-authored graph; seeding does not exempt it
-    from the scoring matrix.'
+    from the scoring matrix.
 - item_id: source-viewer-panel
   title: Source viewer panel with deep links
   status: approved
@@ -297,6 +297,52 @@ items:
   - Once lens-framework lands, a callstack lens MUST register under the Change view rendering the tree
     diff with the same change_kind color mapping as the diff overlay; ghost-overlay mode MUST be able to
     preview the projected tree for agent-proposed patches.
+- item_id: map-state-ir
+  change_id: add-map-state-ir
+  title: Agent-activity map-state IR (schema + coordinator projection)
+  priority: 3
+  effort: M
+  depends_on:
+  - artifact-header-schema
+  description: 'Operationalize the draft contract at openspec/schemas/map-state.schema.json:
+    a typed IR describing live agent activity across the work hierarchy (roadmap items,
+    changes, work packages, agents, worktrees, paths) with mandatory provenance on
+    every node and edge. Ship a coordinator projection endpoint (GET /map/state) that
+    materializes the currently-missing agent-to-file join from work_queue, agent_sessions,
+    file_locks, the worktree registry, scope globs in work-packages.yaml, and scope_checker
+    output; reconcile the three agent-identity forms (registry agent_id, agent_sessions.id,
+    the <package>--<vendor> suffix convention) into one agent node; derive the five-state
+    agent activity (working/waiting/idle/stale/disconnected) the raw active/idle/disconnected
+    enum cannot express; and ship a snapshot writer that persists frozen map-state
+    documents as event artifacts for delta review at sync points.'
+  rationale: Every observability surface (kanban board, CLI, future map lens) currently
+    reimplements ad-hoc joins over coordinator endpoints, and no store correlates
+    agents with the files they touch. A schema-validated, server-owned projection
+    gives all consumers one contract, makes agent-identity reconciliation testable,
+    and is the prerequisite for the agent-activity map lens.
+  acceptance_outcomes:
+  - GET /map/state on the coordinator MUST return a document that validates against
+    openspec/schemas/map-state.schema.json, covering all active changes.
+  - Every emitted node and edge MUST carry at least one provenance entry naming its
+    source store and a human-followable evidence pointer; the endpoint MUST NOT emit
+    edges lacking provenance.
+  - Agent nodes MUST reconcile registry agent_id, agent_sessions.id, and the <package>--<vendor>
+    naming convention into a single node with an identities block; a fixture test
+    MUST cover an agent visible under all three forms.
+  - Derived agent activity MUST be one of working/waiting/idle/stale/disconnected,
+    computed from heartbeat freshness, active claims, and needs_human status reports;
+    the derivation rule MUST be documented in docs/codeviz/map-state.md and recorded
+    as a derived provenance entry.
+  - Intent-versus-reality MUST be expressible; scoped_to edges from work-packages.yaml
+    scope globs and touched edges from scope_checker output, with out_of_scope flagged
+    on touches outside the owning package's write_allow.
+  - A snapshot writer MUST persist frozen map-state documents as event artifacts under
+    docs/codeviz/map-state/<YYYY-MM-DD>/<run-id>.json carrying the mandatory artifact
+    header.
+  - A validation helper under skills/shared MUST validate documents against the schema
+    and MUST be covered by fixture tests for both valid and invalid (provenance-less)
+    documents.
+  status: candidate
 - item_id: diff-overlay-render
   title: Diff overlay rendering in SPA
   status: approved
@@ -551,33 +597,33 @@ items:
   - diff-graph-artifact
   - subgraph-retrieval
   - saved-views-url-state
-  description: 'Generate chaptered, wizard-style HTML explainers ("code stories")
-    that teach a reviewer how and why a change works — the narrative counterpart to
-    timelapse-review-export (which shows what changed over time; a story explains
-    the mechanism and reasoning). Adopts code-story (will-ness-ai/skills) — an agent
-    skill that turns a PR/diff/branch/commit plus clarifications into a self-contained
-    HTML story page (single-question chapters organized by mechanism, newcomer-accessible
-    prose, line-cited code excerpts anchoring every claim, diagrams, auto-generated
-    chapter numbering/progress/note linking) — as the authoring/rendering layer ONLY.
-    Adopted, NOT vendored: unlike fetch-vendor-skills.sh entries, the skill content
-    is never copied into skills/; it is consumed from upstream at a commit SHA pinned
-    in an adoption manifest, upgrades move the pin, and fixes go upstream as PRs.
-    This repo owns only a thin codeviz-story wrapper that prepares graph-grounded
-    inputs — the change''s diff-graph.json (change_kind, blast_radius_summary), a
-    token-budgeted subgraph-retrieval context bundle with per-item provenance, and
-    related Proposal/Finding artifacts — and invokes the upstream skill so chapters
-    cite graph evidence, not just raw diff text. Chapters deep-link into the live
-    SPA via saved-view URLs. Untrusted repo-derived strings injected into the story
-    HTML MUST be escaped (covered by threat-model-artifact).'
+  description: "Generate chaptered, wizard-style HTML explainers (\"code stories\"\
+    ) that teach a reviewer how and why a change works \u2014 the narrative counterpart\
+    \ to timelapse-review-export (which shows what changed over time; a story explains\
+    \ the mechanism and reasoning). Adopts code-story (will-ness-ai/skills) \u2014\
+    \ an agent skill that turns a PR/diff/branch/commit plus clarifications into a\
+    \ self-contained HTML story page (single-question chapters organized by mechanism,\
+    \ newcomer-accessible prose, line-cited code excerpts anchoring every claim, diagrams,\
+    \ auto-generated chapter numbering/progress/note linking) \u2014 as the authoring/rendering\
+    \ layer ONLY. Adopted, NOT vendored: unlike fetch-vendor-skills.sh entries, the\
+    \ skill content is never copied into skills/; it is consumed from upstream at\
+    \ a commit SHA pinned in an adoption manifest, upgrades move the pin, and fixes\
+    \ go upstream as PRs. This repo owns only a thin codeviz-story wrapper that prepares\
+    \ graph-grounded inputs \u2014 the change's diff-graph.json (change_kind, blast_radius_summary),\
+    \ a token-budgeted subgraph-retrieval context bundle with per-item provenance,\
+    \ and related Proposal/Finding artifacts \u2014 and invokes the upstream skill\
+    \ so chapters cite graph evidence, not just raw diff text. Chapters deep-link\
+    \ into the live SPA via saved-view URLs. Untrusted repo-derived strings injected\
+    \ into the story HTML MUST be escaped (covered by threat-model-artifact)."
   acceptance_outcomes:
   - The code-story skill MUST be consumed from upstream will-ness-ai/skills at a commit
     SHA pinned in an adoption manifest (separate from vendor-manifest.json); no entry
     MUST be added to fetch-vendor-skills.sh and no copy of upstream skill content
     MUST be committed under skills/.
-  - Upgrades MUST happen by moving the pin; a drift check MUST report when upstream
-    HEAD has moved past the pinned SHA (mirroring fetch-vendor-skills.sh --check),
-    and local patches to upstream content MUST NOT exist — divergence needs go upstream
-    as PRs.
+  - "Upgrades MUST happen by moving the pin; a drift check MUST report when upstream\
+    \ HEAD has moved past the pinned SHA (mirroring fetch-vendor-skills.sh --check),\
+    \ and local patches to upstream content MUST NOT exist \u2014 divergence needs\
+    \ go upstream as PRs."
   - A codeviz-story wrapper skill MUST produce a story for a single PR or OpenSpec
     change from its diff-graph.json; invocation MUST fail with an actionable error
     (not a degraded story) when the upstream pin is unreachable.
@@ -587,11 +633,11 @@ items:
     MUST be acknowledged rather than speculated.
   - Chapters MUST deep-link to saved-view URLs that restore the cited selection, lens,
     and diff overlay in the SPA.
-  - Story HTML MUST follow the storage-tier policy — written to the operational cache
-    (e.g. .codeviz-cache/stories/) or published as an artifact, never committed; only
-    a sidecar JSON carrying the mandatory artifact header (source change-id, diff-graph
-    digest, upstream skill pin, output digest) is committed as an event artifact under
-    docs/codeviz/stories/<YYYY-MM-DD>/<run-id>.json.
+  - "Story HTML MUST follow the storage-tier policy \u2014 written to the operational\
+    \ cache (e.g. .codeviz-cache/stories/) or published as an artifact, never committed;\
+    \ only a sidecar JSON carrying the mandatory artifact header (source change-id,\
+    \ diff-graph digest, upstream skill pin, output digest) is committed as an event\
+    \ artifact under docs/codeviz/stories/<YYYY-MM-DD>/<run-id>.json."
   - All repo-derived strings injected into the story HTML MUST be escaped before rendering;
     this surface MUST be listed in docs/codeviz/threat-model.md.
   - The export MUST be classified reversible-write by the shared op_reversibility
@@ -643,9 +689,8 @@ items:
     Adapted prior art): coverage exhaustiveness (every in-scope source file maps to
     exactly one module/zone in the measured graph, no unmapped or double-mapped files)
     and authored-layer drift (every entity referenced by the authored Atlas overlay
-    resolves to a live node in the measured graph). Rules expressed as YAML in
-    architecture-fitness.yaml. Violations emitted as event artifacts with mandatory
-    headers.'
+    resolves to a live node in the measured graph). Rules expressed as YAML in architecture-fitness.yaml.
+    Violations emitted as event artifacts with mandatory headers.'
   acceptance_outcomes:
   - A fitness-rule engine MUST be invokable via `make architecture-validate --fitness`.
   - At least six rules MUST ship in architecture-fitness.yaml with documented rationale,
@@ -844,6 +889,47 @@ items:
     branches.
   - A timeline scrubber over the agent-memory lens MUST reconstruct the agent's known
     state at any past point.
+- item_id: agent-activity-map-lens
+  change_id: add-agent-activity-map-lens
+  title: Agent-activity infinity map lens
+  priority: 8
+  effort: M
+  depends_on:
+  - map-state-ir
+  - spa-scaffold-render
+  - lens-framework
+  description: 'Pan/zoom map lens rendering the live map-state IR as spatial territories:
+    roadmaps contain changes contain work packages, anchored to parallel-zone clusters
+    for stable geography; agents render as badges with working/waiting/idle/stale
+    indicators; declared scope (scoped_to) renders as a package''s territory with
+    observed touches as activity dots, making out-of-scope writes and re-touches of
+    completed packages immediately visible. Truthful traversal only; the lens renders
+    and traces exclusively edges present in the IR, surfacing each edge''s provenance
+    as a clickable receipt. Supports a delta view diffing two frozen snapshots and
+    a frozen self-contained HTML export for handoffs.'
+  rationale: The kanban board answers what is in flight per column; nothing answers
+    where agents are working, whether they are inside their declared scope, or what
+    is blocked waiting on a human, in one spatial view. All required data arrives
+    via the map-state IR; this item is the renderer.
+  acceptance_outcomes:
+  - The lens MUST register in the lens framework, be URL-encodable, and restore its
+    full view state from URL alone.
+  - Every rendered edge MUST trace to a provenance entry in the consumed IR; selecting
+    an edge MUST reveal its evidence pointer; the lens MUST NOT render inferred edges
+    absent from the document.
+  - Agent activity indicators MUST reflect coordinator state within 10 seconds during
+    live viewing.
+  - Semantic zoom MUST expose at least three levels (roadmap territories, change/
+    package DAG, path-level activity) with zone-anchored positions stable across reloads
+    for unchanged topology.
+  - A touched edge flagged out_of_scope MUST be visually distinguished within one
+    refresh interval, and a touch on a path scoped to a completed work package MUST
+    raise a visible regression accent.
+  - A delta view MUST render added/removed/changed nodes and edges between two frozen
+    snapshots selected by snapshot_id.
+  - A frozen export MUST produce a self-contained HTML document of the current view
+    requiring no coordinator connectivity.
+  status: candidate
 - item_id: mcp-app-interactive-viz
   title: MCP App for in-conversation visualization
   status: approved
@@ -1004,4 +1090,20 @@ items:
   - A fixture suite MUST verify ingestion across all supported tools and catch SARIF
     schema regressions.
 created_at: '2026-05-12T09:04:37.603266+00:00'
-updated_at: '2026-08-20T11:43:52+00:00'
+updated_at: '2026-08-30T03:42:23.488036+00:00'
+refinements:
+- timestamp: '2026-08-30T03:42:23.488036+00:00'
+  actor: claude-code (operator jankneumann@gmail.com)
+  source: "operator request \u2014 agent-activity infinity map assessment session\
+    \ (agenttrail/archify prior-art review, branch claude/agent-activity-infinity-map-8uyp0l)"
+  rationale: The codeviz roadmap covers static/temporal code structure but has no
+    contract for live agent activity across the work hierarchy (roadmap -> change
+    -> work package -> files). Prior-art review (agenttrail, archify) converged on
+    a typed, provenance-carrying IR between coordinator state and any renderer. A
+    draft schema now exists at openspec/schemas/map-state.schema.json; these items
+    track serving it from the coordinator and rendering it as the agent-activity infinity
+    map lens.
+  base_sha256: 65548d54b2ec4959bf1eed2bcc8ec6de3e539ef06ab21cc34737b2bf64192fc2
+  operations:
+  - add:map-state-ir
+  - add:agent-activity-map-lens
