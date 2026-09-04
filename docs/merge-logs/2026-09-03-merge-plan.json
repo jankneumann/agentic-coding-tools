@@ -1,0 +1,709 @@
+{
+  "base_branch": "main",
+  "generated_at": "2026-09-04T02:09:05.859667+00:00",
+  "nodes": [
+    {
+      "auto_executable": false,
+      "definition": {
+        "changed_files": [
+          ".claude/settings.json",
+          "docs/decisions/agent-archetypes.md",
+          "docs/decisions/evaluation-framework.md",
+          "openspec/changes/add-model-usage-ledger/.openspec.yaml",
+          "openspec/changes/add-model-usage-ledger/contracts/README.md",
+          "openspec/changes/add-model-usage-ledger/contracts/db/schema.sql",
+          "openspec/changes/add-model-usage-ledger/contracts/events/dispatch-record.schema.json",
+          "openspec/changes/add-model-usage-ledger/contracts/events/usage-record.schema.json",
+          "openspec/changes/add-model-usage-ledger/contracts/generated/models.py",
+          "openspec/changes/add-model-usage-ledger/contracts/generated/types.ts",
+          "openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml",
+          "openspec/changes/add-model-usage-ledger/design.md",
+          "openspec/changes/add-model-usage-ledger/handoffs/plan-1.json",
+          "openspec/changes/add-model-usage-ledger/proposal.md",
+          "openspec/changes/add-model-usage-ledger/session-log.md",
+          "openspec/changes/add-model-usage-ledger/specs/agent-archetypes/spec.md",
+          "openspec/changes/add-model-usage-ledger/specs/agent-coordinator/spec.md",
+          "openspec/changes/add-model-usage-ledger/specs/harness-engineering/spec.md",
+          "openspec/changes/add-model-usage-ledger/specs/observability/spec.md",
+          "openspec/changes/add-model-usage-ledger/specs/skill-workflow/spec.md",
+          "openspec/changes/add-model-usage-ledger/specs/usage-accounting/spec.md",
+          "openspec/changes/add-model-usage-ledger/tasks.md",
+          "openspec/changes/add-model-usage-ledger/work-packages.yaml"
+        ],
+        "depends_on": [
+          472
+        ],
+        "gates": [
+          "proposal_acceptance"
+        ]
+      },
+      "origin": "openspec",
+      "pr": 468,
+      "state": {
+        "blocking_reason": "refined and reviewed; held at the proposal_acceptance gate. Unlike the Tier A claude/fix-* branches, this carries a real openspec/changes/<id>/proposal.md, so the gate is live rather than vacuous. Operator approval required before merge.",
+        "ci_state": "clean",
+        "claimed_by": null,
+        "needs_revalidation": false,
+        "outcome": "pending",
+        "staleness": "fresh",
+        "unresolved_comment_summary": null,
+        "unresolved_comments": 6,
+        "vendor_verdict": {
+          "critical": [
+            "every /usage/* GET was unauthenticated on a false claim about repo convention; /audit and /profiles/me both require the key",
+            "principal accepted from the ingest request instead of derived from the API key",
+            "specs still described the GETs as unauthenticated after the contract was fixed (regression from iteration 1)",
+            "session_overhead had no contract representation; PhaseUsageRow requires fields it cannot have (regression from iteration 1)"
+          ],
+          "disposition": "awaiting_proposal_acceptance",
+          "findings_addressed": 24,
+          "iterations": 2,
+          "quorum": "2/2",
+          "reviewed_at": "2026-09-04",
+          "vendors_failed": [
+            {
+              "reason": "timeout at 600s",
+              "vendor": "codex"
+            },
+            {
+              "reason": "timeout at 600s",
+              "vendor": "pi"
+            }
+          ],
+          "vendors_succeeded": [
+            "antigravity",
+            "grok"
+          ]
+        }
+      },
+      "strategy": "rebase",
+      "title": "plan: add-model-usage-ledger \u2014 end-to-end model usage observability"
+    },
+    {
+      "auto_executable": false,
+      "definition": {
+        "changed_files": [
+          "docs/decisions/agent-coordinator.md",
+          "docs/decisions/evaluation-framework.md",
+          "openspec/changes/standardize-port-leases/.openspec.yaml",
+          "openspec/changes/standardize-port-leases/README.md",
+          "openspec/changes/standardize-port-leases/contracts/README.md",
+          "openspec/changes/standardize-port-leases/contracts/db/schema.sql",
+          "openspec/changes/standardize-port-leases/contracts/db/seed.sql",
+          "openspec/changes/standardize-port-leases/contracts/openapi/v1.yaml",
+          "openspec/changes/standardize-port-leases/contracts/schemas/port-lease-env.schema.json",
+          "openspec/changes/standardize-port-leases/design.md",
+          "openspec/changes/standardize-port-leases/handoffs/plan-1.json",
+          "openspec/changes/standardize-port-leases/proposal.md",
+          "openspec/changes/standardize-port-leases/session-log.md",
+          "openspec/changes/standardize-port-leases/specs/agent-coordinator/spec.md",
+          "openspec/changes/standardize-port-leases/specs/coordinator-kanban-viz/spec.md",
+          "openspec/changes/standardize-port-leases/specs/live-service-testing/spec.md",
+          "openspec/changes/standardize-port-leases/specs/port-lease-client/spec.md",
+          "openspec/changes/standardize-port-leases/tasks.md",
+          "openspec/changes/standardize-port-leases/work-packages.yaml"
+        ],
+        "depends_on": [
+          468,
+          472
+        ],
+        "gates": [
+          "proposal_acceptance"
+        ]
+      },
+      "origin": "openspec",
+      "pr": 467,
+      "state": {
+        "blocking_reason": "refined and reviewed; held at the proposal_acceptance gate. Unlike the Tier A claude/fix-* branches, this carries a real openspec/changes/<id>/proposal.md, so the gate is live rather than vacuous. Operator approval required before merge.",
+        "ci_state": "blocked",
+        "claimed_by": null,
+        "needs_revalidation": false,
+        "outcome": "pending",
+        "staleness": "fresh",
+        "unresolved_comment_summary": null,
+        "unresolved_comments": 5,
+        "vendor_verdict": {
+          "critical": [
+            "release/conflict had no ownership check while GET /ports/status publishes session_id unauthenticated",
+            "reconcile applied one client's host report to every lease in the system",
+            "host_id was added to schema/spec/reconcile but not to PortAllocateRequest, so it could never be set (regression from iteration 1)",
+            "unknown-session conflict reports let any caller block any slot; block layout is arithmetic and predictable"
+          ],
+          "disposition": "awaiting_proposal_acceptance",
+          "findings_addressed": 23,
+          "iterations": 2,
+          "quorum": "2/2",
+          "reviewed_at": "2026-09-04",
+          "vendors_failed": [
+            {
+              "reason": "no parseable output",
+              "vendor": "codex"
+            },
+            {
+              "reason": "findings failed review-findings schema validation",
+              "vendor": "pi"
+            }
+          ],
+          "vendors_succeeded": [
+            "antigravity",
+            "grok"
+          ]
+        }
+      },
+      "strategy": "rebase",
+      "title": "plan(standardize-port-leases): proposal, design, specs, tasks, contracts, work-packages"
+    },
+    {
+      "auto_executable": false,
+      "definition": {
+        "changed_files": [
+          "agent-coordinator/src/profiles.py",
+          "agent-coordinator/src/work_queue.py",
+          "agent-coordinator/tests/test_profiles.py",
+          "agent-coordinator/tests/test_trust_resolution_fail_open.py"
+        ],
+        "depends_on": [
+          472
+        ],
+        "gates": [
+          "proposal_acceptance"
+        ]
+      },
+      "origin": "openspec",
+      "pr": 465,
+      "state": {
+        "blocking_reason": null,
+        "ci_state": "clean",
+        "claimed_by": null,
+        "needs_revalidation": false,
+        "outcome": "merged",
+        "staleness": "fresh",
+        "unresolved_comment_summary": null,
+        "unresolved_comments": 1,
+        "vendor_verdict": {
+          "blocking_count": 0,
+          "disposition": "merged",
+          "findings": [
+            {
+              "disposition": "accepted",
+              "evidence": "guardrails.py never raises or imports TrustResolutionError; the claim() try block calls only get_guardrails_service, check_operation and db.rpc",
+              "rationale": "Deliberate symmetry across all three guardrail call sites. The PR's own test_every_guardrail_handler_re_raises_trust_failures asserts the handler exists at each site, and it re-arms if trust resolution is ever moved back inside the try. Vendor scored it non-blocking.",
+              "summary": "except TrustResolutionError handler in claim() is unreachable after the hoist",
+              "verified": true
+            }
+          ],
+          "quorum": "2/2",
+          "reviewed_at": "2026-09-04T03:00:00Z",
+          "vendors_failed": [
+            {
+              "reason": "no parseable output",
+              "vendor": "codex"
+            },
+            {
+              "reason": "invalid JSON: concatenated objects",
+              "vendor": "grok"
+            }
+          ],
+          "vendors_succeeded": [
+            "antigravity",
+            "pi"
+          ]
+        }
+      },
+      "strategy": "rebase",
+      "title": "fix(coordinator): close two fail-open paths in trust resolution (#408 defects 2 and 3)"
+    },
+    {
+      "auto_executable": false,
+      "definition": {
+        "changed_files": [
+          "agent-coordinator/database/migrations/000_bootstrap.sql",
+          "agent-coordinator/database/migrations/README.md",
+          "agent-coordinator/src/config.py",
+          "agent-coordinator/src/db.py",
+          "agent-coordinator/src/migrations.py",
+          "agent-coordinator/src/policy_engine.py",
+          "agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py",
+          "agent-coordinator/tests/test_db_factory.py",
+          "agent-coordinator/tests/test_migration_bootstrap_failures.py"
+        ],
+        "depends_on": [
+          463,
+          472
+        ],
+        "gates": [
+          "proposal_acceptance"
+        ],
+        "inserted_reason": "runtime dependency, not file overlap: #464 test-integration fails with 'column delegated_from of relation audit_log does not exist' (defect #455, pre-existing on main). Only #463's migration 035_audit_log_delegated_from.sql adds that column. Merge #463 first, then refresh-branch #464."
+      },
+      "origin": "openspec",
+      "pr": 464,
+      "state": {
+        "blocking_reason": null,
+        "ci_state": "clean",
+        "claimed_by": null,
+        "needs_revalidation": false,
+        "outcome": "merged",
+        "staleness": "fresh",
+        "unresolved_comment_summary": null,
+        "unresolved_comments": 2,
+        "vendor_verdict": {
+          "commit": "0f0ba4de",
+          "concerns": [
+            {
+              "severity": "medium",
+              "text": "first-run pass still re-executes non-idempotent migrations on a seeded DB; correctness depends on the pass reaching 025. Bounded, not closed \u2014 issue #482"
+            },
+            {
+              "severity": "low",
+              "text": "23505 in the first-run allowlist would also swallow a genuinely buggy data migration on a fresh DB; limited to first run only"
+            }
+          ],
+          "corrects": "operator's earlier attribution of #464's red test-integration to #473 alone \u2014 #473 is latent on main; the proximate cause was in #464",
+          "disposition": "approved",
+          "residual_hazard_issue": 482,
+          "reviewed_at": "2026-09-04",
+          "reviewed_by": "operator-agent",
+          "root_cause": "psql seeding leaves schema_migrations empty; first-run pass re-executes every migration; #464's narrowed allowlist stopped it at 019 after 015 clobbered 025's trigger rewrite, leaving a 5-arg coordinator_notify call that is ambiguous next to 025's overload."
+        }
+      },
+      "strategy": "rebase",
+      "title": "fix(coordinator): stop recording failed migrations as applied, default to postgres (#456)"
+    },
+    {
+      "auto_executable": false,
+      "definition": {
+        "changed_files": [
+          "agent-coordinator/database/migrations/035_audit_log_delegated_from.sql",
+          "agent-coordinator/src/audit.py",
+          "agent-coordinator/tests/integration/postgres/test_audit_log_insert.py",
+          "agent-coordinator/tests/test_audit_schema_alignment.py"
+        ],
+        "depends_on": [
+          472
+        ],
+        "gates": [
+          "proposal_acceptance"
+        ]
+      },
+      "origin": "openspec",
+      "pr": 463,
+      "state": {
+        "blocking_reason": null,
+        "ci_state": "clean",
+        "claimed_by": null,
+        "needs_revalidation": false,
+        "outcome": "merged",
+        "staleness": "fresh",
+        "unresolved_comment_summary": null,
+        "unresolved_comments": 0,
+        "vendor_verdict": {
+          "actual_two_vendor_agreement": 1,
+          "blocking_count": 1,
+          "consensus_undercount_issue": 478,
+          "disposition": "fix_before_merge",
+          "findings": [
+            {
+              "disposition": "fix_on_branch",
+              "evidence": "agent-coordinator/src/audit.py:174",
+              "found_by": [
+                "antigravity",
+                "grok"
+              ],
+              "rationale": "Same silent-success class this PR exists to eliminate; _insert_audit_entry's own docstring names that pattern as the original root cause.",
+              "summary": "AuditService.drain() discards asyncio.wait's (done, pending) tuple, so a timeout returns success while writes are still pending",
+              "verified": true
+            },
+            {
+              "disposition": "deferred",
+              "issue": 475,
+              "summary": "no index on audit_log.delegated_from"
+            },
+            {
+              "disposition": "deferred",
+              "issue": 476,
+              "summary": "schema-alignment guard parsing blind spots (DROP COLUMN, first data dict)"
+            },
+            {
+              "disposition": "deferred",
+              "issue": 477,
+              "summary": "drain() not wired into coordinator lifecycle"
+            },
+            {
+              "disposition": "fix_on_branch",
+              "summary": "test_drain_waits_for_fire_and_forget_writes can pass vacuously when AUDIT_ASYNC=false"
+            }
+          ],
+          "hang_fix": {
+            "commit": "f20f7818",
+            "concerns": [
+              {
+                "severity": "resolved",
+                "text": "both review concerns (silent asyncpg-attr drift, over-broad except RuntimeError) fixed in 4a250f97 with unit tests pinning each"
+              }
+            ],
+            "disposition": "approved",
+            "followup_commit": "4a250f97",
+            "refutes": "operator's earlier hypothesis that the _pending strong-reference set caused the hang \u2014 pristine main + 035 hangs identically",
+            "reviewed_by": "operator-agent",
+            "root_cause": "reset_db() dropped the pool reference without terminating it; a fire-and-forget audit INSERT killed with its event loop left a backend in ClientRead holding RowExclusiveLock on audit_log, blocking the next startup's migration 008. Reachable only once 035 let inserts succeed."
+          },
+          "quorum": "3/3",
+          "reported_confirmed_count": 0,
+          "reviewed_at": "2026-09-04T03:00:00Z",
+          "total_unique_findings": 8,
+          "vendors_failed": [
+            {
+              "reason": "no parseable output",
+              "vendor": "codex"
+            }
+          ],
+          "vendors_succeeded": [
+            "antigravity",
+            "grok",
+            "pi"
+          ]
+        }
+      },
+      "strategy": "rebase",
+      "title": "fix(coordinator): restore the audit trail on the postgres backend (#455)"
+    },
+    {
+      "auto_executable": false,
+      "definition": {
+        "changed_files": [
+          "agent-coordinator/agents.yaml",
+          "agent-coordinator/archetypes.yaml",
+          "agent-coordinator/src/agents_config.py",
+          "agent-coordinator/tests/test_agents_config.py",
+          "docs/architecture-analysis/architecture.diagnostics.json",
+          "docs/architecture-analysis/architecture.graph.json",
+          "docs/architecture-analysis/architecture.provenance.json",
+          "docs/architecture-analysis/architecture.report.md",
+          "docs/architecture-analysis/architecture.summary.json",
+          "docs/architecture-analysis/comment_insights.json",
+          "docs/architecture-analysis/cross_layer_flows.json",
+          "docs/architecture-analysis/high_impact_nodes.json",
+          "docs/architecture-analysis/parallel_zones.json",
+          "docs/architecture-analysis/pattern_insights.json",
+          "docs/architecture-analysis/python_analysis.json",
+          "docs/architecture-analysis/treesitter_enrichment.json",
+          "openspec/changes/switch-pi-standard-to-ox-alpha/proposal.md",
+          "openspec/changes/switch-pi-standard-to-ox-alpha/specs/configuration/spec.md",
+          "openspec/changes/switch-pi-standard-to-ox-alpha/tasks.md"
+        ],
+        "depends_on": [],
+        "gates": [
+          "proposal_acceptance"
+        ]
+      },
+      "origin": "openspec",
+      "pr": 422,
+      "state": {
+        "blocking_reason": null,
+        "ci_state": "clean",
+        "claimed_by": null,
+        "needs_revalidation": false,
+        "outcome": "pending",
+        "staleness": "stale",
+        "unresolved_comment_summary": null,
+        "unresolved_comments": 1,
+        "vendor_verdict": null
+      },
+      "strategy": "rebase",
+      "title": "feat(configuration): point pi standard tier at stealth/ox-alpha"
+    },
+    {
+      "auto_executable": false,
+      "definition": {
+        "changed_files": [],
+        "depends_on": [],
+        "gates": [
+          "proposal_acceptance"
+        ]
+      },
+      "origin": "openspec",
+      "pr": 417,
+      "state": {
+        "blocking_reason": null,
+        "ci_state": "clean",
+        "claimed_by": null,
+        "needs_revalidation": false,
+        "outcome": "pending",
+        "staleness": "unknown",
+        "unresolved_comment_summary": null,
+        "unresolved_comments": 0,
+        "vendor_verdict": null
+      },
+      "strategy": "rebase",
+      "title": "feat(plan): centralize model policy ownership"
+    },
+    {
+      "auto_executable": false,
+      "definition": {
+        "changed_files": [
+          "docs/architecture-analysis/architecture.diagnostics.json",
+          "docs/architecture-analysis/architecture.graph.json",
+          "docs/architecture-analysis/architecture.report.md",
+          "docs/architecture-analysis/architecture.summary.json",
+          "docs/architecture-analysis/comment_insights.json",
+          "docs/architecture-analysis/cross_layer_flows.json",
+          "docs/architecture-analysis/high_impact_nodes.json",
+          "docs/architecture-analysis/parallel_zones.json",
+          "docs/architecture-analysis/pattern_insights.json",
+          "docs/architecture-analysis/treesitter_enrichment.json",
+          "docs/architecture-analysis/views/containers.mmd",
+          "docs/architecture-analysis/views/frontend_components.mmd",
+          "openspec/changes/add-decision-choices-ledger/.dispatch-state.json",
+          "openspec/changes/add-decision-choices-ledger/.openspec.yaml",
+          "openspec/changes/add-decision-choices-ledger/change-context.md",
+          "openspec/changes/add-decision-choices-ledger/context-checkpoints/wp-artifact-registration.json",
+          "openspec/changes/add-decision-choices-ledger/contracts/README.md",
+          "openspec/changes/add-decision-choices-ledger/contracts/decision-choices.schema.json",
+          "openspec/changes/add-decision-choices-ledger/design.md",
+          "openspec/changes/add-decision-choices-ledger/handoffs/plan-1.json",
+          "openspec/changes/add-decision-choices-ledger/proposal.md",
+          "openspec/changes/add-decision-choices-ledger/session-log.md",
+          "openspec/changes/add-decision-choices-ledger/specs/skill-workflow/spec.md",
+          "openspec/changes/add-decision-choices-ledger/tasks.md",
+          "openspec/changes/add-decision-choices-ledger/work-packages.yaml",
+          "openspec/config.yaml",
+          "openspec/schemas/decision-choices.schema.json",
+          "openspec/schemas/feature-workflow/schema.yaml",
+          "openspec/schemas/feature-workflow/templates/choices.md",
+          "skills/audit-choices/SKILL.md",
+          "skills/audit-choices/scripts/choices_ledger.py",
+          "skills/audit-choices/scripts/collect_evidence.py",
+          "skills/audit-choices/scripts/run_audit.py",
+          "skills/plan-feature/install_assets/openspec/schemas/feature-workflow/schema.yaml",
+          "skills/plan-feature/install_assets/openspec/schemas/feature-workflow/templates/choices.md",
+          "skills/tests/audit-choices/test_cross_reference.py",
+          "skills/tests/audit-choices/test_ledger.py",
+          "skills/tests/audit-choices/test_readonly_posture.py",
+          "skills/tests/audit-choices/test_renderer.py",
+          "skills/tests/audit-choices/test_schema.py",
+          "skills/tests/audit-choices/test_skill_md.py"
+        ],
+        "depends_on": [
+          422
+        ],
+        "gates": [
+          "proposal_acceptance"
+        ]
+      },
+      "origin": "openspec",
+      "pr": 411,
+      "state": {
+        "blocking_reason": null,
+        "ci_state": "blocked",
+        "claimed_by": null,
+        "needs_revalidation": false,
+        "outcome": "pending",
+        "staleness": "stale",
+        "unresolved_comment_summary": null,
+        "unresolved_comments": 3,
+        "vendor_verdict": null
+      },
+      "strategy": "rebase",
+      "title": "chore(architecture): refresh architecture analysis artifacts"
+    },
+    {
+      "auto_executable": false,
+      "definition": {
+        "changed_files": [
+          "agent-coordinator/CLAUDE.md",
+          "agent-coordinator/database/migrations/000_bootstrap.sql",
+          "agent-coordinator/database/migrations/033_audit_log_delegated_from.sql",
+          "agent-coordinator/database/migrations/README.md",
+          "agent-coordinator/src/agents_config.py",
+          "agent-coordinator/src/audit.py",
+          "agent-coordinator/src/config.py",
+          "agent-coordinator/src/db.py",
+          "agent-coordinator/src/migrations.py",
+          "agent-coordinator/src/policy_engine.py",
+          "agent-coordinator/src/profiles.py",
+          "agent-coordinator/src/trust_resolution.py",
+          "agent-coordinator/src/work_queue.py",
+          "agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py",
+          "agent-coordinator/tests/test_audit_schema_alignment.py",
+          "agent-coordinator/tests/test_db_factory.py",
+          "agent-coordinator/tests/test_migration_bootstrap_failures.py",
+          "agent-coordinator/tests/test_profile_sync.py",
+          "agent-coordinator/tests/test_profiles.py",
+          "agent-coordinator/tests/test_trust_resolution.py",
+          "agent-coordinator/tests/test_work_queue.py",
+          "docs/architecture-analysis/architecture.diagnostics.json",
+          "docs/architecture-analysis/architecture.graph.json",
+          "docs/architecture-analysis/architecture.provenance.json",
+          "docs/architecture-analysis/architecture.report.md",
+          "docs/architecture-analysis/architecture.summary.json",
+          "docs/architecture-analysis/comment_insights.json",
+          "docs/architecture-analysis/cross_layer_flows.json",
+          "docs/architecture-analysis/high_impact_nodes.json",
+          "docs/architecture-analysis/parallel_zones.json",
+          "docs/architecture-analysis/pattern_insights.json",
+          "docs/architecture-analysis/postgres_analysis.json",
+          "docs/architecture-analysis/python_analysis.json",
+          "docs/architecture-analysis/treesitter_enrichment.json",
+          "docs/architecture-analysis/views/backend_components.mmd",
+          "docs/architecture-analysis/views/containers.mmd",
+          "docs/architecture-analysis/views/db_erd.mmd"
+        ],
+        "depends_on": [
+          411,
+          422,
+          463,
+          464,
+          465
+        ],
+        "gates": [
+          "proposal_acceptance"
+        ],
+        "inserted_reason": "SUPERSEDED BY #463 + #464 + #465, which carve up this PR's file set exactly: audit.py/035_*.sql -> #463; 000_bootstrap.sql/config.py/db.py/migrations.py/policy_engine.py -> #464; profiles.py/trust_resolution.py -> #465. Derived overlap edges pointed the wrong way and were removed."
+      },
+      "origin": "openspec",
+      "pr": 408,
+      "state": {
+        "blocking_reason": "closed as superseded by #463/#464/#465 (all merged). 033_audit_log_delegated_from.sql is byte-identical to the 035 #463 landed. P2 thread genuinely dead (_release_claimed_task no longer exists); P1 thread NOT superseded, preserved as issue #474; comment-only trust_resolution invariant preserved as PR #483.",
+        "ci_state": "unknown",
+        "claimed_by": null,
+        "needs_revalidation": false,
+        "outcome": "closed",
+        "staleness": "stale",
+        "unresolved_comment_summary": null,
+        "unresolved_comments": 2,
+        "vendor_verdict": null
+      },
+      "strategy": "rebase",
+      "title": "fix(coordinator): main cannot boot on PostgreSQL \u2014 restore boot, audit trail, and two trust escalations"
+    },
+    {
+      "auto_executable": false,
+      "definition": {
+        "changed_files": [],
+        "depends_on": [],
+        "gates": [
+          "proposal_acceptance"
+        ]
+      },
+      "origin": "openspec",
+      "pr": 363,
+      "state": {
+        "blocking_reason": null,
+        "ci_state": "blocked",
+        "claimed_by": null,
+        "needs_revalidation": false,
+        "outcome": "pending",
+        "staleness": "unknown",
+        "unresolved_comment_summary": null,
+        "unresolved_comments": 0,
+        "vendor_verdict": null
+      },
+      "strategy": "rebase",
+      "title": "feat(review): harden consensus and recovery"
+    },
+    {
+      "auto_executable": false,
+      "definition": {
+        "changed_files": [
+          "Makefile",
+          "docs/architecture-analysis/architecture.behaviors.json",
+          "docs/architecture-analysis/architecture.diagnostics.json",
+          "docs/architecture-analysis/architecture.graph.json",
+          "docs/architecture-analysis/architecture.provenance.json",
+          "docs/architecture-analysis/architecture.report.md",
+          "docs/architecture-analysis/architecture.summary.json",
+          "docs/architecture-analysis/cross_layer_flows.json",
+          "docs/architecture-analysis/high_impact_nodes.json",
+          "docs/architecture-analysis/parallel_zones.json",
+          "docs/architecture-analysis/views/backend_components.mmd",
+          "docs/architecture-analysis/views/containers.mmd",
+          "docs/architecture-analysis/views/frontend_components.mmd",
+          "docs/architecture-analysis/views/handbook.html",
+          "docs/architecture-artifacts.md",
+          "openspec/changes/add-behavior-handbook-layer/.openspec.yaml",
+          "openspec/changes/add-behavior-handbook-layer/deferred-tasks.md",
+          "openspec/changes/add-behavior-handbook-layer/design.md",
+          "openspec/changes/add-behavior-handbook-layer/proposal.md",
+          "openspec/changes/add-behavior-handbook-layer/specs/codebase-analysis/spec.md",
+          "openspec/changes/add-behavior-handbook-layer/tasks.md",
+          "openspec/changes/add-behavior-handbook-layer/validation-report.md",
+          "packages/agent-scenarios/scenarios/behavior-localization/README.md",
+          "packages/agent-scenarios/scenarios/behavior-localization/benchmark.py",
+          "skills/context-engineering/SKILL.md",
+          "skills/refresh-architecture/scripts/arch_utils/provenance.py",
+          "skills/refresh-architecture/scripts/behavior_seeder.py",
+          "skills/refresh-architecture/scripts/handbook_query.py",
+          "skills/refresh-architecture/scripts/handbook_schema.py",
+          "skills/refresh-architecture/scripts/reports/generate_handbook_html.py",
+          "skills/refresh-architecture/scripts/run_architecture.py",
+          "skills/refresh-architecture/scripts/source_roots.py",
+          "skills/refresh-architecture/scripts/synthesize_behaviors.py",
+          "skills/refresh-architecture/scripts/tests/test_behavior_seeder.py",
+          "skills/refresh-architecture/scripts/tests/test_generate_handbook_html.py",
+          "skills/refresh-architecture/scripts/tests/test_handbook_provenance.py",
+          "skills/refresh-architecture/scripts/tests/test_handbook_query.py",
+          "skills/refresh-architecture/scripts/tests/test_handbook_schema.py",
+          "skills/refresh-architecture/scripts/tests/test_llm_structuring.py",
+          "skills/refresh-architecture/scripts/tests/test_source_roots.py",
+          "skills/refresh-architecture/scripts/tests/test_synthesize_behaviors.py",
+          "skills/refresh-architecture/scripts/tests/test_verify_locators.py",
+          "skills/refresh-architecture/scripts/verify_locators.py"
+        ],
+        "depends_on": [
+          408,
+          411,
+          422
+        ],
+        "gates": [
+          "proposal_acceptance"
+        ]
+      },
+      "origin": "openspec",
+      "pr": 353,
+      "state": {
+        "blocking_reason": null,
+        "ci_state": "unknown",
+        "claimed_by": null,
+        "needs_revalidation": false,
+        "outcome": "pending",
+        "staleness": "stale",
+        "unresolved_comment_summary": null,
+        "unresolved_comments": 2,
+        "vendor_verdict": null
+      },
+      "strategy": "rebase",
+      "title": "feat(openspec): propose behavior handbook layer for architecture pipeline"
+    },
+    {
+      "auto_executable": false,
+      "definition": {
+        "changed_files": [
+          "skills/tests/playwright-validator/test_e2e_sample.py"
+        ],
+        "depends_on": [],
+        "gates": [
+          "required_review"
+        ],
+        "inserted_reason": "test-infra-skills is a REQUIRED status check and is red on main@4e2eda94 and on every open PR: the Playwright probe in test_e2e_sample.py raises subprocess.TimeoutExpired instead of skipping when npx tries to fetch an absent Playwright. No Tier A node can merge until #472 lands and each branch is refreshed to pick it up."
+      },
+      "origin": "other",
+      "pr": 472,
+      "state": {
+        "blocking_reason": null,
+        "ci_state": "clean",
+        "claimed_by": null,
+        "needs_revalidation": false,
+        "outcome": "merged",
+        "staleness": "fresh",
+        "unresolved_comment_summary": null,
+        "unresolved_comments": 0,
+        "vendor_verdict": null
+      },
+      "strategy": "squash",
+      "title": "fix(ci): skip the Playwright e2e test when the npx probe times out"
+    }
+  ],
+  "schema_version": "1.0",
+  "storage_tier": "file"
+}
