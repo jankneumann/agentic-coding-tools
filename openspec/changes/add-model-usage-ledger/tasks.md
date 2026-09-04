@@ -81,11 +81,11 @@ Spec scenario IDs are `<capability>.<n>` numbered in file order within each delt
 
 ## Phase 3 — Coordinator ledger (wp-coordinator)
 
-- [ ] 3.1 Write migration tests: 035 applies additively, provenance constraint rejects cost without version, CHECK accepts `validator` [S]
+- [ ] 3.1 Write migration tests: 037 applies additively, provenance constraint rejects cost without version, CHECK accepts `validator` [S]
   **Spec scenarios**: agent-coordinator.1, agent-coordinator.2, agent-archetypes.7
   **Contracts**: contracts/db/schema.sql
   **Dependencies**: None
-- [ ] 3.2 Create `database/migrations/035_model_usage_ledger.sql` from the DB contract [S]
+- [ ] 3.2 Create `database/migrations/037_model_usage_ledger.sql` from the DB contract [S]
   **Design decisions**: D3, D5, D6, D9
   **Dependencies**: 3.1
 - [ ] 3.3 Write tests for `pricing.py` loader: schema validation, fail-loud on unknown vendor, exact-over-prefix, null cost with reason [S]
@@ -161,9 +161,26 @@ Spec scenario IDs are `<capability>.<n>` numbered in file order within each delt
 - [ ] Checkpoint: run tests, review diff, verify scope
 - [ ] 4.4 Implement thinking copy in `_build_options` [S]
   **Dependencies**: 4.3
-- [ ] 4.4a Implement dispatch-record write/patch in `build_phase_dispatch_kwargs` [M]
+- [ ] 4.4a Implement the dispatch-record **write** in `build_phase_dispatch_kwargs`, with `record_kind` set to `state_only` for `INIT`/`SUBMIT_PR` and `dispatched` otherwise [M]
   **Design decisions**: D2
   **Dependencies**: 4.4
+
+- [ ] 4.4b Implement the `agent_id` **patch** on the adapter return path — thread the returned sub-agent id through `apply-outcome` alongside `outcome` and `handoff_id`, and patch the dispatch record there [M]
+  **Spec scenarios**: skill-workflow.3, usage-accounting.4
+  **Design decisions**: D2
+  **Dependencies**: 4.4a
+  **Files**: skills/autopilot/SKILL.md, skills/shared/provider_dispatch.py, skills/coordination-bridge/scripts/coordination_bridge.py
+
+  Split out of 4.4a deliberately. `build_phase_dispatch_kwargs` runs before the adapter and never
+  observes its result, so a patch implemented there can only rewrite the NULL it already wrote.
+  The return path is the only place the sub-agent id exists, and `apply-outcome` currently receives
+  only `outcome` and `handoff_id` — so this task must widen that interface, which is why it is
+  sized separately rather than folded into the write.
+
+- [ ] 4.4c Exclude `record_kind = "state_only"` records from `/usage/mismatches` accounting, and add a test asserting a run with no dispatches reports zero mismatches rather than three [S]
+  **Spec scenarios**: usage-accounting.5
+  **Design decisions**: D2
+  **Dependencies**: 4.4a
 - [ ] 4.5 Write tests for the override path: resolver still called, dispatch record has `override_source="env"` [S]
   **Spec scenarios**: skill-workflow.6, usage-accounting.6
   **Dependencies**: 4.4

@@ -10,13 +10,24 @@ queries rather than re-ingestion. Each record SHALL carry: `ts`, `vendor`, `mode
 own identifier as observed, never the archetype tier), `effort` (the harness-reported reasoning
 level when present, else null), `input_tokens`, `output_tokens`, `cache_creation_tokens`,
 `cache_read_tokens`, `thinking_tokens` (null when the vendor does not report it), `session_id`,
-`agent_id` (the sub-agent id for sidechain transcripts, null for the parent session),
+`agent_id` (the sub-agent id for sidechain transcripts; for vendors with no sidechain concept -- Codex, Grok, Pi -- the adapter's own session identifier, e.g. the Codex rollout id, per design D2; null only for a genuine parent-session record),
 `parent_session_id`, `project`, `principal`, `host`, `git_branch`, `vendor_cost_usd` (a cost figure
 the vendor itself reported, else null), and `record_hash`.
 
 `record_hash` SHALL be the SHA-256 of the canonical JSON of `(vendor, session_id, agent_id,
 message_id_or_uuid, usage)`, and `(vendor, session_id, record_hash)` SHALL be unique so that
 re-ingesting an unchanged transcript inserts zero rows.
+
+The coordinator SHALL recompute `record_hash` from the submitted fields on ingest and SHALL
+reject with 422 any record whose submitted hash does not match. The client-supplied value SHALL
+NOT be trusted as the dedup key on its own.
+
+The uniqueness constraint keys on whatever string the client sends, so a client-computed hash is
+only an idempotency guarantee if the client is correct. An adapter that falls back to a fresh
+`uuid` when `message_id` is absent produces a different hash for the same message on every run,
+and the "re-ingesting inserts zero rows" guarantee silently becomes "every retry double-counts
+cost" — with no detection path, because each row looks individually valid. Recomputation makes
+the guarantee hold regardless of client behaviour.
 
 #### Scenario: One row per assistant message
 
@@ -213,7 +224,12 @@ report, per `(change_id, phase, dispatch_id)`: intended model, intended thinking
 models observed, the set of actual effort values observed, token totals, and estimated cost. A
 dispatch SHALL be flagged `model_mismatch` when any observed model is not the intended model, and
 `thinking_mismatch` when the intended thinking is non-null and any observed effort differs from it.
-A dispatch with no joined usage records SHALL be flagged `unattributed`.
+A dispatch with `record_kind = "dispatched"` and no joined usage records SHALL be flagged
+`unattributed`. Records with `record_kind = "state_only"` SHALL be excluded from mismatch
+accounting entirely: `INIT` and `SUBMIT_PR` never invoke a sub-agent, so their `agent_id` is NULL
+by design and the `(session_id, agent_id)` join can never match. Counting them would report the
+same failures on every run, making a real unattributed dispatch indistinguishable from permanent
+background noise.
 
 #### Scenario: Sub-agent ran a different model than intended
 
@@ -230,6 +246,28 @@ A dispatch with no joined usage records SHALL be flagged `unattributed`.
 
 #### Scenario: Unattributed dispatch surfaced
 
-- **GIVEN** a dispatch record whose `agent_id` matches no usage record
+- **GIVEN** a dispatch record with `record_kind = "dispatched"` whose `agent_id` matches no usage record
 - **WHEN** `GET /usage/mismatches` is called
 - **THEN** the dispatch SHALL appear with `unattributed = true`
+
+#### Scenario: Orchestrator-session usage is reported, not dropped
+
+- **GIVEN** usage records for the orchestrator's own session with `agent_id = null`, produced by autopilot's own reasoning and tool calls between dispatches
+- **WHEN** `GET /usage/by-phase?change_id=<id>` is called
+- **THEN** that usage SHALL appear under a distinct `session_overhead` bucket for the change
+- **AND** it SHALL NOT be reported as `unattributed`
+- **AND** the sum of per-phase rows plus `session_overhead` SHALL equal `/usage/summary` for the same filters
+
+The `(session_id, agent_id)` join drops every row whose `agent_id` is NULL, and the orchestrator's
+own turns are exactly those rows. On a long run they can be a large fraction of total tokens, so
+without a bucket they vanish from every phase-scoped view while still counting in the summary —
+the two reports disagree, and the >=95% attribution completeness target is unreachable by
+construction rather than by any real gap.
+
+#### Scenario: State-only phases are not reported as mismatches
+
+- **GIVEN** an autopilot run that recorded `INIT` and `SUBMIT_PR` with `record_kind = "state_only"` and `agent_id = null`
+- **AND** every dispatched phase in that run has joined usage
+- **WHEN** `GET /usage/mismatches` is called
+- **THEN** the response SHALL contain zero mismatches
+- **AND** SHALL NOT list `INIT` or `SUBMIT_PR`

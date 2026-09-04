@@ -14,13 +14,31 @@ The resolution SHALL:
 4. Resolve a logical archetype and model tier to a provider-specific model identifier for the selected provider.
 5. Record the resolved archetype name in `state_dict["_resolved_archetype"]` for downstream use by `LoopState.phase_archetype`.
 6. Copy `thinking` from the resolution into `options["thinking"]` and carry it into the dispatch payload as `thinking`, alongside `model`.
-7. Write a dispatch record (per the `usage-accounting` Dispatch Record requirement) via `coordination_bridge.try_record_dispatch(...)` before invoking the adapter, and patch it with the returned sub-agent id afterwards. Failure to write the record SHALL be logged and SHALL NOT block the dispatch.
+7. Write a dispatch record (per the `usage-accounting` Dispatch Record requirement) via `coordination_bridge.try_record_dispatch(...)` before invoking the adapter. Failure to write the record SHALL be logged and SHALL NOT block the dispatch.
 
-The 13 non-terminal phases SHALL be: `INIT`, `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `IMPL_FIX`, `VALIDATE`, `VAL_REVIEW`, `VAL_FIX`, `SUBMIT_PR`.
+   The `agent_id` patch SHALL NOT be performed by `build_phase_dispatch_kwargs`. That helper runs
+   **before** the adapter is invoked and never sees its result, so a patch located there can only
+   ever write a NULL it already wrote. The patch SHALL instead be performed on the return path that
+   observes the adapter's result — the same `apply-outcome` step that records `outcome` and
+   `handoff_id` — which SHALL therefore also carry the returned sub-agent id.
+
+   Without that, no code path carries the sub-agent id back at all: every dispatch record keeps
+   `agent_id = null`, the `(session_id, agent_id)` join matches nothing, and the ledger reports
+   100% of dispatched work as unattributed while appearing to function.
+
+The 14 non-terminal phases SHALL be: `INIT`, `GATEKEEPER`, `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `IMPL_FIX`, `VALIDATE`, `VAL_REVIEW`, `VAL_FIX`, `SUBMIT_PR` — exactly `agents_config.NON_TERMINAL_PHASES`, which is the authority. `GATEKEEPER` is dispatched as a judge sub-agent (autopilot SKILL.md step 1.5) and was omitted from an earlier draft of this list and of `dispatch-record.schema.json`; a ledger that claims to record every dispatch cannot silently drop one.
 
 The `skills/autopilot/SKILL.md` orchestration prose SHALL dispatch the following 7 phases through the provider-neutral dispatch adapter when an adapter is available: `PLAN_ITERATE`, `PLAN_REVIEW`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `VALIDATE`, `VAL_REVIEW` (when enabled). For these phases the dispatch SHALL pass the provider-specific model ID and thinking level and SHALL fold the resolved `system_prompt` into the prompt text using the fixed separator `\n\n---\n\n`.
 
-State-only phases (`INIT`, `PLAN`, `SUBMIT_PR`) SHALL still record `LoopState.phase_archetype` for their resolved archetype via a state-only resolver, even though they do not dispatch a phase sub-agent, and SHALL write a dispatch record with `agent_id = null`.
+State-only phases (`INIT`, `PLAN`, `SUBMIT_PR`) SHALL still record `LoopState.phase_archetype` for their resolved archetype via a state-only resolver, even though they do not dispatch a phase sub-agent, and SHALL write a dispatch record with `agent_id = null` **and `record_kind = "state_only"`**.
+
+`record_kind` is what keeps mismatch accounting honest. The usage-accounting requirement flags any
+dispatch with no joined usage as `unattributed`, and that join is on `(session_id, agent_id)` where
+SQL NULLs never match. A state-only record has a NULL `agent_id` *by design*, so without an
+explicit exclusion these three phases would be reported as failures on every single run — the
+mismatch report would be pure noise from its first day, and a real unattributed dispatch would be
+indistinguishable from the permanent background. `/usage/mismatches` SHALL therefore consider only
+records with `record_kind = "dispatched"`.
 
 Convergence-loop-driven phases (`PLAN_FIX`, `IMPL_FIX`, `VAL_FIX`) SHALL inherit or record `LoopState.phase_archetype` for audit purposes via the convergence loop's existing path, but SHALL NOT receive a separate provider-adapter dispatch block in SKILL.md.
 
@@ -98,6 +116,16 @@ Override behavior:
 ## ADDED Requirements
 
 ### Requirement: Thinking Forwarded To Vendor Flags
+
+When a provider declares `cli.thinking_flag` but the resolved `thinking` is null, the dispatcher SHALL omit the flag entirely rather than rendering the placeholder. D11 defines cases where thinking legitimately resolves to `None`; rendering it would put a literal `None` into vendor argv (e.g. `model_reasoning_effort=None`), which breaks the dispatch outright instead of degrading to the vendor default.
+
+#### Scenario: Template declared but thinking is null
+
+- **GIVEN** a provider whose `cli.thinking_flag` template is declared
+- **AND** the resolved `thinking` for the phase is null
+- **WHEN** the dispatcher builds the vendor argv
+- **THEN** no thinking flag SHALL appear in the argv
+- **AND** no warning SHALL be emitted, because this is a valid resolution rather than a missing template
 
 The provider dispatch layer (`skills/autopilot/scripts/provider_dispatch.py` and
 `skills/parallel-infrastructure/scripts/review_dispatcher.py`) SHALL translate the resolved

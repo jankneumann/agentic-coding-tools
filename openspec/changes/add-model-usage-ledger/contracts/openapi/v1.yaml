@@ -3,9 +3,20 @@ info:
   title: Coordinator Usage Ledger API
   version: 1.0.0
   description: >-
-    Usage ledger routes added by add-model-usage-ledger. Writes require the coordinator
-    API key (Authorization: Bearer, X-Coordinator-API-Key, or legacy X-API-Key).
-    GET routes are unauthenticated, matching existing coordinator conventions.
+    Usage ledger routes added by add-model-usage-ledger. EVERY route, read and write,
+    requires the coordinator API key (Authorization: Bearer, X-Coordinator-API-Key, or
+    legacy X-API-Key).
+
+    An earlier draft left the GET routes unauthenticated "matching existing coordinator
+    conventions". That justification was wrong: the closest existing analogue, GET /audit,
+    carries Depends(verify_api_key) in coordination_api.py, as does /profiles/me. Only
+    genuinely low-sensitivity routes such as /locks/status/{path} are open. These routes
+    are not low-sensitivity -- they expose per-principal token spend and cost, and
+    /usage/events returns sanitized transcript content -- so unauthenticated reads would
+    let any caller enumerate every principal's spend and transcripts.
+
+    Reads are additionally scoped: a caller sees its own principal's rows unless its
+    profile grants cross-principal visibility.
 servers:
   - url: https://coord.example.test
 paths:
@@ -68,7 +79,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/DispatchRecordUpsert' }
+            schema: { $ref: '#/components/schemas/DispatchRecordPatch' }
             example:
               dispatch_id: d-01J8…
               change_id: add-model-usage-ledger
@@ -92,7 +103,8 @@ paths:
     get:
       operationId: usageSummary
       summary: Token and cost totals with per-vendor and per-model breakdown
-      parameters: [ { $ref: '#/components/parameters/since' }, { $ref: '#/components/parameters/until' }, { $ref: '#/components/parameters/change_id' }, { $ref: '#/components/parameters/vendor' }, { $ref: '#/components/parameters/model' } ]
+      security: [ { ApiKey: [] } ]
+      parameters: [ { $ref: '#/components/parameters/since' }, { $ref: '#/components/parameters/until' }, { $ref: '#/components/parameters/change_id' }, { $ref: '#/components/parameters/vendor' }, { $ref: '#/components/parameters/model' }, { $ref: '#/components/parameters/limit' }, { $ref: '#/components/parameters/cursor' } ]
       responses:
         '200':
           description: Summary
@@ -103,7 +115,8 @@ paths:
     get:
       operationId: usageByPhase
       summary: Intended vs actual per (change_id, phase, dispatch_id)
-      parameters: [ { $ref: '#/components/parameters/since' }, { $ref: '#/components/parameters/until' }, { $ref: '#/components/parameters/change_id' } ]
+      security: [ { ApiKey: [] } ]
+      parameters: [ { $ref: '#/components/parameters/since' }, { $ref: '#/components/parameters/until' }, { $ref: '#/components/parameters/change_id' }, { $ref: '#/components/parameters/vendor' }, { $ref: '#/components/parameters/model' }, { $ref: '#/components/parameters/limit' }, { $ref: '#/components/parameters/cursor' } ]
       responses:
         '200':
           description: Rows
@@ -138,7 +151,8 @@ paths:
     get:
       operationId: usageByModel
       summary: Totals per (vendor, model)
-      parameters: [ { $ref: '#/components/parameters/since' }, { $ref: '#/components/parameters/until' }, { $ref: '#/components/parameters/vendor' } ]
+      security: [ { ApiKey: [] } ]
+      parameters: [ { $ref: '#/components/parameters/since' }, { $ref: '#/components/parameters/until' }, { $ref: '#/components/parameters/change_id' }, { $ref: '#/components/parameters/vendor' }, { $ref: '#/components/parameters/model' }, { $ref: '#/components/parameters/limit' }, { $ref: '#/components/parameters/cursor' } ]
       responses:
         '200':
           description: Rows
@@ -152,7 +166,8 @@ paths:
     get:
       operationId: usageMismatches
       summary: Dispatches flagged model_mismatch, thinking_mismatch, or unattributed
-      parameters: [ { $ref: '#/components/parameters/since' }, { $ref: '#/components/parameters/until' }, { $ref: '#/components/parameters/change_id' } ]
+      security: [ { ApiKey: [] } ]
+      parameters: [ { $ref: '#/components/parameters/since' }, { $ref: '#/components/parameters/until' }, { $ref: '#/components/parameters/change_id' }, { $ref: '#/components/parameters/vendor' }, { $ref: '#/components/parameters/model' }, { $ref: '#/components/parameters/limit' }, { $ref: '#/components/parameters/cursor' } ]
       responses:
         '200':
           description: Rows
@@ -166,6 +181,7 @@ paths:
     get:
       operationId: usageEvents
       summary: Sanitized transcript events for central analysis
+      security: [ { ApiKey: [] } ]
       parameters:
         - { $ref: '#/components/parameters/since' }
         - { $ref: '#/components/parameters/until' }
@@ -192,6 +208,12 @@ components:
     change_id: { name: change_id, in: query, schema: { type: string } }
     vendor: { name: vendor, in: query, schema: { type: string } }
     model: { name: model, in: query, schema: { type: string } }
+    # Aggregate routes are paginated on the same terms as /usage/events. usage_records and
+    # dispatch_records are retained forever by design (D6), and every filter is optional, so
+    # an unbounded aggregate route would return every row ever recorded on a mature
+    # deployment.
+    limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 5000, default: 1000 } }
+    cursor: { name: cursor, in: query, schema: { type: [string, 'null'] } }
   responses:
     Unauthorized:
       description: Missing or invalid API key
@@ -227,7 +249,13 @@ components:
         agent_id: { type: [string, 'null'] }
         parent_session_id: { type: [string, 'null'] }
         project: { type: [string, 'null'] }
-        principal: { type: [string, 'null'] }
+        # Server-derived, NOT accepted from the request. The coordinator resolves the
+        # principal from the authenticated API key (the same api_key_identities mapping
+        # used elsewhere) and overwrites whatever the client sent. Trusting the client
+        # would let any valid-key holder attribute arbitrary token spend and cost to
+        # another principal, which is precisely what the ownership reports this ledger
+        # exists to produce would then be reporting.
+        principal: { type: [string, 'null'], readOnly: true }
         git_branch: { type: [string, 'null'] }
         message_id: { type: [string, 'null'] }
         record_hash: { type: string }
@@ -270,8 +298,34 @@ components:
         inserted_events: { type: integer }
         unpriced_records: { type: integer }
         pricing_version: { type: string }
-    DispatchRecordUpsert:
+    # Split from a single DispatchRecordUpsert. The event schema
+    # (contracts/events/dispatch-record.schema.json) requires six fields with
+    # additionalProperties:false and describes the STORED row; a legitimate patch of
+    # {dispatch_id, agent_id} satisfied neither contract consistently under one schema.
+    DispatchRecordCreate:
       type: object
+      description: First insert. Must carry the full intent, matching the stored-row schema.
+      required: [dispatch_id, change_id, phase, intended_model, session_id]
+      properties:
+        dispatch_id: { type: string }
+        change_id: { type: string }
+        phase: { type: string }
+        archetype: { type: [string, 'null'] }
+        intended_tier: { type: [string, 'null'] }
+        intended_model: { type: string }
+        intended_thinking: { type: [string, 'null'] }
+        provider: { type: [string, 'null'] }
+        signals: { type: object, additionalProperties: true }
+        override_source: { type: [string, 'null'], enum: [null, env, config] }
+        session_id: { type: string }
+        agent_id: { type: [string, 'null'] }
+        record_kind: { type: string, enum: [dispatched, state_only], default: dispatched }
+        transcript_path: { type: [string, 'null'] }
+    DispatchRecordPatch:
+      type: object
+      description: >-
+        Patch of an existing record, used by the adapter return path to supply agent_id.
+        Only dispatch_id is required; any omitted field is left unchanged.
       required: [dispatch_id]
       properties:
         dispatch_id: { type: string }
@@ -290,7 +344,7 @@ components:
         completed_at: { type: [string, 'null'], format: date-time }
     DispatchRecord:
       allOf:
-        - { $ref: '#/components/schemas/DispatchRecordUpsert' }
+        - { $ref: '#/components/schemas/DispatchRecordPatch' }
         - type: object
           required: [dispatched_at, created_at, updated_at]
           properties:

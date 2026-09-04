@@ -136,7 +136,7 @@ packages:
 
   # ── wp-coordinator — migration, pricing, ledger service, routes, retention, enum parity (tasks 3.1–3.17)
   - package_id: wp-coordinator
-    title: "Coordinator ledger — migration 035, pricing.yaml, usage_ledger service, /usage routes, retention"
+    title: "Coordinator ledger — migration 037, pricing.yaml, usage_ledger service, /usage routes, retention"
     task_type: implementation
     description: |
       Tasks 3.1–3.18: additive migration with provenance constraints and widened
@@ -265,7 +265,7 @@ packages:
       steps:
         - name: "autopilot, parallel-infrastructure, bridge tests"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/autopilot/tests skills/parallel-infrastructure/tests skills/coordination-bridge/tests skills/tests/autopilot skills/tests/coordination-bridge -q"
+          command: "skills/.venv/bin/python -m pytest skills/autopilot/tests skills/parallel-infrastructure/tests skills/tests/autopilot skills/tests/coordination-bridge -q"
           cwd: "."
           expect_exit_code: 0
           evidence:

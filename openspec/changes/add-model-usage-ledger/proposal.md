@@ -80,7 +80,7 @@ design cannot be validated at all.
 
 **Coordination layer (coordinator)**
 
-- Migration `035_model_usage_ledger.sql`: `usage_records`, `dispatch_records`,
+- Migration `037_model_usage_ledger.sql`: `usage_records`, `dispatch_records`,
   `transcript_events` (sanitized, 90-day retention), `usage_ingest_state`.
 - Routes: `POST /usage/ingest`, `POST /usage/dispatch`, `GET /usage/summary`,
   `GET /usage/by-phase`, `GET /usage/by-model`, `GET /usage/mismatches`, `GET /usage/events`.
@@ -245,7 +245,7 @@ Langfuse, so its UI benefits arrive without making it the source of truth.
 - `skills/langfuse/scripts/langfuse_hook.py`, `references/stop-hook.md`
 - `skills/agent-metrics/scripts/{query_metrics.py, generate_dashboard.py}`, `SKILL.md`
 - `skills/session-bootstrap` hook wiring (`.claude/settings.json` Stop/SubagentStop/SessionEnd), `docs/cloud-session-hooks.md`
-- `agent-coordinator/database/migrations/035_model_usage_ledger.sql`
+- `agent-coordinator/database/migrations/037_model_usage_ledger.sql`
 - `agent-coordinator/src/{coordination_api.py, usage_ledger.py (new), pricing.py (new), watchdog.py}`, `agent-coordinator/pricing.yaml` (new), `scripts/report_status.py`, Dockerfile COPY + smoke list
 - `agent-coordinator/evaluation/{metrics.py, backends/grok.py}`
 - `apps/usage-viz/` (new)

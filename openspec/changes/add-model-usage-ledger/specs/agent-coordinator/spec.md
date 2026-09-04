@@ -5,7 +5,7 @@
 ### Requirement: Usage Ledger Persistence
 
 The coordinator SHALL persist model usage in four additive tables created by migration
-`035_model_usage_ledger.sql`: `usage_records`, `dispatch_records`, `transcript_events`, and
+`037_model_usage_ledger.sql`: `usage_records`, `dispatch_records`, `transcript_events`, and
 `usage_ingest_state`, following the existing migration conventions (`IF NOT EXISTS`, single
 transaction, checksum-tracked, never edited after apply). The migration SHALL also replace the
 `agent_sessions.phase_archetype` CHECK constraint with one accepting every archetype in
@@ -16,7 +16,7 @@ NOT NULL whenever `cost_usd` is non-null.
 
 - **GIVEN** a coordinator database at migration 034
 - **WHEN** the coordinator starts
-- **THEN** migration 035 SHALL apply within one transaction
+- **THEN** migration 037 SHALL apply within one transaction
 - **AND** all pre-existing tables SHALL be unchanged except the widened CHECK constraint
 
 #### Scenario: Cost without provenance rejected

@@ -45,3 +45,38 @@
 ### Context
 Planned end-to-end model usage observability after a gap analysis showed the archetype chain broken at every stage: thinking never dispatched, actual model never captured, no pricing, nothing surfaced, cloud transcripts lost. Selected Approach A: a transcript-derived ledger pushed from Stop/SubagentStop/SessionEnd hooks into the coordinator, joined to dispatch records on the sub-agent id, priced from a versioned YAML, surfaced in agent-metrics --usage and a usage-viz app, with Langfuse fed as a secondary view.
 
+---
+
+## Phase: Plan Iteration 1 (2026-09-04)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Split the dispatch-record write from the agent_id patch** — build_phase_dispatch_kwargs runs before the adapter and never sees its result, so a patch there can only rewrite the NULL it just wrote. The patch belongs on the apply-outcome return path, which must widen to carry the sub-agent id.
+2. **Add record_kind to distinguish dispatched from state_only** — INIT and SUBMIT_PR have a NULL agent_id by design; the (session_id, agent_id) join never matches them, so without an exclusion the mismatch report is noise from its first run and a real unattributed dispatch is indistinguishable from background.
+3. **Align the phase enum to agents_config.NON_TERMINAL_PHASES** — The enum omitted GATEKEEPER, which autopilot really dispatches, and invented REVIEW_PANEL, which exists nowhere in the repository. Pinning it to the code's own constant stops both drifts.
+4. **Derive principal from the authenticated key** — The ingest contract accepted it from the request, so any valid-key holder could attribute arbitrary spend to another principal — corrupting the ownership reports the ledger exists to produce.
+5. **Renumber to migration 037** — #463 landed 035 on main after this plan was written; #467 also claimed 035 and moves to 036.
+
+### Alternatives Considered
+- Filter state-only phases by name in the mismatch query: rejected because Encodes the phase list in a second place. record_kind states the property directly and survives a phase being added.
+- Give state-only phases a synthetic agent_id: rejected because Would make them join, but fabricates attribution for work no sub-agent did — worse than excluding them.
+
+### Trade-offs
+- Accepted A wider apply-outcome interface over Patching in the helper because The return path is the only place the sub-agent id exists; no interface change means no attribution at all.
+
+### Open Questions
+- [ ] estimated is now constrained TRUE for every priced row. If vendor-billed costs (vendor_cost_usd) are ever promoted into cost_usd, that row would be genuinely non-estimated and the constraint would reject it.
+
+### Completed Work
+- [critical] security: principal derived from the API key, marked readOnly on ingest
+- [high] correctness: agent_id patch moved to the adapter return path (new task 4.4b)
+- [high] correctness: record_kind added; state_only excluded from mismatch accounting
+- [high] completeness: phase enum aligned to NON_TERMINAL_PHASES — GATEKEEPER added, phantom REVIEW_PANEL removed
+- [high] consistency: migration renumbered 035 -> 037 after #463 landed 035
+- [medium] contract: priced rows now require estimated IS TRUE, matching the OpenAPI const
+- [medium] contract: all four usage GET routes expose since/until/change_id/vendor/model
+
+### Context
+Addressed the 6 unresolved reviewer findings on PR #468 plus a migration-number collision that only came into existence when #463 merged today. Two of the six were the ledger reporting 100% of work as unattributed, from opposite causes: the agent_id patch was assigned to a helper that runs before the adapter returns, and state-only phases with a NULL agent_id were counted in a join where NULLs never match.
+

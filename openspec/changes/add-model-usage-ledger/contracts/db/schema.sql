@@ -1,5 +1,5 @@
 -- Contract: model usage ledger schema.
--- Realized as agent-coordinator/database/migrations/035_model_usage_ledger.sql.
+-- Realized as agent-coordinator/database/migrations/037_model_usage_ledger.sql.
 -- Style mirrors existing numbered migrations (IF NOT EXISTS, explicit indexes).
 -- Carries forward usage_records / usage_ingest_state from the superseded
 -- usage-stats-multi-model change, extended per design D2, D3, D5, D6, D9.
@@ -32,9 +32,16 @@ CREATE TABLE IF NOT EXISTS usage_records (
     record_hash           TEXT        NOT NULL,
     created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT uq_usage_record UNIQUE (vendor, session_id, record_hash),
-    -- Cost provenance (D5): a priced row must say which table priced it.
+    -- Cost provenance (D5): a priced row must say which table priced it, and must be
+    -- stamped estimated = true.
+    --
+    -- `estimated IS NOT NULL` was too weak: it admitted a priced row with estimated =
+    -- false, which contradicts D5 and the usage-accounting contract (every calculated
+    -- cost is an estimate, since it is derived from a price table rather than billed),
+    -- and produces a row that cannot satisfy the OpenAPI response schema's `const: true`
+    -- -- a database state with no valid API representation.
     CONSTRAINT ck_usage_cost_provenance CHECK (
-        cost_usd IS NULL OR (pricing_version IS NOT NULL AND estimated IS NOT NULL)
+        cost_usd IS NULL OR (pricing_version IS NOT NULL AND estimated IS TRUE)
     ),
     CONSTRAINT ck_usage_cost_reason CHECK (
         cost_usd IS NOT NULL OR cost_reason IS NOT NULL
@@ -60,7 +67,16 @@ CREATE TABLE IF NOT EXISTS dispatch_records (
     signals            JSONB       NOT NULL DEFAULT '{}'::jsonb,
     override_source    TEXT,                          -- NULL | 'env' | 'config'
     session_id         TEXT        NOT NULL,          -- orchestrator session
-    agent_id           TEXT,                          -- patched on adapter return
+    agent_id           TEXT,                          -- patched on the adapter RETURN path
+                                                      -- (apply-outcome), never in
+                                                      -- build_phase_dispatch_kwargs, which runs
+                                                      -- before the adapter and cannot see its result
+    -- 'dispatched' rows join to usage on (session_id, agent_id) and are flagged unattributed
+    -- when nothing matches. 'state_only' rows (INIT, SUBMIT_PR) never invoke a sub-agent, so
+    -- their agent_id is NULL by design and they MUST be excluded from mismatch accounting --
+    -- SQL NULLs never match, so counting them would report the same three failures forever.
+    record_kind        TEXT        NOT NULL DEFAULT 'dispatched'
+                       CHECK (record_kind IN ('dispatched', 'state_only')),
     transcript_path    TEXT,
     dispatched_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     completed_at       TIMESTAMPTZ,
@@ -92,6 +108,13 @@ CREATE INDEX IF NOT EXISTS idx_transcript_events_session_agent ON transcript_eve
 CREATE INDEX IF NOT EXISTS idx_transcript_events_created       ON transcript_events (created_at);
 
 -- Per-file incremental ingestion watermark. D7.
+-- Per-file incremental read cursors. Unlike usage_records and dispatch_records, which are
+-- retained forever by design (D6), these rows are pure bookkeeping and are keyed by (host,
+-- file_path). Cloud sessions get a fresh ephemeral host per container, so every cloud run
+-- leaves cursor rows that will never be read again. The retention job SHALL purge rows whose
+-- last_seen_at is older than USAGE_INGEST_STATE_RETENTION_DAYS (default 30); losing a cursor
+-- for a host that never returns costs nothing, and losing one for a host that does return
+-- only re-reads that file from the start, which the record_hash dedup makes harmless.
 CREATE TABLE IF NOT EXISTS usage_ingest_state (
     file_path     TEXT        NOT NULL,
     host          TEXT        NOT NULL,
