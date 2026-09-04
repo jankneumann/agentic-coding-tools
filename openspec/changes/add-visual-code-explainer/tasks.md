@@ -39,27 +39,27 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
 
 - [ ] Checkpoint: run `skills/tests/codebase-atlas`, confirm the SKILL.md flag table and CLI agree, review the cumulative package diff
 
-## Phase 2 — `show-me` skill (package `wp-skill`, parallel with Phase 1)
+## Phase 2 — `explain-code` skill (package `wp-skill`, parallel with Phase 1)
 
-- [ ] 2.1 Write `skills/tests/show-me/test_skill_md.py`: frontmatter parses; `name`, `description`, `category`, `tags`, `user_invocable`, `related` present and non-empty (asserted explicitly, not via `assert_required_keys_present`); no `triggers` key; `assert_references_resolve`; `assert_related_resolve`; `assert_tail_block_present`; `SKILL.md ≤ 150` lines; no reference file links to another reference; description mentions `codebase-atlas`
+- [ ] 2.1 Write `skills/tests/explain-code/test_skill_md.py`: frontmatter parses; `name`, `description`, `category`, `tags`, `user_invocable`, `related` present and non-empty (asserted explicitly, not via `assert_required_keys_present`); no `triggers` key; `assert_references_resolve`; `assert_related_resolve`; `assert_tail_block_present`; `SKILL.md ≤ 150` lines; no reference file links to another reference; description mentions `codebase-atlas`
   **Spec scenarios**: skill-workflow "Frontmatter valid in both orderings", "Description carries the trigger condition", "Progressive disclosure layout"
   **Design decisions**: D6
   **Dependencies**: None
   **Size**: S
 
-- [ ] 2.2 Write `skills/tests/show-me/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms; `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
+- [ ] 2.2 Write `skills/tests/explain-code/test_behaviour.py` — three deterministic behavioural checks: grounding reference contains both D5 disclosure forms; `SKILL.md` redirects whole-repository questions to `/codebase-atlas`; `SKILL.md` forbids `--ensure` and the analysis pipeline
   **Spec scenarios**: skill-workflow "Disclosure line present on every answer", "Whole-repository question redirected", "Stale or absent graph falls back to source"
   **Design decisions**: D2, D5, D7, D9
   **Dependencies**: None
   **Size**: S
 
-- [ ] 2.3 Write `skills/show-me/SKILL.md` — frontmatter per D6 (no `triggers`), one-paragraph purpose crediting humanlayer's MIT `show-me`, the five rules, a catalogue table linking each `references/<form>.md`, the grounding step summary linking `references/grounding.md`, the deferred-scope note (no HTML, no files, no browser), and the tail block copied from `skills/references/skill-tail-template.md`
+- [ ] 2.3 Write `skills/explain-code/SKILL.md` — frontmatter per D6 (no `triggers`), one-paragraph purpose crediting humanlayer's MIT `show-me`, the five rules, a catalogue table linking each `references/<form>.md`, the grounding step summary linking `references/grounding.md`, the deferred-scope note (no HTML, no files, no browser), and the tail block copied from `skills/references/skill-tail-template.md`
   **Spec scenarios**: skill-workflow "Narrow question answered with the smallest visual", "No file or browser side effects", "Progressive disclosure layout"
   **Design decisions**: D1, D6, D9
   **Dependencies**: 2.1, 2.2
   **Size**: M
 
-- [ ] Checkpoint: run `skills/tests/show-me`, review diff, verify scope stays inside `skills/show-me/**` + `skills/tests/show-me/**`
+- [ ] Checkpoint: run `skills/tests/explain-code`, review diff, verify scope stays inside `skills/explain-code/**` + `skills/tests/explain-code/**`
 
 - [ ] 2.4 Write the five form references — `references/call-tree.md`, `component-tree.md`, `file-tree.md`, `sequence.md`, `structural-diff.md` — each with: when to use, the smallest-view rule for that form, one worked example adapted from humanlayer with attribution, and how to attach file locations
   **Spec scenarios**: skill-workflow "Narrow question answered with the smallest visual"
@@ -73,27 +73,27 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
   **Dependencies**: 2.3
   **Size**: S
 
-- [ ] Checkpoint: run `skills/tests/show-me`, confirm every `references/<form>.md` cited in SKILL.md exists, review diff
+- [ ] Checkpoint: run `skills/tests/explain-code`, confirm every `references/<form>.md` cited in SKILL.md exists, review diff
 
-- [ ] 2.6 Add `"show-me": {"distribution": "portable"}` to `skills/install-manifest.json` `skills`, plus `cross_skill_dependencies` `"show-me": ["codebase-atlas", "refresh-architecture"]`
+- [ ] 2.6 Add `"explain-code": {"distribution": "portable"}` to `skills/install-manifest.json` `skills`, plus `cross_skill_dependencies` `"explain-code": ["codebase-atlas", "refresh-architecture"]`
   **Spec scenarios**: skill-workflow "Manifest validation passes"
   **Design decisions**: D1
   **Dependencies**: 2.5
   **Size**: XS
 
-- [ ] 2.7 Add `"tests/show-me"` to `testpaths` in `skills/pyproject.toml`
+- [ ] 2.7 Add `"tests/explain-code"` to `testpaths` in `skills/pyproject.toml`
   **Spec scenarios**: skill-workflow "Tests collected by the default sweep"
   **Design decisions**: —
   **Dependencies**: 2.1
   **Size**: XS
 
-- [ ] 2.8 (conditional) Author three scenario fixtures under `skills/tests/show-me/scenarios/` in the trajectory-scenario harness format if that harness is present in the checkout; otherwise record "harness absent" in the session log
+- [ ] 2.8 (conditional) Author three scenario fixtures under `skills/tests/explain-code/scenarios/` in the trajectory-scenario harness format if that harness is present in the checkout; otherwise record "harness absent" in the session log
   **Spec scenarios**: skill-workflow "Fresh graph grounds the call tree", "Stale or absent graph falls back to source", "Whole-repository question redirected"
   **Design decisions**: D7
   **Dependencies**: 2.5
   **Size**: S
 
-- [ ] Checkpoint: run `bash skills/install.sh --check-only` and `skills/.venv/bin/python -m pytest skills/tests/show-me`, verify scope stayed inside the package's write_allow
+- [ ] Checkpoint: run `bash skills/install.sh --check-only` and `skills/.venv/bin/python -m pytest skills/tests/explain-code`, verify scope stayed inside the package's write_allow
 
 ## Phase 3 — Integration (package `wp-integration`)
 
@@ -109,13 +109,13 @@ Within each phase, test tasks precede the implementation they verify (TDD RED �
   **Dependencies**: 3.1
   **Size**: XS
 
-- [ ] 3.3 Record "Phase 0b shipped: `/show-me` question-driven explainer" in `docs/proposals/codebase-visualization-tool.md` delivery status
+- [ ] 3.3 Record "Phase 0b shipped: `/explain-code` question-driven explainer" in `docs/proposals/codebase-visualization-tool.md` delivery status
   **Spec scenarios**: —
   **Design decisions**: —
   **Dependencies**: 3.2
   **Size**: XS
 
-- [ ] 3.4 Run the full verification block from `design.md`: `pytest skills/tests/codebase-atlas skills/tests/show-me skills/tests/install_sh`, `openspec validate add-visual-code-explainer --strict`, `bash skills/install.sh --check-only`, and the two-run `cmp` determinism check
+- [ ] 3.4 Run the full verification block from `design.md`: `pytest skills/tests/codebase-atlas skills/tests/explain-code skills/tests/install_sh`, `openspec validate add-visual-code-explainer --strict`, `bash skills/install.sh --check-only`, and the two-run `cmp` determinism check
   **Spec scenarios**: all
   **Design decisions**: all
   **Dependencies**: 3.3

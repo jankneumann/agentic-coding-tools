@@ -2,7 +2,7 @@ schema_version: 1
 
 feature:
   id: add-visual-code-explainer
-  title: "Visual code explainer — show-me skill grounded through codebase-atlas --tree"
+  title: "Visual code explainer — explain-code skill grounded through codebase-atlas --tree"
   plan_revision: 1
   created_by: claude-code
 
@@ -51,7 +51,7 @@ packages:
       read_allow:
         - "**"
       deny:
-        - "skills/show-me/**"
+        - "skills/explain-code/**"
         - "skills/install-manifest.json"
         - "skills/pyproject.toml"
     worktree:
@@ -93,7 +93,7 @@ packages:
 
   # ── wp-skill — the prompt-only skill, its references, tests, and distribution wiring (tasks 2.1–2.6)
   - package_id: wp-skill
-    title: "show-me skill, references, tests, manifest and testpaths wiring"
+    title: "explain-code skill, references, tests, manifest and testpaths wiring"
     task_type: docs
     description: |
       Tasks 2.1–2.6: test_skill_md.py first (explicit frontmatter keys, references resolve,
@@ -117,8 +117,8 @@ packages:
       reason: "New skill directory and distribution wiring"
     scope:
       write_allow:
-        - "skills/show-me/**"
-        - "skills/tests/show-me/**"
+        - "skills/explain-code/**"
+        - "skills/tests/explain-code/**"
         - "skills/install-manifest.json"
         - "skills/pyproject.toml"
       read_allow:
@@ -135,9 +135,9 @@ packages:
     verification:
       tier_required: B
       steps:
-        - name: "show-me skill tests green"
+        - name: "explain-code skill tests green"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/show-me -q"
+          command: "skills/.venv/bin/python -m pytest skills/tests/explain-code -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -203,7 +203,7 @@ packages:
       steps:
         - name: "Full skills test sweep"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/codebase-atlas skills/tests/show-me skills/tests/install_sh -q"
+          command: "skills/.venv/bin/python -m pytest skills/tests/codebase-atlas skills/tests/explain-code skills/tests/install_sh -q"
           cwd: "."
           expect_exit_code: 0
           evidence:

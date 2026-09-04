@@ -20,7 +20,7 @@ entry and forbids bare-named helper modules that collide across skills.
 
 ### D1 — Prompt-only skill; the only new code is an atlas flag
 
-`skills/show-me/` contains `SKILL.md` and `references/*.md`, no `scripts/`.
+`skills/explain-code/` contains `SKILL.md` and `references/*.md`, no `scripts/`.
 Grounding calls `<skill-base-dir>/../codebase-atlas/scripts/build_atlas.py
 --tree`. Rationale: the catalogue works *because* it is prose (Approach 1 vs 2
 in the proposal); the one place determinism pays is the call tree, and the
@@ -97,7 +97,7 @@ whole-repository view (use codebase-atlas for that)".
 
 ### D7 — Behavioural scenarios: harness-shaped, CI-wired at the deterministic edge
 
-Three scenarios are authored as fixtures under `skills/tests/show-me/scenarios/`
+Three scenarios are authored as fixtures under `skills/tests/explain-code/scenarios/`
 in the trajectory-scenario harness format when that harness is available in
 the checkout; otherwise as pytest tests marked `e2e`. Independently of the
 harness, three **deterministic** tests always run in CI and encode the same
@@ -172,7 +172,7 @@ branches *and* regenerated the mirrors — was split into 3.1 and 3.2.
 - Static: `openspec validate add-visual-code-explainer --strict`;
   `skills/install.sh --check-only` (manifest and portability rules).
 - Unit: `skills/.venv/bin/python -m pytest skills/tests/codebase-atlas
-  skills/tests/show-me`.
+  skills/tests/explain-code`.
 - Determinism: run `--tree` twice on the committed graph and `cmp` the outputs.
 - Timing: `--tree` on the committed graph ≤ 2 s (asserted in
   `test_atlas_tree.py`, skipped if the committed graph is absent).
