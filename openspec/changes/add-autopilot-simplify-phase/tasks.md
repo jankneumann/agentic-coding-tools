@@ -220,14 +220,14 @@ Contracts: `contracts/events/simplify-review.schema.json` (+ two fixtures).
 
 ## Phase 4 — wp-review-diagnostic: read-only test-quality findings
 
-- [ ] 4.1 Test: a review round whose only consensus findings are `test_quality` at
+- [x] 4.1 Test: a review round whose only consensus findings are `test_quality` at
       `criticality: low` converges (`_is_blocking` false for each); test lives in
       `skills/tests/parallel-infrastructure/` — **XS**
       **Spec scenarios**: sw *Test-quality findings do not block convergence alone*
       **Design decisions**: D9
       **Dependencies**: None
 
-- [ ] 4.2 `skills/parallel-review-implementation/SKILL.md`: Test quality checklist under
+- [x] 4.2 `skills/parallel-review-implementation/SKILL.md`: Test quality checklist under
       Code Quality Review naming the Delete catalog smells and the four seam patterns, the
       `axis` mapping and `criticality: low` rule, the read-only constraint, and the note
       that these findings seed `SIMPLIFY_REVIEW`; add `test_quality`, `simplification`, and
@@ -236,14 +236,14 @@ Contracts: `contracts/events/simplify-review.schema.json` (+ two fixtures).
       **Design decisions**: D9, D10
       **Dependencies**: None
 
-- [ ] 4.3 Test: content invariant in `skills/tests/parallel-review-implementation/` — the
+- [x] 4.3 Test: content invariant in `skills/tests/parallel-review-implementation/` — the
       checklist section exists and names each smell and seam pattern; Finding Types includes
       `test_quality` — **XS**
       **Spec scenarios**: sw *Checklist present in the skill*
       **Design decisions**: D9
       **Dependencies**: 4.2
 
-- [ ] Checkpoint: `skills/tests/parallel-review-implementation` and the 4.1 test green;
+- [x] Checkpoint: `skills/tests/parallel-review-implementation` and the 4.1 test green;
       confirm only the package's `write_allow` changed
 
 ## Phase 5 — wp-docs-and-mirrors: prose in other skills and docs

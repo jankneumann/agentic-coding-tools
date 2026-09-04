@@ -199,6 +199,35 @@ Standard code review criteria:
 - [ ] Resilience: timeout configuration for external calls, retry with backoff where appropriate, idempotent operations for retryable paths
 - [ ] Code follows existing project conventions
 
+#### Test quality
+
+Flag new or modified tests and new production seams that exist only for
+tests as findings of `type: test_quality`. This checklist is diagnostic,
+not corrective: the reviewer cites, never deletes — no test and no seam is
+removed here. These findings are the seed input to autopilot's
+`SIMPLIFY_REVIEW` phase when `--simplify` is set (`simplify-implementation`'s
+Review role refines them into a simplify-review artifact); the targeted fix
+path may otherwise act on a `test_quality` finding like any other finding.
+
+- [ ] New or modified tests do not match the `simplify-implementation` Delete
+      catalog: source-mirroring, change-detector, self-mocking, duplicative,
+      accessor-only, library-under-test, vacuous, unreviewed-snapshot
+- [ ] New production seams do not exist only to let a test inject a double:
+      mock-only interface, test-only constructor parameter, visibility
+      widened for tests, factory-of-one, `_for_testing` / `reset_state()`
+      hooks
+
+Rules for every `test_quality` finding:
+
+- `criticality: low` always — a `test_quality` finding must never block
+  convergence on its own (see `_is_blocking` in `convergence_loop.py`, which
+  keys on criticality, not `type`).
+- `axis: readability` for structure-coupled tests (change-detector,
+  source-mirroring, duplicative, unreviewed-snapshot) and for seams;
+  `axis: correctness` for vacuous or self-mocking tests.
+- Cite the offending test or seam by `file_path`.
+- Read-only: the reviewer MUST NOT delete tests or seams, only report them.
+
 ### 5. Verification Result Cross-Check
 
 If work-queue result is available:
@@ -252,6 +281,9 @@ Generate findings as JSON conforming to `review-findings.schema.json`:
 - `observability` — Missing logging, metrics, or health endpoints
 - `compatibility` — Breaking change to existing API or missing migration rollback
 - `resilience` — Missing retry, timeout, or idempotency handling
+- `behavioral_failure` — A WHEN/THEN scenario does not hold at runtime
+- `simplification` — A safe, behavior-preserving cleanup opportunity (`simplify-implementation` catalog)
+- `test_quality` — A new/modified test or test-induced seam matching the Delete catalog or seam patterns (read-only; see Test quality above)
 
 #### Dispositions
 - `fix` — Must fix before integration merge
@@ -364,6 +396,7 @@ When this skill is dispatched *to* another vendor by the orchestrator, only the 
 - Description prose lacks the matching severity prefix (`Critical:` / `Nit:` / `Optional:` / `FYI:`). The prefix is the human-readable signal; if it disagrees with the enum, the reviewer wrote JSON without re-reading the prose.
 - Findings without `file_path`/`line_range` for code-level issues (correctness, security, performance) — these fields are what enables cross-vendor consensus matching; omitting them isolates the finding.
 - Scope-violation findings missing — modified files outside the package's `write_allow` should always produce a `correctness` + `severity: critical` finding (see Step 2).
+- A `test_quality` finding at `criticality: medium` or above — it must never block on its own; if the underlying issue is actually blocking, it belongs to a different `type`/axis, not `test_quality`.
 
 ## Verification
 
