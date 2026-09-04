@@ -220,3 +220,80 @@ class TestTrustFailureNeverSkipsGuardrails:
                 f"the guardrail handler in {phase}() can still swallow a "
                 f"TrustResolutionError and skip the scan"
             )
+
+
+# ---------------------------------------------------------------------------
+# Follow-up (PR #465 review, P1): trust resolution ran *after* claim_task had
+# already mutated the selected row to status='claimed'. Re-raising
+# TrustResolutionError at that point left the task permanently claimed by an
+# agent that never received it — there is no stale-claim recovery path, and
+# repeated calls could strand the entire pending queue.
+# ---------------------------------------------------------------------------
+
+
+class _ClaimDB:
+    """A fake DB whose claim_task RPC records whether it was ever invoked."""
+
+    def __init__(self) -> None:
+        self.claim_task_called = False
+
+    async def rpc(self, function_name: str, params: dict[str, Any]) -> Any:
+        if function_name == "claim_task":
+            self.claim_task_called = True
+            return {
+                "success": True,
+                "task_id": "00000000-0000-4000-8000-000000000456",
+                "task_type": "test",
+                "description": "do the thing",
+                "input_data": None,
+                "priority": 5,
+            }
+        return {}
+
+    async def query(self, *args: Any, **kwargs: Any) -> list[Any]:
+        return []
+
+    async def insert(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return {"id": "x"}
+
+
+class TestClaimResolvesTrustBeforeMutatingTheQueue:
+    """A broken registry profile must abort the claim *before* claim_task
+    runs, not strand an already-claimed row when the guardrail scan can't
+    proceed."""
+
+    @pytest.fixture(autouse=True)
+    def _allow_policy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from src import policy_engine
+        from src.policy_engine import PolicyDecision
+
+        class _Allow:
+            async def check_operation(self, **kwargs: Any) -> PolicyDecision:
+                return PolicyDecision.allow(reason="test")
+
+        monkeypatch.setattr(policy_engine, "get_policy_engine", lambda: _Allow())
+
+    async def test_broken_trust_resolution_never_reaches_claim_task(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src import guardrails, trust_resolution
+
+        async def _boom(agent_id: str, agent_type: str, *a: Any, **k: Any) -> int:
+            raise TrustResolutionError(agent_id, agent_type, "projection broken")
+
+        monkeypatch.setattr(trust_resolution, "resolve_trust_level", _boom)
+        scanner = _FakeGuardrails()
+        monkeypatch.setattr(guardrails, "get_guardrails_service", lambda: scanner)
+
+        db = _ClaimDB()
+        service = WorkQueueService(db=db)
+
+        with pytest.raises(TrustResolutionError):
+            await service.claim(agent_id="agent-x", agent_type="claude_code")
+
+        assert not db.claim_task_called, (
+            "claim_task ran before trust resolution failed — that row would "
+            "be stuck in status='claimed' forever, since there is no "
+            "stale-claim recovery path"
+        )
+        assert not scanner.called
