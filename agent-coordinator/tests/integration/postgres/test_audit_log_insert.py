@@ -17,6 +17,8 @@ import pytest
 
 from src.audit import AuditService
 
+from .conftest import POSTGRES_DSN, _postgres_available
+
 pytestmark = pytest.mark.integration
 
 
@@ -118,3 +120,83 @@ async def test_drain_waits_for_fire_and_forget_writes(postgres_db, monkeypatch) 
         limit=5,
     )
     assert rows, "fire-and-forget audit write never landed"
+
+
+def test_reset_db_closes_connections_orphaned_by_a_dead_event_loop() -> None:
+    """The leak that hung ``test-integration`` for six hours (#463).
+
+    pytest gives every test its own event loop. A fire-and-forget audit insert
+    still in flight when that loop closes leaves its connection open on the
+    server — in the observed case ``active``, waiting for a Sync that never
+    arrives, holding RowExclusiveLock on ``audit_log`` inside an implicit
+    transaction. The next app startup's migration pass (024 re-creates the
+    ``audit_log`` trigger) then blocks on that lock forever.
+
+    ``reset_db()`` used to drop the client reference and leak the pool. It must
+    terminate it — and it must still manage that *after* the loop is gone,
+    because that is when teardown runs: ``transport.abort()`` raises
+    ``RuntimeError: Event loop is closed`` there and would leave the fds open.
+    """
+    if not _postgres_available:
+        pytest.skip("PostgreSQL not running (start with: docker-compose up -d)")
+
+    import asyncio
+
+    import asyncpg
+
+    from src import db as db_module
+    from src.config import reset_config
+
+    reset_config()
+    db_module.reset_db()
+
+    async def _backends_started_after(t0: object) -> int:
+        conn = await asyncpg.connect(dsn=POSTGRES_DSN, timeout=5.0)
+        try:
+            return int(
+                await conn.fetchval(
+                    "SELECT count(*) FROM pg_stat_activity "
+                    "WHERE datname = current_database() "
+                    "AND backend_type = 'client backend' "
+                    "AND pid <> pg_backend_pid() "
+                    "AND backend_start >= $1",
+                    t0,
+                )
+            )
+        finally:
+            await conn.close()
+
+    async def _now() -> object:
+        conn = await asyncpg.connect(dsn=POSTGRES_DSN, timeout=5.0)
+        try:
+            return await conn.fetchval("SELECT now()")
+        finally:
+            await conn.close()
+
+    t0 = asyncio.run(_now())
+
+    # Open the GLOBAL client's pool on a throwaway loop via a fire-and-forget
+    # audit write, then close that loop without ever draining — exactly what a
+    # test's teardown does to an insert still in flight.
+    loop = asyncio.new_event_loop()
+    try:
+
+        async def _fire() -> None:
+            await AuditService().log_operation(
+                agent_id="orphan-probe", agent_type="test_agent", operation="orphan_probe"
+            )
+            await asyncio.sleep(0.3)  # let the pool come up; do not drain
+
+        loop.run_until_complete(_fire())
+    finally:
+        loop.close()
+
+    orphaned = asyncio.run(_backends_started_after(t0))
+    assert orphaned >= 1, "the dead loop should have left the pool's connections open"
+
+    db_module.reset_db()
+
+    assert asyncio.run(_backends_started_after(t0)) == 0, (
+        f"{orphaned} connection(s) survived reset_db() — the next migration "
+        f"pass will block on whatever locks they hold"
+    )

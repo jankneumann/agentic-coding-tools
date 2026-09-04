@@ -273,3 +273,31 @@ class TestPostgresUpdateTimestampBinding:
         )
         assert isinstance(args[2], datetime)
         assert args[3] == issue_id
+
+
+class TestResetDb:
+    """``reset_db`` must terminate the outgoing client, not just forget it."""
+
+    def test_reset_db_terminates_the_outgoing_client(self):
+        """Dropping the reference alone leaked every pooled connection (#463).
+
+        One of them, left mid-transaction by a task killed with its event loop,
+        held a lock on ``audit_log`` that blocked the next app startup's
+        migration pass indefinitely.
+        """
+        from src import db as db_module
+
+        class _Client:
+            terminated = False
+
+            def terminate(self) -> None:
+                self.terminated = True
+
+        client = _Client()
+        db_module._db = client  # type: ignore[assignment]
+        try:
+            reset_db()
+            assert client.terminated
+            assert db_module._db is None
+        finally:
+            db_module._db = None
