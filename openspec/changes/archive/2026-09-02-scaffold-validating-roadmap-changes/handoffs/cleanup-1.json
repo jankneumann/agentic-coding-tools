@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T10:29:27.021713+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Post-merge cleanup for PR #350, run in --defer-commit mode from the main-context convergence sync point, so this phase staged its output and made no commit of its own. The PR was rebase-merged after a reconciliation against main's independent rewrite of the same scaffolder (commit 80ef32f1), which had landed while the PR was open. Two open tasks, both already scoped out under a 'Follow-up (not in this change)' heading, were migrated to GitHub issues #459 and #460 rather than to a follow-up OpenSpec proposal.",
+    "completed_work": [
+      "post-merge-verify",
+      "task-migration",
+      "archive",
+      "spec-merge",
+      "decision-index"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Rebase-merge, after reconciling with main's independent rewrite",
+        "rationale": "Main had independently implemented this change's core idea in 80ef32f1, extracting scaffold_change() and adding change-id validation and a status guard. Kept main's structure. Kept this branch's richer spec writer, because main writes the delta to specs/<change_id>/ while every real change under openspec/changes/ names that directory after a capability (architecture-refresh, roadmap-orchestration, skill-workflow) and one change may span several. Three of main's tests hard-coded the change-id as the directory; none was about the directory name, so they now locate the delta with rglob as two sibling tests already did.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Open tasks migrated to GitHub issues, not a follow-up proposal",
+        "rationale": "Coordinator transport was none, so coordinator issues were unavailable. The skill's documented fallback is a follow-up OpenSpec proposal, but this repository tracks follow-ups as GitHub issues, and a 61st active change would have kept openspec.projection degraded for no benefit. Operator approved.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Staged rollout (Steps 5c/5d) not applicable",
+        "rationale": "Those steps gate traffic promotion behind a feature flag. This change is repository tooling \u2014 a scaffolder and its tests \u2014 with no deployed surface, no traffic split and no flag to flip. Recorded as not-applicable rather than silently skipped.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "#459 disambiguate flat models.py modules, add roadmap suites to testpaths",
+      "#460 teach /plan-feature and /iterate-on-plan to replace SCAFFOLD blocks"
+    ],
+    "relevant_files": []
+  }
+}

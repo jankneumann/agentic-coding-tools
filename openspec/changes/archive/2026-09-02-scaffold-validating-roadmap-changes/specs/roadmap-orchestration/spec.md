@@ -58,6 +58,23 @@ WHEN a candidate item exceeds single-change scope (spans multiple independent ca
 THEN `plan-roadmap` SHALL split it into separate items
 AND it SHALL add dependency edges between the resulting items where ordering matters.
 
+#### Scenario: Replan scope is the affected subgraph only
+WHEN `decomposer.py replan-scope <workspace>` runs against a roadmap where `ri-03` failed with a replan signal and `ri-04`, `ri-06` depend on it while `ri-05` is completed
+THEN the output SHALL list exactly `ri-04` and `ri-06` (and their transitive dependents that are not in a preserved status)
+AND it SHALL NOT list `ri-05` or any completed item.
+
+#### Scenario: Replan preserves completed items and learnings
+WHEN `/plan-roadmap --replan <roadmap-id>` completes
+THEN every item that was `completed`, `superseded`, or `in_progress` SHALL be byte-identical to its pre-replan entry
+AND every file under `learnings/` SHALL be unchanged
+AND `replan-request.json` SHALL no longer exist
+AND `decomposer.py validate` SHALL exit 0.
+
+#### Scenario: Replan without a request file is refused
+WHEN `/plan-roadmap --replan <roadmap-id>` is invoked and `<workspace>/replan-request.json` does not exist
+THEN the workflow SHALL exit with a structured error naming the missing file
+AND the roadmap SHALL be unchanged.
+
 ## ADDED Requirements
 
 ### Requirement: Roadmap items are refined before they are implemented

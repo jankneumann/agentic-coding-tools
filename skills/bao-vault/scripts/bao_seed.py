@@ -3,7 +3,7 @@
 
 Reads `.secrets.yaml` and `agents.yaml`, then populates OpenBao with:
 - KV v2 secrets from `.secrets.yaml`
-- AppRoles from `agents.yaml` (HTTP-transport agents only)
+- AppRoles from `agents.yaml` (every agent declaring an `api_key`)
 - Database secrets engine configuration (with --with-db-engine)
 
 Usage:
@@ -110,7 +110,18 @@ def seed_approles(
     token_ttl: int,
     dry_run: bool = False,
 ) -> None:
-    """Create AppRoles from agents.yaml for HTTP-transport agents."""
+    """Create AppRoles from agents.yaml for every agent declaring a key.
+
+    The selector is ``api_key``, not ``transport``. ``get_api_key_identities()``
+    already derives ``COORDINATION_API_KEY_IDENTITIES`` from any agent with a
+    resolvable key regardless of transport (design D5), because an ``mcp`` agent
+    still authenticates over HTTP — through the session hooks, through
+    ``http_proxy`` when the local database is unreachable, and for every call
+    when the coordinator is hosted rather than run as a local MCP server.
+    Selecting AppRoles on ``transport == "http"`` here left that set narrower
+    than the identity map it is supposed to back: an agent could hold an
+    identity row whose key OpenBao was never told to serve.
+    """
     if not agents_path.is_file():
         print(f"WARNING: {agents_path} not found — skipping AppRole creation", file=sys.stderr)
         return
@@ -122,14 +133,14 @@ def seed_approles(
         print(f"WARNING: {agents_path} has no 'agents' section — skipping", file=sys.stderr)
         return
 
-    http_agents = [
+    keyed_agents = [
         (name, agent_data)
         for name, agent_data in data["agents"].items()
-        if agent_data.get("transport") == "http"
+        if agent_data.get("api_key")
     ]
 
-    if not http_agents:
-        print("No HTTP-transport agents found — skipping AppRole creation")
+    if not keyed_agents:
+        print("No agents declare an api_key — skipping AppRole creation")
         return
 
     # Policy granting read access to coordinator secrets (shared path for MVP)
@@ -138,7 +149,7 @@ def seed_approles(
 
     if dry_run:
         print(f"[DRY RUN] Would create policy '{policy_name}'")
-        for name, adata in http_agents:
+        for name, adata in keyed_agents:
             role_id = adata.get("openbao_role_id", name)
             print(f"[DRY RUN] Would create AppRole '{role_id}' (agent: {name})")
         return
@@ -153,7 +164,7 @@ def seed_approles(
         client.sys.enable_auth_method("approle")
         print("Enabled AppRole auth method")
 
-    for name, agent_data in http_agents:
+    for name, agent_data in keyed_agents:
         role_id = agent_data.get("openbao_role_id", name)
         client.auth.approle.create_or_update_approle(
             role_name=role_id,
