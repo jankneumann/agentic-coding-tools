@@ -200,10 +200,13 @@ coordinator SHALL reject an ingest batch whose `sanitized` flag is false.
 
 ### Requirement: Usage Query Routes
 
-The coordinator SHALL expose `POST /usage/ingest` and `POST /usage/dispatch` (API key required)
-and `GET /usage/summary`, `GET /usage/by-phase`, `GET /usage/by-model`, `GET /usage/mismatches`,
-and `GET /usage/events` (unauthenticated GET, matching existing convention). All GET routes SHALL
-accept `since`, `until`, `change_id`, `vendor`, and `model` filters and SHALL return totals for the
+The coordinator SHALL expose `POST /usage/ingest`, `POST /usage/dispatch`, `GET /usage/summary`,
+`GET /usage/by-phase`, `GET /usage/by-model`, `GET /usage/mismatches`, and `GET /usage/events`.
+**Every one of them SHALL require the API key**, and every read SHALL be scoped to the caller's
+own principal unless its profile grants cross-principal visibility — these routes expose
+per-principal spend, and `/usage/events` returns transcript content. All GET routes SHALL
+accept `since`, `until`, `change_id`, `vendor`, and `model` filters, and the aggregate routes
+SHALL accept `limit` and `cursor` and SHALL return totals for the
 four token counters, thinking tokens, estimated cost, vendor cost, and `unpriced_records`.
 
 #### Scenario: Summary reflects ingested records
@@ -224,6 +227,20 @@ report, per `(change_id, phase, dispatch_id)`: intended model, intended thinking
 models observed, the set of actual effort values observed, token totals, and estimated cost. A
 dispatch SHALL be flagged `model_mismatch` when any observed model is not the intended model, and
 `thinking_mismatch` when the intended thinking is non-null and any observed effort differs from it.
+The join key SHALL be `(usage_session_id, agent_id)`, where `usage_session_id` is a field on the
+dispatch record naming the session under which the sub-agent's usage will actually be recorded.
+
+`session_id` alone cannot serve. For a Claude sidechain the usage record carries the orchestrator's
+`session_id` and the sub-agent's `agent_id`, so `(session_id, agent_id)` matches. For Codex, Grok
+and Pi there is no sidechain: the sub-agent runs as its own top-level session, so its usage records
+carry the **vendor's** `session_id`, not the orchestrator's — and a join on the orchestrator's
+`session_id` matches nothing, for exactly the 3 of 4 vendors the earlier `agent_id` fix was meant
+to rescue. Recording where the usage will land, at the moment the adapter returns and that is
+known, is the only point where both identifiers exist together.
+
+For Claude, `usage_session_id` equals the orchestrator `session_id`; for the others it is the
+vendor session id the adapter reports.
+
 A dispatch with `record_kind = "dispatched"` and no joined usage records SHALL be flagged
 `unattributed`. Records with `record_kind = "state_only"` SHALL be excluded from mismatch
 accounting entirely: `INIT` and `SUBMIT_PR` never invoke a sub-agent, so their `agent_id` is NULL

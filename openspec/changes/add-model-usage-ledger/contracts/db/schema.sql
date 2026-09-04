@@ -75,6 +75,11 @@ CREATE TABLE IF NOT EXISTS dispatch_records (
     -- when nothing matches. 'state_only' rows (INIT, SUBMIT_PR) never invoke a sub-agent, so
     -- their agent_id is NULL by design and they MUST be excluded from mismatch accounting --
     -- SQL NULLs never match, so counting them would report the same three failures forever.
+    -- Session under which THIS dispatch's usage will be recorded. Equals session_id for a
+    -- Claude sidechain; for Codex/Grok/Pi the sub-agent is its own top-level session, so its
+    -- usage rows carry the vendor's session id and a join on the orchestrator's would match
+    -- nothing. Set on the adapter return path, where both identifiers are known.
+    usage_session_id   TEXT,
     record_kind        TEXT        NOT NULL DEFAULT 'dispatched'
                        CHECK (record_kind IN ('dispatched', 'state_only')),
     transcript_path    TEXT,
@@ -86,6 +91,8 @@ CREATE TABLE IF NOT EXISTS dispatch_records (
 
 CREATE INDEX IF NOT EXISTS idx_dispatch_records_change_phase  ON dispatch_records (change_id, phase);
 CREATE INDEX IF NOT EXISTS idx_dispatch_records_session_agent ON dispatch_records (session_id, agent_id);
+-- The mismatch join runs on (usage_session_id, agent_id), not (session_id, agent_id).
+CREATE INDEX IF NOT EXISTS idx_dispatch_records_usage_join   ON dispatch_records (usage_session_id, agent_id);
 
 -- Sanitized normalized transcript events, 90-day retention. D6.
 CREATE TABLE IF NOT EXISTS transcript_events (

@@ -113,6 +113,16 @@ Spec scenario IDs are `<capability>.<n>` numbered in file order within each delt
   **Dependencies**: 3.7
 - [ ] 3.8a Register `/usage/*` in HTTP proxy coverage [XS]
   **Dependencies**: 3.8
+- [ ] 3.8b Exclude `record_kind = "state_only"` from `/usage/mismatches`, and surface orchestrator-session usage (agent_id NULL) as `session_overhead` in `/usage/by-phase`; add tests asserting a clean run reports zero mismatches rather than three, and that rows + session_overhead equals `/usage/summary` [M]
+  **Spec scenarios**: usage-accounting.5, usage-accounting.6
+  **Contracts**: contracts/openapi/v1.yaml (PhaseUsageResponse)
+  **Design decisions**: D2
+  **Dependencies**: 3.6
+  **Files**: agent-coordinator/src/usage_ledger.py, agent-coordinator/tests/test_usage_ledger.py
+
+  Belongs to wp-coordinator, not wp-dispatch: both behaviours live in the ledger's query code
+  under `agent-coordinator/src/**`, which wp-dispatch's scope explicitly denies.
+
 - [ ] 3.9 Write tests for retention job (purges events only, audits count) [S]
   **Spec scenarios**: usage-accounting.13, agent-coordinator.6
   **Design decisions**: D6
@@ -161,7 +171,13 @@ Spec scenario IDs are `<capability>.<n>` numbered in file order within each delt
 - [ ] Checkpoint: run tests, review diff, verify scope
 - [ ] 4.4 Implement thinking copy in `_build_options` [S]
   **Dependencies**: 4.3
-- [ ] 4.4a Implement the dispatch-record **write** in `build_phase_dispatch_kwargs`, with `record_kind` set to `state_only` for `INIT`/`SUBMIT_PR` and `dispatched` otherwise [M]
+- [ ] 4.4a Implement the dispatch-record **write** in both producers: `build_phase_dispatch_kwargs` for dispatched phases (`record_kind = "dispatched"`), and `runner.py`'s `record-state-only-archetype` command for `INIT`/`PLAN`/`SUBMIT_PR` (`record_kind = "state_only"`) [M]
+  **Files**: skills/autopilot/scripts/phase_agent.py, skills/autopilot/scripts/runner.py, skills/autopilot/SKILL.md
+
+  State-only phases never reach `build_phase_dispatch_kwargs`: they go through the separate
+  `record-state-only-archetype` runner command, invoked at three places in SKILL.md. Writing
+  `record_kind` only in the dispatch helper would leave those phases with no dispatch record at
+  all — not merely an unclassified one.
   **Design decisions**: D2
   **Dependencies**: 4.4
 
@@ -177,10 +193,7 @@ Spec scenario IDs are `<capability>.<n>` numbered in file order within each delt
   only `outcome` and `handoff_id` — so this task must widen that interface, which is why it is
   sized separately rather than folded into the write.
 
-- [ ] 4.4c Exclude `record_kind = "state_only"` records from `/usage/mismatches` accounting, and add a test asserting a run with no dispatches reports zero mismatches rather than three [S]
-  **Spec scenarios**: usage-accounting.5
-  **Design decisions**: D2
-  **Dependencies**: 4.4a
+
 - [ ] 4.5 Write tests for the override path: resolver still called, dispatch record has `override_source="env"` [S]
   **Spec scenarios**: skill-workflow.6, usage-accounting.6
   **Dependencies**: 4.4

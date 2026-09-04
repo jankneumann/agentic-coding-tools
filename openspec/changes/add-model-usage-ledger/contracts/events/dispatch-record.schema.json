@@ -129,6 +129,13 @@
         "null"
       ],
       "format": "date-time"
+    },
+    "usage_session_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Session under which this dispatch's usage is recorded. Equals session_id for a Claude sidechain; the vendor's own session id for Codex/Grok/Pi, whose sub-agents run as top-level sessions. The mismatch join is on (usage_session_id, agent_id); joining on session_id would match nothing for those three vendors."
     }
   }
 }

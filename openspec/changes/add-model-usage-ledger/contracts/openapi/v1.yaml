@@ -79,7 +79,15 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/DispatchRecordPatch' }
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/DispatchRecordCreate'
+                - $ref: '#/components/schemas/DispatchRecordPatch'
+              description: >-
+                A first write MUST satisfy DispatchRecordCreate; a later write for a known
+                dispatch_id MAY be a DispatchRecordPatch. Referencing only the patch schema left
+                DispatchRecordCreate unused and let a create body of {"dispatch_id": "d1"} pass
+                the wire contract while being unable to produce a valid stored row.
             example:
               dispatch_id: d-01J8…
               change_id: add-model-usage-ledger
@@ -123,9 +131,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  rows: { type: array, items: { $ref: '#/components/schemas/PhaseUsageRow' } }
+                $ref: '#/components/schemas/PhaseUsageResponse'
               example:
                 rows:
                   - change_id: add-model-usage-ledger
@@ -175,8 +181,10 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [rows]
                 properties:
                   rows: { type: array, items: { $ref: '#/components/schemas/PhaseUsageRow' } }
+                  next_cursor: { type: [string, 'null'] }
   /usage/events:
     get:
       operationId: usageEvents
@@ -305,7 +313,7 @@ components:
     DispatchRecordCreate:
       type: object
       description: First insert. Must carry the full intent, matching the stored-row schema.
-      required: [dispatch_id, change_id, phase, intended_model, session_id]
+      required: [dispatch_id, change_id, phase, intended_model, session_id, dispatched_at]
       properties:
         dispatch_id: { type: string }
         change_id: { type: string }
@@ -321,6 +329,8 @@ components:
         agent_id: { type: [string, 'null'] }
         record_kind: { type: string, enum: [dispatched, state_only], default: dispatched }
         transcript_path: { type: [string, 'null'] }
+        dispatched_at: { type: string, format: date-time }
+        usage_session_id: { type: [string, 'null'] }
     DispatchRecordPatch:
       type: object
       description: >-
@@ -340,6 +350,7 @@ components:
         override_source: { type: [string, 'null'], enum: [null, env, config] }
         session_id: { type: string }
         agent_id: { type: [string, 'null'] }
+        usage_session_id: { type: [string, 'null'] }
         transcript_path: { type: [string, 'null'] }
         completed_at: { type: [string, 'null'], format: date-time }
     DispatchRecord:
@@ -380,6 +391,30 @@ components:
         total: { $ref: '#/components/schemas/TokenTotals' }
         by_vendor: { type: array, items: { allOf: [ { $ref: '#/components/schemas/TokenTotals' }, { type: object, properties: { vendor: { type: string } } } ] } }
         by_model: { type: array, items: { $ref: '#/components/schemas/ModelUsageRow' } }
+    # A phase row describes one dispatch, so dispatch_id and intended_model are required.
+    # Orchestrator-session usage has neither -- no dispatch produced it and no model was
+    # intended for it -- so it cannot be represented here and is returned in the separate
+    # session_overhead field of PhaseUsageResponse instead of being forced into this shape
+    # with placeholder values.
+    PhaseUsageResponse:
+      type: object
+      required: [rows, session_overhead]
+      description: >-
+        Per-phase rows plus the orchestrator's own usage. rows + session_overhead SHALL equal
+        /usage/summary for the same filters; without the bucket, every usage record with a NULL
+        agent_id is dropped by the (session_id, agent_id) join and the two reports disagree by
+        however much the orchestrator itself spent.
+      properties:
+        rows: { type: array, items: { $ref: '#/components/schemas/PhaseUsageRow' } }
+        session_overhead:
+          allOf:
+            - { $ref: '#/components/schemas/TokenTotals' }
+            - type: object
+              description: Usage for the orchestrator session itself (agent_id NULL), attributable to the change but to no single phase. Never flagged unattributed.
+              required: [change_id]
+              properties:
+                change_id: { type: string }
+        next_cursor: { type: [string, 'null'] }
     PhaseUsageRow:
       allOf:
         - { $ref: '#/components/schemas/TokenTotals' }

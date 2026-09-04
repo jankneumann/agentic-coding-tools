@@ -27,9 +27,15 @@ NOT NULL whenever `cost_usd` is non-null.
 ### Requirement: Usage Ledger HTTP Coverage
 
 The coordination HTTP API SHALL expose the usage ledger routes: `POST /usage/ingest` and
-`POST /usage/dispatch` requiring the API key, and `GET /usage/summary`, `GET /usage/by-phase`,
-`GET /usage/by-model`, `GET /usage/mismatches`, and `GET /usage/events` unauthenticated, matching
-the existing read/write convention. `POST /usage/dispatch` SHALL accept an upsert keyed by
+`POST /usage/dispatch`, `GET /usage/summary`, `GET /usage/by-phase`, `GET /usage/by-model`,
+`GET /usage/mismatches`, and `GET /usage/events` — **all** requiring the API key, and all reads
+scoped to the caller's own principal unless its profile grants cross-principal visibility.
+
+The reads are not exempt. An earlier draft called them "unauthenticated, matching the existing
+read/write convention"; the convention says the opposite for comparable data — `GET /audit` and
+`GET /profiles/me` both carry `Depends(verify_api_key)`, and only genuinely low-sensitivity
+routes such as `/locks/status/{path}` are open. These routes expose per-principal token spend and
+cost, and `/usage/events` returns sanitized transcript content. `POST /usage/dispatch` SHALL accept an upsert keyed by
 `dispatch_id` so the orchestrator can patch `agent_id` after the sub-agent returns. Routes SHALL be
 listed in the API coverage enumeration and reachable through the HTTP proxy tool.
 
