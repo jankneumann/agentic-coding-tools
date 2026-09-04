@@ -56,6 +56,7 @@
             "session_overhead had no contract representation; PhaseUsageRow requires fields it cannot have (regression from iteration 1)"
           ],
           "disposition": "awaiting_proposal_acceptance",
+          "final_ci": "20/20 pass, 1 skipped",
           "findings_addressed": 24,
           "iterations": 2,
           "quorum": "2/2",
@@ -115,7 +116,7 @@
       "pr": 467,
       "state": {
         "blocking_reason": "refined and reviewed; held at the proposal_acceptance gate. Unlike the Tier A claude/fix-* branches, this carries a real openspec/changes/<id>/proposal.md, so the gate is live rather than vacuous. Operator approval required before merge.",
-        "ci_state": "blocked",
+        "ci_state": "clean",
         "claimed_by": null,
         "needs_revalidation": false,
         "outcome": "pending",
@@ -130,6 +131,7 @@
             "unknown-session conflict reports let any caller block any slot; block layout is arithmetic and predictable"
           ],
           "disposition": "awaiting_proposal_acceptance",
+          "final_ci": "20/20 pass, 1 skipped",
           "findings_addressed": 23,
           "iterations": 2,
           "quorum": "2/2",

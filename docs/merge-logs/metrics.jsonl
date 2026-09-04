@@ -30,3 +30,4 @@
 {"event_type": "merge", "pr_number": 481, "backend": "direct", "success": true, "timestamp": "2026-09-04T08:14:17.804782+00:00", "strategy": "rebase", "duration_seconds": 5.551}
 {"event_type": "merge", "pr_number": 463, "backend": "direct", "success": true, "timestamp": "2026-09-04T11:17:31.492869+00:00", "strategy": "rebase", "duration_seconds": 7.341}
 {"event_type": "merge", "pr_number": 464, "backend": "direct", "success": true, "timestamp": "2026-09-04T11:23:03.629991+00:00", "strategy": "rebase", "duration_seconds": 5.509}
+{"event_type": "merge", "pr_number": 483, "backend": "direct", "success": true, "timestamp": "2026-09-04T12:44:36.800124+00:00", "strategy": "rebase", "duration_seconds": 5.077}
