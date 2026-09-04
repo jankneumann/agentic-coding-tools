@@ -15,6 +15,7 @@ from .audit import get_audit_service
 from .config import get_config
 from .db import DatabaseClient, get_db
 from .telemetry import get_queue_meter, start_span
+from .trust_resolution import TrustResolutionError
 
 logger = logging.getLogger(__name__)
 
@@ -280,6 +281,21 @@ class WorkQueueService:
                 agent_archetypes = archetypes_list if archetypes_list else None
                 agent_trust = agent_config.trust_level
 
+            # Resolve trust level for the post-claim guardrail scan *before*
+            # calling claim_task below. claim_task atomically flips the
+            # selected row to status='claimed' with no stale-claim recovery
+            # path; if trust resolution were deferred until after the claim
+            # (as it used to be) and then raised TrustResolutionError, the
+            # task would be permanently stranded in "claimed" with no agent
+            # ever receiving it. Resolving trust here means a broken
+            # registry profile aborts the claim attempt before any row is
+            # mutated. Propagate here — do not let this raise be swallowed
+            # by the broad `except Exception` a few lines below, which
+            # exists only to tag the claim-duration metric on failure.
+            trust_level = await self._resolve_trust_level(
+                resolved_agent_id, resolved_agent_type
+            )
+
             t0 = time.monotonic()
             outcome = "claimed"
             task_type_label = "unknown"
@@ -355,15 +371,13 @@ class WorkQueueService:
                 except Exception:
                     logger.debug("Failed to record wait time metric", exc_info=True)
 
-            # Guardrails pre-execution check on claimed task description/input
+            # Guardrails pre-execution check on claimed task description/input.
+            # trust_level was already resolved above, before claim_task ran.
             if claim_result.success:
                 try:
                     from .guardrails import get_guardrails_service
 
                     guardrails = get_guardrails_service()
-                    trust_level = await self._resolve_trust_level(
-                        resolved_agent_id, resolved_agent_type
-                    )
                     scan_text = claim_result.description or ""
                     if claim_result.input_data:
                         scan_text += "\n" + str(claim_result.input_data)
@@ -429,6 +443,12 @@ class WorkQueueService:
                                     f"{', '.join(patterns)}"
                                 ),
                             )
+                except TrustResolutionError:
+                    # Must not land in the blanket handler below: swallowing it
+                    # skips the guardrail scan entirely and lets the operation
+                    # proceed unscanned — the exact fail-open that
+                    # _resolve_trust_level documents as unacceptable (#408).
+                    raise
                 except Exception:
                     logger.error(
                         "Guardrails check failed during claim", exc_info=True
@@ -529,6 +549,12 @@ class WorkQueueService:
                                 f"{', '.join(patterns)}"
                             ),
                         )
+                except TrustResolutionError:
+                    # Must not land in the blanket handler below: swallowing it
+                    # skips the guardrail scan entirely and lets the operation
+                    # proceed unscanned — the exact fail-open that
+                    # _resolve_trust_level documents as unacceptable (#408).
+                    raise
                 except Exception:
                     logger.error(
                         "Guardrails check failed during complete", exc_info=True
@@ -672,6 +698,12 @@ class WorkQueueService:
                         success=False,
                         task_id=None,
                     )
+            except TrustResolutionError:
+                # Must not land in the blanket handler below: swallowing it
+                # skips the guardrail scan entirely and lets the operation
+                # proceed unscanned — the exact fail-open that
+                # _resolve_trust_level documents as unacceptable (#408).
+                raise
             except Exception:
                 logger.error(
                     "Guardrails check failed during submit", exc_info=True

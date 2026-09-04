@@ -9,6 +9,7 @@ executed via asyncpg's connection pool.
 """
 
 import json
+import logging
 import re
 from datetime import datetime
 from typing import Any
@@ -18,6 +19,8 @@ from uuid import UUID
 import asyncpg  # noqa: I001
 
 from .config import PostgresConfig
+
+logger = logging.getLogger(__name__)
 
 _UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
@@ -403,3 +406,62 @@ class DirectPostgresClient:
         if self._pool is not None:
             await self._pool.close()
             self._pool = None
+
+    def terminate(self) -> None:
+        """Abruptly close every pooled connection, synchronously.
+
+        ``close()`` waits for in-flight queries and needs a running event loop.
+        This does neither. It exists for teardown paths that run *after* a loop
+        is gone: pytest gives every test its own loop, and a fire-and-forget
+        audit insert still in flight when that loop closes leaves its
+        connection mid-protocol on the server — ``active``, waiting for a Sync
+        that never arrives, holding RowExclusiveLock on ``audit_log`` inside an
+        implicit transaction. The next app startup's migration pass then blocks
+        on that lock indefinitely (#463). Terminating the pool kills the
+        backend and releases it.
+        """
+        pool, self._pool = self._pool, None
+        if pool is None:
+            return
+        try:
+            pool.terminate()
+            return
+        except RuntimeError as exc:
+            if "Event loop is closed" not in str(exc):
+                raise
+            # The loop that owns these transports is gone, so
+            # transport.abort() cannot schedule the socket close and raises
+            # instead. Left there, the sockets — and the server backends
+            # behind them, transaction and lock included — stay open. Close
+            # them here; the backend sees EOF and aborts.
+        holders = list(getattr(pool, "_holders", ()))
+        live = [h for h in holders if getattr(h, "_con", None) is not None]
+        closed = 0
+        for holder in live:
+            transport = getattr(holder._con, "_transport", None)
+            # Close through the OWNING socket object, never os.close() on its
+            # descriptor number: the object would still believe it owns the
+            # fd, and when it is garbage-collected later it would close that
+            # number again — by which point another file may have been given
+            # it. That double close surfaced as "Bad file descriptor" inside
+            # an unrelated YAML read several tests later.
+            sock = getattr(transport, "_sock", None)
+            if sock is None:
+                continue
+            try:
+                sock.close()
+            except OSError:
+                pass
+            closed += 1
+        if live and not closed:
+            # This path depends on asyncpg/asyncio private attributes
+            # (_holders, _con, _transport, _sock). If a future version renames
+            # any of them the loop above degrades to a no-op — and the leak
+            # this method exists to stop returns with no error. Say so.
+            logger.warning(
+                "DirectPostgresClient.terminate(): %d live pooled connection(s) "
+                "but no socket could be located to close — asyncpg internals "
+                "may have changed; these connections, and any locks they hold, "
+                "will leak until the process exits.",
+                len(live),
+            )

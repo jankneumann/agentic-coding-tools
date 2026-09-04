@@ -321,3 +321,115 @@ class TestPostgresUpdateTimestampBinding:
         )
         assert isinstance(args[2], datetime)
         assert args[3] == issue_id
+
+
+class TestResetDb:
+    """``reset_db`` must terminate the outgoing client, not just forget it."""
+
+    def test_reset_db_terminates_the_outgoing_client(self):
+        """Dropping the reference alone leaked every pooled connection (#463).
+
+        One of them, left mid-transaction by a task killed with its event loop,
+        held a lock on ``audit_log`` that blocked the next app startup's
+        migration pass indefinitely.
+        """
+        from src import db as db_module
+
+        class _Client:
+            terminated = False
+
+            def terminate(self) -> None:
+                self.terminated = True
+
+        client = _Client()
+        db_module._db = client  # type: ignore[assignment]
+        try:
+            reset_db()
+            assert client.terminated
+            assert db_module._db is None
+        finally:
+            db_module._db = None
+
+
+@pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
+class TestTerminateClosedLoopFallback:
+    """``terminate()`` after the event loop is gone (#463 review notes).
+
+    The fallback reaches into asyncpg/asyncio private attributes. These tests
+    pin, without a database, that it closes through the owning socket object,
+    that it says so loudly if those internals ever stop matching, and that it
+    only swallows the one ``RuntimeError`` it exists to handle.
+    """
+
+    @staticmethod
+    def _client_with_pool(pool):
+        from src.config import PostgresConfig
+
+        client = DirectPostgresClient(PostgresConfig(dsn="postgresql://unused/none"))
+        client._pool = pool
+        return client
+
+    def test_closes_through_the_owning_socket_object(self):
+        class _Sock:
+            closed = False
+
+            def close(self):
+                self.closed = True
+
+        class _Transport:
+            def __init__(self):
+                self._sock = _Sock()
+
+        class _Con:
+            def __init__(self):
+                self._transport = _Transport()
+
+        class _Holder:
+            def __init__(self, con):
+                self._con = con
+
+        class _Pool:
+            def __init__(self):
+                self._holders = [_Holder(_Con()), _Holder(None)]  # one never connected
+
+            def terminate(self):
+                raise RuntimeError("Event loop is closed")
+
+        pool = _Pool()
+        client = self._client_with_pool(pool)
+        client.terminate()
+
+        assert pool._holders[0]._con._transport._sock.closed
+        assert client._pool is None
+
+    def test_warns_when_internals_no_longer_match(self, caplog):
+        """A renamed private attribute must not turn the fallback into a silent no-op."""
+        import logging
+
+        class _Con:  # has no _transport — the shape after a hypothetical rename
+            pass
+
+        class _Holder:
+            def __init__(self):
+                self._con = _Con()
+
+        class _Pool:
+            _holders = [_Holder()]
+
+            def terminate(self):
+                raise RuntimeError("Event loop is closed")
+
+        with caplog.at_level(logging.WARNING, logger="src.db_postgres"):
+            self._client_with_pool(_Pool()).terminate()
+
+        assert "no socket could be located" in caplog.text
+
+    def test_other_runtime_errors_propagate(self):
+        class _Pool:
+            _holders = []
+
+            def terminate(self):
+                raise RuntimeError("something unrelated")
+
+        with pytest.raises(RuntimeError, match="something unrelated"):
+            self._client_with_pool(_Pool()).terminate()
