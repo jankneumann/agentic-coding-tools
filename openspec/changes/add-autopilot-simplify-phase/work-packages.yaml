@@ -72,9 +72,8 @@ packages:
         - "**/.venv/**"
     context_impact:
       surfaces:
-        - "capabilities"
         - "apis"
-        - "documentation"
+        - "semantic_code"
     worktree:
       name: contracts
       mode: shared
@@ -126,9 +125,9 @@ packages:
         - "**/.venv/**"
     context_impact:
       surfaces:
-        - "capabilities"
-        - "semantic_code"
+        - "apis"
         - "documentation"
+        - "semantic_code"
     worktree:
       name: simplify-skill
       mode: isolated
@@ -204,9 +203,9 @@ packages:
         - "skills/simplify-implementation/**"
     context_impact:
       surfaces:
-        - "capabilities"
-        - "semantic_code"
+        - "apis"
         - "documentation"
+        - "semantic_code"
     worktree:
       name: autopilot-phases
       mode: isolated
@@ -275,6 +274,7 @@ packages:
     context_impact:
       surfaces:
         - "documentation"
+        - "semantic_code"
     worktree:
       name: review-diagnostic
       mode: isolated
