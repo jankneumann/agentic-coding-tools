@@ -140,6 +140,9 @@
       "parallel-infrastructure",
       "project-context-runtime"
     ],
+    "simplify-implementation": [
+      "parallel-infrastructure"
+    ],
     "supervise": [
       "plan-roadmap",
       "prioritize-proposals",
