@@ -212,7 +212,17 @@ components:
       allOf:
         - $ref: "#/components/schemas/PortSessionRequest"
         - type: object
+          required: [host_id]
           properties:
+            host_id:
+              type: string
+              minLength: 1
+              maxLength: 128
+              description: >-
+                Host this session runs on. Recorded on the lease and immutable thereafter; it is
+                what scopes POST /ports/reconcile. REQUIRED at allocation: without it every lease
+                stores host_id NULL, reconcile (which filters on it) matches nothing, and orphan
+                protection silently does nothing at all.
             isolation_provided:
               type: boolean
               default: false
@@ -274,10 +284,11 @@ components:
                     description: Base port of the block. Supply this or slot.
     PortAllocation:
       type: object
-      required: [session_id, slot, db_port, rest_port, realtime_port, api_port, ui_port, compose_project_name, isolation_provided, expires_at]
+      required: [session_id, slot, db_port, rest_port, realtime_port, api_port, ui_port, compose_project_name, isolation_provided, expires_at, host_id]
       properties:
         session_id: { type: string }
         agent_id: { type: [string, "null"] }
+        host_id: { type: string, description: Host recorded at allocation; scopes reconcile.}
         slot: { type: integer, minimum: 0 }
         db_port: { type: integer }
         rest_port: { type: integer }
@@ -340,6 +351,7 @@ components:
       required: [slot, db_port, rest_port, realtime_port, api_port, ui_port, backend]
       properties:
         session_id: { type: [string, "null"] }
+        host_id: { type: [string, "null"] }
         agent_id: { type: [string, "null"] }
         slot: { type: integer }
         db_port: { type: integer }

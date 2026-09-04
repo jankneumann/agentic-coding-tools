@@ -47,8 +47,17 @@ Port allocations SHALL be owned by the agent session that requested them. A sess
 #### Scenario: Release of another agent's lease is refused
 - **WHEN** an agent calls `release_ports` with a `session_id` whose lease belongs to a different `agent_id`
 - **THEN** the service SHALL NOT release the lease
-- **AND** SHALL return `{success: false, error: "not_lease_owner"}`
-- **AND** the response SHALL NOT reveal whether the named session exists
+- **AND** SHALL return `{success: true}` — the same idempotent response as for a session with no active lease
+
+Returning a distinct `not_lease_owner` here would itself be the disclosure it was meant to prevent:
+an unknown session already returns `success: true`, so any *other* response tells the caller the
+session exists and belongs to someone else. Since `GET /ports/status` is unauthenticated and
+publishes every `session_id`, that would let a caller confirm which sessions are live and owned.
+The two rules cannot both hold, so the release path is uniformly idempotent from the caller's
+point of view and the refusal is recorded server-side (audit) rather than signalled.
+
+`not_lease_owner` remains the response for `POST /ports/conflict`, which is not idempotent and has
+no "unknown session succeeds" case to collide with.
 
 #### Scenario: Conflict report against another agent's lease is refused
 - **WHEN** an agent calls `POST /ports/conflict` naming a `session_id` owned by a different `agent_id`
@@ -280,8 +289,25 @@ permanently for the life of the process.
 
 #### Scenario: Conflict report for unknown session
 - **WHEN** `POST /ports/conflict` names a `session_id` with no active allocation
-- **THEN** the service SHALL still block the slot containing `port`
+- **AND** the reported `port` falls in a slot that is currently **unleased**
+- **THEN** the service SHALL block that slot until now plus `conflict_block_minutes`
 - **AND** SHALL return `{success: true, blocked_until: <timestamp>}`
+
+#### Scenario: Conflict report cannot block a slot leased to someone else
+- **WHEN** `POST /ports/conflict` names a `session_id` with no active allocation
+- **AND** the reported `port` falls in a slot leased to a different `agent_id`
+- **THEN** the service SHALL NOT block that slot and SHALL NOT release that lease
+- **AND** SHALL return `{success: false, error: "not_lease_owner"}`
+
+Without this, the unknown-session path is a denial-of-service lever. Block layout is arithmetic
+(10000, 10100, 10200, …) so every port is predictable without reading anything, and
+`GET /ports/status` is unauthenticated anyway. A caller could otherwise walk the range reporting
+fabricated conflicts against sessions it does not own, blocking every slot for
+`conflict_block_minutes` and starving the pool — while each individual request looked like a
+well-behaved client honestly reporting a bind failure.
+
+Reporting a conflict on an unleased slot stays open, because that is the legitimate case: a
+foreign process outside the ledger holds the port, and no lease exists to check ownership against.
 
 ### Requirement: Port lease isolation gate
 

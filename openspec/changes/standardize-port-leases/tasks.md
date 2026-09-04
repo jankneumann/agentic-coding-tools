@@ -225,7 +225,8 @@ survives as a single unit of work.
   **Files**: skills/tests/shared/test_port_lease.py
   **Size**: XS
 
-- [ ] 3.7 Implement reconcile using `docker compose ls --format json` with podman fallback
+- [ ] 3.7 Implement reconcile using `docker compose ls --format json` with podman fallback, resolving each project's block from its published container ports (`compose --project-name <name> ps --format json`) and sending `host_id` plus `slot`/`db_port`; omit any project whose block cannot be resolved
+  **Spec scenarios**: port-lease-client.5 (Host reconciliation)
   **Dependencies**: 3.6
   **Files**: skills/shared/port_lease.py
   **Size**: S

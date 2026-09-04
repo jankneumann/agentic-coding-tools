@@ -83,6 +83,20 @@ Before returning a lease from the `coordinator` or `file` backend, the client SH
 
 The client SHALL provide `port-lease reconcile`, which lists the host's compose projects and reports them to the active backend so orphaned leases are released and unleased projects are protected.
 
+The report SHALL carry the client's `host_id`, and each reported project SHALL carry a block
+identifier (`slot` or `db_port`) in addition to `compose_project_name`.
+
+Neither is optional, and neither comes free from `docker compose ls --format json`, which emits
+only `Name`. `compose_project_name` is `ac-<8 hex of sha256(session_id)>` and encodes no slot, so
+a name alone cannot tell the coordinator which block to protect. The client SHALL therefore
+resolve the block per project — from the published host ports of the project's containers
+(`docker compose --project-name <name> ps --format json`), falling back to its own lease env when
+reconciling its own project — and SHALL omit any project whose block it cannot resolve rather
+than sending a request the coordinator must reject.
+
+`host_id` SHALL be the same value the client sent at `acquire`, so that reconcile only ever
+affects leases from this host.
+
 #### Scenario: Orphaned lease on the host
 - **WHEN** `port-lease reconcile` runs and a lease's `compose_project_name` is not among `docker compose ls` results
 - **THEN** the backend SHALL release that lease
@@ -113,6 +127,16 @@ The two backends SHALL therefore allocate from disjoint slot ranges. `PORT_ALLOC
 - **THEN** the file backend SHALL allocate from the file range only
 - **AND** the allocated block SHALL NOT overlap the block the coordinator already granted
 - **AND** this SHALL hold without the file backend reading the coordinator ledger, which is unavailable by definition in this scenario
+
+#### Scenario: Expired registry entries are pruned before allocating
+- **WHEN** the file backend allocates and the on-disk registry contains entries whose expiry has passed
+- **THEN** those entries SHALL be removed under the same fcntl lock before slot selection
+- **AND** their slots SHALL be available to the allocation in progress
+
+Pruning matters more since the ranges became disjoint: the file range defaults to 25% of
+`max_sessions`, which at the default 20 is five slots. Without a prune, five crashed runs that
+never released exhaust the fallback permanently — and the fallback is what runs precisely when the
+coordinator is unavailable to help.
 
 #### Scenario: File range exhausted
 - **WHEN** every slot in the file range is held

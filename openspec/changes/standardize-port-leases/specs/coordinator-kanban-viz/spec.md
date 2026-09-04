@@ -52,7 +52,9 @@ Exit codes SHALL be:
 
 ### Requirement: Kanban dev server honours the leased UI port
 
-The kanban-viz dev server SHALL bind to the leased `UI_PORT` and address the coordinator at the leased `API_BASE_URL` when a lease env is present, and SHALL fall back to Vite's default port and `http://localhost:8081` only when neither variable is set.
+The kanban-viz dev server SHALL bind to the leased `UI_PORT` and address the coordinator at the leased **REST** port via `VITE_COORDINATOR_URL` (`http://localhost:${AGENT_COORDINATOR_REST_PORT}`) when a lease env is present, and SHALL fall back to Vite's default port and `http://localhost:8081` only when neither variable is set.
+
+Not `API_BASE_URL`: that is built from `API_PORT` (offset +3), the host-run launcher API. The kanban dev server talks to the coordinator **container**, published on `AGENT_COORDINATOR_REST_PORT` (offset +1) — which is what the scenario below already uses, and what the 8081 fallback corresponds to. The requirement text said `API_BASE_URL` while its own scenario used the REST port.
 
 #### Scenario: Dev server started from a lease env
 - **WHEN** `npm run dev` runs with `UI_PORT=10004` and `VITE_COORDINATOR_URL=http://localhost:10001` in the environment
