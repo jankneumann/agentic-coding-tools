@@ -1,4 +1,4 @@
-"""Content invariants for the simplify skill."""
+"""Content invariants for the simplify-implementation skill."""
 from pathlib import Path
 
 from skill_invariants import (
@@ -9,7 +9,7 @@ from skill_invariants import (
     assert_tail_block_present,
 )
 
-SKILL_DIR = Path(__file__).resolve().parents[2] / "simplify"
+SKILL_DIR = Path(__file__).resolve().parents[2] / "simplify-implementation"
 
 
 def test_frontmatter_parses():

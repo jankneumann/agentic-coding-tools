@@ -1,5 +1,5 @@
 ---
-name: simplify
+name: simplify-implementation
 description: >
   Review changed code for reuse, quality, and efficiency, then apply low-risk
   simplifications that preserve behavior exactly. Requires a coverage gate and
@@ -10,7 +10,8 @@ description: >
 category: Engineering Methodology
 tags: [refactor, simplification, code-quality, review, characterization, isomorphic, test-pruning]
 triggers:
-  - "simplify"
+  - "simplify-implementation"
+  - "simplify the implementation"
   - "simplify the code"
   - "review for simplification"
   - "clean this up"
@@ -40,7 +41,8 @@ This skill is **read → pin → (prune) → edit**: it reviews first, applies a
 
 The test suite is part of the surface under review. A test that must be edited every time the source changes is asserting implementation, not behavior — it is a cost on every commit that catches nothing, and it frequently holds open a production seam that exists for no other reason. Removing both is a simplification; see [Test Pruning](#test-pruning-optional-phase--never-first).
 
-**Primary invoke:** `/simplify`  
+**Primary invoke:** `/simplify-implementation`  
+**Naming:** deliberately not `/simplify` — Claude Code ships a bundled `simplify` skill (quality-only cleanup via parallel agents, no coverage gate). Ours is the stricter, gated variant and coexists with it under this name.  
 **Invocation mode:** **manual only** — operators (or explicit human request) run this skill. Autopilot and implement-feature do **not** auto-run simplify by default.
 
 ## When to Use
@@ -60,7 +62,7 @@ The test suite is part of the surface under review. A test that must be edited e
 | Performance rewrite with different algorithms | `/performance-optimization` |
 | Removing a public or multi-consumer surface | `/deprecation-and-migration` |
 | Hub / coupling / multi-module redesign | `/plan-feature` (Rule of 500 / structural debt) |
-| Cleanup mixed into an in-progress feature | `NOTICED BUT NOT TOUCHING:` + later `/simplify` |
+| Cleanup mixed into an in-progress feature | `NOTICED BUT NOT TOUCHING:` + later `/simplify-implementation` |
 | Code is already clear | Stop — do not simplify for its own sake |
 
 ## Scope
@@ -215,7 +217,7 @@ today is a test you keep today.
 ### Prune ledger
 
 One entry per removal, in a file that ships with the PR (e.g.
-`docs/simplify/test-prune-ledger.md`). A file-level `removed:` entry covers
+`docs/simplify-implementation/test-prune-ledger.md`). A file-level `removed:` entry covers
 every test in that file.
 
 ```markdown
@@ -237,7 +239,7 @@ every test in that file.
 ```bash
 # Prune range must be test-only, and every removal must be ledgered.
 python3 "<skill-base-dir>/scripts/check_test_prune.py" \
-  --base <B0> --head <B1> --ledger docs/simplify/test-prune-ledger.md
+  --base <B0> --head <B1> --ledger docs/simplify-implementation/test-prune-ledger.md
 ```
 
 Then re-baseline: `check_test_contract.py` and the dual-run both take `--base` /
@@ -335,7 +337,7 @@ green with production code untouched. Record `<B1>` — the post-prune tip — a
 baseline for everything downstream.
 
 Skip this step entirely if nothing in the suite fails the Delete catalog. Most
-runs of `/simplify` skip it.
+runs of `/simplify-implementation` skip it.
 
 ### 4. Candidate list
 
@@ -362,7 +364,7 @@ Never mix `feat` / `fix` with simplify polish in the same commit.
 ```bash
 # Prune range (skip when no tests were removed): test-only diff, every removal ledgered.
 python3 "<skill-base-dir>/scripts/check_test_prune.py" \
-  --base <B0> --head <B1> --ledger docs/simplify/test-prune-ledger.md
+  --base <B0> --head <B1> --ledger docs/simplify-implementation/test-prune-ledger.md
 
 # Recommended mechanical dual-run (writes simplify-report.json by default).
 # Prefer a project-local interpreter so detached worktrees resolve tools;
@@ -383,7 +385,7 @@ suite at `<B1>` and at `HEAD` isolates the production edits as the only variable
 Baselining at `<B0>` instead compares two different suites and proves nothing.
 
 Source-contribution-only example (this monorepo, not portable to consumers):
-`skills/.venv/bin/python -m pytest -q skills/tests/simplify/`
+`skills/.venv/bin/python -m pytest -q skills/tests/simplify-implementation/`
 
 Manual equivalent: run the same suite on `<B1>` and on `HEAD`; both must pass.
 
@@ -393,7 +395,7 @@ Summarize: patterns applied, fences kept, characterization tests added, tests pr
 
 ## Script helpers
 
-Scripts live in `<skill-base-dir>/scripts/` (installed copy under `.claude/skills/simplify/scripts/` or `.agents/skills/simplify/scripts/`). They use only the standard library plus `git`.
+Scripts live in `<skill-base-dir>/scripts/` (installed copy under `.claude/skills/simplify-implementation/scripts/` or `.agents/skills/simplify-implementation/scripts/`). They use only the standard library plus `git`.
 
 | Script | Purpose | Exit |
 |---|---|---|
@@ -448,7 +450,7 @@ Prefer project idioms when they conflict with these sketches.
 
 | Signal | Route |
 |---|---|
-| Local complexity / nesting / naming / local dup | Stay on `/simplify` |
+| Local complexity / nesting / naming / local dup | Stay on `/simplify-implementation` |
 | Tech-debt hub / high coupling / large redesign | `/plan-feature` |
 | Dead public API / multi-consumer removal | `/deprecation-and-migration` |
 | Measured perf bottleneck | `/performance-optimization` |

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate the /simplify test-prune phase: test-only diff + justified removals.
+"""Gate the /simplify-implementation test-prune phase: test-only diff + justified removals.
 
 The prune phase deletes tests that assert implementation instead of behavior.
 That is a *coverage-reducing* edit, so it gets its own commit range and its own
@@ -18,7 +18,7 @@ This script checks the prune range ``--base``..``--head``:
 
 Usage:
     python3 check_test_prune.py --base <pre-prune-sha> --head <post-prune-sha> \\
-        --ledger docs/simplify/test-prune-ledger.md
+        --ledger docs/simplify-implementation/test-prune-ledger.md
     python3 check_test_prune.py --base <sha> --head <sha> --json
 
 Exit codes:
@@ -267,7 +267,7 @@ def evaluate(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Gate the /simplify test-prune range (test-only diff + justified removals)"
+        description="Gate the /simplify-implementation test-prune range (test-only diff + justified removals)"
     )
     parser.add_argument("--base", required=True, help="Tip before the prune commits")
     parser.add_argument("--head", default="HEAD", help="Tip after the prune commits")

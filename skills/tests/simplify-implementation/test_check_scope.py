@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parents[2] / "simplify" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[2] / "simplify-implementation" / "scripts"
 
 
 def _load():
     import sys
 
     path = SCRIPTS / "check_scope.py"
-    name = "simplify_check_scope"
+    name = "simplify_implementation_check_scope"
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)

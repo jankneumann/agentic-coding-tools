@@ -356,7 +356,7 @@
         "COORDINATOR_DIR for local coordinator administration"
       ]
     },
-    "simplify": {
+    "simplify-implementation": {
       "distribution": "portable"
     },
     "source-driven-development": {

@@ -168,14 +168,14 @@ Do **not** send every finding to `/plan-feature`. Route by blast radius and skil
 
 | Finding class | Typical analyzers / smells | Next skill |
 |---|---|---|
-| Local clarity / complexity | Long Method, Deep Nesting, Complex Function (single file, small surface) | **`/simplify`** — behavior-preserving polish with coverage gate + dual-run |
-| Local duplication | Same-file or few-file structural duplicates under Rule of 500 | **`/simplify`** (isomorphic extract) after characterization pins all sites |
+| Local clarity / complexity | Long Method, Deep Nesting, Complex Function (single file, small surface) | **`/simplify-implementation`** — behavior-preserving polish with coverage gate + dual-run |
+| Local duplication | Same-file or few-file structural duplicates under Rule of 500 | **`/simplify-implementation`** (isomorphic extract) after characterization pins all sites |
 | Structural redesign | Large Class / God File, multi-module Extract Class, high fan-out redesign | **`/plan-feature`** — needs proposal, design, review gates |
 | Coupling hubs | High fan-in/out, hub nodes, high-impact transitive dependents | **`/plan-feature`** (stabilize interfaces first); optional `/refresh-architecture` before re-analysis |
 | Dead / zombie public surfaces | Unused public API with external consumers, orphan systems | **`/deprecation-and-migration`** — Hyrum's Law + migration, not silent delete |
 | Measured performance debt | Hot paths with budgets or known p95 pain | **`/performance-optimization`** — measure before rewrite |
 
-**Quick-win rule of thumb:** if the fix fits Rule of 500 (≤500 lines, ≤5 files) and must not change behavior, prefer `/simplify`. If the change rewrites module boundaries or public contracts, plan it.
+**Quick-win rule of thumb:** if the fix fits Rule of 500 (≤500 lines, ≤5 files) and must not change behavior, prefer `/simplify-implementation`. If the change rewrites module boundaries or public contracts, plan it.
 
 When citing a finding in a follow-up PR, include the finding ID from `tech-debt-report.json` so report → remediation stays traceable.
 

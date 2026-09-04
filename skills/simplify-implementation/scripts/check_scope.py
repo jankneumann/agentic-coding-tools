@@ -159,7 +159,7 @@ def evaluate(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Rule of 500 / 5-file scope check for /simplify")
+    parser = argparse.ArgumentParser(description="Rule of 500 / 5-file scope check for /simplify-implementation")
     parser.add_argument("--base", required=True, help="Baseline git ref (before simplify production edits)")
     parser.add_argument("--head", default="HEAD", help="End ref (default HEAD)")
     parser.add_argument("--repo", type=Path, default=Path.cwd(), help="Repository root")

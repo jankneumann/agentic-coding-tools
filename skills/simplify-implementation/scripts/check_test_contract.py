@@ -218,7 +218,7 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 "  action: set --base to the tip AFTER characterization commits; "
                 "do not change assertion bodies in the simplify range. "
-                "If behavior must change, use a feature/fix workflow — not /simplify.",
+                "If behavior must change, use a feature/fix workflow — not /simplify-implementation.",
                 file=sys.stderr,
             )
 

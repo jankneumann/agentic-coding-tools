@@ -61,7 +61,7 @@ The canonical single-feature flow. Operator drives each gate; orchestrators chai
 |---|---|---|
 | ★ `bug-scrub` | Comprehensive project health diagnostic from CI signals, deferred issues, and code markers | `/bug-scrub` |
 | ★ `fix-scrub` | Remediate findings from bug-scrub: auto-fixes + agent-assisted fixes + verification | `/fix-scrub` |
-| ★ `simplify` | Behavior-preserving clarity + isomorphic DRY. Coverage gate / characterization tests, optional test-prune phase (remove implementation-asserting tests, then the production seams they held open), dual-run proof, Rule of 500, scope/contract/prune scripts. **Manual only** (not autopilot default) | `/simplify` |
+| ★ `simplify-implementation` | Behavior-preserving clarity + isomorphic DRY. Coverage gate / characterization tests, optional test-prune phase (remove implementation-asserting tests, then the production seams they held open), dual-run proof, Rule of 500, scope/contract/prune scripts. **Manual only** (not autopilot default) | `/simplify-implementation` |
 | ★ `tech-debt-analysis` | Structural tech debt analysis using software design principles (Fowler refactoring, design stamina, AWS Builders' Library) | `/tech-debt-analysis` |
 | ★ `security-review` | Cross-project security review with OWASP Dependency-Check + ZAP, plus preventive-mode (3-tier boundary + OWASP Top 10) | `/security-review` |
 | ★ `update-specs` | Sync OpenSpec specs with implementation reality after debugging/testing/review | `/update-specs <change-id>` |

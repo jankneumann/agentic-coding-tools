@@ -171,8 +171,8 @@ codebase healthy, methodology skills encode disciplines that orchestrators auto-
 vendor skills are authority docs for external services, and infrastructure skills are
 the machinery the workflow skills call.
 
-**`/simplify` polish edge:** optional and **manual**. After implement/iterate is green,
-operators may run `/simplify` for behavior-preserving clarity (coverage gate + dual-run).
+**`/simplify-implementation` polish edge:** optional and **manual**. After implement/iterate is green,
+operators may run `/simplify-implementation` for behavior-preserving clarity (coverage gate + dual-run).
 Tech-debt local quick wins also route here; hubs and public-API removals do not. Autopilot
 does not enable simplify by default.
 
@@ -183,7 +183,7 @@ flowchart LR
 
     subgraph QM["Quality & maintenance"]
         bug["/bug-scrub"]:::skill --> fix["/fix-scrub"]:::skill
-        simplify["/simplify"]:::skill
+        simplify["/simplify-implementation"]:::skill
         techdebt["/tech-debt-analysis"]:::skill
         changelog["/changelog-version"]:::skill
         techdebt -.->|local clarity / dup quick wins| simplify

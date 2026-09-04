@@ -2,7 +2,7 @@
 
 Companion to the [skills guide](skills.md). Two skills own the two directions of
 this policy: [`test-driven-development`](../../skills/test-driven-development/SKILL.md)
-governs which tests get **written**; [`simplify`](../../skills/simplify/SKILL.md)
+governs which tests get **written**; [`simplify-implementation`](../../skills/simplify-implementation/SKILL.md)
 governs which get **removed**.
 
 ## Tests must justify their presence
@@ -31,7 +31,7 @@ Corollaries:
 
 Test removal is the one edit that reduces the evidence available to every edit
 after it, so it is ordered and ledgered. The full workflow, catalogs, and reason
-codes live in [`skills/simplify/SKILL.md`](../../skills/simplify/SKILL.md); the
+codes live in [`skills/simplify-implementation/SKILL.md`](../../skills/simplify-implementation/SKILL.md); the
 rules that bind repo-wide:
 
 1. **Characterize before you prune.** Behavioral pins must exist before
@@ -43,7 +43,7 @@ rules that bind repo-wide:
 3. **Every removal is justified in a ledger**: a reason code, plus the surviving
    test named in `covered-by:` whenever the removed test covered real behavior.
    There is no "re-add coverage later".
-4. **Gate it.** `skills/simplify/scripts/check_test_prune.py --base <B0> --head <B1> --ledger <path>`
+4. **Gate it.** `skills/simplify-implementation/scripts/check_test_prune.py --base <B0> --head <B1> --ledger <path>`
    enforces (2) and (3). Baseline `check_test_contract.py` and the dual-run at
    `<B1>`, the post-prune tip.
 5. **Do not prune a surface you are not also simplifying.** Pruning alone is a
