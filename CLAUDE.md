@@ -43,7 +43,7 @@ See [git conventions guide](docs/guides/git-conventions.md) for save-point patte
 
 ## Testing Policy
 
-Tests must justify their presence. A test that must be edited whenever the source changes asserts implementation, not behavior — prefer state-based tests, and prune change-detectors. Removing tests is ordered and ledgered: characterize first, prune in test-only commits, then remove the production seams the pruned tests held open.
+Tests must justify their presence: a test is justified iff it traces up to a spec clause or goal, and a seam is justified by a consumer that is present in production or specified in an active OpenSpec change. A test that must be edited whenever the source changes asserts implementation, not behavior — prefer state-based tests, pin behavior at the seam, and prune change-detectors. Removing tests is ordered and ledgered: characterize first, prune in test-only commits, then remove the production seams the pruned tests held open.
 See [testing policy guide](docs/guides/testing-policy.md) for the removal gates, ledger format, and test-induced seam rules.
 
 ## Skills

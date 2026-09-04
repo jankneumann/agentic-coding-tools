@@ -100,10 +100,10 @@ No drive-by refactors outside the named surface unless the operator broadens sco
 Before removing or refactoring any non-trivial piece of code, answer all three. If any answer is "I don't know," **stop and investigate**.
 
 1. **Why does this exist?** `git blame`, introducing commit message, callers (`grep`), tests that pin it.
-2. **What problem does it still solve?** Rate limits, retries, ordering, error masking, security boundaries — load-bearing fences stay.
+2. **What problem does it still solve — or is it specified to solve?** Rate limits, retries, ordering, error masking, security boundaries — load-bearing fences stay. So does a seam whose consumer is named in an **active, approved** OpenSpec change (`openspec/changes/<id>/`, not archived, not a draft): a specified consumer is a consumer with a delivery commitment. A roadmap item or a "we'll need this later" comment is not.
 3. **What non-obvious invariants does it preserve?** Idempotency, transactional boundaries, timezone normalization, injection defense.
 
-If (2) is "nothing — reason is gone," the fence may come down. Otherwise leave it (or document why in a `# CHESTERTON: kept because …` comment).
+If (2) is "nothing — reason is gone," the fence may come down. Otherwise leave it and document why: `# CHESTERTON: kept because …`, or for a specified-but-unbuilt consumer `# CHESTERTON: kept for openspec/changes/<change-id>` so the justification can be verified — and lapsed — later.
 
 ## Coverage Gate (required)
 
@@ -179,6 +179,7 @@ reduction with no offsetting gain; it belongs to whoever owns that surface.
 
 | Smell | Signal | Verdict |
 |---|---|---|
+| **Orphan** (general case) | No path up to a spec clause, invariant, or goal; the rows below are how orphans usually present | Delete, with the most specific reason below |
 | **Source-mirroring** | Assertion restates a literal from the source (`assert TIMEOUT == 30` beside `TIMEOUT = 30`) | Delete — it asserts the source, not the behavior the value causes |
 | **Change-detector** | Any source edit forces an edit here; asserts call order, private names, or internal structure | Delete, or rewrite state-based first and keep the rewrite |
 | **Self-mocking** | Mocks the unit under test, then asserts the mock was called | Delete — it tests the mocking library |
@@ -199,6 +200,7 @@ these hold, whatever it costs to maintain:
 - **Security, authz, injection, or PII** assertions.
 - **Property, fuzz, or concurrency** tests — non-obvious inputs are their whole value.
 - The only **executable documentation** of a subtle or surprising behavior.
+- **Contract tests on a seam whose consumer is specified** in an active OpenSpec change — the architecture-level RED phase. Cite it: `# CHESTERTON: kept for openspec/changes/<id>`. This protects the seam's contract, not the implementation-coupled tests below it.
 - A test you cannot explain the origin of. Unknown origin means investigate, not delete — the same rule as production code.
 
 If you cannot say what a test would catch *and* what it would cost to keep,
@@ -305,13 +307,19 @@ a test that itself asserted nothing.
 **Gate — stricter than the rest of the catalog.** A seam may come out only when
 **both** hold:
 
-1. A reference search over the whole repo (not just the diff) shows no remaining
-   non-test consumer — a green suite proves nothing here, since a seam with one
-   production caller and zero tests still looks unused to the suite.
+1. The seam has **no consumer**, checked two ways: a reference search over the
+   whole repo (not just the diff) finds no non-test caller, **and** no active
+   OpenSpec change under `openspec/changes/<id>/` specifies one. A green suite
+   proves nothing here — a seam with one production caller and zero tests still
+   looks unused to the suite — and a reference search cannot see a consumer that
+   has not been written yet.
 2. The behavior the seam served is still pinned by a surviving state-based test.
 
-A seam with a real production consumer is a design decision. Chesterton's Fence
-applies to it exactly as it does to any other construct.
+A seam with a present or specified consumer is a design decision. Chesterton's
+Fence applies to it exactly as it does to any other construct. A specified
+consumer keeps the seam's *contract*; simplifying its internals stays in scope.
+When the specifying change is later archived without landing, the seam becomes
+an orphan and comes back onto this list.
 
 ## Workflow
 
@@ -473,7 +481,8 @@ Prefer project idioms when they conflict with these sketches.
 | "I'll delete these tests first, then write pins" | Backwards. Prune with zero pins in place and every later simplification is unverified. Characterize, then prune. |
 | "The test kept failing on every refactor, so I removed it" | That is a signal to check *why* it is coupled — a change-detector gets deleted with a `covered-by:` target, a real regression test gets kept and the refactor gets fixed. |
 | "It is just a test — deleting it is low risk" | Deleting a test is the one edit in this skill that reduces the evidence for every edit after it. It is the highest-risk change here, not the lowest. |
-| "The seam is unused now that the test is gone" | A green suite cannot tell an unused seam from an untested production caller. Do the reference search. |
+| "The seam is unused now that the test is gone" | A green suite cannot tell an unused seam from an untested production caller. Do the reference search, and check active OpenSpec changes for a specified one. |
+| "A future feature will need this seam" | Only if that feature is an active, approved OpenSpec change you can cite. A roadmap wish is the speculative abstraction two rows up, wearing a spec costume. |
 
 ## Red Flags
 
@@ -501,7 +510,7 @@ Prefer project idioms when they conflict with these sketches.
 4. Confirm dual-run: suite green on `<B1>` and on HEAD (attach `simplify-report.json` from `verify_behavior_preservation.py` when used).
 5. If tests were pruned, confirm `check_test_prune.py --base <B0> --head <B1> --ledger <path>` exits 0, and attach the ledger. If none were pruned, say so explicitly.
 6. For each removed test, confirm the coverage-preserving rule: reason code recorded, and a named surviving test in `covered-by:` for every reason that is not a no-behavior code.
-7. For each removed seam, cite the repo-wide reference search showing no remaining non-test consumer.
+7. For each removed seam, cite the repo-wide reference search showing no non-test caller **and** state that no active OpenSpec change specifies a consumer (name the changes you checked, or `openspec list`).
 8. Confirm assertion contract: `check_test_contract.py --base <B1>` exits 0 for the simplify range (characterization commits may add tests, prune commits may remove them; simplify commits must not mutate expectation bodies).
 9. Confirm scope: `check_scope.py --base <B1>` exits 0, or `--allow-codemod` with the codemod named in the report.
 10. Confirm `git diff <B1>..HEAD --stat` (or report) shows intentional surface only — no unrelated drive-by files.
