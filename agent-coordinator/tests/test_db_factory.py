@@ -1,9 +1,14 @@
 """Tests for the database client factory pattern."""
 
+import tomllib
+from pathlib import Path
+
 import pytest
 
 from src.config import reset_config
 from src.db import DatabaseClient, SupabaseClient, create_db_client, reset_db
+
+PYPROJECT = Path(__file__).resolve().parent.parent / "pyproject.toml"
 
 try:
     from src.db_postgres import (
@@ -35,6 +40,37 @@ class TestDatabaseClientProtocol:
         assert hasattr(DatabaseClient, "update")
         assert hasattr(DatabaseClient, "delete")
         assert hasattr(DatabaseClient, "close")
+
+
+class TestAsyncpgIsABaseDependency:
+    """DB_BACKEND defaults to "postgres" (#456), so asyncpg must be installed
+    by a plain, extra-free install — not gated behind the optional
+    ``postgres`` extra.
+
+    Before this fix, ``asyncpg`` lived only in ``[project.optional-
+    dependencies].postgres``. A base install (``pip install
+    agent-coordinator`` / ``uv sync`` with no extras) then hit the dynamic
+    import in ``create_db_client()`` and raised ``ImportError`` for the
+    *default* configuration — the package could not start out of the box.
+    See the P1 review finding on PR #464.
+    """
+
+    def test_asyncpg_is_a_base_dependency_in_pyproject(self) -> None:
+        data = tomllib.loads(PYPROJECT.read_text())
+        base_deps = data["project"]["dependencies"]
+        assert any(dep.split(">=")[0].split("==")[0].strip() == "asyncpg" for dep in base_deps), (
+            "asyncpg must be a base dependency (not only in an optional extra) "
+            "because DB_BACKEND defaults to 'postgres'."
+        )
+
+    def test_asyncpg_is_importable_without_the_postgres_extra(self) -> None:
+        """This is the actual failure mode: the dynamic import in
+        create_db_client()/db_postgres.py must succeed on whatever
+        environment this test suite runs in, without requiring an extra.
+        """
+        import importlib
+
+        importlib.import_module("asyncpg")
 
 
 class TestCreateDbClient:

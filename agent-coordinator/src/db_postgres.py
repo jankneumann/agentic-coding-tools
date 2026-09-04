@@ -1,7 +1,8 @@
 """Direct PostgreSQL client using asyncpg.
 
-Alternative database backend for self-hosted PostgreSQL, Amazon RDS, Neon, etc.
-Requires: pip install agent-coordinator[postgres]
+Backend for self-hosted PostgreSQL, Amazon RDS, Neon, etc. — the default
+database backend (DB_BACKEND=postgres); asyncpg is a base dependency of
+agent-coordinator, so no extra install is required.
 
 This client translates the DatabaseClient protocol methods into standard SQL
 executed via asyncpg's connection pool.

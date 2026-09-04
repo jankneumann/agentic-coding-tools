@@ -69,6 +69,7 @@ def test_duplicate_object_errors_are_treated_as_already_applied(sqlstate: str) -
         "42883",  # undefined_function — `coordinator_notify(...) does not exist`
         "42601",  # syntax_error
         "23505",  # unique_violation
+        "42P16",  # invalid_table_definition — see below
     ],
 )
 def test_real_failures_are_not_swallowed(sqlstate: str) -> None:
@@ -77,6 +78,16 @@ def test_real_failures_are_not_swallowed(sqlstate: str) -> None:
     42704 is the exact SQLSTATE of the bootstrap failure. A migration that
     cannot find something must never be mistaken for one whose objects are
     already there — they are opposite conditions.
+
+    42P16 (invalid_table_definition) means the table/column definition itself
+    is malformed or schema-incompatible — e.g. a partition bound conflict or a
+    generated-column error — not that its objects already exist. PR #464 had
+    briefly classified it as a duplicate-object error (on the mistaken belief
+    that ``ALTER PUBLICATION ... ADD TABLE`` raises 42P16 for a table already
+    in the publication; it actually raises 42710, duplicate_object). Treating
+    42P16 as "already applied" reopens exactly the failure mode #456 fixed: a
+    genuinely broken migration rolls back, gets recorded as applied anyway,
+    and is silently skipped on every later boot.
     """
     assert _is_already_applied_error(_PgError(sqlstate)) is False
 

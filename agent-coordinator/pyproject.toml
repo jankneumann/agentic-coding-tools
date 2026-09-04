@@ -27,6 +27,14 @@ dependencies = [
     # monorepo dependency so local, test, and container installs use the same
     # supported package boundary.
     "code-search-pkg",
+    # DatabaseConfig.from_env() defaults DB_BACKEND to "postgres" (#456's
+    # own change — every deployment doc and coord-env report `postgres`,
+    # and src/migrations.py only supports it). That default has to work on
+    # a base install: asyncpg was previously gated behind the optional
+    # `postgres` extra, so create_db_client() raised ImportError for anyone
+    # who installed the package without extras and set nothing, defeating
+    # the point of the default. It is a base dependency now, not optional.
+    "asyncpg>=0.31.0",
 ]
 
 [project.optional-dependencies]
@@ -44,9 +52,6 @@ api = [
     # token flow (HS256) and Cloudflare Access origin verification (RS256,
     # src/cloudflare_access.py), which validates Cloudflare's RSA-signed JWKS.
     "PyJWT[crypto]>=2.13.0",
-]
-postgres = [
-    "asyncpg>=0.31.0",
 ]
 cedar = [
     "cedarpy>=4.8.7",
@@ -85,7 +90,6 @@ dev = [
     "ruff>=0.16.5",
     "mypy>=2.1.0",
     "types-PyYAML>=6.0",
-    "asyncpg>=0.31.0",
     "cedarpy>=4.8.7",
 ]
 

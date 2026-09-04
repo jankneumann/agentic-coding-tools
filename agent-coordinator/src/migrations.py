@@ -55,10 +55,20 @@ def _checksum(content: str) -> str:
 #: SQLSTATE classes that mean "this migration's objects are already here".
 #:
 #: 42710 duplicate_object, 42P07 duplicate_table, 42723 duplicate_function,
-#: 42P06 duplicate_schema, 42701 duplicate_column, 42P16 invalid_table_definition
-#: (raised by ``ALTER PUBLICATION ... ADD TABLE`` for a table already in it).
+#: 42P06 duplicate_schema, 42701 duplicate_column. ``ALTER PUBLICATION ...
+#: ADD TABLE`` for a table already in the publication raises 42710
+#: (duplicate_object), not 42P16.
+#:
+#: 42P16 (invalid_table_definition) is deliberately *not* included: it means
+#: the table/column definition itself is malformed or schema-incompatible —
+#: e.g. a partition bound conflict or a generated-column error — the exact
+#: opposite of "already applied". Swallowing it here would let a genuinely
+#: broken migration roll back, get recorded as applied on the strength of
+#: that rollback, and be silently skipped on every later boot — the same
+#: failure mode this allowlist exists to prevent. See issue #456 and the P1
+#: review finding on PR #464.
 _ALREADY_APPLIED_SQLSTATES = frozenset(
-    {"42710", "42P07", "42723", "42P06", "42701", "42P16"}
+    {"42710", "42P07", "42723", "42P06", "42701"}
 )
 
 
