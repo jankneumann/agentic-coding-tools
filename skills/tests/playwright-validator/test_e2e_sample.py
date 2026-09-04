@@ -92,13 +92,29 @@ def test_full_pipeline_runs_against_sample_frontend(tmp_path: Path):
     - ``findings-playwright.json`` is emitted and schema-valid.
     """
     # Sanity: Playwright CLI version probe.
-    probe = subprocess.run(
-        ["npx", "playwright", "--version"],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
+    #
+    # Every failure mode here means the same thing — Playwright is not usable
+    # in this environment — so every one of them has to skip, not fail. A bare
+    # `returncode != 0` check only covers the case where npx answers quickly.
+    # When Playwright is absent, npx instead tries to *fetch* it, so the probe
+    # hangs and raises TimeoutExpired, which propagated out and failed the test
+    # on a required check for every branch in the repo (main included) whenever
+    # the npm registry was slow. OSError covers npx vanishing between the
+    # skipif above and this call.
+    try:
+        probe = subprocess.run(
+            ["npx", "playwright", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.skip("npx playwright probe timed out — treating Playwright as unavailable")
+    except OSError as exc:
+        pytest.skip(
+            f"npx playwright probe could not run ({exc}) — treating Playwright as unavailable"
+        )
     if probe.returncode != 0:
         pytest.skip("npx playwright not available")
 
@@ -128,3 +144,30 @@ def test_full_pipeline_runs_against_sample_frontend(tmp_path: Path):
     import jsonschema
 
     jsonschema.validate(instance=json.loads(findings_file.read_text()), schema=schema)
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        subprocess.TimeoutExpired(cmd=["npx", "playwright", "--version"], timeout=30),
+        FileNotFoundError(2, "No such file or directory: 'npx'"),
+        PermissionError(13, "Permission denied: 'npx'"),
+    ],
+    ids=["timeout", "missing", "not-executable"],
+)
+def test_unusable_playwright_probe_skips_instead_of_failing(monkeypatch, tmp_path, failure):
+    """An unusable Playwright probe must skip, never fail.
+
+    Regression guard: the probe used to check only ``returncode``, so a
+    ``TimeoutExpired`` — which is exactly what npx raises while trying to fetch
+    a Playwright it does not have — escaped as a test failure. Because
+    ``test-infra-skills`` is a required status check, that turned a slow npm
+    registry into a merge block for every branch in the repository.
+    """
+
+    def _raise(*_args, **_kwargs):
+        raise failure
+
+    monkeypatch.setattr(subprocess, "run", _raise)
+    with pytest.raises(pytest.skip.Exception):
+        test_full_pipeline_runs_against_sample_frontend(tmp_path)

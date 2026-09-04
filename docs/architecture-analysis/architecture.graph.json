@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-09-01T02:13:39+00:00",
-      "git_sha": "d2f59cb06aa7e137fa98ae6c1fa1ac5a8b6ee00c",
+      "generated_at": "2026-09-02T10:23:05+00:00",
+      "git_sha": "51f1dad3216f8435df6d5deb9e754826a3bf297a",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -2684,8 +2684,8 @@
       "name": "DirectPostgresClient",
       "file": "db_postgres.py",
       "span": {
-        "start": 112,
-        "end": 347
+        "start": 160,
+        "end": 404
       },
       "tags": [],
       "signatures": {}
@@ -3204,8 +3204,8 @@
       "name": "Issue",
       "file": "issue_service.py",
       "span": {
-        "start": 47,
-        "end": 150
+        "start": 84,
+        "end": 187
       },
       "tags": [],
       "signatures": {}
@@ -3217,8 +3217,8 @@
       "name": "Comment",
       "file": "issue_service.py",
       "span": {
-        "start": 154,
-        "end": 183
+        "start": 191,
+        "end": 220
       },
       "tags": [],
       "signatures": {}
@@ -3230,8 +3230,8 @@
       "name": "IssueService",
       "file": "issue_service.py",
       "span": {
-        "start": 186,
-        "end": 587
+        "start": 223,
+        "end": 629
       },
       "tags": [],
       "signatures": {}
@@ -10775,8 +10775,8 @@
       "name": "_parse_iso_datetime",
       "file": "db_postgres.py",
       "span": {
-        "start": 32,
-        "end": 45
+        "start": 33,
+        "end": 46
       },
       "tags": [
         "private"
@@ -10790,8 +10790,38 @@
       "name": "_coerce_filter_value",
       "file": "db_postgres.py",
       "span": {
-        "start": 48,
-        "end": 69
+        "start": 49,
+        "end": 70
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:db_postgres._decode_query_value",
+      "kind": "function",
+      "language": "python",
+      "name": "_decode_query_value",
+      "file": "db_postgres.py",
+      "span": {
+        "start": 73,
+        "end": 80
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:db_postgres._parse_postgrest_array_literal",
+      "kind": "function",
+      "language": "python",
+      "name": "_parse_postgrest_array_literal",
+      "file": "db_postgres.py",
+      "span": {
+        "start": 83,
+        "end": 117
       },
       "tags": [
         "private"
@@ -10805,8 +10835,8 @@
       "name": "_validate_identifier",
       "file": "db_postgres.py",
       "span": {
-        "start": 72,
-        "end": 77
+        "start": 120,
+        "end": 125
       },
       "tags": [
         "private"
@@ -10820,8 +10850,8 @@
       "name": "_validate_select_clause",
       "file": "db_postgres.py",
       "span": {
-        "start": 80,
-        "end": 89
+        "start": 128,
+        "end": 137
       },
       "tags": [
         "private"
@@ -10835,8 +10865,8 @@
       "name": "_serialize_for_asyncpg",
       "file": "db_postgres.py",
       "span": {
-        "start": 92,
-        "end": 109
+        "start": 140,
+        "end": 157
       },
       "tags": [
         "private"
@@ -10850,8 +10880,8 @@
       "name": "__init__",
       "file": "db_postgres.py",
       "span": {
-        "start": 119,
-        "end": 121
+        "start": 167,
+        "end": 169
       },
       "tags": [
         "dunder"
@@ -10865,8 +10895,8 @@
       "name": "_get_pool",
       "file": "db_postgres.py",
       "span": {
-        "start": 123,
-        "end": 130
+        "start": 171,
+        "end": 178
       },
       "tags": [
         "async",
@@ -10881,8 +10911,8 @@
       "name": "rpc",
       "file": "db_postgres.py",
       "span": {
-        "start": 132,
-        "end": 160
+        "start": 180,
+        "end": 208
       },
       "tags": [
         "async"
@@ -10896,8 +10926,8 @@
       "name": "query",
       "file": "db_postgres.py",
       "span": {
-        "start": 162,
-        "end": 249
+        "start": 210,
+        "end": 306
       },
       "tags": [
         "async"
@@ -10911,8 +10941,8 @@
       "name": "insert",
       "file": "db_postgres.py",
       "span": {
-        "start": 251,
-        "end": 277
+        "start": 308,
+        "end": 334
       },
       "tags": [
         "async",
@@ -10927,8 +10957,8 @@
       "name": "update",
       "file": "db_postgres.py",
       "span": {
-        "start": 279,
-        "end": 319
+        "start": 336,
+        "end": 376
       },
       "tags": [
         "async",
@@ -10943,8 +10973,8 @@
       "name": "delete",
       "file": "db_postgres.py",
       "span": {
-        "start": 321,
-        "end": 341
+        "start": 378,
+        "end": 398
       },
       "tags": [
         "async",
@@ -10959,8 +10989,8 @@
       "name": "close",
       "file": "db_postgres.py",
       "span": {
-        "start": 343,
-        "end": 347
+        "start": 400,
+        "end": 404
       },
       "tags": [
         "async"
@@ -14234,14 +14264,44 @@
       "signatures": {}
     },
     {
+      "id": "py:issue_service._postgrest_array_literal",
+      "kind": "function",
+      "language": "python",
+      "name": "_postgrest_array_literal",
+      "file": "issue_service.py",
+      "span": {
+        "start": 46,
+        "end": 59
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:issue_service._encode_query_value",
+      "kind": "function",
+      "language": "python",
+      "name": "_encode_query_value",
+      "file": "issue_service.py",
+      "span": {
+        "start": 62,
+        "end": 80
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:issue_service.Issue.from_row",
       "kind": "function",
       "language": "python",
       "name": "from_row",
       "file": "issue_service.py",
       "span": {
-        "start": 72,
-        "end": 106
+        "start": 109,
+        "end": 143
       },
       "tags": [
         "classmethod",
@@ -14256,8 +14316,8 @@
       "name": "parse_dt",
       "file": "issue_service.py",
       "span": {
-        "start": 73,
-        "end": 78
+        "start": 110,
+        "end": 115
       },
       "tags": [],
       "signatures": {}
@@ -14269,8 +14329,8 @@
       "name": "to_dict",
       "file": "issue_service.py",
       "span": {
-        "start": 108,
-        "end": 150
+        "start": 145,
+        "end": 187
       },
       "tags": [
         "db_access"
@@ -14284,8 +14344,8 @@
       "name": "from_row",
       "file": "issue_service.py",
       "span": {
-        "start": 164,
-        "end": 174
+        "start": 201,
+        "end": 211
       },
       "tags": [
         "classmethod",
@@ -14300,8 +14360,8 @@
       "name": "to_dict",
       "file": "issue_service.py",
       "span": {
-        "start": 176,
-        "end": 183
+        "start": 213,
+        "end": 220
       },
       "tags": [],
       "signatures": {}
@@ -14313,8 +14373,8 @@
       "name": "__init__",
       "file": "issue_service.py",
       "span": {
-        "start": 189,
-        "end": 190
+        "start": 226,
+        "end": 227
       },
       "tags": [
         "dunder"
@@ -14328,8 +14388,8 @@
       "name": "db",
       "file": "issue_service.py",
       "span": {
-        "start": 193,
-        "end": 196
+        "start": 230,
+        "end": 233
       },
       "tags": [
         "property"
@@ -14343,8 +14403,8 @@
       "name": "create",
       "file": "issue_service.py",
       "span": {
-        "start": 198,
-        "end": 249
+        "start": 235,
+        "end": 286
       },
       "tags": [
         "async",
@@ -14359,8 +14419,8 @@
       "name": "list_issues",
       "file": "issue_service.py",
       "span": {
-        "start": 251,
-        "end": 304
+        "start": 288,
+        "end": 346
       },
       "tags": [
         "async",
@@ -14375,8 +14435,8 @@
       "name": "show",
       "file": "issue_service.py",
       "span": {
-        "start": 306,
-        "end": 342
+        "start": 348,
+        "end": 384
       },
       "tags": [
         "async",
@@ -14391,8 +14451,8 @@
       "name": "update",
       "file": "issue_service.py",
       "span": {
-        "start": 344,
-        "end": 408
+        "start": 386,
+        "end": 450
       },
       "tags": [
         "async",
@@ -14407,8 +14467,8 @@
       "name": "close",
       "file": "issue_service.py",
       "span": {
-        "start": 410,
-        "end": 451
+        "start": 452,
+        "end": 493
       },
       "tags": [
         "async",
@@ -14423,8 +14483,8 @@
       "name": "comment",
       "file": "issue_service.py",
       "span": {
-        "start": 453,
-        "end": 477
+        "start": 495,
+        "end": 519
       },
       "tags": [
         "async",
@@ -14439,8 +14499,8 @@
       "name": "ready",
       "file": "issue_service.py",
       "span": {
-        "start": 479,
-        "end": 523
+        "start": 521,
+        "end": 565
       },
       "tags": [
         "async",
@@ -14455,8 +14515,8 @@
       "name": "blocked",
       "file": "issue_service.py",
       "span": {
-        "start": 525,
-        "end": 552
+        "start": 567,
+        "end": 594
       },
       "tags": [
         "async",
@@ -14471,8 +14531,8 @@
       "name": "search",
       "file": "issue_service.py",
       "span": {
-        "start": 554,
-        "end": 587
+        "start": 596,
+        "end": 629
       },
       "tags": [
         "async",
@@ -14487,8 +14547,8 @@
       "name": "get_issue_service",
       "file": "issue_service.py",
       "span": {
-        "start": 594,
-        "end": 599
+        "start": 636,
+        "end": 641
       },
       "tags": [],
       "signatures": {}
@@ -26798,6 +26858,827 @@
       },
       "tags": [],
       "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestSchemaValidation",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 129,
+        "end": 213
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_well_formed_graph_passes",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_well_formed_graph_passes",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 132,
+        "end": 135
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_missing_confidence_on_edges_fails",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_missing_confidence_on_edges_fails",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 137,
+        "end": 155
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_invalid_node_id_pattern_fails",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_invalid_node_id_pattern_fails",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 157,
+        "end": 181
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_edges_referencing_nonexistent_nodes",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_edges_referencing_nonexistent_nodes",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 183,
+        "end": 201
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestSchemaValidation.test_entrypoint_referencing_nonexistent_node",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_entrypoint_referencing_nonexistent_node",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 203,
+        "end": 213
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestPythonAnalyzer",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 221,
+        "end": 392
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_analyze_directory_output_structure",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_analyze_directory_output_structure",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 278,
+        "end": 290
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_entry_point_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_entry_point_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 292,
+        "end": 308
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_call_graph_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_call_graph_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 310,
+        "end": 325
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_db_access_pattern_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_db_access_pattern_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 327,
+        "end": 337
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_dead_code_candidate_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_dead_code_candidate_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 339,
+        "end": 346
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_syntax_error_handling",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_syntax_error_handling",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 348,
+        "end": 358
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_include_exclude_filtering",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_include_exclude_filtering",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 360,
+        "end": 375
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_async_function_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_async_function_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 377,
+        "end": 383
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPythonAnalyzer.test_class_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_class_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 385,
+        "end": 392
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestPostgresAnalyzer",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 400,
+        "end": 540
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_table_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_table_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 440,
+        "end": 462
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_fk_relationship_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_fk_relationship_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 464,
+        "end": 488
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_index_extraction",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_index_extraction",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 490,
+        "end": 508
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_summary_statistics",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_summary_statistics",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 510,
+        "end": 520
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestPostgresAnalyzer.test_unparseable_sql_handling",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_unparseable_sql_handling",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 522,
+        "end": 540
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestGraphCompiler",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 548,
+        "end": 753
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_compile_graph_produces_output",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_compile_graph_produces_output",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 633,
+        "end": 644
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_node_id_normalization",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_node_id_normalization",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 646,
+        "end": 651
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_python_ingestion_creates_nodes_and_edges",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_python_ingestion_creates_nodes_and_edges",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 653,
+        "end": 674
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_cross_language_backend_db_edges",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_cross_language_backend_db_edges",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 676,
+        "end": 687
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_full_compilation_with_backend_db_linking",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_full_compilation_with_backend_db_linking",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 689,
+        "end": 708
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_summary_generation_adaptive_threshold",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_summary_generation_adaptive_threshold",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 710,
+        "end": 724
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_deduplication_helpers",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_deduplication_helpers",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 726,
+        "end": 743
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestGraphCompiler.test_validate_edges_drops_invalid",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_validate_edges_drops_invalid",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 745,
+        "end": 753
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestFlowValidator",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 761,
+        "end": 890
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_reachability_check",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_reachability_check",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 764,
+        "end": 783
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_disconnected_flow_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_disconnected_flow_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 785,
+        "end": 804
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_orphan_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_orphan_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 806,
+        "end": 833
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_diagnostics_output_format",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_diagnostics_output_format",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 835,
+        "end": 854
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestFlowValidator.test_entrypoint_no_downstream",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_entrypoint_no_downstream",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 856,
+        "end": 890
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestViewGenerator",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 898,
+        "end": 1043
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_view_files_are_generated",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_view_files_are_generated",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 987,
+        "end": 1001
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_container_view_contents",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_container_view_contents",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1003,
+        "end": 1010
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_db_erd_contains_table_nodes",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_db_erd_contains_table_nodes",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1012,
+        "end": 1017
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_backend_component_view",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_backend_component_view",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1019,
+        "end": 1024
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_frontend_component_view",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_frontend_component_view",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1026,
+        "end": 1030
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestViewGenerator.test_feature_slice_generation",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_feature_slice_generation",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1032,
+        "end": 1043
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones",
+      "kind": "test_class",
+      "language": "python",
+      "name": "TestParallelZones",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1051,
+        "end": 1269
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_connected_component_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_connected_component_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1149,
+        "end": 1173
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_leaf_module_identification",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_leaf_module_identification",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1175,
+        "end": 1190
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_high_impact_module_detection",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_high_impact_module_detection",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1192,
+        "end": 1209
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_impact_radius",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_impact_radius",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1211,
+        "end": 1219
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_build_output_structure",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_build_output_structure",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1221,
+        "end": 1240
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_union_find_components",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_union_find_components",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1242,
+        "end": 1251
+      },
+      "tags": [
+        "test"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:test:tests.test_architecture.test_analysis.TestParallelZones.test_main_cli",
+      "kind": "test_function",
+      "language": "python",
+      "name": "test_main_cli",
+      "file": "tests/test_architecture/test_analysis.py",
+      "span": {
+        "start": 1253,
+        "end": 1269
+      },
+      "tags": [
+        "test",
+        "fixture_using"
+      ],
+      "signatures": {}
     }
   ],
   "edges": [
@@ -31073,6 +31954,20 @@
     },
     {
       "from": "py:db_postgres.DirectPostgresClient.query",
+      "to": "py:db_postgres._parse_postgrest_array_literal",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_parse_postgrest_array_literal"
+    },
+    {
+      "from": "py:db_postgres.DirectPostgresClient.query",
+      "to": "py:db_postgres._decode_query_value",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_decode_query_value"
+    },
+    {
+      "from": "py:db_postgres.DirectPostgresClient.query",
       "to": "py:db_postgres._validate_select_clause",
       "type": "call",
       "confidence": "high",
@@ -32325,6 +33220,13 @@
       "evidence": "ast:call:_request"
     },
     {
+      "from": "py:issue_service._postgrest_array_literal",
+      "to": "py:issue_service._encode_query_value",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_encode_query_value"
+    },
+    {
       "from": "py:issue_service.Issue.from_row",
       "to": "py:discovery.AgentInfo.from_dict.parse_dt",
       "type": "call",
@@ -32337,6 +33239,13 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:get_db"
+    },
+    {
+      "from": "py:issue_service.IssueService.list_issues",
+      "to": "py:issue_service._postgrest_array_literal",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_postgrest_array_literal"
     },
     {
       "from": "py:issue_service.IssueService.comment",

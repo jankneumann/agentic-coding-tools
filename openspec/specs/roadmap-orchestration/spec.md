@@ -5,7 +5,7 @@ TBD - created by archiving change roadmap-openspec-orchestration. Update Purpose
 ## Requirements
 ### Requirement: Proposal Decomposition into Roadmap Changes
 
-The system SHALL provide a `plan-roadmap` workflow that decomposes long markdown proposals into prioritized OpenSpec change candidates with explicit dependencies and acceptance outcomes. The workflow SHALL additionally provide a replan mode, `/plan-roadmap --replan <roadmap-id>`, driven by `<workspace>/replan-request.json`. In replan mode the deterministic helper `decomposer.py replan-scope <workspace>` SHALL emit the affected subgraph: every `replan_required` item plus its transitive dependents, excluding any item in a preserved status (`completed`, `superseded`, `in_progress`), and nothing else. A preserved item SHALL also act as a traversal barrier, so dependents reachable only through one are outside the scope. The host SHALL re-decompose only that subgraph against the source proposal and the failed item's learning entry; items in a preserved status, and all existing `learnings/` entries, SHALL be preserved verbatim. On success the workflow SHALL set the re-decomposed items to `approved`, delete `replan-request.json`, and pass `decomposer.py validate`.
+The system SHALL provide a `plan-roadmap` workflow that decomposes a long-form markdown proposal into a prioritized set of OpenSpec change candidates, and SHALL scaffold each approved candidate as a change that already validates.
 
 #### Scenario: Decompose markdown proposal into roadmap candidates
 WHEN a user provides a long markdown proposal to `plan-roadmap`
@@ -22,6 +22,34 @@ AND it SHALL provide guidance for minimum required proposal sections.
 WHEN the user approves selected roadmap candidates
 THEN `plan-roadmap` SHALL create draft OpenSpec change directories for each approved candidate
 AND each created change SHALL include a proposal scaffold with a `parent_roadmap` field linking back to the roadmap change-id and item-id.
+
+#### Scenario: Scaffolded changes are valid OpenSpec changes
+WHEN `plan-roadmap` scaffolds an approved candidate
+THEN the created change SHALL include at least one spec delta file under `specs/<capability>/spec.md`
+AND that change SHALL pass `openspec validate --strict`
+AND the delta SHALL survive being committed, rather than relying on a directory that git does not track.
+
+#### Scenario: Spec deltas are derived from acceptance outcomes
+WHEN a scaffolded candidate declares acceptance outcomes
+THEN each outcome SHALL become one requirement with at least one scenario
+AND each requirement's first body line SHALL contain SHALL or MUST
+AND an outcome that already states a modal verb SHALL NOT be wrapped in a second one.
+
+#### Scenario: A candidate without acceptance outcomes still scaffolds validly
+WHEN a scaffolded candidate declares no acceptance outcomes
+THEN `plan-roadmap` SHALL still emit a delta that passes `openspec validate --strict`
+AND that delta SHALL state that its requirements are to be replaced during refinement.
+
+#### Scenario: Scaffolded artifacts declare themselves preliminary
+WHEN `plan-roadmap` writes a spec delta or design sketch
+THEN the artifact SHALL carry a marker identifying it as a scaffold awaiting refinement
+AND the marker SHALL name the roadmap and item it was generated from.
+
+#### Scenario: Design sketches are written only when they carry content
+WHEN a scaffolded candidate declares a rationale or dependencies
+THEN `plan-roadmap` SHALL write a `design.md` sketch for it
+AND WHEN the candidate declares neither
+THEN no `design.md` SHALL be written.
 
 #### Scenario: Merge undersized roadmap items during decomposition
 WHEN decomposition produces candidate items that are smaller than a single implementable OpenSpec change
@@ -197,4 +225,24 @@ AND it SHALL preserve: structured summaries, decision rationale, cost/latency me
 WHEN writing `checkpoint.json`
 THEN the writer SHALL ensure vendor_state and pause_state contain only structured metadata
 AND it SHALL NOT include raw error responses, authentication headers, or session tokens.
+
+### Requirement: Roadmap items are refined before they are implemented
+
+An item advanced to by the roadmap runtime SHALL enter the planning phase, so that its preliminary scaffold is refined using what was learned implementing its dependencies before any implementation begins.
+
+Roadmap items are planned one at a time rather than all at once precisely so that later items benefit from earlier ones. Advancing straight into implementation spends that opportunity and implements against a scaffold nobody revisited.
+
+#### Scenario: Advancing to the next item enters planning
+WHEN the roadmap runtime advances to the next ready item
+THEN the checkpoint phase SHALL be set to planning
+AND the persisted checkpoint SHALL record that phase.
+
+#### Scenario: The refinement pass is not reported as already complete
+WHEN the roadmap runtime has just advanced to an item
+THEN the planning phase SHALL NOT be reported as skippable for that item
+AND a refinement pass SHALL therefore run before implementation.
+
+#### Scenario: Refinement acts on the scaffold rather than an empty directory
+WHEN a refinement pass begins for a newly advanced item
+THEN the item's change directory SHALL already contain the preliminary proposal and spec delta written at roadmap-creation time.
 
