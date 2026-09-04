@@ -12,14 +12,14 @@
 | skill-workflow.3 | specs/skill-workflow/spec.md § Autopilot Write-Capable Phases Use Worktree Isolation | local CLI execution. | --- | D7 | --- | 3.5, 3.6 | --- |
 | skill-workflow.4 | specs/skill-workflow/spec.md § Simplify Skill Behavior-Preservation Contract | The `simplify-implementation` skill SHALL preserve observable behavior of the code under edit. | --- | D4 | --- | 3.1, 5.1 | --- |
 | skill-workflow.5 | specs/skill-workflow/spec.md § Optional Post-Implementation Simplify Polish | The `implement-feature` and `iterate-on-implementation` skills SHALL document an **optional** next step to invoke `/simplify-implementation` for behav | --- | D10 | --- | 5.1 | --- |
-| skill-workflow.6 | specs/skill-workflow/spec.md § Review Findings Schema Extension | Both fields SHALL be required for new findings. | --- | D9 | --- | 1.1, 1.2 | --- |
+| skill-workflow.6 | specs/skill-workflow/spec.md § Review Findings Schema Extension | Both fields SHALL be required for new findings. | --- | D9 | openspec/schemas/review-findings.schema.json; openspec/schemas/consensus-report.schema.json; skills/parallel-infrastructure/install_assets/openspec/schemas/{review-findings,consensus-report}.schema.json; skills/merge-pull-requests/scripts/vendor_review.py; skills/tests/parallel-infrastructure/test_review_findings_schema.py | 1.1, 1.2 | --- |
 | skill-workflow.7 | specs/skill-workflow/spec.md § Simplify Mechanical Helper Scripts | Scripts SHALL be invocable via `<skill-base-dir>/scripts/. | --- | D3 | --- | 2.1, 2.2 | --- |
 | skill-workflow.8 | specs/skill-workflow/spec.md § Simplify Skill Review and Apply Roles | The `simplify-implementation` skill SHALL be structured as two roles sharing one artifact. | --- | D4 | --- | 2.5, 3.5 | --- |
-| skill-workflow.9 | specs/skill-workflow/spec.md § Simplify Review Artifact | findings with `disposition: fix` SHALL carry `prune. | --- | D2 | --- | 1.1 | --- |
+| skill-workflow.9 | specs/skill-workflow/spec.md § Simplify Review Artifact | findings with `disposition: fix` SHALL carry `prune. | --- | D2 | contracts/events/simplify-review.schema.json; contracts/fixtures/simplify-review.{valid,invalid}.json; skills/tests/parallel-infrastructure/test_simplify_review_schema.py | 1.1 | --- |
 | skill-workflow.10 | specs/skill-workflow/spec.md § Autopilot SIMPLIFY_REVIEW Phase | `/autopilot` SHALL accept a `--simplify` flag. | --- | D1, D5 | --- | 3.5 | --- |
 | skill-workflow.11 | specs/skill-workflow/spec.md § Autopilot SIMPLIFY_APPLY Phase | md` SHALL be rendered there from the artifact. | --- | D5, D6 | --- | 3.2, 3.6 | --- |
 | skill-workflow.12 | specs/skill-workflow/spec.md § Autopilot SIMPLIFY Evidence | Convergence Report SHALL include a SIMPLIFY line carrying these counters when the phases ran. | --- | D8 | --- | 3.7 | --- |
-| skill-workflow.13 | specs/skill-workflow/spec.md § Implementation Review Test-Quality Findings | reviewer SHALL NOT delete tests or seams. | --- | D9 | --- | 4.1, 4.3 | --- |
+| skill-workflow.13 | specs/skill-workflow/spec.md § Implementation Review Test-Quality Findings | reviewer SHALL NOT delete tests or seams. | --- | D9 | skills/parallel-review-implementation/SKILL.md; skills/tests/parallel-review-implementation/test_test_quality_checklist.py; skills/tests/parallel-infrastructure/test_test_quality_convergence.py | 4.1, 4.3 | --- |
 
 ## Design Decision Trace
 
