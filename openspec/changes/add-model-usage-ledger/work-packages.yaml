@@ -1,0 +1,518 @@
+schema_version: 1
+
+feature:
+  id: add-model-usage-ledger
+  title: "Model usage ledger — transcript-derived usage, dispatch intent, pricing, report, dashboard"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml"
+    files:
+      - "openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml"
+      - "openspec/changes/add-model-usage-ledger/contracts/db/schema.sql"
+      - "openspec/changes/add-model-usage-ledger/contracts/events/usage-record.schema.json"
+      - "openspec/changes/add-model-usage-ledger/contracts/events/dispatch-record.schema.json"
+      - "openspec/changes/add-model-usage-ledger/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ── wp-contracts — freeze contracts, generate types (tasks 1.1–1.4)
+  - package_id: wp-contracts
+    title: "Contracts — OpenAPI, DB, event schemas + generated types"
+    task_type: contracts
+    description: |
+      Tasks 1.1–1.4: validate the usage OpenAPI, DB contract and event schemas;
+      confirm generated Pydantic/TS types match. Coordination boundary for all
+      downstream packages.
+    role: contracts-author
+    archetype: analyst
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "contract:usage-ledger-openapi"
+        - "contract:usage-ledger-db"
+        - "contract:usage-ledger-events"
+      ttl_minutes: 60
+      reason: "Contract definitions for downstream packages"
+    scope:
+      write_allow:
+        - "openspec/changes/add-model-usage-ledger/contracts/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: usage-ledger-wp-contracts
+      mode: isolated
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Event schemas validate; OpenAPI parses"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json, yaml, jsonschema; [jsonschema.Draft202012Validator.check_schema(json.load(open(p))) for p in (\"openspec/changes/add-model-usage-ledger/contracts/events/usage-record.schema.json\", \"openspec/changes/add-model-usage-ledger/contracts/events/dispatch-record.schema.json\")]; yaml.safe_load(open(\"openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml\"))'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contracts_valid"
+    metadata:
+      loc_estimate: 200
+      complexity: low
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "contracts_valid"
+
+  # ── wp-adapters — collect-transcripts schema, adapters, collector (tasks 2.1–2.16)
+  - package_id: wp-adapters
+    title: "Transcript adapters — model/effort/thinking fields, sidechains, usage collector"
+    task_type: implementation
+    description: |
+      Tasks 2.1–2.16: extend the normalized event schema; fix the Claude CLI adapter
+      to set model/effort/thinking tokens; discover subagents/agent-*.jsonl; map
+      Grok/Pi cache tokens and Grok vendor cost; implement usage_collector.py with
+      cursor-on-ack, spool, replay, flag gate; add --source coordinator.
+    role: implementer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files: []
+      keys:
+        - "feature:add-model-usage-ledger.wp-adapters:write"
+      ttl_minutes: 180
+      reason: "Adapter schema and collector implementation"
+    scope:
+      write_allow:
+        - "skills/collect-transcripts/**"
+        - "skills/tests/collect-transcripts/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "skills/autopilot/**"
+        - "skills/langfuse/**"
+    worktree:
+      name: usage-ledger-wp-adapters
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "collect-transcripts tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/collect-transcripts/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "adapters_tests_green"
+    metadata:
+      loc_estimate: 900
+      complexity: medium
+      package_kind: data_model
+    inputs: {}
+    outputs:
+      result_keys:
+        - "adapters_tests_green"
+
+  # ── wp-coordinator — migration, pricing, ledger service, routes, retention, enum parity (tasks 3.1–3.17)
+  - package_id: wp-coordinator
+    title: "Coordinator ledger — migration 037, pricing.yaml, usage_ledger service, /usage routes, retention"
+    task_type: implementation
+    description: |
+      Tasks 3.1–3.18: additive migration with provenance constraints and widened
+      archetype CHECK; pricing loader + seeded YAML; usage_ledger service (ingest,
+      dispatch upsert, by-phase join, mismatch flags); /usage/* routes; nightly
+      retention job; archetype enum parity; thinking/tier in resolve endpoint and
+      audit; evaluation cost pricing; Dockerfile COPY + smoke list; accept
+      optional cli.thinking_flag in the agents.yaml schema.
+    role: implementer
+    archetype: implementer
+    priority: 2
+    depends_on: [wp-contracts]
+    locks:
+      files:
+        - "agent-coordinator/src/coordination_api.py"
+        - "agent-coordinator/src/agents_config.py"
+      keys:
+        - "db:schema:usage_records"
+        - "db:schema:dispatch_records"
+        - "db:schema:transcript_events"
+        - "api:POST /usage/ingest"
+        - "api:POST /usage/dispatch"
+        - "api:GET /usage/*"
+      ttl_minutes: 240
+      reason: "Coordinator ledger implementation"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/database/**"
+        - "agent-coordinator/tests/**"
+        - "agent-coordinator/evaluation/**"
+        - "agent-coordinator/scripts/**"
+        - "agent-coordinator/pricing.yaml"
+        - "agent-coordinator/Dockerfile"
+        - "agent-coordinator/pyproject.toml"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/agents.yaml"
+        - "skills/**"
+        - "apps/**"
+    worktree:
+      name: usage-ledger-wp-coordinator
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "coordinator unit tests"
+          kind: command
+          command: "uv run --project agent-coordinator pytest agent-coordinator/tests -q -m 'not e2e and not integration'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_tests_green"
+        - name: "mypy strict"
+          kind: command
+          command: "uv run --project agent-coordinator mypy --strict agent-coordinator/src"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_types_clean"
+    metadata:
+      loc_estimate: 1400
+      complexity: high
+      package_kind: migration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "coordinator_tests_green"
+        - "coordinator_types_clean"
+
+  # ── wp-dispatch — dispatch ledger, thinking forwarding, review dispatcher (tasks 4.1–4.11)
+  - package_id: wp-dispatch
+    title: "Dispatch — dispatch records, thinking to vendor flags, reviewer archetype in panels"
+    task_type: implementation
+    description: |
+      Tasks 4.1–4.11: try_record_dispatch in coordination_bridge; phase_agent copies
+      thinking and writes/patches dispatch records incl. override runs;
+      provider_dispatch renders cli.thinking_flag templates; review_dispatcher
+      passes archetype_model/archetype_thinking; SKILL.md updates.
+    role: implementer
+    archetype: implementer
+    priority: 3
+    depends_on: [wp-contracts, wp-coordinator]
+    locks:
+      files:
+        - "skills/autopilot/scripts/phase_agent.py"
+        - "skills/autopilot/scripts/provider_dispatch.py"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/coordination-bridge/scripts/coordination_bridge.py"
+      keys:
+        - "feature:add-model-usage-ledger.wp-dispatch:write"
+        - "feature:add-model-usage-ledger.review-dispatcher:write"
+        - "feature:add-model-usage-ledger.coordination-bridge:write"
+      ttl_minutes: 180
+      reason: "Dispatch ledger and thinking forwarding"
+    scope:
+      write_allow:
+        - "skills/autopilot/**"
+        - "skills/parallel-infrastructure/**"
+        - "skills/coordination-bridge/**"
+        - "skills/tests/autopilot/**"
+        - "skills/tests/parallel-infrastructure/**"
+        - "skills/tests/coordination-bridge/**"
+        - "agent-coordinator/agents.yaml"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "skills/collect-transcripts/**"
+    worktree:
+      name: usage-ledger-wp-dispatch
+      mode: isolated
+    timeout_minutes: 150
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "autopilot, parallel-infrastructure, bridge tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/autopilot/tests skills/parallel-infrastructure/tests skills/tests/autopilot skills/tests/coordination-bridge -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "dispatch_tests_green"
+    metadata:
+      loc_estimate: 700
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "dispatch_tests_green"
+
+  # ── wp-langfuse — Stop hook rebuilt on adapters (tasks 5.1–5.3)
+  - package_id: wp-langfuse
+    title: "Langfuse hook — adapter-based parsing, generation observations with usage_details"
+    task_type: implementation
+    description: |
+      Tasks 5.1–5.3: rebuild langfuse_hook.py on the collect-transcripts Claude adapter,
+      delete group_into_turns, emit generation observations with usage_details and
+      tool children, include sidechains, update stop-hook reference doc.
+    role: implementer
+    archetype: implementer
+    priority: 4
+    depends_on: [wp-adapters]
+    locks:
+      files:
+        - "skills/langfuse/scripts/langfuse_hook.py"
+      keys:
+        - "feature:add-model-usage-ledger.wp-langfuse:write"
+      ttl_minutes: 120
+      reason: "Langfuse hook rebuild"
+    scope:
+      write_allow:
+        - "skills/langfuse/**"
+        - "skills/tests/langfuse/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/collect-transcripts/**"
+        - "agent-coordinator/**"
+    worktree:
+      name: usage-ledger-wp-langfuse
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "langfuse skill tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/langfuse -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "langfuse_tests_green"
+    metadata:
+      loc_estimate: 400
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "langfuse_tests_green"
+
+  # ── wp-metrics — agent-metrics --usage (tasks 6.1–6.5)
+  - package_id: wp-metrics
+    title: "agent-metrics — --usage report with per-phase mismatch table"
+    task_type: implementation
+    description: |
+      Tasks 6.1–6.5: query_metrics --usage/--change against /usage routes with
+      graceful degradation; dashboard usage section (columns, mismatch marker,
+      estimate labels, unpriced callout); SKILL.md modes.
+    role: implementer
+    archetype: implementer
+    priority: 4
+    depends_on: [wp-coordinator]
+    locks:
+      files: []
+      keys:
+        - "feature:add-model-usage-ledger.wp-metrics:write"
+      ttl_minutes: 120
+      reason: "Usage report section"
+    scope:
+      write_allow:
+        - "skills/agent-metrics/**"
+        - "skills/tests/agent-metrics/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "apps/**"
+    worktree:
+      name: usage-ledger-wp-metrics
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "agent-metrics tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/agent-metrics/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "metrics_tests_green"
+    metadata:
+      loc_estimate: 350
+      complexity: low
+      package_kind: crud
+    inputs: {}
+    outputs:
+      result_keys:
+        - "metrics_tests_green"
+
+  # ── wp-viz — apps/usage-viz (tasks 7.1–7.4)
+  - package_id: wp-viz
+    title: "usage-viz — spend, per-change phase table, thinking tiers, ingest status"
+    task_type: implementation
+    description: |
+      Tasks 7.1–7.4: scaffold apps/usage-viz from kanban-viz conventions; component
+      tests; four views against /usage/*; README + workflow guide link.
+    role: implementer
+    archetype: implementer
+    priority: 5
+    depends_on: [wp-contracts]
+    locks:
+      files: []
+      keys:
+        - "feature:add-model-usage-ledger.wp-viz:write"
+      ttl_minutes: 180
+      reason: "Dashboard app"
+    scope:
+      write_allow:
+        - "apps/usage-viz/**"
+        - "docs/usage-viz/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "skills/**"
+    worktree:
+      name: usage-ledger-wp-viz
+      mode: isolated
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "usage-viz tests and build"
+          kind: command
+          command: "cd apps/usage-viz && npm ci && npm test -- --run && npm run build"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "viz_build_green"
+    metadata:
+      loc_estimate: 1200
+      complexity: medium
+      package_kind: crud
+    inputs: {}
+    outputs:
+      result_keys:
+        - "viz_build_green"
+
+  # ── wp-integration — hook wiring, CI registration, e2e, archival (tasks 8.1–8.8)
+  - package_id: wp-integration
+    title: "Integration — hook wiring, CI test registration, e2e, supersession, ADR"
+    task_type: integration
+    description: |
+      Tasks 8.1–8.8: wire the collector into Stop/SubagentStop/SessionEnd; register
+      test dirs; full suites; e2e autopilot attribution ≥ 95% and cloud parity;
+      archive usage-stats-multi-model; amend router D12; ADR.
+    role: integrator
+    archetype: validator
+    priority: 6
+    depends_on: [wp-adapters, wp-coordinator, wp-dispatch, wp-langfuse, wp-metrics, wp-viz]
+    locks:
+      files:
+        - ".claude/settings.json"
+        - "skills/pyproject.toml"
+        - ".github/workflows/ci.yml"
+        - "skills/install-manifest.json"
+      keys:
+        - "feature:add-model-usage-ledger.wp-integration:write"
+      ttl_minutes: 240
+      reason: "Integration and archival"
+    scope:
+      write_allow:
+        - ".claude/settings.json"
+        - "skills/session-bootstrap/**"
+        - "skills/pyproject.toml"
+        - "skills/install-manifest.json"
+        - ".github/workflows/ci.yml"
+        - "docs/**"
+        - "openspec/changes/usage-stats-multi-model/**"
+        - "openspec/changes/archive/**"
+        - "openspec/changes/add-adaptive-model-router/design.md"
+        - "openspec/changes/add-model-usage-ledger/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: usage-ledger-wp-integration
+      mode: isolated
+    timeout_minutes: 240
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "skills suite"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "skills_suite_green"
+        - name: "coordinator suite"
+          kind: command
+          command: "uv run --project agent-coordinator pytest agent-coordinator/tests -q -m 'not e2e and not integration'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "coordinator_suite_green"
+    metadata:
+      loc_estimate: 300
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "skills_suite_green"
+        - "coordinator_suite_green"
+        - "attribution_rate"

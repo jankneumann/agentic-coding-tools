@@ -1,0 +1,230 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: Auth was fixed in OpenAPI (every /usage/* route requires ApiKey and is principal-scoped) but the authoritative specs and proposal still require the opposite: usage-accounting Requirement \"Usage Query Routes\" and agent-coordinator Requirement \"Usage Ledger HTTP Coverage\" both still say GET /usage/* are unauthenticated \"matching existing convention\", and proposal.md still says \"Writes require the API key; reads follow the existing GET convention.\" Implementers following the specs will ship open reads that reintroduce the exact principal-enumeration risk the OpenAPI fix closed.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "resolution": "Rewrite usage-accounting, agent-coordinator, and proposal to match OpenAPI: every /usage/* route requires the API key; reads are principal-scoped (own rows unless a named profile grant allows cross-principal). Add scenarios for 401 on GET without a key and for principal scoping.",
+      "file_path": "openspec/changes/add-model-usage-ledger/specs/usage-accounting/spec.md",
+      "line_range": {
+        "start": 201,
+        "end": 207
+      }
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: The session_overhead fix is specified in usage-accounting (orchestrator agent_id=null usage MUST appear under a distinct session_overhead bucket; per-phase rows + session_overhead MUST equal /usage/summary) but OpenAPI GET /usage/by-phase only returns { rows: PhaseUsageRow[] }. PhaseUsageRow requires dispatch_id/intended_model/mismatch flags and cannot represent that bucket, so the field the spec requires has no response schema that can supply it \u2014 and generated clients cannot consume it.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Extend the by-phase (and any related) response schema with an explicit session_overhead object (TokenTotals plus change_id), document how orphan agent_id=null usage is classified into it, and regenerate types.",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 114,
+        "end": 149
+      }
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: DispatchRecordUpsert was split into DispatchRecordCreate and DispatchRecordPatch, but POST /usage/dispatch still declares requestBody schema DispatchRecordPatch only. DispatchRecordCreate is unused. A create body of {\"dispatch_id\":\"d1\"} validates against the wire contract yet cannot satisfy DB NOT NULL columns (change_id, phase, intended_model, session_id) or the event schema's stored-row required set \u2014 the split's whole point is not enforced on the route.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Change POST /usage/dispatch to oneOf [DispatchRecordCreate, DispatchRecordPatch] (or separate create/patch operations), reject underspecified creates with 422, and regenerate generated/models.py which still exposes the obsolete DispatchRecordUpsert.",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 73,
+        "end": 101
+      }
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The record_kind fix is wired to the wrong producer. Task 4.4a sets state_only for INIT/SUBMIT_PR inside build_phase_dispatch_kwargs, but those phases (and PLAN) go through record_state_only_archetype / runner record-state-only-archetype and never call build_phase_dispatch_kwargs. skill-workflow requires state-only phases to write a dispatch record with record_kind=state_only, yet no task updates record_state_only_archetype to POST that record. Result: either state-only rows are never written, or they are only written if someone mistakenly routes them through the dispatch helper \u2014 and PLAN is state_only in skill-workflow but omitted from task 4.4a / DB comments / the mismatches scenario (INIT+SUBMIT_PR only).",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Add an explicit task for record_state_only_archetype (INIT, PLAN, SUBMIT_PR) to POST DispatchRecordCreate with record_kind=state_only; keep build_phase_dispatch_kwargs at record_kind=dispatched only; align DB comments, usage-accounting scenarios, and skill-workflow on the same state_only phase set.",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/add-model-usage-ledger/tasks.md",
+      "line_range": {
+        "start": 164,
+        "end": 183
+      }
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: After the non-Claude agent_id fix, the (session_id, agent_id) join still cannot be satisfied from the stated producers. D2/spec join on (session_id, agent_id); dispatch.session_id is the orchestrator session; sidechain discovery only requires stamping agent_id and parent_session_id (not forcing usage.session_id = parent/orchestrator); non-Claude usage naturally uses the vendor session as session_id while agent_id is also set to that vendor session id. Nothing requires usage.session_id == dispatch.session_id, so Claude sidechains and all non-Claude vendors remain systematically unattributed despite the agent_id patch.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Normatively define join-key population: for sidechains, usage.session_id SHALL equal the orchestrator/parent session (parent_session_id) with agent_id = sub-agent id; for non-Claude, either dispatch.session_id SHALL be the vendor session shared with usage.session_id, or the join key SHALL be redefined (e.g. agent_id-only for non-Claude) with matching adapter and dispatch tasks/tests.",
+      "file_path": "openspec/changes/add-model-usage-ledger/design.md",
+      "line_range": {
+        "start": 15,
+        "end": 23
+      }
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: Task 4.4c (exclude record_kind=state_only from /usage/mismatches, plus the zero-mismatch test) lives under Phase 4 / wp-dispatch, but the behavior is implemented in coordinator usage_ledger query code. wp-dispatch write scope denies agent-coordinator/src/**, so the package cannot legally implement or verify the exclusion it owns.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "resolution": "Move 4.4c into wp-coordinator (tasks 3.5/3.6/3.7) or add a coordinator task that wp-dispatch depends on; keep wp-dispatch limited to emitting record_kind correctly.",
+      "package_id": "wp-dispatch",
+      "file_path": "openspec/changes/add-model-usage-ledger/tasks.md",
+      "line_range": {
+        "start": 180,
+        "end": 183
+      }
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: limit/cursor were added to GET /usage/summary, /by-phase, /by-model, and /mismatches, but only /usage/events returns next_cursor. Aggregate response schemas have no pagination envelope, and UsageSummary is a single totals object \u2014 what limit/cursor truncates is undefined. Clients cannot page mature forever-retained ledgers despite the parameters the pagination fix advertised.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "resolution": "Add next_cursor (and stable sort order) to every paginated aggregate response; define whether summary paginates by_model/by_vendor slices or is unpaged; align usage-accounting route requirements with the OpenAPI pagination contract.",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 102,
+        "end": 217
+      }
+    },
+    {
+      "id": 8,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: Principal server-derivation was marked readOnly on OpenAPI UsageRecord, but contracts/events/usage-record.schema.json still lists principal as a normal client-supplied property (additionalProperties:false inventory), and generated/models.py still accepts principal on ingest. Collectors following the event schema will keep sending a field the server must ignore/overwrite, and the three contracts disagree on who owns the value.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "resolution": "Remove principal from the client event schema (or mark it explicitly server-only / not part of the wire payload), drop it from the generated ingest model input, and state that IngestBatch.host (or server context) is copied onto usage_records.host.",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/events/usage-record.schema.json",
+      "line_range": {
+        "start": 20,
+        "end": 28
+      }
+    },
+    {
+      "id": 9,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: usage-accounting requires each usage record to carry host, the event schema and DB column include host, and the cloud-parity scenario asserts host on stored records \u2014 but OpenAPI UsageRecord has no host property (host exists only on IngestBatch). The producer contract that must supply per-row host cannot do so through the OpenAPI ingest item schema, and no requirement says the server copies batch.host onto each row.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Either add host to OpenAPI UsageRecord, or specify that the coordinator stamps usage_records.host from IngestBatch.host (and update the event schema if host is not client-sent per record).",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 234,
+        "end": 261
+      }
+    },
+    {
+      "id": 10,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: OpenAPI states reads are principal-scoped unless the caller's profile grants cross-principal visibility, but no delta spec defines that grant, which profile operation enables it, or a test scenario. agent-metrics --usage also has no requirement to present the API key now required by every GET /usage/* route, so the report package can implement against an auth model the contracts no longer allow.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "resolution": "Add usage-accounting/agent-coordinator requirements for principal scoping and the cross-principal profile grant; update harness-engineering --usage to require coordinator auth headers and to degrade on 401.",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 18,
+        "end": 19
+      }
+    },
+    {
+      "id": 11,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: db/schema.sql documents that the retention job SHALL purge usage_ingest_state rows older than USAGE_INGEST_STATE_RETENTION_DAYS (default 30), but usage-accounting, agent-coordinator, design D6, and tasks 3.9/3.10 only require purging transcript_events. Cloud ephemeral hosts will accumulate orphan cursor rows with no implementing requirement.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "resolution": "Either add ingest-state retention to the WatchdogService requirement and tasks 3.9/3.10, or remove the SHALL from the DB contract comments so implementers are not bound by an orphan rule.",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/db/schema.sql",
+      "line_range": {
+        "start": 110,
+        "end": 117
+      }
+    },
+    {
+      "id": 12,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: OpenAPI DispatchRecord (response) is allOf DispatchRecordPatch + timestamps, so it omits record_kind; the event schema and DB both persist record_kind. Clients reading POST /usage/dispatch responses cannot observe the field that mismatch accounting depends on. OpenAPI phase is also an unconstrained string while the event schema enums NON_TERMINAL_PHASES.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Give DispatchRecord its own stored-row schema including record_kind (and create required fields), and constrain phase on Create/Patch to the same enum as dispatch-record.schema.json.",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 345,
+        "end": 353
+      }
+    },
+    {
+      "id": 13,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: agent-coordinator migration scenario still says \"GIVEN a coordinator database at migration 034\" then \"migration 037 SHALL apply\", left stale by the 035\u2192037 renumber after 035 landed. Current tree already has 035_audit_log_delegated_from.sql, so the scenario's baseline is wrong.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Retarget the scenario to the latest applied migration before 037 (or \"N-1\") so VALIDATE does not assume a 034-only database.",
+      "file_path": "openspec/changes/add-model-usage-ledger/specs/agent-coordinator/spec.md",
+      "line_range": {
+        "start": 15,
+        "end": 20
+      }
+    },
+    {
+      "id": 14,
+      "type": "style",
+      "criticality": "low",
+      "description": "Optional: dispatch-record.schema.json record_kind description refers to \"'judge' records that run in-process\" as needing exclusion, but the enum is only dispatched|state_only and skill-workflow/GATEKEEPER treat the gatekeeper as a real sub-agent dispatch. The prose invents a third kind the schema cannot represent.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "optional",
+      "resolution": "Drop the 'judge' wording, or add an explicit third record_kind if any in-process judge truly writes a dispatch row with null agent_id.",
+      "file_path": "openspec/changes/add-model-usage-ledger/contracts/events/dispatch-record.schema.json",
+      "line_range": {
+        "start": 45,
+        "end": 52
+      }
+    },
+    {
+      "id": 15,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The Create/Patch split, server-side record_hash recompute, estimated IS TRUE provenance check, and NON_TERMINAL_PHASES-aligned phase enum are coherent load-bearing fixes when taken in isolation \u2014 the residual risk is incomplete propagation into specs, route wiring, tasks, and join-key producers rather than the design intent of those fixes themselves.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Keep those design choices; close the propagation gaps named in findings 1\u20137 before implementation.",
+      "file_path": "openspec/changes/add-model-usage-ledger/design.md"
+    }
+  ]
+}
