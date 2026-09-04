@@ -84,13 +84,25 @@ async def test_delegated_from_round_trips(postgres_db) -> None:
     assert rows[0].delegated_from == "integ-audit-principal"
 
 
-async def test_drain_waits_for_fire_and_forget_writes(postgres_db) -> None:
+async def test_drain_waits_for_fire_and_forget_writes(postgres_db, monkeypatch) -> None:
     """``drain()`` must make the async path observable.
 
     Without it a short-lived process can exit before the event loop ever runs
     the queued insert — indistinguishable, from the outside, from the write
     failing.
+
+    ``async_logging`` is pinned explicitly rather than relying on its default:
+    if ``AUDIT_ASYNC=false`` is set in the environment, ``log_operation``
+    would await the insert synchronously, ``_pending`` would stay empty, and
+    ``drain()`` would short-circuit at ``if not self._pending`` without ever
+    exercising the fire-and-forget path this test exists to cover.
     """
+    monkeypatch.setenv("AUDIT_ASYNC", "true")
+
+    from src.config import reset_config
+
+    reset_config()
+
     service = AuditService(db=postgres_db)
 
     await service.log_operation(

@@ -168,10 +168,31 @@ class AuditService:
         projections, shutdown, and tests — await this. Without it a short-lived
         process can exit before the loop ever runs the queued inserts, which is
         indistinguishable from the writes failing.
+
+        Raises:
+            TimeoutError: if ``timeout`` elapses while inserts are still
+                outstanding. ``asyncio.wait`` returns a ``(done, pending)``
+                pair rather than raising on timeout, so a caller that ignores
+                it would see ``drain()`` return normally and believe the
+                audit trail is durable when it is not — the same
+                returned-but-unread failure mode ``_insert_audit_entry``
+                documents, one layer up. Raising makes the timeout
+                impossible to silently ignore.
         """
         if not self._pending:
             return
-        await asyncio.wait(set(self._pending), timeout=timeout)
+        done, pending = await asyncio.wait(set(self._pending), timeout=timeout)
+        if pending:
+            logger.error(
+                "Audit drain timed out after %.1fs with %d insert(s) still "
+                "outstanding — the audit trail is not guaranteed durable.",
+                timeout,
+                len(pending),
+            )
+            raise TimeoutError(
+                f"AuditService.drain() timed out after {timeout}s with "
+                f"{len(pending)} audit insert(s) still outstanding"
+            )
 
     async def _insert_audit_entry(self, data: dict[str, Any]) -> AuditResult:
         """Insert an audit entry into the database.
