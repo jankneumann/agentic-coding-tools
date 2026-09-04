@@ -76,11 +76,23 @@ paths:
             example: { session_id: validate-standardize-port-leases-a1b2c3 }
       responses:
         "200":
-          description: Always success, even for unknown sessions.
+          description: >
+            Idempotent success for a lease the caller owns, or for a session with no active
+            lease. A lease owned by a DIFFERENT agent_id is refused with not_lease_owner and
+            is not released — the response deliberately does not distinguish that case from a
+            missing lease, so an unauthorized caller learns nothing about which sessions exist.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/PortOperationSuccess" }
-              example: { success: true }
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/PortOperationSuccess"
+                  - $ref: "#/components/schemas/PortOperationFailure"
+                discriminator: { propertyName: success }
+              examples:
+                released:
+                  value: { success: true }
+                not_owner:
+                  value: { success: false, error: not_lease_owner }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "422": { $ref: "#/components/responses/ValidationError" }
   /ports/conflict:
@@ -126,6 +138,7 @@ paths:
             schema: { $ref: "#/components/schemas/PortReconcileRequest" }
             example:
               session_id: reconcile-gx10-20260903
+              host_id: gx10
               running_projects:
                 - { compose_project_name: ac-3f9a1c2e, db_port: 10000 }
       responses:
@@ -216,16 +229,49 @@ components:
       allOf:
         - $ref: "#/components/schemas/PortSessionRequest"
         - type: object
-          required: [running_projects]
+          # host_id is REQUIRED and scopes the entire report. Release and blocking apply
+          # ONLY to leases recorded against this host. Without it one client's report is
+          # authoritative over every lease in the system: a cloud agent has no access to a
+          # local host's filesystem, so its `docker compose ls` is legitimately empty, and
+          # an unscoped report would release every local lease on every other host once
+          # each aged past conflict_block_minutes.
+          required: [running_projects, host_id]
           properties:
+            host_id:
+              type: string
+              minLength: 1
+              maxLength: 128
+              description: Host this report covers. Must match the host_id recorded on a lease for that lease to be affected.
             running_projects:
               type: array
               items:
                 type: object
+                # A block-identifying field is REQUIRED, not optional. compose_project_name
+                # has the form ac-<first 8 hex of sha256(session_id)> and encodes no slot, so
+                # a request carrying only the name leaves the coordinator unable to work out
+                # which block an orphaned stack occupies — it cannot protect it, and the
+                # block is handed out again while the stack is still bound to it. That is the
+                # exact failure the endpoint exists to prevent, so the contract must not
+                # accept a request that cannot be honoured.
+                #
+                # Either identifier is sufficient: `slot` states the block directly, and
+                # `db_port` is the block's base port, from which the slot is derived by the
+                # same arithmetic both backends already share.
                 required: [compose_project_name]
+                anyOf:
+                  - required: [slot]
+                  - required: [db_port]
                 properties:
                   compose_project_name: { type: string }
-                  db_port: { type: integer, minimum: 1024, maximum: 65535 }
+                  slot:
+                    type: integer
+                    minimum: 0
+                    description: Block index. Supply this or db_port; the coordinator derives one from the other.
+                  db_port:
+                    type: integer
+                    minimum: 1024
+                    maximum: 65535
+                    description: Base port of the block. Supply this or slot.
     PortAllocation:
       type: object
       required: [session_id, slot, db_port, rest_port, realtime_port, api_port, ui_port, compose_project_name, isolation_provided, expires_at]
@@ -260,7 +306,13 @@ components:
         success: { type: boolean, const: false }
         error:
           type: string
-          enum: [no_ports_available, isolation_provided, database_unavailable]
+          # not_lease_owner: the authenticated agent_id does not match the agent_id on the
+          # named session's lease. GET /ports/status is deliberately unauthenticated and
+          # returns every lease's session_id and agent_id, so a session_id is public by
+          # design; without this check any holder of any valid API key could enumerate
+          # leases and then release a peer's lease mid-run or force its slot into a
+          # cooling period. Mirrors release_lock's `AND locked_by = p_agent_id` guard.
+          enum: [no_ports_available, isolation_provided, database_unavailable, not_lease_owner]
     PortConflictSuccess:
       type: object
       required: [success, slot, blocked_until]

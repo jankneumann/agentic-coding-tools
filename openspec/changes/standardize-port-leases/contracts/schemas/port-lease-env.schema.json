@@ -36,8 +36,16 @@
     "PORT_LEASE_SESSION_ID": { "type": "string", "minLength": 1, "maxLength": 128 }
   },
   "$defs": {
-    "portString": { "type": "string", "pattern": "^[1-9][0-9]{3,4}$", "description": "Decimal port between 1024 and 65535, as a string because it is an env var." },
-    "localhostUrl": { "type": "string", "pattern": "^http://localhost:[1-9][0-9]{3,4}$" }
+    "portString": {
+      "type": "string",
+      "pattern": "^(?:102[4-9]|10[3-9][0-9]|1[1-9][0-9]{2}|[2-9][0-9]{3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$",
+      "description": "Decimal port 1024-65535 inclusive, as a string because it is an env var. The pattern enumerates the range rather than approximating it: the previous `^[1-9][0-9]{3,4}$` also accepted 1000-1023 (privileged) and 65536-99999 (unbindable), so a custom PORT_ALLOC_BASE outside the TCP range passed every backend's contract-validation test while emitting ports nothing could bind."
+    },
+    "localhostUrl": {
+      "type": "string",
+      "pattern": "^http://localhost:(?:102[4-9]|10[3-9][0-9]|1[1-9][0-9]{2}|[2-9][0-9]{3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$",
+      "description": "http://localhost:<port>, with the same 1024-65535 bound as portString. Kept in sync with portString by contract test; a URL is not valid if its port could not be bound."
+    }
   },
   "examples": [
     {

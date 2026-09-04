@@ -61,8 +61,11 @@ There is also spec drift: `live-service-testing` LST.2 says `DockerStackEnvironm
   `LeaseEnv` and a context manager that releases on exit. Backends: `coordinator` (through new
   `try_allocate_ports`/`try_release_ports`/`try_report_port_conflict` in `coordination_bridge`),
   `file` (the registry moved out of `docker_stack.py`, same on-disk format), and `none` (isolated
-  environment, fixed defaults). Backend selection: `PORT_LEASE_BACKEND` override, else coordinator
-  when reachable, else file. Both real backends emit the identical env contract.
+  environment, fixed defaults). Backend selection: `PORT_LEASE_BACKEND` override, else `none` when
+  the environment already provides its own port namespace, else coordinator when reachable, else
+  file. Both real backends emit the identical env contract and allocate from disjoint slot ranges
+  (`PORT_ALLOC_FILE_SLOT_BASE`), so a fallback during a coordinator outage cannot hand out a block
+  the ledger has already granted.
 - **Route every consumer through the contract.** `docker_stack.py` and `stack_launcher.py` consume
   `PortLease`; the validate-feature deploy phase sources the lease env instead of hardcoding three
   ports; smoke, gen-eval, playwright-validator, and the ZAP target read `API_BASE_URL`,
@@ -75,8 +78,11 @@ There is also spec drift: `live-service-testing` LST.2 says `DockerStackEnvironm
   file range is retired; the file backend uses the coordinator's block layout and base so both
   backends can never overlap.
 - **Guard against regression.** A validate-feature architecture check fails when a new literal
-  `localhost:<port>` appears in `skills/`, `apps/kanban-viz/src`, or `packages/gen-eval/src`
-  outside an allowlist of documentation examples.
+  `localhost:<port>` appears in `skills/**/*.py`, `skills/**/SKILL.md`, `apps/kanban-viz/src/**`,
+  or `packages/gen-eval/src/**` outside an allowlist of documentation examples. The `skills/`
+  scope is deliberately the two file types the routed consumers live in, not the whole tree; any
+  of the 61 offending files that are shell or config files are outside the gate and are handled
+  by the routing tasks rather than by it.
 - `GET /ports/status` gains the `agent_id`, `isolation_provided`, and `backend` columns; it stays
   read-only without an API key as today.
 
@@ -163,8 +169,9 @@ generalization to follow-ups.
 - `agent-coordinator` — MODIFIED: Port allocation service (five-port block), Port allocation lease
   management (session tie-in), Port allocation configuration (min range 5), Standalone operation
   (persist when DB configured), Validate-feature port configuration (lease env instead of literal
-  defaults), Heartbeat and Dead Agent Detection (cleanup releases ports). ADDED: Port lease
-  persistence, Port lease conflict reporting, Port lease isolation gate.
+  defaults), Heartbeat and Dead Agent Detection (cleanup releases the stale *session's* ports).
+  ADDED: Port lease persistence, Port lease conflict reporting, Port lease isolation gate,
+  Port lease reconciliation.
 - `live-service-testing` — MODIFIED: LST.2 Docker Stack Environment (allocates through `PortLease`).
 - `coordinator-kanban-viz` — MODIFIED: Hermetic E2E Test Orchestration (leased ports and origin).
 - `port-lease-client` — ADDED: new capability for `skills/shared/port_lease.py`.

@@ -121,6 +121,34 @@ survives as a single unit of work.
   **Files**: agent-coordinator/src/coordination_api.py, agent-coordinator/src/coordination_mcp.py, agent-coordinator/src/http_proxy.py, agent-coordinator/src/port_allocator.py
   **Size**: M
 
+- [ ] 2.10a Write ownership and host-scoping tests — release/conflict by a non-owning `agent_id` refused with `not_lease_owner` and the lease untouched; a reconcile report scoped to `host_id` leaves another host's leases unmodified even when it reports zero running projects; an unowned (NULL `agent_id`) lease is not releasable by any caller
+  **Spec scenarios**: agent-coordinator.2 (Release of another agent's lease is refused), agent-coordinator.2 (Conflict report against another agent's lease is refused), agent-coordinator.3 (Ownership is enforced in the data layer, not only the handler), agent-coordinator.3 (Unowned leases are releasable only by cleanup), agent-coordinator.10 (Reconcile never touches another host's leases)
+  **Contracts**: contracts/openapi/v1.yaml, contracts/db/schema.sql
+  **Dependencies**: 2.9
+  **Files**: agent-coordinator/tests/test_port_allocator_api.py
+  **Size**: S
+
+- [ ] 2.10b Enforce lease ownership and reconcile host scoping — add `agent_id` predicates to the release/conflict data-layer statements (mirroring `release_lock`'s `AND locked_by = p_agent_id`), add `host_id` to `port_leases` and to `PortReconcileRequest`, and scope reconcile release/blocking to the reporting host
+  **Spec scenarios**: as 2.10a
+  **Contracts**: contracts/openapi/v1.yaml, contracts/db/schema.sql
+  **Dependencies**: 2.10a, 2.10
+  **Files**: agent-coordinator/src/coordination_api.py, agent-coordinator/src/port_allocator.py, agent-coordinator/database/migrations/*.sql
+  **Size**: M
+
+  `GET /ports/status` is unauthenticated and publishes every lease's `session_id` and `agent_id`,
+  so a `session_id` is public by design. The ownership predicate is the only thing standing
+  between that and any API-key holder releasing a peer's lease mid-run.
+
+- [ ] 2.10c Make slot selection safe across worker processes — retry against the next free slot on primary-key conflict instead of returning `database_unavailable`, and add a multi-**process** concurrency test
+  **Spec scenarios**: agent-coordinator.7 (Slot selection is atomic across worker processes), agent-coordinator.7 (Concurrency is verified across processes, not only threads)
+  **Dependencies**: 2.10
+  **Files**: agent-coordinator/src/port_allocator.py, agent-coordinator/tests/test_port_allocator.py
+  **Size**: M
+
+  `API_WORKERS > 1` is supported and used; the allocator's mutex is process-local, so the
+  `port_leases` primary key on `slot` is the only real arbiter. The existing thread-pool test
+  passes trivially under that mutex and cannot observe the race.
+
 - [ ] 2.11 Write a CORS test — leased `UI_ORIGIN` from `COORDINATOR_CORS_ALLOWED_ORIGINS` accepted, unknown origin rejected
   **Spec scenarios**: coordinator-kanban-viz.2 (Leased UI origin is accepted by CORS)
   **Design decisions**: D9
@@ -164,8 +192,8 @@ survives as a single unit of work.
   **Files**: skills/shared/port_lease.py, skills/coordination-bridge/scripts/coordination_bridge.py
   **Size**: M
 
-- [ ] 3.3c Implement `FileBackend` — move the registry from `docker_stack.py`, adopt coordinator slot arithmetic and `PORT_ALLOC_*` config, keep fcntl lock and atomic replace, add blocked slots
-  **Spec scenarios**: port-lease-client.6 (Same slot arithmetic), port-lease-client.6 (Registry lock contention)
+- [ ] 3.3c Implement `FileBackend` — move the registry from `docker_stack.py`, adopt coordinator slot arithmetic and `PORT_ALLOC_*` config, allocate **only from the file slot range** `[PORT_ALLOC_FILE_SLOT_BASE, max_sessions)`, keep fcntl lock and atomic replace, add blocked slots, fail with `no_ports_available` rather than borrowing from the coordinator range
+  **Spec scenarios**: port-lease-client.6 (Same slot arithmetic, file range), port-lease-client.6 (Registry lock contention), port-lease-client.6 (Fallback during a coordinator outage does not collide), port-lease-client.6 (File range exhausted)
   **Design decisions**: D7
   **Dependencies**: 3.3a
   **Files**: skills/shared/port_lease.py
@@ -284,9 +312,23 @@ survives as a single unit of work.
   **Files**: (no new files)
   **Size**: S
 
-- [ ] 5.4 Run a two-agent concurrent `validate-feature` on one host and record the distinct blocks and compose projects in `validation-report.md`
-  **Spec scenarios**: coordinator-kanban-viz.1 (Two sweeps run concurrently), agent-coordinator.1 (Successful port allocation)
+- [ ] 5.4 Implement `stack_launcher.py --concurrency-proof <N> --report <path>` — acquire N leases concurrently in separate processes, assert the blocks and compose project names are pairwise disjoint, write the evidence to `--report`, exit 0 on success and non-zero on any overlap
+  **Spec scenarios**: coordinator-kanban-viz.1 (Two sweeps run concurrently), agent-coordinator.1 (Successful port allocation), port-lease-client.6 (Registry lock contention)
+  **Design decisions**: D7
   **Dependencies**: 5.3
+  **Files**: skills/validate-feature/scripts/stack_launcher.py
+  **Size**: M
+
+  The `wp-integration` verification step "Two concurrent validate deploys get distinct blocks"
+  invokes exactly this flag with `expect_exit_code: 0`. Without the task the gate cannot pass:
+  `stack_launcher.py` currently parses only `start`, `teardown` and `status`. Keeping the gate
+  automated rather than downgrading it to the manual run below is deliberate — concurrent
+  allocation is the property this whole capability exists to guarantee, so it should be machine
+  checked on every run, not attested once by hand.
+
+- [ ] 5.5 Run a two-agent concurrent `validate-feature` on one host and record the distinct blocks and compose projects in `validation-report.md`
+  **Spec scenarios**: coordinator-kanban-viz.1 (Two sweeps run concurrently), agent-coordinator.1 (Successful port allocation)
+  **Dependencies**: 5.4
   **Files**: openspec/changes/standardize-port-leases/validation-report.md
   **Size**: S
 

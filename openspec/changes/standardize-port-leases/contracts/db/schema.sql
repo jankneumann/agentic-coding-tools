@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS port_leases (
     api_port            INTEGER      NOT NULL,
     ui_port             INTEGER      NOT NULL,
     compose_project_name TEXT        NULL,
+    -- Host the lease was allocated from. Scopes POST /ports/reconcile: a report may only
+    -- release or block leases carrying its own host_id. Unscoped, a cloud agent's report --
+    -- legitimately empty, since it cannot see a local host's containers -- would release
+    -- every local lease on every host once each aged past conflict_block_minutes.
+    host_id             TEXT         NULL,
     isolation_provided  BOOLEAN      NOT NULL DEFAULT FALSE,
     allocated_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
     expires_at          TIMESTAMPTZ  NULL,
@@ -38,8 +43,20 @@ CREATE INDEX IF NOT EXISTS idx_port_leases_blocked_until ON port_leases (blocked
 ALTER TABLE agent_sessions
     ADD COLUMN IF NOT EXISTS isolation_provided BOOLEAN NOT NULL DEFAULT FALSE;
 
--- Reclaim leases for a set of stale agents. Returns the number of rows deleted.
-CREATE OR REPLACE FUNCTION release_port_leases_for_agents(p_agent_ids TEXT[])
+-- Reclaim leases held by a set of STALE SESSIONS. Returns the number of rows deleted.
+--
+-- Keyed on session_id, never agent_id. One agent_id routinely has several
+-- concurrent sessions — a validate-feature sweep and an interactive stack, say —
+-- and deleting by agent identity would reclaim the live session's block along
+-- with the dead one's. The freed slot is then reallocated while the active
+-- stack is still bound to it, producing exactly the collision this capability
+-- exists to prevent, and violating the requirement that active agents are
+-- unaffected by cleanup.
+--
+-- Callers (the stale-session sweeper) must therefore resolve stale SESSIONS
+-- first and pass those ids; an agent_id is not a safe proxy for "this work is
+-- finished".
+CREATE OR REPLACE FUNCTION release_port_leases_for_sessions(p_session_ids TEXT[])
 RETURNS INTEGER
 LANGUAGE plpgsql
 AS $$
@@ -47,8 +64,7 @@ DECLARE
     released INTEGER;
 BEGIN
     DELETE FROM port_leases
-    WHERE agent_id = ANY (p_agent_ids)
-      AND session_id IS NOT NULL;
+    WHERE session_id = ANY (p_session_ids);
     GET DIAGNOSTICS released = ROW_COUNT;
     RETURN released;
 END;

@@ -93,14 +93,31 @@ The client SHALL provide `port-lease reconcile`, which lists the host's compose 
 - **THEN** the command SHALL exit 0 with a message that reconciliation was skipped
 - **AND** no lease SHALL change
 
-### Requirement: File backend layout parity
+### Requirement: File backend layout parity in a disjoint slot range
 
-The file backend SHALL use the same block layout, base port, spacing, and project-name format as the coordinator allocator, read from the same `PORT_ALLOC_*` environment variables, so the two backends can never hand out overlapping blocks on one host.
+The file backend SHALL use the same block layout, base port, spacing, and project-name format as the coordinator allocator, read from the same `PORT_ALLOC_*` environment variables.
 
-#### Scenario: Same slot arithmetic
+Shared arithmetic alone SHALL NOT be relied on to prevent overlap. It makes the backends agree when a host flips between them sequentially, but during a coordinator outage — the case the fallback exists for — the file registry cannot see leases already granted from the ledger, so identical arithmetic selects identical slots. The bind probe does not close this: probing does not reserve, so two clients can each probe successfully before either binds.
+
+The two backends SHALL therefore allocate from disjoint slot ranges. `PORT_ALLOC_FILE_SLOT_BASE` SHALL partition `PORT_ALLOC_MAX_SESSIONS` into a coordinator range `[0, PORT_ALLOC_FILE_SLOT_BASE)` and a file range `[PORT_ALLOC_FILE_SLOT_BASE, PORT_ALLOC_MAX_SESSIONS)`, defaulting to 75% of the total. Each backend SHALL allocate only within its own range, so a lease granted by one can never collide with a lease granted by the other regardless of ordering or coordinator reachability.
+
+#### Scenario: Same slot arithmetic, file range
 - **WHEN** the file backend allocates its first block with default configuration
-- **THEN** the block SHALL be 10000..10004 with project name `ac-<hash>`
+- **THEN** the block SHALL be computed with the coordinator's arithmetic but from the first slot of the file range, not slot 0
+- **AND** the project name SHALL have the form `ac-<hash>`
 - **AND** the on-disk registry SHALL record the slot index, ports, session id, and expiry
+
+#### Scenario: Fallback during a coordinator outage does not collide
+- **WHEN** the coordinator has granted a lease and then becomes unreachable
+- **AND** a second client falls back to the file backend and allocates
+- **THEN** the file backend SHALL allocate from the file range only
+- **AND** the allocated block SHALL NOT overlap the block the coordinator already granted
+- **AND** this SHALL hold without the file backend reading the coordinator ledger, which is unavailable by definition in this scenario
+
+#### Scenario: File range exhausted
+- **WHEN** every slot in the file range is held
+- **THEN** the file backend SHALL fail with `no_ports_available`
+- **AND** it SHALL NOT allocate from the coordinator range to satisfy the request
 
 #### Scenario: Registry lock contention
 - **WHEN** two processes call the file backend concurrently

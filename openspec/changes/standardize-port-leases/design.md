@@ -86,12 +86,33 @@ reports it; the coordinator blocks that slot for `conflict_block_minutes` (defau
 client re-acquires, at most three times. Blocking rather than skipping once prevents two clients
 from alternately discovering the same foreign listener.
 
-### D7. File backend is a fallback with the same arithmetic
+### D7. File backend is a fallback in a disjoint slot range
 
 The registry moves out of `docker_stack.py` into the client as `FileBackend`, keeps its fcntl
 lock and atomic replace, and adopts the coordinator's slot layout, base, spacing, and project-name
-format read from `PORT_ALLOC_*`. The old 15432-25432 range is retired. Because both backends
-compute the same blocks from the same config, a host that flips between them cannot overlap.
+format read from `PORT_ALLOC_*`. The old 15432-25432 range is retired.
+
+Identical arithmetic makes the two backends *agree* when a host flips between them sequentially,
+but it does not make them safe **concurrently**, which is the case the fallback exists for. During
+a coordinator outage the file registry has no visibility of leases already granted from the
+ledger, so the same arithmetic over the same config selects the very same slots — the fallback
+would hand out blocks that are already held.
+
+The bind probe does not close this gap. Probing does not *reserve*: two clients can each probe a
+free port successfully, and only then does either compose stack bind. The probe detects foreign
+listeners, not a peer mid-allocation.
+
+So the slot space is partitioned. `PORT_ALLOC_SLOTS` is split into a coordinator range
+`[0, PORT_ALLOC_FILE_SLOT_BASE)` and a file range `[PORT_ALLOC_FILE_SLOT_BASE, PORT_ALLOC_SLOTS)`,
+with `PORT_ALLOC_FILE_SLOT_BASE` defaulting to 75% of the total. Each backend allocates only
+within its own range, so a lease granted by one can never collide with a lease granted by the
+other, whatever the ordering and whether or not the coordinator is reachable. The cost is a
+smaller pool per backend, which is the right trade: the fallback is for outages, not for steady
+state, and an unusable-but-disjoint pool beats a larger pool that silently double-allocates.
+
+Partitioning is chosen over having the file backend reconcile against the ledger because
+reconciliation is precisely what is unavailable when the fallback engages. A rule that only holds
+while the coordinator is reachable is not a fallback rule.
 
 ### D8. Backend order is override, isolation, coordinator, file
 

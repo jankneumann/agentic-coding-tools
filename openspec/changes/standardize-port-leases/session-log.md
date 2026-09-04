@@ -46,3 +46,51 @@
 ### Context
 Planned standardizing host port allocation on the coordinator's PortAllocatorService, fixed for persistence, session ownership, conflict reporting, reconciliation, and an isolation gate, with a shared PortLease client in skills/shared that falls back to a same-arithmetic file registry and emits one env contract every consumer reads. Tier: coordinated (coordinator at coord.rotkohl.ai reachable with all capabilities). Gate 1 direction was taken from the preceding conversation, where the user chose to standardize on the coordinator allocator; Gate 2 is pending.
 
+---
+
+## Phase: Plan Iteration 1 (2026-09-04)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Partition the slot space between backends** — D7 claimed identical arithmetic prevents overlap. True sequentially, false concurrently: during a coordinator outage the file registry cannot see ledger leases and selects the same slots. PORT_ALLOC_FILE_SLOT_BASE gives each backend a disjoint range.
+2. **Release port leases by session_id, never agent_id** — One agent_id routinely holds several concurrent sessions; releasing by identity reclaims a live session's block, contradicting the plan's own 'Active agent not affected by cleanup' scenario.
+3. **Scope every mutating lease op to the owning agent** — GET /ports/status is deliberately unauthenticated and returns session_id and agent_id, so session_id is public by design. Mirrors release_lock's existing AND locked_by = p_agent_id guard.
+4. **Scope reconcile to a host_id** — A cloud agent cannot see a local host's containers, so its report is legitimately empty; unscoped it would release every local lease fleet-wide.
+5. **Fix the two port-offset bugs in opposite directions** — kanban runs the coordinator in a container on AGENT_COORDINATOR_REST_PORT but targeted API_PORT; validate-feature deploy runs it on the host on API_PORT but health-checked AGENT_COORDINATOR_REST_PORT. Same confusion, mirrored.
+6. **Keep the concurrency gate automated** — wp-integration invokes --concurrency-proof with expect_exit_code 0 but no task implemented it. Added the task rather than downgrading the gate to the manual run, since concurrent allocation is the property the capability exists to guarantee.
+
+### Alternatives Considered
+- Have the file backend reconcile against the coordinator ledger: rejected because Reconciliation is exactly what is unavailable when the fallback engages; a rule that only holds while the coordinator is reachable is not a fallback rule.
+- Downgrade the wp-integration gate to match the manual task 5.4: rejected because Weaker. Machine-check the core guarantee on every run instead of attesting it once by hand.
+- Enforce API_WORKERS=1 for the allocator: rejected because Rejected in favour of PK-conflict retry; pinning worker count to work around a race constrains deployment for a fixable defect.
+
+### Trade-offs
+- Accepted A smaller allocatable pool per backend over A larger shared pool because The fallback exists for outages, not steady state. An unusable-but-disjoint pool beats a larger one that silently double-allocates.
+- Accepted A slot idle for up to ttl_minutes when a release's DB delete fails over Freeing the slot in memory because In-memory and persisted views must fail in the same direction; the TTL backstop reclaims it, whereas the other direction double-allocates.
+
+### Open Questions
+- [ ] host_id is specified but its provenance is not: does the client self-report it at allocation, or is it derived from the authenticated principal? Self-reported would be spoofable, which matters given reconcile's blast radius.
+
+### Completed Work
+- [high] design: D7 file-backend fallback now allocates from a disjoint slot range
+- [high] contract: release_port_leases_for_agents -> release_port_leases_for_sessions
+- [high] spec: kanban e2e targets the compose-published REST port, not API_PORT
+- [high] contract: reconcile now requires slot or db_port to identify a block
+- [medium] contract: port pattern bounded to 1024-65535, verified exhaustively
+- [critical] security: ownership check on release/conflict, new not_lease_owner error
+- [critical] security: reconcile scoped by host_id, in spec, openapi and db schema
+- [critical] consistency: validate-feature deploy health check and ZAP target use API_PORT
+- [critical] completeness: Port lease reconciliation added to the proposal Impact section
+- [high] completeness: blocked slots now have a cooling-period expiry and startup prune
+- [high] feasibility: allocation made atomic across worker processes with PK-conflict retry
+- [high] feasibility: task added implementing stack_launcher.py --concurrency-proof
+- [medium] completeness: isolation gate precedence over the duplicate-session short-circuit
+- [medium] completeness: release-path persistence-failure scenario
+- [medium] consistency: proposal backend order includes the isolation short-circuit
+- [medium] consistency: port-literal gate scope reconciled between proposal and spec
+- [low] testability: replaced non-measurable 'correctly' with checkable outcomes
+
+### Context
+Addressed 5 unresolved reviewer findings on PR #467 plus 11 further findings from three parallel analysis agents (completeness, consistency/testability, security/feasibility). Two independent CRITICAL security gaps were found and closed: mutating lease operations had no ownership check while GET /ports/status publishes session_id unauthenticated, and POST /ports/reconcile applied one client's host report to every lease in the system.
+

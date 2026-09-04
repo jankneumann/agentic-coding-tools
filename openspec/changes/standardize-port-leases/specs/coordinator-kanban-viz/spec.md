@@ -9,7 +9,7 @@ The orchestrator SHALL:
 - Generate cryptographically random API key and SSE signing key per invocation (no persisted shared secrets between runs).
 - Acquire a port lease through the shared `PortLease` client and bring up PostgreSQL and the coordinator-api service via `docker compose --profile api up -d --build` under the lease's `COMPOSE_PROJECT_NAME`, injecting the ephemeral keys through the operator-facing env vars (`COORDINATOR_API_KEYS`, `COORDINATOR_SSE_SIGNING_KEY`) and the leased ports through `AGENT_COORDINATOR_DB_PORT` and `AGENT_COORDINATOR_REST_PORT`.
 - Poll the coordinator's `/health` endpoint at the leased REST port until 200, with a configurable timeout (default 60 seconds).
-- Invoke the vitest suite at `apps/kanban-viz/src/__tests__/e2e.integration.test.tsx` against `API_BASE_URL` from the lease env with the ephemeral key in env.
+- Invoke the vitest suite at `apps/kanban-viz/src/__tests__/e2e.integration.test.tsx` against the leased **REST** port — the same URL the health poll above succeeded on — with the ephemeral key in env. This flow MUST NOT target `API_BASE_URL`: that URL is built from `API_PORT` (block offset +3), which the lease contract assigns to the *host-run* coordination API started by the stack launcher, whereas this orchestrator publishes the coordinator **container** through `AGENT_COORDINATOR_REST_PORT` (block offset +1, mapped to container port 8081 in `agent-coordinator/docker-compose.yml`). Pointing vitest at `API_BASE_URL` here would connect to a port nothing in this flow is listening on, while the health poll on the REST port still reported healthy — a green setup followed by connection failures that look like a test bug rather than a wiring bug.
 - Tear the Docker stack down and release the lease on success, failure, or operator signal (SIGINT/SIGTERM), with volume removal by default to ensure subsequent runs start from a clean DB.
 
 The orchestrator SHALL also support a `remote` target that runs the same vitest suite against an operator-supplied URL, with a safety guard requiring explicit `--allow-nonlocal` for any non-localhost target.
@@ -23,7 +23,8 @@ Exit codes SHALL be:
 - **WHEN** the operator runs `make e2e-kanban` from `agent-coordinator/` with Docker available
 - **THEN** PostgreSQL and the coordinator-api container SHALL start under the leased compose project
 - **AND** the coordinator-api container SHALL be configured with ephemeral keys not present in any persisted file
-- **AND** the vitest e2e suite SHALL execute against the leased `API_BASE_URL` with the matching ephemeral API key
+- **AND** the vitest e2e suite SHALL execute against the leased REST-port URL — the same one the health poll succeeded on — with the matching ephemeral API key
+- **AND** the suite SHALL NOT be pointed at `API_BASE_URL`, which is derived from the unrelated `API_PORT` offset and has no listener in this compose-based flow
 - **AND** the stack SHALL be torn down with `docker compose --profile api down -v` and the lease released after the suite completes
 - **AND** the orchestrator SHALL exit `0` if the suite passed, `2` if it failed
 
