@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-04T10:44:08.149227+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned a question-driven visual code explainer skill adopting humanlayer's MIT show-me format catalogue and brevity rules, grounded in this repo's architecture graph. Selected the prompt-only approach: skills/show-me/ ships no scripts, and the single piece of new code is a --tree symbol export in codebase-atlas that walks the existing symbolEdges adjacency. Scope was cut at discovery from six items to two (skill + --tree); HTML output, the feature-slice call tree, diff rendering, the plan-review playbook, and the atlas description rewrite were deferred to a follow-up.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Adopt show-me's catalogue as prose; ground only the call tree in code",
+        "rationale": "The catalogue works because it is a prompt, so it stays a prompt. Determinism is bought only where it pays: the call tree, via a new codebase-atlas --tree flag over the existing symbolEdges adjacency. A scripted explainer for every form would duplicate the atlas view-model and generate_views Mermaid emitters in a third skill, and sequence diagrams need runtime ordering the static graph lacks.",
+        "capability": "code-visualization",
+        "supersedes": null
+      },
+      {
+        "title": "Freshness is decided by the existing run_architecture.py --check contract",
+        "rationale": "Exit 0 alone means fresh; exit 1, exit 2, a missing script, or a missing graph all mean ungrounded. Re-deriving freshness from git_sha in prose would create a second, weaker definition alongside the architecture-refresh contract the atlas already mirrors. The skill never runs --ensure or the pipeline.",
+        "capability": "code-visualization",
+        "supersedes": null
+      },
+      {
+        "title": "Mandatory one-line coverage disclosure on every answer",
+        "rationale": "The codeviz proposal's standing principle is that a visualisation must disclose its own coverage. The grounded form copies the --tree footer verbatim so the two cannot drift; the ungrounded form names the reason (stale, absent, check failed, symbol not in graph). This is the improvement on show-me, which trusts model memory silently.",
+        "capability": "code-visualization",
+        "supersedes": null
+      },
+      {
+        "title": "Frontmatter omits triggers; the skill test asserts keys explicitly",
+        "rationale": "rewrite-skill-frontmatter deletes triggers from all 52 skills, but the canonical spec and REQUIRED_FRONTMATTER_KEYS still require it. Asserting the six surviving keys directly instead of calling assert_required_keys_present makes the skill valid in both merge orderings, so this change does not block on that one.",
+        "capability": "skill-authoring",
+        "supersedes": null
+      },
+      {
+        "title": "Behavioural scenarios are CI-wired deterministically, harness-optional",
+        "rationale": "invert-skill-test-suite-to-behavioural wants three behavioural scenarios per user-invocable skill but is 0/10 tasks. Three deterministic prompt-content tests plus the fixture-node assertion in test_atlas_tree.py encode the same behaviours today; harness fixtures are a conditional task.",
+        "capability": "skill-authoring",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Start wp-atlas-tree task 1.1 (test_atlas_tree.py against the tiny_graph fixture) \u2014 it defines the --tree contract that wp-skill's grounding reference documents.",
+      "wp-skill can run fully in parallel from task 2.1; its scope denies skills/codebase-atlas/** so the two never collide.",
+      "Do not run refresh-architecture --ensure as part of this work; it currently fails with three validator errors and is out of scope."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-visual-code-explainer/proposal.md",
+        "description": "approved proposal with Approach 1 selected"
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/design.md",
+        "description": "D1-D9 decisions, --tree output format, risks"
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/tasks.md",
+        "description": "17 tasks across 3 phases, no L or XL"
+      },
+      {
+        "path": "openspec/changes/add-visual-code-explainer/work-packages.yaml",
+        "description": "wp-atlas-tree and wp-skill in parallel, wp-integration last"
+      }
+    ]
+  }
+}
