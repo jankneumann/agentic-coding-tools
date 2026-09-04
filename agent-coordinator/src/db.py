@@ -285,6 +285,18 @@ async def close_db() -> None:
 
 
 def reset_db() -> None:
-    """Reset the global database client (for testing)."""
+    """Reset the global database client (for testing).
+
+    Terminates the outgoing client's pool rather than merely dropping the
+    reference. Dropping it leaked every pooled connection — including any left
+    mid-transaction by a task killed together with its event loop — and one
+    such connection holding a lock on ``audit_log`` blocked the next app
+    startup's migration pass forever (#463). That only became reachable once
+    audit inserts could actually succeed; while the column was missing every
+    insert failed fast and released its lock.
+    """
     global _db
-    _db = None
+    client, _db = _db, None
+    terminate = getattr(client, "terminate", None)
+    if callable(terminate):
+        terminate()

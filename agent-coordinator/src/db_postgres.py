@@ -402,3 +402,46 @@ class DirectPostgresClient:
         if self._pool is not None:
             await self._pool.close()
             self._pool = None
+
+    def terminate(self) -> None:
+        """Abruptly close every pooled connection, synchronously.
+
+        ``close()`` waits for in-flight queries and needs a running event loop.
+        This does neither. It exists for teardown paths that run *after* a loop
+        is gone: pytest gives every test its own loop, and a fire-and-forget
+        audit insert still in flight when that loop closes leaves its
+        connection mid-protocol on the server — ``active``, waiting for a Sync
+        that never arrives, holding RowExclusiveLock on ``audit_log`` inside an
+        implicit transaction. The next app startup's migration pass then blocks
+        on that lock indefinitely (#463). Terminating the pool kills the
+        backend and releases it.
+        """
+        pool, self._pool = self._pool, None
+        if pool is None:
+            return
+        try:
+            pool.terminate()
+            return
+        except RuntimeError:
+            # "Event loop is closed": the loop that owns these transports is
+            # gone, so transport.abort() cannot schedule the socket close and
+            # raises instead. Left there, the sockets — and the server backends
+            # behind them, transaction and lock included — stay open. Close
+            # them here; the backend sees EOF and aborts.
+            pass
+        for holder in getattr(pool, "_holders", ()):
+            con = getattr(holder, "_con", None)
+            transport = getattr(con, "_transport", None)
+            # Close through the OWNING socket object, never os.close() on its
+            # descriptor number: the object would still believe it owns the
+            # fd, and when it is garbage-collected later it would close that
+            # number again — by which point another file may have been given
+            # it. That double close surfaced as "Bad file descriptor" inside
+            # an unrelated YAML read several tests later.
+            sock = getattr(transport, "_sock", None)
+            if sock is None:
+                continue
+            try:
+                sock.close()
+            except OSError:
+                pass
