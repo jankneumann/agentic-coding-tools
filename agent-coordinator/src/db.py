@@ -255,9 +255,13 @@ def create_db_client() -> DatabaseClient:
         try:
             from .db_postgres import DirectPostgresClient
         except ImportError as e:
+            # asyncpg is a base dependency (see pyproject.toml) so this
+            # should be unreachable on any install that used pip/uv against
+            # the published metadata. Kept as a defensive guard for
+            # environments assembled by hand (e.g. a stripped-down venv).
             raise ImportError(
-                "asyncpg is required for DB_BACKEND=postgres. "
-                "Install with: pip install agent-coordinator[postgres]"
+                "asyncpg is required for DB_BACKEND=postgres but is not "
+                "installed. Install with: pip install agent-coordinator"
             ) from e
         return DirectPostgresClient(config.database.postgres)
     else:
