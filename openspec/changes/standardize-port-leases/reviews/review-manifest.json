@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "plan",
+  "created_at": "2026-09-04T12:05:15Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": [
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 75.71785190096125,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gpt-5.5"
+      ],
+      "elapsed_seconds": 2.4212111961096525,
+      "error": "Reading additional input from stdin...\nOpenAI Codex v0.150.1\n--------\nworkdir: /home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/standardize-port-leases\nmodel: gpt-5.5\nprovider: openai\napproval: on-request\nsandbox: read-only\nreasoning effort: medium\nreasoning summaries: none\nsession id: 01a06c49-0bf1-7032-91dd-df002e595e36\n--------\nuser\nReview the OpenSpec plan artifacts in openspec/changes/standardize-port-leases/.\n\nRead proposal.md, design.md, tasks.md, work-packages.yaml, all specs",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 277.9831681102514,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "qwen/qwen3-coder",
+      "models_attempted": [
+        "qwen/qwen3-coder"
+      ],
+      "elapsed_seconds": 113.27119884174317,
+      "error": "Findings failed review-findings schema validation: findings/0: 'type' is a required property; findings/0: 'criticality' is a required property; findings/0: 'disposition' is a required property; findings/0: 'axis' is a required property; findings/0/id: 'contract-inconsistency-1' is not of type 'integer'",
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 2,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-plan.json",
+      "finding_count": 7
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-plan.json",
+      "finding_count": 12
+    }
+  ]
+}
