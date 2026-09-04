@@ -9,7 +9,7 @@
   "payload": {
     "agent_name": "claude_code",
     "session_id": null,
-    "summary": "Planned a question-driven visual code explainer skill adopting humanlayer's MIT show-me format catalogue and brevity rules, grounded in this repo's architecture graph. Selected the prompt-only approach: skills/show-me/ ships no scripts, and the single piece of new code is a --tree symbol export in codebase-atlas that walks the existing symbolEdges adjacency. Scope was cut at discovery from six items to two (skill + --tree); HTML output, the feature-slice call tree, diff rendering, the plan-review playbook, and the atlas description rewrite were deferred to a follow-up.",
+    "summary": "Planned a question-driven visual code explainer skill adopting humanlayer's MIT show-me format catalogue and brevity rules, grounded in this repo's architecture graph. Selected the prompt-only approach: skills/explain-code/ ships no scripts, and the single piece of new code is a --tree symbol export in codebase-atlas that walks the existing symbolEdges adjacency. Scope was cut at discovery from six items to two (skill + --tree); HTML output, the feature-slice call tree, diff rendering, the plan-review playbook, and the atlas description rewrite were deferred to a follow-up.",
     "completed_work": [],
     "in_progress": [],
     "decisions": [

@@ -34,7 +34,7 @@ that gates them, and the analysis that motivated this change is fresh.
 
 ## What Changes
 
-- **New skill `skills/show-me/`** (prompt-only, `user_invocable: true`,
+- **New skill `skills/explain-code/`** (prompt-only, `user_invocable: true`,
   `category: Architecture`). A thin `SKILL.md` index routing to one
   `references/<form>.md` per visual form: `call-tree.md`, `component-tree.md`,
   `file-tree.md`, `sequence.md`, `structural-diff.md`. Each reference carries the
@@ -66,11 +66,11 @@ that gates them, and the analysis that motivated this change is fresh.
   four surviving keys explicitly instead of calling the shared
   `assert_required_keys_present` (which still requires `triggers`).
 - **Distribution wiring.** `skills/install-manifest.json` gains
-  `"show-me": {"distribution": "portable"}` and a `cross_skill_dependencies`
-  entry `"show-me": ["codebase-atlas", "refresh-architecture"]` (the validator rejects undeclared
+  `"explain-code": {"distribution": "portable"}` and a `cross_skill_dependencies`
+  entry `"explain-code": ["codebase-atlas", "refresh-architecture"]` (the validator rejects undeclared
   `<skill-base-dir>/../` references). `skills/pyproject.toml` `testpaths` gains
-  `"tests/show-me"`. Runtime mirrors regenerate via `skills/install.sh`.
-- **Tests.** `skills/tests/show-me/test_skill_md.py` (frontmatter parses,
+  `"tests/explain-code"`. Runtime mirrors regenerate via `skills/install.sh`.
+- **Tests.** `skills/tests/explain-code/test_skill_md.py` (frontmatter parses,
   explicit key presence, references resolve, related resolve, tail block
   present) plus **three behavioural scenarios** in the replay-harness shape that
   `invert-skill-test-suite-to-behavioural` prescribes: (1) a grounded question
@@ -93,7 +93,7 @@ Chosen at discovery to keep this change to one capability:
 - Rewriting the `codebase-atlas` description so "show me X" no longer routes to a
   whole-repo rebuild. Its `triggers:` list is dead metadata (nothing reads it)
   and is deleted wholesale by `rewrite-skill-frontmatter`.
-- Any HTML output from `show-me`, and the interactive-capability check
+- Any HTML output from `explain-code`, and the interactive-capability check
   (`CI`, display, TTY) this repository does not yet have.
 
 ## Non-Functional Requirements
@@ -111,7 +111,7 @@ Chosen at discovery to keep this change to one capability:
 
 ### Approach 1: Prompt-only skill grounded through a new atlas `--tree` export
 
-Description: `skills/show-me/` ships no scripts. Its `SKILL.md` teaches the
+Description: `skills/explain-code/` ships no scripts. Its `SKILL.md` teaches the
 catalogue and rules, and the grounding step shells out to
 `<skill-base-dir>/../codebase-atlas/scripts/build_atlas.py --tree`, which is
 the only new code. The model composes the answer from that output.
@@ -128,7 +128,7 @@ the only new code. The model composes the answer from that output.
 
 ### Approach 2: Scripted explainer that emits every form deterministically
 
-Description: a new `skills/show-me/scripts/sketch.py` that produces call trees,
+Description: a new `skills/explain-code/scripts/sketch.py` that produces call trees,
 file trees, and Mermaid sequence diagrams from the graph; the model only chooses
 the form and adds one sentence of prose.
 
@@ -176,6 +176,13 @@ of re-implementing a provenance comparison in prose. This adds
 `refresh-architecture` to the skill's declared cross-skill dependencies; see
 `design.md` D2.
 
+**Renamed at Gate 2**: the skill directory is `explain-code`, not `show-me`.
+The name `show-me` is reserved for the upstream humanlayer skill this change
+credits as the source of the format catalogue, so reusing it locally would
+have made the attribution ambiguous. Only the directory, the slash command,
+the manifest key, and the test path changed; no decision in `design.md` is
+affected.
+
 ## Impact
 
 **Affected specs (delta files in this change):**
@@ -188,8 +195,8 @@ of re-implementing a provenance comparison in prose. This adds
 
 **Code and docs:**
 
-- New: `skills/show-me/SKILL.md`, `skills/show-me/references/*.md`,
-  `skills/tests/show-me/`.
+- New: `skills/explain-code/SKILL.md`, `skills/explain-code/references/*.md`,
+  `skills/tests/explain-code/`.
 - Modified: `skills/codebase-atlas/scripts/build_atlas.py` (new flag and a
   `tree.py` helper module — no bare-named `models`/`utils` modules, per
   `collect-uncollected-skill-tests`), `skills/codebase-atlas/SKILL.md` (flag

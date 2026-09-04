@@ -2,7 +2,7 @@
 
 ### Requirement: Visual Code Explainer Skill
 
-The repository SHALL provide a user-invocable, prompt-only skill `show-me` that answers a narrow question about the code with the smallest visual form that makes the key point clear, drawn from a fixed catalogue: indented call tree, component tree with file paths, file tree with one-line responsibility comments, Mermaid sequence diagram, and structural (tree) diff. The skill SHALL keep prose brief, SHALL place each visual next to the short text it supports, and SHALL include only the calls, files, and boundaries the current question needs. The skill's `SKILL.md` SHALL be an index of at most 150 lines that links directly to one `references/<form>.md` file per visual form, with no nested reference files. In this version the skill SHALL NOT write HTML files, SHALL NOT write any file, and SHALL NOT open a browser.
+The repository SHALL provide a user-invocable, prompt-only skill `explain-code` that answers a narrow question about the code with the smallest visual form that makes the key point clear, drawn from a fixed catalogue: indented call tree, component tree with file paths, file tree with one-line responsibility comments, Mermaid sequence diagram, and structural (tree) diff. The skill SHALL keep prose brief, SHALL place each visual next to the short text it supports, and SHALL include only the calls, files, and boundaries the current question needs. The skill's `SKILL.md` SHALL be an index of at most 150 lines that links directly to one `references/<form>.md` file per visual form, with no nested reference files. In this version the skill SHALL NOT write HTML files, SHALL NOT write any file, and SHALL NOT open a browser.
 
 #### Scenario: Narrow question answered with the smallest visual
 
@@ -60,11 +60,11 @@ Before sketching a call tree, the skill SHALL determine graph freshness by runni
 
 ### Requirement: Explainer Frontmatter Without Triggers
 
-The `show-me` `SKILL.md` frontmatter SHALL declare `name`, `description`, `category: Architecture`, `tags`, `user_invocable: true`, and `related: [codebase-atlas, refresh-architecture]`, and SHALL NOT declare a `triggers:` key. The `description` SHALL state, in third person, both what the skill does and when to use it, including that whole-repository views belong to `codebase-atlas`. The skill's `test_skill_md.py` SHALL assert the declared keys explicitly rather than through the shared `assert_required_keys_present` helper while that helper still requires `triggers`, so the test passes whether or not `rewrite-skill-frontmatter` has landed. The `SKILL.md` SHALL end with the `## Common Rationalizations`, `## Red Flags`, and `## Verification` sections required of user-invocable skills.
+The `explain-code` `SKILL.md` frontmatter SHALL declare `name`, `description`, `category: Architecture`, `tags`, `user_invocable: true`, and `related: [codebase-atlas, refresh-architecture]`, and SHALL NOT declare a `triggers:` key. The `description` SHALL state, in third person, both what the skill does and when to use it, including that whole-repository views belong to `codebase-atlas`. The skill's `test_skill_md.py` SHALL assert the declared keys explicitly rather than through the shared `assert_required_keys_present` helper while that helper still requires `triggers`, so the test passes whether or not `rewrite-skill-frontmatter` has landed. The `SKILL.md` SHALL end with the `## Common Rationalizations`, `## Red Flags`, and `## Verification` sections required of user-invocable skills.
 
 #### Scenario: Frontmatter valid in both orderings
 
-- **WHEN** `skills/tests/show-me/test_skill_md.py` runs before or after `rewrite-skill-frontmatter` merges
+- **WHEN** `skills/tests/explain-code/test_skill_md.py` runs before or after `rewrite-skill-frontmatter` merges
 - **THEN** it SHALL pass in both states
 - **AND** it SHALL fail if any of `name`, `description`, `category`, `tags`, `user_invocable`, or `related` is missing or empty
 
@@ -76,15 +76,15 @@ The `show-me` `SKILL.md` frontmatter SHALL declare `name`, `description`, `categ
 
 ### Requirement: Explainer Distribution Wiring
 
-`skills/install-manifest.json` SHALL declare `"show-me": {"distribution": "portable"}` and a `cross_skill_dependencies` entry `"show-me": ["codebase-atlas", "refresh-architecture"]`. `skills/pyproject.toml` `testpaths` SHALL list `tests/show-me`. All runtime references from `show-me` to sibling skills SHALL use the `<skill-base-dir>/../<skill>/` form.
+`skills/install-manifest.json` SHALL declare `"explain-code": {"distribution": "portable"}` and a `cross_skill_dependencies` entry `"explain-code": ["codebase-atlas", "refresh-architecture"]`. `skills/pyproject.toml` `testpaths` SHALL list `tests/explain-code`. All runtime references from `explain-code` to sibling skills SHALL use the `<skill-base-dir>/../<skill>/` form.
 
 #### Scenario: Manifest validation passes
 
 - **WHEN** `skills/install.sh --check-only` runs after the skill is added
 - **THEN** the manifest validator SHALL report zero errors
-- **AND** every sibling reference in `skills/show-me/**` SHALL be covered by the declared cross-skill dependencies
+- **AND** every sibling reference in `skills/explain-code/**` SHALL be covered by the declared cross-skill dependencies
 
 #### Scenario: Tests collected by the default sweep
 
 - **WHEN** `skills/.venv/bin/python -m pytest` runs from `skills/` with no path arguments
-- **THEN** tests under `skills/tests/show-me/` SHALL be collected without import errors
+- **THEN** tests under `skills/tests/explain-code/` SHALL be collected without import errors
