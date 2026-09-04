@@ -54,6 +54,11 @@ packages:
     context_impact:
       surfaces:
         - "apis"
+        # contracts/README.md is documentation, and contracts/db/{schema,seed}.sql are indexed
+        # as semantic_code. Both are owned by this package, so a change here invalidates those
+        # surfaces; the gate requires them declared rather than left implied.
+        - "documentation"
+        - "semantic_code"
     worktree:
       name: port-leases-wp-contracts
       mode: isolated
