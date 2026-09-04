@@ -8,6 +8,7 @@ executed via asyncpg's connection pool.
 """
 
 import json
+import logging
 import re
 from datetime import datetime
 from typing import Any
@@ -17,6 +18,8 @@ from uuid import UUID
 import asyncpg  # noqa: I001
 
 from .config import PostgresConfig
+
+logger = logging.getLogger(__name__)
 
 _UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE
@@ -422,16 +425,19 @@ class DirectPostgresClient:
         try:
             pool.terminate()
             return
-        except RuntimeError:
-            # "Event loop is closed": the loop that owns these transports is
-            # gone, so transport.abort() cannot schedule the socket close and
-            # raises instead. Left there, the sockets — and the server backends
+        except RuntimeError as exc:
+            if "Event loop is closed" not in str(exc):
+                raise
+            # The loop that owns these transports is gone, so
+            # transport.abort() cannot schedule the socket close and raises
+            # instead. Left there, the sockets — and the server backends
             # behind them, transaction and lock included — stay open. Close
             # them here; the backend sees EOF and aborts.
-            pass
-        for holder in getattr(pool, "_holders", ()):
-            con = getattr(holder, "_con", None)
-            transport = getattr(con, "_transport", None)
+        holders = list(getattr(pool, "_holders", ()))
+        live = [h for h in holders if getattr(h, "_con", None) is not None]
+        closed = 0
+        for holder in live:
+            transport = getattr(holder._con, "_transport", None)
             # Close through the OWNING socket object, never os.close() on its
             # descriptor number: the object would still believe it owns the
             # fd, and when it is garbage-collected later it would close that
@@ -445,3 +451,16 @@ class DirectPostgresClient:
                 sock.close()
             except OSError:
                 pass
+            closed += 1
+        if live and not closed:
+            # This path depends on asyncpg/asyncio private attributes
+            # (_holders, _con, _transport, _sock). If a future version renames
+            # any of them the loop above degrades to a no-op — and the leak
+            # this method exists to stop returns with no error. Say so.
+            logger.warning(
+                "DirectPostgresClient.terminate(): %d live pooled connection(s) "
+                "but no socket could be located to close — asyncpg internals "
+                "may have changed; these connections, and any locks they hold, "
+                "will leak until the process exits.",
+                len(live),
+            )
