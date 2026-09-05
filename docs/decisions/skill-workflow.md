@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-05 — restructure-documentation-layers
+
+### Phase: Plan
+
+**Lessons carry status and evidence tags and are retired by moving, never deleted silently** — Turns the append-only Documentation Update Per Iteration rule into a maintained corpus the Phase B /simplify-docs skill can re-verify; superseded lessons name what replaced them.
+
+- Status: `active`
+- Source: [openspec/changes/restructure-documentation-layers/session-log.md](/openspec/changes/restructure-documentation-layers/session-log.md) (D3)
+
+---
+
 ## 2026-08-29 — 2026-08-28-bind-decision-index-to-session-log-writes
 
 ### Phase: Cleanup
