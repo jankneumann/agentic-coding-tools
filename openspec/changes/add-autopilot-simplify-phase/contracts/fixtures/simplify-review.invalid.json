@@ -1,0 +1,16 @@
+{
+  "review_type": "simplify",
+  "target": "add-autopilot-simplify-phase",
+  "baseline_b0": "0ab6839c",
+  "scope": { "files": 1, "lines": 40 },
+  "findings": [
+    {
+      "id": 1, "type": "test_quality", "criticality": "low", "severity": "optional", "axis": "readability",
+      "description": "Optional: asserts call order of private helpers.",
+      "disposition": "fix", "file_path": "tests/test_parser.py",
+      "pattern": "change-detector",
+      "fence": { "verdict": "remove", "rationale": "Rewritten on every refactor." },
+      "prune": { "reason": "change-detector", "covered_by": null }
+    }
+  ]
+}

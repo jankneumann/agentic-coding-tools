@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-04T14:08:58.153692+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Plan revision 2 after Gate 2 feedback: the simplify phase is two roles. SIMPLIFY_REVIEW (reviewer, writes only simplify-review.json) -> SIMPLIFY_APPLY (implementer, consumes it). The artifact is a review-findings document (review_type: simplify) with a real contract and fixtures; the prune ledger is rendered from it; the simplify-implementation skill itself is restructured into the same Review/Apply roles. Six work packages; wp-contracts is the DAG root.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Two phases, not one: SIMPLIFY_REVIEW -> SIMPLIFY_APPLY",
+        "rationale": "Each role gets its own archetype, handoff boundary, token budget, resume point, and outcome record; an interruption between review and apply resumes at apply with the artifact on disk. Same dynamic-target mechanism as VAL_REVIEW_OR_SUBMIT.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "The review artifact is a review-findings document with review_type simplify",
+        "rationale": "One schema family: IMPL_REVIEW's test_quality findings seed SIMPLIFY_REVIEW, and the fence verdict, coverage decision, and consumer check the skill's steps 1-4 already require become reviewable fields. Contract composed by allOf over the canonical schema, with conditional rules (fix requires remove; coverage-required prune requires covered_by; any consumer forces keep).",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "The prune ledger is rendered from the artifact, never hand-written in the orchestrated path",
+        "rationale": "The ledger is the reviewer's decision; rendering it means the implementer cannot justify a deletion the reviewer did not make, and check_test_prune becomes a check that apply did what review said.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "simplify-implementation is restructured into Review (steps 0-4) and Apply (steps 5-8) roles",
+        "rationale": "Manual and orchestrated paths share one contract; autopilot prompts become 'run the Review role' / 'run the Apply role'. Apply must not change a fence verdict or disposition; disagreements go to a human.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "seams_removed is counted from applied seam-pattern findings, not self-reported",
+        "rationale": "The artifact carries the catalog pattern per finding, which removes the self-reporting weakness flagged in plan revision 1.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "wp-contracts first (no external dependency): land the enum edits and the contract test; the contract file and fixtures already validate with jsonschema.",
+      "wp-simplify-skill and wp-review-diagnostic can start immediately after wp-contracts.",
+      "wp-autopilot-phases task 3.0 blocks on fix-autopilot-archetype-and-apply-outcome archiving."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-autopilot-simplify-phase/contracts/events/simplify-review.schema.json",
+        "description": "the review artifact contract (validated against both fixtures)"
+      },
+      {
+        "path": "openspec/changes/add-autopilot-simplify-phase/design.md",
+        "description": "D1-D11, revision 2"
+      },
+      {
+        "path": "openspec/changes/add-autopilot-simplify-phase/specs/skill-workflow/spec.md",
+        "description": "7 MODIFIED + 6 ADDED requirements"
+      },
+      {
+        "path": "openspec/changes/add-autopilot-simplify-phase/tasks.md",
+        "description": "32 tasks across 6 phases"
+      },
+      {
+        "path": "openspec/changes/add-autopilot-simplify-phase/work-packages.yaml",
+        "description": "6 packages; wp-contracts root, three parallel implementation packages"
+      }
+    ]
+  }
+}

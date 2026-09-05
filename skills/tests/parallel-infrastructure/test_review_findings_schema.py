@@ -137,3 +137,116 @@ def test_existing_required_fields_preserved():
 def test_schema_is_valid_jsonschema():
     """Sanity check: the schema is itself a valid Draft 2020-12 schema."""
     Draft202012Validator.check_schema(SCHEMA)
+
+
+# ---------------------------------------------------------------------------
+# type / review_type enum identity across every hand-maintained copy
+#
+# Five copies of the same two vocabularies: the canonical schema, its install
+# mirror, both consensus-report copies (where the finding type is spelled
+# `agreed_type`), and vendor_review's offline fallback. They drift silently —
+# consensus-report was missing `behavioral_failure` — so pin them together.
+# ---------------------------------------------------------------------------
+
+CONSENSUS_SCHEMA_PATH = REPO_ROOT / "openspec" / "schemas" / "consensus-report.schema.json"
+CONSENSUS_MIRROR_SCHEMA_PATH = (
+    REPO_ROOT
+    / "skills"
+    / "parallel-infrastructure"
+    / "install_assets"
+    / "openspec"
+    / "schemas"
+    / "consensus-report.schema.json"
+)
+VENDOR_REVIEW_SCRIPTS_DIR = REPO_ROOT / "skills" / "merge-pull-requests" / "scripts"
+if str(VENDOR_REVIEW_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(VENDOR_REVIEW_SCRIPTS_DIR))
+
+from vendor_review import _FALLBACK_ENUMS  # noqa: E402
+
+#: Every value that existed before the simplify-phase change, plus the additions.
+TYPE_ENUM = [
+    "spec_gap",
+    "contract_mismatch",
+    "architecture",
+    "security",
+    "performance",
+    "style",
+    "correctness",
+    "observability",
+    "compatibility",
+    "resilience",
+    "behavioral_failure",
+    "simplification",
+    "test_quality",
+]
+REVIEW_TYPE_ENUM = ["plan", "implementation", "simplify"]
+
+#: Pre-existing values that must survive any extension.
+PRE_EXISTING_TYPE_VALUES = TYPE_ENUM[:-2]
+PRE_EXISTING_REVIEW_TYPE_VALUES = REVIEW_TYPE_ENUM[:-1]
+
+
+def _type_enums_by_source() -> dict[str, list]:
+    """`type` enum from every copy, keyed by a human-readable source name."""
+    canonical = json.loads(SCHEMA_PATH.read_text())
+    mirror = json.loads(MIRROR_SCHEMA_PATH.read_text())
+    consensus = json.loads(CONSENSUS_SCHEMA_PATH.read_text())
+    consensus_mirror = json.loads(CONSENSUS_MIRROR_SCHEMA_PATH.read_text())
+
+    def findings_type(schema: dict) -> list:
+        return schema["properties"]["findings"]["items"]["properties"]["type"]["enum"]
+
+    def agreed_type(schema: dict) -> list:
+        items = schema["properties"]["consensus_findings"]["items"]
+        return items["properties"]["agreed_type"]["enum"]
+
+    return {
+        "review-findings.schema.json": findings_type(canonical),
+        "review-findings mirror": findings_type(mirror),
+        "consensus-report.schema.json": agreed_type(consensus),
+        "consensus-report mirror": agreed_type(consensus_mirror),
+        "vendor_review._FALLBACK_ENUMS": list(_FALLBACK_ENUMS["type"]),
+    }
+
+
+def _review_type_enums_by_source() -> dict[str, list]:
+    """`review_type` enum from every copy that carries one."""
+    canonical = json.loads(SCHEMA_PATH.read_text())
+    mirror = json.loads(MIRROR_SCHEMA_PATH.read_text())
+    consensus = json.loads(CONSENSUS_SCHEMA_PATH.read_text())
+    consensus_mirror = json.loads(CONSENSUS_MIRROR_SCHEMA_PATH.read_text())
+    return {
+        "review-findings.schema.json": canonical["properties"]["review_type"]["enum"],
+        "review-findings mirror": mirror["properties"]["review_type"]["enum"],
+        "consensus-report.schema.json": consensus["properties"]["review_type"]["enum"],
+        "consensus-report mirror": consensus_mirror["properties"]["review_type"]["enum"],
+    }
+
+
+def test_type_enum_identical_across_all_copies():
+    for source, values in _type_enums_by_source().items():
+        assert list(values) == TYPE_ENUM, f"{source} type enum drifted"
+
+
+def test_review_type_enum_identical_across_all_copies():
+    for source, values in _review_type_enums_by_source().items():
+        assert list(values) == REVIEW_TYPE_ENUM, f"{source} review_type enum drifted"
+
+
+def test_simplify_values_present_in_every_copy():
+    for source, values in _type_enums_by_source().items():
+        assert {"simplification", "test_quality"} <= set(values), (
+            f"{source} is missing the simplify finding types"
+        )
+    for source, values in _review_type_enums_by_source().items():
+        assert "simplify" in values, f"{source} is missing review_type simplify"
+
+
+def test_pre_existing_enum_values_preserved():
+    for source, values in _type_enums_by_source().items():
+        missing = [v for v in PRE_EXISTING_TYPE_VALUES if v not in values]
+        assert not missing, f"{source} dropped pre-existing type values {missing}"
+    for source, values in _review_type_enums_by_source().items():
+        missing = [v for v in PRE_EXISTING_REVIEW_TYPE_VALUES if v not in values]
+        assert not missing, f"{source} dropped pre-existing review_type values {missing}"

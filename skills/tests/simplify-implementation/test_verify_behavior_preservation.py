@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parents[2] / "simplify" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[2] / "simplify-implementation" / "scripts"
 
 
 def _load():
     import sys
 
     path = SCRIPTS / "verify_behavior_preservation.py"
-    name = "simplify_verify_behavior_preservation"
+    name = "simplify_implementation_verify_behavior_preservation"
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)

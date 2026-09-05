@@ -50,7 +50,7 @@ ASSERT_LINE_RE = re.compile(
         | assert(?:equal|Equals|True|False|In|Is|IsNone|Raises|AlmostEqual)?\b
         | expect\s*\(
         | expect\w*\s*\(
-        | self\.assert\w+\s*\(
+        | [\w.\[\]]+\.assert\w*\s*\(     # self.assertEqual(, mock.assert_called_with(
         | pytest\.raises\s*\(
         | should\s*\(
         | assertThat\s*\(
@@ -218,7 +218,7 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 "  action: set --base to the tip AFTER characterization commits; "
                 "do not change assertion bodies in the simplify range. "
-                "If behavior must change, use a feature/fix workflow — not /simplify.",
+                "If behavior must change, use a feature/fix workflow — not /simplify-implementation.",
                 file=sys.stderr,
             )
 

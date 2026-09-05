@@ -530,6 +530,7 @@ class TestSchemaConformance:
             "spec_gap", "contract_mismatch", "architecture", "security",
             "performance", "style", "correctness", "observability",
             "compatibility", "resilience", "behavioral_failure",
+            "simplification", "test_quality",
         ]
         assert finding["criticality"] in ["low", "medium", "high", "critical"]
         assert isinstance(finding["description"], str)

@@ -4196,9 +4196,9 @@ Every skill where `user_invocable: true` SHALL end its `SKILL.md` with three sub
 3. `## Verification` — a numbered checklist a reviewer or agent runs to confirm the skill was applied
 
 The convention SHALL apply to:
-- The three pilot skills: `simplify`, `bug-scrub`, `tech-debt-analysis`
+- The three pilot skills: `simplify-implementation`, `bug-scrub`, `tech-debt-analysis`
 - The ten new methodology skills (built in from day one)
-- The eight ADAPT-target skills modified by this change: `implement-feature`, `parallel-review-plan`, `parallel-review-implementation`, `simplify` (already pilot), `security-review`, `plan-feature`, `cleanup-feature`, `merge-pull-requests`, `explore-feature`
+- The eight ADAPT-target skills modified by this change: `implement-feature`, `parallel-review-plan`, `parallel-review-implementation`, `simplify-implementation` (already pilot), `security-review`, `plan-feature`, `cleanup-feature`, `merge-pull-requests`, `explore-feature`
 
 Skills with `user_invocable: false` (infrastructure skills) SHALL be exempt.
 
@@ -4337,7 +4337,7 @@ The eight adaptations SHALL be:
 |---|---|
 | `implement-feature` | "Rules 0–5" framing; `NOTICED BUT NOT TOUCHING:` template injected into work-package execution prompts |
 | `parallel-review-plan` and `parallel-review-implementation` | 5-axis review schema (Correctness / Readability / Architecture / Security / Performance); 5 severity prefixes (Critical / Nit / Optional / FYI / none) |
-| `simplify` | Chesterton's Fence pre-check; "Rule of 500" trigger; pattern catalog |
+| `simplify-implementation` | Chesterton's Fence pre-check; "Rule of 500" trigger; pattern catalog |
 | `security-review` | Three-tier boundary system; OWASP Top 10 prevention rules — added as a "preventive mode" alongside the existing scanner runner |
 | `plan-feature` | XS/S/M/L/XL task sizing; "title contains 'and' → split signal"; explicit checkpoint cadence |
 | `cleanup-feature` | 5%→25%→50%→100% staged rollout sequence; rollback triggers; pre-launch checklist phase |
@@ -4352,7 +4352,7 @@ The eight adaptations SHALL be:
 
 #### Scenario: simplify contains Chesterton's Fence pre-check
 
-**WHEN** `simplify/SKILL.md` is read
+**WHEN** `simplify-implementation/SKILL.md` is read
 **THEN** it SHALL contain a section titled "Chesterton's Fence" or referencing the pre-simplification questions
 **AND** it SHALL contain a "Rule of 500" trigger description
 
@@ -4657,7 +4657,7 @@ rather than re-deriving them. Resolution SHALL return the package's
 
 ### Requirement: Simplify Skill Behavior-Preservation Contract
 
-The `simplify` skill SHALL preserve observable behavior of the code under edit. Before modifying production source, the skill SHALL apply a **coverage gate**:
+The `simplify-implementation` skill SHALL preserve observable behavior of the code under edit. Before modifying production source, the skill SHALL apply a **coverage gate**:
 
 1. Identify the behavioral surface (public inputs, outputs, errors, and side-effect ordering relevant to the candidate change).
 2. Determine whether existing **state-based** tests pin that surface.
@@ -4665,12 +4665,12 @@ The `simplify` skill SHALL preserve observable behavior of the code under edit. 
 
 Simplification commits SHALL NOT modify test expectation bodies (`assert` / `expect` arguments or equivalent) to make the suite pass. If expectations must change for the suite to pass, the simplification SHALL be reverted and re-evaluated — the change is treated as a behavior change outside this skill's scope.
 
-The skill SHALL perform **dual-run verification**: the selected test suite SHALL pass on the pre-simplify baseline tip and on the post-simplify tip. Primary invoke remains `/simplify`; invocation SHALL remain operator-manual (not default-enabled in autopilot).
+The skill SHALL perform **dual-run verification**: the selected test suite SHALL pass on the pre-simplify baseline tip and on the post-simplify tip. Primary invoke remains `/simplify-implementation`; invocation SHALL remain operator-manual (not default-enabled in autopilot).
 
 #### Scenario: Unpinned surface blocks production edits
 
 - **GIVEN** a module with no tests covering the function under consideration
-- **WHEN** an agent runs `/simplify` on that module
+- **WHEN** an agent runs `/simplify-implementation` on that module
 - **THEN** the agent SHALL write characterization tests that pass on the baseline code before editing production source
 - **AND** the characterization tests SHALL be committed separately from refactor commits
 
@@ -4691,14 +4691,14 @@ The skill SHALL perform **dual-run verification**: the selected test suite SHALL
 #### Scenario: Manual invocation only
 
 - **GIVEN** an autopilot or implement-feature run
-- **WHEN** no operator explicitly requests `/simplify`
+- **WHEN** no operator explicitly requests `/simplify-implementation`
 - **THEN** the orchestrator SHALL NOT automatically run a simplify phase by default
 
 ---
 
 ### Requirement: Simplify Pattern Catalog Includes Isomorphic DRY
 
-The `simplify` skill's pattern catalog SHALL include, in addition to local clarity patterns (guard clauses, extract helpers from long functions, nested ternaries, boolean flag splits, domain naming, premature-abstraction inline):
+The `simplify-implementation` skill's pattern catalog SHALL include, in addition to local clarity patterns (guard clauses, extract helpers from long functions, nested ternaries, boolean flag splits, domain naming, premature-abstraction inline):
 
 - **Isomorphic extract** — structural duplication across call sites collapsed into a shared helper without changing observable behavior, only when characterization tests pin all rewritten sites
 - **Dead code removal** — unreachable or unreferenced code removed only after Chesterton's Fence and call-graph/test evidence
@@ -4717,7 +4717,7 @@ Large structural changes remain subject to the Rule of 500 (≤500 lines and ≤
 
 ### Requirement: Simplify Mechanical Helper Scripts
 
-The `simplify` skill SHALL ship optional helper scripts under `skills/simplify/scripts/`:
+The `simplify-implementation` skill SHALL ship optional helper scripts under `skills/simplify-implementation/scripts/`:
 
 | Script | Behavior |
 |---|---|
@@ -4746,7 +4746,7 @@ Scripts SHALL be invocable via `<skill-base-dir>/scripts/...` and MUST NOT requi
 
 The `tech-debt-analysis` skill SHALL document remediation routing for findings:
 
-- Local complexity / nesting / naming / local duplication → recommend `/simplify`
+- Local complexity / nesting / naming / local duplication → recommend `/simplify-implementation`
 - Hub nodes, high coupling, large extract-class work → recommend `/plan-feature`
 - Zombie or unused public surfaces → recommend `/deprecation-and-migration`
 - Measured performance hotspots → recommend `/performance-optimization`
@@ -4755,13 +4755,13 @@ The `tech-debt-analysis` skill SHALL document remediation routing for findings:
 
 - **GIVEN** a tech-debt report finding for deep nesting in a single file under 500 lines
 - **WHEN** the operator follows remediation routing
-- **THEN** the recommended next skill SHALL be `/simplify` rather than a full OpenSpec feature plan
+- **THEN** the recommended next skill SHALL be `/simplify-implementation` rather than a full OpenSpec feature plan
 
 ---
 
 ### Requirement: Optional Post-Implementation Simplify Polish
 
-The `implement-feature` and `iterate-on-implementation` skills SHALL document an **optional** next step to invoke `/simplify` for behavior-preserving polish after the suite is green. Any such polish SHALL land as separate `refactor` commits and SHALL NOT mix with `feat` / `fix` commits from the feature work.
+The `implement-feature` and `iterate-on-implementation` skills SHALL document an **optional** next step to invoke `/simplify-implementation` for behavior-preserving polish after the suite is green. Any such polish SHALL land as separate `refactor` commits and SHALL NOT mix with `feat` / `fix` commits from the feature work.
 
 #### Scenario: Optional polish is not required for implement completion
 

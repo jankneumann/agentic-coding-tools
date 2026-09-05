@@ -140,6 +140,9 @@
       "parallel-infrastructure",
       "project-context-runtime"
     ],
+    "simplify-implementation": [
+      "parallel-infrastructure"
+    ],
     "supervise": [
       "plan-roadmap",
       "prioritize-proposals",
@@ -356,7 +359,7 @@
         "COORDINATOR_DIR for local coordinator administration"
       ]
     },
-    "simplify": {
+    "simplify-implementation": {
       "distribution": "portable"
     },
     "source-driven-development": {

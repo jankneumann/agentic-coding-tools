@@ -240,7 +240,7 @@ def dual_run(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Dual-run tests for /simplify behavior preservation")
+    parser = argparse.ArgumentParser(description="Dual-run tests for /simplify-implementation behavior preservation")
     parser.add_argument("--baseline", required=True, help="Baseline git ref (pre-simplify production tip)")
     parser.add_argument("--head", default="HEAD", help="End ref (default HEAD)")
     parser.add_argument(

@@ -504,6 +504,8 @@ def test_complete_task_sends_notification_to_assignee(): ...
 | No test isolation | Tests pass individually but fail together | Each test sets up and tears down its own state |
 | Mocking everything | Tests pass but production breaks | Prefer real implementations > fakes > stubs > mocks. Mock only at boundaries where real deps are slow or non-deterministic |
 
+These anti-patterns are also removal criteria. A suite that already contains them is pruned — not tolerated — through the `simplify-implementation` skill's test-prune phase, which characterizes behavior first, removes the implementation-coupled tests under a ledger, then deletes the production seams they held open. See `docs/guides/testing-policy.md` (consumer-project-relative).
+
 ## Coverage and Targeted Runs
 
 Use targeted runs while iterating, full runs before committing:
@@ -571,6 +573,8 @@ This separation ensures the test is written without knowledge of the fix, making
 - `references/accessibility-checklist.md` — a11y assertions for UI tests
 - `debugging-and-error-recovery` skill — what to do *after* a test goes red
 - `browser-testing-with-devtools` skill — runtime verification for UI work
+- `simplify-implementation` skill — the removal side: pruning tests that assert implementation, and the seams they hold open
+- `docs/guides/testing-policy.md` (consumer-project-relative) — repo-wide policy for what a test must earn
 
 ## Common Rationalizations
 

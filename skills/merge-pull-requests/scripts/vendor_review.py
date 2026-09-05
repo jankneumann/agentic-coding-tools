@@ -191,7 +191,7 @@ _FALLBACK_ENUMS = {
     "type": (
         "spec_gap", "contract_mismatch", "architecture", "security", "performance",
         "style", "correctness", "observability", "compatibility", "resilience",
-        "behavioral_failure",
+        "behavioral_failure", "simplification", "test_quality",
     ),
     "criticality": ("low", "medium", "high", "critical"),
     "disposition": ("fix", "regenerate", "accept", "escalate"),

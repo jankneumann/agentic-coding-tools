@@ -1,0 +1,7 @@
+{
+  "change_id": "add-autopilot-simplify-phase",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "claude"
+  ]
+}

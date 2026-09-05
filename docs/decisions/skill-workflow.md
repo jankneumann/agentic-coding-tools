@@ -5,6 +5,182 @@
 
 ---
 
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Plan
+
+**SIMPLIFY is a first-class opt-in phase gated by one dynamic target on two edges** — SIMPLIFY_OR_VALIDATE on IMPL_REVIEW converged and on IMPL_ITERATE complete under --no-review, resolved in transition() like VAL_REVIEW_OR_SUBMIT, so the flag cannot silently disappear in --no-review runs and the centralised-table test keeps holding.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D1)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Plan
+
+**Two phases, not one: SIMPLIFY_REVIEW -> SIMPLIFY_APPLY** — Each role gets its own archetype, handoff boundary, token budget, resume point, and outcome record; an interruption between review and apply resumes at apply with the artifact on disk. Same dynamic-target mechanism as VAL_REVIEW_OR_SUBMIT.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D1)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Implementation
+
+**Fell back from coordinated to local-parallel tier** — check_coordinator reports CAN_LOCK=true but try_lock returns 'unauthorized' for this session's key, so the per-package lock protocol cannot be honored; issues seeding and reads work. Sub-agent dispatch per package was preserved.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D1)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Plan
+
+**SIMPLIFY is soft: refusals are `skipped`, and `skipped` resets the head to B1** — Rule of 500, unpinnable surface, prune/contract/dual-run exit 2, and nothing-to-do all map to skipped -> VALIDATE. Dual-run failure never leaves a partial refactor for VALIDATE; only dispatch failure escalates.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D2)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Plan
+
+**The review artifact is a review-findings document with review_type simplify** — One schema family: IMPL_REVIEW's test_quality findings seed SIMPLIFY_REVIEW, and the fence verdict, coverage decision, and consumer check the skill's steps 1-4 already require become reviewable fields. Contract composed by allOf over the canonical schema, with conditional rules (fix requires remove; coverage-required prune requires covered_by; any consumer forces keep).
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D2)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Implementation
+
+**Commit tests and implementation together per package** — Rule 2 (every commit green) outranks a separate RED commit; TDD order was still followed inside each package and RED->GREEN is recorded in the agent reports.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D2)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Plan
+
+**Test-quality diagnostic is `type: test_quality` at criticality low, not a ninth axis** — _is_blocking keys on criticality so low-criticality findings never block on their own; `type` is the precedented additive extension (behavioral_failure) while `axis` participates in consensus matching and would ripple through the synthesizer and both review skills.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D3)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Plan
+
+**The prune ledger is rendered from the artifact, never hand-written in the orchestrated path** — The ledger is the reviewer's decision; rendering it means the implementer cannot justify a deletion the reviewer did not make, and check_test_prune becomes a check that apply did what review said.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D3)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Implementation
+
+**Artifact carries an optional test_id nodeid; render-ledger falls back to a file-level entry** — The frozen contract permits extra properties; check_test_prune.parse_ledger accepts file-level entries, so both shapes round-trip.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D3)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Plan
+
+**Evidence counters define the exit criteria the 2026-08-04 manual-only decision lacked** — lines_removed, files_touched, tests_pruned, seams_removed, dual_run_passed, skipped_reason on every SIMPLIFY outcome; dual_run_passed=false frequency is the number that keeps the phase opt-in.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D4)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Plan
+
+**simplify-implementation is restructured into Review (steps 0-4) and Apply (steps 5-8) roles** — Manual and orchestrated paths share one contract; autopilot prompts become 'run the Review role' / 'run the Apply role'. Apply must not change a fence verdict or disposition; disagreements go to a human.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D4)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Implementation
+
+**Bundled contract copy under skills/simplify-implementation/schemas/ with a drift test** — The script needs a deterministic default --contract in installed layouts; the drift test against the change's frozen contract keeps the copy honest while the change is active.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D4)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Plan
+
+**Implement after fix-autopilot-archetype-and-apply-outcome archives** — That change (54/59 tasks) is rewriting the same ~25 phase enumerations; adding SIMPLIFY once to the landed shape is one edit rather than a rebase across every table. Encoded as task 0.1.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D5)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Plan
+
+**seams_removed is counted from applied seam-pattern findings, not self-reported** — The artifact carries the catalog pattern per finding, which removes the self-reporting weakness flagged in plan revision 1.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D5)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Implementation
+
+**Context-impact declarations corrected for four packages** — The ri-08 gate infers semantic_code for .py tests and apis for *.schema.json; work-packages.yaml now declares the inferred sets and checkpoints ran for all three landed packages.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D5)
+
+---
+
+## 2026-09-04 — add-autopilot-simplify-phase
+
+### Phase: Plan
+
+**Report and ledger are routed into the change directory by explicit paths** — verify_behavior_preservation.py's CWD-relative default is right for manual use; the phase passes --report explicitly so VALIDATE and the PR can find evidence, and the portable script stays uncoupled from the OpenSpec layout.
+
+- Status: `active`
+- Source: [openspec/changes/add-autopilot-simplify-phase/session-log.md](/openspec/changes/add-autopilot-simplify-phase/session-log.md) (D6)
+
+---
+
 ## 2026-08-29 — 2026-08-28-bind-decision-index-to-session-log-writes
 
 ### Phase: Cleanup

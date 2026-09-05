@@ -41,6 +41,11 @@ See [Python environment guide](docs/guides/python-environment.md) for install co
 Branch naming: `openspec/<change-id>`. Commit format: conventional commits with `feat(scope):` prefixes. Hybrid merge strategy (rebase for agent PRs, squash for deps/automation).
 See [git conventions guide](docs/guides/git-conventions.md) for save-point pattern, change summary template, and merge details.
 
+## Testing Policy
+
+Tests must justify their presence: a test is justified iff it traces up to a spec clause or goal, and a seam is justified by a consumer that is present in production or specified in an active OpenSpec change. A test that must be edited whenever the source changes asserts implementation, not behavior — prefer state-based tests, pin behavior at the seam, and prune change-detectors. Removing tests is ordered and ledgered: characterize first, prune in test-only commits, then remove the production seams the pruned tests held open.
+See [testing policy guide](docs/guides/testing-policy.md) for the removal gates, ledger format, and test-induced seam rules.
+
 ## Skills
 
 Canonical source: `skills/` at repo root. Runtime copies (`.claude/skills/`, `.agents/skills/`) are overwritten by `install.sh`. Tests go in `skills/tests/<skill-name>/`.

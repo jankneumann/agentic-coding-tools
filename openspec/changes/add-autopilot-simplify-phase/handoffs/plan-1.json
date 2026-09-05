@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-04T13:23:34.956998+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned an opt-in SIMPLIFY phase for autopilot between IMPL_REVIEW and VALIDATE, a read-only test_quality review finding type, and the spec amendment that turns 'manual invocation only' into 'not default-on'. Gate 1 selected Approach 1 (first-class phase plus additive enum); implementation is sequenced after fix-autopilot-archetype-and-apply-outcome archives.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "SIMPLIFY is a first-class opt-in phase gated by one dynamic target on two edges",
+        "rationale": "SIMPLIFY_OR_VALIDATE on IMPL_REVIEW converged and on IMPL_ITERATE complete under --no-review, resolved in transition() like VAL_REVIEW_OR_SUBMIT, so the flag cannot silently disappear in --no-review runs and the centralised-table test keeps holding.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "SIMPLIFY is soft: refusals are `skipped`, and `skipped` resets the head to B1",
+        "rationale": "Rule of 500, unpinnable surface, prune/contract/dual-run exit 2, and nothing-to-do all map to skipped -> VALIDATE. Dual-run failure never leaves a partial refactor for VALIDATE; only dispatch failure escalates.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Test-quality diagnostic is `type: test_quality` at criticality low, not a ninth axis",
+        "rationale": "_is_blocking keys on criticality so low-criticality findings never block on their own; `type` is the precedented additive extension (behavioral_failure) while `axis` participates in consensus matching and would ripple through the synthesizer and both review skills.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Evidence counters define the exit criteria the 2026-08-04 manual-only decision lacked",
+        "rationale": "lines_removed, files_touched, tests_pruned, seams_removed, dual_run_passed, skipped_reason on every SIMPLIFY outcome; dual_run_passed=false frequency is the number that keeps the phase opt-in.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Implement after fix-autopilot-archetype-and-apply-outcome archives",
+        "rationale": "That change (54/59 tasks) is rewriting the same ~25 phase enumerations; adding SIMPLIFY once to the landed shape is one edit rather than a rebase across every table. Encoded as task 0.1.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Report and ledger are routed into the change directory by explicit paths",
+        "rationale": "verify_behavior_preservation.py's CWD-relative default is right for manual use; the phase passes --report explicitly so VALIDATE and the PR can find evidence, and the portable script stays uncoupled from the OpenSpec layout.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Task 0.1 first: confirm fix-autopilot-archetype-and-apply-outcome is archived and re-anchor Phase 1 against the landed TRANSITIONS/LoopState shape.",
+      "wp-review-diagnostic can start immediately in parallel; it has no dependency on the autopilot rewrite.",
+      "Follow-ups filed in design.md D9 (schema and spec phase-list drift) are deliberately not part of this change."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-autopilot-simplify-phase/proposal.md",
+        "description": "approved proposal with Selected Approach"
+      },
+      {
+        "path": "openspec/changes/add-autopilot-simplify-phase/design.md",
+        "description": "D1-D10 design decisions"
+      },
+      {
+        "path": "openspec/changes/add-autopilot-simplify-phase/specs/skill-workflow/spec.md",
+        "description": "6 MODIFIED + 3 ADDED requirements"
+      },
+      {
+        "path": "openspec/changes/add-autopilot-simplify-phase/tasks.md",
+        "description": "28 tasks across 5 phases, TDD-ordered"
+      },
+      {
+        "path": "openspec/changes/add-autopilot-simplify-phase/work-packages.yaml",
+        "description": "4 packages; two parallel implementation packages with disjoint scopes"
+      }
+    ]
+  }
+}

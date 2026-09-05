@@ -28,7 +28,7 @@ Implement work packages against clean context, scoped to non-overlapping `write_
 Verify correctness adversarially across two surfaces:
 - **Scrutiny validators** — `/parallel-review-plan` and `/parallel-review-implementation` dispatch vendor-diverse reviewers (Claude, Codex, Antigravity, Grok, Pi) and merge their structured findings against `review-findings.schema.json` via `consensus_synthesizer.py`
 - **Behavioral validators** — `/gen-eval` runs scenarios against the live deployment (HTTP/MCP/CLI surfaces); the Playwright validator covers frontend surfaces. Both produce findings in the same schema, merged into a single ranked list
-- **Quality validators** — `/bug-scrub`, `/security-review`, `/tech-debt-analysis`, `/simplify` for cross-cutting health checks
+- **Quality validators** — `/bug-scrub`, `/security-review`, `/tech-debt-analysis`, `/simplify-implementation` for cross-cutting health checks
 
 ## Projects
 
