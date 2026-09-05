@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-05T04:15:10.156404+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned Phase A of the documentation-simplification proposal: a three-layer doc structure (README/VISION entry points, one-concept-per-guide docs/guides, generated or formal reference), a tagged lessons corpus, retirement of the hand-maintained skills catalogue, and document metadata pinned by one new test module. Gate 1 selected the hand-authored approach over a producer-backed restructure; tier is coordinated with five packages, three in parallel.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Three-layer documentation with a single map",
+        "rationale": "Layer 0 entry points, Layer 1 one-concept guides under docs/guides/, Layer 2 generated or formal reference; docs/guides/documentation.md is the only index. Completes harness-engineering Progressive Context Architecture on the human-reader side.",
+        "capability": "harness-engineering",
+        "supersedes": null
+      },
+      {
+        "title": "Generated inventory replaces the hand-maintained skills catalogue",
+        "rationale": "docs/skills-catalogue.md is deleted; its orientation prose moves outside the producer's markers in skills-inventory.md, which the producer preserves byte-for-byte. No spec named the catalogue, so no delta beyond the new requirement.",
+        "capability": "harness-engineering",
+        "supersedes": null
+      },
+      {
+        "title": "Lessons carry status and evidence tags and are retired by moving, never deleted silently",
+        "rationale": "Turns the append-only Documentation Update Per Iteration rule into a maintained corpus the Phase B /simplify-docs skill can re-verify; superseded lessons name what replaced them.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Keep every spec-pinned or test-pinned doc path; add guides beside them",
+        "rationale": "docs/skills-workflow.md, docs/guides/workflow.md, and docs/cloud-deployment.md keep paths and pinned content; renaming would cost three spec deltas, a test rewrite, and 17 referrer edits for no reader-visible gain.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Document metadata as YAML frontmatter for Layer 1 and an HTML doc-meta comment for Layer 0",
+        "rationale": "GitHub renders frontmatter as a table; that is noise above README and costs tokens in CLAUDE.md. Data ships now, the claim checker is Phase B.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Hand-authored restructure over producer-backed blocks (Gate 1)",
+        "rationale": "Avoids a producer version bump, a CI OUTPUT_PATHS edit, and a project-context-refresh delta; keeps this change decoupled from gate-drift-with-mirrors-hooks-and-blocking-ci.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run /vision to produce VISION.md, then /implement-feature restructure-documentation-layers.",
+      "wp-tests first (RED), then wp-entry-and-map, wp-guides, wp-lessons in parallel, then wp-integration."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/restructure-documentation-layers/proposal.md",
+        "description": "approved proposal with Selected Approach"
+      },
+      {
+        "path": "openspec/changes/restructure-documentation-layers/design.md",
+        "description": "D1-D8 decisions and package sequence"
+      },
+      {
+        "path": "openspec/changes/restructure-documentation-layers/tasks.md",
+        "description": "21 tasks in six phases with checkpoints"
+      },
+      {
+        "path": "openspec/changes/restructure-documentation-layers/work-packages.yaml",
+        "description": "six packages, three parallel"
+      },
+      {
+        "path": "docs/proposals/documentation-simplification.md",
+        "description": "parent proposal (Phases A-C)"
+      }
+    ]
+  }
+}
