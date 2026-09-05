@@ -288,3 +288,39 @@ Contracts: `contracts/events/simplify-review.schema.json` (+ two fixtures).
 - [ ] 6.3 Append the Implementation `PhaseRecord` via `write_both()`; update this file's
       checkboxes; commit and push — **XS**
       **Dependencies**: 6.2
+
+<!-- GENERATED: begin coordinator:tasks-status -->
+<!-- Informational projection — see openspec/changes/add-autopilot-simplify-phase/proposal.md "What Doesn't Change" -->
+- [x] 1.1: Test: `simplify-review.schema.json` is a valid JSON Schema 2020-12 document; — done 2026-09-05
+- [x] 1.2: Test: `type` and `review_type` enums are identical across canonical, — done 2026-09-05
+- [x] 1.3: Implement the contract: confirm `simplify-review.schema.json`'s conditional rules (including — done 2026-09-05
+- [x] 1.4: Implement the enum additions in all five copies (adding `behavioral_failure` to — done 2026-09-05
+- [x] 2.1: Test: `simplify_review.py validate` exits 0 on the valid fixture, 2 on the — done 2026-09-05
+- [x] 2.2: Test: round-trip on a synthetic git repo — `render-ledger` from an artifact with — done 2026-09-05
+- [x] 2.3: Implement `skills/simplify-implementation/scripts/simplify_review.py` with — done 2026-09-05
+- [x] 2.4: Restructure `skills/simplify-implementation/SKILL.md`: add `## Roles` (Review = — done 2026-09-05
+- [x] 2.5: Test: content invariants in `skills/tests/simplify-implementation/test_skill_md.py` — done 2026-09-05
+- [ ] 3.0: Confirm `fix-autopilot-archetype-and-apply-outcome` is archived — pending
+- [ ] 3.1: Test: `transition()` resolves `SIMPLIFY_OR_VALIDATE` to `SIMPLIFY_REVIEW` when — pending — blocked on 3.0
+- [ ] 3.2: Test: a schema-v5 `loop-state.json` fixture loads under v6 with the four new — pending — blocked on 3.0
+- [ ] 3.3: Test: the existing end-to-end loop fixture without `--simplify` produces a — pending — blocked on 3.0
+- [ ] 3.4: Implement the state-machine edge, both `TRANSITIONS` rows, `LoopState` v6 fields — pending — blocked on 3.1, 3.2, 3.3
+- [ ] 3.5: Test: `_phase_simplify_review` — artifact with a `fix` finding → `findings` and — pending — blocked on 3.4
+- [ ] 3.6: Test: `_phase_simplify_apply` — scripted prune exit 2, contract exit 2, dual-run — pending — blocked on 3.4
+- [ ] 3.7: Test: every simplify-phase outcome writes a `phase_history` entry with the nine — pending — blocked on 3.4
+- [ ] 3.8: Implement `_phase_simplify_review` in `autopilot.py`: 3-step dispatch to the — pending — blocked on 3.5, 3.7
+- [ ] 3.9: Implement `_phase_simplify_apply` in `autopilot.py`: 3-step dispatch to the Apply — pending — blocked on 3.6, 3.7
+- [ ] 3.10: Register both phases in every enumeration: `_HANDOFF_BOUNDARIES` — pending — blocked on 3.4
+- [ ] 3.11: Test: structural parity — one test enumerates the phase tables named in 3.10 and — pending — blocked on 3.10
+- [ ] 3.12: `skills/autopilot/SKILL.md`: `--simplify` in Arguments; parsing block in step 0; — pending — blocked on 3.9, 3.10
+- [x] 4.1: Test: a review round whose only consensus findings are `test_quality` at — done 2026-09-05
+- [x] 4.2: `skills/parallel-review-implementation/SKILL.md`: Test quality checklist under — done 2026-09-05
+- [x] 4.3: Test: content invariant in `skills/tests/parallel-review-implementation/` — the — done 2026-09-05
+- [ ] 5.1: Test: content invariants — `implement-feature/SKILL.md` and — pending — blocked on 3.12
+- [ ] 5.2: Update the two polish paragraphs; add a Review/Apply roles paragraph to — pending — blocked on 5.1
+- [ ] 5.3: Update `docs/autopilot-phase-archetype-resolution.md` (phase list, archetype — pending — blocked on 5.2
+- [ ] 5.4: Run `bash skills/install.sh --mode rsync --deps none --python-tools none` to — pending — blocked on 5.3
+- [ ] 6.1: Run the full skills suite (`skills/tests`, `skills/autopilot/scripts/tests`) and — pending
+- [ ] 6.2: `openspec validate add-autopilot-simplify-phase --strict`; confirm every SHALL — pending — blocked on 6.1
+- [ ] 6.3: Append the Implementation `PhaseRecord` via `write_both()`; update this file's — pending — blocked on 6.2
+<!-- GENERATED: end coordinator:tasks-status -->
