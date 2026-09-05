@@ -1,0 +1,230 @@
+schema_version: 1
+
+feature:
+  id: add-visual-code-explainer
+  title: "Visual code explainer — explain-code skill grounded through codebase-atlas --tree"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    # No OpenAPI surface in this change. README is the contracts entrypoint per repo convention.
+    primary: "openspec/changes/add-visual-code-explainer/contracts/README.md"
+    files:
+      - "openspec/changes/add-visual-code-explainer/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 90
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ── wp-atlas-tree — the only new code: --tree export in codebase-atlas (tasks 1.1–1.4)
+  - package_id: wp-atlas-tree
+    title: "codebase-atlas --tree symbol export"
+    task_type: backend
+    description: |
+      Tasks 1.1–1.4: tests first, then atlas_tree.py (BFS over symbolEdges, target
+      resolution, formatter, coverage footer) and the --tree/--hops/--direction flags in
+      build_atlas.py; SKILL.md flag-table row; flag tuple in test_skill_md.py.
+      Design D3, D4, D8. Spec: codebase-analysis "Atlas Symbol Tree Export".
+    role: backend-implementer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/codebase-atlas/scripts/build_atlas.py"
+        - "skills/codebase-atlas/SKILL.md"
+      keys:
+        - "feature:add-visual-code-explainer:atlas"
+      ttl_minutes: 90
+      reason: "Add --tree export to the atlas CLI"
+    scope:
+      write_allow:
+        - "skills/codebase-atlas/**"
+        - "skills/tests/codebase-atlas/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/explain-code/**"
+        - "skills/install-manifest.json"
+        - "skills/pyproject.toml"
+    worktree:
+      name: visual-code-explainer-wp-atlas-tree
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Atlas tests green (model, render, tree, skill-md)"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/codebase-atlas -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "atlas_tests_green"
+        - name: "--tree is deterministic on the committed graph"
+          kind: command
+          command: "bash -c 'python3 skills/codebase-atlas/scripts/build_atlas.py --tree coordination_api.py --no-coverage > /tmp/t1.txt && python3 skills/codebase-atlas/scripts/build_atlas.py --tree coordination_api.py --no-coverage > /tmp/t2.txt && cmp /tmp/t1.txt /tmp/t2.txt'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "tree_deterministic"
+    metadata:
+      loc_estimate: 350
+      complexity: medium
+      package_kind: algorithm
+    inputs: {}
+    outputs:
+      result_keys:
+        - "atlas_tests_green"
+        - "tree_deterministic"
+
+  # ── wp-skill — the prompt-only skill, its references, tests, and distribution wiring (tasks 2.1–2.6)
+  - package_id: wp-skill
+    title: "explain-code skill, references, tests, manifest and testpaths wiring"
+    task_type: docs
+    description: |
+      Tasks 2.1–2.6: test_skill_md.py first (explicit frontmatter keys, references resolve,
+      tail block, ≤150-line guard), then SKILL.md index, five references/<form>.md files
+      with humanlayer-attributed examples and the grounding reference (D2, D5, D9), the
+      three deterministic behavioural tests (D7), and install-manifest.json / pyproject.toml
+      entries. Runs in parallel with wp-atlas-tree; the grounding reference documents the
+      --tree contract from design D3 rather than importing the implementation.
+    role: docs-implementer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/install-manifest.json"
+        - "skills/pyproject.toml"
+      keys:
+        - "feature:add-visual-code-explainer:skill"
+        - "feature:add-visual-code-explainer:distribution"
+      ttl_minutes: 90
+      reason: "New skill directory and distribution wiring"
+    scope:
+      write_allow:
+        - "skills/explain-code/**"
+        - "skills/tests/explain-code/**"
+        - "skills/install-manifest.json"
+        - "skills/pyproject.toml"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/codebase-atlas/**"
+        - "skills/tests/codebase-atlas/**"
+    worktree:
+      name: visual-code-explainer-wp-skill
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "explain-code skill tests green"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/explain-code -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "skill_tests_green"
+        - name: "Install manifest and portability rules pass"
+          kind: command
+          command: "bash skills/install.sh --check-only"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "manifest_valid"
+    metadata:
+      loc_estimate: 450
+      complexity: medium
+      package_kind: config
+    inputs: {}
+    outputs:
+      result_keys:
+        - "skill_tests_green"
+        - "manifest_valid"
+
+  # ── wp-integration — mirrors, docs, full suite, spec validation (tasks 3.1–3.4)
+  - package_id: wp-integration
+    title: "Integration — regenerate mirrors, update codeviz proposal, full verification"
+    task_type: integration
+    description: |
+      Tasks 3.1–3.4: merge both package branches; run skills/install.sh --mode rsync to
+      regenerate .claude/skills and .agents/skills; record Phase 0b in
+      docs/proposals/codebase-visualization-tool.md; run the full skills test sweep and
+      openspec validate --strict; append the session log.
+    role: integrator
+    archetype: integrator
+    priority: 2
+    depends_on:
+      - wp-atlas-tree
+      - wp-skill
+    locks:
+      files: []
+      keys:
+        - "feature:add-visual-code-explainer:mirrors"
+      ttl_minutes: 60
+      reason: "Regenerate runtime mirrors after both packages land"
+    scope:
+      write_allow:
+        - ".claude/skills/**"
+        - ".agents/skills/**"
+        - "docs/proposals/codebase-visualization-tool.md"
+        - "openspec/changes/add-visual-code-explainer/**"
+      read_allow:
+        - "**"
+    worktree:
+      name: visual-code-explainer-wp-integration
+      mode: shared
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Full skills test sweep"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/codebase-atlas skills/tests/explain-code skills/tests/install_sh -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "suite_green"
+        - name: "OpenSpec strict validation"
+          kind: command
+          command: "openspec validate add-visual-code-explainer --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_valid"
+    metadata:
+      loc_estimate: 50
+      complexity: low
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - "suite_green"
+        - "openspec_valid"
