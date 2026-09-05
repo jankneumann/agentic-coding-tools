@@ -43,5 +43,7 @@
 - `docs/proposals/documentation-simplification.md` — parent proposal (Phases A-C)
 
 ### Context
+
+**Approval gates**: Gate 1 (Direction) — author selected Approach 1 (hand-authored restructure) after confirming the latent-intent check; Gate 2 (Plan) — author approved the complete plan on 2026-09-05. Planning lock claims were not registered: the coordinator returned `unauthorized` for the planning agent id.
 Planned Phase A of the documentation-simplification proposal: a three-layer doc structure (README/VISION entry points, one-concept-per-guide docs/guides, generated or formal reference), a tagged lessons corpus, retirement of the hand-maintained skills catalogue, and document metadata pinned by one new test module. Gate 1 selected the hand-authored approach over a producer-backed restructure; tier is coordinated with five packages, three in parallel.
 
