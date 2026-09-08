@@ -9,3 +9,11 @@
 - [x] 1.3 Verify `openspec validate --strict --all` passes with a fully scaffolded roadmap
 - [x] 1.4 Pin the invariant with a test that runs the real validator over scaffolder output
 - [ ] 1.5 Archive after merge
+
+## Migration Notes
+
+Recorded by the `/cleanup-feature` archive sweep on 2026-09-08.
+
+**Nothing migrated.** The single open box, `1.5 Archive after merge`, is satisfied by
+this sweep itself — the act of archiving is the task. Its subject matter was also
+carried by `scaffold-validating-roadmap-changes`, archived 2026-09-02.

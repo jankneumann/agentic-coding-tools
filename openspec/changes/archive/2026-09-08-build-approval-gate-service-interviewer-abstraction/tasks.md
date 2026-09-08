@@ -58,3 +58,13 @@
 - [x] 6.2 `pytest skills/shared/tests/` green (skills/.venv)
 - [x] 6.3 `openspec validate build-approval-gate-service-interviewer-abstraction --strict` passes
 - [ ] 6.4 Review and merge
+
+## Migration Notes
+
+Recorded by the `/cleanup-feature` archive sweep on 2026-09-08.
+
+**Nothing migrated.** The three open boxes — `Review`, `Done`, and `6.4 Review and
+merge` — are workflow-status ceremony, not deliverables. The deliverable,
+`skills/shared/approval_gate.py` (30 KB), is on `main`, and no feature branch
+survives. They are left unchecked rather than back-filled: this sweep archived the
+change, it did not perform the review those boxes describe.

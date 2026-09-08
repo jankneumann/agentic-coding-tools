@@ -50,3 +50,17 @@
 ## 7. Manual verification
 
 - [x] 7.1 Confirm by inspection of `loop-state.json` from a recent autopilot run that `last_handoff_id` is updated at the moments the hook should fire — proving the gate aligns with reality. Reference data: `openspec/changes/extract-gen-eval-package/loop-state.json` (existing autopilot loop, contains `last_handoff_id: "openspec/changes/extract-gen-eval-package/handoffs/plan_review-3.json"`).
+
+## Migration Notes
+
+Recorded by the `/cleanup-feature` archive sweep on 2026-09-08.
+
+**Open task migrated to follow-up proposal
+`followup-fix-compact-hook-phase-boundary-detection`:** 6.3 — the conditional
+`docs/lessons-learned.md` entry, which the parent explicitly scoped as post-merge and
+conditional on the gate semantics recurring as a debugging touchstone.
+
+**Open tasks closed as already-satisfied (deliberately left unchecked):** 6.1 and 6.2
+(commit and push). `skills/session-bootstrap/scripts/hooks/check_compact.py` is on
+`main` and no feature branch survives. Left unchecked for the same reason as above:
+completion here is inferred from the merged artifact, not observed.
