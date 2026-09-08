@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: mirror-autopilot-phase-state-into-the-work-queue
   title: Mirror Autopilot phase state into the work queue
-  plan_revision: 1
+  plan_revision: 2
   created_by: codex
   deployable: false
 
@@ -26,7 +26,7 @@ packages:
   - package_id: wp-projection-adapter
     title: Coordinated phase projection adapter and host registration
     task_type: integration
-    description: Implement tasks 1.1 through 2.3 with TDD, preserving the coordinator-free default and one-way authority contract.
+    description: Implement tasks 1.1 through 2.3 with TDD, including canonical host writers, head advancement, and coordinator-only label repair while preserving the coordinator-free default and one-way authority contract.
     role: implementer
     priority: 1
     depends_on: []
@@ -35,6 +35,7 @@ packages:
         - skills/autopilot/scripts/queue_projection.py
         - skills/autopilot/scripts/runner.py
         - skills/autopilot/SKILL.md
+        - skills/coordination-bridge/scripts/coordination_bridge.py
       keys:
         - feature:autopilot-live-queue-projection:modify
       ttl_minutes: 120
@@ -43,11 +44,12 @@ packages:
       write_allow:
         - skills/autopilot/scripts/**
         - skills/autopilot/SKILL.md
+        - skills/coordination-bridge/scripts/coordination_bridge.py
         - skills/tests/autopilot/**
+        - skills/tests/coordination-bridge/**
       read_allow:
         - skills/**
         - agent-coordinator/**
-        - apps/kanban-viz/**
         - docs/guides/work-queue-truth-projection.md
         - openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/**
       deny:
@@ -73,7 +75,7 @@ packages:
             result_keys: [autopilot_projection_tests_pass]
         - name: Lint changed Python
           kind: command
-          command: skills/.venv/bin/python -m ruff check skills/autopilot/scripts skills/tests/autopilot
+          command: skills/.venv/bin/python -m ruff check skills/autopilot/scripts skills/coordination-bridge/scripts/coordination_bridge.py skills/tests/autopilot skills/tests/coordination-bridge
           cwd: .
           expect_exit_code: 0
           evidence:
@@ -90,11 +92,12 @@ packages:
         - skills/autopilot/scripts/queue_projection.py
         - skills/autopilot/scripts/runner.py
         - skills/autopilot/SKILL.md
+        - skills/coordination-bridge/scripts/coordination_bridge.py
 
   - package_id: wp-live-integration
     title: Coordinator, crash recovery, and kanban proof
     task_type: integration
-    description: Implement tasks 3.1 through 4.3 against the existing coordinator and kanban data path, without frontend behavior changes.
+    description: Implement tasks 3.1 through 4.3 against the existing coordinator and read-only kanban data path, including partial-label repair and row-limit proof without frontend behavior changes.
     role: integrator
     priority: 2
     depends_on: [wp-projection-adapter]
@@ -110,7 +113,6 @@ packages:
         - skills/tests/autopilot/**
         - skills/tests/coordination-bridge/**
         - agent-coordinator/tests/**
-        - apps/kanban-viz/**
         - docs/guides/work-queue-truth-projection.md
         - openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/**
       read_allow:
