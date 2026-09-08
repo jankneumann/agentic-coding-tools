@@ -24,7 +24,29 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CHANGE_ID = "inject-scoped-semantic-context-into-coding-jobs"
-CHANGE_LOCAL = REPO_ROOT / "openspec/changes" / CHANGE_ID / "contracts/schemas"
+
+
+def _change_dir(repo_root: Path, change_id: str) -> Path:
+    """Locate a change's directory whether it is active or archived.
+
+    ``openspec archive`` moves ``openspec/changes/<id>/`` to
+    ``openspec/changes/archive/<date>-<id>/``. Binding to the active path alone
+    makes these tests fail on the day the change lands rather than on the day a
+    contract drifts — which is the opposite of what an archive-drift guard is
+    for. The archive prefix is date-stamped, hence the glob.
+    """
+    changes = repo_root / "openspec" / "changes"
+    active = changes / change_id
+    if active.is_dir():
+        return active
+    archived = sorted(changes.glob(f"archive/*-{change_id}"))
+    if archived:
+        # Most recent archive date wins if the id was ever archived twice.
+        return archived[-1]
+    return active  # Report the active path in the failure message.
+
+
+CHANGE_LOCAL = _change_dir(REPO_ROOT, CHANGE_ID) / "contracts/schemas"
 PROMOTED = REPO_ROOT / "openspec/contracts/code-search/schemas"
 
 SCHEMA_NAMES = (
