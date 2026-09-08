@@ -94,7 +94,7 @@ items:
     verified by inspecting the session after a two-item run.
 - item_id: ri-04
   title: Route supervise gates through the approval gate service
-  status: approved
+  status: completed
   priority: 1
   effort: M
   depends_on:
@@ -446,4 +446,4 @@ items:
     spend is auditable after a run.'
   external_depends_on:
   - dispatch-governance:dg-04
-updated_at: '2026-09-03T02:55:06.597478+00:00'
+updated_at: '2026-09-08T02:57:10.699361+00:00'

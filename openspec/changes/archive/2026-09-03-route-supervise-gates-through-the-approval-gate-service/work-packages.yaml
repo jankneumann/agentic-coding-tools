@@ -290,6 +290,7 @@ packages:
       surfaces:
         - "semantic_code"
         - "documentation"
+        - "decisions"
     worktree:
       name: integration
       mode: shared

@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "roadmap_id": "roadmap-supervisor-orchestration",
-  "current_item_id": "ri-08",
+  "current_item_id": "ri-04",
   "phase": "completed",
   "created_at": "2026-09-01T02:35:00.134952+00:00",
-  "updated_at": "2026-09-03T02:55:06.584373+00:00",
+  "updated_at": "2026-09-08T02:57:10.693411+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -15,7 +15,8 @@
     "ri-15",
     "ri-17",
     "ri-03",
-    "ri-08"
+    "ri-08",
+    "ri-04"
   ],
   "gate_decisions": [
     {
@@ -31,6 +32,22 @@
       "phase": "SUBMIT_PR",
       "note": "merge 451",
       "recorded_at": "2026-09-01T22:06:27.554989+00:00"
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "merge",
+      "note": "operator approved via chat: 'merge PR'",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'merge' approved by the operator \u2014 operator approved via chat: 'merge PR'",
+      "recorded_at": "2026-09-03T19:47:16.954100+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
     }
   ]
 }
