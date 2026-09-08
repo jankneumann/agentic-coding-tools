@@ -1,0 +1,163 @@
+schema_version: 1
+
+feature:
+  id: mirror-autopilot-phase-state-into-the-work-queue
+  title: Mirror Autopilot phase state into the work queue
+  plan_revision: 1
+  created_by: codex
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: openspec/contracts/agent-coordinator/openapi/work-queue.yaml
+    files:
+      - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-projection-adapter
+    title: Coordinated phase projection adapter and host registration
+    task_type: integration
+    description: Implement tasks 1.1 through 2.3 with TDD, preserving the coordinator-free default and one-way authority contract.
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - skills/autopilot/scripts/queue_projection.py
+        - skills/autopilot/scripts/runner.py
+        - skills/autopilot/SKILL.md
+      keys:
+        - feature:autopilot-live-queue-projection:modify
+      ttl_minutes: 120
+      reason: One publisher and one host registration boundary
+    scope:
+      write_allow:
+        - skills/autopilot/scripts/**
+        - skills/autopilot/SKILL.md
+        - skills/tests/autopilot/**
+      read_allow:
+        - skills/**
+        - agent-coordinator/**
+        - apps/kanban-viz/**
+        - docs/guides/work-queue-truth-projection.md
+        - openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/**
+      deny:
+        - agent-coordinator/database/migrations/**
+    context_impact:
+      surfaces: [architecture, documentation, semantic_code]
+    worktree:
+      name: ri09-wp-projection-adapter
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: B
+      steps:
+        - name: Run Autopilot projection tests
+          kind: command
+          command: skills/.venv/bin/python -m pytest skills/tests/autopilot -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [autopilot_projection_tests_pass]
+        - name: Lint changed Python
+          kind: command
+          command: skills/.venv/bin/python -m ruff check skills/autopilot/scripts skills/tests/autopilot
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [ruff_pass]
+    metadata:
+      loc_estimate: 260
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: [autopilot_projection_tests_pass, ruff_pass]
+      artifacts:
+        - skills/autopilot/scripts/queue_projection.py
+        - skills/autopilot/scripts/runner.py
+        - skills/autopilot/SKILL.md
+
+  - package_id: wp-live-integration
+    title: Coordinator, crash recovery, and kanban proof
+    task_type: integration
+    description: Implement tasks 3.1 through 4.3 against the existing coordinator and kanban data path, without frontend behavior changes.
+    role: integrator
+    priority: 2
+    depends_on: [wp-projection-adapter]
+    locks:
+      files:
+        - docs/guides/work-queue-truth-projection.md
+      keys:
+        - feature:autopilot-live-queue-projection:verify
+      ttl_minutes: 90
+      reason: Cross-boundary behavioral verification and durable documentation
+    scope:
+      write_allow:
+        - skills/tests/autopilot/**
+        - skills/tests/coordination-bridge/**
+        - agent-coordinator/tests/**
+        - apps/kanban-viz/**
+        - docs/guides/work-queue-truth-projection.md
+        - openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/**
+      read_allow:
+        - '**'
+      deny:
+        - agent-coordinator/database/migrations/**
+    context_impact:
+      surfaces: [architecture, documentation, semantic_code]
+    worktree:
+      name: ri09-wp-live-integration
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 3
+    verification:
+      tier_required: A
+      steps:
+        - name: Run affected skill suites
+          kind: command
+          command: skills/.venv/bin/python -m pytest skills/tests/autopilot skills/tests/coordination-bridge -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [skill_suites_pass]
+        - name: Run coordinator status and queue tests
+          kind: command
+          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_status_reporting.py agent-coordinator/tests/test_work_queue.py -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [coordinator_tests_pass]
+        - name: Run strict OpenSpec validation
+          kind: command
+          command: openspec validate --strict --all
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [openspec_valid]
+    metadata:
+      loc_estimate: 180
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: [skill_suites_pass, coordinator_tests_pass, openspec_valid]
+      artifacts:
+        - docs/guides/work-queue-truth-projection.md
