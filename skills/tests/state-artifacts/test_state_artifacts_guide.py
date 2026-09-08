@@ -73,6 +73,23 @@ def test_supervise_rehydration_matches_canonical_order():
         "Learning context",
         "Phase history",
         "Handoff context",
+        "Rebuild projections",
+    )
+    positions = [text.index(marker) for marker in markers]
+    assert positions == sorted(positions)
+
+
+def test_design_rehydration_matches_canonical_order():
+    text = (ROOT / "openspec/changes/write-durable-state-artifacts-guide/design.md").read_text()
+    markers = (
+        "1. Bootstrap locator",
+        "2. Roadmap definition",
+        "3. Roadmap execution state",
+        "4. Change execution state",
+        "5. Learning context",
+        "6. Phase history",
+        "7. Handoff context",
+        "8. Rebuild projections",
     )
     positions = [text.index(marker) for marker in markers]
     assert positions == sorted(positions)

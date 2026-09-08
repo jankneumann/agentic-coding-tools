@@ -54,7 +54,7 @@ The guide, skill links, mirrors, and one test module form a single sequential do
 - **Over-linking removes necessary commands.** Mitigation: replace only shared ownership/replay explanations; keep phase-specific mutation and gate commands in place.
 - **The guide becomes another stale copy.** Mitigation: structural tests require links and canonical class/order markers.
 - **Bootstrap language elevates handoffs to authority.** Mitigation: distinguish locator use from verification and require fail-loud handling when canonical files disagree or are absent.
-- **Runtime mirrors drift.** Mitigation: run `skills/install.sh` and byte-compare every changed skill source with `.agents` and `.claude` mirrors.
+- **Runtime mirrors drift.** Mitigation: run `skills/install.sh` and byte-compare every changed skill source with `.agents` and `.claude` mirrors as a pre-push local gate. Fresh CI checkouts intentionally lack ignored runtime mirrors, so the six mirror cases skip there while `install.sh --check` validates payload portability.
 
 ## Validation Strategy
 

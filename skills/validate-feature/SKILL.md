@@ -19,7 +19,7 @@ triggers:
 
 ## Durable state artifact authority
 
-Shared holder, writer, authority, fallback, and rehydration semantics live in the `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
+Shared holder, writer, authority, fallback, and rehydration semantics live in `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
 
 Deploy the feature locally with DEBUG logging, run security scans and behavioral tests against live services, check CI/CD status, and verify OpenSpec spec compliance. Produces a structured validation report and posts it to the PR.
 

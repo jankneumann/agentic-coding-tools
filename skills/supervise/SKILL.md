@@ -14,7 +14,7 @@ triggers:
 
 ## Durable state artifact authority
 
-Shared holder, writer, authority, fallback, and rehydration semantics live in the `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
+Shared holder, writer, authority, fallback, and rehydration semantics live in `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
 
 The single conversational counterpart the operator talks to. This skill does not
 add an orchestration layer — it *names* one that already exists: the host harness
