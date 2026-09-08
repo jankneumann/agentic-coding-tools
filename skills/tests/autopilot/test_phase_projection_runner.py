@@ -69,3 +69,40 @@ def test_runner_project_state_loads_durable_state_and_is_read_only(
     assert captured["identity"] == ("demo", "INIT", 0)
     assert captured["mode"] == "reconcile"
     assert state_path.read_bytes() == before
+
+
+
+def test_runner_transition_treats_pending_gate_as_clean_stop(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert runner.main(["init", "--change-id", "demo"]) == 0
+    state_path = tmp_path / "openspec/changes/demo/loop-state.json"
+    state = json.loads(state_path.read_text())
+    state["pending_gate"] = {"gate": "proposal_approval"}
+    state_path.write_text(json.dumps(state))
+
+    assert runner.main(
+        ["transition", "--change-id", "demo", "--outcome", "exists"]
+    ) == 0
+
+
+def test_runner_transition_validation_and_project_state_io_exit_codes(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert runner.main(["init", "--change-id", "demo"]) == 0
+    assert runner.main(
+        ["transition", "--change-id", "demo", "--outcome", "unknown"]
+    ) == 2
+    assert runner.main(
+        [
+            "project-state",
+            "--change-id",
+            "missing",
+            "--mode",
+            "submit",
+            "--coordinator-url",
+            "https://coordinator.invalid",
+        ]
+    ) == 1

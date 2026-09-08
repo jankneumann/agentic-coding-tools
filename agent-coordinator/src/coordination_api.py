@@ -127,6 +127,8 @@ def _projection_mutation_payload(result: Any) -> dict[str, Any]:
         if result.reason in _PROJECTION_INVALID:
             raise _ProjectionProblemError(result.reason, status=422)
         raise _ProjectionProblemError(result.reason or "projection_mutation_failed", status=422)
+    if result.task_id is None:
+        raise _ProjectionProblemError("canonical_task_id_missing", status=422)
     return {
         "success": True,
         "task_id": str(result.task_id),

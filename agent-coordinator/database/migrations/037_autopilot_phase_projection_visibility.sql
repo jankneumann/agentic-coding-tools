@@ -2,6 +2,11 @@
 
 BEGIN;
 
+-- Remove historical overloads so every SQL caller reaches the one claim
+-- implementation that enforces issue-row exclusion.
+DROP FUNCTION IF EXISTS claim_task(TEXT, TEXT, TEXT[]);
+DROP FUNCTION IF EXISTS claim_task(TEXT, TEXT, TEXT[], TEXT[], INTEGER);
+
 CREATE OR REPLACE FUNCTION claim_task(
     p_agent_id TEXT,
     p_agent_type TEXT,

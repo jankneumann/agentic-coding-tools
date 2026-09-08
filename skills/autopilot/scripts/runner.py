@@ -398,7 +398,13 @@ def _cmd_transition(args: argparse.Namespace) -> int:
             state, args.outcome, change_dir=_change_dir(args.change_id)
         )
         autopilot.save_state(state, _state_path(args.change_id))
-    except (OSError, ValueError, autopilot.GatePending) as exc:
+    except autopilot.GatePending as exc:
+        sys.stderr.write(f"runner: transition stopped: {exc}\n")
+        return 0
+    except ValueError as exc:
+        sys.stderr.write(f"runner: transition failed: {exc}\n")
+        return 2
+    except OSError as exc:
         sys.stderr.write(f"runner: transition failed: {exc}\n")
         return 1
     return 0
@@ -417,9 +423,12 @@ def _cmd_project_state(args: argparse.Namespace) -> int:
             api_key=args.api_key,
             change_path=str(_change_dir(args.change_id)),
         )(state, mode=args.mode)
-    except (OSError, ValueError) as exc:
+    except ValueError as exc:
         sys.stderr.write(f"runner: project-state failed: {exc}\n")
         return 2
+    except OSError as exc:
+        sys.stderr.write(f"runner: project-state failed: {exc}\n")
+        return 1
     except Exception as exc:  # noqa: BLE001
         sys.stderr.write(f"runner: project-state failed: {exc}\n")
         return 1

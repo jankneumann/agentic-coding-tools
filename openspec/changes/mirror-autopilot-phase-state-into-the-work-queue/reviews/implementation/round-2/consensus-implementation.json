@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "mirror-autopilot-phase-state-into-the-work-queue",
+  "reviewers": [
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 11,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 1,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The adapter's label-write success check is unsound because `/issues/update` never returns a non-2xx status on failure. `agent-coordinator/src/coordination_api.py:1389-1419` returns `{\"success\": false, \"reason\": ...}` with HTTP 200 for every failure path it has: `ValueError` from `UUID(request.issue_id)` or from `service.update` (line 1411-1412), any other exception (line 1413-1415), and `issue is None` / `issue_not_found` (line 1417-1418). The bridge's `_normalize_operation_response` (`skills/coordination-bridge/scripts/coordination_bridge.py:489-508`) maps any 2xx to `{\"status\": \"ok\"}` without reading `response.success`. So `queue_projection.py:102` (`if labelled.get(\"status\") != \"ok\"`) and `:136` (`if cleared.get(\"status\") != \"ok\"`) both pass on a failed write, and the adapter returns `{\"status\": \"ok\", ...}` at line 139. `persist_and_project` (`skills/autopilot/scripts/autopilot.py:206-218`) then classifies the transition as a healthy projection and logs nothing. This directly violates the spec scenario 'Projection outage is degraded, not authoritative': 'a failed canonical-row label update or stale-label cleanup SHALL also report projection degradation with a bounded reason'. A compounding path makes it reachable without any DB fault: migration 035 (`agent-coordinator/database/migrations/035_work_queue_projection.sql:128-137`) can return `success=TRUE` with `v_id` NULL, and `_projection_mutation_payload` (`coordination_api.py:132`) stringifies that to the literal `\"None\"`, which passes the adapter's `isinstance(task_id, str) and task_id` guard at line 91-93 and is then sent as `issue_id` to `/issues/update`."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Every bridge helper the adapter calls re-runs full coordinator capability detection. `_execute_single_endpoint_operation` (`skills/coordination-bridge/scripts/coordination_bridge.py:530`) unconditionally calls `detect_coordination`, which issues one `GET /health` (line 397), one probe per entry in `_CAPABILITY_PROBES` \u2014 eight of them (line 55-68) \u2014 and one `GET /search/code/status` (line 428): ten HTTP round-trips before the one request that does the work. There is no memoization anywhere in the module. The adapter is the first caller to chain helpers at scale: a reconcile pass issues 1 reconcile + 1 canonical label write + 1 list + up to `_MAX_CLEANUP_ROWS = 100` sequential label clears (line 129-137) = up to 103 helper calls, i.e. roughly 1,133 serialized HTTP requests, each with `DEFAULT_TIMEOUT_SECONDS = 1.5` (`coordination_bridge.py:22`). This runs on `run_loop`'s synchronous critical path via `persist_and_project` (`skills/autopilot/scripts/autopilot.py:1008`, `:1147`) and blocks the phase loop. Even on a fast local coordinator at ~20 ms/request that is ~23 s for one reconcile; the spec scenario 'Live phase transition is mirrored' requires the phase to be exposed 'within 5 seconds'. The ordinary submit path is not free either: 2-3 helpers = 22-33 requests per phase edge, and the same cost is paid again by every `runner.py project-state` invocation the SKILL.md protocol mandates after each runner mutation."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Migration 037 adds the `AND task_type <> 'issue'` claim exclusion to only one of three coexisting `claim_task` overloads. A database that has applied 001 through 037 holds `claim_task(TEXT, TEXT, TEXT[])` from `001_core_schema.sql:212-217`, `claim_task(TEXT, TEXT, TEXT[], TEXT[], INTEGER)` from `021_agent_requirements.sql:19-24`, and the six-argument form from `027_claim_task_exclude_submitter.sql:10-16` which 037 replaces. Neither older overload is dropped, and both still contain the unfiltered `WHERE status = 'pending' AND (p_task_types IS NULL OR ...)` predicate \u2014 so any caller reaching them claims projection rows. The spec requirement is absolute: 'Every `task_type=issue` row SHALL be excluded from all work claims.' Migration 035 established the exact remedy for this class of problem in this codebase: `035_work_queue_projection.sql:11` does `DROP FUNCTION IF EXISTS coordinator_notify(TEXT,TEXT,TEXT,TEXT,TEXT)` with the comment 'Calls with five arguments are otherwise ambiguous once both migrations have been applied', and line 66 does the same for the stale `submit_task` signature. 037 skips that step. The production service path is currently safe only incidentally, because `work_queue.py:399-408` always passes all six named parameters; the invariant is not enforced by the schema."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "There is no recovery path from a `stale_projection` conflict, and nothing ever resets the projection head. `work_queue_projection_heads` is created in `035_work_queue_projection.sql:52-57` and rows are only ever inserted or upserted (`:108`, `:167-170`); a repository-wide search finds no DELETE or reset of that table in any production code path \u2014 the only other references are test fixtures (`agent-coordinator/tests/integration/postgres/conftest.py:30`). Meanwhile `loop-state.json` is per-change-directory and disappears when the change is archived or an operator restarts a run. `_requires_reconciliation` (line 142-151) advances through reconciliation only for `reconciliation_required`, which is correct per the spec ('only a bridge `status=error`, HTTP-409 problem response whose `response.detail` is `reconciliation_required` SHALL advance through reconciliation rather than degrade'), so a `stale_projection` reply from `035_work_queue_projection.sql:110-112` falls to `_degraded` at line 89-90 and is only logged as a warning by `persist_and_project` (`autopilot.py:206-217`). The result is a durably wedged projection with no documented remedy: the change's board entry is pinned to the previous run's generation until the new run's `total_iterations` happens to exceed the old head, and `docs/guides/work-queue-truth-projection.md` claims 'Projection outages are a degradation... The next coordinated resume reconciles from `loop-state.json`', which is not true for this case."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The three new subcommands break the exit-code contract the rest of `runner.py` establishes and that SKILL.md now keys the projection protocol off. The existing convention is exit 2 for caller/validation errors and exit 1 for operational failures: `_cmd_apply_outcome` returns 2 for `ValueError` and 1 for other exceptions (line 358-363), `_cmd_record_state_only_archetype` does the same (line 322-325), as does `_cmd_build_dispatch` (line 295-298); `_cmd_init` correctly follows it (2 at line 374, 1 at line 388). `_cmd_transition` (line 401-403) collapses `ValueError` \u2014 raised both by `phase_agent._validate_change_id` for a bad `--change-id` and by `transition()` for an unknown `--outcome` \u2014 into exit 1, and `_cmd_project_state` (line 420-422) inverts the convention by returning 2 for `OSError`, which here is the operational case of a missing `loop-state.json`, while returning 1 for a genuinely degraded projection at line 427. Worse, `_cmd_transition` lists `autopilot.GatePending` in the same `except` clause as real errors. `_cmd_apply_outcome:338-349` handles the identical parked-gate condition deliberately and comments why: 'Exit 0 \u2014 this is a stop, not a failure (the caller's escalation wrapper treats non-zero as a fault to escalate).' `_cmd_transition` returns 1 for that same state, and the newly added SKILL.md line 'A failed transition is a stop: do not project and do not advance work' gives the host no way to tell a parked gate from a broken run."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Placeholder while review runs"
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Three parity gaps remain between the updated contract and the runtime. (a) Lines 102 and 135 declare `\"401\": {description: Missing or invalid X-API-Key}` with no content, but `projection_http_problem_handler` (`agent-coordinator/src/coordination_api.py:854-870`) matches on `request.url.path in {\"/work/submit\", \"/work/reconcile\"}` and `exc.status_code in {401, 403}` \u2014 so 401 on exactly these two paths returns `application/problem+json` with the same four-field body the contract already models as `Problem`; only the 403 half of that handler is documented. (b) The `\"200\"` entries at lines 101 and 134 carry no schema, so `cancelled_task_ids` is undocumented even though it is the field `skills/autopilot/scripts/queue_projection.py:107` reads to drive stale-label cleanup, and `coordination_api.py:1215-1216` has non-obvious behavior around it (the key is popped when no `projection_key` was supplied). (c) The `/work/submit` request body (lines 88-99) omits `agent_requirements`, which `WorkSubmitRequest` accepts (`coordination_api.py:225`). The `Problem` schema itself, the `ProjectionKey` shape, and the 403/409/422 problem+json responses all match the runtime exactly \u2014 this is the residue, not a systemic mismatch."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation \u2014 the SSE coalescing, backpressure, and unsubscribe axis is sound, including the round-1 fix. `_on_task_event` (line 276-280) latches `projection_refresh_pending` before enqueuing a single marker, so the 101-row label burst produced by one reconcile pass collapses to one marker. Both consumption paths reset the latch at the correct point: line 324 clears it before the `await _build_snapshot` on line 327, and line 346 clears it after the synchronous `get_nowait` drain at 338-342 but before the `await` at 347. In both cases an event arriving during snapshot construction re-latches and enqueues exactly one follow-up, so a refresh can neither be lost nor duplicated unboundedly \u2014 that is precisely the backpressure-drain hole the round-1 review flagged, and it is closed. The `finally` block at 355-360 removes both bus callbacks by closure identity on every exit path (normal close, `CancelledError`, unexpected exception), preserving the leak fix documented at line 291-301. `_make_transition` still normalizes `from`/`to` against the state enum, and the projection marker returns early rather than being routed through it, so no malformed transition is emitted for a label-only change. The only cost is cosmetic: a marker consumed at line 320-328 immediately before the window trips at 336 pays for a snapshot that is then discarded and rebuilt."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation \u2014 the trigger's change-id routing is correct on both label directions, which is what makes label removal observable. The label branch (line 71-76) fires only when `OLD.labels IS DISTINCT FROM NEW.labels` and the projection label is present in either array, so ordinary issue edits do not generate projection events. It then prefers a `change:` label from `NEW.labels` and falls back to `OLD.labels` (line 78-89) \u2014 the case that matters, because the adapter clears stale rows with `labels=[]` (`queue_projection.py:132`), leaving `NEW.labels` empty; without the OLD fallback the removal event would carry `change_id = NULL` and be dropped by the SSE filter at `event_stream.py:274`. `substr(v_label, 8)` correctly strips the seven-character `change:` prefix, matching migration 025's convention. The status branch correctly resets `v_change_id := NULL` at line 96 before its own scan, so a label-derived id from the first branch cannot leak into a status event. `COALESCE(..., ARRAY[]::TEXT[])` guards every `FOREACH` against NULL label arrays, and `task_type` is `NOT NULL` (`001_core_schema.sql:32`) so the new `task_type <> 'issue'` predicate has no three-valued-logic hazard."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation \u2014 `enter_escalate` sequencing is now correct and idempotent. The guard `if state.current_phase != \"ESCALATE\"` (line 505) makes the phase change, the `previous_phase` capture, and the `total_iterations += 1` a single atomic group, so a direct escalation produces a genuinely new projection identity `(change_id, \"ESCALATE\", n+1)` exactly once. That closes the concrete failure it was written for: previously the phase moved to ESCALATE while `total_iterations` stayed put, so `submit_task` saw `v_seq = v_head_seq AND v_phase <> v_head_phase` and returned `projection_generation_mismatch` (`035_work_queue_projection.sql:113-115`) \u2014 a conflict the adapter deliberately does not reconcile through, which would have stranded every escalation as a permanently degraded projection. Re-entering `enter_escalate` while already in ESCALATE now updates only `escalation_reason` and `phase_started_at`, so the key is stable and the second call deduplicates against the existing row instead of drifting the sequence. Both call sites in `run_loop` (line 1075 for a phase exception, line 1120 for `GoalGateRefused`) route through it and then persist-and-project, so no path enters ESCALATE durably while the previous queue generation stays live."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation \u2014 coordinator-free isolation is enforced structurally, not just by convention. `queue_projection` is imported lazily inside `_cmd_project_state` (line 413) rather than at module scope, and `queue_projection.py` itself is the only module that performs the `sys.path` insertion for the bridge (line 11-16), so a local-parallel or sequential host never loads the publisher or its transport dependency. On the in-process side `run_loop`'s `queue_projection_fn` defaults to `None` and `persist_and_project` short-circuits to `{\"status\": \"skipped\", \"reason\": \"projection_callback_absent\"}` (`autopilot.py:199-200`) before touching any network code, so the callback-free tier's behavior is byte-identical to the pre-change loop. The guarantee is pinned from two independent directions: `test_phase_projection_isolation.py:12-27` AST-parses both `autopilot.py` and `runner.py` and asserts no top-level `queue_projection` import, and `:47-86` monkeypatches all four projection transport helpers to `pytest.fail` and then drives a full `run_loop` with `queue_projection_fn=None`. The direction-of-truth invariant also holds: the adapter reads only `change_id`, `current_phase`, and `total_iterations` off `LoopState` and returns a plain envelope, and `persist_and_project` never writes any part of that envelope back into the state, so no queue response can become a state-machine input."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation \u2014 the exact nested 409 reconciliation matches the runtime byte for byte, and the round-1 problem-shape fix holds. `_requires_reconciliation` (line 142-151) requires all four of `status == \"error\"`, `status_code == 409`, a dict `response`, and `response[\"detail\"] == \"reconciliation_required\"`. That is exactly what the runtime produces: `projection_problem_handler` (`coordination_api.py:833-852`) emits `{\"type\", \"title\", \"status\", \"detail\"}` with `detail` set to the raw reason string, `_projection_mutation_payload:123-124` maps `reconciliation_required` to status 409 via `_PROJECTION_CONFLICTS`, and the bridge's `_normalize_operation_response:509-517` places the parsed body under `response` with `status` `\"error\"` for a non-2xx. `_http_request` parses the body regardless of the `application/problem+json` content type (line 322-328), so the nested `detail` is reachable. The narrowness is deliberate and spec-mandated, and `test_queue_projection.py:100-115` pins the negative by asserting a 409 carrying `projection_generation_mismatch` degrades without calling reconcile. Sibling conflicts are correctly routed elsewhere: 403 and 401 become `_skipped_operation` (`coordination_bridge.py:483-488`) and 422 stays an error \u2014 all non-`ok`, all funnelled into `_degraded`. Exclusive ownership on the list path is also sound, since `IssueService.list_issues` documents and implements AND semantics on `labels` (`issue_service.py:302`, `:340-344`) and pre-filters on `task_type=eq.issue` (`:314`), so the reconcile-mode cleanup can only ever see this change's own double-labelled projection rows."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 12,
+    "confirmed_count": 0,
+    "unconfirmed_count": 12,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}

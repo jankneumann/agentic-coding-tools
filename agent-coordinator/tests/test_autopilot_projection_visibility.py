@@ -16,6 +16,11 @@ def test_migration_excludes_all_issue_rows_and_uses_old_label_fallback() -> None
         / "database/migrations/037_autopilot_phase_projection_visibility.sql"
     ).read_text()
     assert "task_type <> 'issue'" in sql
+    assert "DROP FUNCTION IF EXISTS claim_task(TEXT, TEXT, TEXT[])" in sql
+    assert (
+        "DROP FUNCTION IF EXISTS claim_task(TEXT, TEXT, TEXT[], TEXT[], INTEGER)"
+        in sql
+    )
     assert "projection:autopilot-phase" in sql
     assert "NEW.labels" in sql
     assert "OLD.labels" in sql
@@ -149,6 +154,39 @@ def test_projection_openapi_problem_contract_matches_runtime() -> None:
     assert problem["required"] == ["type", "title", "status", "detail"]
     assert problem["properties"]["status"]["type"] == "integer"
 
-    for name in ("Problem403", "Problem409", "Problem422"):
+    for name in ("Problem401", "Problem403", "Problem409", "Problem422"):
         content = document["components"]["responses"][name]["content"]
         assert set(content) == {"application/problem+json"}
+
+    submit = document["paths"]["/work/submit"]["post"]
+    reconcile = document["paths"]["/work/reconcile"]["post"]
+    assert "agent_requirements" in (
+        submit["requestBody"]["content"]["application/json"]["schema"]["properties"]
+    )
+    for operation in (submit, reconcile):
+        assert operation["responses"]["200"]["content"]["application/json"]["schema"][
+            "$ref"
+        ] == "#/components/schemas/ProjectionMutationResult"
+        assert operation["responses"]["401"]["$ref"] == (
+            "#/components/responses/Problem401"
+        )
+
+
+
+def test_projection_payload_rejects_missing_canonical_task_id() -> None:
+    from types import SimpleNamespace
+
+    from src.coordination_api import _projection_mutation_payload, _ProjectionProblemError
+
+    result = SimpleNamespace(
+        success=True,
+        task_id=None,
+        created=False,
+        deduplicated=False,
+        status="pending",
+        cancelled_task_ids=[],
+    )
+    with pytest.raises(_ProjectionProblemError) as exc_info:
+        _projection_mutation_payload(result)
+    assert exc_info.value.reason == "canonical_task_id_missing"
+    assert exc_info.value.status == 422
