@@ -143,7 +143,7 @@ items:
     extension.
 - item_id: ri-06
   title: Route parked escalations through the escalate_resume gate
-  status: approved
+  status: in_progress
   priority: 2
   effort: S
   depends_on:
@@ -446,4 +446,4 @@ items:
     spend is auditable after a run.'
   external_depends_on:
   - dispatch-governance:dg-04
-updated_at: '2026-09-08T02:57:10.699361+00:00'
+updated_at: '2026-09-08T02:59:29.687946+00:00'
