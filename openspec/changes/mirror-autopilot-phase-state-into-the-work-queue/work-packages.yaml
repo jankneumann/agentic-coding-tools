@@ -65,7 +65,7 @@ packages:
         - agent-coordinator/database/migrations/02*.sql
         - agent-coordinator/database/migrations/03[0-6]_*.sql
     context_impact:
-      surfaces: [architecture, documentation, semantic_code]
+      surfaces: [apis, architecture, documentation, semantic_code]
     worktree:
       name: ri09-wp-projection-adapter
       mode: isolated

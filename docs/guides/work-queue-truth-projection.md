@@ -26,9 +26,9 @@ derived view that can be regenerated at any time and never feeds back into the
 checkboxes. The same asymmetry holds here — loop-state is the checkboxes, the
 queue is the rendered block.
 
-> Autopilot now exposes an optional persist-first projection callback and a
-> resume reconciliation callback. ri-08 does not register them for live phase
-> mirroring; coordinated registration and latency guarantees remain ri-09 scope.
+> Coordinated Autopilot now registers the persist-first phase publisher.
+> Coordinator-free tiers retain the callback-free default and never import the
+> publisher.
 
 ## Direction of truth
 
@@ -126,8 +126,13 @@ verified false negatives are pinned as mutation cases in the test.
   `coordination-cli work reconcile --projection-key <json>` map to the same
   service contract.
 - `skills/coordination-bridge/scripts/coordination_bridge.py` provides optional
-  submit/reconcile helpers. `skills/autopilot/scripts/autopilot.py` provides the
-  persist-then-project helper and resume reconciliation injection seam.
+  submit/reconcile helpers plus coordinator-only projection-label repair.
+  `skills/autopilot/scripts/queue_projection.py` derives the exact phase key,
+  advances through reconciliation only for `reconciliation_required`, labels
+  the canonical priority-1 `task_type=issue` row, and clears stale labels.
+- `runner.py init` and `transition` are the canonical state writers;
+  `project-state --mode submit|reconcile` is the explicit coordinated host
+  boundary. Projection responses are never state-machine inputs.
 
 ## Failure recovery
 
@@ -137,8 +142,17 @@ cancels stale active rows, and ensures the current row exists. Completed,
 failed, and cancelled current rows are treated as already satisfied. Queue
 metadata is observability only and is never read back into `LoopState`.
 
-## ri-09 boundary
+## Visibility, isolation, and recovery
 
-ri-08 supplies atomic storage and optional composition seams. It does not
-register a publisher for every live phase transition, modify kanban-viz, or
-promise mirroring latency. ri-09 owns that coordinated runtime wiring.
+Migration 037 makes every `task_type=issue` row unclaimable, even for an
+unfiltered claim, and emits a change-scoped event whenever the adapter-owned
+projection labels change. Connected SSE clients turn that event into a fresh
+snapshot; the existing label-only issue polling path remains the fallback.
+Canonical rows use priority 1, so the current projection remains inside the
+50-row board window even when ordinary lower-priority issues are present.
+
+Projection outages are a degradation, not a rollback. The next coordinated
+resume reconciles from `loop-state.json`, labels the canonical row first, then
+clears cancelled or interrupted stale double-labelled rows (bounded to 100).
+Local-parallel and sequential execution retain the callback-free default and do
+not import or call any projection helper.
