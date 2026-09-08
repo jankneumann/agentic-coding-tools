@@ -13,10 +13,10 @@ import itertools
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import pytest
+from openspec_paths import change_dir, repo_root_from
 
 from src.agents_config import (
     ASSIGNMENT_ASSIGNED_BY,
@@ -30,8 +30,6 @@ from src.agents_config import (
     sync_profiles,
 )
 from src.config import reset_config
-
-from openspec_paths import change_dir, repo_root_from
 
 CONTRACT_PATH = change_dir(
     repo_root_from(__file__, 2), "derive-agent-identity-from-registry"

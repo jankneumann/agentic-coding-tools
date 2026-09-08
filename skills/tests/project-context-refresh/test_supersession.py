@@ -9,7 +9,6 @@ lifecycle. This change is named as the replacement.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 
