@@ -41,3 +41,46 @@ def test_skill_protocol_limits_projection_to_coordinated_tier() -> None:
         "gate-answer",
     ):
         assert command in text
+
+
+
+def test_coordinator_free_run_cannot_call_projection_transport(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import sys
+
+    import autopilot
+    import pytest
+
+    bridge_dir = ROOT / "skills/coordination-bridge/scripts"
+    sys.path.insert(0, str(bridge_dir))
+    import coordination_bridge
+
+    def unexpected_call(**_kwargs):
+        pytest.fail("coordinator-free run called projection transport")
+
+    for name in (
+        "try_submit_work",
+        "try_reconcile_work_projection",
+        "try_projection_issue_list",
+        "try_projection_issue_update",
+    ):
+        monkeypatch.setattr(coordination_bridge, name, unexpected_call)
+
+    state_path = tmp_path / "loop-state.json"
+    autopilot.save_state(
+        autopilot.LoopState(
+            change_id="coordinator-free",
+            current_phase="IMPLEMENT",
+            total_iterations=1,
+        ),
+        state_path,
+    )
+    autopilot.run_loop(
+        "coordinator-free",
+        tmp_path,
+        tmp_path,
+        state_path=state_path,
+        queue_projection_fn=None,
+        max_global_iterations=1,
+    )

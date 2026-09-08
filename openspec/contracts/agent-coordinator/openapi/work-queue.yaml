@@ -187,26 +187,30 @@ components:
           maximum: 2147483647
     Problem:
       type: object
-      required: [detail]
+      additionalProperties: false
+      required: [type, title, status, detail]
       properties:
+        type: {type: string}
+        title: {type: string}
+        status: {type: integer}
         detail: {type: string}
   responses:
     Problem403:
       description: Projection operation forbidden
       content:
-        application/json:
+        application/problem+json:
           schema:
             $ref: "#/components/schemas/Problem"
     Problem409:
       description: Projection generation conflict
       content:
-        application/json:
+        application/problem+json:
           schema:
             $ref: "#/components/schemas/Problem"
     Problem422:
       description: Projection request validation failed
       content:
-        application/json:
+        application/problem+json:
           schema:
             $ref: "#/components/schemas/Problem"
   securitySchemes:

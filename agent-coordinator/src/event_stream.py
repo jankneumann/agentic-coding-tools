@@ -340,6 +340,10 @@ async def sse_event_generator(
                             queue.get_nowait()
                         except asyncio.QueueEmpty:
                             break
+                    # A queued projection marker may have been drained. Reset
+                    # only after the synchronous drain so an update arriving
+                    # during snapshot construction can enqueue one follow-up.
+                    projection_refresh_pending = False
                     snapshot_data = await _build_snapshot(change_ids)
                     yield {"event": "snapshot", "data": snapshot_data}
                     window_count = 0
