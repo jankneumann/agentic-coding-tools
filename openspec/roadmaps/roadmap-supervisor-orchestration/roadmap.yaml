@@ -213,7 +213,7 @@ items:
     by existing tier tests still passing without a coordinator.
 - item_id: ri-09
   title: Mirror autopilot phase state into the work queue
-  status: in_progress
+  status: failed
   priority: 2
   effort: M
   depends_on:
@@ -230,9 +230,12 @@ items:
   - Every mirrored queue entry is derivable from the corresponding loop-state.json,
     verified by a reconciliation check after a run.
   - Killing and resuming a run leaves no orphaned or duplicate queue entries.
+  failure_reason: 'Implementation review exhausted three rounds without two substantive
+    independent reviewers in any round: Claude Code timed out in rounds 1 and 3, and
+    Grok returned only a placeholder in round 2.'
 - item_id: ri-10
   title: Write durable state-artifacts guide
-  status: approved
+  status: in_progress
   priority: 2
   effort: S
   depends_on:
@@ -450,4 +453,4 @@ items:
     spend is auditable after a run.'
   external_depends_on:
   - dispatch-governance:dg-04
-updated_at: '2026-09-08T05:15:04.610782+00:00'
+updated_at: '2026-09-08T08:36:41.625401+00:00'

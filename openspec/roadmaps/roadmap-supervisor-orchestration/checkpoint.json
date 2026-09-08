@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "roadmap_id": "roadmap-supervisor-orchestration",
-  "current_item_id": "ri-09",
+  "current_item_id": "ri-10",
   "phase": "planning",
   "created_at": "2026-09-01T02:35:00.134952+00:00",
-  "updated_at": "2026-09-08T05:15:04.605646+00:00",
+  "updated_at": "2026-09-08T08:36:41.622637+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -23,6 +23,12 @@
       "item_id": "ri-06",
       "reason": "Plan review exhausted three vendor-diverse rounds without substantive convergence: approval-service waits can persist stale whole-checkpoint snapshots over concurrent transitions, and resumed members of multi-member batches have no safe fresh-result application path.",
       "failed_at": "2026-09-08T05:15:04.473559+00:00",
+      "retry_count": 0
+    },
+    {
+      "item_id": "ri-09",
+      "reason": "Implementation review exhausted three rounds without two substantive independent reviewers in any round: Claude Code timed out in rounds 1 and 3, and Grok returned only a placeholder in round 2.",
+      "failed_at": "2026-09-08T08:36:41.616780+00:00",
       "retry_count": 0
     }
   ],
