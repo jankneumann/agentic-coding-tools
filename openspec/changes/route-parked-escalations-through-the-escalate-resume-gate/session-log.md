@@ -81,3 +81,11 @@ Self-review closed a failure-atomicity gap: gate routing is a separate mandatory
 ### Context
 Closed the plan failure-atomicity gap by separating the mandatory post-apply escalation routing call from delegated batch application, so gate/coordinator errors cannot replay dispatch_fn effects.
 
+
+---
+
+## Phase: Plan Review Round 1 (2026-09-08)
+
+Four of five configured vendors produced schema-valid findings: Antigravity, Claude Code, Codex, and Grok. Pi was rejected because it emitted the unsupported `testability` axis; the manifest retains that degradation. Consensus met real quorum at 4/4 valid reviewers and found seven blocking issues plus three disagreements.
+
+The required patch helper and its CLI path both failed with `bwrap: loopback: Failed RTM_NEWADDR`; the phase-authorized deterministic writer fallback applied only these plan-artifact edits. The plan now keeps apply's return shape unchanged; serializes routing without nested `flock`; scopes `escalate_resume` decisions to dispatch plus lease generation; clears the prior application journal on authorized resume; routes earlier durable pauses from partial-apply cleanup; defines exact bounded outputs and sanitized notification context; and makes mirror-first rehydrate into the next supervisor handoff executable. New tests cover concurrency, failure replay, full resumed-generation application, second exhaustion, partial batches, and host documentation ordering. Round 2 must independently verify these fixes before implementation.

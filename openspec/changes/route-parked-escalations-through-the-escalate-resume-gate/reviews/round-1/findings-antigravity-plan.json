@@ -1,0 +1,82 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "nit",
+      "description": "Nit: Clarify in contracts/README.md that the escalation resolutions list is returned by ExecutionAdapter.route_parked_escalations rather than modifying ExecutionAdapter.apply.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/contracts/README.md",
+      "line_range": {
+        "start": 3,
+        "end": 3
+      },
+      "resolution": "Update contracts/README.md to explicitly state that ExecutionAdapter.apply return keys remain strictly unchanged and that the bounded escalation resolutions list is returned by ExecutionAdapter.route_parked_escalations."
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "optional",
+      "description": "Optional: Clarify advisory lock scoping for ExecutionAdapter.route_parked_escalations to prevent flock non-reentrancy.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 10,
+        "end": 16
+      },
+      "resolution": "Document that ExecutionAdapter.route_parked_escalations should rely on per-resume atomic serialization inside ExecutionAdapter.resume or manage advisory locks without nesting @_serialized_transition decorator calls."
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "fyi",
+      "description": "FYI: Bounded escalation resolution summaries provide clean, transcript-free progress reporting for host execution loops.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/proposal.md",
+      "line_range": {
+        "start": 13,
+        "end": 16
+      },
+      "resolution": "Retain the proposed resolution structure containing dispatch_id, outcome, and pending gate entry or resume result without exposing child transcript content."
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "none",
+      "description": "Post-persist routing boundary guarantees that routing failures cannot cause dispatch_fn side-effect replay.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 25,
+        "end": 28
+      },
+      "resolution": "Proceed with design D5 as specified."
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "description": "Exclusion rules correctly restrict automated escalation routing exclusively to policy_pause parked attempts.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md",
+      "line_range": {
+        "start": 33,
+        "end": 38
+      },
+      "resolution": "Proceed with spec requirements as specified."
+    }
+  ]
+}

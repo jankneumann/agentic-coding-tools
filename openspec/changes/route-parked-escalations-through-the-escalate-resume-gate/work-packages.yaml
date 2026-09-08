@@ -36,6 +36,7 @@ packages:
     locks:
       files:
         - "skills/supervise/scripts/execution.py"
+        - "skills/supervise/scripts/gate_router.py"
         - "skills/supervise/SKILL.md"
       keys:
         - "feature:route-parked-escalations-through-the-escalate-resume-gate:write"
@@ -45,6 +46,7 @@ packages:
     scope:
       write_allow:
         - "skills/supervise/scripts/execution.py"
+        - "skills/supervise/scripts/gate_router.py"
         - "skills/supervise/SKILL.md"
         - "skills/tests/supervise/**"
         - "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/**"
@@ -89,8 +91,8 @@ packages:
             artifacts: []
             result_keys: ["openspec_strict"]
     metadata:
-      loc_estimate: 180
-      complexity: low
+      loc_estimate: 320
+      complexity: medium
       package_kind: integration
     outputs:
       result_keys: ["supervise_suite", "orchestration_suite", "openspec_strict"]

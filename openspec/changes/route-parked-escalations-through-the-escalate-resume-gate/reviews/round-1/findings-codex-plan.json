@@ -1,0 +1,82 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The routing-output contract is internally inconsistent: the design says `ExecutionAdapter.apply` and its return keys remain unchanged and `route_parked_escalations` returns the bounded entries, but this scenario requires the bounded apply result to report the escalation resolution. That can steer implementation into changing `apply`'s existing return shape and conflating retryable routing with already-applied `dispatch_fn` effects.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md",
+      "line_range": {
+        "start": 7,
+        "end": 12
+      },
+      "resolution": "Rewrite the spec and contracts so `ExecutionAdapter.apply` keeps the exact existing return shape, and `ExecutionAdapter.route_parked_escalations` is the only method that returns `escalation_resolutions`; if the host reports a combined summary, define it as host-level output outside `apply`."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: D5 claims the prior-record rule prevents duplicate approvals, but the plan does not specify the concurrency and lock boundary for the new retryable operation. Existing gate evaluation is a load-prior-then-record sequence, so two concurrent route retries can both observe no prior record and both file/notify before either append lands; simply wrapping the route method in the adapter's serialized transition also needs an explicit non-deadlocking path for the nested `adapter.resume` call.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 25,
+        "end": 27
+      },
+      "resolution": "Specify a single workspace serialization strategy for candidate selection, gate-decision persistence, and optional resume, including lock ordering or an internal resume helper. Add a concurrency test where two route attempts against the same persisted `policy_pause` produce one gate record/notification and no deadlock."
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The blocked `escalate_resume` handoff guarantee is not executable as written. The requirement says the supervisor mirror and rehydrated handoff contain the pending gate and deadline, but the tasks only require generic pending-gate coverage and documentation; the existing supervise flow writes supervisor handoffs for intake/cycle, while this routing occurs during execute/apply, so the coordinator handoff can remain stale unless the plan defines an execute-time handoff write or explicitly relies on newer-mirror rehydration.",
+      "disposition": "fix",
+      "axis": "observability",
+      "severity": "critical",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md",
+      "line_range": {
+        "start": 14,
+        "end": 20
+      },
+      "resolution": "Add an explicit requirement and test for blocked `escalate_resume`: either execute writes a fresh `supervisor_record` handoff after routing, or `cycle_state.py rehydrate` with a stale/missing handoff selects the newer mirror and returns the pending gate with the approval id and deadline. Align tasks.md with that decision."
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: The bounded `escalation_resolutions` contract lacks an allowlisted shape and concrete bounds. D4 names `dispatch_id`, `outcome`, and an optional pending-gate entry, but it does not define the outcome enum, maximum cardinality/size, exact allowed keys, or how prior-proceeded and routing-error cases are represented without exposing approval-service responses or child transcript content.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 21,
+        "end": 23
+      },
+      "resolution": "Define the exact `route_parked_escalations` response schema in the plan: cardinality no greater than matched persisted `policy_pause` attempts from the named batch, fixed allowed keys, bounded strings, pending-gate allowlist, and no transcript/raw approval payload fields. Add exact-key tests for exclusions and retry outcomes."
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The plan correctly keeps approval-service policy inside `gate_router.resolve_parked` and places escalation routing after exact-result validation and durable batch application, which aligns with the existing application journal barrier and avoids replaying `dispatch_fn` on routing retry.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 16
+      },
+      "resolution": "Retain this separation while tightening the output, locking, and handoff requirements above."
+    }
+  ]
+}

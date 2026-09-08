@@ -10,17 +10,18 @@ A supervised Autopilot child already enters `ESCALATE` when a phase sub-agent ex
 
 ## What Changes
 
-After a delegated batch result is validated and durably applied, the supervise host immediately invokes a new `ExecutionAdapter.route_parked_escalations` method, which routes each newly parked `policy_pause` attempt through `gate_router.resolve_parked`. The gate router remains the single approval-service seam: it evaluates `escalate_resume`, reuses prior decisions idempotently, sends `notify_with_timeout` notifications, and projects blocked decisions with deadlines into the supervisor mirror. A proceed decision resumes the same durable dispatch generation through the existing `ExecutionAdapter.resume`; a blocked decision leaves it parked. Ordinary child `pending_gate` results and quarantined attempts keep their current paths.
+After a delegated batch result is validated and durably applied, the supervise host invokes a separate `ExecutionAdapter.route_parked_escalations` operation, including from the apply error-cleanup path when an earlier member of a partially applied batch may already be durable. The operation routes each newly parked `policy_pause` attempt through `gate_router.resolve_parked`. The gate router remains the single approval-service seam: it evaluates `escalate_resume`, reuses prior decisions idempotently for the same dispatch generation, sends `notify_with_timeout` notifications, and projects blocked decisions with deadlines into the supervisor mirror. A proceed decision resumes the same durable dispatch into its next lease generation; a blocked decision leaves it parked. Ordinary child `pending_gate` results and quarantined attempts keep their current paths.
 
-`route_parked_escalations` returns a bounded resolution list so the host can report whether each exhausted dispatch resumed or remains pending without reading a transcript. Keeping routing as a retryable post-apply operation means a coordinator error cannot replay the already-acknowledged `dispatch_fn` effect.
+`route_parked_escalations` returns its own allowlisted, bounded resolution list so the host can report whether each exhausted dispatch resumed, remains pending, or was already routed without reading a transcript. `ExecutionAdapter.apply` retains its exact existing return shape. Keeping routing as a retryable post-apply operation means a coordinator error cannot replay the already-acknowledged `dispatch_fn` effect.
 
 ## Selected Approach
 
-Route after `apply_delegated_batch`, never before it. At that point the correlated result and exact loop-state evidence have been checked, the callback has been acknowledged, the attempt is durably `parked`, its lease is released, and `resolve_parked` can safely reuse the existing authorized resume CAS. This keeps approval policy out of `phase_agent.py` and `autopilot-roadmap`, avoids a second gate implementation, and makes a repeated apply/resume follow the router's prior-record rule.
+Route from a separately retryable cleanup step after `apply_delegated_batch` has persisted any terminal attempt, never before exact-result validation. At that point the correlated result and exact loop-state evidence have been checked, the callback has been acknowledged, the attempt is durably `parked`, its lease is released, and `resolve_parked` can safely use the existing authorized resume CAS. The route owns one workspace serialization boundary and delegates resume to a non-locking internal helper to avoid nested `flock` acquisition. This keeps approval policy out of `phase_agent.py` and `autopilot-roadmap`, avoids a second gate implementation, and makes retries consult a generation-scoped prior record.
 
 ## Impact
 
 - `skills/supervise/scripts/execution.py`: retryable post-persist policy-pause routing and bounded resolution summary.
+- `skills/supervise/scripts/gate_router.py`: generation-scoped `escalate_resume` decision identity and sanitized escalation context.
 - `skills/tests/supervise/`: TDD coverage for auto, notify-with-timeout, idempotent repeat, and exclusions.
 - `skills/supervise/SKILL.md`: collect/apply protocol documents immediate escalation routing.
 - `openspec/specs/supervise/spec.md`: durable behavior after archive.
@@ -31,6 +32,7 @@ Route after `apply_delegated_batch`, never before it. At that point the correlat
 - Adding a new gate or notification channel.
 - Automatically resolving ordinary child `pending_gate` results.
 - Approval-resuming quarantined attempts or weakening exact-result validation.
+- Sweeping policy pauses from earlier batches; those keep the existing manual reconciliation path.
 
 ## Dependencies
 
@@ -43,3 +45,5 @@ Route after `apply_delegated_batch`, never before it. At that point the correlat
 - An exhausted phase dispatch is durably parked and immediately produces one `escalate_resume` evaluation, never only a phase-failed handoff note.
 - Under `notify_with_timeout`, the evaluation files/notifies within the configured gate window and returns a bounded pending resolution.
 - A blocked evaluation remains in the supervisor mirror/handoff as a pending gate with its computed deadline.
+- A routing failure never causes `apply` or `dispatch_fn` to be replayed, and a later retry resumes from durable routing state.
+- A later exhaustion of the same dispatch is a new generation-scoped escalation decision rather than silent reuse of an old proceed.

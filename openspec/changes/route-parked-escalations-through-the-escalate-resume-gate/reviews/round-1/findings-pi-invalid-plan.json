@@ -1,0 +1,105 @@
+{
+  "review_type": "plan",
+  "target": "route-parked-escalations-through-the-escalate-resume-gate",
+  "reviewer_vendor": "gpt-4o",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The plan correctly identifies that parked escalations should be routed immediately through the escalate-resume gate after durable parking, ensuring routing occurs only after lease release and result validation.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: The proposed separation between apply operation and retryable route_parked_escalations maintains the important architectural principle that routing failure cannot replay dispatch_fn effects, preserving idempotency and preventing duplicate work.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: The approach correctly handles retry safety by ensuring that routing errors fail closed after durable parking, allowing only the routing method to be retried without replaying already-applied batches or dispatch_fn effects.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Optional: Consider specifying the exact return structure of the new route_parked_escalations method in the design document to ensure consistent implementation and clear contract boundaries.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "optional",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": "60-80"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Optional: The specification should clarify how the bounded resolution entries returned by route_parked_escalations will be used by the calling host to determine if escalations resumed or remain pending, particularly regarding the format and content of these entries.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "optional",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/specs/supervise/spec.md",
+      "line_range": "25-30"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The design properly excludes ordinary pending_gate, failed, and quarantined attempts from the escalation routing path, maintaining backward compatibility and existing behavior for non-policy-pause parked states.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: The reuse of gate_router.resolve_parked ensures that all existing gate evaluation logic, prior-record rules, audit recording, and mirror projection continues to function correctly without duplication or divergence.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Optional: Consider adding explicit test scenarios for the interaction between the new routing functionality and the existing supervisor mirror/handoff projection to ensure blocked decisions with deadlines are properly maintained across retries.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "optional",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": "45-50"
+    },
+    {
+      "id": 9,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Optional: The design should specify how the injectable gate evaluator parameter in route_parked_escalations will be utilized in testing vs. production environments to ensure proper testability and deterministic behavior.",
+      "disposition": "accept",
+      "axis": "testability",
+      "severity": "optional",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": "35-40"
+    },
+    {
+      "id": 10,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: The plan correctly identifies that routing must occur after apply_delegated_batch to ensure correlated results and exact loop-state evidence have been checked, preventing premature gate evaluations.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none"
+    }
+  ]
+}
