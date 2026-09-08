@@ -6,7 +6,7 @@ Ri-08 made queue projection idempotent and crash-repairable, but left its callba
 
 ## What Changes
 
-Add one explicitly selected coordinated projection adapter that derives a work-queue task exclusively from the just-persisted `LoopState`, using `(change_id, current_phase, total_iterations)` as the projection identity. After submit/reconcile advances or repairs the projection head, create an unclaimable `task_type=issue`, priority-1 row and idempotently maintain the adapter-owned `change:<id>` and `projection:autopilot-phase` labels through coordinator-only bridge helpers. Register canonical `runner.py init` and `runner.py transition` writers plus an explicit `runner.py project-state` command at the real prose-driven Autopilot host boundary and reconcile it from durable loop-state on resume. Local-parallel and sequential execution continue supplying no callback and make no coordinator request.
+Add one explicitly selected coordinated projection adapter that derives a work-queue task exclusively from the just-persisted `LoopState`, using `(change_id, current_phase, total_iterations)` as the projection identity. After submit/reconcile advances or repairs the projection head, create a `task_type=issue`, priority-1 row and enforce the existing issue-row non-claimability intent in `claim_task` and idempotently maintain the adapter-owned `change:<id>` and `projection:autopilot-phase` labels through coordinator-only bridge helpers. Register canonical `runner.py init` and `runner.py transition` writers plus an explicit `runner.py project-state` command at the real prose-driven Autopilot host boundary and reconcile it from durable loop-state on resume. Local-parallel and sequential execution do not import, construct, or register the projection publisher and make no projection submit, reconcile, or label-repair request; pre-existing tier detection and archetype resolution remain unchanged.
 
 Make the host-driven CLI protocol call `project-state --mode submit` after its canonical state writes and `project-state --mode reconcile` before resumed work, so supervised runs inherit phase mirroring without a supervise-specific publisher. Projection results remain observability-only: failures are reported, and queue responses never advance or repair loop-state.
 
@@ -20,7 +20,7 @@ Make the host-driven CLI protocol call `project-state --mode submit` after its c
 ## Out of Scope
 
 - changing kanban-viz polling/filter semantics or treating the board as authoritative;
-- changing work-queue persistence, projection identity, or claim semantics landed by ri-08;
+- changing work-queue projection identity or general claim ordering; migration 037 only enforces the already documented exclusion of `task_type=issue` rows;
 - requiring a coordinator in local-parallel or sequential tiers;
 - adding a second phase-state store.
 
@@ -31,8 +31,8 @@ Make the host-driven CLI protocol call `project-state --mode submit` after its c
 
 ## Acceptance
 
-- A coordinated live run projects and labels each durable phase generation within one existing kanban poll interval.
+- A coordinated live run projects and labels each durable phase generation and refreshes an already connected kanban SSE client within 5 seconds.
 - Every projected row is reproducible from the corresponding `loop-state.json` tuple and bounded metadata.
 - Restart reconciliation cancels stale active rows and ensures exactly one current row without duplicates.
 - Coordinator failure never changes loop-state and is surfaced as degraded projection.
-- Coordinator-free tiers perform zero bridge imports, probes, or queue requests.
+- Coordinator-free tiers perform zero projection-module imports/construction and zero projection submit, reconcile, or coordinator-only label-helper calls; existing detection/archetype bridge use is unchanged.

@@ -1,0 +1,187 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: Round-1 claimed the submit\u2192reconcile head-advance fix, but D7/contracts/README/spec still say an exact `reconciliation_required` submit result falls through, without pinning the real bridge/API envelope. Verified: `submit_task` returns reason `reconciliation_required` when seq>head (035_work_queue_projection.sql:116-118); `coordination_api._projection_mutation_payload` raises `_ProjectionProblemError` \u2192 HTTP 409 problem+json with `detail`/`type` carrying that reason (coordination_api.py:95-124,833-851); bridge `_normalize_operation_response` maps non-2xx 409 to `{status:\"error\", status_code:409, response:<problem body>}` (coordination_bridge.py:509-517), not a top-level `reason=reconciliation_required` and not `{status:skipped|failed}` from D3. Naive `response.get(\"reason\")` checks will miss live head-advance, so generations after the first degrade despite the three-generation test requirement. Sibling 409 reasons `stale_projection` and `projection_generation_mismatch` share the same status_code and must not fall through.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "In D7, contracts/README.md, and the live-transition spec scenario, pin detection to the live bridge envelope: `try_submit_work` returns `status=\"error\"` with HTTP 409 problem body where `response.detail == \"reconciliation_required\"` (or type URN suffix), and only then call `try_reconcile_work_projection`. Explicitly keep other 409 details and all skipped/failed/error envelopes as degradation. Extend task 1.1 RED coverage to mock that exact bridge 409 envelope (not a fabricated success-path reason field) across \u22653 successive generations.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 56,
+        "end": 58
+      }
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: Proposal/design/contracts assert projected `task_type=issue` rows are unclaimable by `/work/claim`, but the latest `claim_task` SQL (027_claim_task_exclude_submitter.sql) only filters `p_task_types IS NULL OR task_type = ANY(p_task_types)` with no `task_type <> 'issue'` exclusion. Python `WorkQueueService.claim` forwards that filter unchanged. `issue_service.py:5` documents the exclusion as intent, not enforcement. Pinning priority 1 (D9) makes these rows the first candidates for unfiltered claims, contradicting proposal Out of Scope (no claim-semantics change) while still advertising safety the source does not provide.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Either amend scope to add a narrow `claim_task` exclusion of `task_type='issue'` (aligning SQL with issue_service intent) plus a RED proof that an unfiltered claim cannot take a priority-1 projection row, or remove the unclaimable claims from proposal.md/design.md D9/contracts/README.md and escalate residual claim risk. Do not leave the false safety property in the plan.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/contracts/README.md",
+      "line_range": {
+        "start": 6,
+        "end": 6
+      }
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "medium",
+      "description": "Nit: Round-1 dispositions marked Claude 4 / Grok 2,7 fixed by narrowing isolation to the new projection publisher, and D10 plus the spec scenario now correctly allow pre-existing detection/archetype bridge use. proposal.md Acceptance still requires 'Coordinator-free tiers perform zero bridge imports, probes, or queue requests', and What Changes still says those tiers 'make no coordinator request'. Verified `phase_agent.py:57` eagerly imports `coordination_bridge` and archetype resolution still probes \u2014 so the proposal acceptance bar remains the unimplementable absolute that D10 retreated from.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Rewrite proposal Acceptance (and the What Changes local-tier sentence) to match D10/spec: no projection-module import/construction/registration and zero submit/reconcile/coordinator-only label-helper calls; pre-existing detection/archetype bridge use stays outside the guarantee.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/proposal.md",
+      "line_range": {
+        "start": 38,
+        "end": 38
+      }
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Canonical `runner.py init`/`transition` ownership and the D8 write matrix correctly close the host identity-writer gap: current runner.py only exposes build-dispatch/apply-outcome/record-state-only-archetype/gate-check/gate-answer, apply-outcome never changes current_phase, and gate exits 0/3/4 match durable record paths while 1/2 suppress projection.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Retain D8/tasks 1.2/2.2/2.3 as written.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 60,
+        "end": 91
+      }
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "In-process resume already reconciles before pending-gate handling (`autopilot.run_loop` loads state, `persist_and_project(..., mode=\"reconcile\")`, then returns on `pending_gate`); D8/spec correctly extend the same reconcile-before-gate/work order to the host CLI protocol.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Keep host resume ordering aligned with run_loop.",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 1002,
+        "end": 1037
+      }
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "`task_type=issue` plus priority 1 correctly targets the unchanged kanban path: `IssueService.list_issues` always prepends `task_type=eq.issue`, orders `priority.asc,created_at.asc`, default limit 50; `useCoordinator.fetchIssuesForSingleChange` POSTs only `{labels:[change:<id>]}` with pollIntervalMs 5000. D9 two-label ownership, coordinator-only helpers bypassing `_github_issue_dispatch`, partial-failure cleanup, and >50 lower-priority seed proof match these boundaries.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Retain D5/D9 and tasks 3.1/3.3; keep helpers named in contracts/README.md.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 66,
+        "end": 70
+      }
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Authority, isolation, and package shape converge for the non-blocker seams: failure matrix keeps loop-state authoritative; D10/spec narrow projection isolation to the new module/helpers with import/call-spy proof; wp-live-integration no longer writes apps/kanban-viz; packages are acyclic with wp-live-integration depending on wp-projection-adapter; queue responses remain observability-only.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Retain D3/D6/D10 and current work-packages.yaml scopes.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/work-packages.yaml",
+      "line_range": {
+        "start": 97,
+        "end": 121
+      }
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "description": "FYI: Acceptance still bounds board visibility to one kanban poll interval (default 5000 ms) while each projection may probe coordination then perform submit/reconcile plus label/cleanup round trips; task 4.1 documents latency but still states no numeric budget for probe reuse within one project-state invocation.",
+      "disposition": "accept",
+      "axis": "performance",
+      "severity": "fyi",
+      "resolution": "Optional: record the intended probe+RPC+poll budget in D5 or the work-queue guide update.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/proposal.md",
+      "line_range": {
+        "start": 34,
+        "end": 34
+      }
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Failure matrix plus D9 partial-label/cleanup retry correctly keep save-failure suppression, projection degradation without loop-state rollback, interrupted stale-label cleanup, and idempotent resume repair as first-class behaviors; D11 bounds permanently unprojectable Autopilot change ids to one non-retrying degraded result per invocation.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Retain Failure Matrix, D9 cleanup ordering, and D11 as written once finding 1's envelope pin lands.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 33,
+        "end": 43
+      }
+    },
+    {
+      "id": 10,
+      "type": "security",
+      "criticality": "low",
+      "description": "Projection registration stays explicit with injected coordinator connection settings (no env-only silent enable), D6 forbids logging credentials/child transcripts/queue payload echo, and coordinator-only label helpers avoid mis-routing UUIDs into the GitHub issues backend when COORDINATION_ISSUES_BACKEND=github.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Retain D2/D6/D9 security boundaries.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 13,
+        "end": 31
+      }
+    },
+    {
+      "id": 11,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Degraded projection is required to surface bounded status/reason/task IDs without becoming authoritative, matching persist_and_project's existing non-ok envelope handling and the proposal acceptance that coordinator failure never changes loop-state.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "Retain observability-only response rules in adapter RED tests.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 17,
+        "end": 19
+      }
+    },
+    {
+      "id": 12,
+      "type": "style",
+      "criticality": "low",
+      "description": "D8 canonical write matrix and D10 projection-isolation wording are specific enough for implementers to map each runner/in-process save site and the exact helper symbols that local tiers must not call.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "none",
+      "resolution": "Keep the matrix and D10 call-spy list as the implementation checklist.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 72,
+        "end": 91
+      }
+    }
+  ]
+}
