@@ -216,6 +216,7 @@ async def sse_event_generator(
     from .event_bus import CoordinatorEvent
 
     queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=1000)
+    projection_refresh_pending = False
 
     # IMPL_REVIEW claude_code#8 (high contract_mismatch): the SSE transition
     # payload's `from`/`to` fields must come from the enum
@@ -269,13 +270,13 @@ async def sse_event_generator(
         }
 
     async def _on_task_event(evt: CoordinatorEvent) -> None:
+        nonlocal projection_refresh_pending
         if not evt.change_id or evt.change_id not in change_ids:
             return
         if evt.event_type == "projection.labels_changed":
-            await queue.put({
-                "event": "snapshot",
-                "data": await _build_snapshot(change_ids),
-            })
+            if not projection_refresh_pending:
+                projection_refresh_pending = True
+                await queue.put({"event": "projection_snapshot", "data": ""})
             return
         await queue.put(_make_transition(evt))
 
@@ -315,6 +316,16 @@ async def sse_event_generator(
                     # Heartbeat keep-alive
                     yield {"event": "ping", "data": "{}"}
                     continue
+
+                if item["event"] == "projection_snapshot":
+                    # Label repair can update 100 stale rows. Collapse that burst
+                    # before doing the database-backed snapshot work; clear first
+                    # so an update arriving during the query queues one follow-up.
+                    projection_refresh_pending = False
+                    item = {
+                        "event": "snapshot",
+                        "data": await _build_snapshot(change_ids),
+                    }
 
                 now = asyncio.get_event_loop().time()
                 if now - window_start > 1.0:

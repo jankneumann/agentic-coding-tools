@@ -21,7 +21,7 @@ def test_migration_excludes_all_issue_rows_and_uses_old_label_fallback() -> None
     assert "OLD.labels" in sql
 
 
-def test_projection_label_event_emits_fresh_snapshot(
+def test_projection_label_events_coalesce_into_one_fresh_snapshot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import src.event_stream as event_stream
@@ -50,17 +50,18 @@ def test_projection_label_event_emits_fresh_snapshot(
     async def drive() -> dict[str, Any]:
         gen = event_stream.sse_event_generator(["demo"], bus)
         await gen.__anext__()
-        await bus.task_cb(
-            CoordinatorEvent(
-                event_type="projection.labels_changed",
-                channel="coordinator_task",
-                entity_id="row",
-                agent_id="autopilot",
-                urgency="low",
-                summary="projection labels changed",
-                change_id="demo",
-            )
+        event = CoordinatorEvent(
+            event_type="projection.labels_changed",
+            channel="coordinator_task",
+            entity_id="row",
+            agent_id="autopilot",
+            urgency="low",
+            summary="projection labels changed",
+            change_id="demo",
         )
+        await bus.task_cb(event)
+        await bus.task_cb(event)
+        assert snapshots == 1
         result = await gen.__anext__()
         await gen.aclose()
         return result
