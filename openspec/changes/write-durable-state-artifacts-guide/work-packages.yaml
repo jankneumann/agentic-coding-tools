@@ -38,10 +38,13 @@ packages:
     locks:
       files:
         - "docs/guides/state-artifacts.md"
+        - "docs/guides/documentation.md"
         - "skills/autopilot/SKILL.md"
         - "skills/autopilot-roadmap/SKILL.md"
         - "skills/session-log/SKILL.md"
         - "skills/supervise/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
       keys:
         - "feature:durable-state-artifacts:write"
         - "feature:supervisor-rehydration:write"
