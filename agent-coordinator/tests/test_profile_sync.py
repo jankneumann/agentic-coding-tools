@@ -31,30 +31,11 @@ from src.agents_config import (
 )
 from src.config import reset_config
 
-_CHANGE_ID = "derive-agent-identity-from-registry"
-_CONTRACT_RELPATH = Path("contracts") / "events" / "profile-sync-audit.schema.json"
+from openspec_paths import change_dir, repo_root_from
 
-
-def _resolve_contract_path() -> Path:
-    """Locate the audit contract whether its change is active or archived.
-
-    `openspec archive` moves `openspec/changes/<id>/` to
-    `openspec/changes/archive/<date>-<id>/`, so pinning the active path makes
-    this test fail the day the change lands rather than the day the contract
-    changes. The archive prefix is date-stamped, hence the glob.
-    """
-    changes = Path(__file__).resolve().parents[2] / "openspec" / "changes"
-    active = changes / _CHANGE_ID / _CONTRACT_RELPATH
-    if active.is_file():
-        return active
-    archived = sorted(changes.glob(f"archive/*-{_CHANGE_ID}/{_CONTRACT_RELPATH}"))
-    if archived:
-        # Most recent archive date wins if the id was ever archived twice.
-        return archived[-1]
-    return active  # Report the active path in the failure message.
-
-
-CONTRACT_PATH = _resolve_contract_path()
+CONTRACT_PATH = change_dir(
+    repo_root_from(__file__, 2), "derive-agent-identity-from-registry"
+) / "contracts" / "events" / "profile-sync-audit.schema.json"
 
 
 # ---------------------------------------------------------------------------

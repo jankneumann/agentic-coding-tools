@@ -8,9 +8,27 @@ import pytest
 
 jsonschema = pytest.importorskip("jsonschema")
 
+def _change_dir(repo_root: Path, change_id: str) -> Path:
+    """Locate a change's directory whether it is active or archived.
+
+    Mirrors `skills/tests/_shared/openspec_paths.py`. Inlined because this
+    package has its own virtualenv and no path to that module; see
+    `docs/guides/openspec-path-stability.md`.
+    """
+    changes = repo_root / "openspec" / "changes"
+    active = changes / change_id
+    if active.is_dir():
+        return active
+    archived = sorted(changes.glob(f"archive/*-{change_id}"))
+    return archived[-1] if archived else active
+
+
 CONTRACT = (
-    Path(__file__).parents[3]
-    / "openspec/changes/add-revision-aware-semantic-index-registry/contracts"
+    _change_dir(
+        Path(__file__).resolve().parents[3],
+        "add-revision-aware-semantic-index-registry",
+    )
+    / "contracts"
     / "index-record.schema.json"
 )
 NOW = "2026-07-23T12:00:00+00:00"

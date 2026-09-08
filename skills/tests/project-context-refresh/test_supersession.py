@@ -13,13 +13,18 @@ from pathlib import Path
 
 import pytest
 
+from openspec_paths import change_dir, repo_root_from
+
 try:
     import yaml
 except ModuleNotFoundError:  # pragma: no cover
     yaml = None
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_SUPERSEDED = _REPO_ROOT / "openspec/changes/add-update-documentation-skill"
+_REPO_ROOT = repo_root_from(__file__, 3)
+# Resolved rather than pinned: this change is still active today, but the
+# assertion below is that its record is *retained*, which stays true — and stays
+# checkable — once it archives.
+_SUPERSEDED = change_dir(_REPO_ROOT, "add-update-documentation-skill")
 _REPLACEMENT_ID = "add-deterministic-context-producer-checks"
 
 

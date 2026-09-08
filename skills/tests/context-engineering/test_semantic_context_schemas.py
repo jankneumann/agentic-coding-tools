@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
+from openspec_paths import change_dir
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
@@ -29,28 +31,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 PROMOTED = REPO_ROOT / "openspec/contracts/code-search/schemas"
 CHANGE_ID = "inject-scoped-semantic-context-into-coding-jobs"
 
-
-def _change_dir(repo_root: Path, change_id: str) -> Path:
-    """Locate a change's directory whether it is active or archived.
-
-    ``openspec archive`` moves ``openspec/changes/<id>/`` to
-    ``openspec/changes/archive/<date>-<id>/``. Binding to the active path alone
-    makes these tests fail on the day the change lands rather than on the day a
-    contract drifts — which is the opposite of what an archive-drift guard is
-    for. The archive prefix is date-stamped, hence the glob.
-    """
-    changes = repo_root / "openspec" / "changes"
-    active = changes / change_id
-    if active.is_dir():
-        return active
-    archived = sorted(changes.glob(f"archive/*-{change_id}"))
-    if archived:
-        # Most recent archive date wins if the id was ever archived twice.
-        return archived[-1]
-    return active  # Report the active path in the failure message.
-
-
-CONTRACTS_README = _change_dir(REPO_ROOT, CHANGE_ID) / "contracts/README.md"
+CONTRACTS_README = change_dir(REPO_ROOT, CHANGE_ID) / "contracts/README.md"
 COORDINATOR_SOURCE = REPO_ROOT / "agent-coordinator/src/code_search.py"
 
 HIT_SCHEMA_NAME = "semantic-context-hit.schema.json"

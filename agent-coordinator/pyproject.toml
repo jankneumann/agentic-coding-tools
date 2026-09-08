@@ -149,6 +149,10 @@ packages = ["src"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# `tests/_shared` holds helpers imported by stable module name (mirroring the
+# `skills/` tree convention), so a test can `from openspec_paths import ...`
+# without a relative import that pytest's rootdir handling would break.
+pythonpath = ["tests/_shared"]
 testpaths = ["tests"]
 markers = [
     "integration: tests requiring local Supabase (docker-compose up -d)",
