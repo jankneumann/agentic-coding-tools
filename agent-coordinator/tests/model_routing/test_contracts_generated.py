@@ -17,7 +17,9 @@ from typing import get_args
 import pytest
 import yaml
 
-_CHANGE = Path(__file__).resolve().parents[3] / "openspec/changes/add-adaptive-model-router"
+from openspec_paths import change_dir, repo_root_from
+
+_CHANGE = change_dir(repo_root_from(__file__, 3), "add-adaptive-model-router")
 _CONTRACTS = _CHANGE / "contracts"
 _OPENAPI = _CONTRACTS / "openapi/v1.yaml"
 _EVENTS = _CONTRACTS / "events/routing-signal.schema.json"
