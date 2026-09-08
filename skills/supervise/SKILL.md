@@ -12,6 +12,10 @@ triggers:
 
 # Supervise
 
+## Durable state artifact authority
+
+Shared holder, writer, authority, fallback, and rehydration semantics live in the `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
+
 The single conversational counterpart the operator talks to. This skill does not
 add an orchestration layer — it *names* one that already exists: the host harness
 session, playing the `supervisor` archetype, driving the skills below it.
@@ -130,29 +134,23 @@ The recurring operating loop. Runs SENSE → RANK → digest, and **stops**.
 
 ### 1. Rehydrate
 
-The supervisor is a rehydratable role, not a resident process: any fresh session that
-loads durable state becomes the supervisor. Read durable state in this order:
+The supervisor is a rehydratable role, not a resident process. Follow the canonical order below; the shared authority and conflict rules are defined in the guide linked above.
 
-1. Through the host bridge, call
-   `try_handoff_read(limit=1, supervisor_only=true)`. The filter is required: a newer
-   ordinary handoff must not mask the newest supervisor handoff. Save the complete bridge
-   response to a temporary JSON file outside the repository.
-2. Run the deterministic rehydrator, which also reads
-   `openspec/supervise/supervisor-record.json` when present:
+1. **Bootstrap locator.** Through the host bridge call `try_handoff_read(limit=1, supervisor_only=true)` and save the complete response outside the repository. Run the deterministic rehydrator, which also reads `openspec/supervise/supervisor-record.json`:
 
    ```bash
    python3 "<skill-base-dir>/scripts/cycle_state.py" --repo-root . \
      rehydrate --handoff "$SUPERVISE_HANDOFF" > "$SUPERVISE_RECORD"
    ```
 
-   The `rehydrate` subcommand selects the handoff or mirror with the newer `written_at`,
-   then invokes the `supervisor-record` builder so `active_changes` is freshly derived.
-   **Coordinator unreachable.** When the bridge yields no supervisor handoff, it falls back to
-   the mirror and the digest must report `Degraded: handoff`. This one path therefore
-   covers handoff-only state, a stale handoff with a newer mirror, and coordinator-down
-   mirror recovery.
-3. Read every `openspec/roadmaps/*/roadmap.yaml` and
-   `openspec/supervise/cycle-ledger.json` — what the last cycle already surfaced.
+   This selects the newer valid handoff or mirror only as a locator. If the coordinator is unreachable, use the mirror and report `Degraded: handoff`.
+2. **Roadmap definition.** Read and validate every candidate `openspec/roadmaps/*/roadmap.yaml` plus `openspec/supervise/cycle-ledger.json`; reject missing or mismatched roadmap identities.
+3. **Roadmap execution state.** Read each candidate roadmap's `checkpoint.json` before accepting claimed progress. Absence is valid only for a never-started roadmap; a resume claim without it is degraded and stops automatic advancement.
+4. **Change execution state.** Read and validate `openspec/changes/<change-id>/loop-state.json` for every claimed active execution. Never reconstruct a missing or invalid loop state from the supervisor record.
+5. **Learning context.** Load direct-dependency learnings and the bounded recent learning window after canonical roadmap and change state.
+6. **Phase history.** Read relevant `session-log.md` phase records for rationale and evidence, never for current phase.
+7. **Handoff context.** Apply bounded next steps only when they agree with canonical checkpoint and loop state; canonical state wins even when the handoff is newer.
+8. **Rebuild projections.** Derive queue and display state from the verified canonical records, never the reverse.
 
 Then compute the cross-roadmap picture:
 

@@ -12,6 +12,10 @@ triggers:
 
 # Autopilot
 
+## Durable state artifact authority
+
+Shared holder, writer, authority, fallback, and rehydration semantics live in the `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
+
 Orchestrate the full plan-review-implement-validate-PR lifecycle with multi-vendor review convergence. For simple features, runs fully automatically from proposal to PR. Stops at merge for human approval.
 
 ## Arguments

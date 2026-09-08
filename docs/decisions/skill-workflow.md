@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-08 — write-durable-state-artifacts-guide
+
+### Phase: Implementation
+
+**Use portable canonical guide links** — Installed skill payloads cannot use relative links that escape the skill directory; a stable repository URL remains clickable in canonical and mirrored copies.
+
+- Status: `active`
+- Source: [openspec/changes/write-durable-state-artifacts-guide/session-log.md](/openspec/changes/write-durable-state-artifacts-guide/session-log.md) (D1)
+
+---
+
 ## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
 
 ### Phase: Plan

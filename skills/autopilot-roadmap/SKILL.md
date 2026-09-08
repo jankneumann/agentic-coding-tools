@@ -11,6 +11,10 @@ triggers:
 
 # Autopilot Roadmap
 
+## Durable state artifact authority
+
+Shared holder, writer, authority, fallback, and rehydration semantics live in the `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
+
 Execute roadmap items iteratively with policy-aware vendor routing and adaptive reprioritization. Manages the full lifecycle of each roadmap item from planning through completion, writing learning entries and adjusting priorities based on accumulated experience.
 
 ## Arguments
