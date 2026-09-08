@@ -11,12 +11,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
-from pathlib import Path
 from typing import get_args
 
 import pytest
 import yaml
-
 from openspec_paths import change_dir, repo_root_from
 
 _CHANGE = change_dir(repo_root_from(__file__, 3), "add-adaptive-model-router")
