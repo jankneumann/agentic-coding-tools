@@ -8,7 +8,7 @@
 
 ### D1 — Route only after terminal application persistence
 
-`ExecutionAdapter.apply` first completes the existing exact-result validation and `apply_delegated_batch` transaction. It then reloads the checkpoint and routes only attempts from the applied batch whose durable status is `parked` and whose `parked.kind` is `policy_pause`. Gate evaluation never precedes result correlation or durable parking.
+`ExecutionAdapter.apply` remains the existing exact-result validation and `apply_delegated_batch` transaction. Immediately after it succeeds, the host calls `ExecutionAdapter.route_parked_escalations(workspace, batch_id, repo_root, evaluator=None)`. That method reloads the checkpoint and routes only attempts from the applied batch whose durable status is `parked` and whose `parked.kind` is `policy_pause`. Gate evaluation never precedes result correlation or durable parking.
 
 ### D2 — Reuse `gate_router.resolve_parked`
 
@@ -20,11 +20,11 @@ No approval logic is copied into execution or Autopilot. The adapter calls `reso
 
 ### D4 — Make routing observable and injectable
 
-`ExecutionAdapter.apply` accepts an optional gate evaluator for deterministic tests and returns `escalation_resolutions`, each containing `dispatch_id`, `outcome`, and a bounded pending-gate entry when blocked. It never exposes approval-service responses or child transcripts. Existing return keys remain unchanged.
+`ExecutionAdapter.route_parked_escalations` accepts an optional gate evaluator for deterministic tests and returns entries containing `dispatch_id`, `outcome`, and a bounded pending-gate entry when blocked. It never exposes approval-service responses or child transcripts. `ExecutionAdapter.apply` and all existing return keys remain unchanged.
 
 ### D5 — Fail closed without corrupting the applied result
 
-If gate routing raises after the attempt is durably parked, the attempt stays parked and the apply call surfaces the routing error. Retrying the routing step uses the router's subject-key prior-record rule, so it does not duplicate a filed approval or audit record. The already-applied batch is not replayed through `dispatch_fn`.
+If gate routing raises after the attempt is durably parked, the attempt stays parked and the routing call surfaces the error. The host retries `route_parked_escalations` directly, never `apply`, so the already-applied batch is not replayed through `dispatch_fn`. The router's subject-key prior-record rule prevents duplicate approvals and audit records.
 
 ## Test Strategy
 

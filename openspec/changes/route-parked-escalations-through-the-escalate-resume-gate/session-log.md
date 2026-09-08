@@ -54,3 +54,30 @@ Recovered the exact ri-06 plan after two dispatched phase owners produced no mat
 ### Context
 Refined ri-06 into a post-persist policy-pause route through the existing supervise gate router. Exact-result application parks and releases the attempt before gate evaluation; policy pauses map to escalate_resume, while pending_gate and quarantine semantics remain unchanged.
 
+
+## Phase: Plan Iteration 1
+
+**Date**: 2026-09-08
+
+Self-review closed a failure-atomicity gap: gate routing is a separate mandatory post-apply method rather than part of `apply`. If coordinator evaluation fails, the durable parked attempt remains retryable without replaying the batch callback. The method is limited to the named batch's `policy_pause` attempts and preserves ordinary pending-gate and quarantine semantics.
+
+---
+
+## Phase: Plan Iteration 1 (2026-09-08)
+
+**Agent**: architect | **Session**: N/A
+
+### Decisions
+1. **Use retryable route_parked_escalations operation** — A persisted parked attempt is safe to re-route; an already applied callback is not safe to replay.
+
+### Completed Work
+- plan self-review
+- retry boundary correction
+- strict revalidation
+
+### Next Steps
+- multi-vendor PLAN_REVIEW
+
+### Context
+Closed the plan failure-atomicity gap by separating the mandatory post-apply escalation routing call from delegated batch application, so gate/coordinator errors cannot replay dispatch_fn effects.
+

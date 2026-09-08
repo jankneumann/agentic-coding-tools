@@ -9,14 +9,14 @@
 
 ## 2. Implement immediate escalation routing
 
-- [ ] 2.1 Extend `ExecutionAdapter.apply` with an injectable evaluator and a post-application scan limited to the current batch's persisted `policy_pause` attempts.
+- [ ] 2.1 Add `ExecutionAdapter.route_parked_escalations` with an injectable evaluator and a scan limited to the named batch's persisted `policy_pause` attempts.
 - [ ] 2.2 Delegate every matched attempt to `gate_router.resolve_parked`; do not import or duplicate approval-service policy.
-- [ ] 2.3 Return bounded `escalation_resolutions` entries while preserving all existing apply result keys.
-- [ ] 2.4 Ensure routing errors fail closed after durable parking and can be retried without replaying `dispatch_fn` effects.
+- [ ] 2.3 Return bounded resolution entries while preserving `ExecutionAdapter.apply` and all existing apply result keys.
+- [ ] 2.4 Ensure routing errors fail closed after durable parking and are retried by rerunning only the routing method, never the already-applied batch or `dispatch_fn` effects.
 
 ## 3. Document and integrate
 
-- [ ] 3.1 Update `skills/supervise/SKILL.md` collect/apply instructions to route newly parked policy pauses immediately and retain blocked pending gates in the supervisor record.
+- [ ] 3.1 Update `skills/supervise/SKILL.md` collect/apply instructions to call the retryable routing method immediately after apply, report degradations, and retain blocked pending gates in the mirror plus the cycle's supervisor handoff.
 - [ ] 3.2 Sync canonical skill runtime mirrors with `skills/install.sh` and verify byte identity.
 - [ ] 3.3 Record implementation and review decisions in `session-log.md`.
 

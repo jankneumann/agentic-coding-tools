@@ -2,7 +2,7 @@
 
 ### Requirement: Exhausted Phase Dispatches Route Immediately Through Escalate Resume
 
-After a supervised Autopilot child exhausts its phase sub-agent retry budget and returns a schema-valid parked result with `kind: policy_pause`, the supervise execution adapter SHALL first validate and durably apply that result, then immediately route the persisted parked attempt through `gate_router.resolve_parked`. The router SHALL evaluate `escalate_resume` through the approval gate service exactly once per decision subject, and SHALL either resume the same dispatch generation with a recorded approval reference or leave the attempt parked and project the decision into the supervisor pending-gate record. A phase-failed handoff alone SHALL NOT be treated as a completed escalation route.
+After a supervised Autopilot child exhausts its phase sub-agent retry budget and returns a schema-valid parked result with `kind: policy_pause`, the supervise execution adapter SHALL first validate and durably apply that result, then the host SHALL immediately invoke its retryable parked-escalation operation, which routes the persisted attempt through `gate_router.resolve_parked`. The router SHALL evaluate `escalate_resume` through the approval gate service exactly once per decision subject, and SHALL either resume the same dispatch generation with a recorded approval reference or leave the attempt parked and project the decision into the supervisor pending-gate record. A phase-failed handoff alone SHALL NOT be treated as a completed escalation route.
 
 #### Scenario: Exhausted phase routes after durable parking
 

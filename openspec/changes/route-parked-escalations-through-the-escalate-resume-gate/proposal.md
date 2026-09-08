@@ -10,9 +10,9 @@ A supervised Autopilot child already enters `ESCALATE` when a phase sub-agent ex
 
 ## What Changes
 
-After a delegated batch result is validated and durably applied, `ExecutionAdapter.apply` immediately routes each newly parked `policy_pause` attempt through `gate_router.resolve_parked`. The gate router remains the single approval-service seam: it evaluates `escalate_resume`, reuses prior decisions idempotently, sends `notify_with_timeout` notifications, and projects blocked decisions with deadlines into the supervisor mirror. A proceed decision resumes the same durable dispatch generation through the existing `ExecutionAdapter.resume`; a blocked decision leaves it parked. Ordinary child `pending_gate` results and quarantined attempts keep their current paths.
+After a delegated batch result is validated and durably applied, the supervise host immediately invokes a new `ExecutionAdapter.route_parked_escalations` method, which routes each newly parked `policy_pause` attempt through `gate_router.resolve_parked`. The gate router remains the single approval-service seam: it evaluates `escalate_resume`, reuses prior decisions idempotently, sends `notify_with_timeout` notifications, and projects blocked decisions with deadlines into the supervisor mirror. A proceed decision resumes the same durable dispatch generation through the existing `ExecutionAdapter.resume`; a blocked decision leaves it parked. Ordinary child `pending_gate` results and quarantined attempts keep their current paths.
 
-The apply result gains a bounded `escalation_resolutions` list so the host can report whether each exhausted dispatch resumed or remains pending without reading a transcript.
+`route_parked_escalations` returns a bounded resolution list so the host can report whether each exhausted dispatch resumed or remains pending without reading a transcript. Keeping routing as a retryable post-apply operation means a coordinator error cannot replay the already-acknowledged `dispatch_fn` effect.
 
 ## Selected Approach
 
@@ -20,7 +20,7 @@ Route after `apply_delegated_batch`, never before it. At that point the correlat
 
 ## Impact
 
-- `skills/supervise/scripts/execution.py`: post-persist policy-pause routing and bounded resolution summary.
+- `skills/supervise/scripts/execution.py`: retryable post-persist policy-pause routing and bounded resolution summary.
 - `skills/tests/supervise/`: TDD coverage for auto, notify-with-timeout, idempotent repeat, and exclusions.
 - `skills/supervise/SKILL.md`: collect/apply protocol documents immediate escalation routing.
 - `openspec/specs/supervise/spec.md`: durable behavior after archive.
