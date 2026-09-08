@@ -3,33 +3,35 @@ schema_version: 1
 feature:
   id: route-parked-escalations-through-the-escalate-resume-gate
   title: "Route parked escalations through the escalate-resume gate"
-  plan_revision: 1
+  plan_revision: 3
   created_by: autopilot-roadmap
   deployable: false
 
 contracts:
-  revision: 1
+  revision: 2
   openapi:
     primary: "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/contracts/README.md"
     files:
       - "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/contracts/README.md"
+      - "openspec/schemas/gate-decision.schema.json"
 
 defaults:
   priority: 2
   lock_ttl_minutes: 90
-  timeout_minutes: 90
+  timeout_minutes: 120
   retry_budget: 2
   verification_tier_required: B
   min_trust_level: 2
 
 packages:
   - package_id: wp-escalation-routing
-    title: "Persisted policy-pause escalation routing"
+    title: "Generation-safe policy-pause escalation routing"
     task_type: implementation
     description: |
-      Add TDD coverage and wire newly persisted supervised policy pauses through
-      gate_router.resolve_parked, returning a bounded resolution summary and
-      documenting the immediate route in the supervise skill.
+      Add TDD coverage and route fully applied supervised policy pauses through
+      the generation-scoped, subject-serialized gate-router seam. Preserve
+      partial-apply replay, bounded outputs, mirror/handoff state, and console
+      answer compatibility.
     role: implementer
     priority: 1
     depends_on: []
@@ -37,18 +39,22 @@ packages:
       files:
         - "skills/supervise/scripts/execution.py"
         - "skills/supervise/scripts/gate_router.py"
+        - "skills/supervise/scripts/cycle_state.py"
         - "skills/supervise/SKILL.md"
+        - "openspec/schemas/gate-decision.schema.json"
       keys:
         - "feature:route-parked-escalations-through-the-escalate-resume-gate:write"
         - "contract:supervise.escalation-routing"
-      ttl_minutes: 90
-      reason: "Single post-persist gate-routing seam"
+      ttl_minutes: 120
+      reason: "One generation-safe escalation route and approval subject"
     scope:
       write_allow:
         - "skills/supervise/scripts/execution.py"
         - "skills/supervise/scripts/gate_router.py"
+        - "skills/supervise/scripts/cycle_state.py"
         - "skills/supervise/SKILL.md"
         - "skills/tests/supervise/**"
+        - "openspec/schemas/gate-decision.schema.json"
         - "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/**"
         - ".claude/skills/supervise/**"
         - ".agents/skills/supervise/**"
@@ -63,10 +69,11 @@ packages:
         - "documentation"
         - "capabilities"
         - "decisions"
+        - "apis"
     worktree:
       name: escalation-routing
       mode: isolated
-    timeout_minutes: 120
+    timeout_minutes: 180
     retry_budget: 2
     min_trust_level: 2
     verification:
@@ -84,15 +91,39 @@ packages:
           evidence:
             artifacts: []
             result_keys: ["orchestration_suite"]
-        - name: "Strict change validation"
+        - name: "Ruff changed surfaces"
           kind: command
-          command: "openspec validate route-parked-escalations-through-the-escalate-resume-gate --strict"
+          command: "skills/.venv/bin/python -m ruff check skills/supervise/scripts/execution.py skills/supervise/scripts/gate_router.py skills/supervise/scripts/cycle_state.py skills/tests/supervise"
           evidence:
             artifacts: []
-            result_keys: ["openspec_strict"]
+            result_keys: ["ruff"]
+        - name: "Strict OpenSpec validation"
+          kind: command
+          command: "openspec validate route-parked-escalations-through-the-escalate-resume-gate --strict && openspec validate --strict --all"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_strict", "openspec_all"]
+        - name: "Work package and DAG validation"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml && skills/.venv/bin/python skills/parallel-infrastructure/scripts/dag_scheduler.py openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml --base-dir ."
+          evidence:
+            artifacts: []
+            result_keys: ["package_validation", "dag_validation"]
+        - name: "Context drift gate"
+          kind: command
+          command: "make context-drift-gate"
+          evidence:
+            artifacts: []
+            result_keys: ["context_drift"]
+        - name: "Post-sync package scope"
+          kind: manual
+          manual_instructions: "Run the implementation orchestrator's canonical scope checker against the roadmap base and fail the package if any modified path is outside write_allow or matches deny. Record inherited-only context drift separately."
+          evidence:
+            artifacts: []
+            result_keys: ["scope_compliance"]
     metadata:
-      loc_estimate: 320
-      complexity: medium
+      loc_estimate: 480
+      complexity: high
       package_kind: integration
     outputs:
-      result_keys: ["supervise_suite", "orchestration_suite", "openspec_strict"]
+      result_keys: ["supervise_suite", "orchestration_suite", "ruff", "openspec_strict", "openspec_all", "package_validation", "dag_validation", "context_drift", "scope_compliance"]

@@ -2,53 +2,59 @@
 
 ## Context
 
-`autopilot.run_loop` catches a phase exception, persists `current_phase=ESCALATE`, and the supervised child-result protocol exposes that state as `parked.kind=policy_pause`. `apply_delegated_batch` then persists the parent attempt as parked and releases its lease. Today `ExecutionAdapter.apply` returns at that point. `gate_router.resolve_parked` already owns the only safe route from a policy pause to `Gate.ESCALATE_RESUME`, including posture evaluation, audit recording, mirror projection, and authorized resume.
+`autopilot.run_loop` catches a phase exception, persists `current_phase=ESCALATE`, and the supervised child-result protocol exposes that state as `parked.kind=policy_pause`. `apply_delegated_batch` then persists the parent attempt as parked and releases its lease. Today `ExecutionAdapter.apply` returns at that point. `gate_router.resolve_parked` already owns the safe route from a policy pause to `Gate.ESCALATE_RESUME`, including posture evaluation, audit recording, mirror projection, and authorized resume.
 
 ## Decisions
 
-### D1 — Route only after terminal application persistence
+### D1 — Route only after the complete batch is durably applied
 
-`ExecutionAdapter.apply` remains the existing exact-result validation and `apply_delegated_batch` transaction, with its return shape unchanged. The host calls `ExecutionAdapter.route_parked_escalations(workspace, batch_id, repo_root, evaluator=None)` after apply returns and from apply's error-cleanup path, because `apply_delegated_batch` may have durably parked an earlier member before a later member fails. The route reloads durable state and considers only attempts from the named batch. It routes attempts whose current status is `parked` and whose `parked.kind` is `policy_pause`; a prepared continuation already authorized by a policy-pause decision may be reported as `already_routed` but is never routed again. Gate evaluation never precedes exact-result validation or durable parking. If both apply and route fail, the host preserves and reports both errors; recovery retries only route, never apply.
+`ExecutionAdapter.apply` remains the existing exact-result validation and `apply_delegated_batch` operation, with its signature and return shape unchanged. The host calls `ExecutionAdapter.route_parked_escalations(workspace, batch_id, repo_root, evaluator=None)` only after apply returns successfully, which proves every batch member is terminal with `application_journal.state == effects_applied`. If apply raises after an earlier member was persisted, error cleanup may report bounded candidate dispatch IDs but MUST NOT evaluate, notify, route, or resume them. Recovery first retries the exact apply batch; the application journal prevents a second `dispatch_fn` effect. Only after apply succeeds does the host route policy pauses. The route scans named-batch parked policy pauses for action and prepared `continuation.kind=policy_pause` attempts only for `already_routed` reporting.
 
-### D2 — Serialize once without nested `flock`
+### D2 — Serialize the decision subject, not a network wait under the workspace lock
 
-`route_parked_escalations` owns one workspace `_serialized_transition` boundary covering candidate re-read, gate evaluation persistence, and optional resume. It processes dispatch IDs in stable lexical order, re-reads each candidate immediately before resolving it, and never saves its scan-time checkpoint. Because `gate_router.resolve_parked` calls back into resume on proceed, public `ExecutionAdapter.resume` and routed resume share a private `_resume_locked` helper: public resume acquires the workspace lock before the helper, while the route passes a narrow adapter facade that calls the helper under the already-held lock. The route MUST NOT acquire a second file descriptor lock through public `resume`. This prevents duplicate file/notify races and avoids non-reentrant `flock` deadlock.
+`gate_router` owns a deterministic per-subject lock keyed by gate, roadmap, dispatch, and for `escalate_resume`, lease generation. `evaluate`, `answer`, and `resolve_parked` share private already-subject-locked helpers so `resolve_parked` holds one subject lock across prior-record lookup, file/notify/poll, projection, decision persistence, and optional resume. Public `ExecutionAdapter.resume` then takes the existing short workspace lock only for its state CAS. `route_parked_escalations` never holds the workspace lock across approval-service I/O and never calls a nested workspace-locking helper. Concurrent automatic and manual resolution of one subject therefore produce one decision/notification/resume without blocking unrelated durable operations for the gate timeout.
 
-### D3 — Reuse `gate_router.resolve_parked` with generation-scoped identity
+### D3 — Make `escalate_resume` identity generation-scoped end to end
 
-No approval logic is copied into execution or Autopilot. The adapter calls `resolve_parked(attempt, workspace, repo_root, adapter=<locked-resume-facade>, evaluator=...)`. That function maps the pause to `escalate_resume`, applies the prior-record rule, projects blocked decisions, and resumes only with a recorded `gate-decision:<id>` authorization. For `escalate_resume` only, the subject key and recorded correlation include the parked attempt's `lease_generation`; retries of one parked generation reuse one decision, while a later exhaustion after resume is a new decision subject. Other gate subject keys remain backward compatible.
+For `escalate_resume` only, the subject key and gate-decision correlation include the parked attempt's `lease_generation`. `_correlation_extra` and the late-answer correlation copy retain that value. Same-generation retries reuse one decision; a later exhaustion is a new subject. `require_approval_ref` receives the current parked generation and refuses an old proceed reference for a later generation. Console `gate-answer` remains backward compatible: `--dispatch-id` alone resolves the newest blocked `escalate_resume` record for that dispatch and answers its recorded generation; an optional `--lease-generation` selects explicitly. A following route reuses that answer. Other gates and existing CLI calls keep their current subject identity.
+
+The open gate-decision JSON schema documents optional `lease_generation` as the parked generation authorized by an `escalate_resume` record. No closed wire version is introduced.
 
 ### D4 — Preserve failure and gate meanings
 
-`pending_gate` is excluded because it names the child's own gate and already has an explicit reconciliation flow. `quarantined` is excluded because uncertain liveness is not approval-resumable. Failed results remain failures. Only an ESCALATE-derived `policy_pause` represents the parked escalation this change owns.
+`pending_gate` is excluded because it names the child's own gate and already has an explicit reconciliation flow. `quarantined` is excluded because uncertain liveness is not approval-resumable. Failed results remain failures. Only an ESCALATE-derived `policy_pause` in a fully applied batch is routed automatically.
 
 ### D5 — Make routing observable, bounded, and injectable
 
-`ExecutionAdapter.route_parked_escalations` accepts an optional gate evaluator for deterministic tests and returns at most one entry per attempt belonging to the named batch. Every entry has exactly `dispatch_id` and `outcome`; `outcome` is `proceed`, `blocked`, or `already_routed`. A `proceed` entry may add only `lease_generation`. A `blocked` entry adds only a `pending_gate` normalized through the existing supervisor-record allowlist. No entry contains child transcripts, raw approval responses, or the child-provided parked reason. For policy pauses, the router receives a fixed bounded reason such as `supervised phase retry budget exhausted`, not untrusted child prose. Existing dispatch-ID and pending-gate field bounds apply. `ExecutionAdapter.apply` and all existing apply result keys remain unchanged.
+`ExecutionAdapter.route_parked_escalations` accepts an optional gate evaluator for deterministic tests and returns at most one entry per named-batch attempt. Every entry has exactly `dispatch_id`, `outcome`, and `decided_lease_generation`; `outcome` is `proceed`, `blocked`, `deferred`, or `already_routed`. `proceed` and `already_routed` additionally contain exactly `resumed_lease_generation`. `blocked` additionally contains exactly one `pending_gate` normalized through the supervisor-record allowlist. `deferred` is reserved for a recorded proceed whose state CAS could not yet complete; it never describes partial apply, which is not routed. `decided_lease_generation` names the parked generation on the gate record and `resumed_lease_generation` names its post-increment continuation.
 
-### D6 — Fail closed per attempt without corrupting the applied result
+The approval request/notification context for an automatic policy pause contains exactly `dispatch_id`, `change_id`, `item_id`, `lease_generation`, `verb`, and `reason`. Values come from the validated durable attempt; `verb` is exactly `resume` and `reason` is exactly `supervised phase retry budget exhausted`. Existing identity string bounds and the integer generation constraint apply. No output or outbound context contains a child transcript, raw approval response, child-provided reason, or additional key. `ExecutionAdapter.apply` remains unchanged.
 
-If gate routing raises after an attempt is durably parked, that attempt stays parked unless its own resolution already committed. Resolutions are applied in stable dispatch-ID order. On a later-attempt error the operation raises; already-resolved attempts remain durable, and retry re-reads state, reports an authorized prepared continuation as `already_routed`, and resumes only still-parked policy pauses. The host retries `route_parked_escalations` directly, never `apply`, so the already-applied batch is not replayed through `dispatch_fn`. The serialized, generation-scoped prior-record rule prevents duplicate approvals, notifications, and audit records.
+### D6 — Fail closed per routed attempt without corrupting the applied result
+
+After a completely successful apply, routing processes dispatch IDs in stable lexical order. If routing raises, the current attempt stays parked unless its own decision or resume already committed; earlier resolutions remain durable. A retry re-reads state, reports a prepared authorized continuation as `already_routed`, and acts only on still-parked policy pauses. The host retries only `route_parked_escalations`, never `apply`, after this boundary. This rule is distinct from a partial apply failure, which is recovered by idempotently retrying apply before routing begins.
 
 ### D7 — Resume establishes a fresh application generation
 
-Authorized resume preserves dispatch ID, attempt number, launch token, worktree, and branch, increments `lease_generation`, and clears the prior generation's `application_journal` with its other per-generation terminal fields. The next child-start/acknowledge/enter/apply cycle therefore binds a fresh result journal instead of conflicting with the prior `effects_applied` result.
+Authorized resume preserves dispatch ID, attempt number, launch token, worktree, and branch, increments `lease_generation`, and clears the prior generation's `application_journal` with its other per-generation terminal fields. `_bound_application_journal` then takes its fresh-bind path for the new result. The next child-start/acknowledge/enter/apply cycle can therefore commit a fresh journal instead of conflicting with the prior `effects_applied` result.
 
-### D8 — Mirror is the execute-time durability path
+### D8 — Retire stale mirror entries across generations
 
-Blocked routing relies on `gate_router`'s synchronous supervisor-mirror projection. Execute does not originate a separate coordinator handoff. The next supervisor rehydrate selects the newer mirror over a stale or missing handoff, retains the normalized `escalate_resume` pending gate and `requested_at + timeout_seconds` deadline, and the normal end-of-cycle digest writes that record into the next supervisor handoff. The tests cover mirror projection, stale-handoff rehydrate, and rendered handoff payload.
+Blocked routing synchronously projects a normalized pending gate into the supervisor mirror. When an `escalate_resume` decision is recorded for generation G, projection also removes pending entries whose decision IDs belong to earlier `escalate_resume` records for the same roadmap and dispatch at lower generations. A proceed leaves no stale pending entry. The next supervisor rehydrate selects the newer mirror over a stale or missing handoff, and the normal end-of-cycle digest writes that normalized state into the next supervisor handoff. Execute does not originate a separate coordinator handoff.
 
-### D9 — Notification latency is explicit
+### D9 — Notification latency is scoped to one decision subject
 
-Routing inherits `notify_with_timeout`'s synchronous per-attempt poll window. Attempts are processed serially in stable order, so the worst-case batch duration is the sum of those configured windows. The skill reports that behavior and the retry protocol; it does not introduce an independent timeout or notification channel.
+Routing inherits `notify_with_timeout`'s synchronous polling window, and named-batch attempts are processed serially in stable order. The per-subject lock may therefore be held for one configured gate window, while the workspace state lock remains available to unrelated durable operations. The total route call can still take the sum of the configured windows and the skill reports that cost.
 
 ## Test Strategy
 
-1. RED: a policy-pause result applied under an auto posture routes without deadlock, evaluates `escalate_resume`, and resumes generation 2.
-2. RED: two concurrent routing calls produce one generation-scoped gate record/notification and one resume.
-3. RED: notify-with-timeout calls the coordinator once, leaves the attempt parked, and projects a pending gate with the configured deadline; stale-handoff rehydrate and the next handoff preserve it.
-4. RED: a forced routing error after successful apply leaves `dispatch_fn` at one call and recovers by retrying only route; a partial two-member apply still routes the earlier durable pause.
-5. RED: park -> route -> resume -> child-start/acknowledge/enter -> apply succeeds with a fresh application journal.
-6. RED: a second policy pause after an earlier proceed gets a new generation-scoped decision; retrying the same generation reuses its prior record.
-7. Guard: exact response keys/bounds, fixed notification reason, stable partial-batch retry, ordinary `pending_gate`, failed, and quarantined paths.
-8. Guard the SKILL host sequence and prose-free gate-name invariant, then run supervise, autopilot-roadmap, phase-recovery, Ruff, scope, and strict OpenSpec validation.
+1. RED: a fully applied policy pause under auto posture evaluates `escalate_resume` and resumes generation 2 without lock reentrancy.
+2. RED: concurrent automatic/manual resolution of one generation produces one decision, notification, and resume while an unrelated workspace transition remains available during a blocked coordinator wait.
+3. RED: notify-with-timeout projects one pending gate/deadline; stale-handoff rehydrate and the next supervisor handoff preserve it.
+4. RED: a partial two-member apply under auto posture does not evaluate or resume the earlier pause; exact apply replay completes without a second `dispatch_fn`, then routing resumes it.
+5. RED: a routing failure after successful apply leaves `dispatch_fn` at one call and recovers by retrying only route.
+6. RED: park -> route -> resume -> child-start/acknowledge/enter -> apply succeeds with a fresh application journal.
+7. RED: a second exhaustion gets a new generation decision, rejects the old approval ref, and retires the older pending mirror entry; same-generation retry remains idempotent.
+8. RED: backward-compatible console answer resolves the newest blocked generation, optional explicit generation works, and the next route reuses the answer without refiling.
+9. Guard exact response/context keys, literal reason, prepared-continuation reporting, late-answer generation retention, and non-escalation exclusions.
+10. Run supervise and recovery suites, Ruff, package/DAG/scope checks, strict change and repo-wide OpenSpec validation, and the deterministic context-drift gate.

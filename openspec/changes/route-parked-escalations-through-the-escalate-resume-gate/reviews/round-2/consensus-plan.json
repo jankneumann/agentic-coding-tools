@@ -1,0 +1,399 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "route-parked-escalations-through-the-escalate-resume-gate",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 12,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 1
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 11
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "escalate",
+      "description": "escalate_resume decision subject identity is scoped to dispatch ID and lease_generation, ensuring same-generation retries reuse prior decisions without auto-resuming future exhaustions.",
+      "vendor_dispositions": {
+        "antigravity": "accept",
+        "claude_code": "fix",
+        "grok": "accept"
+      }
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: D1's fix for round-1 finding 5 (route from apply's error-cleanup path) collides with D7's fix for round-1 finding 6 (resume increments `lease_generation` and clears `application_journal`), and the combination strands the un-applied members of a partially applied batch. Take the exact case spec.md:53 mandates: a two-member batch where A's `policy_pause` is durably parked and `effects_applied` (orchestrator.py:722-758) and B then raises inside the same loop. Error cleanup routes A; under an `auto` posture `resolve_parked` proceeds and `adapter.resume` sets A to `status=prepared`, `lease_generation=2`, journal cleared (execution.py:889-905 plus the D7 change). B was never applied, so the host must retry `apply` \u2014 and now cannot. `ExecutionAdapter.apply` re-validates every supplied result against its attempt and raises `ValueError(\"lease_generation mismatch\")` for A's generation-1 result (execution.py:927-929), and `apply_delegated_batch` independently requires the result set to equal the *whole* batch's dispatch ids (orchestrator.py:636-638) and re-checks the same field (orchestrator.py:556-558). There is no result for A at generation 2 yet, so the batch is unappliable until A's resumed child completes an entire new Autopilot run \u2014 and if the host instead obeys D6's 'retries only route, never apply', B stays `launched` forever, which puts B's item in `_UNRESOLVED_ATTEMPT_STATUSES` (orchestrator.py:162-169) and permanently excludes it from every future batch (orchestrator.py:247-260). Without the resume this retry works cleanly (A is terminal + `effects_applied`, so the loop hits `continue` at orchestrator.py:722 and the 'already applied' guard at 625-630 does not trip because B is not terminal), so the damage comes entirely from resuming out of the cleanup path. Test-strategy item 4 would not catch it: it pairs the partial-batch case with a routing-error scenario, and a `notify_with_timeout`/blocked posture leaves A parked at generation 1 and passes."
+    },
+    {
+      "id": 3,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 3
+        },
+        {
+          "vendor": "codex",
+          "finding_id": 6
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "Blocked decisions synchronously project to the supervisor mirror, stale/missing handoffs rehydrate from mirror, and the next supervisor handoff retains the pending gate and deadline.",
+      "vendor_dispositions": {
+        "antigravity": "accept",
+        "claude_code": "fix",
+        "codex": "accept",
+        "grok": "accept"
+      }
+    },
+    {
+      "id": 4,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 6,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "Routing outputs and notification context are exact, bounded, allowlisted, and contain no child transcripts, raw approval payloads, or child-provided reason text.",
+      "vendor_dispositions": {
+        "antigravity": "accept",
+        "codex": "fix"
+      }
+    },
+    {
+      "id": 5,
+      "status": "disagreement",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "Critical: The revised plan scopes the `escalate_resume` prior-record lookup by `lease_generation`, but it does not explicitly require the approval-reference authorization check used by resume to match that same generation. In the current code, `ExecutionAdapter.resume` validates only gate plus `dispatch_id` through `gate_router.require_approval_ref`, and `require_approval_ref` has no lease-generation parameter. That leaves a stale `gate-decision:<id>` capable of authorizing a later parked generation through the public resume path even though the router would correctly treat that later exhaustion as a new decision subject.",
+      "vendor_dispositions": {
+        "codex": "fix",
+        "grok": "accept"
+      }
+    },
+    {
+      "id": 6,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 4
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "escalate",
+      "description": "One workspace serialization boundary prevents concurrent duplicate decisions while a private already-locked resume helper avoids nested flock reentrancy deadlock.",
+      "vendor_dispositions": {
+        "antigravity": "accept",
+        "claude_code": "fix",
+        "grok": "accept"
+      }
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: the response contract is exact about which keys may appear but ambiguous about the one value that now carries decision identity. A `proceed` entry 'may add only `lease_generation`', but D3 has just made the gate decision subject the *parked* generation while `adapter.resume` returns a request stamped with the *incremented* one (execution.py:891, 906). A host that logs the returned `lease_generation` and then looks up the `escalate_resume` gate-decision record for that generation finds nothing, because the record was filed against G and the response reports G+1. The `already_routed` entry carries no generation at all, so a retry after a crash cannot report which generation was authorized \u2014 exactly the correlation the retry scenario (spec.md:55-59) exists to make safe. `blocked` is unambiguous only because the projected `pending_gate` is stripped to the `_clean_pending_gate` allowlist (cycle_state.py:236-273), which has no generation field either."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: the single package cannot prove the plan it implements. Three of tasks.md's six validation steps have no counterpart in `verification.steps`: 4.3 (Ruff on changed Python), 4.5 (the deterministic context-drift gate against the roadmap base), and 4.6 (scope checking after mirror synchronization) \u2014 and 4.6 is the guard round-1 finding 17 was accepted *on the strength of*, so leaving it out of the machine-checked contract reopens the disposition it closed. `write_allow` also omits `skills/supervise/scripts/cycle_state.py`, which findings 1 and 3 show is on the critical path, and omits any path for a `docs/decisions/` ADR beyond the directory itself (that one is allowed). Finally, `loc_estimate: 320` covers eight RED test groups (tasks 1.1-1.8, including an end-to-end park\u2192route\u2192resume\u2192apply cycle and a concurrency test) plus `execution.py`, `gate_router.py`, and SKILL.md changes in one `complexity: medium` package; the estimate is optimistic enough that a retry_budget of 2 may be consumed by scope, not by defects."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: `tasks.md` requires Ruff, change plus repo-wide strict OpenSpec validation, deterministic context-drift checking, and scope checking, but `work-packages.yaml` only requires the supervise pytest suite, affected orchestration tests, and strict validation for this single change. A coordinated implementer can therefore satisfy the work-package evidence contract while skipping several validation tasks the plan says are required, including the scope check that guards runtime mirror synchronization."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: D3 generation-scopes `escalate_resume` subject keys, but the plan never says how console `gate_router.answer` / `cycle_state gate-answer` locates that prior. Pending-gate projection still omits `dispatch_id`/`lease_generation`, and gate-answer only accepts `--dispatch-id`, so a generation-aware `_matches_subject` can raise \"no parked record\" on the existing console-answer surface even though `resolve_parked` itself has the attempt."
+    },
+    {
+      "id": 11,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 5
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "ExecutionAdapter.apply retains its exact current return shape and escalation routing is defined as a separate retryable cleanup operation following durable application."
+    },
+    {
+      "id": 12,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 7
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Authorized resume clears the prior generation application journal and increments lease generation so that the resumed generation can apply a fresh result."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Partial-batch and post-route failures never replay apply or dispatch_fn, and already committed work is safely reported as already_routed without duplicate route effects."
+    },
+    {
+      "id": 14,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 8,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 8
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Work-package scope, locks, and validation tasks comprehensively cover every stated requirement and enable full implementation and verification."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: 'This change adds no new wire, database, or event schema' is literally true only because `gate-decision.schema.json` sets `additionalProperties: true` (openspec/schemas/gate-decision.schema.json:7). D3's `lease_generation` correlation will therefore validate while being the one correlation field on an `escalate_resume` record that the schema does not describe \u2014 unlike `dispatch_id`, `item_id`, `roadmap_fingerprint`, and `timeout_seconds`, each of which is documented with the reason it exists (lines 128-158). Downstream readers of the audit trail (`gate_router.gate_log`, the `gate-log` subcommand) have no way to learn the field is meaningful. The supervisor-record side needs no work: `escalate_resume` is already in the `gate` enum of both supervisor-record.schema.json and supervisor-record-mirror.schema.json, and `_clean_pending_gate` preserves `deadline`, `disposition`, `approval_id`, and `decision_id` (cycle_state.py:251-273)."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Verified: The revised plan closes the round-1 apply-return-shape conflict. `ExecutionAdapter.apply` is specified to keep its existing return keys, while `route_parked_escalations` owns the separate bounded resolution list and is retryable after durable application."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Round-1 notification/output scrubbing is closed: route entries are exact/allowlisted/bounded, and policy-pause notification context uses fixed reason text with no transcript, raw approval payload, or child-provided reason."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Partial-batch and post-route failure handling is closed: earlier durable pauses are routed from error cleanup, already committed proceeds report as `already_routed` without duplicate notify/audit/resume, and still-parked pauses remain the only resume candidates."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: Task 2.1 says the scan is limited to the named batch's persisted `policy_pause` attempts, which can be read as parked-only, while D1/D6 and the already_routed scenario also require detecting prepared `continuation.kind=policy_pause` members after a crash between resume and return."
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: Task 3.1 requires host instructions for partial-apply error-cleanup routing, but task 3.4's executable documentation guards list apply-before-route, no-apply-retry, mirror-first rehydrate, and prose-free gate names without explicitly pinning the error-cleanup call."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 20,
+    "confirmed_count": 3,
+    "unconfirmed_count": 12,
+    "disagreement_count": 5,
+    "blocking_count": 5
+  }
+}

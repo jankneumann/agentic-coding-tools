@@ -89,3 +89,11 @@ Closed the plan failure-atomicity gap by separating the mandatory post-apply esc
 Four of five configured vendors produced schema-valid findings: Antigravity, Claude Code, Codex, and Grok. Pi was rejected because it emitted the unsupported `testability` axis; the manifest retains that degradation. Consensus met real quorum at 4/4 valid reviewers and found seven blocking issues plus three disagreements.
 
 The required patch helper and its CLI path both failed with `bwrap: loopback: Failed RTM_NEWADDR`; the phase-authorized deterministic writer fallback applied only these plan-artifact edits. The plan now keeps apply's return shape unchanged; serializes routing without nested `flock`; scopes `escalate_resume` decisions to dispatch plus lease generation; clears the prior application journal on authorized resume; routes earlier durable pauses from partial-apply cleanup; defines exact bounded outputs and sanitized notification context; and makes mirror-first rehydrate into the next supervisor handoff executable. New tests cover concurrency, failure replay, full resumed-generation application, second exhaustion, partial batches, and host documentation ordering. Round 2 must independently verify these fixes before implementation.
+
+---
+
+## Phase: Plan Review Round 2 (2026-09-08)
+
+All four selected vendors produced schema-valid findings. Consensus met quorum at 4/4 but did not converge: five blocking classifications and five disagreements remained. The final plan correction keeps partial apply replayable by forbidding route/resume until the complete batch succeeds; moves long approval waits under a gate-subject lock rather than the workspace state lock; makes generation identity flow through records, console answer, late answers, approval-reference validation, and the open schema; retires older-generation mirror entries; and distinguishes decided from resumed generations in exact bounded responses. Work-package scope now includes cycle-state and the gate-decision schema, while verification explicitly covers Ruff, all OpenSpec changes, package/DAG validity, context drift, and post-sync scope.
+
+The deterministic writer fallback remained necessary because the patch helper's bwrap loopback failure persisted. Round 3 is the maximum and must return real quorum with zero blockers and disagreements before implementation.

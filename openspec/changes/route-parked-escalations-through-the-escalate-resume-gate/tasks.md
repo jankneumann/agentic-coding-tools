@@ -1,37 +1,41 @@
 # Tasks — Route parked escalations through the escalate-resume gate
 
-## 1. Specify and prove the post-persist routing boundary
+## 1. Specify the generation-safe boundary with failing tests
 
-- [ ] 1.1 Add failing tests showing a durably applied `policy_pause` evaluates `escalate_resume` only after the attempt is parked and its lease released.
-- [ ] 1.2 Add failing auto-posture coverage proving the same dispatch resumes with generation increment and preserved attempt/token/isolation identity.
-- [ ] 1.3 Add failing `notify_with_timeout` coverage proving one notification, a still-parked attempt, and a pending supervisor gate with the configured deadline.
-- [ ] 1.4 Add idempotency and exclusion tests for prior-record reuse, ordinary `pending_gate`, failure, and quarantine paths.
-- [ ] 1.5 Add a timeout-guarded concurrency test proving two routing calls yield one generation-scoped gate record/notification and one non-deadlocking resume.
-- [ ] 1.6 Add an end-to-end park -> route -> resume -> child-start/acknowledge/enter -> apply test proving the old application journal cannot bind the resumed generation.
-- [ ] 1.7 Add a second-exhaustion test proving an old proceed decision is not reused across lease generations while a same-generation retry is idempotent.
-- [ ] 1.8 Add failure-path tests proving routing retry never replays `apply`/`dispatch_fn`, including an earlier pause persisted before a later batch-member failure.
+- [ ] 1.1 Prove routing starts only after every named-batch member is terminal `effects_applied`; partial apply replay does not re-run `dispatch_fn` and does not route/resume early.
+- [ ] 1.2 Prove auto posture resumes the same identity at generation G+1 and clears G's application journal so a full new child result applies.
+- [ ] 1.3 Prove notify-with-timeout emits one exact allowlisted request, leaves the attempt parked, and preserves the pending deadline through mirror, rehydrate, and next handoff.
+- [ ] 1.4 Prove automatic/manual same-subject races yield one evaluation/notification/resume while unrelated workspace state operations remain available during coordinator wait.
+- [ ] 1.5 Prove same-generation prior reuse, later-generation reevaluation, old approval-ref rejection, late-answer generation retention, and older mirror-entry retirement.
+- [ ] 1.6 Prove backward-compatible gate-answer selects the newest blocked dispatch generation, optional explicit generation selects exactly, and the following route reuses the answer.
+- [ ] 1.7 Prove routing failure after successful apply retries route only, and crash-after-resume reports `already_routed` without duplicate effects.
+- [ ] 1.8 Guard exact result key sets/generation semantics, exact notification context/literal reason, prepared-continuation reporting, stable ordering, and exclusions.
 
 ## 2. Implement immediate escalation routing
 
-- [ ] 2.1 Add `ExecutionAdapter.route_parked_escalations` with an injectable evaluator and a scan limited to the named batch's persisted `policy_pause` attempts.
-- [ ] 2.2 Delegate every matched attempt to `gate_router.resolve_parked`; do not import or duplicate approval-service policy.
-- [ ] 2.3 Hold one workspace serialization boundary and route in stable dispatch-ID order; split public resume into lock-taking and private already-locked paths so routing cannot nested-lock, and never save the scan-time checkpoint.
-- [ ] 2.4 Make `escalate_resume` prior-record correlation include `lease_generation` without changing other gate subject keys, and clear the old `application_journal` on authorized resume.
-- [ ] 2.5 Return only the exact bounded response keys in `contracts/README.md`, using fixed policy-pause reason text for gate notification, while preserving `ExecutionAdapter.apply` and all existing apply result keys.
-- [ ] 2.6 Ensure per-attempt routing errors fail closed after durable parking and are retried by rerunning only the routing method, never the already-applied batch or `dispatch_fn` effects; report already committed proceeds as `already_routed` on retry.
+- [ ] 2.1 Add `ExecutionAdapter.route_parked_escalations`, scanning named-batch parked policy pauses for routing and prepared policy-pause continuations for `already_routed` reporting only.
+- [ ] 2.2 Keep partial-apply error cleanup non-routing; recover apply idempotently, then invoke route after complete success. Preserve `ExecutionAdapter.apply` exactly.
+- [ ] 2.3 Add gate-router per-subject serialization with private already-locked evaluate/answer/resolve helpers; never hold the workspace state lock across approval I/O.
+- [ ] 2.4 Include `lease_generation` in `escalate_resume` subject lookup, correlation, late-answer copy, and `require_approval_ref`; reject stale-generation proceed references without changing other gates.
+- [ ] 2.5 Extend gate-answer with optional generation selection and backward-compatible newest-blocked-generation lookup from `--dispatch-id`.
+- [ ] 2.6 Clear the old `application_journal` on authorized resume and return only the exact outcome/generation/pending-gate fields in `contracts/README.md`.
+- [ ] 2.7 Send exactly the allowlisted approval context and literal fixed reason; retire older same-dispatch generation decision IDs from mirror projection.
+- [ ] 2.8 Process fully applied candidates in stable dispatch-ID order and fail closed per attempt; retry only route after the complete-apply boundary.
 
 ## 3. Document and integrate
 
-- [ ] 3.1 Update `skills/supervise/SKILL.md` collect/apply instructions to call the retryable routing method after apply and from partial-apply error cleanup, retry only routing, report its synchronous timeout cost/degradations, and retain blocked gates through mirror-first rehydrate into the next cycle handoff. Keep literal gate names inside the existing recognized protocol blocks.
-- [ ] 3.2 Sync canonical skill runtime mirrors with `skills/install.sh` and verify byte identity.
-- [ ] 3.3 Record implementation and review decisions in `session-log.md`.
-- [ ] 3.4 Add executable documentation guards for apply-before-route ordering, no apply retry after routing failure, mirror-first rehydrate, and the prose-free gate-name invariant.
+- [ ] 3.1 Update `skills/supervise/SKILL.md` protocol blocks with complete-apply-before-route ordering, partial-apply replay, route-only failure retry, per-subject synchronous timeout cost, mirror-first rehydrate, and answer/resume generation rules.
+- [ ] 3.2 Document optional `lease_generation` in the open gate-decision schema and exact Python/context contracts in the change contract note.
+- [ ] 3.3 Sync canonical supervise runtime mirrors with `skills/install.sh` and verify byte identity without retaining unrelated mirror drift.
+- [ ] 3.4 Add executable documentation guards for complete-apply-before-route, partial-apply no-route cleanup, no apply retry after route failure, mirror-first rehydrate, and prose-free gate naming.
+- [ ] 3.5 Record implementation and review decisions in `session-log.md`.
 
 ## 4. Validate
 
 - [ ] 4.1 Run `skills/.venv/bin/python -m pytest skills/tests/supervise -q`.
-- [ ] 4.2 Run the affected autopilot-roadmap and phase-record recovery suites.
+- [ ] 4.2 Run affected autopilot-roadmap and phase-record recovery suites.
 - [ ] 4.3 Run Ruff on changed Python and tests.
-- [ ] 4.4 Run `openspec validate route-parked-escalations-through-the-escalate-resume-gate --strict` and repo-wide strict validation.
-- [ ] 4.5 Run the deterministic context-drift gate against the roadmap base and record any inherited-only drift separately.
-- [ ] 4.6 Run scope checking after skill mirror synchronization and confirm only allowlisted supervise mirrors changed.
+- [ ] 4.4 Run strict validation for the change and all OpenSpec changes.
+- [ ] 4.5 Validate work packages and DAG resolution from the repo root.
+- [ ] 4.6 Run `make context-drift-gate` and distinguish inherited drift from feature drift.
+- [ ] 4.7 Run post-sync package scope checking and retain only allowlisted supervise/schema/change artifacts.
