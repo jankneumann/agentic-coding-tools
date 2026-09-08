@@ -55,3 +55,13 @@
 
 - [ ] 6.1 Orchestrator review
 - [ ] 6.2 Merge
+
+## Migration Notes
+
+Recorded by the `/cleanup-feature` archive sweep on 2026-09-08.
+
+**Nothing migrated.** The four open boxes — `Review`, `Done`, `6.1 Orchestrator
+review`, `6.2 Merge` — are workflow-status ceremony, not deliverables. The
+deliverable, `skills/shared/trust_posture.py` (15 KB), is on `main`, and no feature
+branch survives. Left unchecked: this sweep archived the change, it did not perform
+the orchestrator review those boxes describe.

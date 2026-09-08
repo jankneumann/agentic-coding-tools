@@ -93,3 +93,21 @@
 - [ ] 11.1 (Out of scope for the change; done after merge:) update `docs/parallel-agentic-development.md` with the new dispatch-prompt prohibitions and the `write_capable` archetype field convention.
 - [ ] 11.2 (Out of scope:) consider whether structural enforcement of the loop-state.json contract (filesystem permissions, git hooks) wants its own follow-up change if Layer B+C prompt enforcement proves insufficient empirically.
 - [ ] 11.3 (Out of scope:) consider whether harness-silent-no-op detection (separate failure mode noted in proposal "Out of Scope") wants its own change.
+
+## Migration Notes
+
+Recorded by the `/cleanup-feature` archive sweep on 2026-09-08.
+
+**Open tasks migrated to follow-up proposal
+`followup-fix-autopilot-archetype-and-apply-outcome`:** 11.1, 11.2, 11.3 — the three
+items section 11 itself labels "out of scope for the change; done after merge".
+
+**Open tasks closed as already-satisfied (deliberately left unchecked):** 10.3 and
+10.4 ("Commit on `openspec/fix-autopilot-archetype-and-apply-outcome`", "Push to
+origin", both marked *left for the orchestrator*). The work they describe is on
+`main`: `agent-coordinator/archetypes.yaml` declares `write_capable` on every
+archetype, and no `openspec/fix-autopilot-archetype-and-apply-outcome` branch
+survives locally or on the remote. They are left unchecked rather than back-filled
+with `[x]`, because nobody observed those steps run — completion is inferred from
+the merged artifact, and the inference belongs in this note rather than disguised
+as a first-hand tick.

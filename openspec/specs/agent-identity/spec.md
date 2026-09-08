@@ -5,11 +5,19 @@ TBD - created by archiving change add-coordinator-profiles. Update Purpose after
 ## Requirements
 ### Requirement: Declarative Agent Configuration
 
-The coordinator SHALL support a declarative `agents.yaml` file as the single source of truth for agent identity, trust levels, permissions, and API key mapping.
+The coordinator SHALL treat `agents.yaml` as the single source of truth for agent identity,
+trust levels, permissions, and API key mapping — for **every** agent, regardless of declared
+transport. All runtime authorization state (identity map entries, `agent_profiles` rows,
+policy tier inputs) SHALL be derived projections of this file, never independently authored.
 
 - `agents.yaml` SHALL reside at `agent-coordinator/agents.yaml`
-- Each agent entry SHALL declare: `type`, `profile` (matching `agent_profiles.name` in DB), `trust_level`, `transport` (`mcp` or `http`), `capabilities` (list), and `description`
-- HTTP agents MAY declare `api_key: ${VAR}` referencing a secret
+- Each agent entry SHALL declare: `type`, `profile` (matching `agent_profiles.name` in DB),
+  `trust_level` (0–4 per the Unified Trust Scale), `transport` (`mcp` or `http`),
+  `capabilities` (list), and `description`
+- `transport` SHALL describe the agent's preferred channel only; it SHALL NOT gate whether
+  the agent receives an identity or profile projection (MCP agents reach the HTTP API via
+  the proxy fallback and are therefore HTTP principals)
+- Agents MAY declare `api_key: ${VAR}` referencing a secret
 - The file SHALL be validated against a JSON schema (following the `teams.py` pattern)
 - Duplicate agent names SHALL be rejected
 
@@ -27,13 +35,31 @@ The coordinator SHALL support a declarative `agents.yaml` file as the single sou
 - **THEN** the system SHALL fall back to env-var-based identity (`AGENT_ID`, `AGENT_TYPE`)
 - **AND** no error SHALL be raised
 
+#### Scenario: MCP-transport agent receives identity projection
+- **WHEN** `agents.yaml` defines `grok-local` with `transport: mcp` and a resolvable `api_key`
+- **THEN** `get_api_key_identities()` SHALL include the resolved key mapped to
+  `{"agent_id": "grok-local", "agent_type": "grok"}`
+
 ### Requirement: API Key Identity Generation
 
-**MODIFIED**: `get_api_key_identities()` SHALL support resolving API keys from OpenBao when enabled.
+`get_api_key_identities()` SHALL generate identity mappings for all agents with resolvable
+API keys, regardless of transport, and SHALL support resolving API keys from OpenBao when
+enabled.
 
-- When OpenBao is enabled and an agent's `api_key` field references a `${VAR}` placeholder, the value SHALL be resolved from OpenBao instead of `.secrets.yaml`
+- The identity map SHALL include every agent whose `api_key` resolves to a concrete value;
+  the former restriction to `transport: "http"` agents is removed
+- When OpenBao is enabled and an agent's `api_key` field references a `${VAR}` placeholder,
+  the value SHALL be resolved from OpenBao instead of `.secrets.yaml`
 - The output format (`{key: {agent_id, agent_type}}` JSON dict) SHALL remain identical
-- When `COORDINATION_API_KEY_IDENTITIES` is set as an explicit env var, it SHALL still override agents.yaml (existing precedence preserved)
+- When `COORDINATION_API_KEY_IDENTITIES` is set as an explicit env var, it SHALL still
+  override agents.yaml (existing precedence preserved — this is also the rollback lever)
+- Unresolved `${VAR}` placeholders SHALL be excluded from the identity map
+- Duplicate resolved keys across agents SHALL be rejected at load time with an error
+  identifying both agents (replacing the current last-writer-wins warning)
+
+#### Scenario: Full-roster identity map
+- **WHEN** `agents.yaml` declares five local and two remote agents, all with resolvable keys
+- **THEN** `get_api_key_identities()` SHALL return seven entries
 
 #### Scenario: API key resolved from OpenBao
 - **WHEN** OpenBao is enabled (`BAO_ADDR` set)
@@ -47,6 +73,10 @@ The coordinator SHALL support a declarative `agents.yaml` file as the single sou
 - **THEN** `get_api_key_identities()` SHALL use the statically resolved key
 - **AND** unresolved `${VAR}` placeholders SHALL be excluded from the identity map
 
+#### Scenario: Duplicate key rejected
+- **WHEN** two agents' `api_key` fields resolve to the same value
+- **THEN** identity generation SHALL fail with an error naming both agents
+
 ### Requirement: MCP Environment Generation
 
 The agents config SHALL generate MCP registration environment variables for local agents.
@@ -58,31 +88,6 @@ The agents config SHALL generate MCP registration environment variables for loca
 - **WHEN** `get_mcp_env("claude-code-local")` is called
 - **AND** the agent is defined with `transport: mcp` and `type: claude_code`
 - **THEN** the result SHALL include `{"AGENT_ID": "claude-code-local", "AGENT_TYPE": "claude_code", ...}`
-
-### Requirement: Profile Seeding from Config
-
-The agents config SHALL optionally seed the `agent_profiles` database table from YAML definitions.
-
-- `seed_profiles_from_config()` SHALL insert or update profiles matching `agents.yaml` entries
-- Existing profiles not in `agents.yaml` SHALL NOT be deleted (additive only)
-- Seeding SHALL be an explicit action invoked by the setup-coordinator skill, NOT automatic on startup
-
-Because seeding is additive, retiring a harness from `agents.yaml` SHALL NOT delete its previously seeded profile rows. Removal of orphaned profiles SHALL be an explicit operator action.
-
-#### Scenario: Seed creates new profile
-- **WHEN** `agents.yaml` defines `grok-local` with `profile: grok_local` and `trust_level: 3`
-- **AND** no `grok_local` profile exists in the DB
-- **THEN** a new `agent_profiles` row SHALL be inserted with the declared trust level and capabilities
-
-#### Scenario: Seed updates existing profile
-- **WHEN** `agents.yaml` declares `trust_level: 3` for a profile that exists with `trust_level: 2`
-- **THEN** the DB row SHALL be updated to `trust_level: 3`
-
-#### Scenario: Retired harness profile survives seeding
-- **GIVEN** a `gemini_local` profile row exists from a prior seed
-- **WHEN** `seed_profiles_from_config()` runs against an `agents.yaml` with no gemini entry
-- **THEN** the `gemini_local` row SHALL remain in the table untouched
-- **AND** no error SHALL be raised
 
 ### Requirement: OpenBao AppRole per Agent
 
@@ -148,4 +153,130 @@ The agent identity system SHALL support per-agent dynamic PostgreSQL credentials
 - **WHEN** OpenBao is enabled but the database secrets engine is not configured
 - **THEN** `POSTGRES_DSN` SHALL be resolved via static `${DB_PASSWORD}` interpolation as before
 - **AND** no dynamic credentials SHALL be generated
+
+### Requirement: Registry Profile Sync
+
+The coordinator SHALL synchronize the `agent_profiles` table from `agents.yaml` at startup,
+treating the table as a materialized projection of the registry.
+
+- On startup, for each registry agent, the coordinator SHALL upsert an `agent_profiles` row
+  keyed by the declared `profile` name, carrying `agent_type`, `trust_level`, and
+  `allowed_operations` derived from the entry's `capabilities` and trust level
+- The registry SHALL own **harness-identity** profiles only. Profiles representing roles
+  rather than harness identities (e.g. `evaluator`, which has no transport and cannot be
+  dispatched) SHALL be named in an explicit unmanaged-profile allowlist maintained beside
+  the sync, and SHALL NOT be disabled by it
+- Enabled profile rows that are neither declared by a registry entry nor named in the
+  unmanaged allowlist SHALL be **disabled** (`enabled = false`), never deleted; disabling
+  SHALL emit an audit event naming the row
+- The sync SHALL be idempotent and safe under concurrent startup of multiple API workers
+- The sync SHALL be guarded by `PROFILE_SYNC_ENABLED` (default: enabled); disabling it
+  restores pre-sync runtime behavior (rollback lever)
+- Sync failures at startup SHALL fail coordinator boot loudly; they SHALL NOT degrade to
+  the previous silent state
+
+#### Scenario: Sync creates missing profile
+- **WHEN** `agents.yaml` defines `grok-local` with `profile: grok_local` and `trust_level: 3`
+- **AND** no `grok_local` profile exists in the DB
+- **THEN** startup sync SHALL insert the row with trust_level 3 and derived allowed_operations
+
+#### Scenario: Sync updates drifted profile
+- **WHEN** `agents.yaml` declares `trust_level: 3` for a profile stored with `trust_level: 2`
+- **THEN** startup sync SHALL update the row to `trust_level: 3`
+- **AND** an audit event SHALL record the change
+
+#### Scenario: Orphan profile disabled with audit trail
+- **GIVEN** an enabled `gemini_local` profile row from a prior seed
+- **WHEN** startup sync runs against an `agents.yaml` with no gemini entry
+- **THEN** the row SHALL be set `enabled = false` and retained
+- **AND** an audit event SHALL record the disabling
+
+#### Scenario: Unmanaged role profile survives sync
+- **GIVEN** the enabled `evaluator` profile row seeded by migration 026
+- **AND** `evaluator` is named in the unmanaged-profile allowlist
+- **WHEN** startup sync runs against an `agents.yaml` with no evaluator entry
+- **THEN** the row SHALL remain enabled and unmodified
+- **AND** no disabling audit event SHALL be emitted for it
+
+#### Scenario: Sync disabled via flag
+- **WHEN** `PROFILE_SYNC_ENABLED=false`
+- **THEN** startup SHALL perform no profile writes
+- **AND** a warning SHALL be logged that the registry projection is not enforced
+
+### Requirement: Registry Assignment Projection
+
+The coordinator SHALL project `agent_profile_assignments` from the registry alongside
+`agent_profiles`, so that profile resolution for a registry agent never depends on the
+`agent_type` fallback ordering.
+
+- For every registry agent, the sync SHALL maintain an assignment row binding the agent's id to
+  the profile row named by its `profile` field
+- Assignment rows for agents not declared by the registry SHALL be removed, and each removal
+  SHALL emit an audit event naming the profile the assignment pointed at
+- Assignment projection SHALL be governed by the same `PROFILE_SYNC_ENABLED` flag and SHALL be
+  idempotent and convergent under concurrent worker startup
+
+#### Scenario: Declared agent resolves to its own profile, not the oldest of its type
+- **GIVEN** two registry agents share an `agent_type` and declare different trust levels
+- **AND** the agent declaring the higher trust level has the newer profile row
+- **WHEN** startup sync has run
+- **THEN** each agent SHALL resolve to the profile row it declares
+- **AND** resolution SHALL NOT depend on `created_at` ordering
+
+#### Scenario: Stale assignment removed with audit trail
+- **GIVEN** an assignment row for `gemini-local` pointing at the `gemini_local` profile
+- **WHEN** startup sync runs against an `agents.yaml` with no gemini entry
+- **THEN** the assignment row SHALL be removed
+- **AND** an audit event SHALL record the removal and the profile it pointed at
+- **AND** the `gemini_local` profile row itself SHALL be retained and disabled
+
+### Requirement: Unified Trust Scale
+
+The system SHALL define the agent trust scale exactly once, as the 0–4 scale already named
+by the `agent-coordinator` spec (0 Untrusted, 1 Limited, 2 Standard, 3 Elevated, 4 Admin),
+in a single Python module consumed by every validator and enforcement point.
+
+- The `agents.yaml` JSON schema bounds for `trust_level` SHALL derive from this module
+  (replacing the divergent 1–5 range)
+- The `agent_profiles` CHECK constraint SHALL match the same bounds
+- Policy-engine action-tier thresholds (read/write/admin) SHALL reference named levels from
+  this module rather than integer literals
+
+#### Scenario: Out-of-scale registry value rejected
+- **WHEN** an `agents.yaml` entry declares `trust_level: 5`
+- **THEN** schema validation SHALL fail, naming the valid range
+
+#### Scenario: Single definition consumed everywhere
+- **WHEN** the trust-scale module's bounds are compared against the YAML schema, the DB
+  constraint, and the policy-engine thresholds in tests
+- **THEN** all three SHALL be derived from (or asserted equal to) the module's definition
+
+### Requirement: Registry Projection Invariant
+
+CI SHALL enforce that every agent declared in `agents.yaml` fully materializes its runtime
+projections, so that a half-onboarded harness is a test failure rather than a runtime
+surprise.
+
+- A test SHALL assert, for every registry agent: (a) profile sync produces an enabled
+  `agent_profiles` row with the declared trust level, (b) an identity map entry exists or
+  the agent's key is explicitly declared unresolvable in the test environment, (c) the
+  `profile` name referenced by the entry resolves after sync, (d) the agent **resolves** to a
+  profile carrying its declared trust level when looked up the way `get_agent_profile()` does
+  — explicit assignment first, then the `agent_type` fallback — so that a projection which is
+  present but unreachable fails CI
+- The test SHALL assert that every enabled profile row (post-sync) is either declared by
+  the registry or named in the unmanaged-profile allowlist, so a role profile nobody
+  considered fails CI rather than being silently disabled or silently tolerated
+- The test SHALL fail when a new harness is added to `agents.yaml` without the projections
+  materializing
+
+#### Scenario: Half-onboarded harness caught in CI
+- **WHEN** a new agent entry is added referencing a profile the sync cannot derive
+  (e.g., malformed capabilities)
+- **THEN** the registry-projection test SHALL fail identifying the agent and the missing
+  projection
+
+#### Scenario: Ghost profile caught in CI
+- **WHEN** a migration seeds an enabled profile row for a type absent from the registry
+- **THEN** the registry-projection test SHALL fail identifying the orphan row
 

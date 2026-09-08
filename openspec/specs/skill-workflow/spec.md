@@ -3953,7 +3953,7 @@ The system SHALL provide an end-to-end smoke path that can be manually triggered
 
 The smoke path SHALL:
 
-- Accept a provider selector restricted to the supported roster (`claude_code`, `codex`, `antigravity`, `grok`, `pi`).
+- Accept a provider selector restricted to the supported roster (`claude_code`, `codex`, `antigravity`, `grok`, `pi`, `local`).
 - Use a fixture or minimal change-id.
 - Exercise the same provider model mapping used by real phase dispatch.
 - Exercise the provider dispatch adapter in dry-run or real mode.
@@ -3963,32 +3963,34 @@ The smoke path SHALL:
 
 #### Scenario: Codex CLI smoke succeeds
 
-- **GIVEN** the operator runs the smoke path with provider `codex`
-- **WHEN** the smoke reaches the provider dispatch step
+- **WHEN** the operator runs the smoke path with provider `codex` and the smoke reaches the provider dispatch step
 - **THEN** the dispatch payload SHALL contain a Codex model ID
 - **AND** the dispatch result SHALL normalize to `(outcome, handoff_id)`
 - **AND** the smoke SHALL report a pass/fail summary suitable for manual verification
 
 #### Scenario: grok CLI smoke succeeds in configured mode
 
-- **GIVEN** the operator runs the smoke path with provider `grok`
-- **AND** grok dispatch is configured for dry-run or sync CLI mode
-- **WHEN** the smoke reaches the provider dispatch step
+- **WHEN** the operator runs the smoke path with provider `grok` configured for dry-run or sync CLI mode and the smoke reaches the provider dispatch step
 - **THEN** the dispatch payload SHALL contain a grok model ID
 - **AND** the dispatch result SHALL normalize to `(outcome, handoff_id)`
 - **AND** the smoke SHALL report any adapter limitations as warnings rather than silently skipping the provider
 
+#### Scenario: local smoke succeeds in configured mode
+
+- **WHEN** the operator runs the smoke path with provider `local` in dry-run mode, or in real mode with a reachable endpoint
+- **THEN** the dispatch payload SHALL contain a `local` roster model identifier
+- **AND** the dispatch result SHALL normalize to `(outcome, handoff_id)`
+- **AND** a real-mode run against an unreachable endpoint SHALL report the fallback degradation as the smoke outcome rather than hanging
+
 #### Scenario: Gemini CLI smoke succeeds in configured mode
 
-- **GIVEN** the operator runs the smoke path with provider `gemini`
-- **WHEN** the smoke validates the provider selector
+- **WHEN** the operator runs the smoke path with provider `gemini` and the smoke validates the provider selector
 - **THEN** the smoke SHALL reject `gemini` as an unsupported selector before dispatch (the gemini CLI harness is retired)
 - **AND** the smoke SHALL report the failure with the supported roster rather than attempting a gemini dispatch
 
 #### Scenario: Retired provider selector is rejected
 
-- **GIVEN** the operator runs the smoke path with provider `gemini`
-- **WHEN** the selector is parsed
+- **WHEN** the operator runs the smoke path with provider `gemini` and the selector is parsed
 - **THEN** the smoke SHALL exit non-zero with an error naming the supported roster
 - **AND** it SHALL NOT attempt any dispatch
 
@@ -5091,4 +5093,383 @@ The loop SHALL consult `goal_gate.check_goal_gate(state, change_dir)` in `_apply
 #### Scenario: Mirrors resynced
 - **WHEN** `install.sh` runs after the SKILL.md edits
 - **THEN** `.claude/skills/autopilot/SKILL.md` and `.agents/skills/autopilot/SKILL.md` SHALL be byte-identical to `skills/autopilot/SKILL.md`
+
+### Requirement: Archetypes Declare Write-Capability via a Structured Field
+
+Every archetype entry in `agent-coordinator/archetypes.yaml` SHALL include a boolean `write_capable` field. The runner's archetype resolver SHALL enforce that all `phase_mapping` entries for write-capable phases resolve to an archetype with `write_capable: true`.
+
+Write-capable phases are: `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `IMPL_FIX`, `VALIDATE`, `VAL_REVIEW`, `VAL_FIX`. State-only phases (`INIT`, `SUBMIT_PR`) MAY map to archetypes with `write_capable: false`.
+
+The capability check SHALL be enforced via the structured field. It SHALL NOT rely on substring matching over the archetype's `system_prompt` text — that approach was considered and rejected (per Design D3) because it is brittle to rephrasing and silently fails on synonymous wording.
+
+#### Scenario: VALIDATE archetype is write-capable via structured field
+
+- **WHEN** the runner resolves the archetype for phase `VALIDATE` via `archetypes.yaml` `phase_mapping.VALIDATE`
+- **THEN** the resolved archetype's `write_capable` field SHALL be `true`
+- **AND** the rendered dispatch prompt (from `runner.py build-dispatch --phase VALIDATE`) SHALL include a `write_capable: true` indicator in its archetype metadata
+
+#### Scenario: VAL_FIX archetype is write-capable via structured field
+
+- **WHEN** the runner resolves the archetype for phase `VAL_FIX` via `archetypes.yaml` `phase_mapping.VAL_FIX`
+- **THEN** the resolved archetype's `write_capable` field SHALL be `true`
+- **AND** the resolved archetype SHALL be `implementer` (per design D2 — VAL_FIX fixes code, not artifacts)
+
+#### Scenario: CI guard enforces write_capable for all write-capable phases
+
+- **WHEN** a CI check inspects `archetypes.yaml` `phase_mapping` entries
+- **AND** iterates the canonical write-capable phase list (per the requirement above)
+- **THEN** every resolved archetype's `write_capable` field SHALL be `true`
+- **AND** any phase whose resolved archetype has `write_capable: false` or omits the field SHALL cause the check to fail with a clear message identifying the offending phase and archetype
+
+#### Scenario: validator archetype system prompt is free of role-confusion phrasing
+
+- **WHEN** the validator archetype is defined in `archetypes.yaml`
+- **THEN** its `system_prompt` SHALL NOT contain the substrings "do not modify source code", "without making changes", "without modifying", "only synthesize"
+- **AND** this check serves as a secondary defense-in-depth guard against the role's own framing drifting toward read-only; the primary capability gate remains the structured `write_capable` field
+
+### Requirement: `apply-outcome` Does Not Transition `current_phase`
+
+The `runner.py apply-outcome` subcommand SHALL NOT modify `loop-state.json` `current_phase`. The orchestrator is the sole writer of `current_phase`.
+
+`apply-outcome` SHALL update only the fields it owns: `last_handoff_id`, `handoff_ids` (append), `phase_archetype`, and an entry in `phase_history` recording the outcome.
+
+#### Scenario: apply-outcome preserves current_phase
+
+- **WHEN** loop-state has `current_phase = "IMPLEMENT"`
+- **AND** the operator invokes `runner.py apply-outcome --change-id <id> --phase IMPLEMENT --outcome complete --handoff-id <path>`
+- **THEN** after the call, `current_phase` SHALL still equal `"IMPLEMENT"`
+- **AND** `last_handoff_id` SHALL equal `<path>`
+- **AND** `handoff_ids` SHALL contain `<path>`
+- **AND** `phase_history` SHALL contain a new entry with `phase: "IMPLEMENT"`, `outcome: "complete"`
+
+#### Scenario: apply-outcome rejects phase mismatch with mention of `--allow-phase-mismatch`
+
+- **WHEN** loop-state has `current_phase = "IMPLEMENT"`
+- **AND** the operator invokes `runner.py apply-outcome --change-id <id> --phase PLAN_REVIEW --outcome converged --handoff-id <path>` (mismatched `--phase`)
+- **THEN** the command SHALL exit with a non-zero status
+- **AND** SHALL emit a clear error message identifying the mismatch (expected `IMPLEMENT`, got `PLAN_REVIEW`)
+- **AND** the error message SHALL explicitly mention the `--allow-phase-mismatch` flag as the escape hatch
+- **AND** `loop-state.json` SHALL remain unchanged
+
+#### Scenario: `--allow-phase-mismatch` bypasses the guard but does not modify current_phase
+
+- **WHEN** loop-state has `current_phase = "IMPLEMENT"`
+- **AND** the operator invokes `runner.py apply-outcome --change-id <id> --phase PLAN_REVIEW --outcome converged --handoff-id <path> --allow-phase-mismatch`
+- **THEN** the command SHALL succeed
+- **AND** SHALL update `last_handoff_id`/`handoff_ids`/`phase_archetype` for the `PLAN_REVIEW` outcome
+- **AND** SHALL NOT modify `current_phase` (the flag bypasses the guard, not the no-transition contract — per design D4)
+
+#### Scenario: apply-outcome failure transitions orchestrator to ESCALATE
+
+- **WHEN** the orchestrator invokes `runner.py apply-outcome` and the command exits non-zero (disk full, lock contention, malformed loop-state, transient FS error)
+- **THEN** the orchestrator SHALL detect the non-zero exit code
+- **AND** SHALL retain the un-applied handoff file at its existing path under `openspec/changes/<id>/handoffs/`
+- **AND** SHALL append a `phase_history` entry recording the apply-outcome failure
+- **AND** SHALL transition `current_phase` to `ESCALATE` with `previous_phase` set to the failing phase
+- **AND** the failure SHALL surface to the operator so the underlying cause can be addressed before resume
+
+### Requirement: Sub-Agent Dispatch Prompts Forbid State Mutation by Two Paths
+
+The per-phase dispatch prompts rendered by `runner.py build-dispatch` for write-capable phases SHALL include two explicit prohibitions:
+
+1. **Subcommand prohibition (Layer B)**: the sub-agent MUST NOT run `runner.py apply-outcome` (or any other `runner.py` subcommand that modifies orchestrator state).
+2. **Direct-edit prohibition (Layer C)**: the sub-agent MUST NOT edit `openspec/changes/<id>/loop-state.json` by any means (`python3 -c`, `sed`, `jq`, or any other shell tool).
+
+The sub-agent's contract is to return `(outcome, handoff_id)` only; the orchestrator handles all state transitions.
+
+The prohibitions SHALL appear in the dispatch prompt for every write-capable phase: `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `IMPL_FIX`, `VALIDATE`, `VAL_REVIEW`, `VAL_FIX`.
+
+#### Scenario: IMPLEMENT phase prompt includes Layer B + Layer C prohibitions
+
+- **WHEN** `runner.py build-dispatch --phase IMPLEMENT --change-id <id>` is invoked
+- **THEN** the rendered `prompt` field SHALL contain an explicit instruction forbidding the sub-agent from running `runner.py apply-outcome`
+- **AND** SHALL contain an explicit instruction forbidding direct edits to `openspec/changes/<id>/loop-state.json` via any shell tool
+- **AND** SHALL clarify that the sub-agent returns `(outcome, handoff_id)` and the orchestrator handles state transitions
+
+#### Scenario: All write-capable phase prompts include the prohibitions
+
+- **WHEN** `runner.py build-dispatch` is invoked for any of: `PLAN`, `PLAN_ITERATE`, `PLAN_REVIEW`, `PLAN_FIX`, `IMPLEMENT`, `IMPL_ITERATE`, `IMPL_REVIEW`, `IMPL_FIX`, `VALIDATE`, `VAL_REVIEW`, `VAL_FIX`
+- **THEN** the rendered prompt SHALL contain both Layer B (subcommand) and Layer C (direct-edit) prohibitions
+
+#### Scenario: Read-only phase prompts do not include the prohibitions
+
+- **WHEN** `runner.py build-dispatch` is invoked for `INIT` or `SUBMIT_PR`
+- **THEN** the rendered prompt MAY or MAY NOT contain the prohibitions (they are state-only phases that don't need them; adding them is harmless but not required)
+
+### Requirement: Orchestrator's Next-Phase Decision Matches the Canonical State Machine
+
+The autopilot orchestrator's next-phase decision logic (whether a `phase_transitions` table, hardcoded dict, branched control flow, or any equivalent) SHALL produce a next-phase that matches the canonical state machine documented in `skills/autopilot/SKILL.md` sections 4-8.
+
+The decision logic SHALL be implemented as a single auditable structure (table, dict, or equivalent), not distributed across multiple control-flow branches that would require manual reconstruction to audit.
+
+#### Scenario: IMPLEMENT=complete transitions to IMPL_ITERATE
+
+- **WHEN** loop-state has `current_phase = "IMPLEMENT"` and the most recent `phase_history` entry has `outcome = "complete"` for IMPLEMENT
+- **AND** the orchestrator computes the next phase
+- **THEN** the orchestrator's next-phase decision SHALL be `IMPL_ITERATE`
+- **AND** the decision SHALL NOT be `CLEANUP` (CLEANUP is not a state in the autopilot state machine; it is a separate user-invoked skill)
+
+#### Scenario: IMPL_ITERATE=complete transitions per cli_review_enabled
+
+- **WHEN** loop-state has `current_phase = "IMPL_ITERATE"` and the most recent `phase_history` entry has `outcome = "complete"`
+- **AND** `cli_review_enabled = true` in loop-state
+- **THEN** the orchestrator's next-phase decision SHALL be `IMPL_REVIEW`
+- **AND** if `cli_review_enabled = false`, the next-phase decision SHALL be `VALIDATE`
+
+#### Scenario: Next-phase decision logic is centralized
+
+- **WHEN** the orchestrator's next-phase decision is invoked
+- **THEN** the underlying implementation SHALL be a single auditable structure (e.g. a YAML `phase_transitions` table, a Python dict)
+- **AND** SHALL NOT be distributed across multiple control-flow branches that require manual reconstruction to audit
+
+### Requirement: Compact-Hook Phase-Boundary Gate on Applied Handoff
+
+The `check_compact.py` Stop hook's phase-boundary detector (`_recent_phase_boundary()`) SHALL only treat a recently-modified handoff JSON as a phase-completion signal when that handoff has been recorded as the change's most-recently-applied phase outcome.
+
+The applied-handoff state is canonically captured by the orchestrator (e.g. autopilot's `apply-outcome` step) in `openspec/changes/<id>/loop-state.json` as the `last_handoff_id` field. The hook SHALL cross-reference handoff filenames against `last_handoff_id` before classifying them as boundaries.
+
+#### Scenario: Applied handoff inside the recent window triggers compaction
+
+- **WHEN** a handoff JSON under `openspec/changes/<id>/handoffs/` has an mtime newer than `PHASE_BOUNDARY_WINDOW_SEC` (300s)
+- **AND** the same change directory contains a `loop-state.json` whose `last_handoff_id` filename component matches the handoff filename
+- **THEN** `_recent_phase_boundary()` SHALL return the handoff's phase name
+- **AND** the hook SHALL emit a `{"decision": "block", "reason": "..."}` JSON object requesting `/compact`
+
+#### Scenario: Unapplied handoff inside the recent window does not trigger compaction
+
+- **WHEN** a handoff JSON has an mtime newer than the boundary window
+- **AND** the change's `loop-state.json` exists but `last_handoff_id` does NOT match the handoff filename
+- **THEN** `_recent_phase_boundary()` SHALL skip that handoff
+- **AND** the hook SHALL NOT request `/compact` based on that handoff
+- **AND** any other applied handoffs in the window MAY still trigger compaction
+
+#### Scenario: Missing or malformed loop-state defers compaction
+
+- **WHEN** a handoff JSON has an mtime newer than the boundary window
+- **AND** the change directory has no `loop-state.json`, OR the file exists but fails JSON decode
+- **THEN** `_recent_phase_boundary()` SHALL skip that handoff
+- **AND** the hook SHALL fail closed — no phase-boundary `/compact` request based on that handoff
+- **AND** the threshold-based trigger SHALL continue to operate independently
+
+#### Scenario: `last_handoff_id` absent or null in loop-state
+
+- **WHEN** `loop-state.json` exists but the `last_handoff_id` field is missing, `null`, or an empty string
+- **THEN** `_recent_phase_boundary()` SHALL treat the change as having no applied handoff
+- **AND** SHALL NOT classify any handoff in the window as a boundary
+
+#### Scenario: Sibling worktrees write unrelated handoffs
+
+- **WHEN** the hook globs handoff files across all worktrees known to the current repository
+- **AND** a handoff from a sibling worktree falls inside the recent window but does not match its own change's `last_handoff_id`
+- **THEN** that handoff SHALL NOT propagate as a boundary signal into the current session
+
+### Requirement: Scoped Semantic Context Retrieval
+
+Context assembly SHALL request semantic code results only for the exact
+repository revision the coding job is working against and only within the work
+package's declared read scope. The requesting revision SHALL be the full Git
+object ID of `HEAD` in the agent's own worktree, and the requested scope SHALL
+be derived from the package's resolved `read_allow` and `deny` globs with `deny`
+taking precedence.
+
+<!-- Scenario ID: skill-workflow.semantic-context-exact-revision -->
+#### Scenario: The exact worktree revision is requested
+
+- **WHEN** a coding job assembles context inside a worktree
+- **THEN** the request SHALL carry the full 40-character object ID of that
+  worktree's `HEAD`
+- **AND** it SHALL NOT substitute the integration branch tip, a merge base, or
+  an abbreviated revision
+
+<!-- Scenario ID: skill-workflow.semantic-context-declared-scope -->
+#### Scenario: The declared package scope is the requested scope
+
+- **WHEN** the job belongs to a work package
+- **THEN** the requested read scope SHALL be that package's resolved
+  `read_allow` and `deny` globs
+- **AND** a path matching both SHALL be excluded
+- **AND** the assembly SHALL NOT widen the scope to the repository root
+
+<!-- Scenario ID: skill-workflow.semantic-context-no-declared-scope -->
+#### Scenario: A job with no declared scope does not invent one
+
+- **WHEN** a coding job has no work package and therefore no declared read scope
+- **THEN** context assembly SHALL NOT issue a semantic request
+- **AND** it SHALL emit an out-of-scope fallback
+
+### Requirement: Bounded Semantic Code Context Section
+
+Context assembly SHALL be able to supply a coding job with a single
+`Semantic code context` section, bounded by an explicit budget over hit count,
+distinct file count, total rendered lines, and per-hit rendered lines.
+
+<!-- Scenario ID: skill-workflow.semantic-context-consumers -->
+#### Scenario: Every named coding job can receive the section
+
+- **WHEN** implementation, quick-task, iteration, debugging, validation, or
+  implementation review assembles its context
+- **THEN** each of those jobs SHALL be able to receive the
+  `Semantic code context` section through one shared retrieval helper
+- **AND** each SHALL identify itself with a distinct consumer identifier
+
+<!-- Scenario ID: skill-workflow.semantic-context-single-section -->
+#### Scenario: The section appears at most once
+
+- **WHEN** a context block is assembled for one coding job
+- **THEN** it SHALL contain at most one `Semantic code context` section
+
+### Requirement: Semantic Hit Provenance
+
+Every injected semantic hit SHALL carry its file path, its start and end line
+numbers, its relevance score, the commit the serving index was built from, the
+serving index identifier, and its scope decision.
+
+<!-- Scenario ID: skill-workflow.semantic-context-hit-provenance -->
+#### Scenario: A rendered hit is fully attributed
+
+- **WHEN** a hit is rendered into the section
+- **THEN** it SHALL display the file path, the line range, the score, the
+  indexed commit, the index identifier, and the scope decision
+- **AND** the machine-readable record SHALL contain the same six values
+
+<!-- Scenario ID: skill-workflow.semantic-context-section-provenance -->
+#### Scenario: The section states which index answered
+
+- **WHEN** the section is injected
+- **THEN** its header SHALL identify the repository, the requested revision, the
+  index namespace, the serving index identifier, and the resolved scope decision
+
+### Requirement: Deterministic Semantic Hit Omission
+
+Duplicate and over-budget hits SHALL be omitted deterministically. Ordering,
+deduplication, and budget admission SHALL depend only on the retrieval response
+and the configured budget, never on wall-clock time, hash-set iteration order,
+process identity, or the order in which the service returned results.
+
+<!-- Scenario ID: skill-workflow.semantic-context-stable-order -->
+#### Scenario: Reordered input produces identical output
+
+- **WHEN** the same set of hits is processed twice in different input orders
+- **THEN** the retained hits, their sequence, and every omission reason SHALL be
+  identical
+
+<!-- Scenario ID: skill-workflow.semantic-context-duplicates -->
+#### Scenario: Duplicate hits are omitted with a reason
+
+- **WHEN** two hits share a file path and line range, or one hit's line range is
+  contained within a retained hit's range for the same file
+- **THEN** exactly one SHALL be retained
+- **AND** the omitted hit SHALL be recorded with a duplicate reason
+
+<!-- Scenario ID: skill-workflow.semantic-context-budget -->
+#### Scenario: Over-budget hits are omitted with a reason
+
+- **WHEN** admitting a hit would exceed the hit-count, file-count,
+  total-line, or per-hit-line bound
+- **THEN** that hit SHALL be omitted with the corresponding reason
+- **AND** a later hit that still fits SHALL still be admitted
+- **AND** omitted hits SHALL NOT be truncated and presented as complete
+
+### Requirement: Explicit Semantic Context Fallback
+
+A stale, unavailable, revision-mismatched, or out-of-scope retrieval outcome
+SHALL produce an explicit exact-search fallback instruction and SHALL NOT block
+or fail the coding job. Retrieval SHALL never raise to its caller.
+
+<!-- Scenario ID: skill-workflow.semantic-context-fallback-stale -->
+#### Scenario: A stale working tree falls back
+
+- **WHEN** the worktree has uncommitted changes, or no index exists for the
+  requested revision
+- **THEN** the outcome SHALL be a stale fallback
+- **AND** it SHALL instruct exact search and direct source reading
+- **AND** it SHALL carry zero semantic hits
+
+<!-- Scenario ID: skill-workflow.semantic-context-fallback-unavailable -->
+#### Scenario: An unavailable service falls back
+
+- **WHEN** injection is disabled, the code-search capability is absent, the
+  transport cannot carry the query, or the service reports unavailable,
+  not-configured, or overloaded
+- **THEN** the outcome SHALL be an unavailable fallback with a distinct reason
+  for each of those causes
+
+<!-- Scenario ID: skill-workflow.semantic-context-fallback-mismatched -->
+#### Scenario: A revision mismatch falls back
+
+- **WHEN** the service reports that its index revision differs from the
+  requested revision
+- **THEN** the outcome SHALL be a mismatched fallback
+- **AND** no result SHALL be presented as current
+
+<!-- Scenario ID: skill-workflow.semantic-context-fallback-out-of-scope -->
+#### Scenario: An out-of-scope outcome falls back
+
+- **WHEN** the service rejects the requested scope, the package declares no
+  usable read scope, or every returned hit fails the local scope re-check
+- **THEN** the outcome SHALL be an out-of-scope fallback
+- **AND** no hit outside the declared scope SHALL be rendered
+
+<!-- Scenario ID: skill-workflow.semantic-context-fallback-nonblocking -->
+#### Scenario: Fallback never blocks the coding job
+
+- **WHEN** any fallback trigger fires
+- **THEN** retrieval SHALL return a result rather than raise
+- **AND** the coding job SHALL proceed
+- **AND** an unrecognized service state SHALL map to an unavailable fallback
+  rather than to injection
+
+### Requirement: Opt-In Semantic Context Injection
+
+Semantic context injection SHALL be disabled by default. With the feature
+disabled, every coding job's assembled context SHALL be identical to its
+behavior before this capability existed.
+
+<!-- Scenario ID: skill-workflow.semantic-context-default-off -->
+#### Scenario: Disabled injection changes nothing
+
+- **WHEN** the semantic context injection switch is unset or set to any value
+  outside the accepted truthy set
+- **THEN** no semantic query SHALL be issued
+- **AND** no `Semantic code context` section SHALL appear in the assembled
+  context, not even a fallback notice
+
+<!-- Scenario ID: skill-workflow.semantic-context-separate-switch -->
+#### Scenario: Injection has its own switch
+
+- **WHEN** the coordinator's code-search service is enabled
+- **THEN** that alone SHALL NOT enable injection into coding jobs
+- **AND** enabling injection SHALL require its own explicit switch
+
+### Requirement: Local Provider Dispatch Adapter
+
+The provider dispatch layer SHALL support a `local` provider whose adapter launches the existing Pi coding-agent harness. A one-shot Pi extension SHALL register the distinct `local` provider against the configured OpenAI-compatible endpoint so the model operates through a real file, command, edit, and handoff tool loop. The adapter SHALL:
+
+- Read the endpoint from `LOCAL_INFERENCE_BASE_URL` and an optional `LOCAL_INFERENCE_API_KEY`.
+- Probe endpoint health before the first dispatch of a session and surface probe failure as adapter unavailability, not a dispatch error.
+- Enforce a configured concurrency cap (`LOCAL_INFERENCE_MAX_CONCURRENCY`) on simultaneous local dispatches; requests beyond the cap SHALL queue rather than error.
+- Require an explicit real `handoff_id` from the agent harness and normalize it through the same `(outcome, handoff_id)` contract as every other provider adapter; plain model text MUST NOT count as a completed phase.
+
+When the endpoint is unconfigured or unreachable, dispatch SHALL degrade to the existing structured `fallback` result with a warning naming the `local` provider, and the calling skill layer SHALL continue through its documented fallback path. The adapter MUST NOT block a phase indefinitely on a dead endpoint.
+
+#### Scenario: Configured endpoint dispatches successfully
+
+- **WHEN** a `runner` phase dispatches under provider `local` with `LOCAL_INFERENCE_BASE_URL` set and the health probe passing
+- **THEN** the adapter SHALL launch Pi headlessly with the local endpoint registered as its `local` provider
+- **AND** Pi SHALL retain its coding-agent tools so the phase can inspect files, run commands, make permitted changes, and write a durable handoff
+- **AND** only an explicit `(outcome, handoff_id)` from the final agent message SHALL normalize with `dispatch_tier` recording a harness dispatch
+- **AND** `model_used` SHALL be the roster model identifier
+
+#### Scenario: Unreachable endpoint degrades to fallback
+
+- **WHEN** a phase dispatches under provider `local` and the health probe fails or `LOCAL_INFERENCE_BASE_URL` is unset
+- **THEN** the adapter SHALL return the structured `fallback` result with a warning naming provider `local`
+- **AND** no phase SHALL hang waiting on the endpoint
+- **AND** the usage-limit policy engine SHALL NOT select `local` as a switch target while the probe fails
+
+#### Scenario: Concurrency cap respected under fan-out
+
+- **WHEN** more simultaneous local dispatches are requested than `LOCAL_INFERENCE_MAX_CONCURRENCY` allows
+- **THEN** excess dispatches SHALL queue until a slot frees
+- **AND** no dispatch SHALL be dropped or failed solely due to the cap
 
