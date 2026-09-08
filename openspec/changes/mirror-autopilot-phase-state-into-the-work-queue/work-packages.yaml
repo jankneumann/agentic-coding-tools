@@ -8,7 +8,7 @@ feature:
   deployable: false
 
 contracts:
-  revision: 1
+  revision: 2
   openapi:
     primary: openspec/contracts/agent-coordinator/openapi/work-queue.yaml
     files:
@@ -26,7 +26,7 @@ packages:
   - package_id: wp-projection-adapter
     title: Coordinated phase projection adapter and host registration
     task_type: integration
-    description: Implement tasks 1.1 through 2.4 with TDD, including canonical host writers, head advancement, and coordinator-only label repair while preserving the coordinator-free default and one-way authority contract.
+    description: Implement tasks 1.1 through 2.5 with TDD, including canonical host writers, head advancement, and coordinator-only label repair while preserving the coordinator-free default and one-way authority contract.
     role: implementer
     priority: 1
     depends_on: []
@@ -38,6 +38,7 @@ packages:
         - skills/coordination-bridge/scripts/coordination_bridge.py
         - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
         - agent-coordinator/src/event_stream.py
+        - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
       keys:
         - feature:autopilot-live-queue-projection:modify
       ttl_minutes: 120
@@ -52,6 +53,7 @@ packages:
         - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
         - agent-coordinator/src/event_stream.py
         - agent-coordinator/tests/**
+        - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
       read_allow:
         - skills/**
         - agent-coordinator/**
@@ -81,9 +83,25 @@ packages:
           evidence:
             artifacts: []
             result_keys: [autopilot_projection_tests_pass]
+        - name: Run coordination bridge projection tests
+          kind: command
+          command: skills/.venv/bin/python -m pytest skills/tests/coordination-bridge -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [coordination_bridge_tests_pass]
+        - name: Run coordinator queue and issue tests
+          kind: command
+          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_work_queue.py agent-coordinator/tests/test_issue_service.py -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [coordinator_projection_tests_pass]
         - name: Lint changed Python
           kind: command
-          command: skills/.venv/bin/python -m ruff check skills/autopilot/scripts skills/coordination-bridge/scripts/coordination_bridge.py skills/tests/autopilot skills/tests/coordination-bridge
+          command: skills/.venv/bin/python -m ruff check skills/autopilot/scripts skills/coordination-bridge/scripts/coordination_bridge.py skills/tests/autopilot skills/tests/coordination-bridge agent-coordinator/src/event_stream.py
           cwd: .
           expect_exit_code: 0
           evidence:
@@ -95,7 +113,7 @@ packages:
       package_kind: integration
     inputs: {}
     outputs:
-      result_keys: [autopilot_projection_tests_pass, ruff_pass]
+      result_keys: [autopilot_projection_tests_pass, coordination_bridge_tests_pass, coordinator_projection_tests_pass, ruff_pass]
       artifacts:
         - skills/autopilot/scripts/queue_projection.py
         - skills/autopilot/scripts/runner.py
@@ -103,6 +121,7 @@ packages:
         - skills/coordination-bridge/scripts/coordination_bridge.py
         - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
         - agent-coordinator/src/event_stream.py
+        - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
 
   - package_id: wp-live-integration
     title: Coordinator, crash recovery, and kanban proof

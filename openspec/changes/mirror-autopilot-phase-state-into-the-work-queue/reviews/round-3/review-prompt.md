@@ -1,0 +1,7 @@
+# Final convergence review round 3: mirror-autopilot-phase-state-into-the-work-queue
+
+Independently review the current committed plan at HEAD `548b569373940af4a912f9c9d5b0d584ebebccdb`. This is the third and final bounded round. Read all current plan artifacts, both prior disposition records, and verify claims against real source.
+
+Re-test the previously blocking seams: canonical runner init/transition and every post-save projection; direct `enter_escalate` increments `total_iterations` once; bridge head advancement matches only `status=error`, `status_code=409`, `response.detail=reconciliation_required`; other conflicts degrade; migration 037 enforces `task_type != issue` in claims; projection label changes produce a change-scoped fresh SSE snapshot for already-connected clients; label-only polling remains unchanged; coordinator-only two-label cleanup is bounded to 100 rows and does not touch ordinary issues; local tiers lazily avoid the projection module/helpers; queue data is never authoritative.
+
+Evaluate all eight axes, API compatibility, migration scope, and package DAG/scope. Return ONLY one JSON object conforming exactly to `openspec/schemas/review-findings.schema.json`, with `review_type=plan`, `target=mirror-autopilot-phase-state-into-the-work-queue`, and your CLI vendor in `reviewer_vendor`. Include all required fields with coherent severity/disposition. If converged, emit specific `severity=none` findings; do not invent a blocker merely to fill the array.

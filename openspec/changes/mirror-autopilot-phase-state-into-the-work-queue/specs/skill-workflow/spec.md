@@ -2,7 +2,7 @@
 
 ### Requirement: Coordinated Autopilot Phase Projection
 
-A coordinated Autopilot host SHALL project every durably persisted phase generation to the work queue using the existing idempotent projection contract. The projected identity SHALL be derived only from `(LoopState.change_id, LoopState.current_phase, LoopState.total_iterations)`. The canonical `task_type=issue`, priority-1 row SHALL be excluded from unfiltered work claims and SHALL receive the adapter-owned labels `change:<change_id>` and `projection:autopilot-phase` so the current kanban query path can select it; stale projection rows SHALL lose both labels without modifying ordinary issues. Queue responses SHALL NOT mutate authoritative loop state.
+A coordinated Autopilot host SHALL project every durably persisted phase generation to the work queue using the existing idempotent projection contract. The projected identity SHALL be derived only from `(LoopState.change_id, LoopState.current_phase, LoopState.total_iterations)`. Every `task_type=issue` row SHALL be excluded from all work claims. The canonical priority-1 projection row SHALL receive the adapter-owned labels `change:<change_id>` and `projection:autopilot-phase` so the current kanban query path can select it; stale projection rows SHALL lose both labels without modifying ordinary issues. Queue responses SHALL NOT mutate authoritative loop state.
 
 #### Scenario: Live phase transition is mirrored
 
@@ -33,7 +33,7 @@ A coordinated Autopilot host SHALL project every durably persisted phase generat
 - **THEN** it SHALL reconcile from the loaded loop-state before phase work
 - **AND** stale active rows SHALL be cancelled
 - **AND** exactly one active canonical row carrying both adapter-owned labels SHALL represent the loaded generation
-- **AND** interrupted stale-label cleanup across at most the 100-row coordinator page limit SHALL be retried without modifying ordinary change-labelled issues
+- **AND** interrupted cleanup across at most 100 concurrently double-labelled projection rows SHALL be retried without modifying ordinary change-labelled issues
 
 #### Scenario: Projection outage is degraded, not authoritative
 
@@ -42,6 +42,7 @@ A coordinated Autopilot host SHALL project every durably persisted phase generat
 - **WHEN** the host reports the transition
 - **THEN** the durable loop-state SHALL remain unchanged
 - **AND** a failed canonical-row label update or stale-label cleanup SHALL also report projection degradation with a bounded reason
+- **AND** label-removal events SHALL derive change identity from OLD labels when NEW labels are empty
 - **AND** label operations SHALL target the configured coordinator even when GitHub issues are enabled
 - **AND** it SHALL NOT derive state from a queue response
 
