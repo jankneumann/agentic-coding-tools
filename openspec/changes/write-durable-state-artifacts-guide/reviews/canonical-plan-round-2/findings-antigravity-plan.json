@@ -1,0 +1,103 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Decisions D1-D3 in design.md define normative inventory in docs/guides/state-artifacts.md, establish question-scoped authority for the five durable artifact classes (loop-state.json, checkpoint.json, learning entries, session-log.md phase records, handoffs/mirrors), and separate fresh session bootstrap locators from canonical file verification.",
+      "resolution": "Question-scoped authority and bootstrap locator semantics are cleanly isolated across all five durable state classes.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 26
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The OpenSpec delta under specs/skill-workflow/spec.md specifies unambiguous requirements and scenarios for five-class state discovery, conflict resolution favoring canonical records over advisory handoffs or queue projections, fail-loud missing-state degradation, portable skill links, and byte-identical runtime mirrors.",
+      "resolution": "Specification requirements provide complete traceability for all durable state artifact behaviors and verification boundaries.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 1,
+        "end": 51
+      },
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The single sequential work package wp-state-artifacts-docs in work-packages.yaml correctly bounds file locks and write allowlists across docs/guides/state-artifacts.md, six canonical SKILL.md sources, test files under skills/tests/state-artifacts/, .agents and .claude mirrors, and the generated decision index docs/decisions/skill-workflow.md.",
+      "resolution": "Work package scoping and locks strictly prevent context drift while allowing regenerated decision index outputs.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 26,
+        "end": 132
+      },
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "description": "The structural RED/GREEN test suite in skills/tests/state-artifacts/test_state_artifacts_guide.py validates five-class inventory headers, 8-step rehydration order markers in docs/guides/state-artifacts.md and skills/supervise/SKILL.md, portable link URLs across all six skill files, and byte identity for .agents and .claude runtime mirrors.",
+      "resolution": "Structural pytest contract ensures robust validation without fragile prose pinning.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 1,
+        "end": 86
+      },
+      "axis": "observability",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The plan iteration findings in plan-findings.md explicitly document the disposition of Round 1 vendor reviews, justify the single sequential package DAG, and reconcile PhaseRecord.write_both() regenerating docs/decisions/skill-workflow.md upon recording decision D1.",
+      "resolution": "Plan findings reconcile derived artifact generation and lock allowlists while preserving single-package DAG rationale.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/plan-findings.md",
+      "line_range": {
+        "start": 27,
+        "end": 38
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 6,
+      "type": "style",
+      "criticality": "low",
+      "description": "The supervised rehydration section in skills/supervise/SKILL.md aligns with the 8-step rehydration sequence defined in docs/guides/state-artifacts.md, separating the supervisor handoff/mirror bootstrap locator from canonical roadmap checkpoint and change loop-state verification.",
+      "resolution": "Supervise skill prose accurately reflects the canonical rehydration sequence without altering underlying runtime interfaces.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/supervise/SKILL.md",
+      "line_range": {
+        "start": 134,
+        "end": 153
+      },
+      "axis": "readability",
+      "severity": "none"
+    }
+  ]
+}

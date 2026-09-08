@@ -31,3 +31,7 @@ The provider-neutral plan-iteration worker exceeded its bounded material-output 
 - **Lock-surface nit**: fixed by adding the documentation index plus the implement-feature and validate-feature canonical sources to `locks.files`.
 - **Coordination-bridge optional finding**: accepted without scope expansion. The bridge owns transport-specific queue projection behavior; it does not create, mutate, or rehydrate the five durable file classes. The canonical guide will describe the projection boundary and may cite the bridge for transport detail, but the bridge remains outside the required link/mirror set.
 - **Supervise ledger FYI**: accepted. `cycle-ledger.json` remains supervise-local operational/idempotency state and is not elevated into the five-class cross-workflow authority ladder.
+
+## Implementation scope reconciliation
+
+`PhaseRecord.write_both()` correctly regenerated `docs/decisions/skill-workflow.md` after the implementation entry introduced a `skill-workflow` decision. The work package now names that deterministic derived artifact in both `locks.files` and `scope.write_allow`, and declares the validator-required `decisions` context-impact surface alongside `documentation` and `semantic_code`. This is an exact generated-output amendment, not a broad scope expansion.
