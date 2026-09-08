@@ -8,7 +8,7 @@
 openapi: 3.1.0
 info:
   title: "agent-coordinator: Work queue"
-  version: 1.0.0
+  version: 2.0.0
   description: >-
     Task claiming, completion, submission, and unclaimed reads. Spec lines
     114-145, 941-963, 1950-1956 (HTTP-7).
@@ -95,9 +95,50 @@ paths:
                 input_data: {type: object}
                 priority: {type: integer}
                 depends_on: {type: array, items: {type: string}}
+                projection_key:
+                  $ref: "#/components/schemas/ProjectionKey"
       responses:
         "200": {description: Task created with its task_id (spec 138-139)}
         "401": {description: Missing or invalid X-API-Key}
+        "403":
+          $ref: "#/components/responses/Problem403"
+        "409":
+          $ref: "#/components/responses/Problem409"
+        "422":
+          $ref: "#/components/responses/Problem422"
+  /work/reconcile:
+    post:
+      operationId: reconcileWorkProjection
+      summary: Reconcile one authoritative projection generation
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - skill-workflow.coordinated-autopilot-phase-projection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projection_key, task_type, task_description]
+              properties:
+                projection_key:
+                  $ref: "#/components/schemas/ProjectionKey"
+                task_type: {type: string}
+                task_description: {type: string}
+                input_data: {type: object}
+                priority: {type: integer}
+                agent_requirements: {type: object}
+      responses:
+        "200": {description: Canonical generation ensured and stale rows cancelled}
+        "401": {description: Missing or invalid X-API-Key}
+        "403":
+          $ref: "#/components/responses/Problem403"
+        "409":
+          $ref: "#/components/responses/Problem409"
+        "422":
+          $ref: "#/components/responses/Problem422"
   /work/get:
     post:
       operationId: getWork
@@ -128,6 +169,46 @@ paths:
         "401": {description: Missing or invalid X-API-Key}
         "404": {description: Unknown task_id (spec 955-957)}
 components:
+  schemas:
+    ProjectionKey:
+      type: object
+      additionalProperties: false
+      required: [change_id, phase, transition_sequence]
+      properties:
+        change_id:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]{0,127}$"
+        phase:
+          type: string
+          enum: [INIT, GATEKEEPER, PLAN, PLAN_ITERATE, PLAN_REVIEW, PLAN_FIX, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, IMPL_FIX, VALIDATE, VAL_REVIEW, VAL_FIX, SUBMIT_PR, ESCALATE, DONE]
+        transition_sequence:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+    Problem:
+      type: object
+      required: [detail]
+      properties:
+        detail: {type: string}
+  responses:
+    Problem403:
+      description: Projection operation forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Problem409:
+      description: Projection generation conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Problem422:
+      description: Projection request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
   securitySchemes:
     coordinatorApiKey:
       type: apiKey

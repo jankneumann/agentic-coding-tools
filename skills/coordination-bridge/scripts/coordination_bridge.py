@@ -1223,6 +1223,25 @@ def try_issue_list(
     )
 
 
+def try_projection_issue_list(
+    *,
+    labels: list[str],
+    limit: int = 100,
+    http_url: str,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """List projection-owned issue rows via the coordinator only."""
+    return _execute_single_endpoint_operation(
+        operation="try_projection_issue_list",
+        capability_flag="CAN_ISSUES",
+        method="POST",
+        path="/issues/list",
+        payload={"labels": labels, "limit": min(max(limit, 1), 100)},
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
 def try_issue_show(
     *,
     issue_id: str,
@@ -1292,6 +1311,25 @@ def try_issue_update(
         method="POST",
         path="/issues/update",
         payload=payload,
+        http_url=http_url,
+        api_key=api_key,
+    )
+
+
+def try_projection_issue_update(
+    *,
+    issue_id: str,
+    labels: list[str],
+    http_url: str,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Replace adapter-owned projection labels via the coordinator only."""
+    return _execute_single_endpoint_operation(
+        operation="try_projection_issue_update",
+        capability_flag="CAN_ISSUES",
+        method="POST",
+        path="/issues/update",
+        payload={"issue_id": issue_id, "labels": labels},
         http_url=http_url,
         api_key=api_key,
     )

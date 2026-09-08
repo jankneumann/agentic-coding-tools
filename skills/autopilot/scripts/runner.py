@@ -364,6 +364,68 @@ def _cmd_apply_outcome(args: argparse.Namespace) -> int:
     return 0
 
 
+
+def _cmd_init(args: argparse.Namespace) -> int:
+    """Idempotently create the canonical durable INIT state."""
+    try:
+        phase_agent._validate_change_id(args.change_id)
+    except ValueError as exc:
+        sys.stderr.write(f"runner: {exc}\n")
+        return 2
+    path = _state_path(args.change_id)
+    if path.exists():
+        return 0
+    now = autopilot._now_iso()
+    state = autopilot.LoopState(
+        change_id=args.change_id,
+        started_at=now,
+        phase_started_at=now,
+    )
+    try:
+        autopilot.save_state(state, path)
+    except OSError as exc:
+        sys.stderr.write(f"runner: init failed: {exc}\n")
+        return 1
+    return 0
+
+
+def _cmd_transition(args: argparse.Namespace) -> int:
+    """Apply one canonical transition and durably save it."""
+    try:
+        phase_agent._validate_change_id(args.change_id)
+        state = autopilot.load_state(_state_path(args.change_id))
+        autopilot._apply_transition(
+            state, args.outcome, change_dir=_change_dir(args.change_id)
+        )
+        autopilot.save_state(state, _state_path(args.change_id))
+    except (OSError, ValueError, autopilot.GatePending) as exc:
+        sys.stderr.write(f"runner: transition failed: {exc}\n")
+        return 1
+    return 0
+
+
+def _cmd_project_state(args: argparse.Namespace) -> int:
+    """Read durable state and project it without mutating the state file."""
+    try:
+        phase_agent._validate_change_id(args.change_id)
+        state = autopilot.load_state(_state_path(args.change_id))
+        # Lazy by design: coordinator-free hosts never import the publisher.
+        from queue_projection import QueueProjectionAdapter
+
+        result = QueueProjectionAdapter(
+            http_url=args.coordinator_url,
+            api_key=args.api_key,
+            change_path=str(_change_dir(args.change_id)),
+        )(state, mode=args.mode)
+    except (OSError, ValueError) as exc:
+        sys.stderr.write(f"runner: project-state failed: {exc}\n")
+        return 2
+    except Exception as exc:  # noqa: BLE001
+        sys.stderr.write(f"runner: project-state failed: {exc}\n")
+        return 1
+    sys.stdout.write(json.dumps(result, sort_keys=True) + "\n")
+    return 0 if result.get("status") == "ok" else 1
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="runner",
@@ -375,6 +437,25 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     sub = parser.add_subparsers(dest="command", required=True)
+
+    init = sub.add_parser("init", help="Idempotently create canonical INIT state.")
+    init.add_argument("--change-id", required=True)
+    init.set_defaults(func=_cmd_init)
+
+    tr = sub.add_parser("transition", help="Apply and persist a canonical phase edge.")
+    tr.add_argument("--change-id", required=True)
+    tr.add_argument("--outcome", required=True)
+    tr.set_defaults(func=_cmd_transition)
+
+    ps = sub.add_parser(
+        "project-state",
+        help="Project the durable phase state to a configured coordinator.",
+    )
+    ps.add_argument("--change-id", required=True)
+    ps.add_argument("--mode", required=True, choices=["submit", "reconcile"])
+    ps.add_argument("--coordinator-url", required=True)
+    ps.add_argument("--api-key", default=None)
+    ps.set_defaults(func=_cmd_project_state)
 
     bd = sub.add_parser(
         "build-dispatch",

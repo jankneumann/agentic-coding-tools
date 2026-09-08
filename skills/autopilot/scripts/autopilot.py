@@ -423,6 +423,7 @@ class _GateSession:
     state_path: Path | None
     repo_root: Path
     evaluator: GateEvaluator | None = None
+    queue_projection_fn: Callable[..., Any] | None = None
 
     def evaluate(self, gate: Gate, context: dict[str, Any] | None = None) -> ApprovalDecision:
         if self.evaluator is None:
@@ -478,7 +479,9 @@ class _GateSession:
             # one, which is what makes "recorded before the loop acts" true.
             logger.debug("gate session has no state_path; decision not persisted")
             return
-        save_state(state, self.state_path)
+        persist_and_project(
+            state, self.state_path, self.queue_projection_fn, mode="submit"
+        )
 
 
 # Thin delegating alias (ri-04, D2): the record shape now lives in
@@ -499,9 +502,11 @@ def enter_escalate(
     status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
 ) -> LoopState:
     """Transition *state* into ESCALATE, recording the originating phase."""
-    state.previous_phase = state.current_phase
+    if state.current_phase != "ESCALATE":
+        state.previous_phase = state.current_phase
+        state.current_phase = "ESCALATE"
+        state.total_iterations += 1
     state.escalation_reason = reason
-    state.current_phase = "ESCALATE"
     state.phase_started_at = _now_iso()
     _safe_status_call(
         status_fn,
@@ -1014,12 +1019,15 @@ def run_loop(
     # re-applied from the caller on every run, mirroring cli_review_enabled so a
     # resume honors the flag the operator passed this time.
     state.force = force
+    if not state_path.exists():
+        persist_and_project(state, state_path, queue_projection_fn, mode="submit")
 
     gates = _GateSession(
         change_id=change_id,
         state_path=state_path,
         repo_root=worktree_path,
         evaluator=gate_evaluator,
+        queue_projection_fn=queue_projection_fn,
     )
 
     # Re-entry with an unanswered gate: report and return rather than run a
@@ -1076,7 +1084,7 @@ def run_loop(
             # A gate raised a question for the host. Park in place — the answer
             # arrives out of band via `runner.py gate-answer`.
             pending = str((state.pending_gate or {}).get("gate", "unknown"))
-            save_state(state, state_path)
+            persist_and_project(state, state_path, queue_projection_fn, mode="submit")
             _safe_status_call(
                 status_fn,
                 state,
@@ -1089,7 +1097,7 @@ def run_loop(
         if outcome is None:
             # Phase signalled "stay" (e.g. unresolved escalation, or a gate that
             # blocked after a human was consulted or the coordinator was down)
-            save_state(state, state_path)
+            persist_and_project(state, state_path, queue_projection_fn, mode="submit")
             break
 
         # If phase handler already changed the phase (e.g. enter_escalate),
@@ -1117,7 +1125,7 @@ def run_loop(
             persist_and_project(state, state_path, queue_projection_fn, mode="submit")
             break
         except GatePending as exc:
-            save_state(state, state_path)
+            persist_and_project(state, state_path, queue_projection_fn, mode="submit")
             _safe_status_call(
                 status_fn,
                 state,
@@ -1153,7 +1161,7 @@ def run_loop(
         mid = memory_fn(state, f"Loop completed for {change_id}")
         if mid:
             state.memory_ids.append(mid)
-            save_state(state, state_path)
+            persist_and_project(state, state_path, queue_projection_fn, mode="submit")
 
     return state
 

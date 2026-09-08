@@ -271,6 +271,12 @@ async def sse_event_generator(
     async def _on_task_event(evt: CoordinatorEvent) -> None:
         if not evt.change_id or evt.change_id not in change_ids:
             return
+        if evt.event_type == "projection.labels_changed":
+            await queue.put({
+                "event": "snapshot",
+                "data": await _build_snapshot(change_ids),
+            })
+            return
         await queue.put(_make_transition(evt))
 
     async def _on_audit_event(evt: CoordinatorEvent) -> None:

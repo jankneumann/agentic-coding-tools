@@ -50,6 +50,39 @@ If coordinator is unavailable, emit a warning and fall back to sequential skill 
 
 ## Steps
 
+### Coordinated phase-projection protocol
+
+The queue mirror is enabled **only** after coordinator detection selected the
+coordinated tier. The host must pass the detected coordinator URL explicitly as
+`<coordinator-url>`; local-parallel and sequential hosts do not import,
+construct, register, submit, reconcile, or label through the projection adapter.
+
+For a coordinated resume, load no queue state into the loop. First repair the
+queue solely from the durable file, before pending-gate handling or phase work:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" project-state \
+  --change-id <change-id> --mode reconcile \
+  --coordinator-url "<coordinator-url>"
+```
+
+The host must use `runner.py init` for initialization and `runner.py
+transition --outcome <outcome>` for every ordinary phase edge; it must not
+hand-edit `current_phase`. After **every successfully persisted** runner
+mutation — `init`, `transition`, `apply-outcome`,
+`record-state-only-archetype`, and `gate-answer` — immediately run
+`project-state --mode submit`. A non-zero mutation exit suppresses projection.
+For `gate-check`, exits 0, 3, and 4 all mean a decision or park was durably
+recorded, so submit projection before asking, continuing, or stopping; exits 1
+and 2 suppress projection. Projection failure is reported as degraded but never
+reverts or rewrites `loop-state.json`.
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" project-state \
+  --change-id <change-id> --mode submit \
+  --coordinator-url "<coordinator-url>"
+```
+
 ### 0. Parse Arguments and Check for Resume
 
 Parse the argument to determine:
@@ -91,6 +124,13 @@ The loop cannot be advanced around this: `apply-outcome` refuses to record anyth
 while a gate is pending.
 
 ### 1. INIT Phase
+
+Create state through the canonical writer. In coordinated mode, follow it with
+the submit call from the protocol above; if `init` fails, do not project.
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" init --change-id <change-id>
+```
 
 **Detect CLI mode** — check whether multi-vendor review is available:
 
@@ -274,6 +314,19 @@ parks at all is the trust posture's call (`TRUST_POSTURE.md`) — under an `auto
 disposition `gate-check` records the decision, exits 3, and there is nothing to ask.
 An exit of 4 is not a "continue": the decision was blocked in a way no console answer
 resolves, the run is in ESCALATE, and this run stops.
+
+### Canonical phase edges
+
+Whenever a phase section below says **transition to** a phase, apply the named
+outcome through the durable writer, then submit the projection in coordinated
+mode:
+
+```bash
+python3 "<skill-base-dir>/scripts/runner.py" transition \
+  --change-id <change-id> --outcome <outcome>
+```
+
+A failed transition is a stop: do not project and do not advance work.
 
 ### Per-Phase Sub-Agent Dispatch Protocol
 
