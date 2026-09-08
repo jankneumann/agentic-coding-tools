@@ -97,3 +97,26 @@ The required patch helper and its CLI path both failed with `bwrap: loopback: Fa
 All four selected vendors produced schema-valid findings. Consensus met quorum at 4/4 but did not converge: five blocking classifications and five disagreements remained. The final plan correction keeps partial apply replayable by forbidding route/resume until the complete batch succeeds; moves long approval waits under a gate-subject lock rather than the workspace state lock; makes generation identity flow through records, console answer, late answers, approval-reference validation, and the open schema; retires older-generation mirror entries; and distinguishes decided from resumed generations in exact bounded responses. Work-package scope now includes cycle-state and the gate-decision schema, while verification explicitly covers Ruff, all OpenSpec changes, package/DAG validity, context drift, and post-sync scope.
 
 The deterministic writer fallback remained necessary because the patch helper's bwrap loopback failure persisted. Round 3 is the maximum and must return real quorum with zero blockers and disagreements before implementation.
+
+---
+
+## Phase: Plan Review Round 3 (2026-09-08)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Plan did not converge at the maximum round** — Mechanical consensus reported quorum 2/2, zero grouped blockers, and zero disagreements, but substantive code-trace adjudication escalated two credible durability blockers.
+2. **Block implementation** — Approval waiting can overwrite concurrent checkpoint transitions through a stale whole-file save, and a resumed member of a multi-member original batch has no safe applicable result-membership path.
+
+### Completed Work
+- Ran three provider-neutral plan-review rounds with durable per-vendor findings, manifests, consensus, and dispositions.
+- Closed round-1 and round-2 confirmed/disagreement findings in pushed plan commits.
+- Validated the final change, work package, DAG, findings, and handoff schemas.
+
+### Next Steps
+- Do not begin implementation.
+- Resolve the checkpoint post-wait merge/CAS boundary and multi-member resumed-batch membership/evidence lifecycle in a resumed planning cycle.
+- Obtain fresh independent convergence after those plan changes.
+
+### Context
+Round 3 used a bounded two-vendor roster (Claude Code and Codex). The synthesizer treated the two critical defects as unconfirmed because only Claude raised them, but both are concrete code-level execution traces with durable-state consequences. At the configured three-round maximum they are escalated rather than waived. The required patch helper remained unavailable due the recorded bwrap loopback failure; deterministic writers were confined to change artifacts.

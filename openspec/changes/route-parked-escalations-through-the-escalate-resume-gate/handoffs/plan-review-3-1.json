@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-08T05:09:42.595834+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "Phase sub-agent has no direct coordinator handoff transport; persisted the canonical local fallback.",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "PLAN_REVIEW reached max_iter without substantive convergence. Final reviewer quorum was 2/2 and mechanical consensus grouped zero blockers/disagreements, but substantive adjudication escalated a stale whole-checkpoint overwrite race and an unappliable multi-member resumed-batch path. Implementation is blocked.",
+    "completed_work": [
+      "three provider-neutral plan-review rounds",
+      "round-1 and round-2 plan fixes",
+      "strict OpenSpec/work-package/DAG/schema validation",
+      "final substantive blocker adjudication"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Plan review max_iter; implementation blocked",
+        "rationale": "Two code-traced durability defects remain after the third and final review round.",
+        "capability": "supervise",
+        "supersedes": null
+      },
+      {
+        "title": "Do not accept lossy zero-blocker grouping",
+        "rationale": "The synthesizer classified single-vendor critical findings as unconfirmed/accepted even though their execution traces show state corruption and permanent batch stranding.",
+        "capability": "supervise",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Do not implement",
+      "Resolve fresh checkpoint merge/CAS after approval waiting",
+      "Define safe multi-member resumed-result batch membership and evidence lifecycle",
+      "Run a newly authorized independent plan review"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/consensus-plan.json",
+        "description": "Mechanical final consensus"
+      },
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/adjudication-plan.json",
+        "description": "Structured blocking adjudication"
+      },
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/dispositions.md",
+        "description": "Max-iteration disposition"
+      },
+      {
+        "path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/reviews/review-manifest.json",
+        "description": "Final two-vendor manifest"
+      }
+    ]
+  }
+}
