@@ -23,6 +23,14 @@ exclusions:
       Served by the framework engine; the CLI contract exposes no flag surface
       for this behaviour — it is exercised by every run, not configured by any
       flag.
+  - requirement: gen-eval-framework.descriptor-model-naming-levels
+    reason: >-
+      A naming rule over the package's published Python type names (`*Spec` for
+      one surface element or a per-surface container, `*Descriptor` for a whole
+      document). It constrains what the library's symbols are called, not what
+      any HTTP operation does; the contract has no surface that could cite it.
+      Enforced instead by the type names themselves and by the import test that
+      the requirement's own second scenario describes.
   - requirement: gen-eval-framework.dogfood
     reason: >-
       Served by the framework engine; the CLI contract exposes no flag surface
@@ -58,6 +66,12 @@ exclusions:
       Served by the traceability gate (check_traceability.py) and its CI
       wiring, not by the gen-eval CLI; this contract exposes no surface for
       it.
+  - requirement: gen-eval-framework.renamed-published-types-retain-warning-aliases
+    reason: >-
+      A source-compatibility rule for consumers of the package's Python API:
+      a renamed published type stays importable under its old name and warns.
+      It is served by module-level alias definitions and their deprecation
+      warnings, which no contracted operation exposes or configures.
   - requirement: gen-eval-framework.reverse-enforcement-is-opt-in-per-capability-via-the-exclusions-file
     reason: >-
       Served by the traceability gate (check_traceability.py) and its CI
