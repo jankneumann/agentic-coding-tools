@@ -9,7 +9,7 @@
 
 ### Phase: Implementation
 
-**Use portable canonical guide links** — Installed skill payloads cannot use relative links that escape the skill directory; a stable repository URL remains clickable in canonical and mirrored copies.
+**Use portable repository-relative guide references** — Installed skill payloads cannot use relative Markdown links that escape the skill directory, so canonical and mirrored skills use the established bare backticked repository path `docs/guides/state-artifacts.md`.
 
 - Status: `active`
 - Source: [openspec/changes/write-durable-state-artifacts-guide/session-log.md](/openspec/changes/write-durable-state-artifacts-guide/session-log.md) (D1)

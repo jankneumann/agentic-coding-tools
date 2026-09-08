@@ -12,7 +12,7 @@ triggers:
 
 ## Durable state artifact authority
 
-Shared holder, writer, authority, fallback, and rehydration semantics live in the `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
+Shared holder, writer, authority, fallback, and rehydration semantics live in `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
 
 Provides utilities for appending structured decision records to `session-log.md` (per-change) and `docs/merge-logs/YYYY-MM-DD.md` (per-merge-session). Each workflow skill calls these at phase boundaries to build a living decision record.
 

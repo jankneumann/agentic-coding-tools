@@ -16,6 +16,13 @@
   - **Dependencies**: 1.1
   - **Command**: Run the focused test against the roadmap parent commit and preserve failures caused by the missing guide or links.
 
+- [x] 1.3 Register the structural suite in default CI collection.
+  - **Size**: XS
+  - **Spec scenarios**: all
+  - **Design decisions**: D4
+  - **Dependencies**: 1.1
+  - **Coverage**: Add `tests/state-artifacts` to `skills/pyproject.toml` testpaths and prove registration with `skills/tests/ci_coverage`.
+
 - [x] Checkpoint: preserve RED output, review the test diff, and verify writes remain inside the declared package scope.
 
 ## Phase 2 - GREEN canonical documentation

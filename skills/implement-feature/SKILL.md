@@ -19,7 +19,7 @@ triggers:
 
 ## Durable state artifact authority
 
-Shared holder, writer, authority, fallback, and rehydration semantics live in the `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
+Shared holder, writer, authority, fallback, and rehydration semantics live in `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
 
 Implement an approved OpenSpec proposal. Automatically selects execution tier based on coordinator availability and existing artifacts. Ends when PR is created and awaiting review.
 
