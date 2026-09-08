@@ -1,0 +1,339 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "write-durable-state-artifacts-guide",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 11,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The declared context-impact surfaces and the durable checkpoint evidence for those surfaces disagree, and the disagreement is exactly on the surface the branch added last. work-packages.yaml:88-92 declares three surfaces (`documentation`, `decisions`, `semantic_code`), and plan-findings.md:37 states the `decisions` surface was added because the validator requires it once `PhaseRecord.write_both()` regenerates `docs/decisions/skill-workflow.md`. But the checkpoint artifact that is cited as the evidence for that declaration records only two: `context_impact.status: \"declared\"` with `surfaces: [\"documentation\", \"semantic_code\"]` (lines 10-14), captured at `merge_base_revision: 4f794962` (line 16) \u2014 i.e. before the amendment. change-context.md:29 then repeats the stale two-surface pair verbatim (\"declaration status `declared` for `documentation` and `semantic_code`\"), so the plan asserts three surfaces in the package and two everywhere it offers proof. The checkpoint does contain a passing `decisions.timeline` producer result (`validation_id: \"decisions\"`, \"docs/decisions is current\"), which shows the producer ran but not that the surface was declared at capture time. A reviewer auditing the `decisions` surface against its evidence finds no record that it was ever declared, and the same mismatch will re-surface in any context-drift gate that compares the declaration to the checkpoint."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The Coverage Summary was not updated when d2342a85 added a seventh traceability row, so the change's own coverage accounting is now off by one. The Requirement Traceability Matrix holds seven rows at change-context.md:7-13 (`state-artifacts-inventory`, `-authority`, `-rehydration`, `-missing`, `-links`, `-mirrors`, and the newly added `-ci-discovery` at line 13), while the Coverage Summary immediately below still reports `Requirements traced: 6`, `Tests mapped: 6`, `Evidence collected: 6` (lines 34-36). The same commit that introduced the seventh row also updated the GREEN count from 15 to 16 in five other places in this file, which shows the counts are maintained as live claims rather than prose \u2014 making this specific one measurably false. Any downstream reader or gate that trusts the summary over the table will under-count the traced requirement set by exactly the CI-discovery row this round was supposed to add."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The new traceability row `skill-workflow.state-artifacts-ci-discovery` cites `specs/skill-workflow/spec.md` as its Spec Source, using the identical relative form as the six rows above it \u2014 but the change's delta spec at openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md contains only three ADDED requirements (\"Canonical durable state-artifact inventory\", \"Deterministic fresh-session rehydration\", \"Skill documentation links to the canonical guide\") and five scenarios, none of which mentions CI collection, testpaths, or default-suite registration. The other six rows each map onto one of those requirements or scenarios; this seventh row maps onto nothing in the delta. The nearest existing normative text is in the main spec at openspec/specs/skill-workflow/spec.md:4301 (\"`skills/pyproject.toml`'s `[tool.pytest.ini_options]` `testpaths` SHALL list every new test directory\"), but that sentence is scoped to the per-skill `skills/tests/<skill-name>/test_skill_md.py` obligation and does not cover a feature test directory such as `skills/tests/state-artifacts/`. The behavior itself is implemented correctly (pyproject.toml:129 plus the tests/ci_coverage guard); what is missing is the spec anchor the matrix claims to have, so the row is traceability that traces to nothing."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Canonical reference resolution: `session-log.md` records the bare repository-relative guide reference (`docs/guides/state-artifacts.md`) under Decision 1 in Implementation, and the regenerated decision index in `docs/decisions/skill-workflow.md` matches perfectly."
+    },
+    {
+      "id": 5,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "escalate",
+      "description": "Exact eight-step rehydration ordering contract: `test_state_artifacts_guide.py` structurally checks the 8-step rehydration sequence (1. Bootstrap locator, 2. Roadmap definition, 3. Roadmap execution state, 4. Change execution state, 5. Learning context, 6. Phase history, 7. Handoff context, 8. Rebuild projections) across `docs/guides/state-artifacts.md`, `skills/supervise/SKILL.md`, and `design.md`.",
+      "vendor_dispositions": {
+        "antigravity": "accept",
+        "claude_code": "fix"
+      }
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Default CI collection registration: `skills/pyproject.toml` line 129 lists `tests/state-artifacts` in `[tool.pytest.ini_options].testpaths`. `test_ci_test_coverage.py` passes all 100 tests cleanly, confirming `tests/state-artifacts` is reached by default CI."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Fresh-checkout mirror handling: `test_changed_skill_mirrors_are_byte_identical` in `test_state_artifacts_guide.py` gracefully invokes `pytest.skip()` when `.agents/skills` or `.claude/skills` directory mirrors are absent in fresh or uninstalled checkouts, while verifying byte parity when mirrors exist."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Declared context impact surfaces: `work-packages.yaml` lines 88-92 explicitly lists `documentation`, `decisions`, and `semantic_code` under `context_impact.surfaces` for `wp-state-artifacts-docs`, ensuring full alignment with package validation gates."
+    },
+    {
+      "id": 9,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 6,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 9
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 6
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "User review-destination authorization audit trail: `session-log.md` records verbatim operator authorization for diff/context sharing with external review harnesses while explicitly withholding secrets, credentials, unrelated private data, and PR merge authority."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The proposal's declaration no longer matches the branch diff for two files. `git diff 4f794962..HEAD --stat` shows the change touches `skills/pyproject.toml` (+1, the `tests/state-artifacts` testpaths entry from task 1.3) and `docs/decisions/skill-workflow.md` (+11, the regenerated capability index), and both are declared in work-packages.yaml `locks.files` and `scope.write_allow` (lines 43-44, 59-60). The proposal's Impact list (lines 57-62) names only the guide, documentation index, six skill sources, runtime mirrors, focused tests and the modified capability; What Changes (lines 11-16) likewise ends at \"Add repository tests that enforce guide coverage, links, and order\" with no mention of CI registration or a regenerated decision index. This repository already treats that exact shape as a defect: the archived decision at docs/decisions/skill-workflow.md:34-37 records amending \"the proposal's Impact claim ... so the declaration matches the diff\" as the correct remedy. plan-findings.md:37 reconciled the work-package scope for the decision index but stopped short of the proposal."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The preserved RED artifact and the GREEN claim describe suites of different sizes with nothing reconciling them. red-state-artifacts.md:4 records \"9 failed, 6 passed\" \u2014 a 15-test run \u2014 while change-context.md:28 now claims \"focused suite passed 16 tests\" and the D4 trace row (line 22) reads \"RED evidence and 16-test GREEN result\". The 16th test is `test_design_rehydration_matches_canonical_order`, added by d2342a85 (test file lines 82-95) against a design.md that already carried the ordered list, so it could never have been red and is deliberately absent from the RED evidence. That is defensible, but the artifact does not say so: a reader reconciling 9+6=15 against 16 sees an unexplained gap in the change's own TDD evidence chain, which is the one thing this validation file exists to make auditable."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The canonical execution record currently advertises an open blocker that the same commit fixed. d2342a85 advanced `current_phase` from PLAN_FIX to PLAN_REVIEW and `iteration` 1\u21922 (lines 4-5) while leaving `blocking_findings[0]` with `\"status\": \"confirmed\"` and `\"recommended_disposition\": \"fix\"` (lines 12-30); its description is the round-three finding about the stale \"portable canonical guide links\" decision, which that commit resolved at session-log.md:11 and in the regenerated docs/decisions/skill-workflow.md:12. The field is overwritten wholesale by the next review result (autopilot.py:1618 `state.blocking_findings = blocking`), so this self-corrects on the round-four write and is transitional rather than wrong-by-construction; `previous_phase` also stays null (line 49) so there is no in-state record of the PLAN_FIX\u2192PLAN_REVIEW transition. Worth noting only because this change's own guide (docs/guides/state-artifacts.md:34) makes loop-state authoritative over the advisory session-log that says the blocker is fixed \u2014 a consumer applying the guide's rule literally right now reaches the stale answer."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The durable dispatch manifests for all three canonical plan-review rounds are not self-identifying: each carries `\"change_id\": null` and `\"target\": \"cli-dispatch\"` (round-1 line 3/6, round-2 line 3/6, round-3 line 3/6) rather than the change under review. The sibling consensus.json does record `\"target\": \"write-durable-state-artifacts-guide\"`, and the directory path supplies attribution, so nothing is actually ambiguous in place \u2014 but the manifest alone cannot be attributed to a change once copied, quoted in a PR, or aggregated across changes. This is uniform pre-existing behavior of the CLI dispatch path rather than something this branch introduced, so it is reported as context for the evidence bundle, not as a defect of the plan."
+    },
+    {
+      "id": 14,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Verified accurate: the fresh-checkout mirror-skip story is documented correctly and its compensating control really exists. design.md:57 states the byte-compare is a pre-push local gate and that fresh CI checkouts intentionally lack the ignored runtime mirrors, so the six mirror cases skip there while `install.sh --check` validates payload portability \u2014 and .github/workflows/ci.yml:63-65 does run `bash install.sh --check`, a flag that install.sh itself documents at line 40 as \"Validate the complete install payload and exit without syncing\". The test's skip is conditional on both mirrors being absent (test_state_artifacts_guide.py:103-104), not unconditional, so the local gate is not silently disabled. The arithmetic in change-context.md:12 also checks out: the suite collects 16 tests (2 guide/order + 6 parametrized reference + 1 supervise + 1 design + 6 parametrized mirror), leaving exactly 10 structural tests in CI and 6 skipped mirror cases, and \"compares 12 files\" locally matches 6 skills \u00d7 2 mirror roots. I byte-compared all twelve pairs in this worktree (`cmp` across .agents and .claude for autopilot, autopilot-roadmap, session-log, supervise, implement-feature, validate-feature): all identical."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Verified resolved: the round-three confirmed blocker is fixed at its canonical source and the derived index agrees byte-for-byte with it. session-log.md:11 now reads \"**Use portable repository-relative guide references** `architectural: skill-workflow` \u2014 Installed skill payloads cannot use relative Markdown links that escape the skill directory, so canonical and mirrored skills use the established bare backticked repository path `docs/guides/state-artifacts.md`\", and docs/decisions/skill-workflow.md:12 carries that same corrected sentence with the same capability tag, phase heading and `(D1)` source ref \u2014 so the generated capability timeline no longer publishes a rationale for the abandoned URL convention, and it was corrected by regeneration from the session log rather than by hand-editing the generated file (which PhaseRecord step four would overwrite). The claim the decision now makes is true of the payload: all six canonical skills carry the bare backticked reference (implement-feature:22, supervise:17, autopilot-roadmap:16, session-log:15, validate-feature:22, autopilot:17), matching the test's `GUIDE_REFERENCE` constant, and the surrounding text in session-log.md:36 and change-context.md:11 was updated from \"link\" to \"reference\" language consistently. `tests/state-artifacts` is likewise registered in skills/pyproject.toml:129 for the default sweep, backed by the tests/ci_coverage guard that fails when a test directory is reached by neither CI mechanism."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Prior confirmed round-3 blocker is resolved at its canonical source: openspec/changes/write-durable-state-artifacts-guide/session-log.md:11 now records Implementation D1 as 'Use portable repository-relative guide references' with the bare backticked path `docs/guides/state-artifacts.md` (no stable repository URL), and docs/decisions/skill-workflow.md:12 matches that body after architectural-tag stripping; PhaseRecord-derived index Source points at session-log D1."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Exact eight-step rehydration ordering is structurally checked across docs/guides/state-artifacts.md:21-28, skills/supervise/SKILL.md:139-153, and design.md:39-46 (Bootstrap locator through Rebuild projections). skills/tests/state-artifacts/test_state_artifacts_guide.py pins ordered markers for the guide, supervise (including Rebuild projections), and design via test_guide_pins_rehydration_order_and_conflict_rules, test_supervise_rehydration_matches_canonical_order, and test_design_rehydration_matches_canonical_order."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Default CI collects the drift suite: skills/pyproject.toml testpaths includes tests/state-artifacts (line 129), tasks.md 1.3 owns that registration with ci_coverage proof, change-context.md adds skill-workflow.state-artifacts-ci-discovery traced to skills/tests/ci_coverage/test_ci_test_coverage.py, and focused pytest -k state-artifacts for that guard passes."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "work-packages.yaml wp-state-artifacts-docs declares context_impact.surfaces documentation, decisions, and semantic_code; locks.files and scope.write_allow name docs/decisions/skill-workflow.md; plan-findings.md reconciles that as the exact generated-output amendment; package validation reports VALID and openspec validate --strict passes."
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Plan, scope, RED/GREEN, and proportional-validation claims are internally consistent after d2342a85: validation/red-state-artifacts.md keeps 9-fail/6-pass pre-guide RED; focused suite now collects/passes 16 tests matching change-context GREEN; design.md marks security/deploy/browser N/A; contracts/README.md declares no runtime contracts; verification tier B is focused pytest plus openspec/package gates; six skills use bare GUIDE_REFERENCE without github blob URLs."
+    },
+    {
+      "id": 21,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: change-context.md Coverage Summary still reports Requirements traced / Tests mapped / Evidence collected as 6 after the same fix commit added the seventh Requirement Traceability Matrix row skill-workflow.state-artifacts-ci-discovery; the matrix above now has seven Req ID rows while the summary footer was not bumped."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 21,
+    "confirmed_count": 2,
+    "unconfirmed_count": 18,
+    "disagreement_count": 1,
+    "blocking_count": 1
+  }
+}
