@@ -1,0 +1,33 @@
+agents:
+  claude-local:
+    type: claude_code
+    transport: mcp
+    cli:
+      command: claude
+      dispatch_modes:
+        review:
+          args: ["--print", "--allowedTools", "Read,Grep,Glob"]
+      model_flag: "--model"
+      model: null
+      model_fallbacks: ["claude-sonnet-4-6"]
+      prompt_via_stdin: true
+
+  grok-local:
+    type: grok
+    transport: mcp
+    cli:
+      command: grok
+      dispatch_modes:
+        review:
+          args:
+            - "--prompt-file"
+            - "/dev/stdin"
+            - "--output-format"
+            - "json"
+            - "--always-approve"
+            - "--json-schema"
+            - "@review-findings-schema"
+      model_flag: "-m"
+      model: "grok-4.5"
+      model_fallbacks: []
+      prompt_via_stdin: true

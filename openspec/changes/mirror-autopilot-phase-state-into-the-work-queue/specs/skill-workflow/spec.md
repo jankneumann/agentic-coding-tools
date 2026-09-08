@@ -2,16 +2,17 @@
 
 ### Requirement: Coordinated Autopilot Phase Projection
 
-A coordinated Autopilot host SHALL project every durably persisted phase generation to the work queue using the existing idempotent projection contract. The projected identity SHALL be derived only from `(LoopState.change_id, LoopState.current_phase, LoopState.total_iterations)`. The canonical `task_type=issue`, priority-1 row SHALL receive the adapter-owned labels `change:<change_id>` and `projection:autopilot-phase` so the current kanban query path can select it; stale projection rows SHALL lose both labels without modifying ordinary issues. Queue responses SHALL NOT mutate authoritative loop state.
+A coordinated Autopilot host SHALL project every durably persisted phase generation to the work queue using the existing idempotent projection contract. The projected identity SHALL be derived only from `(LoopState.change_id, LoopState.current_phase, LoopState.total_iterations)`. The canonical `task_type=issue`, priority-1 row SHALL be excluded from unfiltered work claims and SHALL receive the adapter-owned labels `change:<change_id>` and `projection:autopilot-phase` so the current kanban query path can select it; stale projection rows SHALL lose both labels without modifying ordinary issues. Queue responses SHALL NOT mutate authoritative loop state.
 
 #### Scenario: Live phase transition is mirrored
 
 - **GIVEN** Autopilot is running in the coordinated tier with a projection adapter
 - **WHEN** it durably advances to a new phase generation
 - **THEN** the matching keyed queue row SHALL be submitted after the loop-state write
-- **AND** an exact `reconciliation_required` submit result SHALL advance through reconciliation rather than degrade
+- **AND** only a bridge `status=error`, HTTP-409 problem response whose `response.detail` is `reconciliation_required` SHALL advance through reconciliation rather than degrade
+- **AND** every direct transition to ESCALATE SHALL increment `total_iterations` exactly once before persistence and projection
 - **AND** the canonical `task_type=issue` row SHALL be idempotently labelled `change:<change_id>` and `projection:autopilot-phase`
-- **AND** the existing kanban `/issues/list` query SHALL expose that phase within one configured poll interval
+- **AND** the existing kanban `/issues/list` query and an already connected SSE client SHALL expose that phase within 5 seconds without a reload
 - **AND** the row SHALL be derivable from the persisted loop-state tuple
 
 #### Scenario: Host-driven execution uses the same projection
@@ -32,7 +33,7 @@ A coordinated Autopilot host SHALL project every durably persisted phase generat
 - **THEN** it SHALL reconcile from the loaded loop-state before phase work
 - **AND** stale active rows SHALL be cancelled
 - **AND** exactly one active canonical row carrying both adapter-owned labels SHALL represent the loaded generation
-- **AND** interrupted stale-label cleanup SHALL be retried without modifying ordinary change-labelled issues
+- **AND** interrupted stale-label cleanup across at most the 100-row coordinator page limit SHALL be retried without modifying ordinary change-labelled issues
 
 #### Scenario: Projection outage is degraded, not authoritative
 

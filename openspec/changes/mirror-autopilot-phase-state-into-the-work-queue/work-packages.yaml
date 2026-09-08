@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: mirror-autopilot-phase-state-into-the-work-queue
   title: Mirror Autopilot phase state into the work queue
-  plan_revision: 2
+  plan_revision: 3
   created_by: codex
   deployable: false
 
@@ -26,7 +26,7 @@ packages:
   - package_id: wp-projection-adapter
     title: Coordinated phase projection adapter and host registration
     task_type: integration
-    description: Implement tasks 1.1 through 2.3 with TDD, including canonical host writers, head advancement, and coordinator-only label repair while preserving the coordinator-free default and one-way authority contract.
+    description: Implement tasks 1.1 through 2.4 with TDD, including canonical host writers, head advancement, and coordinator-only label repair while preserving the coordinator-free default and one-way authority contract.
     role: implementer
     priority: 1
     depends_on: []
@@ -36,6 +36,8 @@ packages:
         - skills/autopilot/scripts/runner.py
         - skills/autopilot/SKILL.md
         - skills/coordination-bridge/scripts/coordination_bridge.py
+        - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
+        - agent-coordinator/src/event_stream.py
       keys:
         - feature:autopilot-live-queue-projection:modify
       ttl_minutes: 120
@@ -47,13 +49,19 @@ packages:
         - skills/coordination-bridge/scripts/coordination_bridge.py
         - skills/tests/autopilot/**
         - skills/tests/coordination-bridge/**
+        - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
+        - agent-coordinator/src/event_stream.py
+        - agent-coordinator/tests/**
       read_allow:
         - skills/**
         - agent-coordinator/**
         - docs/guides/work-queue-truth-projection.md
         - openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/**
       deny:
-        - agent-coordinator/database/migrations/**
+        - agent-coordinator/database/migrations/00*.sql
+        - agent-coordinator/database/migrations/01*.sql
+        - agent-coordinator/database/migrations/02*.sql
+        - agent-coordinator/database/migrations/03[0-6]_*.sql
     context_impact:
       surfaces: [architecture, documentation, semantic_code]
     worktree:
@@ -93,6 +101,8 @@ packages:
         - skills/autopilot/scripts/runner.py
         - skills/autopilot/SKILL.md
         - skills/coordination-bridge/scripts/coordination_bridge.py
+        - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
+        - agent-coordinator/src/event_stream.py
 
   - package_id: wp-live-integration
     title: Coordinator, crash recovery, and kanban proof
