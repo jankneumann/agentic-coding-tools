@@ -11,6 +11,20 @@ import pytest
 import queue_projection
 
 
+@pytest.fixture(autouse=True)
+def _available_coordinator(monkeypatch):
+    monkeypatch.setattr(
+        queue_projection.bridge,
+        "detect_coordination",
+        lambda **_kw: {
+            "COORDINATOR_AVAILABLE": True,
+            "COORDINATION_TRANSPORT": "http",
+            "CAN_QUEUE_WORK": True,
+            "CAN_ISSUES": True,
+        },
+    )
+
+
 def _state(**overrides: object) -> autopilot.LoopState:
     values = {
         "change_id": "mirror-phase",
@@ -179,3 +193,39 @@ def test_persist_and_project_never_projects_after_failed_save(
     with pytest.raises(OSError, match="disk"):
         autopilot.persist_and_project(_state(), tmp_path / "state.json", projection)
     assert called is False
+
+
+
+def test_projection_reuses_one_capability_snapshot_for_all_bridge_calls(
+    monkeypatch,
+) -> None:
+    states: list[dict] = []
+    capability = {
+        "COORDINATOR_AVAILABLE": True,
+        "COORDINATION_TRANSPORT": "http",
+        "CAN_QUEUE_WORK": True,
+        "CAN_ISSUES": True,
+    }
+    monkeypatch.setattr(
+        queue_projection.bridge,
+        "detect_coordination",
+        lambda **_kw: capability,
+    )
+
+    def submit(**kw):
+        states.append(kw["_coordination_state"])
+        return _ok("current", cancelled=["stale"])
+
+    def update(**kw):
+        states.append(kw["_coordination_state"])
+        return {"status": "ok"}
+
+    monkeypatch.setattr(queue_projection.bridge, "try_submit_work", submit)
+    monkeypatch.setattr(queue_projection.bridge, "try_projection_issue_update", update)
+
+    result = queue_projection.QueueProjectionAdapter(http_url="x")(
+        _state(), mode="submit"
+    )
+
+    assert result["status"] == "ok"
+    assert states == [capability, capability, capability]

@@ -33,3 +33,23 @@ def test_projection_label_helpers_bypass_github_and_bound_listing(monkeypatch) -
     assert calls[0]["payload"]["limit"] == 100
     assert calls[1]["path"] == "/issues/update"
     assert calls[1]["payload"] == {"issue_id": "row", "labels": []}
+
+
+
+def test_projection_issue_update_rejects_http_200_business_failure(monkeypatch) -> None:
+    monkeypatch.setattr(
+        bridge,
+        "_execute_single_endpoint_operation",
+        lambda **_kw: {
+            "status": "ok",
+            "operation": "try_projection_issue_update",
+            "response": {"success": False, "reason": "issue_not_found"},
+        },
+    )
+
+    result = bridge.try_projection_issue_update(
+        issue_id="missing", labels=[], http_url="https://coordinator.invalid"
+    )
+
+    assert result["status"] == "failed"
+    assert result["reason"] == "issue_not_found"

@@ -57,6 +57,9 @@ class QueueProjectionAdapter:
         if mode not in {"submit", "reconcile"}:
             return {"status": "degraded", "reason": "invalid_projection_mode"}
 
+        coordination_state = bridge.detect_coordination(
+            http_url=self.http_url, api_key=self.api_key
+        )
         key = {
             "change_id": change_id,
             "phase": str(state.current_phase),
@@ -76,6 +79,7 @@ class QueueProjectionAdapter:
             "priority": 1,
             "http_url": self.http_url,
             "api_key": self.api_key,
+            "_coordination_state": coordination_state,
         }
 
         if mode == "reconcile":
@@ -98,6 +102,7 @@ class QueueProjectionAdapter:
             labels=labels,
             http_url=self.http_url,
             api_key=self.api_key,
+            _coordination_state=coordination_state,
         )
         if labelled.get("status") != "ok":
             return _degraded(labelled, "canonical_label_update_failed")
@@ -113,6 +118,7 @@ class QueueProjectionAdapter:
                 limit=_MAX_CLEANUP_ROWS,
                 http_url=self.http_url,
                 api_key=self.api_key,
+                _coordination_state=coordination_state,
             )
             if listed.get("status") != "ok":
                 return _degraded(listed, "stale_label_list_failed")
@@ -132,6 +138,7 @@ class QueueProjectionAdapter:
                 labels=[],
                 http_url=self.http_url,
                 api_key=self.api_key,
+                _coordination_state=coordination_state,
             )
             if cleared.get("status") != "ok":
                 return _degraded(cleared, "stale_label_cleanup_failed")

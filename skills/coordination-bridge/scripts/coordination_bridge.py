@@ -526,8 +526,11 @@ def _execute_single_endpoint_operation(
     payload: dict[str, Any] | None,
     http_url: str | None,
     api_key: str | None,
+    _coordination_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    state = detect_coordination(http_url=http_url, api_key=api_key)
+    state = _coordination_state or detect_coordination(
+        http_url=http_url, api_key=api_key
+    )
     if not state["COORDINATOR_AVAILABLE"]:
         return _skipped_operation(
             operation=operation,
@@ -673,6 +676,7 @@ def try_submit_work(
     projection_key: dict[str, Any] | None = None,
     http_url: str | None = None,
     api_key: str | None = None,
+    _coordination_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Submit queue work when queue capability is available."""
     validation_reason = _validate_projection_payload(projection_key, input_data)
@@ -693,6 +697,7 @@ def try_submit_work(
         },
         http_url=http_url,
         api_key=api_key,
+        _coordination_state=_coordination_state,
     )
 
 
@@ -758,6 +763,7 @@ def try_reconcile_work_projection(
     agent_requirements: dict[str, Any] | None = None,
     http_url: str | None = None,
     api_key: str | None = None,
+    _coordination_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Reconcile a queue projection without raising transport failures."""
     validation_reason = _validate_projection_payload(projection_key, input_data)
@@ -778,6 +784,7 @@ def try_reconcile_work_projection(
         },
         http_url=http_url,
         api_key=api_key,
+        _coordination_state=_coordination_state,
     )
 
 
@@ -1223,15 +1230,33 @@ def try_issue_list(
     )
 
 
+def _require_projection_operation_success(
+    result: dict[str, Any], *, default_reason: str
+) -> dict[str, Any]:
+    """Treat HTTP-200 issue-service rejections as projection failures."""
+    if result.get("status") != "ok":
+        return result
+    response = result.get("response")
+    if isinstance(response, dict) and response.get("success") is True:
+        return result
+    reason = response.get("reason") if isinstance(response, dict) else None
+    return {
+        **result,
+        "status": "failed",
+        "reason": str(reason or default_reason)[:200],
+    }
+
+
 def try_projection_issue_list(
     *,
     labels: list[str],
     limit: int = 100,
     http_url: str,
     api_key: str | None = None,
+    _coordination_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """List projection-owned issue rows via the coordinator only."""
-    return _execute_single_endpoint_operation(
+    result = _execute_single_endpoint_operation(
         operation="try_projection_issue_list",
         capability_flag="CAN_ISSUES",
         method="POST",
@@ -1239,6 +1264,10 @@ def try_projection_issue_list(
         payload={"labels": labels, "limit": min(max(limit, 1), 100)},
         http_url=http_url,
         api_key=api_key,
+        _coordination_state=_coordination_state,
+    )
+    return _require_projection_operation_success(
+        result, default_reason="issue_list_rejected"
     )
 
 
@@ -1322,9 +1351,10 @@ def try_projection_issue_update(
     labels: list[str],
     http_url: str,
     api_key: str | None = None,
+    _coordination_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Replace adapter-owned projection labels via the coordinator only."""
-    return _execute_single_endpoint_operation(
+    result = _execute_single_endpoint_operation(
         operation="try_projection_issue_update",
         capability_flag="CAN_ISSUES",
         method="POST",
@@ -1332,6 +1362,10 @@ def try_projection_issue_update(
         payload={"issue_id": issue_id, "labels": labels},
         http_url=http_url,
         api_key=api_key,
+        _coordination_state=_coordination_state,
+    )
+    return _require_projection_operation_success(
+        result, default_reason="issue_update_rejected"
     )
 
 

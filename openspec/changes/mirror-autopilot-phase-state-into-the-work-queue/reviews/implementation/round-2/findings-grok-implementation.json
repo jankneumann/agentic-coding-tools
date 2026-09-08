@@ -1,0 +1,16 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Placeholder while review runs",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical"
+    }
+  ]
+}

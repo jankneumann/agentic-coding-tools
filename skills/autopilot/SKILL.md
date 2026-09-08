@@ -71,7 +71,10 @@ transition --outcome <outcome>` for every ordinary phase edge; it must not
 hand-edit `current_phase`. After **every successfully persisted** runner
 mutation — `init`, `transition`, `apply-outcome`,
 `record-state-only-archetype`, and `gate-answer` — immediately run
-`project-state --mode submit`. A non-zero mutation exit suppresses projection.
+`project-state --mode submit`. A non-zero mutation exit suppresses projection. Runner mutation exit codes are
+0 for a successful write or a clean gate-pending stop, 1 for operational
+failure, and 2 for invalid caller input. A clean gate-pending transition writes
+nothing and remains parked for `gate-answer`.
 For `gate-check`, exits 0, 3, and 4 all mean a decision or park was durably
 recorded, so submit projection before asking, continuing, or stopping; exits 1
 and 2 suppress projection. Projection failure is reported as degraded but never
