@@ -69,3 +69,86 @@ def test_projection_label_events_coalesce_into_one_fresh_snapshot(
     event = asyncio.run(drive())
     assert event["event"] == "snapshot"
     assert snapshots == 2
+
+
+def test_backpressure_drain_does_not_suppress_later_projection_refresh(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import src.event_stream as event_stream
+    from src.event_bus import CoordinatorEvent
+
+    class FakeBus:
+        task_cb: Any = None
+
+        def on_event(self, channel: str, callback: Any) -> None:
+            if channel == "coordinator_task":
+                self.task_cb = callback
+
+        def off_event(self, channel: str, callback: Any) -> bool:
+            return True
+
+    snapshots = 0
+
+    async def fake_snapshot(ids: list[str]) -> str:
+        nonlocal snapshots
+        snapshots += 1
+        return json.dumps({"work_queue": [], "subscribed_change_ids": ids})
+
+    monkeypatch.setattr(event_stream, "_build_snapshot", fake_snapshot)
+    monkeypatch.setattr(event_stream, "_BACKPRESSURE_LIMIT", 2)
+    bus = FakeBus()
+
+    async def drive() -> dict[str, Any]:
+        gen = event_stream.sse_event_generator(["demo"], bus)
+        await gen.__anext__()
+        transition = CoordinatorEvent(
+            event_type="work.running",
+            channel="coordinator_task",
+            entity_id="row",
+            agent_id="worker",
+            urgency="low",
+            summary="work running",
+            change_id="demo",
+        )
+        projection = CoordinatorEvent(
+            event_type="projection.labels_changed",
+            channel="coordinator_task",
+            entity_id="projection-row",
+            agent_id="autopilot",
+            urgency="low",
+            summary="projection labels changed",
+            change_id="demo",
+        )
+        for _ in range(3):
+            await bus.task_cb(transition)
+        await bus.task_cb(projection)
+
+        assert (await gen.__anext__())["event"] == "transition"
+        assert (await gen.__anext__())["event"] == "transition"
+        assert (await gen.__anext__())["event"] == "snapshot"
+
+        await bus.task_cb(projection)
+        result = await asyncio.wait_for(gen.__anext__(), timeout=0.1)
+        await gen.aclose()
+        return result
+
+    event = asyncio.run(drive())
+    assert event["event"] == "snapshot"
+    assert snapshots == 3
+
+
+def test_projection_openapi_problem_contract_matches_runtime() -> None:
+    import yaml
+
+    contract_path = (
+        Path(__file__).parents[2]
+        / "openspec/contracts/agent-coordinator/openapi/work-queue.yaml"
+    )
+    document = yaml.safe_load(contract_path.read_text())
+    problem = document["components"]["schemas"]["Problem"]
+    assert problem["required"] == ["type", "title", "status", "detail"]
+    assert problem["properties"]["status"]["type"] == "integer"
+
+    for name in ("Problem403", "Problem409", "Problem422"):
+        content = document["components"]["responses"][name]["content"]
+        assert set(content) == {"application/problem+json"}
