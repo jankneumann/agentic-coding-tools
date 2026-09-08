@@ -1,0 +1,128 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: Seam 1 fails \u2014 design.md D2/D4 and tasks 1.2/2.3 require `runner.py project-state` after every \u201ccanonical state write\u201d, but the plan never names the host-driven writers of projection identity `(change_id, current_phase, total_iterations)`. Verified in `skills/autopilot/scripts/runner.py`: identity-changing durable writes today are `gate-answer` (`_apply_transition` / `enter_escalate` + `save_state`) and the parked `gate-check` escalate path (`enter_escalate` + `save_state`). `apply-outcome` / `record-state-only-archetype` persist loop-state but do not change that tuple (`phase_agent.apply_phase_outcome` explicitly never modifies `current_phase`). Ordinary SKILL.md \u201ctransition to \u2026\u201d steps have no `runner.py` transition command, so `project-state --mode submit` has no unambiguous attachment point for the phase generations kanban must show.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Enumerate every host/CLI identity-changing save site (at minimum `gate-answer` edges, `gate-check`\u2192ESCALATE, INIT loop-state creation, and whatever durable writer advances ordinary phases). Either add a single `runner.py` transition/persist command that save-then-projects, or update SKILL.md with exact post-save `project-state` calls at each named site; distinguish those from bookkeeping writes that do not change the projection tuple.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: Seam 2/8 overclaim \u2014 specs/skill-workflow/spec.md \u201cCoordinator-free tiers stay isolated\u201d and tasks.md 1.3 require zero coordination-bridge imports, availability probes, or queue requests for local-parallel/sequential Autopilot. That is unimplementable as written: `skills/autopilot/scripts/phase_agent.py` eagerly `import coordination_bridge` (line 57) and `runner.py` imports `phase_agent` for every host CLI path; `SKILL.md` also runs `check_coordinator.py` before tier selection and `build-dispatch` resolves archetypes through the bridge. Absolute \u201czero imports/probes\u201d will false-fail against status quo unless narrowed to the new projection publisher.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Rewrite the coordinator-free SHALL and task 1.3 to the projection surface only: no adapter registration; no `try_submit_work` / `try_reconcile_work_projection` / projection `try_issue_update`; no new eager import of a projection module into coordinator-free entrypoints. Require AST/import-graph or `sys.modules` proofs on that surface (not merely zero successful HTTP calls). Keep pre-existing tier-detect and archetype bridge use explicitly out of this requirement, or escalate a separate eager-import cleanup.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/specs/skill-workflow/spec.md"
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Nit: Seam 6 labeling is underspecified against the real issue API. design.md D1/D6 says idempotently ensure `change:<change_id>` via `try_issue_update` with set-idempotent repeats, but `agent-coordinator/src/issue_service.py` `update(..., labels=...)` documents and implements full label array replace. A naive `labels=[f\"change:{change_id}\"]` is only safe while the row\u2019s labels stay empty; the plan never requires read-merge-write (`try_issue_show` \u2192 union \u2192 `try_issue_update`) or an add-label helper.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Specify that canonical-row labeling reads current labels, unions `change:<change_id>`, then replaces with the union (or add a bridge helper with true set-add semantics). Keep label failure degraded/retryable on resume without calling submit in a way that could create a second row.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: work-packages.yaml `wp-live-integration` `scope.write_allow` includes `apps/kanban-viz/**` while proposal.md Out of Scope and design.md D5 forbid frontend/polling changes and treat existing `/issues/list` as a read-only proof surface (`useCoordinator.ts` posts `{labels:[\"change:<id>\"]}` with default `pollIntervalMs=5000`). That write grant invites accidental UI edits during \u201ckanban proof\u201d.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "resolution": "Remove `apps/kanban-viz/**` from write_allow (keep read_allow). Put proof tests under `skills/tests/autopilot/**` or coordinator tests that HTTP-call `/issues/list` with the same body shape kanban uses.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/work-packages.yaml"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: design.md D2 (\u201cafter every canonical state write\u201d) disagrees with specs/skill-workflow/spec.md (\u201cevery durably persisted phase generation\u201d keyed by `(change_id, current_phase, total_iterations)`). Implementers following D2 would project after `apply-outcome` / archetype bookkeeping; following the spec would project only when the identity tuple changes. That ambiguity breaks seam 1\u2019s requirement to name the paths that need post-write projection.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Align design/tasks language with the spec: require submit projection only after durable writes that change `(current_phase, total_iterations)` (plus explicit INIT creation if that generation must appear on the board). Bookkeeping saves remain non-projecting unless an idempotent no-op replay is intentionally desired and tested.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md"
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Nit: Seam 3 for the prose host is incomplete. In-process `persist_and_project` already save-then-projects and suppresses projection when `save_state` raises, but host-driven `project-state` is a separate read-only CLI that loads whatever is on disk. design.md D2/D3 and tasks 1.2/2.3 say \u201cafter\u201d saves without requiring SKILL.md to gate `project-state` on a successful exit from `gate-answer` / `gate-check` / any future transition writer.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "nit",
+      "resolution": "In the SKILL protocol and CLI RED tests, require `project-state` only when the preceding state-mutating runner command exits success; a failed save must not invoke projection. Mirror the in-process save-failure suppression test for the host path.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/tasks.md"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Optional: Task 1.3 / Phase 4 verification mention zero bridge imports/probes but do not prescribe an enforceable proof technique. Without AST import-graph, `sys.modules`, or call-spy assertions, implementations can satisfy \u201cno successful requests\u201d while still importing the bridge or calling `detect_coordination` inside skipped try_* helpers.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "optional",
+      "resolution": "Acceptable to defer detail, but prefer adding an explicit verification step: AST/import-graph over coordinator-free registration paths plus spies asserting zero `detect_coordination` / `/work/*` / projection `/issues/update` traffic.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/tasks.md"
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Optional: work-packages.yaml `wp-live-integration` verification lists skill suites, coordinator tests, and OpenSpec validate, but tasks.md 4.3 also requires the AST truth-direction invariant, Ruff, context-drift, and scope validation. Those gates are easy to skip at package completion.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "optional",
+      "resolution": "Either add those commands to `wp-live-integration.verification.steps` or mark them orchestrator-level gates outside the package so completion criteria stay honest.",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/work-packages.yaml"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "FYI: Seam 5\u2019s intended kanban query contract is already present and matches the plan\u2019s label choice: `apps/kanban-viz/src/hooks/useCoordinator.ts` `fetchIssuesForSingleChange` POSTs `/issues/list` with `body: {labels:[\\`change:${changeId}\\`]}` and defaults `pollIntervalMs=5000`. Work-queue rows share `work_queue.labels` (migration 017), so labeling the canonical task id is the right visibility mechanism.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "resolution": "No change; keep task 3.3 asserting that exact request shape and one poll-interval bound without editing kanban.",
+      "file_path": "apps/kanban-viz/src/hooks/useCoordinator.ts"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Resume reconciliation ordering for in-process `run_loop` already matches seam 4: after `load_state`, `persist_and_project(..., mode=\"reconcile\")` runs before the `pending_gate` early-return and before phase work (`skills/autopilot/scripts/autopilot.py`). design.md D2/D3 correctly extend the same order to host-driven `project-state --mode reconcile` before gate handling.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Keep CLI/SKILL resume reconcile before `gate-check` / phase dispatch; preserve the existing run_loop order when injecting the adapter.",
+      "file_path": "skills/autopilot/scripts/autopilot.py"
+    },
+    {
+      "id": 11,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Authority and degradation design is sound for seams 3/6/7: design.md failure matrix and D3/D6 keep loop-state authoritative, treat projection/label failures as degraded observability, reuse ri-08 idempotent submit/reconcile to avoid duplicate rows, and forbid queue responses from mutating `LoopState`. contracts/README.md correctly maps the projection_key fields and marks queue responses observability-only.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Retain these constraints in adapter RED tests (non-authority of responses; label failure \u2192 degraded; exact-tuple replay; stale cancel on reconcile).",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md"
+    }
+  ]
+}

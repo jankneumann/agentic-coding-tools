@@ -1,0 +1,172 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 15
+      },
+      "description": "Critical: The plan's mode mapping is inverted relative to the ri-08 RPC it delegates to. D1/D2 route every live durable transition through `submit` (`try_submit_work` -> `/work/submit` -> `submit_task`) and reserve `reconcile` for resume only. But `submit_task` in agent-coordinator/database/migrations/035_work_queue_projection.sql compares the incoming `transition_sequence` against `work_queue_projection_heads` and returns `{'success':false,'reason':'reconciliation_required'}` whenever `v_seq > v_head_seq` (line 117-119); it only advances the head on the `IF NOT FOUND` first-ever-generation branch (line 107-109). `_apply_transition` increments `state.total_iterations` on every phase change (skills/autopilot/scripts/autopilot.py:805), so every generation after the first carries seq = head+1 and is rejected. Only `reconcile_work_projection` upserts the head (035 line 167-170). The result is that a coordinated live run projects generation 1 and then degrades on every subsequent transition, which directly falsifies proposal Acceptance line 34 ('A coordinated live run projects and labels each durable phase generation within one existing kanban poll interval') and spec scenario 'Live phase transition is mirrored'.",
+      "resolution": "State in D1 which bridge helper each mode maps to given the RPC head semantics: live head-advancing transitions must call `try_reconcile_work_projection`, with `try_submit_work` reserved for same-generation replay, or the adapter must treat `reconciliation_required` as an explicit fall-through to reconcile rather than as degradation. Add a RED test in task 1.1/3.1 that projects three consecutive generations (seq n, n+1, n+2) against a real head row and asserts all three become the current canonical row \u2014 a single-transition test will pass under the broken mapping.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "axis": "architecture",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "critical",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 14,
+        "end": 15
+      },
+      "description": "Critical: D2 requires the SKILL host to 'call submit immediately after every canonical state write', and the spec adds a scenario asserting host-driven execution projects 'the resulting durable tuple' \u2014 but on the real prose+runner.py host there is no writer of `current_phase` for ordinary phase advances, so the projected tuple is stale by construction. `apply-outcome` explicitly never touches `current_phase` (skills/autopilot/scripts/phase_agent.py:1225, runner.py:398-403), `record-state-only-archetype` writes only `phase_archetype` (phase_agent.py:1312-1313), and `runner.py` exposes no transition subcommand (runner.py:377-495). The only host-side writers of `current_phase`/`total_iterations` are `gate-answer`'s edge application (runner.py:271-282) and the ESCALATE parks (runner.py:184-185, 244-245, 264-267, 275-276). SKILL.md prose (line 306-320) says the orchestrator owns the phase sequence but gives it no mechanism to persist it. Projecting after `apply-outcome` would therefore repeatedly re-submit the INIT-era tuple, and the plan never enumerates the canonical write paths it claims to hook.",
+      "resolution": "Enumerate the exact canonical state-write call sites in design.md and tasks (runner.py:185, 245, 257, 267, 276, 282; phase_agent._save_state at 1236 and 1313; autopilot.py:481, 1072, 1079, 1092, 1098, 1117, 1120, 1139, 1156) and state for each whether it projects. Then resolve the host-path gap explicitly: either add a durable host phase-advance boundary that writes `current_phase`/`total_iterations` before `project-state` runs, or scope the requirement and its scenario to the in-process `run_loop` host and drop the host-driven scenario's claim that the CLI path mirrors live phases.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/contracts/README.md",
+      "line_range": {
+        "start": 3,
+        "end": 3
+      },
+      "description": "Critical: The plan assumes the `change:<change_id>` label alone makes the canonical work-queue row visible through the kanban query path, but `POST /issues/list` unconditionally prepends `task_type=eq.issue` to the PostgREST filter (agent-coordinator/src/issue_service.py:314) before applying the label filter (line 328-329). apps/kanban-viz/src/hooks/useCoordinator.ts:69-75 posts only `{labels:[`change:${changeId}`]}`, so a projected row whose `task_type` is anything other than the literal string `issue` is invisible no matter how it is labelled. Neither proposal.md, design.md, contracts/README.md, nor work-packages.yaml ever states the `task_type` the adapter passes to `try_submit_work`/`try_reconcile_work_projection` (both take it as a required argument \u2014 coordination_bridge.py:668, 754). Compounding this, `issue_service.update` does not filter on `task_type` (issue_service.py:431, 445), so the label write on a non-issue row returns success and the adapter reports a healthy projection while the board shows nothing. Task 3.3 would fail, and the failure is silent rather than degraded.",
+      "resolution": "Pin the projected row's `task_type` in contracts/README.md and D1, and say why. If it is `issue`, state the consequence documented at issue_service.py:5 \u2014 issue rows exist as `task_type='issue'` precisely so `get_work()` cannot claim them, so the projected phase row is board-visible but not claimable, which should be reconciled with the ri-07 'derived distribution / claim mechanism' framing. Add an assertion to task 1.1 that the adapter passes exactly that task_type, and to task 3.3 that `/issues/list` returns the row by label with no other filters.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "axis": "resilience",
+      "severity": "critical",
+      "type": "spec_gap",
+      "criticality": "high",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 43,
+        "end": 48
+      },
+      "description": "Critical: The scenario 'Coordinator-free tiers stay isolated' requires that in local-parallel/sequential tiers 'no coordination-bridge import, availability probe, or queue request SHALL occur', and task 1.3 promises regressions proving it. That is already false in the current tree, independent of this change, so the task can only be satisfied by a vacuous test or by unscoped refactoring. `skills/autopilot/scripts/phase_agent.py:57` imports `coordination_bridge` at module scope, and `skills/autopilot/scripts/runner.py:46` imports `phase_agent` \u2014 so every `runner.py` invocation in every tier imports the bridge. Worse, the probe happens too: `record_state_only_archetype` calls `coordination_bridge.try_resolve_archetype_for_phase` (phase_agent.py:1297-1298) and `build-dispatch` does the same (phase_agent.py:335), each of which runs `detect_coordination()` inside `_execute_single_endpoint_operation` (coordination_bridge.py:530). SKILL.md invokes `record-state-only-archetype` for INIT unconditionally (SKILL.md:167-170) and runs `gate-check` at step 0 regardless of tier.",
+      "resolution": "Narrow the requirement to what this change actually controls: no queue-projection adapter registered, and zero `/work/submit`, `/work/reconcile`, or `/issues/update` traffic and zero projection-path bridge symbol use in coordinator-free tiers. Word task 1.3's regression against those specific call paths (e.g. asserting `queue_projection_fn is None` and monkeypatching the three helpers to fail if reached) rather than 'zero bridge imports', which the existing archetype-resolution path already violates.",
+      "disposition": "fix"
+    },
+    {
+      "id": 5,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 31,
+        "end": 31
+      },
+      "description": "Nit: D6 asserts 'repeated updates are set-idempotent' for the `change:<change_id>` label, but the only available write is a whole-list replace. `try_issue_update` forwards `labels` verbatim (coordination_bridge.py:1283-1284) and `issue_service.update` assigns `data['labels'] = labels` wholesale (issue_service.py:420-421) \u2014 there is no add-label operation. Passing `['change:<id>']` is idempotent only in the sense that it always ends with exactly that one label; it silently drops any other label the row carries. That matters because other producers label the same table's rows for the same change: openspec/specs/coordinator-task-status-renderer/spec.md:148 documents `/implement-feature` applying `wp:<id>` through `try_issue_update(labels=...)`, and apps/kanban-viz derives repo grouping from a `repo:` label (apps/kanban-viz/src/lib/__tests__/derive-issue-repo.test.ts:64). The plan specifies no read-before-write and no concurrent-writer semantics.",
+      "resolution": "Specify the labelling mechanism in D1/D6: read the row's current labels (via the canonical task id) and write the union, or state explicitly that projected rows are single-label rows owned solely by this adapter and that no other producer labels them. Either way, add a task 1.1 case asserting a pre-existing unrelated label survives a projection and a re-projection.",
+      "disposition": "fix"
+    },
+    {
+      "id": 6,
+      "axis": "resilience",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "high",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 30,
+        "end": 32
+      },
+      "description": "Nit: The crash/resume scenario claims reconciliation leaves 'exactly one canonical, change-labelled row', but the kanban query surface has no status filter and a hard row cap, so past generations stay on the board and the current one can be evicted. `IssueListRequest.status` defaults to `None` (agent-coordinator/src/coordination_api.py:255) and `list_issues` applies a status filter only when status is truthy (issue_service.py:316-318), so rows that `reconcile_work_projection` sets to `status='cancelled'` (035_work_queue_projection.sql:178-186) are still returned. The query orders `priority.asc,created_at.asc` with `limit=50` (issue_service.py:331-332, default limit 50 at coordination_api.py:260), and useCoordinator.ts:75 sends neither status nor limit. Since the projected phase rows are created last at equal priority, once a change accumulates 50 rows carrying `change:<id>` \u2014 one per phase generation, plus the per-task issue rows the coordinator-task-status-renderer already creates for the same change \u2014 the newest generation is the first to fall outside the window, which is exactly the row the acceptance criterion depends on.",
+      "resolution": "State the visibility contract in D5: what happens to superseded/cancelled generations on the board, and how the current generation stays inside the ordered 50-row window (e.g. project a single row per change rather than one per generation, or give projected rows a priority that sorts them ahead). Extend task 3.3 to assert the current phase is still returned after more than 50 labelled rows exist for the change.",
+      "disposition": "fix"
+    },
+    {
+      "id": 7,
+      "axis": "compatibility",
+      "severity": "nit",
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 11,
+        "end": 11
+      },
+      "description": "Nit: D1 delegates canonical-row labelling to 'existing `try_issue_update`' without pinning the backend, but that helper is not unconditionally coordinator-bound. `try_issue_update` first calls `_github_issue_dispatch` (coordination_bridge.py:1261-1273), which returns a GitHub-backed result whenever `github_issues.issues_backend()` reports `github` \u2014 selected by `COORDINATION_ISSUES_BACKEND=github` or by `COORDINATION_GITHUB_REPO` plus a token (github_issues.py:67-79). In that configuration the coordinator work-queue task UUID returned by submit/reconcile is handed to the GitHub client as an issue identifier, so the `change:<id>` label never reaches the canonical queue row, the projection reports degraded (or falsely ok), and the resume retry described in the failure matrix repeats the same misdirected call every time.",
+      "resolution": "State in D1 that canonical-row labelling targets the coordinator issue backend explicitly (pass the coordinator http_url/api_key path or bypass the GitHub dispatch fork), and add a task 1.1 case asserting the label call still hits the coordinator when the GitHub backend env is set.",
+      "disposition": "fix"
+    },
+    {
+      "id": 8,
+      "axis": "resilience",
+      "severity": "nit",
+      "type": "resilience",
+      "criticality": "medium",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 33,
+        "end": 42
+      },
+      "description": "Nit: The failure matrix has no row for a change_id that can never be projected, yet the two identity validators disagree. The projection contract requires `^[a-z0-9][a-z0-9-]{0,127}$` in both the bridge (coordination_bridge.py:734) and the RPC (035_work_queue_projection.sql:88-89 and 150-151), while autopilot accepts `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$` (phase_agent.py:777). A change id containing an uppercase letter, underscore, or dot is a legal Autopilot/OpenSpec run whose every projection \u2014 submit and reconcile alike \u2014 returns `invalid_projection_key`, so resume reconciliation can never repair it and the run is permanently degraded rather than transiently so.",
+      "resolution": "Add a failure-matrix row for permanently-unprojectable change ids and say what the adapter does: detect the mismatch once at construction, report it as a non-retrying degraded projection with a bounded reason, and skip further per-transition calls instead of failing on every write. Add a task 1.1 case for a change id valid to autopilot but rejected by the projection regex.",
+      "disposition": "fix"
+    },
+    {
+      "id": 9,
+      "axis": "observability",
+      "severity": "nit",
+      "type": "spec_gap",
+      "criticality": "medium",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/design.md",
+      "line_range": {
+        "start": 18,
+        "end": 19
+      },
+      "description": "Nit: D3 states 'Every path is `save_state` then projection', which is not true of the code it describes and leaves the reviewer unable to tell which unprojected writes are intentional. In `run_loop` four durable writes bypass projection entirely: the GATE_PENDING park (autopilot.py:1079), the phase-stays branch (1092), the GatePending transition refusal (1120), and the terminal memory-id append (1156). `_GateSession._flush` also persists gate decisions and `pending_gate` outside any projection seam (autopilot.py:481), as does the ESCALATE park in `runner.py` (185). Some of these are legitimately non-phase-changing, but ESCALATE parks and gate-pending states are exactly what an operator watching the board needs to see, and the plan neither lists them nor says they are deliberately unprojected.",
+      "resolution": "Replace D3's blanket claim with an explicit table of state-write sites and their projection status (project / deliberately not projected, with the reason). At minimum decide whether entering ESCALATE via the gate path (runner.py:184-185) and parking on a pending gate are projected generations, since both change what an observer should see.",
+      "disposition": "fix"
+    },
+    {
+      "id": 10,
+      "axis": "architecture",
+      "severity": "optional",
+      "type": "architecture",
+      "criticality": "low",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/work-packages.yaml",
+      "line_range": {
+        "start": 108,
+        "end": 119
+      },
+      "description": "Optional: wp-live-integration's scope does not match its tasks in two directions. Task 4.1 asks it to update 'Autopilot documentation', but its `write_allow` lists only tests, `agent-coordinator/tests/**`, `apps/kanban-viz/**`, the work-queue guide, and the change dir \u2014 `skills/autopilot/SKILL.md` is writable only by wp-projection-adapter (line 46), so the Autopilot half of 4.1 is out of scope for the package that owns it. Conversely `apps/kanban-viz/**` is granted write access even though proposal.md:22 puts kanban-viz polling/filter semantics out of scope and task 3.3 says 'do not modify frontend polling', so the package can silently make the board pass its own proof.",
+      "resolution": "Move the Autopilot-documentation half of 4.1 into wp-projection-adapter (or add `skills/autopilot/SKILL.md` to wp-live-integration's write_allow with the lock ordering made explicit), and narrow `apps/kanban-viz/**` to a read-only entry plus, if a test fixture is genuinely needed, a specific `apps/kanban-viz/src/__tests__/**` path.",
+      "disposition": "accept"
+    },
+    {
+      "id": 11,
+      "axis": "performance",
+      "severity": "fyi",
+      "type": "performance",
+      "criticality": "low",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/proposal.md",
+      "line_range": {
+        "start": 34,
+        "end": 34
+      },
+      "description": "FYI: The acceptance criterion is a latency bound ('within one existing kanban poll interval') against a default 5000 ms interval (apps/kanban-viz/src/hooks/useCoordinator.ts:27-28, 136), but each projection is at least two bridge operations (submit/reconcile, then label), and every bridge operation runs `detect_coordination()` before its HTTP request (coordination_bridge.py:530-550). So each durable transition costs up to two capability probes plus two coordinator round trips before the row is board-visible, and the poll itself adds up to a full interval on top. Task 4.1 promises to document latency behavior but no budget is stated anywhere in the plan.",
+      "resolution": "Record the intended budget in D5 or the documentation task \u2014 probe + submit/reconcile + label round trips, plus up to one poll interval \u2014 and say whether detection results are reused across the two calls within a single `project-state` invocation.",
+      "disposition": "accept"
+    }
+  ]
+}
