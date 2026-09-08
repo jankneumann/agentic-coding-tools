@@ -344,3 +344,88 @@ to protect than the documentation suggests.
 4. Whether to run the Option A spike before or after ri-09's arm-A baseline lands.
    Running it before gives ri-04 its number earlier; running it after keeps the
    rightsizing sequencing untouched.
+
+## Adoption phases
+
+The phases below turn sections 3 through 7 into an executable sequence. Phase 0 is a
+decision point: its outcome decides whether phases 3 and 4 wrap backpass as the
+engine or port its concepts into `collect-transcripts`. Everything in phases 1 and
+2 is independent of that decision and can start immediately.
+
+### Phase 0, Spike: run backpass against this checkout
+
+- Install backpass and `acpx`, write `.backpassrc.json` with `memoryFiles:
+  ["AGENTS.md", "CLAUDE.md"]`, `skillsDir: "skills"`, and `discovery.since` wide
+  enough to cover the autopilot history; keep `.backpass/` out of git.
+- Run `backpass scan`, `backpass status`, and one full `backpass` run; do not run
+  `backpass apply` against the shared checkout.
+- Record the always-loaded budget bar (memory file plus all skill descriptions) as a
+  dated context-cost baseline alongside the ri-04 `/doctor` figure.
+- Review the first proposal edit by edit and record, per edit, whether the evidence
+  would have justified the change under this repo's standards.
+- Compare backpass's orchestration-domain diagnostics with what `/improve-harness`
+  reports over the same window.
+- Write the engine-versus-port decision as a capability-timeline entry in
+  `docs/decisions/`, with the spike's numbers attached.
+
+### Phase 1, Conventions (independent of the spike)
+
+- Flip the canonical file: AGENTS.md becomes the self-contained canonical
+  instruction file, CLAUDE.md becomes a Claude-specific preamble ending in
+  `@AGENTS.md`; retarget `test_claude_md_restructure.py`, `README.md:7`, the
+  context-engineering skill, and the "either file exceeds 300 lines" spec text.
+- Define the five memory actions (`add`, `rewrite`, `remove`, `extract`, `move`)
+  with their evidence floors and mechanical checks as a section of
+  `docs/guides/documentation.md`, and reference it from the skill-workflow spec.
+- Write the placement policy, "what goes where", merging the keep/cut test, the
+  broad/narrow/trigger table, and the progressive-disclosure tiers, with measured
+  relevance as the criterion.
+- Split the `documentation` surface in `openspec/schemas/context-impact-rules.yaml`
+  into `agent-memory` (AGENTS.md, CLAUDE.md, SKILL.md frontmatter) and `docs`.
+
+### Phase 2, Pipeline repairs (independent of the spike)
+
+- Fix the `/improve-harness` memory query: send the fields `MemoryQueryRequest`
+  declares, and match `capability_gap:*` tags with a prefix query rather than the
+  bare tag; add a test against a live or fake coordinator.
+- Make `analyze_failures.py` rank the deduplicated multi-source findings and call
+  the multi-source report from `main()`.
+- Either implement `collect-transcripts --enable` with the LLM triage and deep
+  analysis the spec describes, or amend the spec and SKILL.md to describe the
+  heuristic-only behaviour that exists.
+- Decide and record whether the coordinator audit-triage classifier is wired to a
+  background task or removed; do not leave it as documented-but-uncalled.
+
+### Phase 3, Evidence model (shape depends on the Phase 0 decision)
+
+- Instruction index: parse AGENTS.md into hashed units with stable `AG-nnn` ids and
+  expose it as a shared script.
+- Extend the D4 tag schema with `instruction:`, `polarity:`, `class:`, and
+  `domain:` prefixes and document them in `docs/guides/memory-conventions.md`.
+- Add a deterministic distillation pass to `collect-transcripts` before any model
+  call, with a measured reduction figure in its dry-run report.
+- Add a persistent gap ledger and an edit-keyed rejection ledger for
+  `/improve-harness`, with retire-on-coverage and expiry.
+- Key per-transcript evidence on a surface hash of the memory file plus all skill
+  descriptions.
+- Add worktree-list and recorded-remote session association to the adapters.
+
+### Phase 4, Integration (shape depends on the Phase 0 decision)
+
+- Emit backpass's gap ledger (or the ported equivalent) into episodic memory as
+  `source:transcript-mined` entries with `affected_skill`.
+- Deliver memory-file proposals as one commit per edit with the action kind,
+  instruction ids, and verbatim quotes in the commit body, plus a `proposal.json`
+  the rejection ledger keys on; PR review is the accept/reject gate.
+- Schedule the run as the RI-12 learning pipeline: backpass (or its port) followed
+  by `/improve-harness` over the orchestration-domain output.
+
+## Out of scope
+
+- Harness probe ladders, `acpx` provider ranking, and any new model-selection layer.
+- The lavish-axi browser review surface; that is its own proposal.
+- User-scope memory training.
+- New transcript adapters for opencode, cursor, or hermes.
+- TOON or other output-format work.
+- Replacing the skill-rightsizing replay benchmark; this loop prioritizes cuts, the
+  benchmark accepts them.
