@@ -18,7 +18,7 @@ The repository SHALL provide one canonical guide that documents the five durable
 
 ### Requirement: Deterministic fresh-session rehydration
 
-The guide SHALL distinguish bootstrap discovery from canonical verification and SHALL define one ordered rehydration sequence for a fresh supervisor session.
+The guide SHALL distinguish bootstrap discovery from canonical verification and SHALL define this ordered rehydration sequence for a fresh supervisor session: bootstrap locator, roadmap definition, roadmap execution state, change execution state, learning context, phase history, handoff context, and projection rebuild. The learning-context stage SHALL use a bounded recent-learning window without making its numeric bound part of this documentation contract.
 
 #### Scenario: Fresh supervisor session resumes active work
 
@@ -26,6 +26,14 @@ The guide SHALL distinguish bootstrap discovery from canonical verification and 
 - **THEN** it SHALL use that artifact only to locate candidate active roadmaps and changes
 - **AND** it SHALL verify roadmap checkpoints before per-change loop state
 - **AND** it SHALL load learnings, phase records, and bounded handoff context only after authoritative state
+- **AND** it SHALL rebuild coordinator and queue projections only after advisory context has been reconciled with authoritative state
+
+#### Scenario: Never-started roadmap has no checkpoint
+
+- **WHEN** a roadmap definition exists but no locator or advisory record claims prior execution progress
+- **AND** its canonical checkpoint does not yet exist
+- **THEN** rehydration SHALL treat the roadmap as never started rather than degraded
+- **AND** it SHALL NOT synthesize a checkpoint from the roadmap definition or advisory context
 
 #### Scenario: Canonical state is missing
 
@@ -33,14 +41,14 @@ The guide SHALL distinguish bootstrap discovery from canonical verification and 
 - **THEN** rehydration SHALL report a degraded or inconsistent state
 - **AND** it SHALL NOT reconstruct authoritative phase state from the handoff, learning log, phase record, or queue
 
-### Requirement: Skill documentation links to the canonical guide
+### Requirement: Workflow skill documentation references the canonical guide
 
-Skills that create, mutate, or rehydrate durable orchestration artifacts SHALL link to the canonical guide for shared ownership and replay semantics while retaining their phase-specific commands and gate rules.
+The canonical `autopilot`, `autopilot-roadmap`, `session-log`, `supervise`, `implement-feature`, and `validate-feature` skill sources SHALL carry the repository-relative `docs/guides/state-artifacts.md` reference for shared ownership and replay semantics while retaining their phase-specific commands and gate rules.
 
 #### Scenario: Relevant skill documentation is audited
 
 - **WHEN** the focused state-artifact documentation test inspects the relevant canonical skill sources
-- **THEN** each source SHALL link to `docs/guides/state-artifacts.md`
+- **THEN** each of the six named sources SHALL reference `docs/guides/state-artifacts.md`
 - **AND** the supervise rehydration section SHALL follow the guide's ordered canonical verification sequence
 
 #### Scenario: Runtime skill mirrors are installed

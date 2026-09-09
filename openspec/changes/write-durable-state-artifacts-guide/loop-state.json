@@ -1,175 +1,187 @@
 {
-  "schema_version": 5,
+  "blocking_findings": [],
   "change_id": "write-durable-state-artifacts-guide",
-  "current_phase": "PLAN_REVIEW",
-  "iteration": 0,
-  "total_iterations": 10,
-  "max_phase_iterations": 3,
+  "cli_review_enabled": true,
+  "current_phase": "IMPLEMENT",
+  "error": null,
+  "escalation_reason": "plan_review_convergence_failure: max_iter approved for escalation",
   "findings_trend": [
     26,
     25,
-    21
+    21,
+    11
   ],
-  "blocking_findings": [
-    {
-      "id": 5,
-      "status": "disagreement",
-      "primary_vendor": "antigravity",
-      "primary_finding_id": 2,
-      "matched_findings": [
-        {
-          "vendor": "claude_code",
-          "finding_id": 5
-        }
-      ],
-      "match_score": 0.8,
-      "agreed_type": "correctness",
-      "agreed_axis": "correctness",
-      "agreed_criticality": "low",
-      "recommended_disposition": "escalate",
-      "description": "Exact eight-step rehydration ordering contract: `test_state_artifacts_guide.py` structurally checks the 8-step rehydration sequence (1. Bootstrap locator, 2. Roadmap definition, 3. Roadmap execution state, 4. Change execution state, 5. Learning context, 6. Phase history, 7. Handoff context, 8. Rebuild projections) across `docs/guides/state-artifacts.md`, `skills/supervise/SKILL.md`, and `design.md`.",
-      "vendor_dispositions": {
-        "antigravity": "accept",
-        "claude_code": "fix"
-      }
-    }
-  ],
-  "vendor_availability": {},
-  "packages_status": {},
-  "package_authors": {},
-  "implementation_strategy": {},
-  "memory_ids": [],
-  "handoff_ids": [],
-  "phase_history": [
-    {
-      "phase": "GATEKEEPER",
-      "outcome": "DEGRADED",
-      "at": "2026-09-08T09:56:41.052294+00:00",
-      "note": "Risk/verifiability judgment NOT CHECKED \u2014 no dispatch adapter available; fell back to the permissive signal-only verdict 'proceed'."
-    }
-  ],
-  "last_handoff_id": null,
-  "started_at": "2026-09-08T09:56:40.846671+00:00",
-  "phase_started_at": "2026-09-08T13:31:12.191705+00:00",
-  "previous_phase": null,
-  "escalation_reason": null,
-  "val_review_enabled": false,
-  "cli_review_enabled": true,
-  "error": null,
-  "phase_archetype": "runner",
   "force": false,
-  "gate_signals": {
-    "package_count": 1,
-    "total_loc_estimate": 420,
-    "external_dep_count": 0,
-    "has_db_migration": false,
-    "has_security_signal": false,
-    "has_broad_write_scope": false,
-    "has_proposal": true,
-    "has_specs": true,
-    "has_tasks": true,
-    "has_work_packages": true
-  },
-  "gate_verdict": "proceed",
   "gate_decisions": [
     {
-      "gate": "proposal_approval",
-      "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "block",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "blocked",
       "phase": "PLAN",
-      "recorded_at": "2026-09-08T09:56:43.036903+00:00"
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-08T09:56:43.036903+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
     },
     {
-      "gate": "proposal_approval",
-      "outcome": "proceed",
-      "resolution": "console_approved",
+      "approval_id": null,
       "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "note": "authorized by user message 'reconcile ri-04 then continue with -roadmap' and ri-10 roadmap status approved; proposal/implementation only, merge not authorized",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": false,
       "reason": "gate 'proposal_approval' approved by the operator \u2014 authorized by user message 'reconcile ri-04 then continue with -roadmap' and ri-10 roadmap status approved; proposal/implementation only, merge not authorized",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
-      "disposition": "block",
-      "phase": "PLAN",
       "recorded_at": "2026-09-08T09:57:56.410835+00:00",
-      "note": "authorized by user message 'reconcile ri-04 then continue with -roadmap' and ri-10 roadmap status approved; proposal/implementation only, merge not authorized"
-    },
-    {
-      "gate": "proposal_approval",
-      "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
-      "disposition": "block",
-      "phase": "PLAN_ITERATE",
-      "recorded_at": "2026-09-08T09:59:09.506828+00:00"
-    },
-    {
-      "gate": "proposal_approval",
-      "outcome": "proceed",
       "resolution": "console_approved",
-      "authorizing_disposition": "block",
-      "reason": "gate 'proposal_approval' approved by the operator \u2014 authorized by user message \"reconcile ri-04 then continue with $autopilot-roadmap\" and ri-10 roadmap status approved; proposal/implementation only, merge not authorized",
-      "approval_id": null,
-      "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
-      "disposition": "block",
-      "phase": "PLAN_ITERATE",
-      "recorded_at": "2026-09-08T09:59:24.315426+00:00",
-      "note": "authorized by user message \"reconcile ri-04 then continue with $autopilot-roadmap\" and ri-10 roadmap status approved; proposal/implementation only, merge not authorized"
+      "timeout_seconds": null
     },
     {
-      "gate": "plan_review_convergence_failure",
-      "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'plan_review_convergence_failure' parked: trust posture disposition is block",
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "block",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "PLAN_ITERATE",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-08T09:59:09.506828+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "note": "authorized by user message \"reconcile ri-04 then continue with $autopilot-roadmap\" and ri-10 roadmap status approved; proposal/implementation only, merge not authorized",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "PLAN_ITERATE",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 authorized by user message \"reconcile ri-04 then continue with $autopilot-roadmap\" and ri-10 roadmap status approved; proposal/implementation only, merge not authorized",
+      "recorded_at": "2026-09-08T09:59:24.315426+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "plan_review_convergence_failure",
+      "notified": null,
+      "outcome": "blocked",
       "phase": "PLAN_REVIEW",
-      "recorded_at": "2026-09-08T13:31:14.212597+00:00"
+      "posture_present": false,
+      "reason": "gate 'plan_review_convergence_failure' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-08T13:31:14.212597+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "plan_review_convergence_failure",
+      "note": "User authorized a fresh supervisor ri-10 planning cycle and continuation; canonical round 8 converged with three schema-valid reviewers and zero blockers.",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "PLAN_REVIEW",
+      "posture_present": false,
+      "reason": "gate 'plan_review_convergence_failure' approved by the operator \u2014 User authorized a fresh supervisor ri-10 planning cycle and continuation; canonical round 8 converged with three schema-valid reviewers and zero blockers.",
+      "recorded_at": "2026-09-09T13:12:18.997338+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "ESCALATE",
+      "posture_present": false,
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-09T13:12:33.016947+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "escalate_resume",
+      "note": "User requested continuation; the fresh supervisor ri-10 plan review converged with zero blockers.",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "ESCALATE",
+      "posture_present": false,
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 User requested continuation; the fresh supervisor ri-10 plan review converged with zero blockers.",
+      "recorded_at": "2026-09-09T13:12:44.043436+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "write-durable-state-artifacts-guide",
-    "gate": "plan_review_convergence_failure",
-    "phase": "PLAN_REVIEW",
-    "requested_at": "2026-09-08T13:31:14.212948+00:00",
-    "prompt": "Plan review did not converge. Escalate for human handling?",
-    "context": {
-      "convergence_reason": "max_iter",
-      "rounds": 3,
-      "findings_trend": "26, 25, 21"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
-    },
-    "edge": {
-      "outcome": "max_iter",
-      "target": "ESCALATE"
-    }
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 1,
+    "total_loc_estimate": 420
   },
-  "goal_gate": null
+  "gate_verdict": "proceed",
+  "goal_gate": null,
+  "handoff_ids": [
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/plan-review-8-1.json"
+  ],
+  "implementation_strategy": {},
+  "iteration": 0,
+  "last_handoff_id": "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/plan-review-8-1.json",
+  "max_phase_iterations": 3,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "pending_gate": null,
+  "phase_archetype": null,
+  "phase_history": [
+    {
+      "at": "2026-09-08T09:56:41.052294+00:00",
+      "note": "Risk/verifiability judgment NOT CHECKED \u2014 no dispatch adapter available; fell back to the permissive signal-only verdict 'proceed'.",
+      "outcome": "DEGRADED",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-09-09T13:16:13.196942+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    }
+  ],
+  "phase_started_at": "2026-09-09T13:14:21.772414+00:00",
+  "previous_phase": "PLAN_REVIEW",
+  "schema_version": 5,
+  "started_at": "2026-09-08T09:56:40.846671+00:00",
+  "total_iterations": 12,
+  "val_review_enabled": false,
+  "vendor_availability": {}
 }

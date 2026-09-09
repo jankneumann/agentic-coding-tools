@@ -1,0 +1,352 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "write-durable-state-artifacts-guide",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 9,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "NONE: The OpenSpec specification in specs/skill-workflow/spec.md comprehensively covers all five durable state-artifact classes and provides concrete SHALL requirements and testable scenarios for discovery, conflict resolution, fresh-session rehydration, degraded missing-state handling, portable skill links, and byte-identical runtime mirrors.",
+      "vendor_dispositions": {
+        "antigravity": "accept",
+        "claude_code": "fix"
+      }
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Nit: The plan declares a prose README as an OpenAPI contract file, which makes the context-impact gate imply an undeclared 'apis' surface for the only package. work-packages.yaml:10-15 sets contracts.openapi.primary and contracts.openapi.files to openspec/changes/write-durable-state-artifacts-guide/contracts/README.md, while contracts/README.md:3 states that no OpenAPI, database, event, or generated-type contract applies. skills/validate-packages/scripts/validate_context_impact.py:232 passes that file list into infer_surfaces, and skills/validate-packages/scripts/context_impact.py:305-310 implies the 'apis' surface for any declared contract file the package owns, explicitly 'regardless of where it lives'. The README is owned by wp-state-artifacts-docs through the scope.write_allow entry at work-packages.yaml:81, and that glob is not boundless, so attribution is not suppressed. The package declares only documentation, decisions, and semantic_code at work-packages.yaml:88-92 and carries no rationale block, so 'apis' resolves to status undeclared and a nonzero exit. Task 3.2 (tasks.md:62-67) mandates the context-drift check as part of the final validation matrix, so the remaining open task is the one that trips it whenever the gate is run against the branch base rather than an uncommitted file list. The recorded checkpoint evidence showing status 'declared' was captured over a narrower changed-file set and does not cover this path."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The mirror-parity scenario is backed by a verification step that passes when the assertions do not run. spec.md:46-49 requires each changed mirror under .agents and .claude to be byte-identical to its canonical skills/ source, and tasks.md 1.1 folds that assertion into the same structural suite. design.md:57 states that fresh CI checkouts intentionally lack the ignored runtime mirrors, so the six mirror cases skip there. The package's only mirror-bearing verification step is 'skills/.venv/bin/python -m pytest skills/tests/state-artifacts -q' with expect_exit_code 0 (work-packages.yaml:102-110), and a fully skipped test exits 0. In any cloud-harness or fresh-clone run, that step emits result key state_artifact_docs_green and the coordinator credits the mirror scenario at verification tier B without a single byte comparison having executed. design.md:57 names 'install.sh --check' as the compensating control for exactly this case, but no verification step in the package runs it; the second step (work-packages.yaml:111-119) runs only OpenSpec strict validation and work-package validation. The flag exists (skills/install.sh:40), so the gap is a missing declaration, not a missing capability."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Requirement 3 is written as a universal predicate over artifact writers, but the plan can only enforce it for six enumerated skills, and at least two known writers fall outside both the lock list and the write scope. spec.md:36-38 requires that 'Skills that create, mutate, or rehydrate durable orchestration artifacts SHALL link to the canonical guide'. The plan's enforced set is autopilot, autopilot-roadmap, session-log, supervise, implement-feature, and validate-feature (proposal.md:59, work-packages.yaml:45-50 and 63-80). skills/refine-roadmap/SKILL.md:128 reads checkpoint.json during rehydration and SKILL.md:88 gates a split on the item that checkpoint.json names, and skills/archive-roadmap/SKILL.md:13 relocates checkpoint.json as part of workspace archival. Both sit inside the requirement's predicate and outside scope.write_allow, so the drift guard cannot be extended to them without a scope violation. plan-findings.md:24 records 'Confirm all skill sources that materially create, mutate, or rehydrate these artifacts are in the link and mirror allowlists' as an open review question, and plan-findings.md:32 dispositioned only coordination-bridge, so these two were never ruled in or out. A reader auditing the requirement against the repository cannot tell whether their absence is a defect or a decision, and the structural test's notion of 'relevant' (spec.md:42) is defined nowhere normative."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The missing-state scenario and the design's step 3 disagree about a never-started roadmap. spec.md:30-34 says that when a bootstrap handoff names an active roadmap or change whose canonical checkpoint or loop-state artifact is missing, rehydration SHALL report a degraded or inconsistent state. design.md:41 carves out the opposite case: 'a missing checkpoint is valid only for a never-started roadmap'. The two are reconcilable only by reading 'active' as excluding a roadmap that has been planned but never executed, and nothing in either document says so, even though plan-roadmap creates a workspace whose checkpoint.json is written later by autopilot-roadmap. The spec delta is the artifact that survives archival, so an implementer or a future structural test written from spec.md alone will treat a first-run roadmap as degraded and stop automatic advancement on a healthy workspace, which is a false alarm in exactly the state a new roadmap starts in."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The exact eight-step rehydration order is not on the plan's declared normative surface. contracts/README.md says the behavioral contract is the skill-workflow delta plus design.md D1\u2013D4, but the numbered eight-step sequence lives only in the separate Rehydration Algorithm section (design.md:39-46). Decision D3 (design.md:22-25) collapses roadmap.yaml/cycle-ledger validation into checkpoint verification and never names step 8 (Rebuild projections). The OpenSpec scenario Fresh supervisor session resumes active work (specs/skill-workflow/spec.md:23-28) only requires locator use, checkpoint-before-loop-state, and advisory-after-authoritative. Consequence: a future editor can drop steps 2 or 8 from the guide while remaining scenario-green under the contracts pointer, recreating the projection/authority ambiguity this change exists to prevent."
+    },
+    {
+      "id": 7,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 6
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "escalate",
+      "description": "NONE: Decisions D1-D3 and the Rehydration Algorithm (\u00a738-47) in design.md define an exact eight-step rehydration-order contract (Bootstrap locator, Roadmap definition, Roadmap execution state, Change execution state, Learning context, Phase history, Handoff context, Rebuild projections) with question-scoped authority across all five durable state artifact classes, preventing advisory handoffs from overriding authoritative loop or roadmap state.",
+      "vendor_dispositions": {
+        "antigravity": "accept",
+        "claude_code": "fix"
+      }
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "NONE: Work-package wp-state-artifacts-docs in work-packages.yaml cleanly encapsulates the documentation-only scope with a single sequential DAG (depends_on: []), valid lock declarations matching write_allow paths, an explicit deny block for core coordinator/app paths, and appropriate Verification Tier B commands."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "NONE: The task breakdown in tasks.md establishes a rigorous RED/GREEN validation workflow (Tasks 1.1-3.2) mapped to design decisions and spec scenarios, pinning five-class inventory, required table headers, rehydration markers, and mirror byte parity in skills/tests/state-artifacts/test_state_artifacts_guide.py registered via skills/pyproject.toml testpaths."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "NONE: The contracts declaration in contracts/README.md accurately reflects that no runtime OpenAPI, database, event, or schema contract applies, adhering strictly to the documentation-only non-goals defined in proposal.md."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: The proposal's Impact section understates the blast radius by two files that the package locks and writes. work-packages.yaml:44 and :58 lock and allow skills/pyproject.toml, which task 1.3 (tasks.md:19-24) edits to add tests/state-artifacts to testpaths, and work-packages.yaml:43 and :60 cover docs/decisions/skill-workflow.md, the derived index that design.md:35 says the standard phase-record writer regenerates. Neither appears in proposal.md:56-62. skills/pyproject.toml is shared build configuration that every skill test suite resolves through, so a reviewer sizing risk from the proposal alone reads this as touching only guides, skill markdown, mirrors, and a new test directory, and misses the one shared config edit. The reconciliation note at plan-findings.md:37 covers the decisions index but not the pyproject change."
+    },
+    {
+      "id": 12,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The fail-loud rule for missing canonical state is traced end to end rather than asserted once. The ri-09 failure named at proposal.md:7 (a handoff recording ESCALATE while no canonical loop-state.json existed) becomes design decision D3 at design.md:23 ('never synthesized from advisory data'), becomes a risk with a named mitigation at design.md:56, and lands as a testable scenario at spec.md:30-34 that forbids reconstructing authoritative phase state from the handoff, learning log, phase record, or queue. The negative clause is what makes it enforceable: a reviewer can point at a specific prohibited behavior rather than at an intent. Task 2.1 and task 2.3 both cite that scenario (tasks.md:32, tasks.md:46), so the guide text and the supervise alignment are pinned to the same requirement."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The write scope is an exact allowlist with a defensive deny list, which matches the documentation-only claim. Every write target at work-packages.yaml:57-81 is an enumerated path except two bounded directory globs (the new test directory and the change's own OpenSpec directory), and design.md:50 states the rule explicitly: repository-wide write globs are forbidden. The deny list at work-packages.yaml:84-87 additionally blocks agent-coordinator/src, agent-coordinator/database, and apps, so a documentation agent that misreads its brief cannot reach runtime code, migrations, or application surfaces even if a write_allow glob were later loosened. This also keeps the package out of the boundless-scope class that skills/validate-packages/scripts/context_impact.py treats as attribution by co-presence, so its context-impact attribution stays meaningful."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: The normative plan still says relevant skill documents SHALL link to the guide, but the accepted portability decision, implemented skill text, and structural test intentionally require a bare repository-relative reference to `docs/guides/state-artifacts.md`; a reference is not a clickable Markdown link."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The plan consistently defines the same eight-step rehydration sequence across design D3, the skill-workflow scenarios, and the task coverage; keeping the order exact is the behavior being protected, not accidental overspecification."
+    },
+    {
+      "id": 16,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.686046511627907,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The single sequential work package is proportionate and internally consistent: shared guide prose, six canonical skill references, generated mirrors, and one structural test suite form one semantic drift boundary with an explicit write allowlist and no runtime/API/database scope."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The contracts stub and non-goals correctly preserve existing artifact schemas, runtime state machines, coordinator APIs, and persistence behavior while documenting their authority and replay order."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: proposal.md What Changes requires documenting each class's mutation boundary, but design.md D1 (line 11), the inventory requirement in specs/skill-workflow/spec.md:5, and Success Criteria (proposal.md:67) all omit that field and list only path, holder/scope, writer, authority, consumers, and missing/stale behavior. Consequence: an implementer following the proposal bullet will add a column the structural contract (tasks.md 1.1 required ownership fields / D1) does not expect, or an implementer following D1/spec will omit a field the proposal still claims is in scope."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: proposal.md Impact lists the guide, documentation index, six skill sources, runtime mirrors, focused tests, and the skill-workflow capability, but work-packages.yaml locks.files/write_allow also include skills/pyproject.toml (task 1.3 CI registration) and docs/decisions/skill-workflow.md (D5 derived decision index). Consequence: reviewers comparing the proposal declaration to the package allowlist see an unexplained scope expansion, and a later archive/diff audit cannot tell those two writes were intentional plan scope."
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Non-goals and contracts/README.md correctly exclude artifact schema, runtime state machine, coordinator API, persistence, and rename/migration work, so the documentation-only change cannot be misread as authorizing behavioral rewrites."
+    },
+    {
+      "id": 21,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Advisory-versus-authoritative conflicts are observable by requirement: Advisory state conflicts with authoritative state requires the authoritative record to win and the conflict to be reported rather than silently merged, giving operators a detectable signal when handoffs or learnings disagree with loop/checkpoint state."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 21,
+    "confirmed_count": 2,
+    "unconfirmed_count": 17,
+    "disagreement_count": 2,
+    "blocking_count": 2
+  }
+}
