@@ -563,3 +563,10 @@ security-seed-nvd: ## Download/refresh the NVD database for dependency-check (ne
 security-nvd-status: ## Report the seeded NVD database's age against the freshness floor
 	@bash skills/security-review/scripts/run_dependency_check.sh --nvd-status
 
+.PHONY: security-bump-scanner-images security-check-scanner-images
+security-bump-scanner-images: ## Re-resolve pinned scanner image digests (deliberate bump)
+	@python3 skills/security-review/scripts/bump_scanner_images.py
+
+security-check-scanner-images: ## Report scanner image pins that are behind their tag (exit 1 on drift)
+	@python3 skills/security-review/scripts/bump_scanner_images.py --check
+

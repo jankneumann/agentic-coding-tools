@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=scanner_images.sh
+source "$(dirname "${BASH_SOURCE[0]}")/scanner_images.sh"
+
 repo="."
 out_dir=""
 project=""
@@ -229,7 +232,7 @@ if [[ $update_nvd -eq 1 ]]; then
   # a command line or stored in shell history.
   "$container_runtime" run --rm $(_runtime_isolation_args) \
     -v "$data_dir":"$DC_CONTAINER_DATA_DIR" \
-    docker.io/owasp/dependency-check:latest \
+    "$(scanner_image DEPENDENCY_CHECK)" \
     --updateonly \
     --nvdApiKey "$nvd_api_key" \
     --data "$DC_CONTAINER_DATA_DIR" >/tmp/security-review-depcheck-update.log 2>&1
@@ -292,7 +295,7 @@ if command -v dependency-check >/dev/null 2>&1; then
         -v "$repo":/src \
         -v "$out_dir":/report \
         -v "$data_dir":"$DC_CONTAINER_DATA_DIR" \
-        docker.io/owasp/dependency-check:latest \
+        "$(scanner_image DEPENDENCY_CHECK)" \
         --scan /src \
         --project "$project" \
         --format JSON \
@@ -323,7 +326,7 @@ elif [[ -n "$container_runtime" ]]; then
       -v "$repo":/src \
       -v "$out_dir":/report \
       -v "$data_dir":"$DC_CONTAINER_DATA_DIR" \
-      docker.io/owasp/dependency-check:latest \
+      "$(scanner_image DEPENDENCY_CHECK)" \
       --scan /src \
       --project "$project" \
       --format JSON \

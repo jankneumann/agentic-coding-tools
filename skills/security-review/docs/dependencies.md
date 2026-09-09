@@ -124,3 +124,29 @@ JS ecosystems. dependency-check answers the same question from the *filesystem*
 manifest parsing never sees. If nothing in the tree is vendored or bundled, the
 manifest scanners are most of the value and this is optional.
 
+## Pinned scanner images
+
+Both scanners run from **digests**, not tags, recorded in
+`skills/security-review/scanner-images.env`. `:stable` and `:latest` make a
+scan's verdict a function of *when the job ran* rather than of the tree it
+scanned — the same reason `.openspec-version` is pinned at the repo root. A rule
+set that grew a new check overnight is indistinguishable from a regression you
+introduced, and neither can be bisected against.
+
+```bash
+make security-check-scanner-images   # exit 1 if a pin is behind its tag
+make security-bump-scanner-images    # re-resolve and rewrite the pins
+```
+
+Bump deliberately and read the upstream changelog first: a new ZAP rule set can
+change findings on unchanged code. That is a real signal, but not one you want
+arriving unannounced in someone else's PR.
+
+`<NAME>_IMAGE` overrides a pin for one invocation (e.g. `ZAP_IMAGE=...`), so
+testing an upstream fix does not require editing the pin file.
+
+**Pinning the image is not pinning the data.** dependency-check's CVE corpus
+lives in the NVD database and is governed separately by the freshness floor
+above. The two are deliberately independent: the tool should be reproducible,
+the data should be current, and conflating them gets one of the two wrong.
+
