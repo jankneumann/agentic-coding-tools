@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-09T11:40:24.751702+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Archived at 53/53 with no PR to merge: the implementation had been on main since 2026-05-08 and the last two open boxes were environment-blocked verification, closed in PR #498. No open tasks to migrate. Staged rollout is not applicable \u2014 this change ships skills and CI wiring with no traffic surface or feature flag.",
+    "completed_work": [
+      "validation-report",
+      "archive",
+      "spec-delta-merge",
+      "decision-index-regen",
+      "validate"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Archive via a pull request rather than pushing the cleanup to main",
+        "rationale": "The skill's post-merge path lands cleanup directly on main. Every CI gate in this repo runs on pull_request, and the traceability sweep in particular only evaluates a change directory when a PR touches one \u2014 pushing an archive move straight to main would skip the one event that checks it. A PR costs one cycle and keeps the archive under the same gates as the work it archives.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Reconstruct validation-report.md from the 8.1 evidence instead of skipping it",
+        "rationale": "The deploy/smoke/gen-eval/e2e/security phases were genuinely run on 2026-09-08, but the evidence lived in tasks.md prose where gate_logic.py cannot read it and a future reader would not look. The report records what actually ran, including the five defects the run exposed and the DEGRADED security result, rather than asserting a clean sweep.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Record staged rollout as not applicable rather than checking it off",
+        "rationale": "The skill's rollout stages assume a traffic-serving surface behind a feature flag. This change has neither, so the thresholds have nothing to measure. Marking them complete would assert observations nobody made \u2014 the same check-shaped no-op this change's own validators were fixed to stop producing.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Skip make architecture-refresh in this commit",
+        "rationale": "The architecture artifacts are stale, but context-drift-gate attributes that drift to main as inherited, not to this change. Folding a repo-wide 16-file regeneration into an archive commit would obscure both. The skill itself calls this step a courtesy rather than a gate; it is reported as a separate follow-up.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "make architecture-refresh on main as its own change (inherited drift)",
+      "Pin scanner container images (ZAP :stable, dependency-check :latest)"
+    ],
+    "relevant_files": []
+  }
+}

@@ -93,33 +93,33 @@
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Vendor-diversity session state at openspec/changes/<id>/.dispatch-state.json with 0644 permissions (D9)** — Change-scoped, cleanup-managed, world-readable but world-write-rejected; defers coordinator-side state to follow-up
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D3)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **WP6 tests use exact log-format assertions to lock in spec contract** — Spec scenarios specify exact log strings; tests catch silent format drift
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D3)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan
 
 **Vendor-diversity policy is per-change, not per-package** — Implementable from existing change-id session state; per-package would force vendor-pool exhaustion on changes with many packages
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D4)
