@@ -77,6 +77,10 @@ enabled.
 - **WHEN** two agents' `api_key` fields resolve to the same value
 - **THEN** identity generation SHALL fail with an error naming both agents
 
+#### Scenario: Agent without a key is excluded
+- **WHEN** an agent declares no `api_key`
+- **THEN** it SHALL contribute no identity row, whatever its transport
+
 ### Requirement: MCP Environment Generation
 
 The agents config SHALL generate MCP registration environment variables for local agents.
@@ -279,4 +283,30 @@ surprise.
 #### Scenario: Ghost profile caught in CI
 - **WHEN** a migration seeds an enabled profile row for a type absent from the registry
 - **THEN** the registry-projection test SHALL fail identifying the orphan row
+
+### Requirement: Harness Key Coverage
+
+Every harness in the shipped roster SHALL carry its own coordinator key, covering the
+locations that harness runs in, and every derivation over those credentials SHALL
+select on the credential rather than on transport.
+
+- `claude_code`, `codex`, and `grok` SHALL be keyed in both locations (local and remote)
+- `antigravity` and `pi` SHALL be keyed local-only; no remote entry SHALL exist for them
+- AppRole creation (`bao_seed.py`) SHALL select agents by the presence of `api_key`, so the
+  AppRole set and the identity map cover the same agents
+- A remote entry MAY omit `cli` when its dispatch shape has not been verified against the
+  real CLI; such an entry provides identity and credential only
+
+#### Scenario: Roster is fully keyed
+- **WHEN** `agents.yaml` is loaded
+- **THEN** every agent entry SHALL declare an `api_key`
+- **AND** no two entries SHALL reference the same key variable
+
+#### Scenario: AppRoles follow the credential
+- **WHEN** `seed_approles()` runs against an `agents.yaml` where `grok-local` declares an `api_key` and `transport: mcp`
+- **THEN** an AppRole SHALL be created for `grok-local`
+
+#### Scenario: Agent without a key gets no AppRole
+- **WHEN** `seed_approles()` runs against an `agents.yaml` entry that declares no `api_key`
+- **THEN** no AppRole SHALL be created for it, whatever its transport
 
