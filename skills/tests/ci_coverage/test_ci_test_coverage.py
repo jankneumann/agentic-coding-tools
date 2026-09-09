@@ -25,6 +25,16 @@ of those names are defined by more than one skill, so a single pytest session
 resolves the wrong one. CI runs them in a second process instead. This test
 holds the invariant that matters regardless of which mechanism a directory uses:
 it is reached by one of them.
+
+The fourth time was a whole tree rather than a directory: ``packages/`` grew to
+four members while CI had jobs for two, so ``packages/code-search`` and
+``packages/agent-scenarios`` ran nowhere. Nobody removed them from a list --
+there was no list to remove them from, because the checks above only reason
+about ``skills/``. code-search was red for six weeks as a result (the
+2026-07-25 archival of ``complete-incremental-semantic-indexing`` moved contract
+schemas out from under 14 assertions). ``test_every_package_suite_runs_in_ci``
+below closes that at the tree level: a new ``packages/<name>/tests/`` is unrun
+until some CI job runs pytest inside it.
 """
 
 from __future__ import annotations
@@ -307,4 +317,77 @@ def test_the_guard_itself_is_reached_by_ci() -> None:
     own_dir = Path(__file__).resolve().parent.relative_to(_SKILLS_ROOT).as_posix()
     assert own_dir in _covered(), (
         f"{own_dir} is not reached by CI -- the coverage guard is unguarded"
+    )
+
+
+# --- packages/ coverage -------------------------------------------------------
+#
+# The checks above ask "is this skills/ directory reached by CI". This one asks
+# the question a level up, because the gap that actually bit was an entire
+# package tree with no job at all -- something a skills-rooted scan cannot see
+# by construction.
+
+_PACKAGES_ROOT = _REPO_ROOT / "packages"
+
+
+def _package_suites() -> list[str]:
+    """Package names under packages/ that ship a non-empty tests/ directory."""
+    if not _PACKAGES_ROOT.is_dir():  # pragma: no cover - always present here
+        return []
+    found = []
+    for entry in sorted(_PACKAGES_ROOT.iterdir()):
+        tests = entry / "tests"
+        if entry.is_dir() and tests.is_dir() and any(tests.rglob("test_*.py")):
+            found.append(entry.name)
+    return found
+
+
+def _packages_running_pytest_in_ci() -> set[str]:
+    """Package names some CI job runs pytest inside.
+
+    Credited on the step's resolved working directory rather than on job names
+    or pytest arguments: a job is only covering a package if the process it
+    starts actually runs there. `packages/gen-eval` also hosts steps that run
+    from the repo root, and those must not count for it.
+    """
+    if not _CI_WORKFLOW.exists():  # pragma: no cover - workflow always present
+        pytest.skip(f"CI workflow not found at {_CI_WORKFLOW}")
+    workflow = yaml.safe_load(_CI_WORKFLOW.read_text())
+
+    covered: set[str] = set()
+    for job in workflow.get("jobs", {}).values():
+        for step in job.get("steps", []):
+            run = step.get("run")
+            if not run or "pytest" not in run:
+                continue
+            cwd = _step_working_directory(workflow, job, step).resolve()
+            try:
+                rel = cwd.relative_to(_PACKAGES_ROOT)
+            except ValueError:
+                continue
+            if rel.parts:
+                covered.add(rel.parts[0])
+    return covered
+
+
+@pytest.mark.parametrize("package", _package_suites())
+def test_every_package_suite_runs_in_ci(package: str) -> None:
+    assert package in _packages_running_pytest_in_ci(), (
+        f"packages/{package}/tests/ exists but no CI job runs pytest from "
+        f"packages/{package}. Add a job to .github/workflows/ci.yml modelled on "
+        "`code-search-tests`. A suite CI never runs fails the same way as one "
+        "that always passes -- packages/code-search was red for six weeks this "
+        "way."
+    )
+
+
+def test_the_package_scan_finds_the_known_suites() -> None:
+    """A zero-length parametrization would pass vacuously.
+
+    Names the four members present when this guard was written; a fifth is
+    expected to appear and is not asserted against.
+    """
+    suites = set(_package_suites())
+    assert {"agent-scenarios", "code-search", "context-eval", "gen-eval"} <= suites, (
+        f"packages/ scan returned {sorted(suites)}; _PACKAGES_ROOT is wrong"
     )

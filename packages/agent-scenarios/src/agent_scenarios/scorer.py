@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .models import GateVerdict, GoalGate, GoalGatesBlock, WorkspaceState
+from .models import GateStatus, GateVerdict, GoalGate, GoalGatesBlock, WorkspaceState
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -156,6 +156,7 @@ def score_gate(gate: GoalGate, state: WorkspaceState) -> GateVerdict:
             detail=f"scorer error: {exc}",
         )
 
+    status: GateStatus
     if gate.mode == "verify":
         status = "pass" if holds else "fail"
     else:  # prohibit: pass when the (undesired) condition does NOT hold

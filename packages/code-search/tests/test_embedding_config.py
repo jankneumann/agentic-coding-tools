@@ -304,6 +304,7 @@ async def test_remote_embedding_validates_shape_count_dimension_and_finiteness(
     assert raised.value.error_code is expected_code
 
 
+@pytest.mark.requires_embedder
 @pytest.mark.asyncio
 async def test_cocoindex_adapter_embeds_one_text_without_changing_frozen_parameters() -> (
     None
@@ -322,6 +323,7 @@ async def test_cocoindex_adapter_embeds_one_text_without_changing_frozen_paramet
         await adapter.embed("hello", normalize=False)
 
 
+@pytest.mark.requires_embedder
 @pytest.mark.asyncio
 async def test_cocoindex_adapter_provides_stable_memo_and_vector_schema() -> None:
     first = CocoIndexSingleTextEmbedder(
