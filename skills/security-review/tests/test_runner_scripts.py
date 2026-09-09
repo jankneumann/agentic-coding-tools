@@ -59,6 +59,12 @@ exit 1
     out_dir = tmp_path / "out"
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
+    # These tests are about runtime selection, not the database. Seed a fresh one
+    # so they reach the code they are actually asserting on rather than stopping
+    # at the freshness gate.
+    seeded = tmp_path / "nvd"
+    _seed_db(seeded, age_days=0)
+    env["DEPENDENCY_CHECK_DATA_DIR"] = str(seeded)
 
     result = subprocess.run(
         [
@@ -123,6 +129,12 @@ exit 1
     out_dir = tmp_path / "out"
     env = os.environ.copy()
     env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
+    # These tests are about runtime selection, not the database. Seed a fresh one
+    # so they reach the code they are actually asserting on rather than stopping
+    # at the freshness gate.
+    seeded = tmp_path / "nvd"
+    _seed_db(seeded, age_days=0)
+    env["DEPENDENCY_CHECK_DATA_DIR"] = str(seeded)
 
     result = subprocess.run(
         [
@@ -398,3 +410,174 @@ def test_main_dry_run_does_not_overwrite_change_artifact(tmp_path: Path) -> None
     payload = json.loads(result.stdout)
     assert payload["change_artifact"] == "skipped (dry-run)"
     assert change_report.read_text(encoding="utf-8") == original
+
+
+# ---------------------------------------------------------------------------
+# NVD database lifecycle — seeding, freshness, and refusing to fake a scan
+# ---------------------------------------------------------------------------
+
+
+def _depcheck(tmp_path: Path, args: list[str], env_extra: dict[str, str] | None = None,
+              runtime_exit: int = 0) -> tuple[dict, int]:
+    """Invoke run_dependency_check.sh with a stubbed container runtime."""
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir(exist_ok=True)
+    # No native dependency-check on PATH, so the container path is taken.
+    _write_executable(fake_bin / "docker", "#!/usr/bin/env bash\nexit 1\n")
+    _write_executable(
+        fake_bin / "podman",
+        f"""#!/usr/bin/env bash
+if [[ "${{1:-}}" == "info" ]]; then
+  exit 0
+fi
+printf '%s\\n' "$@" > "{tmp_path}/podman-argv"
+exit {runtime_exit}
+""",
+    )
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
+    env.pop("NVD_API_KEY", None)
+    env.update(env_extra or {})
+    result = subprocess.run(
+        ["bash", str(SCRIPTS_DIR / "run_dependency_check.sh"), *args],
+        capture_output=True, text=True, env=env, check=False,
+    )
+    return json.loads(result.stdout), result.returncode
+
+
+def _seed_db(data_dir: Path, age_days: int) -> None:
+    """A database file whose mtime is `age_days` old."""
+    import time
+
+    data_dir.mkdir(parents=True, exist_ok=True)
+    db = data_dir / "odc.mv.db"
+    db.write_text("not a real H2 file", encoding="utf-8")
+    stamp = time.time() - age_days * 86400
+    os.utime(db, (stamp, stamp))
+
+
+def test_a_stale_database_is_not_reported_as_a_clean_scan(tmp_path: Path) -> None:
+    """The finding that motivated all of this.
+
+    dependency-check scans with --noupdate. Against an absent or months-old CVE
+    database it completes happily and reports nothing, which is byte-identical
+    to a genuinely clean scan. Since the aggregate gate turns a scanner error
+    into NOT CHECKED and `--allow-degraded-pass` turns NOT CHECKED into a PASS,
+    the difference between "no known vulnerabilities" and "no idea" has to be
+    made here or it is never made at all.
+    """
+    data_dir = tmp_path / "nvd"
+    _seed_db(data_dir, age_days=30)
+
+    payload, rc = _depcheck(
+        tmp_path,
+        ["--repo", str(tmp_path), "--out", str(tmp_path / "out")],
+        {"DEPENDENCY_CHECK_DATA_DIR": str(data_dir), "DEPENDENCY_CHECK_MAX_DB_AGE_DAYS": "7"},
+    )
+    assert payload["status"] == "error"
+    assert "30 day(s) old" in payload["message"]
+    assert rc == 4
+    # And it must not have run a scan at all: a stale scan produces a report
+    # file, and a report file is what the parser would happily read as clean.
+    assert not (tmp_path / "podman-argv").exists(), "no container should have run"
+
+
+def test_a_fresh_database_lets_the_scan_proceed(tmp_path: Path) -> None:
+    """The floor must not be a blanket refusal — a seeded database scans."""
+    data_dir = tmp_path / "nvd"
+    _seed_db(data_dir, age_days=1)
+
+    _depcheck(
+        tmp_path,
+        ["--repo", str(tmp_path), "--out", str(tmp_path / "out")],
+        {"DEPENDENCY_CHECK_DATA_DIR": str(data_dir), "DEPENDENCY_CHECK_MAX_DB_AGE_DAYS": "7"},
+    )
+    argv = (tmp_path / "podman-argv").read_text(encoding="utf-8")
+    assert "--scan" in argv, "a fresh database must reach the scanner"
+    assert "--noupdate" in argv, "scanning must never talk to NVD"
+    assert f"{data_dir}:/usr/share/dependency-check/data" in argv, (
+        "the seeded database must be mounted, or the scan sees an empty one"
+    )
+
+
+def test_an_absent_database_names_its_remedy(tmp_path: Path) -> None:
+    payload, rc = _depcheck(
+        tmp_path,
+        ["--repo", str(tmp_path), "--out", str(tmp_path / "out")],
+        {"DEPENDENCY_CHECK_DATA_DIR": str(tmp_path / "nowhere")},
+    )
+    assert payload["status"] == "error"
+    assert "make security-seed-nvd" in payload["message"]
+    assert rc == 4
+
+
+def test_the_update_is_the_only_mode_that_talks_to_nvd(tmp_path: Path) -> None:
+    """--updateonly with a key; and scanning never carries the key at all."""
+    data_dir = tmp_path / "nvd"
+    _seed_db(data_dir, age_days=1)
+
+    _depcheck(
+        tmp_path, ["--update-nvd"],
+        {"DEPENDENCY_CHECK_DATA_DIR": str(data_dir), "NVD_API_KEY": "test-key-not-real"},
+    )
+    argv = (tmp_path / "podman-argv").read_text(encoding="utf-8")
+    assert "--updateonly" in argv
+    assert "--nvdApiKey" in argv
+    assert "--noupdate" not in argv, "the update must not disable updating"
+
+    (tmp_path / "podman-argv").unlink()
+    _depcheck(
+        tmp_path,
+        ["--repo", str(tmp_path), "--out", str(tmp_path / "out")],
+        {"DEPENDENCY_CHECK_DATA_DIR": str(data_dir), "NVD_API_KEY": "test-key-not-real"},
+    )
+    scan_argv = (tmp_path / "podman-argv").read_text(encoding="utf-8")
+    assert "--nvdApiKey" not in scan_argv, (
+        "a scan must not carry the credential; only the seeding run needs it"
+    )
+    assert "test-key-not-real" not in scan_argv
+
+
+def test_the_update_refuses_without_a_key_rather_than_rate_limiting(tmp_path: Path) -> None:
+    payload, rc = _depcheck(
+        tmp_path, ["--update-nvd"], {"DEPENDENCY_CHECK_DATA_DIR": str(tmp_path / "nvd")}
+    )
+    assert payload["status"] == "error"
+    assert "NVD_API_KEY is not set" in payload["message"]
+    assert rc == 4
+    assert not (tmp_path / "podman-argv").exists(), "must not attempt the download"
+
+
+def test_nvd_status_exit_code_can_gate_a_refresh(tmp_path: Path) -> None:
+    """--nvd-status exits non-zero when stale, so a cron can act on it."""
+    data_dir = tmp_path / "nvd"
+
+    payload, rc = _depcheck(tmp_path, ["--nvd-status"],
+                            {"DEPENDENCY_CHECK_DATA_DIR": str(data_dir)})
+    assert (payload["status"], rc) == ("error", 4)
+
+    _seed_db(data_dir, age_days=30)
+    payload, rc = _depcheck(tmp_path, ["--nvd-status"],
+                            {"DEPENDENCY_CHECK_DATA_DIR": str(data_dir),
+                             "DEPENDENCY_CHECK_MAX_DB_AGE_DAYS": "7"})
+    assert (payload["status"], rc, payload["age_days"]) == ("error", 4, 30)
+
+    _seed_db(data_dir, age_days=2)
+    payload, rc = _depcheck(tmp_path, ["--nvd-status"],
+                            {"DEPENDENCY_CHECK_DATA_DIR": str(data_dir),
+                             "DEPENDENCY_CHECK_MAX_DB_AGE_DAYS": "7"})
+    assert (payload["status"], rc, payload["age_days"]) == ("ok", 0, 2)
+
+
+def test_the_freshness_floor_can_be_disabled_deliberately(tmp_path: Path) -> None:
+    """0 means "I know, scan anyway" — an explicit choice, not the default."""
+    data_dir = tmp_path / "nvd"
+    _seed_db(data_dir, age_days=400)
+
+    _depcheck(
+        tmp_path,
+        ["--repo", str(tmp_path), "--out", str(tmp_path / "out")],
+        {"DEPENDENCY_CHECK_DATA_DIR": str(data_dir), "DEPENDENCY_CHECK_MAX_DB_AGE_DAYS": "0"},
+    )
+    assert (tmp_path / "podman-argv").exists(), "floor 0 must let the scan run"
+
