@@ -308,6 +308,124 @@ class TestPortAllocation:
 
     @patch("shutil.which", return_value="/usr/bin/docker")
     @patch("subprocess.run")
+    def test_start_requests_the_api_profile(self, mock_run: MagicMock, _w: MagicMock) -> None:
+        """`coordinator-api` is profile-gated; a bare `up` starts only postgres.
+
+        Found 2026-09-08 running task 8.1 live: the stack came up healthy and all
+        eleven smoke tests failed, because nothing was listening on the API port.
+        The old assertions here checked only that `compose`, `up` and `-d` were
+        present, which stayed true throughout.
+        """
+        from environments.docker_stack import DockerStackEnvironment
+
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="s")
+        allocation = {
+            "session_id": "s",
+            "db_port": 10000,
+            "rest_port": 10001,
+            "realtime_port": 10002,
+            "api_port": 10003,
+            "compose_project_name": "validate-test-s",
+        }
+        with patch.object(env, "_allocate_ports", return_value=allocation):
+            env.start()
+
+        cmd = mock_run.call_args_list[0][0][0]
+        assert "--profile" in cmd and "api" in cmd, cmd
+        assert cmd.index("--profile") < cmd.index("up"), (
+            f"--profile must precede the subcommand: {cmd}"
+        )
+
+    @patch("shutil.which", return_value="/usr/bin/docker")
+    @patch("subprocess.run")
+    def test_start_passes_the_allocated_api_port_to_compose(
+        self, mock_run: MagicMock, _w: MagicMock
+    ) -> None:
+        """Allocating a port means nothing if compose never receives it.
+
+        The compose file binds "${AGENT_COORDINATOR_REST_PORT:-8081}:8081", so
+        without this the API took the fixed default while `.test-env` advertised
+        the allocated port -- and two concurrent stacks fought over 8081.
+        """
+        from environments.docker_stack import DockerStackEnvironment
+
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="s")
+        allocation = {
+            "session_id": "s",
+            "db_port": 10000,
+            "rest_port": 10001,
+            "realtime_port": 10002,
+            "api_port": 10003,
+            "compose_project_name": "validate-test-s",
+        }
+        with patch.object(env, "_allocate_ports", return_value=allocation):
+            env.start()
+
+        passed_env = mock_run.call_args_list[0][1]["env"]
+        assert passed_env["AGENT_COORDINATOR_REST_PORT"] == "10003"
+        assert passed_env["AGENT_COORDINATOR_DB_PORT"] == "10000"
+
+    @patch("shutil.which", return_value="/usr/bin/docker")
+    @patch("subprocess.run")
+    def test_teardown_requests_the_api_profile(
+        self, mock_run: MagicMock, _w: MagicMock
+    ) -> None:
+        """Compose only tears down services in the selected profiles.
+
+        A bare `down` stopped postgres and left `coordinator-api` running, where
+        it then held the port against the next run.
+        """
+        from environments.docker_stack import DockerStackEnvironment
+
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="s")
+        env._allocation = {
+            "session_id": "s",
+            "db_port": 10000,
+            "rest_port": 10001,
+            "realtime_port": 10002,
+            "api_port": 10003,
+            "compose_project_name": "validate-test-s",
+        }
+        env.teardown()
+
+        cmd = mock_run.call_args_list[0][0][0]
+        assert "--profile" in cmd and "api" in cmd, cmd
+        assert cmd.index("--profile") < cmd.index("down"), (
+            f"--profile must precede the subcommand: {cmd}"
+        )
+
+    @patch("shutil.which", return_value="/usr/bin/docker")
+    @patch("subprocess.run")
+    def test_env_vars_publish_the_configured_api_key(
+        self, mock_run: MagicMock, _w: MagicMock
+    ) -> None:
+        """The launcher configured the key, so the launcher must publish it.
+
+        The smoke tests' `api_key` fixture falls back to `e2e-test-key`; the
+        compose file configures `dev-key-001`. Nothing reconciled the two, so
+        test_valid_credentials_accepted got a 401 from a correct stack.
+        """
+        from environments.docker_stack import DockerStackEnvironment
+
+        env = DockerStackEnvironment(compose_file="docker-compose.yml", session_id="s")
+        env._allocation = {
+            "session_id": "s",
+            "db_port": 10000,
+            "rest_port": 10001,
+            "realtime_port": 10002,
+            "api_port": 10003,
+            "compose_project_name": "validate-test-s",
+        }
+        assert env.env_vars()["API_KEY"] == "dev-key-001"
+
+        with patch.dict("os.environ", {"COORDINATOR_API_KEYS": "first-key,second-key"}):
+            assert env.env_vars()["API_KEY"] == "first-key"
+
+    @patch("shutil.which", return_value="/usr/bin/docker")
+    @patch("subprocess.run")
     def test_start_raises_on_port_allocation_failure(
         self, mock_run: MagicMock, _w: MagicMock
     ) -> None:
