@@ -581,3 +581,76 @@ def test_the_freshness_floor_can_be_disabled_deliberately(tmp_path: Path) -> Non
     )
     assert (tmp_path / "podman-argv").exists(), "floor 0 must let the scan run"
 
+
+# ---------------------------------------------------------------------------
+# Pinned scanner images
+# ---------------------------------------------------------------------------
+
+_RUNNERS = ("run_zap_scan.sh", "run_dependency_check.sh")
+
+
+def test_no_runner_pulls_a_floating_tag(tmp_path: Path) -> None:
+    """A scanner on `:stable` or `:latest` makes a verdict a function of *when*.
+
+    The same reason `.openspec-version` is pinned at the repo root: a rule set
+    that grew a new check overnight is indistinguishable from a regression you
+    introduced, and neither can be bisected against. Matched on the image
+    reference itself, so the prose in scanner-images.env explaining the policy
+    does not trip it.
+    """
+    floating = ("ghcr.io/zaproxy/zaproxy:stable", "docker.io/owasp/dependency-check:latest")
+    for runner in _RUNNERS:
+        body = (SCRIPTS_DIR / runner).read_text(encoding="utf-8")
+        for ref in floating:
+            assert f"\n    {ref} " not in body and f'"{ref}"' not in body, (
+                f"{runner} pulls the floating tag {ref}; use scanner_image <NAME>"
+            )
+        assert "scanner_image " in body, f"{runner} must resolve through the pin file"
+
+
+def test_every_pinned_image_carries_a_digest() -> None:
+    """A tag with no digest is not a pin.
+
+    The helper warns and falls back rather than failing, so that a half-finished
+    bump is visible instead of silently reproducible-looking. This asserts the
+    committed state is never that half-finished one.
+    """
+    env_file = SCRIPTS_DIR.parent / "scanner-images.env"
+    pins: dict[str, dict[str, str]] = {}
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if "_IMAGE_" not in line or line.startswith("#"):
+            continue
+        key, _, value = line.partition("=")
+        name, _, kind = key.rpartition("_IMAGE_")
+        pins.setdefault(name, {})[kind.lower()] = value.strip('"')
+
+    assert pins, "scanner-images.env declares no pins"
+    for name, fields in pins.items():
+        assert fields.get("tag"), f"{name} has no tag"
+        digest = fields.get("digest", "")
+        assert digest.startswith("sha256:") and len(digest) == 71, (
+            f"{name} has no usable digest ({digest!r}) — a tag alone is not a pin"
+        )
+
+
+def test_an_explicit_override_wins_over_the_pin(tmp_path: Path) -> None:
+    """An operator testing an upstream fix must not have to edit the pin file."""
+    script = tmp_path / "probe.sh"
+    script.write_text(
+        f'#!/usr/bin/env bash\nset -euo pipefail\n'
+        f'source "{SCRIPTS_DIR}/scanner_images.sh"\n'
+        f'scanner_image ZAP\n',
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["ZAP_IMAGE"] = "localhost/zap:under-test"
+    out = subprocess.run(["bash", str(script)], capture_output=True, text=True,
+                         env=env, check=True).stdout.strip()
+    assert out == "localhost/zap:under-test"
+
+    env.pop("ZAP_IMAGE")
+    out = subprocess.run(["bash", str(script)], capture_output=True, text=True,
+                         env=env, check=True).stdout.strip()
+    assert out.startswith("ghcr.io/zaproxy/zaproxy:stable@sha256:"), out
+

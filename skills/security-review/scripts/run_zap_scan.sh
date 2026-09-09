@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# shellcheck source=scanner_images.sh
+source "$(dirname "${BASH_SOURCE[0]}")/scanner_images.sh"
+
 target=""
 out_dir=""
 mode="baseline"
@@ -145,7 +148,7 @@ else
   set +e
   "$container_runtime" "${run_args[@]}" \
     -v "$out_dir":/zap/wrk \
-    ghcr.io/zaproxy/zaproxy:stable \
+    "$(scanner_image ZAP)" \
     "${zap_cmd[@]}" >/tmp/security-review-zap.log 2>&1
   rc=$?
   set -e
