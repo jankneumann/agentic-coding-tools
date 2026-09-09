@@ -70,6 +70,12 @@ def _parse_line_range(line_range: Any) -> tuple[int | None, int | None]:
 # (review-findings axis contract, rule 2).
 DEFAULT_AXIS = "correctness"
 
+#: Evidence classes. See review-findings.schema.json for the full rationale.
+#: Defined here, beside DEFAULT_AXIS, because the dataclasses below use them as
+#: field defaults and therefore need them bound at class-definition time.
+DETERMINISTIC = "deterministic"
+JUDGMENT = "judgment"
+
 
 @dataclass
 class Finding:
@@ -89,6 +95,12 @@ class Finding:
     # (and internally-constructed findings) predate it — default to
     # "correctness" so old data keeps its current matching behavior.
     axis: str = DEFAULT_AXIS
+    # How this finding was established. "deterministic" is a reproducible
+    # observation — a test failed, a scanner rule fired — that a seeded defect
+    # can prove the detector catches. "judgment" is a model's reasoning: often
+    # valuable, not reproducible, and not falsifiable by seeding a defect.
+    # Defaults to deterministic so every existing emitter is unchanged.
+    evidence_class: str = DETERMINISTIC
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], vendor: str) -> "Finding":
@@ -105,6 +117,12 @@ class Finding:
             line_end=line_end,
             vendor=vendor,
             axis=data.get("axis") or DEFAULT_AXIS,
+            # Only ever *toward* judgment. A payload cannot promote itself to
+            # deterministic; the caller's ingest-side declaration is what makes a
+            # finding blockable, never the model's own label.
+            evidence_class=(
+                JUDGMENT if data.get("evidence_class") == JUDGMENT else DETERMINISTIC
+            ),
         )
 
 
@@ -145,6 +163,11 @@ class ConsensusFinding:
     description: str
     vendor_dispositions: dict[str, str] | None = None
     agreed_axis: str = DEFAULT_AXIS
+    #: JUDGMENT only when *every* contributing finding was judgment-class. One
+    #: deterministic corroboration is enough to make a finding blockable: the
+    #: reproducible observation is what carries it, and a model agreeing with a
+    #: failing test does not make the test less real.
+    evidence_class: str = DETERMINISTIC
 
 
 @dataclass
@@ -163,6 +186,8 @@ class ConsensusReport:
     unconfirmed_count: int = 0
     disagreement_count: int = 0
     blocking_count: int = 0
+    #: Judgment-class findings — reported and ranked, never counted as blocking.
+    advisory_count: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +195,7 @@ class ConsensusReport:
 # ---------------------------------------------------------------------------
 
 _CRITICALITY_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+
 
 # Vendors label the same defect with different type vocabularies
 # ("correctness" vs "bug", "security" vs "vulnerability"). Matching on
@@ -373,12 +399,23 @@ class ConsensusSynthesizer:
         confirmed = sum(1 for cf in consensus_findings if cf.status == "confirmed")
         unconfirmed = sum(1 for cf in consensus_findings if cf.status == "unconfirmed")
         disagreement = sum(1 for cf in consensus_findings if cf.status == "disagreement")
+        # Judgment-class findings never block. They are frequently the most
+        # interesting findings in the report — business-logic flaws and
+        # authorization confusion are exactly what a model notices and a rule set
+        # cannot — but they are not reproducible, and a gate whose verdict is not
+        # reproducible cannot be trusted or bisected against. They are surfaced
+        # and ranked; a human decides. A deterministic finding that a model also
+        # agrees with is still deterministic, so corroboration never demotes.
         blocking = sum(
             1
             for cf in consensus_findings
-            if (cf.status == "confirmed" and cf.recommended_disposition == "fix")
-            or cf.status == "disagreement"
+            if cf.evidence_class != JUDGMENT
+            and (
+                (cf.status == "confirmed" and cf.recommended_disposition == "fix")
+                or cf.status == "disagreement"
+            )
         )
+        advisory = sum(1 for cf in consensus_findings if cf.evidence_class == JUDGMENT)
 
         return ConsensusReport(
             review_type=review_type,
@@ -393,6 +430,7 @@ class ConsensusSynthesizer:
             unconfirmed_count=unconfirmed,
             disagreement_count=disagreement,
             blocking_count=blocking,
+            advisory_count=advisory,
         )
 
     def _match_all(self, findings: list[Finding]) -> list[FindingMatch]:
@@ -443,6 +481,23 @@ class ConsensusSynthesizer:
 
         return matches
 
+    @staticmethod
+    def _consensus_evidence_class(match: "FindingMatch") -> str:
+        """JUDGMENT only when every contributing finding was judgment-class.
+
+        One deterministic corroboration is enough to make the consensus finding
+        blockable. The reproducible observation is what carries it; a model
+        agreeing with a failing test does not make the test less real, and the
+        reverse — letting one judgment voice demote a reproducible finding out of
+        the blocking count — would be a way to talk a gate out of firing.
+        """
+        contributing = [match.primary, *match.matched]
+        return (
+            JUDGMENT
+            if all(f.evidence_class == JUDGMENT for f in contributing)
+            else DETERMINISTIC
+        )
+
     def _classify(self, matches: list[FindingMatch]) -> list[ConsensusFinding]:
         """Classify matches into confirmed/unconfirmed/disagreement."""
         results: list[ConsensusFinding] = []
@@ -462,6 +517,7 @@ class ConsensusSynthesizer:
                     recommended_disposition="accept",
                     description=m.primary.description,
                     agreed_axis=_canonical_axis(m.primary.axis),
+                    evidence_class=self._consensus_evidence_class(m),
                 ))
                 continue
 
@@ -494,6 +550,7 @@ class ConsensusSynthesizer:
                     recommended_disposition=m.primary.disposition,
                     description=m.primary.description,
                     agreed_axis=_agreed_axis([m.primary, *m.matched]),
+                    evidence_class=self._consensus_evidence_class(m),
                 ))
             else:
                 # Disposition disagreement
@@ -513,6 +570,7 @@ class ConsensusSynthesizer:
                     description=m.primary.description,
                     vendor_dispositions=all_dispositions,
                     agreed_axis=_agreed_axis([m.primary, *m.matched]),
+                    evidence_class=self._consensus_evidence_class(m),
                 ))
 
         return results
@@ -550,6 +608,7 @@ class ConsensusSynthesizer:
                 "unconfirmed_count": report.unconfirmed_count,
                 "disagreement_count": report.disagreement_count,
                 "blocking_count": report.blocking_count,
+                "advisory_count": report.advisory_count,
             },
         }
 
@@ -813,6 +872,22 @@ def main() -> int:
             "findings-gen-eval.json as a behavioral source)."
         ),
     )
+    parser.add_argument(
+        "--judgment-vendor",
+        action="append",
+        default=[],
+        metavar="VENDOR",
+        help=(
+            "Mark every finding from VENDOR as judgment-class, so it is ranked "
+            "and reported but never counted as blocking. Repeatable. Declared "
+            "here by the caller that chose the reviewer, rather than read from "
+            "the payload: a model asked to self-label its own findings as "
+            "non-blocking has every incentive to do the opposite, and the whole "
+            "point of the distinction is that it cannot be argued with. A "
+            "payload may still declare evidence_class itself, but only ever "
+            "toward judgment — nothing here can promote a finding to blocking."
+        ),
+    )
     parser.add_argument("--output", required=True, help="Output consensus JSON path")
     parser.add_argument("--quorum", type=int, default=2, help="Minimum reviewers")
     parser.add_argument(
@@ -828,6 +903,7 @@ def main() -> int:
     # Load per-vendor findings
     vendor_results: list[VendorResult] = []
     findings_paths: list[Path] = [Path(p) for p in args.findings]
+    judgment_vendors = set(args.judgment_vendor)
 
     if args.input_dir:
         input_dir = Path(args.input_dir)
@@ -863,6 +939,9 @@ def main() -> int:
             Finding.from_dict(f, vendor=vendor)
             for f in data.get("findings", [])
         ]
+        if vendor in judgment_vendors:
+            for finding in findings:
+                finding.evidence_class = JUDGMENT
         vendor_results.append(VendorResult(vendor=vendor, findings=findings))
 
     # Additive behavioral source: load findings-gen-eval.json from
@@ -911,6 +990,7 @@ def main() -> int:
           f"{report.unconfirmed_count} unconfirmed, "
           f"{report.disagreement_count} disagreement)")
     print(f"Blocking: {report.blocking_count}")
+    print(f"Advisory (judgment-class, non-blocking): {report.advisory_count}")
     print(f"Quorum: {'met' if report.quorum_met else 'NOT met'} "
           f"({report.quorum_received}/{report.quorum_requested})")
     print(f"Written to: {args.output}")
