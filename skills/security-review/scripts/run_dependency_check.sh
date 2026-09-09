@@ -56,6 +56,17 @@ message=""
 native_rc=0
 container_runtime=""
 
+_nvd_hint() {
+  # dependency-check is invoked with --noupdate, so it needs a pre-populated NVD
+  # database mounted at its data directory. With none, it exits 13 having logged
+  # "Autoupdate is disabled and the database does not exist" — a fully
+  # deterministic cause with a specific remedy, which is worth naming here so the
+  # aggregate gate's "NOT CHECKED" says *why* it was not checked.
+  if grep -q "database does not exist" /tmp/security-review-depcheck.log 2>/dev/null; then
+    printf '%s' " — no NVD database: dependency-check runs with --noupdate and none is mounted. Seed one (an NVD API key is required for a first download; see docs/dependencies.md) or the scanner cannot run."
+  fi
+}
+
 detect_container_runtime() {
   if command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
     echo "podman"
@@ -89,7 +100,7 @@ if command -v dependency-check >/dev/null 2>&1; then
       "$container_runtime" run --rm \
         -v "$repo":/src \
         -v "$out_dir":/report \
-        owasp/dependency-check:latest \
+        docker.io/owasp/dependency-check:latest \
         --scan /src \
         --project "$project" \
         --format JSON \
@@ -102,7 +113,7 @@ if command -v dependency-check >/dev/null 2>&1; then
         message="native dependency-check failed (exit $native_rc); $container_runtime fallback completed"
       else
         status="error"
-        message="native dependency-check failed (exit $native_rc); $container_runtime fallback failed (exit $runtime_rc)"
+        message="native dependency-check failed (exit $native_rc); $container_runtime fallback failed (exit $runtime_rc)$(_nvd_hint)"
       fi
     else
       status="error"
@@ -119,7 +130,7 @@ elif [[ -n "$container_runtime" ]]; then
     "$container_runtime" run --rm \
       -v "$repo":/src \
       -v "$out_dir":/report \
-      owasp/dependency-check:latest \
+      docker.io/owasp/dependency-check:latest \
       --scan /src \
       --project "$project" \
       --format JSON \
@@ -132,7 +143,7 @@ elif [[ -n "$container_runtime" ]]; then
       message="$container_runtime dependency-check completed"
     else
       status="error"
-      message="$container_runtime dependency-check failed (exit $rc)"
+      message="$container_runtime dependency-check failed (exit $rc)$(_nvd_hint)"
     fi
   fi
 else
