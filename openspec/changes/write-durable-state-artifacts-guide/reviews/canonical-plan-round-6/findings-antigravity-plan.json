@@ -1,0 +1,135 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The exact eight-stage rehydration sequence (1. Bootstrap locator, 2. Roadmap definition, 3. Roadmap execution state, 4. Change execution state, 5. Learning context, 6. Phase history, 7. Handoff context, 8. Rebuild projections) is consistently specified across design.md, spec.md, docs/guides/state-artifacts.md, and skills/supervise/SKILL.md, and verified by test_state_artifacts_guide.py.",
+      "resolution": "No action required; design, spec, guide, skill, and test suite are in full alignment.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 21,
+        "end": 28
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The six workflow skill documents explicitly use code-quoted repository-relative path references (`docs/guides/state-artifacts.md`) rather than relative markdown links, preserving link validity regardless of runtime mirror nesting depth under `.agents/skills/` or `.claude/skills/`.",
+      "resolution": "No action required; reference pattern ensures portability across mirror structures.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/autopilot/SKILL.md",
+      "line_range": {
+        "start": 17,
+        "end": 17
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The exact set of six workflow skills (autopilot, autopilot-roadmap, session-log, supervise, implement-feature, validate-feature) is consistently maintained across proposal.md, design.md, spec.md, work-packages.yaml, and test_state_artifacts_guide.py.",
+      "resolution": "No action required; scope is well-defined and consistently referenced across all plan documents.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 46,
+        "end": 46
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "First-run checkpoint absence for a never-started roadmap is explicitly distinguished from missing state after claimed progress (which is correctly classified as a fail-loud inconsistency/degradation) across design.md, spec.md, docs/guides/state-artifacts.md, and skills/supervise/SKILL.md.",
+      "resolution": "No action required; distinction prevents false degradation reports on new roadmaps while ensuring state integrity on active runs.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 31,
+        "end": 33
+      },
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "openspec/changes/write-durable-state-artifacts-guide/contracts/README.md correctly declares that no runtime or OpenAPI contract changes, satisfying work-packages.yaml schema requirements for contracts.openapi while providing validated context-impact rationale.",
+      "resolution": "No action required; contract stub and work-package context impact pass validation.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/contracts/README.md",
+      "line_range": {
+        "start": 1,
+        "end": 7
+      },
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 6,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Install mirror verification for .agents/skills/ and .claude/skills/ is properly specified in spec.md, implemented in test_state_artifacts_guide.py (test_changed_skill_mirrors_are_byte_identical), and validated in work-packages.yaml via `bash skills/install.sh --check`.",
+      "resolution": "No action required; mirror portability and byte identity are thoroughly guarded.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 126,
+        "end": 129
+      },
+      "axis": "observability",
+      "severity": "none"
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Stage 5 of the rehydration sequence leaves the bounded recent learning window runtime-configurable without hardcoding rigid integer limits, aligning design.md, spec.md, state-artifacts.md, and supervise/SKILL.md.",
+      "resolution": "No action required; flexibility for runtime configuration is preserved.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 21,
+        "end": 22
+      },
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The plan enforces documentation-only scope discipline using a single sequential work package (wp-state-artifacts-docs) with strict file write_allow lists and key locks, avoiding file overlap and concurrent write conflicts.",
+      "resolution": "No action required; package structure and scoping are optimal.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 27,
+        "end": 89
+      },
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

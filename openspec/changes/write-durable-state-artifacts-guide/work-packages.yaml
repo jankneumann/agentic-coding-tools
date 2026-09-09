@@ -3,12 +3,14 @@ schema_version: 1
 feature:
   id: write-durable-state-artifacts-guide
   title: "Write the canonical durable state-artifacts guide"
-  plan_revision: 1
+  plan_revision: 4
   created_by: autopilot-roadmap
   created_at: "2026-09-08T00:00:00Z"
 
 contracts:
   revision: 1
+  # The schema requires an OpenAPI slot even when no runtime contract applies.
+  # This README is a no-contract declaration, not an API contract.
   openapi:
     primary: "openspec/changes/write-durable-state-artifacts-guide/contracts/README.md"
     files:
@@ -27,9 +29,11 @@ packages:
     title: "Canonical state-artifact guide and drift guards"
     task_type: documentation
     description: |
-      Implement tasks 1.1-3.2 as one sequential documentation package: pin the
-      shared artifact inventory and rehydration order with RED tests, write the
-      guide, replace duplicated skill semantics with links, align supervise,
+      Implement tasks 1.1-3.3 as one sequential documentation package. Before
+      task 3.2, synchronize the feature branch with current `main` so the existing
+      `openspec_paths` helper and guard are available without package-owned writes.
+      Pin the shared artifact inventory and rehydration order with RED tests, write the
+      guide, replace duplicated skill semantics with references, align supervise,
       install mirrors, preserve the regenerated skill-workflow decision index,
       and run the complete validation set.
     role: documentation-engineer
@@ -89,7 +93,12 @@ packages:
       surfaces:
         - "documentation"
         - "decisions"
+        - "capabilities"
         - "semantic_code"
+      rationale:
+        apis:
+          reason: "The work-package schema requires contracts.openapi to point at the no-contract README stub; the file explicitly declares that no API contract or runtime interface changes."
+          approved_by: "supervisor ri-10 plan review, 2026-09-09"
     worktree:
       name: write-durable-state-artifacts-guide-main
       mode: isolated
@@ -99,9 +108,9 @@ packages:
     verification:
       tier_required: B
       steps:
-        - name: "State-artifact documentation contracts pass"
+        - name: "State-artifact and archive-stability contracts pass"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/state-artifacts -q"
+          command: "skills/.venv/bin/python -m pytest skills/tests/state-artifacts skills/tests/openspec_paths -q"
           cwd: "."
           expect_exit_code: 0
           evidence:
@@ -117,6 +126,24 @@ packages:
             artifacts: []
             result_keys:
               - "plan_and_scope_valid"
+        - name: "Install payload portability passes"
+          kind: command
+          command: "bash skills/install.sh --check"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "install_payload_valid"
+        - name: "No-contract context impact is rationalized"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_context_impact.py openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml --base main"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "context_impact_valid"
     metadata:
       loc_estimate: 420
       complexity: low
@@ -129,6 +156,8 @@ packages:
       result_keys:
         - "state_artifact_docs_green"
         - "plan_and_scope_valid"
+        - "install_payload_valid"
+        - "context_impact_valid"
       artifacts:
         - "docs/guides/state-artifacts.md"
         - "skills/tests/state-artifacts"

@@ -1,0 +1,55 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Task 3.2, design.md D4, work-packages.yaml description, and plan-findings.md Round 7 explicitly require synchronizing the feature branch with current main before task 3.2 so that existing helper skills/tests/_shared/openspec_paths.py (change_dir()) and guard skills/tests/openspec_paths/ are consumed without package-owned writes.",
+      "resolution": "No action required; prerequisite synchronization and consumption of existing infrastructure without package writes are explicitly scheduled prior to task 3.2.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Task 3.2 and design.md D4 explicitly mandate fixing the archive-unsafe test path in test_state_artifacts_guide.py via change_dir(ROOT, CHANGE_ID) from openspec_paths to preserve test stability after archival.",
+      "resolution": "No action required; archive stability repair via change_dir() is explicitly planned in task 3.2.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Task 3.3 and work-packages.yaml verification step 1 explicitly execute the OpenSpec path-stability test guard (skills/tests/openspec_paths) alongside --base main context-impact validation.",
+      "resolution": "No action required; path-stability guard execution and context-impact validation are covered in task 3.3 and Tier-B package verification.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "axis": "observability",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The base-relative context-impact surfaces (documentation, decisions, capabilities, semantic_code) accurately match the affected files, and the single-package scope (wp-state-artifacts-docs) remains coherent with explicit write_allow and lock constraints.",
+      "resolution": "No action required; declared context-impact surfaces and single-package decomposition are coherent and justified.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

@@ -9,9 +9,9 @@ Ri-07 established that durable files are authoritative and queue state is only a
 ## What Changes
 
 - Add `docs/guides/state-artifacts.md` as the canonical inventory for per-change `loop-state.json`, roadmap `checkpoint.json`, roadmap learnings, phase records, and coordinator/local handoff documents.
-- For each class, document its path, authority, holder, canonical writer, mutation boundary, consumers, and missing/stale behavior.
+- For each class, document its path, authority, holder, canonical writer, consumers, and missing/stale behavior; document shared writer-ordering rules separately.
 - Define one deterministic bootstrap and rehydration order that discovers work from the supervisor handoff, then verifies it against roadmap and per-change authoritative files before consuming advisory context.
-- Replace duplicated state-artifact semantics in the relevant skill documentation with short links to the guide while preserving phase-specific commands and gate rules.
+- Replace duplicated state-artifact semantics in the six relevant workflow skills with short repository-relative references to the guide while preserving phase-specific commands and gate rules.
 - Align `supervise` rehydration prose to the canonical order without changing its runtime or artifact formats.
 - Add repository tests that enforce guide coverage, links, and order.
 
@@ -24,11 +24,11 @@ Ri-07 established that durable files are authoritative and queue state is only a
 
 ## Approaches Considered
 
-### 1. Canonical guide with thin skill links — Recommended
+### 1. Canonical guide with thin skill references — Recommended
 
-Create one durable guide and keep only phase-specific actions in each skill. Enforce the guide's inventory and link set with focused tests.
+Create one durable guide and keep only phase-specific actions in each skill. Enforce the guide's inventory and reference set with focused tests.
 
-- Pros: one source of truth; small review surface; links remain useful after change archival; testable drift boundary.
+- Pros: one source of truth; small review surface; references remain stable after change archival; testable drift boundary.
 - Cons: readers follow one link for shared semantics.
 - Effort: S
 
@@ -56,7 +56,9 @@ Approach 1. The roadmap approval and acceptance outcomes already select a canoni
 
 - New guide: `docs/guides/state-artifacts.md`
 - Documentation index: `docs/guides/documentation.md`
-- Linked skill sources: `skills/autopilot/`, `skills/autopilot-roadmap/`, `skills/session-log/`, `skills/supervise/`, `skills/implement-feature/`, and `skills/validate-feature/`
+- Generated decision index: `docs/decisions/skill-workflow.md`
+- Referencing skill sources: `skills/autopilot/`, `skills/autopilot-roadmap/`, `skills/session-log/`, `skills/supervise/`, `skills/implement-feature/`, and `skills/validate-feature/`
+- Test collection configuration: `skills/pyproject.toml`
 - Runtime mirrors for changed skills under `.agents/skills/` and `.claude/skills/`
 - Focused tests under `skills/tests/state-artifacts/`
 - Modified capability: `skill-workflow`
@@ -65,7 +67,7 @@ Approach 1. The roadmap approval and acceptance outcomes already select a canoni
 
 - The guide covers all five artifact classes with exact paths, holders, writers, authority, and missing/stale behavior.
 - The guide defines an unambiguous supervisor bootstrap plus canonical rehydration sequence.
-- Relevant skill docs link to the guide rather than restating shared ownership semantics.
+- The six relevant workflow skill docs reference the guide rather than restating shared ownership semantics.
 - The supervise rehydration section follows the guide's order.
 - Focused tests, mirror checks, strict OpenSpec validation, and context-drift validation pass.
 

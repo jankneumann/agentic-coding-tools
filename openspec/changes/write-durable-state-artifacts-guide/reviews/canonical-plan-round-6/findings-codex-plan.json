@@ -1,0 +1,51 @@
+{
+  "review_type": "plan",
+  "target": "write-durable-state-artifacts-guide",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The revised proposal, design, delta spec, and tasks consistently make all eight named rehydration stages normative, including projection rebuild after authoritative/advisory reconciliation.",
+      "resolution": "No action; retain the exact ordered recovery contract and structural coverage.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The plan now consistently requires a repository-relative guide reference in exactly the six named workflow skill sources and no longer overstates that requirement as a clickable Markdown link.",
+      "resolution": "No action; preserve the portable reference wording and bounded source set.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/proposal.md",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The work package explicitly covers strict OpenSpec validation, package validation, the rationalized no-contract context-impact case, install-payload portability, focused state-artifact tests, and diff checks.",
+      "resolution": "No action; the verification matrix now exercises the plan's material drift boundaries.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The bounded recent-learning window remains runtime-configurable, avoiding a new normative dependency on the current default while preserving deterministic ordering and boundedness.",
+      "resolution": "No action; do not freeze the current recency_window default into this documentation contract.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

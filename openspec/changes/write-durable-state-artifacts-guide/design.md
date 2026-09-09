@@ -8,7 +8,7 @@ State is intentionally split by altitude and purpose. The split is safe only whe
 
 ### D1 — One normative inventory
 
-`docs/guides/state-artifacts.md` owns the shared table of artifact path, scope/holder, writer, authority, consumers, and missing/stale behavior. Skill docs retain only phase-local procedures and link to the guide for shared semantics.
+`docs/guides/state-artifacts.md` owns the shared table of artifact path, scope/holder, writer, authority, consumers, and missing/stale behavior. The six workflow skill sources named in the proposal retain only phase-local procedures and carry the portable repository-relative guide reference for shared semantics.
 
 Alternative rejected: keeping full duplicated tables in each skill, because copies have independent release cadence and no reliable conflict signal.
 
@@ -20,13 +20,13 @@ Alternative rejected: treating the newest timestamp across all artifacts as trut
 
 ### D3 — Bootstrap and verification are separate
 
-A fresh supervisor session may use the newest supervisor handoff or tracked mirror as a bootstrap locator. It then verifies the named roadmap against `checkpoint.json`, verifies every active change against its `loop-state.json`, loads relevant learnings, and finally reads phase records/handoffs for rationale and next-step context. Missing authoritative state is reported as degradation or inconsistency; it is never synthesized from advisory data.
+A fresh supervisor session may use the newest supervisor handoff or tracked mirror as a bootstrap locator. It then verifies the named roadmap definition and `checkpoint.json`, verifies every active change against its `loop-state.json`, loads relevant learnings, reads phase records/handoffs for rationale and next-step context, and rebuilds projections from canonical state. The exact eight stages named in the Rehydration Algorithm below are normative. Missing authoritative state after claimed progress is reported as degradation or inconsistency; first-run absence before any progress claim is valid and is never synthesized from advisory data.
 
 Alternative rejected: loading handoff content last without a bootstrap step, because a fresh session may not otherwise know which roadmaps or changes are active.
 
 ### D4 — Documentation drift is tested structurally
 
-A focused pytest suite will parse the guide and relevant skill sources to assert the five required classes, required table fields, canonical order markers, guide links, and supervise alignment. It will avoid pinning full prose so editorial improvements remain possible.
+A focused pytest suite will parse the guide and six relevant skill sources to assert the five required classes, required table fields, canonical order markers, guide references, and supervise alignment. It will avoid pinning full prose so editorial improvements remain possible. Any lookup of an OpenSpec change artifact SHALL resolve through `change_dir()` from `openspec_paths` so the default-CI suite remains valid after archival. The helper and its guard already exist on current `main`; implementation SHALL synchronize the feature branch before consuming them and SHALL NOT create package-local copies.
 
 Alternative rejected: exact-file snapshots, because they make harmless wording edits expensive and test typography instead of ownership semantics.
 
@@ -37,28 +37,30 @@ This change documents an existing architecture rather than making a new long-liv
 ## Rehydration Algorithm
 
 1. Bootstrap locator: read the newest valid supervisor handoff or tracked supervisor mirror only to identify candidate active roadmaps and changes.
-2. Roadmap definition: load and validate each named `roadmap.yaml` plus the cycle ledger.
-3. Roadmap execution state: validate each candidate roadmap's `checkpoint.json`; a missing checkpoint is valid only for a never-started roadmap.
+2. Roadmap definition: load and validate each named `roadmap.yaml`.
+3. Roadmap execution state: validate each candidate roadmap's `checkpoint.json`; a missing checkpoint is valid only when no locator or other advisory record claims prior progress for that roadmap.
 4. Change execution state: validate every claimed active change's `loop-state.json`; missing or inconsistent state is explicit degradation.
-5. Learning context: load direct-dependency learnings plus the bounded recent window.
+5. Learning context: load direct-dependency learnings plus the bounded recent window selected by roadmap runtime.
 6. Phase history: read `session-log.md`/phase records for decisions and evidence.
 7. Handoff context: merge bounded next actions only when consistent with steps 2–4.
 8. Rebuild projections: derive coordinator and queue views from canonical state; never reverse the edge.
 
+`supervise` may additionally validate `openspec/supervise/cycle-ledger.json` as phase-local operational state. The cycle ledger is not part of the shared eight-stage authority contract or the five-class inventory.
+
 ## Scope and Concurrency
 
-The guide, skill links, mirrors, and one test module form a single sequential documentation package because multiple agents editing shared skill files would create avoidable conflicts. The package has an explicit allowlist; repository-wide write globs are forbidden.
+The guide, skill references, mirrors, and one test module form a single sequential documentation package because multiple agents editing shared skill files would create avoidable conflicts. The package has an explicit allowlist; repository-wide write globs are forbidden.
 
 ## Risks
 
-- **Over-linking removes necessary commands.** Mitigation: replace only shared ownership/replay explanations; keep phase-specific mutation and gate commands in place.
-- **The guide becomes another stale copy.** Mitigation: structural tests require links and canonical class/order markers.
+- **Over-centralizing removes necessary commands.** Mitigation: replace only shared ownership/replay explanations; keep phase-specific mutation and gate commands in place.
+- **The guide becomes another stale copy.** Mitigation: structural tests require guide references and canonical class/order markers.
 - **Bootstrap language elevates handoffs to authority.** Mitigation: distinguish locator use from verification and require fail-loud handling when canonical files disagree or are absent.
-- **Runtime mirrors drift.** Mitigation: run `skills/install.sh` and byte-compare every changed skill source with `.agents` and `.claude` mirrors as a pre-push local gate. Fresh CI checkouts intentionally lack ignored runtime mirrors, so the six mirror cases skip there while `install.sh --check` validates payload portability.
+- **Runtime mirrors drift.** Mitigation: run `skills/install.sh` and byte-compare every changed skill source with `.agents` and `.claude` mirrors as a pre-push local gate. Fresh CI checkouts intentionally lack ignored runtime mirrors, so the six mirror cases skip there while `install.sh --check` validates payload portability and the non-escaping repository-relative reference form.
 
 ## Validation Strategy
 
-- RED/GREEN focused structural tests for inventory, links, and rehydration order.
+- RED/GREEN focused structural tests for inventory, references, archive-safe change lookup, and rehydration order.
 - Strict change and repository OpenSpec validation.
 - Work-package schema, DAG, overlap, and scope checks.
 - Changed-skill mirror byte comparisons.

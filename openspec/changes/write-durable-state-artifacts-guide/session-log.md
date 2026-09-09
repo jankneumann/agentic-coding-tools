@@ -63,3 +63,35 @@ Added the canonical durable state-artifacts guide, referenced it from six workfl
 
 ### Context
 Applied the confirmed round-three plan-review correction and recorded the operator's explicit authorization boundaries. The canonical state remains the source of execution truth; external review destinations receive only bounded repository diffs and context, never secrets, credentials, or unrelated private data.
+
+---
+
+## Phase: Plan Review 8 (2026-09-09)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Keep the exact eight-stage shared rehydration contract** — Each stage owns a distinct recovery boundary; the supervise cycle ledger remains phase-local.
+2. **Consume current-main OpenSpec path infrastructure** — Task 3.2 must synchronize the branch and use change_dir() plus the existing guard without expanding package-owned writes.
+
+### Completed Work
+- Revised proposal, design, tasks, delta spec, and work package through plan revision 4.
+- Passed strict OpenSpec, work-package, full base-relative context-impact, install-payload, focused test, and diff checks applicable to the planning phase.
+- Reached round-8 consensus with three schema-valid reviewers, zero disagreements, and zero blockers.
+
+### In Progress
+- Task 3.2: synchronize current main, repair the archive-unsafe test lookup, and normalize residual reference wording.
+- Task 3.3: run the complete post-implementation validation matrix.
+
+### Next Steps
+- Begin IMPLEMENT by synchronizing the feature branch with current main.
+- Complete tasks 3.2 and 3.3 before validation or PR submission.
+
+### Relevant Files
+- `openspec/changes/write-durable-state-artifacts-guide/tasks.md` — Approved remaining implementation work.
+- `openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml` — Plan revision 4 package scope and verification.
+- `openspec/changes/write-durable-state-artifacts-guide/reviews/canonical-plan-round-8/consensus.json` — Zero-blocker convergence evidence.
+- `openspec/changes/write-durable-state-artifacts-guide/loop-state.json` — Canonical phase state now at IMPLEMENT.
+
+### Context
+Fresh supervisor ri-10 planning cycle converged after evidence-backed reconciliation of archive stability, context-impact coverage, shared rehydration semantics, and package prerequisites.
