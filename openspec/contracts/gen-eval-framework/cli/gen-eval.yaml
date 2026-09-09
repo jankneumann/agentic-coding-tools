@@ -200,6 +200,7 @@ commands:
         traceability:
           requirements:
             - gen-eval-framework.multi-source-scenario-bootstrap
+            - gen-eval-framework.openspec-seeded-scenario-generation
 
 exit_codes:
   - code: 0
