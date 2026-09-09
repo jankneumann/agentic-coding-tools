@@ -104,7 +104,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Where to emit the generated .spec.ts files. "
-        "Defaults to skills/playwright-validator/test-results/generated/.",
+        "Defaults to skills/playwright-validator/.generated/<change-id>/.",
     )
     parser.add_argument(
         "--dry-run",
@@ -257,12 +257,20 @@ def main(argv: list[str] | None = None) -> int:
     output_dir = args.output_dir or (
         repo_root / "openspec" / "changes" / args.change_id
     )
+    # NOT `test-results/`. That name is Playwright's own default `outputDir`,
+    # and Playwright *clears* outputDir at the start of every run — so emitting
+    # the generated .spec.ts files there means Playwright deletes its own input
+    # and then reports success having run zero tests. Verified 2026-09-08 during
+    # task 8.1: the run exited 0 and emitted an empty findings file, which is
+    # indistinguishable from a genuine pass. The collision only appears once a
+    # package.json exists above the test directory, which is exactly what a real
+    # deployment needs for `@playwright/test` to resolve, so it stayed latent
+    # for as long as the skill was only ever dry-run.
     test_dir = args.test_dir or (
         repo_root
         / "skills"
         / "playwright-validator"
-        / "test-results"
-        / "generated"
+        / ".generated"
         / args.change_id
     )
 
