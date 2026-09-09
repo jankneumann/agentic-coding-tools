@@ -8,6 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from openspec_paths import change_dir, repo_root_from
 
 from descriptor import (
     DescriptorError,
@@ -18,7 +19,7 @@ from descriptor import (
 )
 
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = repo_root_from(__file__, 3)
 #: Relocated from evaluation/gen_eval/descriptors/sample-frontend.yaml when the
 #: gen-eval fixtures moved under packages/gen-eval; content is byte-identical to
 #: the file e087fd70 added. The constants here were left behind by that move and
@@ -27,10 +28,7 @@ SAMPLE_DESCRIPTOR = (
     REPO_ROOT / "packages" / "gen-eval" / "tests" / "fixtures" / "sample-descriptor.yaml"
 )
 SCHEMA_PATH = (
-    REPO_ROOT
-    / "openspec"
-    / "changes"
-    / "factory-missions-architecture-alignment"
+    change_dir(REPO_ROOT, "factory-missions-architecture-alignment")
     / "contracts"
     / "frontend-descriptor.schema.json"
 )

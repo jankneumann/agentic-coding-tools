@@ -18,9 +18,23 @@ The fix is to resolve at read time — see ``openspec_paths.change_dir`` and
 ``docs/guides/openspec-path-stability.md``. This guard is what makes that a rule
 rather than a habit.
 
+Two spellings are matched, because the first version of this guard checked only
+the first one and therefore passed while ``packages/code-search`` — the file this
+docstring already cited as the six-week-hidden case — was still red:
+
+1. a single string constant containing ``openspec/changes/<id>``;
+2. a ``pathlib`` join whose segments spell the same thing one constant at a
+   time, ``root / "openspec" / "changes" / "<id>"``. No single constant here
+   contains the joined substring, so spelling-based matching cannot see it.
+
+Matching the *shape* rather than one spelling of it is the point: a guard
+derived from a single instance of a bug tends to encode that instance.
+
 Deliberately matched against *real* change ids read off the filesystem, so the
 synthetic ids tests use as fixtures (``my-change``, ``foo``,
-``add-health-check-endpoint``) are not flagged.
+``add-health-check-endpoint``) are not flagged. A test that needs a change
+directory inside a ``tmp_path`` fixture repo should therefore name it with a
+synthetic id, not borrow a real one.
 """
 
 from __future__ import annotations
@@ -117,11 +131,51 @@ def _docstring_nodes(tree: ast.AST) -> set[int]:
     return out
 
 
-def _offending_literals(path: Path, change_ids: frozenset[str]) -> list[str]:
-    try:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-    except SyntaxError:  # pragma: no cover - a broken file is another test's problem
-        return []
+def _join_spine(node: ast.AST) -> list[str] | None:
+    """String constants down the left spine of a ``/`` chain, outermost last.
+
+    ``a / "openspec" / "changes"`` yields ``["openspec", "changes"]``. Returns
+    ``None`` as soon as a non-``/`` operator appears, so unrelated division is
+    not mistaken for a path join. The non-constant head of the chain (``a``,
+    typically a ``Path(...)`` call or a name) simply terminates the walk — what
+    it evaluates to does not matter, only that the literal tail spells
+    ``openspec/changes/<id>``.
+    """
+    segments: list[str] = []
+    while isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        right = node.right
+        if not (isinstance(right, ast.Constant) and isinstance(right.value, str)):
+            return None
+        segments.append(right.value)
+        node = node.left
+    segments.reverse()
+    return segments
+
+
+def _offending_joins(path: Path, tree: ast.AST, change_ids: frozenset[str]) -> list[str]:
+    """Change ids reached by a segment-at-a-time ``pathlib`` join."""
+    hits: list[str] = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div)):
+            continue
+        right = node.right
+        if not (isinstance(right, ast.Constant) and isinstance(right.value, str)):
+            continue
+        if right.value not in change_ids:
+            continue
+        segments = _join_spine(node)
+        if segments is None:
+            continue
+        # segments[-1] is the change id itself; the two before it must spell the
+        # changes directory. `"openspec/changes"` as one constant counts too.
+        prefix = "/".join(segments[:-1])
+        if prefix.endswith("openspec/changes"):
+            hits.append(f'line {right.lineno}: .../{prefix}/{right.value}')
+    return hits
+
+
+def _offending_literals(tree: ast.AST, change_ids: frozenset[str]) -> list[str]:
+    """Change ids pinned inside a single string constant."""
     skip = _docstring_nodes(tree)
     hits: list[str] = []
     for node in ast.walk(tree):
@@ -140,9 +194,20 @@ def _offending_literals(path: Path, change_ids: frozenset[str]) -> list[str]:
 _CHANGE_IDS = _real_change_ids()
 
 
+def _offences(path: Path, change_ids: frozenset[str]) -> list[str]:
+    """Both spellings, from one parse of the file."""
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except SyntaxError:  # pragma: no cover - a broken file is another test's problem
+        return []
+    return _offending_literals(tree, change_ids) + _offending_joins(
+        path, tree, change_ids
+    )
+
+
 @pytest.mark.parametrize("path", _test_files(), ids=lambda p: str(p.name))
 def test_no_test_pins_a_real_change_directory(path: Path) -> None:
-    hits = _offending_literals(path, _CHANGE_IDS)
+    hits = _offences(path, _CHANGE_IDS)
     assert not hits, (
         f"{path.relative_to(REPO_ROOT)} pins a real OpenSpec change directory:\n  "
         + "\n  ".join(hits)
@@ -161,11 +226,52 @@ def test_the_guard_actually_scans_something() -> None:
     assert _CHANGE_IDS, "no change ids discovered; CHANGES path is wrong"
 
 
+def test_the_join_detector_actually_detects() -> None:
+    """A widening that matches nothing would pass as vacuously as a zero scan.
+
+    The first version of this guard matched only single-constant literals, so it
+    reported a clean tree while `packages/code-search` was red. This asserts the
+    join spelling is really caught, using an id read off the filesystem so the
+    test does not rot when a hardcoded change is archived or renamed.
+    """
+    real_id = sorted(_CHANGE_IDS)[0]
+    caught = ast.parse(
+        f'P = root / "openspec" / "changes" / "{real_id}" / "contracts"\n'
+    )
+    assert _offending_joins(Path("x.py"), caught, _CHANGE_IDS), (
+        "the segment-joined spelling is no longer detected"
+    )
+
+    # Same shape via one pre-joined constant, which is also a real spelling.
+    packed = ast.parse(f'P = root / "openspec/changes" / "{real_id}"\n')
+    assert _offending_joins(Path("x.py"), packed, _CHANGE_IDS)
+
+
+def test_the_join_detector_leaves_legitimate_joins_alone() -> None:
+    """Two shapes that look similar and must not be flagged.
+
+    A directory that merely shares a name with a change (skills are routinely
+    named after the change that introduced them), and a synthetic change
+    directory built inside a `tmp_path` fixture repo — the latter only stays
+    unflagged because fixtures use synthetic ids, which is why the module
+    docstring asks for them.
+    """
+    real_id = sorted(_CHANGE_IDS)[0]
+    sibling = ast.parse(f'SKILL_DIR = here.parents[2] / "{real_id}"\n')
+    assert not _offending_joins(Path("x.py"), sibling, _CHANGE_IDS)
+
+    synthetic = ast.parse(
+        'D = tmp / "openspec" / "changes" / "a-change-that-does-not-exist"\n'
+    )
+    assert not _offending_joins(Path("x.py"), synthetic, _CHANGE_IDS)
+
+
 def test_shared_helper_copies_are_byte_identical() -> None:
     """The helper is mirrored per test tree because the venvs are separate."""
     copies = [
         REPO_ROOT / "skills" / "tests" / "_shared" / "openspec_paths.py",
         REPO_ROOT / "agent-coordinator" / "tests" / "_shared" / "openspec_paths.py",
+        REPO_ROOT / "packages" / "code-search" / "tests" / "_shared" / "openspec_paths.py",
     ]
     missing = [p for p in copies if not p.is_file()]
     assert not missing, f"missing helper copies: {missing}"

@@ -12,9 +12,11 @@ update, so nothing has to run at archive time and nothing can be bypassed by a
 direct `openspec archive` invocation.
 
 This module is mirrored at `agent-coordinator/tests/_shared/openspec_paths.py`
-because the two test trees have separate virtualenvs and no shared importable
-package. `skills/tests/test_openspec_path_stability.py` asserts the copies stay
-byte-identical.
+and `packages/code-search/tests/_shared/openspec_paths.py` because those test
+trees have separate virtualenvs and no shared importable package. Each tree puts
+this directory on `pythonpath` via its own `[tool.pytest.ini_options]`.
+`skills/tests/openspec_paths/test_change_path_stability.py` asserts the copies
+stay byte-identical.
 """
 
 from __future__ import annotations

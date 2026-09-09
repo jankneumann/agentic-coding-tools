@@ -16,14 +16,17 @@ from __future__ import annotations
 
 import ntpath
 from pathlib import PurePosixPath
-from typing import Literal
+from typing import Any, Literal
 
 # Reuse gen-eval's assertion vocabulary. ExpectBlock powers ``command`` goal
 # gates (exit_code / error_contains / not_empty); SideEffectStep/SideEffectsBlock
 # establish the verify-vs-prohibit split we mirror below for workspace state.
-from gen_eval.models import ExpectBlock  # noqa: F401  (re-exported)
+from gen_eval.models import ExpectBlock as ExpectBlock  # explicit re-export
 from pydantic import BaseModel, Field, model_validator
 
+#: A single normalized harness transcript event. Adapters emit free-form
+#: JSON objects, so the value type stays open; only the key type is known.
+TranscriptEvent = dict[str, Any]
 GoalGateCheck = Literal["file", "branch", "commit", "pr", "artifact", "command"]
 GateStatus = Literal["pass", "fail", "error", "skip"]
 GateMode = Literal["verify", "prohibit"]
@@ -237,7 +240,7 @@ class RunResult(BaseModel):
     scenario_id: str
     vendor: str
     workspace: WorkspaceState
-    transcript_events: list[dict] = Field(default_factory=list)
+    transcript_events: list[TranscriptEvent] = Field(default_factory=list)
     transcript_path: str | None = None
     exit_code: int = 0
     error: str | None = None

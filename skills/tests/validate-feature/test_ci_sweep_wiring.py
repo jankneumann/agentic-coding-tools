@@ -365,12 +365,12 @@ def test_archive_pull_request_derives_no_change_id(tmp_path: Path) -> None:
     half should yield a change id, so this SKIPs rather than deriving
     `archive` or the id being archived."""
     repo = _init_repo(tmp_path)
-    change_dir = repo / "openspec" / "changes" / "derive-descriptors-from-contracts"
+    change_dir = repo / "openspec" / "changes" / "archived-change"
     change_dir.mkdir(parents=True)
     (change_dir / "spec.md").write_text("# a change\n")
     pre_archive_sha = _commit_all(repo, "add change")
 
-    archive_dir = repo / "openspec" / "changes" / "archive" / "2026-08-15-derive-descriptors-from-contracts"
+    archive_dir = repo / "openspec" / "changes" / "archive" / "2026-08-15-archived-change"
     archive_dir.mkdir(parents=True)
     (archive_dir / "spec.md").write_text("# a change\n")
     _git(repo, "rm", "-q", "-r", str(change_dir.relative_to(repo)))
@@ -381,7 +381,7 @@ def test_archive_pull_request_derives_no_change_id(tmp_path: Path) -> None:
         {
             "EVENT_NAME": "pull_request",
             "PR_BASE_SHA": pre_archive_sha,
-            "PR_HEAD_REF": "openspec/archive-derive-descriptors-from-contracts",
+            "PR_HEAD_REF": "openspec/archive-archived-change",
         },
     )
     assert result.returncode == 0, result.stderr

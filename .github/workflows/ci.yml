@@ -735,6 +735,88 @@ jobs:
           path: packages/gen-eval/evaluation/.reports/
           if-no-files-found: ignore
 
+  # Package-level unit tests for packages/code-search/.
+  #
+  # Added 2026-09-08. Until then this suite ran nowhere: CI covered two of the
+  # four `packages/` trees, so when `complete-incremental-semantic-indexing` was
+  # archived on 2026-07-25 and moved its contract schemas under
+  # `openspec/changes/archive/`, 14 assertions in `test_incremental_contracts.py`
+  # went red and stayed red for six weeks. Nothing was wrong with the code; there
+  # was simply no observer.
+  #
+  # Installs `--extra dev` only, NOT `--all-extras`. The `index` extra pulls
+  # cocoindex + sentence-transformers (and thus torch), which is minutes of
+  # download for three tests. Those three carry `@pytest.mark.requires_embedder`
+  # and the suite's own conftest skips them when cocoindex is unimportable, so
+  # the omission is visible in the run's skip count rather than silent.
+  #
+  # No lint step: this package has no ruff configuration and 78 default-profile
+  # findings. Adopting a style here is its own change, not a precondition for
+  # running the tests that already exist.
+  code-search-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/code-search
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install code-search with dev extras
+        run: uv sync --extra dev
+
+      - name: Run pytest
+        run: uv run pytest
+
+  # Package-level unit tests, lint and types for packages/agent-scenarios/.
+  #
+  # Added 2026-09-08 alongside code-search-tests, for the same reason: this tree
+  # had a full suite and no CI job. Its tests were green, but `strict = true` in
+  # its own pyproject had never been enforced and had accumulated 12 errors, and
+  # its uv.lock had drifted from packages/gen-eval's dev group.
+  #
+  # mypy blocks here rather than carrying the `continue-on-error: true` that
+  # gen-eval-tests uses: the package is clean under --strict as of this commit,
+  # so a non-blocking step would only invite it to rot again.
+  agent-scenarios-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/agent-scenarios
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install agent-scenarios with all extras
+        # gen-eval is a path dependency; --locked asserts uv.lock is in sync
+        # with both pyproject files rather than silently re-resolving.
+        run: uv sync --all-extras --locked
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Type-check (mypy)
+        run: uv run mypy src/
+
+      - name: Run pytest
+        # The `gx10` marker covers tests needing live vendor CLIs; they are not
+        # available on a hosted runner and deselect here rather than erroring.
+        run: uv run pytest -m "not gx10"
+
   # Full-capability requirement-traceability sweep (task 5.7, design D12).
   #
   # ONE job on all three declared events (`push` to main, `pull_request`,

@@ -51,10 +51,21 @@ def _load_schema() -> dict[str, Any] | None:
         candidate = ancestor / "openspec" / "schemas" / "review-findings.schema.json"
         if candidate.is_file():
             try:
-                return json.loads(candidate.read_text(encoding="utf-8"))
+                loaded = json.loads(candidate.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError) as exc:
                 logger.warning("failed to load review-findings schema: %s", exc)
                 return None
+            # `json.loads` is typed `Any`; a schema file that parsed to a list or
+            # a string would otherwise flow on as if it were a schema and fail
+            # much later, inside validation.
+            if not isinstance(loaded, dict):
+                logger.warning(
+                    "review-findings schema is %s, not an object: %s",
+                    type(loaded).__name__,
+                    candidate,
+                )
+                return None
+            return loaded
     return None
 
 
