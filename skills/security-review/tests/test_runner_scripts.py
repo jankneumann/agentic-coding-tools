@@ -282,6 +282,89 @@ exit 1
     assert "podman" in payload["message"]
 
 
+def _fake_zap_runtime(tmp_path: Path, exit_code: int) -> dict[str, str]:
+    """A podman stand-in whose `run` exits with `exit_code`, recording its argv."""
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir(exist_ok=True)
+    _write_executable(fake_bin / "docker", "#!/usr/bin/env bash\nexit 1\n")
+    _write_executable(
+        fake_bin / "podman",
+        f"""#!/usr/bin/env bash
+if [[ "${{1:-}}" == "info" ]]; then
+  exit 0
+fi
+printf '%s\\n' "$@" > "{tmp_path}/podman-argv"
+exit {exit_code}
+""",
+    )
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
+    return env
+
+
+def _run_zap(tmp_path: Path, env: dict[str, str], target: str) -> dict:
+    out_dir = tmp_path / "out"
+    out_dir.mkdir(exist_ok=True)
+    result = subprocess.run(
+        [
+            str(SCRIPTS_DIR / "run_zap_scan.sh"),
+            "--target", target,
+            "--out", str(out_dir),
+            "--mode", "baseline",
+        ],
+        capture_output=True, text=True, env=env, check=False,
+    )
+    return json.loads(result.stdout)
+
+
+def test_zap_findings_are_not_reported_as_a_scanner_failure(tmp_path: Path) -> None:
+    """zap-baseline exits 1 on FAIL alerts and 2 on WARN alerts.
+
+    Mapping those to `status: error` made the aggregate gate report the scanner
+    as NOT CHECKED, which `--allow-degraded-pass` then turns into a PASS — so a
+    scan that found real vulnerabilities surfaced as a clean degraded pass with
+    zero findings. Only exit 3 means the scan did not run.
+    """
+    for rc in (0, 1, 2):
+        payload = _run_zap(
+            tmp_path, _fake_zap_runtime(tmp_path, rc), "http://example.test"
+        )
+        assert payload["status"] == "ok", f"exit {rc} must count as a completed scan"
+
+    payload = _run_zap(tmp_path, _fake_zap_runtime(tmp_path, 3), "http://example.test")
+    assert payload["status"] == "error", "exit 3 means the scan never ran"
+    assert "failed to run" in payload["message"]
+
+
+def test_zap_gets_host_networking_only_for_loopback_targets(tmp_path: Path) -> None:
+    """A bridged container resolves `localhost` to itself, so a loopback target
+    is unreachable without the host network namespace — measured as HTTP 000 via
+    host-gateway versus 200 with --network=host. A remote target keeps its own
+    namespace: sharing the host's loopback is the cost of scanning it, not a
+    default.
+    """
+    argv_file = tmp_path / "podman-argv"
+
+    for target in ("http://localhost:8080", "http://127.0.0.1:8080/x", "https://[::1]:9"):
+        _run_zap(tmp_path, _fake_zap_runtime(tmp_path, 0), target)
+        argv = argv_file.read_text(encoding="utf-8")
+        assert "--network=host" in argv, f"{target} is loopback and needs host networking"
+
+    _run_zap(tmp_path, _fake_zap_runtime(tmp_path, 0), "https://scan.example.com/app")
+    argv = argv_file.read_text(encoding="utf-8")
+    assert "--network=host" not in argv, "a remote target must stay isolated"
+
+
+def test_zap_keeps_the_invoking_uid_under_podman(tmp_path: Path) -> None:
+    """Rootless podman maps the image's `zap` user to a subuid that cannot write
+    the bind mount, so the report job died with AccessDeniedException and left
+    nothing to parse. Docker's default mapping already writes as the host user.
+    """
+    _run_zap(tmp_path, _fake_zap_runtime(tmp_path, 0), "http://example.test")
+    argv = (tmp_path / "podman-argv").read_text(encoding="utf-8")
+    assert "--userns=keep-id" in argv
+
+
 def test_main_dry_run_does_not_overwrite_change_artifact(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
