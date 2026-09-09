@@ -19,10 +19,10 @@ import jsonschema
 import yaml
 
 
-_DEFAULT_SCHEMA_REL = (
-    "openspec/changes/factory-missions-architecture-alignment/contracts/"
-    "frontend-descriptor.schema.json"
-)
+#: The change whose contracts directory owns the frontend-descriptor schema.
+#: Resolved at read time rather than stored as a path — see `_change_dir`.
+_SCHEMA_CHANGE_ID = "factory-missions-architecture-alignment"
+_SCHEMA_FILENAME = "frontend-descriptor.schema.json"
 
 
 class DescriptorError(ValueError):
@@ -42,15 +42,40 @@ def _repo_root() -> Path:
     return here.parent
 
 
+def _change_dir(repo_root: Path, change_id: str) -> Path:
+    """Locate a change's directory whether it is active or archived.
+
+    Mirrors ``skills/tests/_shared/openspec_paths.py``. Inlined because this is a
+    standalone skill script run as ``python3 scripts/cli.py``, with no pytest
+    ``pythonpath`` to reach the shared helper; see
+    ``docs/guides/openspec-path-stability.md``.
+
+    ``openspec archive`` moves ``openspec/changes/<id>/`` to
+    ``openspec/changes/archive/<YYYY-MM-DD>-<id>/``. Storing the active path made
+    this module fail on the day its change *landed* rather than the day its
+    schema *drifted* — which is exactly what happened when
+    factory-missions-architecture-alignment was archived on 2026-09-09.
+    """
+    changes = repo_root / "openspec" / "changes"
+    active = changes / change_id
+    if active.is_dir():
+        return active
+    archived = sorted(changes.glob(f"archive/*-{change_id}"))
+    return archived[-1] if archived else active
+
+
 def load_schema(schema_path: Path | None = None) -> dict[str, Any]:
     """Load the frontend-descriptor JSON schema.
 
     Args:
-        schema_path: Optional override path to a schema file. Defaults to
-            ``<repo-root>/openspec/changes/factory-missions-architecture-alignment/contracts/frontend-descriptor.schema.json``.
+        schema_path: Optional override path to a schema file. Defaults to the
+            ``contracts/`` directory of the ``factory-missions-architecture-alignment``
+            change, resolved whether that change is active or archived.
     """
     if schema_path is None:
-        schema_path = _repo_root() / _DEFAULT_SCHEMA_REL
+        schema_path = (
+            _change_dir(_repo_root(), _SCHEMA_CHANGE_ID) / "contracts" / _SCHEMA_FILENAME
+        )
     return json.loads(Path(schema_path).read_text(encoding="utf-8"))
 
 

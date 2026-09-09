@@ -5,6 +5,7 @@ Covers task 7.1: contract test for frontend-descriptor.schema.json.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -118,3 +119,49 @@ def test_bind_address_pattern_rejects_non_ip(tmp_path: Path):
     )
     with pytest.raises(DescriptorError):
         load_descriptor(bad)
+
+
+def test_load_schema_survives_its_change_being_archived(tmp_path):
+    """`descriptor.load_schema()` must resolve the schema at read time.
+
+    The stability guard scans `test_*.py` only, so this module — production code
+    in a skill's scripts/ directory — was never covered by it, and stored the
+    active `openspec/changes/<id>/contracts/` path as a constant. Archiving
+    factory-missions-architecture-alignment on 2026-09-09 moved that directory
+    and broke six tests in this file at once. The test constant had already been
+    fixed; the module had not.
+
+    Builds both layouts under a fake repo root rather than mocking, so it asserts
+    the resolution rule itself.
+    """
+    import descriptor
+
+    schema = {"type": "object"}
+    change_id = descriptor._SCHEMA_CHANGE_ID
+
+    for relative in (
+        Path("openspec/changes") / change_id,
+        Path("openspec/changes/archive") / f"2026-09-09-{change_id}",
+    ):
+        root = tmp_path / relative.parts[-1].replace(".", "_")
+        target = root / relative / "contracts"
+        target.mkdir(parents=True)
+        (target / descriptor._SCHEMA_FILENAME).write_text(
+            json.dumps(schema), encoding="utf-8"
+        )
+        resolved = (
+            descriptor._change_dir(root, change_id)
+            / "contracts"
+            / descriptor._SCHEMA_FILENAME
+        )
+        assert resolved.is_file(), f"unresolved for layout {relative}"
+
+    # And the active spelling wins when both exist, matching the shared helper.
+    both = tmp_path / "both"
+    for relative in (
+        Path("openspec/changes") / change_id,
+        Path("openspec/changes/archive") / f"2026-09-09-{change_id}",
+    ):
+        (both / relative).mkdir(parents=True)
+    assert descriptor._change_dir(both, change_id).name == change_id
+

@@ -249,3 +249,29 @@ All 7 feature work packages landed across 6 commits: wp-contracts, WP1, WP2, WP3
 ### Context
 Iteration 1: 5-agent parallel review surfaced 24 findings (security, bugs, test-quality dimensions). Fixed 7 above-threshold items: symlink-escape protection in openspec_seed, atomic write + producer-side schema validation in both findings emitters, malformed-${VAR} fail-fast in auth_flow, change-id validation at _dispatch_state_path entry. Added 11 new tests (vendor-exhaustion-per-role × 2, dispatch-state-path-validation × 4, malformed-env-var × 4, missing-change degradation log assertion strengthened). Deferred 5 lower-ROI polish items to iteration 2 (header regex broadening, bind heuristic refinement, duplicate regex constant, orphan-scenario semantics, findings-source error consistency). All 666 tests pass; openspec validate --strict green.
 
+---
+
+## Phase: Cleanup (2026-09-09)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Archive via a pull request rather than pushing the cleanup to main** — The skill's post-merge path lands cleanup directly on main. Every CI gate in this repo runs on pull_request, and the traceability sweep in particular only evaluates a change directory when a PR touches one — pushing an archive move straight to main would skip the one event that checks it. A PR costs one cycle and keeps the archive under the same gates as the work it archives.
+2. **Reconstruct validation-report.md from the 8.1 evidence instead of skipping it** — The deploy/smoke/gen-eval/e2e/security phases were genuinely run on 2026-09-08, but the evidence lived in tasks.md prose where gate_logic.py cannot read it and a future reader would not look. The report records what actually ran, including the five defects the run exposed and the DEGRADED security result, rather than asserting a clean sweep.
+3. **Record staged rollout as not applicable rather than checking it off** — The skill's rollout stages assume a traffic-serving surface behind a feature flag. This change has neither, so the thresholds have nothing to measure. Marking them complete would assert observations nobody made — the same check-shaped no-op this change's own validators were fixed to stop producing.
+4. **Skip make architecture-refresh in this commit** — The architecture artifacts are stale, but context-drift-gate attributes that drift to main as inherited, not to this change. Folding a repo-wide 16-file regeneration into an archive commit would obscure both. The skill itself calls this step a courtesy rather than a gate; it is reported as a separate follow-up.
+
+### Completed Work
+- validation-report
+- archive
+- spec-delta-merge
+- decision-index-regen
+- validate
+
+### Next Steps
+- make architecture-refresh on main as its own change (inherited drift)
+- Pin scanner container images (ZAP :stable, dependency-check :latest)
+
+### Context
+Archived at 53/53 with no PR to merge: the implementation had been on main since 2026-05-08 and the last two open boxes were environment-blocked verification, closed in PR #498. No open tasks to migrate. Staged rollout is not applicable — this change ships skills and CI wiring with no traffic surface or feature flag.
+
