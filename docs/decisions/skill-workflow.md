@@ -5,36 +5,36 @@
 
 ---
 
-## 2026-09-10 — write-durable-state-artifacts-guide
+## 2026-09-10 — 2026-09-10-write-durable-state-artifacts-guide
 
 ### Phase: Implementation Continuation
 
 **Merge current main without rebasing the supervisor stack** — The ri-10 branch is seven commits atop the long-lived supervisor roadmap branch; a merge preserves that history and imports the approved openspec_paths helper and guard as exact main ancestors.
 
 - Status: `active`
-- Source: [openspec/changes/write-durable-state-artifacts-guide/session-log.md](/openspec/changes/write-durable-state-artifacts-guide/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md](/openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md) (D1)
 
 ---
 
-## 2026-09-10 — write-durable-state-artifacts-guide
+## 2026-09-10 — 2026-09-10-write-durable-state-artifacts-guide
 
 ### Phase: Implementation Continuation
 
 **Use the shared archive-safe change resolver** — Resolving design.md through change_dir(ROOT, CHANGE_ID) preserves the eight-stage assertion after OpenSpec archival without copying path infrastructure into ri-10.
 
 - Status: `active`
-- Source: [openspec/changes/write-durable-state-artifacts-guide/session-log.md](/openspec/changes/write-durable-state-artifacts-guide/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md](/openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md) (D2)
 
 ---
 
-## 2026-09-08 — write-durable-state-artifacts-guide
+## 2026-09-08 — 2026-09-10-write-durable-state-artifacts-guide
 
 ### Phase: Implementation
 
 **Use portable repository-relative guide references** — Installed skill payloads cannot use relative Markdown links that escape the skill directory, so canonical and mirrored skills use the established bare backticked repository path `docs/guides/state-artifacts.md`.
 
 - Status: `active`
-- Source: [openspec/changes/write-durable-state-artifacts-guide/session-log.md](/openspec/changes/write-durable-state-artifacts-guide/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md](/openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md) (D1)
 
 ---
 

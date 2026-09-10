@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-10T08:31:48.296307+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "RI-10 cleanup completed on the supervisor roadmap integration branch. The proposal is archived, its three requirements are merged into the canonical skill-workflow spec, the decision index is regenerated, strict OpenSpec validation passes 89 of 89 items, and the roadmap checkpoint now marks ri-10 complete.",
+    "completed_work": [
+      "merge",
+      "task-migration check",
+      "archive",
+      "spec-delta merge",
+      "decision-index refresh",
+      "strict OpenSpec validation",
+      "roadmap checkpoint",
+      "learning entry"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Archive RI-10 on the supervisor integration branch",
+        "rationale": "PR #505 was intentionally stacked on that branch, so its archive and canonical spec projection must travel with the same roadmap integration history before the parent branch lands on main.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "continue the supervisor roadmap"
+    ],
+    "relevant_files": []
+  }
+}

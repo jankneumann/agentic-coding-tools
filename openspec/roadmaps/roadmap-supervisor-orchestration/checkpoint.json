@@ -2,9 +2,9 @@
   "schema_version": 1,
   "roadmap_id": "roadmap-supervisor-orchestration",
   "current_item_id": "ri-10",
-  "phase": "implementing",
+  "phase": "completed",
   "created_at": "2026-09-01T02:35:00.134952+00:00",
-  "updated_at": "2026-09-09T13:18:03.702710+00:00",
+  "updated_at": "2026-09-10T08:29:56.201185+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -16,7 +16,8 @@
     "ri-17",
     "ri-03",
     "ri-08",
-    "ri-04"
+    "ri-04",
+    "ri-10"
   ],
   "failed_items": [
     {
@@ -62,6 +63,20 @@
       "recorded_at": "2026-09-03T19:47:16.954100+00:00",
       "resolution": "console_approved",
       "timeout_seconds": null
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "disposition": "block",
+      "reason": "Operator authorized merging ri-10 if CI is clean; exact head CI run 34454422855 completed successfully.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "phase": "SUBMIT_PR",
+      "note": "merge ri-10 if ci is clean",
+      "recorded_at": "2026-09-10T08:29:56.198424+00:00"
     }
   ]
 }
