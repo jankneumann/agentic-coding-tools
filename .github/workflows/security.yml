@@ -15,8 +15,31 @@ permissions:
 # or a merge_group entry must finish, since nothing re-runs it later. The group
 # key is workflow-scoped, so CI and Security cancel independently.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # Safety lives in the GROUP, not in the flag.
+  #
+  # This previously read `cancel-in-progress: ${{ github.event_name ==
+  # 'pull_request' }}`, which *looks* like "only cancel PR runs" and is not.
+  # A `${{ }}` expression yields a string, and a non-empty string — including
+  # "false" — is truthy for this field, so every event cancelled its
+  # predecessor. Pushes to main share the group `CI-refs/heads/main`, so a merge
+  # landing while the previous merge was still building killed that run.
+  #
+  # Observed, not theorised: 3 of the last 40 main runs were cancelled. On
+  # 2026-09-10 three merges 13s apart produced ok / CANCELLED / ok, and on
+  # 2026-09-04 the same shape. In both clusters the last run survives and the
+  # middle one dies, which is what `cancel-in-progress: true` does. Two pushes
+  # 40s apart (8efb87d1 -> b47dcaad) both survived, because a run that already
+  # finished cannot be cancelled. `1ad5da69` is on main today with no CI verdict
+  # of its own — exactly what the old comment here promised could not happen.
+  #
+  # Keying the group on `github.run_id` for anything that is not a pull request
+  # makes each such run a singleton: nothing else can join its group, so nothing
+  # can cancel it, whatever the flag evaluates to. Pull requests still key on the
+  # PR number and still supersede properly. The flag is now plainly `true`
+  # because that is what it always effectively was; writing it honestly is what
+  # stops the next reader trusting a condition that never applied.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 env:
   # Space-separated list of CVE/PYSEC IDs to ignore in pip-audit runs.
