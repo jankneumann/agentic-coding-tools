@@ -370,7 +370,7 @@ items:
     the replanner query returns it in a test.
 - item_id: ri-16
   title: Add cross-roadmap readiness resolver
-  status: approved
+  status: in_progress
   priority: 2
   effort: S
   depends_on:
@@ -455,4 +455,4 @@ items:
     spend is auditable after a run.'
   external_depends_on:
   - dispatch-governance:dg-04
-updated_at: '2026-09-10T14:13:32.079430+00:00'
+updated_at: '2026-09-10T15:49:55.783085+00:00'

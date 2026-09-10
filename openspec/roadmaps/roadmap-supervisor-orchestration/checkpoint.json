@@ -4,7 +4,7 @@
   "current_item_id": "ri-10",
   "phase": "failed",
   "created_at": "2026-09-01T02:35:00.134952+00:00",
-  "updated_at": "2026-09-10T14:13:32.086607+00:00",
+  "updated_at": "2026-09-10T15:49:55.790320+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -38,9 +38,6 @@
       "failed_at": "2026-09-10T14:13:32.078373+00:00",
       "retry_count": 0
     }
-  ],
-  "serial_indeterminate_items": [
-    "ri-16"
   ],
   "dispatch_attempts": [
     {
@@ -141,6 +138,126 @@
       },
       "outcome": "failed:PLAN_REVIEW exhausted three bounded rounds without substantive review quorum; implementation prohibited",
       "resolved_at": "2026-09-10T14:13:32.076800+00:00"
+    },
+    {
+      "dispatch_id": "batch-c340df5fe8d02fb2028c238f:ri-16:attempt-1",
+      "item_id": "ri-16",
+      "change_id": "add-cross-roadmap-readiness-resolver",
+      "phase": "autopilot",
+      "attempt": 1,
+      "status": "parked",
+      "prepared_at": "2026-09-10T14:14:53.039401+00:00",
+      "launch_token": "RpKHxB4nroP33jT3k7h52yYumlMa14Uo",
+      "launch_marker_path": ".supervised-dispatch/add-cross-roadmap-readiness-resolver/ri-16-attempt-1.marker",
+      "lease_generation": 1,
+      "launch_history": [
+        {
+          "generation": 1,
+          "owner_nonce": "codex-ri16-owner-20260910",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/add-cross-roadmap-readiness-resolver/ri-16-attempt-1.marker",
+          "observed_at": "2026-09-10T14:15:04.509619+00:00"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "codex-ri16-owner-20260910",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/add-cross-roadmap-readiness-resolver/ri-16-attempt-1.marker",
+          "observed_at": "2026-09-10T14:15:43.284831+00:00",
+          "handle": "/root/ri16_autopilot"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "codex-ri16-owner-20260910",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/add-cross-roadmap-readiness-resolver/ri-16-attempt-1.marker",
+          "observed_at": "2026-09-10T14:15:43.284831+00:00",
+          "handle": "/root/ri16_autopilot"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "codex-ri16-owner-20260910",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/add-cross-roadmap-readiness-resolver/ri-16-attempt-1.marker",
+          "observed_at": "2026-09-10T14:16:11.975327+00:00",
+          "handle": "/root/ri16_autopilot"
+        }
+      ],
+      "scope": {
+        "proof": "serial_indeterminate",
+        "write_allow": [],
+        "lock_keys": []
+      },
+      "isolation": {
+        "mode": "managed_worktree",
+        "worktree_path": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/add-cross-roadmap-readiness-resolver",
+        "branch": "openspec/add-cross-roadmap-readiness-resolver"
+      },
+      "context": {
+        "invocation": "direct_autopilot_roadmap"
+      },
+      "lease": {
+        "generation": 1,
+        "owner_nonce": "codex-ri16-owner-20260910",
+        "state": "released",
+        "acquired_at": "2026-09-10T14:15:04.509619+00:00",
+        "heartbeat_at": "2026-09-10T14:15:04.509619+00:00",
+        "expires_at": "2026-09-10T15:15:04.509619+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 1,
+        "handle": "/root/ri16_autopilot",
+        "observed_at": "2026-09-10T14:15:43.284831+00:00"
+      },
+      "launch_gate": {
+        "generation": 1,
+        "state": "entered",
+        "handle": "/root/ri16_autopilot",
+        "go_released_at": "2026-09-10T14:15:43.284831+00:00",
+        "entered_at": "2026-09-10T14:16:11.975327+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/add-cross-roadmap-readiness-resolver",
+          "change_id": "add-cross-roadmap-readiness-resolver",
+          "dispatch_id": "batch-c340df5fe8d02fb2028c238f:ri-16:attempt-1",
+          "evidence": {
+            "commit": "02cece0437a8bc879afbfa2f0fbd4a4fb7c94a60",
+            "loop_state_digest": "6bbceb22b844d474958378c34b3fd67999e84ad883ffd3a81b6f3eb404d39fef",
+            "loop_state_path": "openspec/changes/add-cross-roadmap-readiness-resolver/loop-state.json"
+          },
+          "lease_generation": 1,
+          "outcome": "parked",
+          "parked": {
+            "deadline": null,
+            "gate": "merge",
+            "kind": "pending_gate",
+            "reason": "PR #509 is open and the Autopilot loop is awaiting explicit human merge authorization.",
+            "resume_hint": null
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/add-cross-roadmap-readiness-resolver"
+        },
+        "result_digest": "3d19d1b95e14c8b6ea42c242b6355d132ee4c009e3f8a1c5bc6a9ed9855f5196",
+        "bound_at": "2026-09-10T15:49:55.777017+00:00",
+        "callback_started_at": "2026-09-10T15:49:55.779538+00:00",
+        "callback_acknowledged_at": "2026-09-10T15:49:55.780738+00:00",
+        "terminal_persisted_at": "2026-09-10T15:49:55.781903+00:00",
+        "effects_applied_at": "2026-09-10T15:49:55.790288+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-09-10T15:49:55.781897+00:00",
+      "parked": {
+        "deadline": null,
+        "gate": "merge",
+        "kind": "pending_gate",
+        "reason": "PR #509 is open and the Autopilot loop is awaiting explicit human merge authorization.",
+        "resume_hint": null
+      }
     }
   ],
   "gate_decisions": [
