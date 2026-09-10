@@ -225,23 +225,24 @@
       "disposition": "block",
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-09-10T05:11:40.885651+00:00"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' approved by the operator \u2014 Operator answered yes to the canonical PR-creation gate on 2026-09-10.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-10T07:59:21.342491+00:00",
+      "note": "Operator answered yes to the canonical PR-creation gate on 2026-09-10."
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "write-durable-state-artifacts-guide",
-    "gate": "pr_creation",
-    "phase": "SUBMIT_PR",
-    "requested_at": "2026-09-10T05:11:40.886220+00:00",
-    "prompt": "Create the pull request for this change?",
-    "context": {
-      "branch": "openspec/write-durable-state-artifacts-guide",
-      "change_id": "write-durable-state-artifacts-guide"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
