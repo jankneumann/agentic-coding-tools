@@ -17,7 +17,7 @@ dependencies = [
 # query/service side can install the light footprint (asyncpg only).
 index = [
     "cocoindex[sentence-transformers]>=1.0.13,<1.1.0",
-    "cocoindex-code==0.2.37",
+    "cocoindex-code==0.2.41",
 ]
 dev = [
     "jsonschema>=4,<5",
