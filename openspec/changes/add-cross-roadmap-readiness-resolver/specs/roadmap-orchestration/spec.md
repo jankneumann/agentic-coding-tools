@@ -1,5 +1,4 @@
 # roadmap-orchestration Delta
-
 ## ADDED Requirements
 
 ### Requirement: Canonical Cross-Roadmap Readiness Resolution
@@ -46,6 +45,16 @@ The resolver SHALL treat a present valid checkpoint's completed and failed termi
 - **WHEN** a checkpoint is malformed, names a different roadmap, references unknown terminal item ids, or contradicts its own terminal sets
 - **THEN** the resolver SHALL mark that workspace stale with a bounded reason code
 - **AND** it SHALL withhold that workspace's items and completion refs instead of reconstructing state from advisory artifacts.
+#### Scenario: Valid checkpoint divergence remains authoritative
+
+- **WHEN** a structurally valid matching checkpoint has terminal sets that lag or lead terminal status fields in its roadmap
+- **THEN** the resolver SHALL emit a stale `roadmap_checkpoint_divergence` diagnostic without withholding the workspace
+- **AND** readiness and external completion SHALL continue to use the checkpoint terminal sets.
+
+#### Scenario: Invalid roadmap fails closed
+
+- **WHEN** an active roadmap is malformed or duplicates another active roadmap declared id
+- **THEN** the resolver SHALL emit `roadmap_invalid` or `duplicate_roadmap_id`, return non-zero from the CLI, and withhold affected workspace state.
 
 ### Requirement: Deterministic Readiness Projection
 
