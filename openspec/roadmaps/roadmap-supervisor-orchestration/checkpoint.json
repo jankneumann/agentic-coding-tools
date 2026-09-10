@@ -2,9 +2,9 @@
   "schema_version": 1,
   "roadmap_id": "roadmap-supervisor-orchestration",
   "current_item_id": "ri-10",
-  "phase": "completed",
+  "phase": "failed",
   "created_at": "2026-09-01T02:35:00.134952+00:00",
-  "updated_at": "2026-09-10T08:29:56.201185+00:00",
+  "updated_at": "2026-09-10T14:13:32.086607+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -31,6 +31,116 @@
       "reason": "Implementation review exhausted three rounds without two substantive independent reviewers in any round: Claude Code timed out in rounds 1 and 3, and Grok returned only a placeholder in round 2.",
       "failed_at": "2026-09-08T08:36:41.616780+00:00",
       "retry_count": 0
+    },
+    {
+      "item_id": "ri-12",
+      "reason": "PLAN_REVIEW exhausted three bounded rounds without substantive review quorum; implementation prohibited",
+      "failed_at": "2026-09-10T14:13:32.078373+00:00",
+      "retry_count": 0
+    }
+  ],
+  "serial_indeterminate_items": [
+    "ri-16"
+  ],
+  "dispatch_attempts": [
+    {
+      "dispatch_id": "batch-950165eab33bc390c6f64efd:ri-12:attempt-1",
+      "item_id": "ri-12",
+      "change_id": "migrate-discovery-generators-to-emit-candidate-work-stubs",
+      "phase": "autopilot",
+      "attempt": 1,
+      "status": "failed",
+      "prepared_at": "2026-09-10T11:55:01.777009+00:00",
+      "launch_token": "tSYhz-SbLin4zx9QU9zFdYUmPwf5rsB3",
+      "launch_marker_path": ".supervised-dispatch/migrate-discovery-generators-to-emit-candidate-work-stubs/ri-12-attempt-1.marker",
+      "lease_generation": 1,
+      "launch_history": [
+        {
+          "generation": 1,
+          "owner_nonce": "codex-ri12-owner-20260910",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/migrate-discovery-generators-to-emit-candidate-work-stubs/ri-12-attempt-1.marker",
+          "observed_at": "2026-09-10T11:55:19.412909+00:00"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "codex-ri12-owner-20260910",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/migrate-discovery-generators-to-emit-candidate-work-stubs/ri-12-attempt-1.marker",
+          "observed_at": "2026-09-10T11:56:09.567775+00:00",
+          "handle": "/root/ri12_autopilot"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "codex-ri12-owner-20260910",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/migrate-discovery-generators-to-emit-candidate-work-stubs/ri-12-attempt-1.marker",
+          "observed_at": "2026-09-10T11:56:09.567775+00:00",
+          "handle": "/root/ri12_autopilot"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "codex-ri12-owner-20260910",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/migrate-discovery-generators-to-emit-candidate-work-stubs/ri-12-attempt-1.marker",
+          "observed_at": "2026-09-10T11:56:44.747972+00:00",
+          "handle": "/root/ri12_autopilot"
+        }
+      ],
+      "scope": {
+        "proof": "serial_indeterminate",
+        "write_allow": [],
+        "lock_keys": []
+      },
+      "isolation": {
+        "mode": "managed_worktree",
+        "worktree_path": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/migrate-discovery-generators-to-emit-candidate-work-stubs",
+        "branch": "openspec/migrate-discovery-generators-to-emit-candidate-work-stubs"
+      },
+      "context": {
+        "invocation": "direct_autopilot_roadmap"
+      },
+      "lease": {
+        "generation": 1,
+        "owner_nonce": "codex-ri12-owner-20260910",
+        "state": "released",
+        "acquired_at": "2026-09-10T11:55:19.412909+00:00",
+        "heartbeat_at": "2026-09-10T11:55:19.412909+00:00",
+        "expires_at": "2026-09-10T12:55:19.412909+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 1,
+        "handle": "/root/ri12_autopilot",
+        "observed_at": "2026-09-10T11:56:09.567775+00:00"
+      },
+      "launch_gate": {
+        "generation": 1,
+        "state": "entered",
+        "handle": "/root/ri12_autopilot",
+        "go_released_at": "2026-09-10T11:56:09.567775+00:00",
+        "entered_at": "2026-09-10T11:56:44.747972+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "change_id": "migrate-discovery-generators-to-emit-candidate-work-stubs",
+          "dispatch_id": "batch-950165eab33bc390c6f64efd:ri-12:attempt-1",
+          "lease_generation": 1,
+          "outcome": "failed:PLAN_REVIEW exhausted three bounded rounds without substantive review quorum; implementation prohibited",
+          "schema_version": 1
+        },
+        "result_digest": "9502897cdf3e4e8729d1fda31475ebd3383b7cb0ae9fe37739daf880d854695e",
+        "bound_at": "2026-09-10T14:13:32.069769+00:00",
+        "callback_started_at": "2026-09-10T14:13:32.073188+00:00",
+        "callback_acknowledged_at": "2026-09-10T14:13:32.075020+00:00",
+        "terminal_persisted_at": "2026-09-10T14:13:32.076804+00:00",
+        "effects_applied_at": "2026-09-10T14:13:32.086581+00:00"
+      },
+      "outcome": "failed:PLAN_REVIEW exhausted three bounded rounds without substantive review quorum; implementation prohibited",
+      "resolved_at": "2026-09-10T14:13:32.076800+00:00"
     }
   ],
   "gate_decisions": [
@@ -77,6 +187,47 @@
       "phase": "SUBMIT_PR",
       "note": "merge ri-10 if ci is clean",
       "recorded_at": "2026-09-10T08:29:56.198424+00:00"
+    },
+    {
+      "gate": "roadmap_approval",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-09-10T11:50:09.599259+00:00",
+      "decision_id": "2a19828f-5f82-47ef-9886-2b8f3d9a4f7b",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "roadmap-supervisor-orchestration",
+      "roadmap_fingerprint": "8e3c6c0baa7672cfca01fcd78feb93c047948bd7d93de62063d49e8e9ca51d74"
+    },
+    {
+      "gate": "roadmap_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' approved by the operator \u2014 direct autopilot-roadmap invocation: supervisor roadmap",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-09-10T11:50:20.985704+00:00",
+      "decision_id": "1d8eb383-2f08-449b-a0d8-6dc9464ddd85",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "roadmap-supervisor-orchestration",
+      "roadmap_fingerprint": "8e3c6c0baa7672cfca01fcd78feb93c047948bd7d93de62063d49e8e9ca51d74",
+      "note": "direct autopilot-roadmap invocation: supervisor roadmap"
     }
   ]
 }

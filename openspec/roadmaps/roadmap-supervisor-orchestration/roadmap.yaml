@@ -280,7 +280,7 @@ items:
     fixture.
 - item_id: ri-12
   title: Migrate discovery generators to emit candidate-work stubs
-  status: approved
+  status: failed
   priority: 2
   effort: M
   depends_on:
@@ -299,6 +299,8 @@ items:
     intermediate artifacts.
   - /prioritize-proposals successfully ranks a mixed batch of stubs from all three
     generators.
+  failure_reason: PLAN_REVIEW exhausted three bounded rounds without substantive review
+    quorum; implementation prohibited
 - item_id: ri-13
   title: Add supervisor candidate-work digest
   status: approved
@@ -453,4 +455,4 @@ items:
     spend is auditable after a run.'
   external_depends_on:
   - dispatch-governance:dg-04
-updated_at: '2026-09-10T08:29:56.210005+00:00'
+updated_at: '2026-09-10T14:13:32.079430+00:00'
