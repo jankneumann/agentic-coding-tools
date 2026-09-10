@@ -137,7 +137,16 @@ def _build_payload(
         phase,
         {"change_id": "vendor-neutral-autopilot-smoke", "current_phase": phase},
         incoming,
-        artifacts_manifest=["openspec/changes/vendor-neutral-autopilot/design.md"],
+        # Synthetic, to match the synthetic change_id above. `_build_prompt`
+        # only renders manifest entries as prompt text and never opens them, so
+        # this was a stale label rather than a broken read — but it named a real
+        # change (archived 2026-05-16) beside a smoke id that is deliberately
+        # fictional, which is the inconsistency the stability guard exists to
+        # catch. Fixtures use synthetic ids precisely so they stay
+        # distinguishable from paths something actually reads.
+        artifacts_manifest=[
+            "openspec/changes/vendor-neutral-autopilot-smoke/design.md"
+        ],
     )
     system_prompt = options.get("system_prompt")
     if system_prompt:
