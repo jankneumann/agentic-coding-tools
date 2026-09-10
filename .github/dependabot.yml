@@ -77,3 +77,106 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+
+  # kanban-viz frontend (npm)
+  #
+  # Added 2026-09-10 after the first real dependency-check scan found
+  # GHSA-82fw-gwwq-j7x9 (vitest/@vitest/mocker 3.2.7, moderate) in
+  # apps/kanban-viz/package-lock.json. Nothing was watching for it: the three
+  # entries above cover pip, github-actions and docker, so the repo's only npm
+  # surface had no automated advisory coverage at all.
+  #
+  # This is the gap that made the filesystem scanner worth its cost. A manifest
+  # scanner would have caught it years earlier — there just wasn't one pointed
+  # here.
+  - package-ecosystem: "npm"
+    directory: "/apps/kanban-viz"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "@testing-library/*"
+          - "eslint*"
+          - "@playwright/*"
+        update-types:
+          - "minor"
+          - "patch"
+      production-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "@testing-library/*"
+          - "eslint*"
+          - "@playwright/*"
+        update-types:
+          - "patch"
+    labels:
+      - "dependencies"
+
+  # packages/* Python distributions
+  #
+  # These four grew after the pip entries above were written, and inherited
+  # nothing: /agent-coordinator and /skills are named explicitly, so a new tree
+  # is silently uncovered. The identical omission hit CI — packages/code-search
+  # and packages/agent-scenarios had no test job either until PR #498, and
+  # code-search had been red for six weeks as a result. Same tree, same cause,
+  # two different kinds of blind spot.
+  - package-ecosystem: "pip"
+    directory: "/packages/gen-eval"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "pip"
+    directory: "/packages/context-eval"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "pip"
+    directory: "/packages/code-search"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "pip"
+    directory: "/packages/agent-scenarios"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+
+  # kanban-viz Tauri shell (Rust)
+  #
+  # A desktop application's native half, with its own dependency tree and no
+  # coverage whatsoever until now — the repo had a Rust surface that no advisory
+  # feed was reading. Grouped conservatively: a Tauri major bump is a porting
+  # exercise, not a dependency update.
+  - package-ecosystem: "cargo"
+    directory: "/apps/kanban-viz/src-tauri"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "rust"
+
