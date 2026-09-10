@@ -99,10 +99,6 @@ packages:
         - "decisions"
         - "capabilities"
         - "semantic_code"
-      rationale:
-        apis:
-          reason: "The work-package schema requires contracts.openapi to point at the no-contract README stub; the file explicitly declares that no API contract or runtime interface changes."
-          approved_by: "supervisor ri-10 plan review, 2026-09-09"
     worktree:
       name: write-durable-state-artifacts-guide-main
       mode: isolated
