@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-09-03T03:01:23+00:00",
-  "git_sha": "e55aa0f30de3f31019d19f81432c0d106724c25c",
+  "generated_at": "2026-09-10T22:34:52+00:00",
+  "git_sha": "6db8aa9b7bd57e0da95578750c0fc0b929f53632",
   "stats": {
-    "total_nodes": 1882,
-    "total_edges": 1219,
+    "total_nodes": 1886,
+    "total_edges": 1221,
     "by_language": {
-      "python": 1439,
-      "sql": 443
+      "python": 1442,
+      "sql": 444
     },
     "by_kind": {
       "module": 77,
       "class": 255,
-      "function": 1107,
+      "function": 1110,
       "table": 28,
-      "column": 299,
+      "column": 300,
       "index": 70,
       "stored_function": 37,
       "trigger": 9
@@ -867,6 +867,10 @@
     },
     {
       "id": "py:migrations._checksum",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:migrations._is_already_applied_error",
       "dependent_count": 5
     },
     {

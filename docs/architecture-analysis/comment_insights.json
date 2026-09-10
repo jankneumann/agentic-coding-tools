@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-03T03:01:23+00:00",
+  "generated_at": "2026-09-10T22:34:52+00:00",
   "summary": {
-    "total_comments": 2520,
+    "total_comments": 2617,
     "total_with_markers": 21,
     "marker_totals": {
       "NOTE": 4,
@@ -11,9 +11,9 @@
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1882,
-    "documented_nodes": 276,
-    "documentation_coverage": 0.147
+    "total_graph_nodes": 1886,
+    "documented_nodes": 280,
+    "documentation_coverage": 0.148
   },
   "marker_hotspots": [
     {
@@ -154,7 +154,7 @@
       ]
     },
     "py:work_queue.WorkQueueService.complete": {
-      "comment_count": 7,
+      "comment_count": 11,
       "markers": [
         "WARNING"
       ]
@@ -187,7 +187,7 @@
     },
     {
       "file": "audit.py",
-      "total_comments": 7,
+      "total_comments": 14,
       "with_markers": 0,
       "languages": [
         "python"
@@ -259,7 +259,7 @@
     },
     {
       "file": "db.py",
-      "total_comments": 3,
+      "total_comments": 7,
       "with_markers": 0,
       "languages": [
         "python"
@@ -267,7 +267,7 @@
     },
     {
       "file": "db_postgres.py",
-      "total_comments": 13,
+      "total_comments": 28,
       "with_markers": 0,
       "languages": [
         "python"
@@ -819,7 +819,7 @@
     },
     {
       "file": "migrations.py",
-      "total_comments": 11,
+      "total_comments": 39,
       "with_markers": 0,
       "languages": [
         "python"
@@ -947,7 +947,7 @@
     },
     {
       "file": "profiles.py",
-      "total_comments": 8,
+      "total_comments": 18,
       "with_markers": 0,
       "languages": [
         "python"
@@ -1019,7 +1019,7 @@
     },
     {
       "file": "trust_resolution.py",
-      "total_comments": 5,
+      "total_comments": 14,
       "with_markers": 0,
       "languages": [
         "python"
@@ -1035,7 +1035,7 @@
     },
     {
       "file": "work_queue.py",
-      "total_comments": 33,
+      "total_comments": 57,
       "with_markers": 1,
       "languages": [
         "python"

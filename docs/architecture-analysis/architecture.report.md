@@ -2,26 +2,26 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-09-03T03:01:23+00:00  
-Git SHA: `e55aa0f30de3f31019d19f81432c0d106724c25c`
+Generated: 2026-09-10T22:34:52+00:00  
+Git SHA: `6db8aa9b7bd57e0da95578750c0fc0b929f53632`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (84 tools, 11 resources, 2 prompts), backed by **28 Postgres tables**. The codebase contains 1107 functions (443 async) and 255 classes.
+This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (84 tools, 11 resources, 2 prompts), backed by **28 Postgres tables**. The codebase contains 1110 functions (444 async) and 255 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1882 |
-| Total edges | 1219 |
+| Total nodes | 1886 |
+| Total edges | 1221 |
 | Python modules | 77 |
-| Functions | 1107 (443 async) |
+| Functions | 1110 (444 async) |
 | Classes | 255 |
 | Mcp Endpoints | 97 |
 | DB tables | 28 |
-| Python nodes | 1439 |
-| Sql nodes | 443 |
+| Python nodes | 1442 |
+| Sql nodes | 444 |
 
 ## Module Responsibility Map
 
@@ -43,8 +43,8 @@ This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (8
 | `coordination_api` | Entry | Resolve effective API key by supported header precedence. | 1 / 223 |
 | `coordination_cli` | Service | Bridge async service calls to synchronous CLI. | 0 / 42 |
 | `coordination_mcp` | Entry | Own direct-search resources in the same loop that serves MCP calls. | 0 / 167 |
-| `db` | Foundation | Factory: returns the appropriate DatabaseClient based on config. | 47 / 4 |
-| `db_postgres` | Service | Parse an ISO-8601 timestamp if `val` looks like one. | 1 / 1 |
+| `db` | Foundation | Factory: returns the appropriate DatabaseClient based on config. | 47 / 5 |
+| `db_postgres` | Service | Parse an ISO-8601 timestamp if `val` looks like one. | 2 / 1 |
 | `discovery` | Service | Get the global discovery service instance. | 16 / 8 |
 | `docker_manager` | Service | Return ``True`` if the ``colima`` binary is on PATH. | 0 / 0 |
 | `event_bus` | Foundation | Classify event urgency based on type. | 15 / 0 |
@@ -279,18 +279,18 @@ This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (8
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2795 findings** across 4 categories:
+**2801 findings** across 4 categories:
 
-### Orphan — 1239
+### Orphan — 1242
 
-1239 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+1242 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'PollConfig' is unreachable from any entrypoint or test
 - 'ModeConfig' is unreachable from any entrypoint or test
 - 'CliConfig' is unreachable from any entrypoint or test
-- ... and 1234 more
+- ... and 1237 more
 
 ### Reachability — 97
 
@@ -305,16 +305,16 @@ Breakdown: 89 info, 8 warning.
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
 - ... and 92 more
 
-### Test Coverage — 1362
+### Test Coverage — 1365
 
-1362 functions lack test references — consider adding tests for critical paths.
+1365 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 1357 more
+- ... and 1360 more
 
 ### Disconnected Flow (expected) — 97
 
@@ -331,7 +331,7 @@ Breakdown: 89 info, 8 warning.
 
 *Data sources: [high_impact_nodes.json](high_impact_nodes.json), [parallel_zones.json](parallel_zones.json)*
 
-119 nodes with >= 5 transitive dependents. Changes to these ripple through the codebase — test thoroughly.
+120 nodes with >= 5 transitive dependents. Changes to these ripple through the codebase — test thoroughly.
 
 | Node | Dependents | Risk |
 |------|------------|------|
@@ -365,7 +365,7 @@ Breakdown: 89 info, 8 warning.
 | `feature_registry.get_feature_registry_service` | 19 | High — test `feature_registry` changes thoroughly (5 modules affected) |
 | `issue_service.get_issue_service` | 19 | High — test `issue_service` changes thoroughly (modules: coordination_api, coordination_mcp) |
 | `audit` | 17 | High — test `audit` changes thoroughly (16 modules affected) |
-| ... | | 89 more |
+| ... | | 90 more |
 
 ## Code Health Indicators
 
@@ -375,9 +375,9 @@ Breakdown: 89 info, 8 warning.
 
 | Indicator | Value |
 |-----------|-------|
-| Async ratio | 443/1107 (40%) |
-| Docstring coverage | 788/1107 (71%) |
-| Dead code candidates | 510 |
+| Async ratio | 444/1110 (40%) |
+| Docstring coverage | 791/1110 (71%) |
+| Dead code candidates | 511 |
 
 ### Hot Functions
 
@@ -398,11 +398,11 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ### Dead Code Candidates
 
-510 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
+511 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
 
 - **agents_config** (10): `mutations`, `get_mcp_env`, `reset_agents_config`, `get_agent_isolation`, `get_phase_mapping`, `reset_archetypes_config`, ... (+4)
 - **approval** (8): `db`, `submit_request`, `check_request`, `decide_request`, `expire_stale_requests`, `list_pending`, ... (+2)
-- **audit** (6): `from_dict`, `db`, `log_operation`, `_insert_audit_entry`, `query`, `timed`
+- **audit** (7): `from_dict`, `db`, `log_operation`, `drain`, `_insert_audit_entry`, `query`, ... (+1)
 - **audit_triage** (5): `push`, `drain_all`, `load_prompt`, `drain_and_classify`, `reset_triage_buffer`
 - **cloudflare_access** (4): `_signing_key`, `verify`, `_is_exempt`, `_deny`
 - **code_search** (14): `validate_main_key`, `validate_patterns`, `validate_reference`, `validate_languages`, `validate_paths`, `require_non_main_index`, ... (+8)
@@ -461,13 +461,13 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1159 independent groups** identified. The largest interconnected group has 551 modules; 1467 modules are leaf nodes (safe to modify in isolation).
+**1161 independent groups** identified. The largest interconnected group has 552 modules; 1469 modules are leaf nodes (safe to modify in isolation).
 
 **41 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
 ### Interconnected Groups
 
-**Group 0** (551 members spanning 55 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_runtime`
+**Group 0** (552 members spanning 55 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_runtime`
   ... and 47 more modules
 
 **Group 1** (56 members spanning 56 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_authorization`
@@ -489,9 +489,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1467)
+### Leaf Modules (1469)
 
-1467 modules have no dependents — changes are fully isolated. 1136 of the 1159 groups are singletons.
+1469 modules have no dependents — changes are fully isolated. 1137 of the 1161 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -501,8 +501,8 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1439 nodes)"]
-    Database["Database (443 nodes)"]
+    Backend["Backend (1442 nodes)"]
+    Database["Database (444 nodes)"]
 ```
 
 ### Backend Components
@@ -513,7 +513,7 @@ flowchart TB
     agents_config["agents_config (63 symbols)"]
     approval["approval (14 symbols)"]
     assurance["assurance (1 symbols)"]
-    audit["audit (17 symbols)"]
+    audit["audit (18 symbols)"]
     audit_triage["audit_triage (11 symbols)"]
     axi_output["axi_output (4 symbols)"]
     cloudflare_access["cloudflare_access (12 symbols)"]
@@ -525,7 +525,7 @@ flowchart TB
     coordination_cli["coordination_cli (35 symbols)"]
     coordination_mcp["coordination_mcp (81 symbols)"]
     db["db (23 symbols)"]
-    db_postgres["db_postgres (19 symbols)"]
+    db_postgres["db_postgres (20 symbols)"]
     discovery["discovery (20 symbols)"]
     docker_manager["docker_manager (8 symbols)"]
     event_bus["event_bus (22 symbols)"]
@@ -552,7 +552,7 @@ flowchart TB
     merge_train_service["merge_train_service (29 symbols)"]
     merge_train_types["merge_train_types (14 symbols)"]
     merge_watcher["merge_watcher (8 symbols)"]
-    migrations["migrations (6 symbols)"]
+    migrations["migrations (7 symbols)"]
     model_routing____init__["model_routing.__init__ (1 symbols)"]
     model_routing__exploration["model_routing.exploration (5 symbols)"]
     model_routing__feedback["model_routing.feedback (8 symbols)"]
@@ -685,7 +685,7 @@ flowchart TB
     coordination_mcp -->|"call, import"| telemetry
     coordination_mcp -->|"call, import"| work_queue
     db -->|"call, import"| config
-    db -->|"import"| db_postgres
+    db -->|"call, import"| db_postgres
     db_postgres -->|"import"| config
     discovery -->|"call, import"| audit
     discovery -->|"call, import"| config
@@ -866,6 +866,7 @@ erDiagram
         TEXT agent_id
         TEXT agent_type
         TIMESTAMPTZ created_at
+        TEXT delegated_from
         INT duration_ms
         UNKNOWN enable
         TEXT error_message
