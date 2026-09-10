@@ -50,8 +50,15 @@ CHANGES = REPO_ROOT / "openspec" / "changes"
 # Trees that hold tests. `packages/*/tests` is included even though CI runs only
 # gen-eval and context-eval today: an unrun suite is exactly where this defect
 # hid for six weeks, so the guard covers it whether or not CI does.
-TEST_TREES = (
-    REPO_ROOT / "agent-coordinator" / "tests",
+#
+# This listed `agent-coordinator/tests` until 2026-09-10, which is a second way
+# the same blind spot was expressed: even after the file glob was widened past
+# `test_*.py`, `agent-coordinator/src/` was still unreachable, so
+# `kanban_viz_files.py` went on holding a dead path to an archived change.
+# The whole of `agent-coordinator` is scanned now — a pin in `src/` is worse
+# than a pin in `tests/`, not better.
+SCANNED_TREES = (
+    REPO_ROOT / "agent-coordinator",
     REPO_ROOT / "skills",
     REPO_ROOT / "packages",
 )
@@ -94,12 +101,23 @@ def _real_change_ids() -> frozenset[str]:
     return frozenset(ids)
 
 
-def _test_files() -> list[Path]:
+def _scanned_files() -> list[Path]:
+    """Every module in the scanned trees — production code included.
+
+    This scanned ``test_*.py`` only until 2026-09-10, which is how
+    ``skills/playwright-validator/scripts/descriptor.py`` kept an active
+    ``openspec/changes/<id>/contracts/`` path as a module constant while the
+    test constant beside it was already fixed. Archiving that change took out
+    six tests at once. Production code is where the consequence is worse, not
+    better: a test fails loudly, whereas
+    ``agent-coordinator/src/kanban_viz_files.py`` fell back to an empty schema
+    and validated writes against nothing.
+    """
     found: list[Path] = []
-    for tree in TEST_TREES:
+    for tree in SCANNED_TREES:
         if not tree.is_dir():
             continue
-        for path in tree.rglob("test_*.py"):
+        for path in tree.rglob("*.py"):
             if SKIP_PARTS & set(path.relative_to(REPO_ROOT).parts):
                 continue
             if path.name in ALLOWED:
@@ -185,9 +203,19 @@ def _offending_literals(tree: ast.AST, change_ids: frozenset[str]) -> list[str]:
         if not isinstance(value, str) or "openspec/changes/" not in value:
             continue
         for cid in change_ids:
-            if f"openspec/changes/{cid}" in value:
-                hits.append(f"line {node.lineno}: {value!r}")
-                break
+            needle = f"openspec/changes/{cid}"
+            if needle not in value:
+                continue
+            # A change id must end at a path boundary. Without this,
+            # `openspec/changes/vendor-neutral-autopilot-smoke/design.md` matches
+            # the real id `vendor-neutral-autopilot`, and the synthetic fixture
+            # ids this guard's own docstring asks contributors to use get flagged
+            # whenever one happens to extend a real id.
+            tail = value[value.index(needle) + len(needle):]
+            if tail and not tail.startswith("/"):
+                continue
+            hits.append(f"line {node.lineno}: {value!r}")
+            break
     return hits
 
 
@@ -205,7 +233,7 @@ def _offences(path: Path, change_ids: frozenset[str]) -> list[str]:
     )
 
 
-@pytest.mark.parametrize("path", _test_files(), ids=lambda p: str(p.name))
+@pytest.mark.parametrize("path", _scanned_files(), ids=lambda p: str(p.name))
 def test_no_test_pins_a_real_change_directory(path: Path) -> None:
     hits = _offences(path, _CHANGE_IDS)
     assert not hits, (
@@ -221,8 +249,8 @@ def test_no_test_pins_a_real_change_directory(path: Path) -> None:
 
 def test_the_guard_actually_scans_something() -> None:
     """A zero-file scan would pass vacuously and hide a broken tree list."""
-    files = _test_files()
-    assert len(files) > 100, f"only {len(files)} test files found; TEST_TREES is wrong"
+    files = _scanned_files()
+    assert len(files) > 100, f"only {len(files)} files found; SCANNED_TREES is wrong"
     assert _CHANGE_IDS, "no change ids discovered; CHANGES path is wrong"
 
 
@@ -282,3 +310,49 @@ def test_shared_helper_copies_are_byte_identical() -> None:
         f"these copies have drifted from {first.relative_to(REPO_ROOT)}: {drifted}. "
         "Copy the canonical file over them."
     )
+
+
+def test_the_scan_reaches_production_code() -> None:
+    """Not just `test_*.py`, and not just `agent-coordinator/tests`.
+
+    Both halves of that blind spot shipped a live defect.
+    `skills/playwright-validator/scripts/descriptor.py` kept an active change
+    path as a module constant while the test constant beside it was fixed, and
+    `agent-coordinator/src/kanban_viz_files.py` stayed unreachable even after
+    the file glob widened, because the tree list named only `tests`.
+    """
+    scanned = {p.relative_to(REPO_ROOT).as_posix() for p in _scanned_files()}
+    for expected in (
+        "agent-coordinator/src/kanban_viz_files.py",
+        "skills/playwright-validator/scripts/descriptor.py",
+        "skills/explore-feature/scripts/backfill_decision_tags.py",
+    ):
+        assert expected in scanned, f"{expected} is not scanned"
+    assert any(p.startswith("agent-coordinator/src/") for p in scanned), (
+        "agent-coordinator/src/ is unreachable; SCANNED_TREES is wrong"
+    )
+
+
+def test_a_longer_id_that_extends_a_real_one_is_not_flagged(tmp_path: Path) -> None:
+    """`<real-id>-smoke` is a synthetic fixture id, not a pin.
+
+    The matcher used a bare substring test, so any id extending a real one was
+    flagged — which punishes exactly the synthetic-fixture convention the module
+    docstring asks for. Uses a real id read off the filesystem so the test does
+    not rot when a hardcoded change is archived or renamed.
+    """
+    real_id = sorted(_CHANGE_IDS)[0]
+
+    extended = ast.parse(f'P = "openspec/changes/{real_id}-smoke/design.md"\n')
+    assert not _offending_literals(extended, _CHANGE_IDS), (
+        f"{real_id}-smoke is a distinct id and must not match {real_id}"
+    )
+
+    # The control: the real id at a path boundary must still be caught, or the
+    # boundary rule could pass by matching nothing at all.
+    exact = ast.parse(f'P = "openspec/changes/{real_id}/design.md"\n')
+    assert _offending_literals(exact, _CHANGE_IDS)
+
+    bare = ast.parse(f'P = "openspec/changes/{real_id}"\n')
+    assert _offending_literals(bare, _CHANGE_IDS), "a trailing-boundary id counts"
+
