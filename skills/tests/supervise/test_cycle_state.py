@@ -121,6 +121,7 @@ def _install_schemas(repo: Path) -> None:
 def repo(tmp_path: Path) -> Path:
     r = tmp_path / "repo"
     r.mkdir()
+    _install_schemas(r)
     subprocess.run(["git", "init", str(r)], check=True, capture_output=True)
     for k, v in (("user.email", "t@example.com"), ("user.name", "T")):
         _git(r, "config", k, v)

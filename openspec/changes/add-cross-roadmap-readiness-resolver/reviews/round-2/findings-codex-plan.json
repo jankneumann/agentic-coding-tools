@@ -1,0 +1,43 @@
+{
+  "review_type": "plan",
+  "target": "add-cross-roadmap-readiness-resolver",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "D2 and the normative checkpoint scenarios now distinguish hard-invalid checkpoint state from soft roadmap/checkpoint divergence while retaining checkpoint authority.",
+      "resolution": "Verified; no further plan change.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/specs/roadmap-orchestration/spec.md",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "The contract now represents invalid-roadmap and duplicate-roadmap-id diagnostics promised by D5.",
+      "resolution": "Verified; no further plan change.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/contracts/readiness-result.schema.json",
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "criticality": "low",
+      "description": "D3 now fixes the canonical fingerprint projection, collection ordering, absent sentinel, and malformed-input fallback without time-dependent state.",
+      "resolution": "Verified; no further plan change.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md",
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+agents:
+  antigravity-local:
+    type: antigravity
+    transport: mcp
+    cli:
+      command: agy
+      dispatch_modes:
+        review:
+          args: ["--mode", "plan", "--dangerously-skip-permissions"]
+      model_flag: "--model"
+      model: "gemini-3.6-flash-medium"
+      model_fallbacks: ["gemini-3.6-flash-low"]
+      prompt_via_flag: "--prompt"
