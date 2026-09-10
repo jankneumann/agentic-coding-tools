@@ -38,15 +38,15 @@
 
 ## Phase 3 — Validation evidence
 
-- [ ] 3.1 Run the focused runtime, autopilot-roadmap, plan-roadmap, and supervise suites (S)
+- [x] 3.1 Run the focused runtime, autopilot-roadmap, plan-roadmap, and supervise suites (S)
   **Spec scenarios**: all
   **Design decisions**: D1-D5
   **Dependencies**: 2.3
 
-- [ ] 3.2 Run ruff, strict OpenSpec validation, package validation, context-impact validation, and install-payload checks (S)
+- [x] 3.2 Run ruff, strict OpenSpec validation, package validation, context-impact validation, and install-payload checks (S)
   **Spec scenarios**: all
   **Design decisions**: D1-D5
   **Dependencies**: 3.1
 
-- [ ] Checkpoint: confirm all task boxes are complete, inspect `main...HEAD`, and record validation evidence
+- [x] Checkpoint: confirm all task boxes are complete, inspect `main...HEAD`, and record validation evidence
 
