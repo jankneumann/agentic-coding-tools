@@ -42,7 +42,7 @@ dev = [
     # check the two imports this package cannot do without. Without both stub
     # packages the type gate reports `import-untyped` and stops being a gate.
     "types-jsonschema==4.26.0.20260518",
-    "types-PyYAML==6.0.12.20250915",
+    "types-PyYAML==6.0.12.20260906",
 ]
 
 [tool.ruff]
