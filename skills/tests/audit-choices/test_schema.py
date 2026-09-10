@@ -8,19 +8,19 @@ from __future__ import annotations
 
 import copy
 import json
-from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
+from openspec_paths import change_dir, repo_root_from
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = repo_root_from(__file__, 3)
 SCHEMA_PATH = REPO_ROOT / "openspec" / "schemas" / "decision-choices.schema.json"
+# Resolved rather than pinned: archival moves the change directory to
+# openspec/changes/archive/<date>-<id>/, which would break this test on the day
+# the change lands rather than the day its contract drifts.
 CONTRACT_PATH = (
-    REPO_ROOT
-    / "openspec"
-    / "changes"
-    / "add-decision-choices-ledger"
+    change_dir(REPO_ROOT, "add-decision-choices-ledger")
     / "contracts"
     / "decision-choices.schema.json"
 )
