@@ -1,0 +1,55 @@
+{
+  "review_type": "plan",
+  "target": "migrate-discovery-generators-to-emit-candidate-work-stubs",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: The executable work-package DAG contradicts tasks.md: wp-prioritize and wp-integration can start without wp-producers, even though candidate ranking depends on all three producer implementations and integration explicitly exercises and mirrors them.",
+      "resolution": "Add wp-producers to wp-prioritize.depends_on (matching task 2.1) and to wp-integration.depends_on, or make the integration dependency transitive through wp-prioritize; then rerun DAG and overlap validation.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml",
+      "line_range": {
+        "start": 166,
+        "end": 172
+      },
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: wp-producers may update canonical bug-scrub and improve-harness skill documentation, but its write scope omits the corresponding skills/tests/bug-scrub and skills/tests/improve-harness documentation-contract suites.",
+      "resolution": "Add both canonical skill-test directories to wp-producers.write_allow so documentation assertions can be updated without scope violations.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml",
+      "line_range": {
+        "start": 76,
+        "end": 82
+      },
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The plan correctly defines full-batch validation, atomic replacement, stable ordering, collision handling, and transaction-safe existing-roadmap intake as explicit executable contracts.",
+      "resolution": "Preserve these boundaries during implementation and validation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 78,
+        "end": 127
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

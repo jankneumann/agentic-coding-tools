@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: migrate-discovery-generators-to-emit-candidate-work-stubs
   title: "Migrate discovery generators to emit candidate-work stubs"
-  plan_revision: 2
+  plan_revision: 3
   created_by: plan-feature
   deployable: false
 
@@ -39,7 +39,10 @@ packages:
       write_allow:
         - "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/contracts/**"
         - "skills/tests/candidate-work/**"
+        - "skills/tests/prioritize-proposals/test_validate_candidate_work.py"
+        - "skills/tests/shared/**"
         - "skills/shared/candidate_work.py"
+        - "skills/install-manifest.json"
         - "skills/prioritize-proposals/scripts/validate_candidate_work.py"
       read_allow: ["**"]
       deny: ["**/.venv/**"]
@@ -54,7 +57,7 @@ packages:
       steps:
         - name: "Canonical fixtures validate"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/candidate-work skills/tests/prioritize-proposals/test_validate_candidate_work.py -q"
+          command: "skills/.venv/bin/python -m pytest skills/tests/candidate-work skills/tests/prioritize-proposals/test_validate_candidate_work.py skills/tests/shared -q"
           evidence: {artifacts: [], result_keys: ["fixture_suite"]}
     metadata: {loc_estimate: 120, complexity: low, package_kind: data_model}
     outputs: {result_keys: ["fixture_suite"]}
@@ -76,6 +79,8 @@ packages:
         - "skills/bug-scrub/**"
         - "skills/improve-harness/**"
         - "skills/explore-feature/**"
+        - "skills/tests/bug-scrub/**"
+        - "skills/tests/improve-harness/**"
         - "skills/tests/explore-feature/**"
       read_allow: ["**"]
       deny: ["**/.venv/**", "openspec/schemas/candidate-work.schema.json"]
@@ -90,7 +95,7 @@ packages:
       steps:
         - name: "Producer suites pass"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/bug-scrub/tests skills/improve-harness/tests skills/explore-feature/tests skills/tests/explore-feature -q"
+          command: "skills/.venv/bin/python -m pytest skills/bug-scrub/tests skills/improve-harness/tests skills/explore-feature/tests skills/tests/bug-scrub skills/tests/improve-harness skills/tests/explore-feature -q"
           evidence: {artifacts: [], result_keys: ["producer_suites"]}
     metadata: {loc_estimate: 500, complexity: medium, package_kind: algorithm}
     outputs: {result_keys: ["producer_suites"]}
@@ -101,7 +106,7 @@ packages:
     description: "Phase 2: candidate loader, stable ranking, report/CLI integration, and mixed-batch tests."
     role: implementer
     priority: 3
-    depends_on: ["wp-contracts"]
+    depends_on: ["wp-contracts", "wp-producers"]
     locks:
       files: []
       keys: ["feature:candidate-work:prioritize"]

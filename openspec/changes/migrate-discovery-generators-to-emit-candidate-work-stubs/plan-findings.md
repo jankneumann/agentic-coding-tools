@@ -12,3 +12,20 @@
 | 6 | security | medium | Discovery strings could be interpreted by renderers. | Required inert rendering and opaque provenance URIs. |
 
 No findings at or above medium remain.
+
+## Parallel Review Round 1
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 1 | architecture | high | The executable work-package DAG let candidate ranking start before all three producer adapters, contrary to task 2.1 and the integration contract. | Added `wp-producers` to `wp-prioritize.depends_on`; `wp-integration` now receives that prerequisite transitively. |
+| 2 | architecture | medium | The producer package could update bug-scrub and improve-harness skill docs but not their canonical skill-contract tests. | Added both test directories to `wp-producers.write_allow`. |
+| 3 | infrastructure | high | An initially bounded dispatch timed out before independent results arrived. | A documented-timeout retry produced substantive 4/4 external-vendor results; combined with the primary Codex review, consensus met 5/5 quorum. |
+| 4 | correctness | high | Producer priorities were not comparable, explore-feature could emit schema-invalid prefixes, and prose blockers could become permanent dependency edges. | Defined one shared five-band scale, canonical prefix normalization, and exact-ID-only dependency projection with inert prose fallback. |
+| 5 | correctness | high | New-roadmap intake omitted required envelope and capability data; existing-roadmap intake could introduce duplicate execution priorities. | Required roadmap ID/capability and a complete envelope in new mode; existing mode omits execution priority so refine-roadmap assigns max+1 while retaining source priority in rationale. |
+| 6 | compatibility | high | New shared-runtime consumers lacked install-manifest declarations and package write scope for the manifest guard. | Added manifest/test ownership to `wp-contracts` and made the declaration part of task 0.2 and validation. |
+| 7 | architecture | low | Contract and producer package gates omitted writable canonical tests. | Added the validator test to `wp-contracts` scope and the canonical producer skill-test directories to the producer gate. |
+
+All consensus blocking defects were remediated and strict plan/package validation is
+green. A confirmation dispatch was started but stopped on the supervising agent's
+bounded-round instruction, so the recorded phase outcome remains `not_converged`
+pending an independent review of revision 3.

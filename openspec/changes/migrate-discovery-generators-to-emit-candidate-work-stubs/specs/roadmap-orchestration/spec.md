@@ -8,15 +8,19 @@ without hand-editing intermediate artifacts.
 
 #### Scenario: Approved stub creates a new-roadmap item
 
-- **WHEN** an approved canonical stub targets a new roadmap and supplies measurable acceptance outcomes
+- **WHEN** an approved canonical stub targets a new roadmap and supplies measurable acceptance outcomes, a roadmap ID, and a capability
 - **THEN** plan-roadmap SHALL create a schema-valid roadmap item
+- **AND** it SHALL create a complete schema-version-1 roadmap envelope using candidate provenance as `source_proposal`
 - **AND** the item SHALL preserve title, rationale, effort, priority, and exact suggested change ID
+- **AND** the scaffolded spec delta SHALL use the approved capability
 - **AND** the item's description SHALL retain candidate provenance
 
 #### Scenario: Approved stub targets an existing roadmap
 
 - **WHEN** an approved canonical stub targets an existing roadmap workspace
 - **THEN** plan-roadmap SHALL route the mapped item through a refine-roadmap add request
+- **AND** the request SHALL omit execution priority so refine-roadmap assigns the next free priority
+- **AND** the candidate priority SHALL remain present in request provenance or rationale
 - **AND** the existing roadmap SHALL NOT be written before preview and apply authorization
 
 #### Scenario: Approved stub omits acceptance outcomes

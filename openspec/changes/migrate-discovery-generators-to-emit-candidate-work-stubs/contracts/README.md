@@ -16,10 +16,16 @@ This change introduces no new schema. It consumes these canonical contracts:
 | explore-feature | `docs/feature-discovery/opportunities.json` | `docs/feature-discovery/candidate-work.json` |
 
 All sidecars are JSON arrays, validate fully before atomic replacement, serialize
-with sorted keys and a trailing newline, and populate `provenance.generator`.
+with sorted keys and a trailing newline, populate `provenance.generator`, normalize
+change IDs to add/update/remove/refactor prefixes, and use the shared five-band
+priority scale. Only blockers that resolve to exact change IDs enter `depends_on`;
+free-form blockers remain inert rationale or tags.
 
 ## Approved intake contract
 
 The plan-roadmap intake accepts one schema-valid stub plus non-empty measurable
-acceptance outcomes. It returns either a validated one-item new-roadmap payload or a
-refine-roadmap add request. It does not write an existing roadmap itself.
+acceptance outcomes. New-roadmap mode also requires an approved roadmap ID and
+capability and returns a complete schema-version-1 envelope using candidate provenance
+as `source_proposal`. Existing-roadmap mode returns a refine add request without an
+explicit execution priority, allowing refine-roadmap to assign max+1 while retaining
+the candidate priority in provenance. Intake does not write an existing roadmap itself.

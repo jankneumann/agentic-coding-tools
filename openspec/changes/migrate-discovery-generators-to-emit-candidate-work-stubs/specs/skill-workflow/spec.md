@@ -26,6 +26,15 @@ while preserving their existing rich artifacts.
 - **THEN** every eligible untracked opportunity SHALL have a schema-valid candidate-work projection
 - **AND** the rich HMW, lens, and rejected-alternative data SHALL remain in `opportunities.json`
 - **AND** already-scaffolded opportunities SHALL NOT create duplicate candidate work
+- **AND** hinted or derived IDs SHALL be normalized to the canonical change-ID prefixes
+- **AND** only blockers resolving to exact change IDs SHALL populate `depends_on`
+- **AND** prose blockers SHALL remain inert rationale or tags
+
+#### Scenario: Producers assign comparable priority
+
+- **WHEN** supported generators project entries into a mixed candidate batch
+- **THEN** each adapter SHALL map source evidence onto the shared five-band priority scale
+- **AND** source-local rank SHALL NOT be treated as an unbounded cross-generator priority
 
 #### Scenario: Candidate batch validation fails
 
@@ -38,6 +47,12 @@ while preserving their existing rich artifacts.
 - **WHEN** the same input and repository state are processed twice
 - **THEN** complete sidecar bytes SHALL be identical
 - **AND** every stub SHALL retain generator and source provenance
+
+#### Scenario: Candidate text is rendered safely
+
+- **WHEN** a report renders candidate title, rationale, tags, or provenance
+- **THEN** source text SHALL be escaped as inert Markdown or terminal text
+- **AND** provenance URIs SHALL NOT be dereferenced, fetched, or executed
 
 #### Scenario: Discovery returns no eligible entries
 

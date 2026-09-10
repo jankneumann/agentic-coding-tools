@@ -1,0 +1,55 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Nit: wp-contracts verification command includes skills/tests/prioritize-proposals/test_validate_candidate_work.py and task 0.2 updates the ri-11 CLI wrapper, but wp-contracts.write_allow omits skills/tests/prioritize-proposals/test_validate_candidate_work.py.",
+      "resolution": "Add skills/tests/prioritize-proposals/test_validate_candidate_work.py to wp-contracts.write_allow so tests for the ri-11 CLI wrapper can be updated in Phase 0.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml",
+      "line_range": {
+        "start": 38,
+        "end": 44
+      }
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Nit: wp-producers includes skills/tests/bug-scrub/** in write_allow, but its verification command omits skills/tests/bug-scrub from the pytest invocation.",
+      "resolution": "Add skills/tests/bug-scrub to the pytest command in wp-producers.verification.steps[0].command.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml",
+      "line_range": {
+        "start": 93,
+        "end": 96
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The plan defines robust, deterministic candidate projection, atomic file replacement, full-batch validation, topological ranking, and transaction-safe roadmap intake via refine-roadmap.",
+      "resolution": "Maintain these deterministic validation and transaction boundaries during implementation.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 20,
+        "end": 76
+      }
+    }
+  ]
+}

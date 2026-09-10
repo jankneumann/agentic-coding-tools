@@ -1,0 +1,87 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: Work package dependency DAG is inconsistent with implementation requirements. wp-prioritize can start before wp-producers, but ranking requires all three producer implementations to be complete. Similarly, wp-integration exercises all producers but doesn't explicitly depend on wp-producers.",
+      "resolution": "Add wp-producers to wp-prioritize.depends_on and ensure wp-integration transitively depends on all producer implementations. This aligns the DAG with the actual implementation dependencies described in tasks.md.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml",
+      "line_range": {
+        "start": 166,
+        "end": 172
+      },
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: wp-producers write scope excludes test directories for bug-scrub and improve-harness skills, preventing updates to canonical skill-contract tests during implementation.",
+      "resolution": "Add skills/tests/bug-scrub and skills/tests/improve-harness to wp-producers.write_allow to enable comprehensive test coverage for all producer implementations.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml",
+      "line_range": {
+        "start": 76,
+        "end": 82
+      },
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "FYI: The plan correctly establishes clear contracts for candidate-work generation, validation, ranking, and roadmap integration. The additive sidecar approach maintains backward compatibility while enabling deterministic processing.",
+      "resolution": "Accept these well-defined boundaries as they promote robust implementation and testing patterns.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 25,
+        "end": 45
+      },
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "FYI: The separation of concerns between producers, ranking, and roadmap intake is well-designed, promoting modularity and testability. Each component has a single responsibility with clear interfaces.",
+      "resolution": "Maintain these architectural boundaries during implementation to ensure clean separation of concerns.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 50,
+        "end": 100
+      },
+      "axis": "architecture",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "FYI: The plan includes comprehensive test scenarios covering success cases, error conditions, and edge cases for all components. This demonstrates thorough thinking about validation requirements.",
+      "resolution": "Ensure all specified test scenarios are implemented and passing before considering the feature complete.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 1,
+        "end": 50
+      },
+      "axis": "correctness",
+      "severity": "fyi",
+      "evidence_class": "judgment"
+    }
+  ]
+}

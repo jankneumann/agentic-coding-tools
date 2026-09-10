@@ -29,14 +29,21 @@ preserves the prior file; successful empty discovery writes an empty array.
 ### D3 — Producer mappings are deterministic and conservative
 
 - Bug-scrub maps one promoted finding to one stub. Finding ID and report path become
-  provenance; severity maps to priority; effort uses a documented conservative
+  provenance; severity maps to the shared priority scale; effort uses an exhaustive
   category/severity table; the slug uses a valid `update-` prefix.
 - Improve-harness maps one ranked capability gap to one stub. Source entry IDs become
-  finding IDs, rank becomes priority, and the previous markdown proposal helper/flag
-  remains as a compatibility wrapper for one migration window.
+  finding IDs, criticality maps to the shared priority scale, source rank is retained
+  as a bounded tag, and the previous markdown proposal helper/flag remains as a
+  compatibility wrapper for one migration window.
 - Explore-feature maps only untracked shortlist items. Existing/scaffolded entries
   stay in `opportunities.json` but do not create duplicate candidate work. HMW/lens
-  data remains in the rich artifact and contributes only bounded tags/rationale.
+  data and non-change-ID blockers remain in the rich artifact and contribute only
+  bounded tags/rationale. Only blockers that resolve to an exact candidate, active,
+  or archived change ID become `depends_on` entries.
+
+Every adapter normalizes hinted or derived slugs through the canonical prefix set.
+An existing `add-`, `update-`, `remove-`, or `refactor-` prefix is retained; `fix-`
+is normalized to `update-`; and an unprefixed slug receives `update-`.
 
 All emitted stubs populate `provenance.generator` even though the schema leaves it
 optional.
@@ -45,9 +52,11 @@ optional.
 
 `/prioritize-proposals --candidate-work <path>` loads and validates an object or
 array, ranks stubs with stable tie-breakers, and can render them alongside active
-proposals without pretending a stub is already scaffolded. Candidate readiness uses
-`depends_on`; size uses `effort`; provenance supports relevance checks. A mixed batch
-retains the originating generator in output.
+proposals without pretending a stub is already scaffolded. Every adapter emits a
+shared five-band priority estimate: critical/immediate=1, high=2, medium/normal=3,
+low=4, and informational/backlog=5. Source-local rank never bypasses this common
+scale. Candidate readiness uses `depends_on`; size uses `effort`; provenance supports
+relevance checks. A mixed batch retains the originating generator in output.
 
 ### D5 — Plan-roadmap owns candidate-to-item mapping, not direct active-roadmap writes
 
@@ -59,15 +68,20 @@ A reusable helper validates one approved stub and maps it to one roadmap item:
 | `description` + provenance summary | `description` |
 | `rationale` | `rationale` |
 | `effort` | `effort` |
-| `priority` | `priority` |
+| `priority` | new-roadmap item `priority`; retained in provenance for existing-roadmap intake |
 | `suggested_change_id` | `change_id` |
 | `depends_on` | resolved dependency item IDs |
 
 Measurable `acceptance_outcomes` are required from the approved request; they are
 not invented by the deterministic helper. Unresolved dependencies fail clearly.
-For a new roadmap the helper feeds the existing validate/save/scaffold path. For an
-existing roadmap it emits/uses a refine-roadmap add request and its preview/apply
-transaction. The helper never overwrites an active roadmap directly.
+New-roadmap requests also require an operator-approved `roadmap_id` and `capability`;
+the envelope uses schema version 1, the candidate provenance source as
+`source_proposal`, approved status, and one `ri-01` item carrying that capability.
+The helper then feeds the existing validate/save/scaffold path. For an existing
+roadmap it emits/uses a refine-roadmap add request and its preview/apply transaction,
+omitting execution priority so refine-roadmap assigns the next free priority while
+retaining the candidate priority in the request rationale. The helper never
+overwrites an active roadmap directly.
 
 ### D6 — ri-13 is a caller, not a second implementation
 
@@ -80,18 +94,23 @@ approval conversation in supervise and the mapping/mutation policy in plan-roadm
 ### Producer mapping
 
 Bug-scrub emits every finding already selected by its severity filter to the report
-output directory. Severity maps critical through info to priority 1 through 5; category
-maps simple diagnostics to XS, test/deferred findings to S, and architecture/security/spec
-findings to M. Improve-harness emits every ranked gap: one-based rank is priority and
-critical/high/medium/low maps to L/M/S/XS. A file report gets an adjacent sidecar;
+output directory. Severity maps critical through info to priority 1 through 5;
+lint/type-error/code-marker map to XS, test/deferred map to S, and
+architecture/security/spec map to M, with unknown categories rejected rather than
+silently guessed. Improve-harness emits every ranked gap: critical/high/medium/low
+map to priority 1/2/3/4 and effort L/M/S/XS, while source rank is retained in a
+bounded `source-rank-N` tag. A file report gets an adjacent sidecar;
 stdout-only behavior remains write-free without an explicit candidate output, and the
 legacy proposal flag remains. Explore-feature emits only opportunities whose exact
-hinted or derived change ID is absent from active and archived changes and is not marked
-existing; it maps stable ID, problem statement, why-now, rank, effort, and blockers.
+normalized hinted or derived change ID is absent from active and archived changes and
+is not marked existing; it maps stable ID, problem statement, why-now, effort, a
+bounded 1..5 priority from shortlist rank, and only blockers that resolve to exact
+change IDs. Prose blockers are retained in rationale/tags, not `depends_on`.
 
 All producers retain rich output and populate generator/source provenance. Colliding
-slugs receive a stable eight-hex SHA-256 suffix derived from provenance. Candidate text
-is inert data: renderers escape structure and never dereference provenance URIs.
+normalized slugs receive a stable eight-hex SHA-256 suffix derived from provenance.
+Candidate text is inert data: renderers escape Markdown/terminal structure and never
+dereference, fetch, or execute provenance URIs.
 
 ### Candidate ranking
 
@@ -105,8 +124,13 @@ generator, then suggested change ID; blocked candidates follow ready ones.
 ### Candidate intake
 
 The plan-roadmap candidate_intake helper accepts exactly one stub, nonblank
-operator-approved outcomes, and exactly one new-roadmap or existing-roadmap target. It
-assigns the next free ri-NN, approved status, exact change ID, actor, source, and
+operator-approved outcomes, and exactly one new-roadmap or existing-roadmap target.
+New-roadmap mode additionally requires a kebab-case roadmap ID and capability; it
+creates a complete schema-version-1 envelope whose `source_proposal` is the candidate
+provenance source and whose sole approved `ri-01` item carries the capability. Existing
+mode assigns the next free ri-NN and omits priority from the refine add operation so
+refine-roadmap assigns max+1 without collisions. Both modes preserve the candidate
+priority in provenance/rationale and assign exact change ID, actor, source, and
 rationale. Exact dependency change IDs map to local or unique external item references;
 completed archives are satisfied. Unknown, ambiguous, cyclic dependencies and
 active/archive change-ID collisions fail before writes.
@@ -120,6 +144,7 @@ must call this helper after ri-12 rather than maintain a second mapping.
 ## Failure semantics
 
 - Invalid or unmappable producer data: explicit error, no sidecar replacement.
+- Invalid or colliding normalized change ID: explicit error, no sidecar replacement.
 - Invalid mixed batch: fail before ranking; include the offending batch index.
 - Duplicate suggested IDs or a dependency cycle: fail before ranking or persistence.
 - Missing acceptance outcomes: refuse candidate intake.
@@ -129,11 +154,15 @@ must call this helper after ri-12 rather than maintain a second mapping.
 ## Test strategy
 
 Tests precede implementation. Every producer suite proves a representative output
-passes the real ri-11 validator and that malformed input produces no partial file.
-Consumer tests cover a mixed three-generator batch, deterministic ordering, invalid
-batch refusal, one-item new-roadmap creation, and existing-roadmap refine request
+passes the real ri-11 validator, normalizes invalid/legacy prefixes, separates prose
+blockers from dependency IDs, and leaves no partial file on malformed input. Consumer
+tests cover a mixed three-generator batch on the shared priority scale, deterministic
+ordering, inert rendering, invalid-batch refusal, complete one-item new-roadmap
+creation with capability, and collision-free existing-roadmap refine request
 generation. A cross-skill integration test exercises producer fixtures through
-ranking and intake without hand editing.
+ranking and intake without hand editing. Install-manifest validation proves every
+portable skill that imports the shared helper declares its dependency before mirror
+sync.
 
 ## Compatibility notes
 

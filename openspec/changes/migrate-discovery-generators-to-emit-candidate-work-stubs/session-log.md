@@ -61,3 +61,30 @@ Refined roadmap item ri-12 into a tests-first, coordinated OpenSpec plan. Select
 ### Context
 Closed the material semantic gaps in the ri-12 plan. The refined contracts now define shared validation and atomic persistence, deterministic producer mappings and ranking, and transaction-safe single-stub roadmap intake.
 
+---
+
+## Phase: Plan Review 1 (2026-09-10)
+
+**Agent**: codex-reviewer | **Session**: N/A
+
+### Decisions
+1. **Normalize producer priority before mixed ranking** — Source-local ranks and severity bands were not comparable across generators.
+2. **Make candidate intake target-specific** — New roadmaps require a complete envelope and capability, while existing roadmaps must defer execution priority assignment to refine-roadmap.
+
+### Completed Work
+- Collected and schema-validated substantive findings from Codex, Antigravity, Claude Code, Grok, and Pi.
+- Synthesized a 5/5-quorum consensus with seven blocking findings.
+- Remediated shared priority, slug normalization, dependency projection, roadmap envelope, priority collision, install-manifest, DAG, and scope/test-gate defects.
+- Passed strict OpenSpec and work-package DAG/scope/overlap validation.
+
+### Next Steps
+- Run an independent vendor confirmation review of plan revision 3 before implementation.
+
+### Relevant Files
+- `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/reviews/consensus-plan.json` — round-1 five-vendor consensus
+- `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md` — remediated executable contracts
+- `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml` — revision-3 DAG, scopes, and gates
+
+### Context
+Five-vendor consensus met quorum and identified seven blocking findings. All material defects were remediated in plan revision 3 and strict validation passes, but the bounded confirmation round did not complete, so the phase remains not_converged.
+

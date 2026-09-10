@@ -84,7 +84,7 @@ at the producer-write and consumer-read boundaries.
 | Attribute | Metric | Target | Verifying phase |
 |---|---|---|---|
 | Compatibility | Existing rich outputs | Existing report/opportunity fields and legacy improve-harness flag remain usable | VALIDATE |
-| Determinism | Same input bytes | Byte-identical candidate batch and stable mixed ranking | VALIDATE |
+| Determinism | Same input bytes and repository state | Byte-identical candidate batch and stable mixed ranking | VALIDATE |
 | Safety | Invalid candidate input | No partial sidecar or roadmap mutation | VALIDATE |
 | Traceability | Stub provenance | 100% of emitted stubs include source artifact, finding IDs, and generator | VALIDATE |
 | Isolation | Roadmap writes | Existing new/refine transaction remains the sole mutation boundary | VALIDATE |
