@@ -1,17 +1,97 @@
 {
-  "blocking_findings": [],
+  "schema_version": 5,
   "change_id": "write-durable-state-artifacts-guide",
-  "cli_review_enabled": true,
   "current_phase": "SUBMIT_PR",
-  "error": null,
-  "escalation_reason": "plan_review_convergence_failure: max_iter approved for escalation",
+  "iteration": 0,
+  "total_iterations": 18,
+  "max_phase_iterations": 3,
   "findings_trend": [
     26,
     25,
     21,
     11
   ],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/plan-review-8-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-continuation-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-iteration-1-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-review-1-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-fix-1-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/validation-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/submission-1.json"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-09-08T09:56:41.052294+00:00",
+      "note": "Risk/verifiability judgment NOT CHECKED \u2014 no dispatch adapter available; fell back to the permissive signal-only verdict 'proceed'.",
+      "outcome": "DEGRADED",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-09-09T13:16:13.196942+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-10T04:19:56.502803+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-09-10T04:22:37.794917+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-09-10T04:43:50.521271+00:00",
+      "outcome": "not_converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-10T04:47:41.772606+00:00",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-10T05:10:34.105146+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-09-10T08:02:46.844729+00:00",
+      "outcome": "created",
+      "phase": "SUBMIT_PR"
+    }
+  ],
+  "last_handoff_id": "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/submission-1.json",
+  "started_at": "2026-09-08T09:56:40.846671+00:00",
+  "phase_started_at": "2026-09-10T05:11:08.922085+00:00",
+  "previous_phase": "PLAN_REVIEW",
+  "escalation_reason": "plan_review_convergence_failure: max_iter approved for escalation",
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "runner",
   "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 1,
+    "total_loc_estimate": 420
+  },
+  "gate_verdict": "proceed",
   "gate_decisions": [
     {
       "approval_id": null,
@@ -182,104 +262,31 @@
       "recorded_at": "2026-09-10T08:03:01.997489+00:00",
       "resolution": "posture_block",
       "timeout_seconds": null
-    }
-  ],
-  "gate_signals": {
-    "external_dep_count": 0,
-    "has_broad_write_scope": false,
-    "has_db_migration": false,
-    "has_proposal": true,
-    "has_security_signal": false,
-    "has_specs": true,
-    "has_tasks": true,
-    "has_work_packages": true,
-    "package_count": 1,
-    "total_loc_estimate": 420
-  },
-  "gate_verdict": "proceed",
-  "goal_gate": null,
-  "handoff_ids": [
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/plan-review-8-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-continuation-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-iteration-1-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-review-1-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-fix-1-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/validation-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/submission-1.json"
-  ],
-  "implementation_strategy": {},
-  "iteration": 0,
-  "last_handoff_id": "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/submission-1.json",
-  "max_phase_iterations": 3,
-  "memory_ids": [],
-  "package_authors": {},
-  "packages_status": {},
-  "pending_gate": {
-    "change_id": "write-durable-state-artifacts-guide",
-    "context": {
-      "branch": "openspec/write-durable-state-artifacts-guide",
-      "change_id": "write-durable-state-artifacts-guide",
-      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/505"
     },
-    "gate": "merge",
-    "phase": "SUBMIT_PR",
-    "posture": {
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 Operator authorized merging ri-10 if CI is clean; GitHub Actions run 34453916583 completed successfully.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
       "disposition": "block",
-      "posture_present": false
-    },
-    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
-    "requested_at": "2026-09-10T08:03:01.997881+00:00",
-    "schema_version": 1
-  },
-  "phase_archetype": "runner",
-  "phase_history": [
-    {
-      "at": "2026-09-08T09:56:41.052294+00:00",
-      "note": "Risk/verifiability judgment NOT CHECKED \u2014 no dispatch adapter available; fell back to the permissive signal-only verdict 'proceed'.",
-      "outcome": "DEGRADED",
-      "phase": "GATEKEEPER"
-    },
-    {
-      "at": "2026-09-09T13:16:13.196942+00:00",
-      "outcome": "converged",
-      "phase": "PLAN_REVIEW"
-    },
-    {
-      "at": "2026-09-10T04:19:56.502803+00:00",
-      "outcome": "complete",
-      "phase": "IMPLEMENT"
-    },
-    {
-      "at": "2026-09-10T04:22:37.794917+00:00",
-      "outcome": "complete",
-      "phase": "IMPL_ITERATE"
-    },
-    {
-      "at": "2026-09-10T04:43:50.521271+00:00",
-      "outcome": "not_converged",
-      "phase": "IMPL_REVIEW"
-    },
-    {
-      "at": "2026-09-10T04:47:41.772606+00:00",
-      "outcome": "fixed",
-      "phase": "IMPL_FIX"
-    },
-    {
-      "at": "2026-09-10T05:10:34.105146+00:00",
-      "outcome": "passed",
-      "phase": "VALIDATE"
-    },
-    {
-      "at": "2026-09-10T08:02:46.844729+00:00",
-      "outcome": "created",
-      "phase": "SUBMIT_PR"
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-10T08:17:33.367594+00:00",
+      "note": "Operator authorized merging ri-10 if CI is clean; GitHub Actions run 34453916583 completed successfully."
     }
   ],
-  "phase_started_at": "2026-09-10T05:11:08.922085+00:00",
-  "previous_phase": "PLAN_REVIEW",
-  "schema_version": 5,
-  "started_at": "2026-09-08T09:56:40.846671+00:00",
-  "total_iterations": 18,
-  "val_review_enabled": false,
-  "vendor_availability": {}
+  "pending_gate": null,
+  "goal_gate": {
+    "verdict": "pending",
+    "reason": "merge authorized; DONE evidence not yet checked",
+    "evidence": {
+      "merge_authorized": true,
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/505"
+    }
+  }
 }
