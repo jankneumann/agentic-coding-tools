@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-09-10 — 2026-09-10-add-cross-roadmap-readiness-resolver
+
+### Phase: Cleanup
+
+**Preserve stacked roadmap topology with a merge commit** — PR #509 targets the long-lived supervisor roadmap integration branch and the established roadmap sync-point pattern preserves the exact CI-green feature history.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-10-add-cross-roadmap-readiness-resolver/session-log.md](/openspec/changes/archive/2026-09-10-add-cross-roadmap-readiness-resolver/session-log.md) (D1)
+
+---
+
+## 2026-09-10 — 2026-09-10-add-cross-roadmap-readiness-resolver
+
+### Phase: Cleanup Verification
+
+**Complete ri-16 through the supervised dispatch state machine** — The generation-2 success result is bound to the exact validated feature head and terminal loop-state evidence.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-10-add-cross-roadmap-readiness-resolver/session-log.md](/openspec/changes/archive/2026-09-10-add-cross-roadmap-readiness-resolver/session-log.md) (D1)
+
+---
+
 ## 2026-09-03 — 2026-09-03-route-supervise-gates-through-the-approval-gate-service
 
 ### Phase: Plan
