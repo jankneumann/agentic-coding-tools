@@ -1,0 +1,86 @@
+{
+  "schema_version": 5,
+  "change_id": "add-supervisor-candidate-work-digest",
+  "current_phase": "PLAN",
+  "iteration": 0,
+  "total_iterations": 2,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper:add-supervisor-candidate-work-digest:20260910T2240Z"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-09-10T22:41:37.744254+00:00",
+      "outcome": "proceed",
+      "phase": "GATEKEEPER"
+    }
+  ],
+  "last_handoff_id": "gatekeeper:add-supervisor-candidate-work-digest:20260910T2240Z",
+  "started_at": "2026-09-10T22:40:09.976184+00:00",
+  "phase_started_at": "2026-09-10T22:41:37.795957+00:00",
+  "previous_phase": null,
+  "escalation_reason": null,
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "gatekeeper",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 4,
+    "total_loc_estimate": 730
+  },
+  "gate_verdict": "proceed",
+  "gate_decisions": [
+    {
+      "gate": "proposal_approval",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "PLAN",
+      "recorded_at": "2026-09-10T22:41:51.899501+00:00"
+    }
+  ],
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "add-supervisor-candidate-work-digest",
+    "gate": "proposal_approval",
+    "phase": "PLAN",
+    "requested_at": "2026-09-10T22:41:51.899764+00:00",
+    "prompt": "Approve this OpenSpec proposal and begin implementation?",
+    "context": {
+      "proposal_path": "openspec/changes/add-supervisor-candidate-work-digest/proposal.md",
+      "approach": "exists"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": false
+    },
+    "edge": {
+      "outcome": "exists",
+      "target": "PLAN_ITERATE"
+    }
+  },
+  "goal_gate": null
+}
