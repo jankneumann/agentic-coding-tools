@@ -66,11 +66,11 @@
   - **Dependencies**: 1.1, 2.2
   - **Coverage**: Synchronize the feature branch with current `main`, then consume the existing `skills/tests/_shared/openspec_paths.py` helper and `skills/tests/openspec_paths/` guard; resolve the design artifact with `change_dir(ROOT, CHANGE_ID)`, preserve the same eight-stage assertion after archival, normalize remaining shared-semantics wording to repository-relative references, and do not create or copy path infrastructure inside this package.
 
-- [ ] 3.3 Run the complete validation matrix.
+- [x] 3.3 Run the complete validation matrix.
   - **Size**: S
   - **Spec scenarios**: all
   - **Design decisions**: D4
   - **Dependencies**: 3.1, 3.2
   - **Coverage**: Run focused and affected skill tests, the OpenSpec path-stability and CI test-coverage guards, `bash skills/install.sh --check`, strict OpenSpec, work-package validation, base-relative context-impact validation, documentation-reference checks, scope checks, and diff checks.
 
-- [ ] Checkpoint: review the complete branch diff, reconcile task checkboxes with commit reality, and preserve validation evidence.
+- [x] Checkpoint: review the complete branch diff, reconcile task checkboxes with commit reality, and preserve validation evidence.

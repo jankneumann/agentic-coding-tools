@@ -220,3 +220,37 @@ Three schema-valid reviewers produced 24 unique advisory findings with two confi
 
 ### Context
 Remediated the one medium implementation-review finding by guarding the documentation index, then applied three closely related low-risk reference and evidence corrections. The bounded cycle is green at 720 focused tests, ruff and install portability pass, and strict OpenSpec remains 90/90.
+
+---
+
+## Phase: Validation (2026-09-10)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Declare the documentation-only validation surface** — The stacked supervisor branch contains deployable ancestors, but ri-10 itself changes only documentation, skill instructions, OpenSpec artifacts, and structural tests; a persistent deployable false declaration prevents a misleading fail-closed classification.
+2. **Isolate the stale architecture refresh** — Generating fresh architecture artifacts under /tmp preserved valid structural evidence without adding unrelated current-main runtime projections to the ri-10 package.
+
+### Trade-offs
+- Accepted Advisory pre-existing file-size findings over Expanding ri-10 into skill decomposition because The findings are generic nits on already-large documents and do not reflect new runtime coupling or a spec failure.
+
+### Capability Gaps Observed
+- **tooling**: Package checkpoint evaluation drops feature-level contract files and falsely reports spurious_rationale; tracked by GitHub issue #504. (skill: project-context-refresh, severity: low)
+
+### Completed Work
+- Completed task 3.3 and final task checkpoint
+- Passed 834 focused/guard tests and 226 affected tests
+- Passed mirror, strict OpenSpec, work-package, context-impact, scope, diff, traceability, and validation-report gates
+- Produced validation-report.md and architecture-impact.md
+
+### Next Steps
+- Evaluate the SUBMIT_PR authorization gate
+- Do not merge without explicit operator authorization
+
+### Relevant Files
+- `openspec/changes/write-durable-state-artifacts-guide/validation-report.md` — machine-gated validation report
+- `openspec/changes/write-durable-state-artifacts-guide/architecture-impact.md` — advisory structural impact report
+- `openspec/changes/write-durable-state-artifacts-guide/tasks.md` — completed task checklist
+
+### Context
+Completed ri-10 validation with all required phases passing. The package is explicitly non-deployable; 1,060 focused and affected tests passed, strict OpenSpec is 90/90, package/context/scope/diff gates pass, and advisory architecture analysis found no ri-10 runtime impact. PR creation and merge remain subject to the supervisor submission gate.

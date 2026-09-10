@@ -143,7 +143,7 @@ The supervisor is a rehydratable role, not a resident process. Follow the canoni
      rehydrate --handoff "$SUPERVISE_HANDOFF" > "$SUPERVISE_RECORD"
    ```
 
-   This selects the newer valid handoff or mirror only as a locator. If the coordinator is unreachable, use the mirror and report `Degraded: handoff`.
+   The supervisor filter is required: a newer ordinary handoff must not mask the newest supervisor handoff. The rehydrator selects the valid handoff or mirror with the newer `written_at` only as a locator. **Coordinator unreachable.** When the bridge yields no supervisor handoff, use the mirror and report `Degraded: handoff`.
 2. **Roadmap definition.** Read and validate every candidate `openspec/roadmaps/*/roadmap.yaml` plus `openspec/supervise/cycle-ledger.json`; reject missing or mismatched roadmap identities.
 3. **Roadmap execution state.** Read each candidate roadmap's `checkpoint.json` before accepting claimed progress. Absence is valid only for a never-started roadmap; a resume claim without it is degraded and stops automatic advancement.
 4. **Change execution state.** Read and validate `openspec/changes/<change-id>/loop-state.json` for every claimed active execution. Never reconstruct a missing or invalid loop state from the supervisor record.
