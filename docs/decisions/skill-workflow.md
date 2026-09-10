@@ -27,6 +27,17 @@
 
 ---
 
+## 2026-09-10 — migrate-discovery-generators-to-emit-candidate-work-stubs
+
+### Phase: Plan
+
+**Emit additive canonical sidecars** — Preserves rich producer artifacts while standardizing the consumer boundary.
+
+- Status: `active`
+- Source: [openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/session-log.md](/openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/session-log.md) (D1)
+
+---
+
 ## 2026-09-08 — 2026-09-10-write-durable-state-artifacts-guide
 
 ### Phase: Implementation

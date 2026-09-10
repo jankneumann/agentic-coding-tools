@@ -1,0 +1,210 @@
+schema_version: 1
+
+feature:
+  id: migrate-discovery-generators-to-emit-candidate-work-stubs
+  title: "Migrate discovery generators to emit candidate-work stubs"
+  plan_revision: 1
+  created_by: plan-feature
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/contracts/README.md"
+    files:
+      - "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/contracts/README.md"
+
+defaults:
+  priority: 10
+  lock_ttl_minutes: 90
+  timeout_minutes: 120
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Candidate fixtures and integration contract"
+    task_type: contracts
+    description: "Phase 0: canonical examples and mapping/output contract."
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files: ["openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/contracts/README.md"]
+      keys: ["contract:candidate-work:integration"]
+      ttl_minutes: 60
+      reason: "Freeze additive sidecar and intake mapping"
+    scope:
+      write_allow:
+        - "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/contracts/**"
+        - "skills/tests/candidate-work/**"
+      read_allow: ["**"]
+      deny: ["**/.venv/**"]
+    context_impact:
+      surfaces: ["apis", "documentation"]
+    worktree: {name: contracts, mode: isolated}
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Canonical fixtures validate"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/candidate-work -q"
+          evidence: {artifacts: [], result_keys: ["fixture_suite"]}
+    metadata: {loc_estimate: 120, complexity: low, package_kind: data_model}
+    outputs: {result_keys: ["fixture_suite"]}
+
+  - package_id: wp-producers
+    title: "Three discovery producer adapters"
+    task_type: implementation
+    description: "Phase 1: tests-first projections and additive output wiring for all three producers."
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    locks:
+      files: []
+      keys: ["feature:candidate-work:producers"]
+      ttl_minutes: 120
+      reason: "Coordinate shared candidate projection conventions"
+    scope:
+      write_allow:
+        - "skills/bug-scrub/**"
+        - "skills/improve-harness/**"
+        - "skills/explore-feature/**"
+        - "skills/tests/explore-feature/**"
+      read_allow: ["**"]
+      deny: ["**/.venv/**", "openspec/schemas/candidate-work.schema.json"]
+    context_impact:
+      surfaces: ["semantic_code", "documentation"]
+    worktree: {name: producers, mode: isolated}
+    timeout_minutes: 150
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Producer suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/bug-scrub/tests skills/improve-harness/tests skills/explore-feature/tests skills/tests/explore-feature -q"
+          evidence: {artifacts: [], result_keys: ["producer_suites"]}
+    metadata: {loc_estimate: 500, complexity: medium, package_kind: algorithm}
+    outputs: {result_keys: ["producer_suites"]}
+
+  - package_id: wp-prioritize
+    title: "Mixed candidate-work ranking lane"
+    task_type: implementation
+    description: "Phase 2: candidate loader, stable ranking, report/CLI integration, and mixed-batch tests."
+    role: implementer
+    priority: 3
+    depends_on: ["wp-producers"]
+    locks:
+      files: []
+      keys: ["feature:candidate-work:prioritize"]
+      ttl_minutes: 120
+      reason: "Extend prioritize-proposals candidate lane"
+    scope:
+      write_allow:
+        - "skills/prioritize-proposals/**"
+        - "skills/tests/prioritize-proposals/**"
+      read_allow: ["**"]
+      deny: ["**/.venv/**", "openspec/schemas/candidate-work.schema.json"]
+    context_impact:
+      surfaces: ["semantic_code", "documentation"]
+    worktree: {name: prioritize, mode: isolated}
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Prioritize-proposals suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/prioritize-proposals -q"
+          evidence: {artifacts: [], result_keys: ["prioritize_suite"]}
+    metadata: {loc_estimate: 300, complexity: medium, package_kind: algorithm}
+    outputs: {result_keys: ["prioritize_suite"]}
+
+  - package_id: wp-roadmap-intake
+    title: "Approved candidate-to-roadmap intake"
+    task_type: implementation
+    description: "Phase 3: validated mapping helper plus new/existing roadmap routing tests."
+    role: implementer
+    priority: 3
+    depends_on: ["wp-contracts"]
+    locks:
+      files: []
+      keys: ["feature:candidate-work:roadmapintake"]
+      ttl_minutes: 120
+      reason: "Add reusable approved-stub intake boundary"
+    scope:
+      write_allow:
+        - "skills/plan-roadmap/**"
+        - "skills/tests/plan-roadmap/**"
+      read_allow: ["**"]
+      deny: ["**/.venv/**", "skills/refine-roadmap/**", "openspec/roadmaps/**"]
+    context_impact:
+      surfaces: ["semantic_code", "documentation"]
+    worktree: {name: roadmap-intake, mode: isolated}
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Plan-roadmap suite passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/plan-roadmap -q"
+          evidence: {artifacts: [], result_keys: ["roadmap_suite"]}
+    metadata: {loc_estimate: 300, complexity: medium, package_kind: algorithm}
+    outputs: {result_keys: ["roadmap_suite"]}
+
+  - package_id: wp-integration
+    title: "Cross-skill integration and mirrors"
+    task_type: integration
+    description: "Phase 4: end-to-end fixture flow, docs/mirror sync, and quality gates."
+    role: integrator
+    priority: 4
+    depends_on: ["wp-prioritize", "wp-roadmap-intake"]
+    locks:
+      files: []
+      keys: ["feature:candidate-work:integration"]
+      ttl_minutes: 120
+      reason: "Integrate producer and consumer behavior"
+    scope:
+      write_allow:
+        - "skills/tests/candidate-work/**"
+        - ".claude/skills/bug-scrub/**"
+        - ".claude/skills/improve-harness/**"
+        - ".claude/skills/explore-feature/**"
+        - ".claude/skills/prioritize-proposals/**"
+        - ".claude/skills/plan-roadmap/**"
+        - ".agents/skills/bug-scrub/**"
+        - ".agents/skills/improve-harness/**"
+        - ".agents/skills/explore-feature/**"
+        - ".agents/skills/prioritize-proposals/**"
+        - ".agents/skills/plan-roadmap/**"
+        - "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/**"
+      read_allow: ["**"]
+      deny: ["**/.venv/**", "openspec/roadmaps/**"]
+    context_impact:
+      surfaces: ["documentation", "capabilities"]
+    worktree: {name: integration, mode: shared}
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Strict OpenSpec validation"
+          kind: command
+          command: "openspec validate migrate-discovery-generators-to-emit-candidate-work-stubs --strict"
+          evidence: {artifacts: [], result_keys: ["openspec"]}
+        - name: "Focused candidate-work suites"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/candidate-work skills/tests/prioritize-proposals skills/tests/plan-roadmap -q"
+          evidence: {artifacts: [], result_keys: ["integration_suite"]}
+    metadata: {loc_estimate: 180, complexity: medium, package_kind: integration}
+    outputs: {result_keys: ["openspec", "integration_suite"]}

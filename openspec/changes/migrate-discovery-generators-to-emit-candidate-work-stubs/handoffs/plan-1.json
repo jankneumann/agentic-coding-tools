@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-10T12:17:01.997918+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Refined roadmap item ri-12 into a tests-first, coordinated OpenSpec plan. Selected additive canonical sidecars, a mixed candidate ranking lane, and transaction-safe roadmap intake.",
+    "completed_work": [
+      "Created proposal, design, contracts, specs, tests-first tasks, and validated work packages.",
+      "Strict OpenSpec and package/DAG/scope/lock checks pass."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Emit additive canonical sidecars",
+        "rationale": "Preserves rich producer artifacts while standardizing the consumer boundary.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Keep roadmap mutation behind existing transactions",
+        "rationale": "Plan-roadmap maps approved stubs, while new-roadmap or refine-roadmap remains the writer.",
+        "capability": "roadmap-orchestration",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run Autopilot plan iteration and vendor-diverse plan review.",
+      "Implement producer adapters before consumer integration."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/proposal.md",
+        "description": "roadmap-approved scope and selected approach"
+      },
+      {
+        "path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+        "description": "producer/consumer boundary decisions"
+      }
+    ]
+  }
+}
