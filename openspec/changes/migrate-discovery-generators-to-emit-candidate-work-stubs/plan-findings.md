@@ -41,3 +41,14 @@ pending an independent review of revision 3.
 The two locally detected defects are fixed in plan revision 4. Round 2 remains
 `not_converged` because no independent vendor confirmation reached the artifact
 boundary before the enforced bound.
+
+## Parallel Review Round 3
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 1 | correctness | low | Codex and Antigravity independently confirmed that revision 4 names the exact producer mappings and preserves fail-closed normalization and persistence. | Accepted as a positive observation; no plan edit required. |
+| 2 | architecture | low | Codex and Antigravity independently confirmed task/package dependency alignment and refine-roadmap transaction ownership. | Accepted as a positive observation; no plan edit required. |
+| 3 | infrastructure | high | Antigravity returned substantive valid findings, but Pi returned a schema-invalid payload with invalid IDs and enum values. | The dispatcher rejected Pi's payload; retained the validation error in the manifest and did not retry or expand the final bounded panel. |
+
+Round 3 has zero blocking plan findings, but the required external quorum is only
+1/2. The final bounded review therefore ends as `max_iter`, not false convergence.
