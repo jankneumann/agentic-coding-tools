@@ -12,7 +12,7 @@ from jsonschema import Draft202012Validator
 
 from models import Checkpoint, CheckpointPhase, Effort, FailedItem, ItemStatus, Roadmap, RoadmapItem
 from readiness import _get_ready_items
-from resolve_readiness import readiness_exit_code, render_readiness, resolve_readiness
+from resolve_readiness import main, readiness_exit_code, render_readiness, resolve_readiness
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -324,6 +324,37 @@ class TestRepositoryReadiness:
             "duplicate_roadmap_id",
         }
         assert readiness_exit_code(result) == 2
+
+    def test_duplicate_item_ids_make_a_roadmap_invalid(self, tmp_path: Path) -> None:
+        repo = _repo(tmp_path)
+        _write_roadmap(
+            repo,
+            "alpha",
+            [_item("ri-01", title="first"), _item("ri-01", title="second")],
+        )
+
+        result = resolve_readiness(repo)
+
+        assert result["ready"] == []
+        assert any(
+            diagnostic["code"] == "roadmap_invalid"
+            and "duplicate item ids" in diagnostic["detail"]
+            for diagnostic in result["diagnostics"]
+        )
+        assert readiness_exit_code(result) == 2
+
+    def test_cli_emits_json_and_returns_nonzero_for_invalid_input(
+        self, tmp_path: Path, capsys
+    ) -> None:
+        repo = _repo(tmp_path)
+        _write_roadmap(repo, "alpha", [_item("ri-01")])
+        checkpoint = repo / "openspec" / "roadmaps" / "alpha" / "checkpoint.json"
+        checkpoint.write_text("{not json", encoding="utf-8")
+
+        assert main(["--repo-root", str(repo)]) == 2
+        output = capsys.readouterr().out
+        assert output.endswith("\n")
+        assert json.loads(output)["diagnostics"][0]["code"] == "checkpoint_invalid"
 
     def test_output_and_fingerprint_are_stable_and_ignore_advisory_files(
         self, tmp_path: Path

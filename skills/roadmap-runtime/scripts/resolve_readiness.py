@@ -94,7 +94,18 @@ def _read_roadmap(path: Path, repo_root: Path, raw: bytes) -> Any:
     errors = _models.validate_against_schema(data, _models.ROADMAP_SCHEMA, repo_root)
     if errors:
         raise ValueError("; ".join(errors))
-    return _models.Roadmap.from_dict(data)
+    roadmap = _models.Roadmap.from_dict(data)
+    seen_item_ids: set[str] = set()
+    duplicate_item_ids: set[str] = set()
+    for item in roadmap.items:
+        if item.item_id in seen_item_ids:
+            duplicate_item_ids.add(item.item_id)
+        seen_item_ids.add(item.item_id)
+    if duplicate_item_ids:
+        raise ValueError(
+            f"duplicate item ids: {','.join(sorted(duplicate_item_ids))}"
+        )
+    return roadmap
 
 
 def _read_checkpoint(path: Path, repo_root: Path, raw: bytes) -> Any:
