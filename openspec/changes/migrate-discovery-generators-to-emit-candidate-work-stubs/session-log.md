@@ -33,3 +33,31 @@
 ### Context
 Refined roadmap item ri-12 into a tests-first, coordinated OpenSpec plan. Selected additive canonical sidecars, a mixed candidate ranking lane, and transaction-safe roadmap intake.
 
+---
+
+## Phase: Plan Iteration 1 (2026-09-10)
+
+**Agent**: codex-architect | **Session**: N/A
+
+### Decisions
+1. **Centralize the candidate-work boundary** — A shared runtime prevents producer skills from depending on prioritize-proposals internals and gives every path identical validation and write semantics.
+2. **Keep candidate ranking in a distinct lane** — Unscaffolded stubs have different readiness and lifecycle semantics from active proposals; a dependency-aware total order remains deterministic without conflating them.
+3. **Make plan-roadmap the only mapping owner** — One fail-closed intake helper keeps ri-13 and future callers aligned with refine-roadmap preview/apply and collision checks.
+
+### Alternatives Considered
+- Let each producer import or copy the ri-11 validator: rejected because Creates cross-skill coupling or divergent validation and persistence behavior.
+- Combine candidates with active proposal scores: rejected because The two record types do not share scaffold, readiness, or completion semantics.
+
+### Trade-offs
+- Accepted A shared runtime module and explicit per-producer mapping tables over Smaller producer-local implementations because The additional contract surface buys consistent failure behavior and maintainability.
+
+### Completed Work
+- Reclassified nonexistent modified requirements as added deltas.
+- Defined producer eligibility, mapping, provenance, deterministic slug, and empty-batch behavior.
+- Defined dependency-aware candidate ranking and collision/cycle refusal.
+- Defined exact one-stub plan-roadmap intake and refine-roadmap transaction boundary.
+- Aligned package dependencies, canonical skill ownership, mirror sync, and validation gates.
+
+### Context
+Closed the material semantic gaps in the ri-12 plan. The refined contracts now define shared validation and atomic persistence, deterministic producer mappings and ranking, and transaction-safe single-stub roadmap intake.
+

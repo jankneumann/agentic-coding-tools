@@ -10,10 +10,14 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
       **Spec scenarios**: sw *Mixed producer batch is ranked*
       **Contracts**: `contracts/README.md`, canonical candidate-work schema
       **Dependencies**: None
-- [ ] 0.2 Document the additive sidecar paths, atomic write rule, and approved intake
-      mapping in `contracts/README.md` — **XS**
-      **Design decisions**: D1, D2, D5
+- [ ] 0.2 Test and implement the shared candidate-work validator, canonical batch
+      serializer, duplicate guard, and atomic writer; retain the ri-11 CLI wrapper — **S**
+      **Design decisions**: D1, D2
       **Dependencies**: 0.1
+- [ ] 0.3 Document sidecar paths, mapping tables, stable ordering, and intake
+      transaction in `contracts/README.md` — **XS**
+      **Design decisions**: D1-D5
+      **Dependencies**: 0.2
 - [ ] Checkpoint: fixture validation green; review the diff and contract scope
 
 ## Phase 1 — producer adapters
@@ -24,21 +28,21 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
       **Spec scenarios**: sw *Bug-scrub promotes a finding*, *Candidate batch validation fails*
       **Design decisions**: D1-D3
       **Dependencies**: 0.1
-- [ ] 1.2 Implement bug-scrub candidate projection and CLI/output wiring — **S**
+- [ ] 1.2 Implement bug-scrub candidate projection, CLI/output wiring, and canonical skill documentation — **S**
       **Dependencies**: 1.1
 - [ ] 1.3 Test: improve-harness maps a ranked gap to a schema-valid stub and retains the
       legacy markdown proposal helper/flag — **S**
       **Spec scenarios**: sw *Improve-harness emits a capability-gap candidate*
       **Design decisions**: D1-D3
       **Dependencies**: 0.1
-- [ ] 1.4 Implement improve-harness candidate projection/output with compatibility wrapper — **S**
+- [ ] 1.4 Implement improve-harness candidate projection/output, compatibility wrapper, and canonical skill documentation — **S**
       **Dependencies**: 1.3
 - [ ] 1.5 Test: explore-feature projects only untracked shortlist items, preserves rich
       opportunities, validates the sidecar, and skips existing/scaffolded entries — **S**
       **Spec scenarios**: sw *Explore-feature emits shortlist candidates*
       **Design decisions**: D1-D3
       **Dependencies**: 0.1
-- [ ] 1.6 Implement explore-feature projection helper and update its output contract — **S**
+- [ ] 1.6 Implement explore-feature projection helper and canonical skill output contract — **S**
       **Dependencies**: 1.5
 - [ ] Checkpoint: all three producer suites green; review cumulative diff and scopes
 
@@ -49,7 +53,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
       **Spec scenarios**: sw *Mixed producer batch is ranked*, *Mixed batch contains a malformed stub*
       **Design decisions**: D4
       **Dependencies**: 1.2, 1.4, 1.6
-- [ ] 2.2 Implement the explicit candidate-work loader/ranker and CLI/report integration
+- [ ] 2.2 Implement the explicit candidate-work loader/ranker, CLI/report integration, and canonical skill documentation
       in prioritize-proposals — **M**
       **Dependencies**: 2.1
 - [ ] Checkpoint: prioritize-proposals suite green; validate mixed fixture twice for stable order
@@ -66,7 +70,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
       **Spec scenarios**: ro *Approved stub targets an existing roadmap*, *Approved stub omits acceptance outcomes*, *Candidate dependency cannot be resolved*
       **Design decisions**: D5, D6
       **Dependencies**: 3.1
-- [ ] 3.3 Implement the plan-roadmap candidate intake helper/CLI and document the
+- [ ] 3.3 Implement the plan-roadmap candidate intake helper/CLI and canonical skill documentation for
       refine-roadmap/new-roadmap routing — **M**
       **Dependencies**: 3.1, 3.2
 - [ ] Checkpoint: plan-roadmap/refine-roadmap focused suites green; inspect for direct active-roadmap writes
@@ -77,8 +81,8 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
       ranking and approved-stub roadmap intake without hand-edited intermediate data — **S**
       **Spec scenarios**: all sw/ro scenarios
       **Dependencies**: 2.2, 3.3
-- [ ] 4.2 Update the five skill documents and installed mirrors to describe the shipped
-      flags, paths, failure semantics, and ri-13 handoff boundary — **S**
+- [ ] 4.2 Run `skills/install.sh` once to sync canonical skill/shared sources into
+      generated mirrors; verify no mirror drift or unrelated generated diff — **S**
       **Design decisions**: D1-D6
       **Dependencies**: 4.1
 - [ ] 4.3 Run focused suites, full skills suite, ruff, package validation, and strict

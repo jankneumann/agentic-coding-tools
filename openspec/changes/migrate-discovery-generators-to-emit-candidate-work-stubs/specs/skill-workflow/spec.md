@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Discovery generators emit canonical candidate work
 
@@ -33,6 +33,18 @@ while preserving their existing rich artifacts.
 - **THEN** the generator MUST fail with a field-level error
 - **AND** it MUST NOT replace the destination with a partial batch
 
+#### Scenario: Candidate sidecar is deterministic and complete
+
+- **WHEN** the same input and repository state are processed twice
+- **THEN** complete sidecar bytes SHALL be identical
+- **AND** every stub SHALL retain generator and source provenance
+
+#### Scenario: Discovery returns no eligible entries
+
+- **WHEN** a generator succeeds with no eligible entries
+- **THEN** it SHALL atomically persist an empty candidate array
+- **AND** stale candidates SHALL NOT remain
+
 ### Requirement: Prioritize-proposals ranks mixed candidate work
 
 `/prioritize-proposals` SHALL accept a validated candidate-work object or array and
@@ -50,3 +62,16 @@ rank candidate stubs from all supported generators with deterministic tie-breake
 - **WHEN** any member of the candidate batch is malformed
 - **THEN** prioritization MUST refuse the entire batch before scoring
 - **AND** the error SHALL identify the offending batch index and field
+
+#### Scenario: Mixed batch contains dependencies
+
+- **WHEN** valid candidates contain an acyclic dependency edge and stable-key ties
+- **THEN** the dependency SHALL precede its dependent
+- **AND** deterministic tie-breakers SHALL produce a stable order
+- **AND** candidate entries SHALL remain distinct from proposal entries
+
+#### Scenario: Mixed batch has a cycle or duplicate change ID
+
+- **WHEN** candidates form a cycle or repeat a suggested change ID
+- **THEN** prioritization MUST refuse the lane before scoring
+- **AND** the error SHALL name the conflicting candidates

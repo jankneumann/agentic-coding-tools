@@ -21,9 +21,9 @@ requires a human to translate fields and edit intermediate artifacts.
 1. Add deterministic adapters for bug-scrub, improve-harness, and explore-feature
    that emit canonical candidate-work sidecars without replacing their existing
    rich reports.
-2. Validate every sidecar against the ri-11 schema before it is persisted. Invalid
-   input fails closed and leaves no partial candidate batch.
-3. Add a mixed candidate-work ranking lane to `/prioritize-proposals`, preserving
+2. Validate every sidecar through one shared ri-11 validation/serialization seam
+   before atomic persistence. Invalid input fails closed and preserves the prior batch.
+3. Add a distinct mixed candidate-work ranking lane to `/prioritize-proposals`, preserving
    provenance and producing a stable order across stubs from all three generators.
 4. Add a reusable `/plan-roadmap` candidate intake seam that maps one validated,
    approved stub to one roadmap item and then delegates mutation to the existing

@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: migrate-discovery-generators-to-emit-candidate-work-stubs
   title: "Migrate discovery generators to emit candidate-work stubs"
-  plan_revision: 1
+  plan_revision: 2
   created_by: plan-feature
   deployable: false
 
@@ -39,6 +39,8 @@ packages:
       write_allow:
         - "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/contracts/**"
         - "skills/tests/candidate-work/**"
+        - "skills/shared/candidate_work.py"
+        - "skills/prioritize-proposals/scripts/validate_candidate_work.py"
       read_allow: ["**"]
       deny: ["**/.venv/**"]
     context_impact:
@@ -52,7 +54,7 @@ packages:
       steps:
         - name: "Canonical fixtures validate"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/candidate-work -q"
+          command: "skills/.venv/bin/python -m pytest skills/tests/candidate-work skills/tests/prioritize-proposals/test_validate_candidate_work.py -q"
           evidence: {artifacts: [], result_keys: ["fixture_suite"]}
     metadata: {loc_estimate: 120, complexity: low, package_kind: data_model}
     outputs: {result_keys: ["fixture_suite"]}
@@ -99,7 +101,7 @@ packages:
     description: "Phase 2: candidate loader, stable ranking, report/CLI integration, and mixed-batch tests."
     role: implementer
     priority: 3
-    depends_on: ["wp-producers"]
+    depends_on: ["wp-contracts"]
     locks:
       files: []
       keys: ["feature:candidate-work:prioritize"]
@@ -176,11 +178,13 @@ packages:
     scope:
       write_allow:
         - "skills/tests/candidate-work/**"
+        - ".claude/skills/shared/**"
         - ".claude/skills/bug-scrub/**"
         - ".claude/skills/improve-harness/**"
         - ".claude/skills/explore-feature/**"
         - ".claude/skills/prioritize-proposals/**"
         - ".claude/skills/plan-roadmap/**"
+        - ".agents/skills/shared/**"
         - ".agents/skills/bug-scrub/**"
         - ".agents/skills/improve-harness/**"
         - ".agents/skills/explore-feature/**"
@@ -206,5 +210,13 @@ packages:
           kind: command
           command: "skills/.venv/bin/python -m pytest skills/tests/candidate-work skills/tests/prioritize-proposals skills/tests/plan-roadmap -q"
           evidence: {artifacts: [], result_keys: ["integration_suite"]}
+        - name: "Full skills suite"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests -q"
+          evidence: {artifacts: [], result_keys: ["full_suite"]}
+        - name: "Ruff and work-package validation"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/shared skills/bug-scrub skills/improve-harness skills/explore-feature skills/prioritize-proposals skills/plan-roadmap && skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml --check-overlap"
+          evidence: {artifacts: [], result_keys: ["quality"]}
     metadata: {loc_estimate: 180, complexity: medium, package_kind: integration}
     outputs: {result_keys: ["openspec", "integration_suite"]}

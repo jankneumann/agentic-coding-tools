@@ -19,9 +19,12 @@ artifact; an explicit output path may override it.
 
 ### D2 — Validate before atomic persistence
 
-Adapters build the complete batch in memory, validate every member with the ri-11
-validator, then atomically replace the destination. A validation error writes
-nothing. The canonical schema is reused rather than copied.
+skills/shared/candidate_work.py owns schema discovery, single/batch validation,
+canonical JSON bytes, and atomic replacement. The existing ri-11 validator remains a
+thin compatibility wrapper, so producers do not import another product skill. The
+writer rejects duplicate suggested IDs, validates the full list, sorts by priority,
+change ID, and provenance, and only then atomically writes canonical JSON. Failure
+preserves the prior file; successful empty discovery writes an empty array.
 
 ### D3 — Producer mappings are deterministic and conservative
 
@@ -72,10 +75,53 @@ This change does not edit supervisor digest code. ri-13 should be refined after 
 to call the candidate intake helper for its `stub-to-request` path. That keeps the
 approval conversation in supervise and the mapping/mutation policy in plan-roadmap.
 
+## Refined executable contracts
+
+### Producer mapping
+
+Bug-scrub emits every finding already selected by its severity filter to the report
+output directory. Severity maps critical through info to priority 1 through 5; category
+maps simple diagnostics to XS, test/deferred findings to S, and architecture/security/spec
+findings to M. Improve-harness emits every ranked gap: one-based rank is priority and
+critical/high/medium/low maps to L/M/S/XS. A file report gets an adjacent sidecar;
+stdout-only behavior remains write-free without an explicit candidate output, and the
+legacy proposal flag remains. Explore-feature emits only opportunities whose exact
+hinted or derived change ID is absent from active and archived changes and is not marked
+existing; it maps stable ID, problem statement, why-now, rank, effort, and blockers.
+
+All producers retain rich output and populate generator/source provenance. Colliding
+slugs receive a stable eight-hex SHA-256 suffix derived from provenance. Candidate text
+is inert data: renderers escape structure and never dereference provenance URIs.
+
+### Candidate ranking
+
+Candidate work is a separate report lane, never an input to the active-proposal score.
+Dependencies resolve by exact change ID within the batch, then roadmap items, then
+archives. Batch edges are topologically ordered; completed dependencies are satisfied;
+active-incomplete or unknown dependencies mark a candidate blocked. Cycles and duplicate
+suggested IDs fail the lane. The ready-queue key is priority, effort XS through XL,
+generator, then suggested change ID; blocked candidates follow ready ones.
+
+### Candidate intake
+
+The plan-roadmap candidate_intake helper accepts exactly one stub, nonblank
+operator-approved outcomes, and exactly one new-roadmap or existing-roadmap target. It
+assigns the next free ri-NN, approved status, exact change ID, actor, source, and
+rationale. Exact dependency change IDs map to local or unique external item references;
+completed archives are satisfied. Unknown, ambiguous, cyclic dependencies and
+active/archive change-ID collisions fail before writes.
+
+New-roadmap mode feeds the existing validate/save/scaffold path with overwrite disabled.
+Existing-roadmap mode emits exactly one refine add operation; the host must run preview
+and apply with its base hash. The helper never writes an active roadmap. Measurable is an
+operator approval judgment; code validates a non-empty list of nonblank outcomes. ri-13
+must call this helper after ri-12 rather than maintain a second mapping.
+
 ## Failure semantics
 
 - Invalid or unmappable producer data: explicit error, no sidecar replacement.
 - Invalid mixed batch: fail before ranking; include the offending batch index.
+- Duplicate suggested IDs or a dependency cycle: fail before ranking or persistence.
 - Missing acceptance outcomes: refuse candidate intake.
 - Dependency that cannot be resolved to the target roadmap: refuse and name it.
 - Existing-roadmap mutation without refine-roadmap preview/apply: unsupported.
