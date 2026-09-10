@@ -27,9 +27,35 @@ None detected. Task 3.2 follows the approved sync-and-consume design without add
 
 ---
 
+## Vendor Review Remediation
+
+<!-- Date: 2026-09-10 -->
+
+### Findings addressed
+
+| # | Type | Criticality | Description | Resolution |
+|---|------|-------------|-------------|------------|
+| 1 | workflow | medium | The documentation index reference was declared but not structurally guarded. | Added `test_documentation_index_references_state_artifacts_guide`. |
+| 2 | workflow | low | The test used a bare parent count instead of the shared repository-root helper. | Switched to `repo_root_from(__file__, 3)`. |
+| 3 | UX | low | Supervise retained the phrase `guide linked above` after reference-form normalization. | Changed it to `guide referenced above` and synchronized runtime mirrors. |
+| 4 | observability | low | `change-context.md` presented stale checkpoint surfaces and a stale degradation cause. | Distinguished the prior artifact from the current fail-closed checkpoint attempt and listed all declared surfaces. |
+
+### Quality Checks
+
+- pytest: pass — 720 state-artifact and OpenSpec path-stability tests
+- ruff: pass — changed Python test file
+- install portability: pass — canonical skill payload and mirrors synchronized
+- openspec validate: pass — 90/90 items under `--strict --all`
+
+### Spec Drift
+
+None. Traceability evidence and counts were refreshed for the additional discovery guard.
+
+---
+
 ## Summary
 
-- Total iterations: 1
-- Total findings addressed: 0
-- Remaining findings below threshold: one out-of-scope checkpoint apparatus gap
-- Termination reason: threshold met
+- Total iterations: 2 (initial self-review plus one vendor-review remediation cycle)
+- Total findings addressed: 4
+- Remaining findings below threshold: optional section-order, symbol-existence, and supervise-section anchoring suggestions; one out-of-scope checkpoint apparatus gap
+- Termination reason: vendor-review remediation complete; no re-dispatch by bounded-loop rule

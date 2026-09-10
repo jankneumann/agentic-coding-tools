@@ -159,3 +159,65 @@ Synchronized the stacked ri-10 branch with current main, preserved both sides of
 ### Context
 Self-review found no ri-10 implementation defect at or above the medium remediation threshold. All scoped tests and lint checks pass; one low, out-of-scope shared checkpoint apparatus gap remains documented for follow-up.
 
+---
+
+## Phase: Implementation Review 1 (2026-09-10)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Remediate the documentation-index guard before validation** — Task 2.2 declares the documentation index as a discovery surface, and two independent reviewers observed that the structural suite currently protects only the six skill references.
+
+### Trade-offs
+- Accepted Fix the medium guard plus three adjacent evidence/reference nits over Implement every unconfirmed low-severity suggestion because The iteration threshold is medium; broader section reordering and symbol-existence guards are optional polish and would expand a documentation-only review cycle unnecessarily.
+
+### Open Questions
+- [ ] Shared checkpoint loader contract-list propagation remains an out-of-scope follow-up.
+
+### Completed Work
+- Received 2/4 schema-valid external vendor reviews plus primary review
+- Synthesized 24 findings with quorum 3/3 and zero blocking findings
+- Selected bounded remediation set
+
+### Next Steps
+- Add documentation-index drift assertion
+- Use repo_root_from and normalize residual supervise wording
+- Refresh change-context checkpoint evidence
+- Rerun focused and install checks
+
+### Context
+Three schema-valid reviewers produced 24 unique advisory findings with two confirmed positives, zero disagreements, and zero blockers. One medium documentation-index drift-guard gap requires a bounded remediation cycle; three related low-risk evidence and reference fixes will be included without re-dispatch.
+
+---
+
+## Phase: Implementation Fix 1 (2026-09-10)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Bound remediation to evidence-backed drift guards** — The medium index-coverage gap affects the documented discovery contract; repo_root_from, residual wording, and stale evidence were adjacent low-risk corrections. Other unconfirmed low-severity style suggestions remain advisory.
+
+### Trade-offs
+- Accepted No second vendor dispatch over Re-running the full four-vendor round because iterate-on-implementation permits exactly one post-review remediation cycle and forbids re-dispatch to prevent an infinite review loop.
+
+### Open Questions
+- [ ] Shared checkpoint loader contract-list propagation remains out of scope and must be filed separately.
+
+### Completed Work
+- Added documentation-index reference guard
+- Adopted repo_root_from for stable test-root resolution
+- Normalized supervise reference wording and synchronized mirrors
+- Refreshed change-context surfaces, failure cause, and 7/7 coverage counts
+
+### Next Steps
+- Treat the existing quorum review as converged after bounded remediation
+- Run task 3.3 validation matrix
+
+### Relevant Files
+- `skills/tests/state-artifacts/test_state_artifacts_guide.py` — Additional discovery guard and shared root resolver
+- `skills/supervise/SKILL.md` — Normalized canonical-guide reference wording
+- `openspec/changes/write-durable-state-artifacts-guide/change-context.md` — Current review and checkpoint evidence
+
+### Context
+Remediated the one medium implementation-review finding by guarding the documentation index, then applied three closely related low-risk reference and evidence corrections. The bounded cycle is green at 720 focused tests, ruff and install portability pass, and strict OpenSpec remains 90/90.
+
