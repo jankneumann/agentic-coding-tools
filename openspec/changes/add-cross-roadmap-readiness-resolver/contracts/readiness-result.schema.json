@@ -19,6 +19,8 @@
           "roadmap_id": {"type": "string", "minLength": 1},
           "code": {
             "enum": [
+              "roadmap_invalid",
+              "duplicate_roadmap_id",
               "checkpoint_absent",
               "checkpoint_invalid",
               "checkpoint_roadmap_mismatch",

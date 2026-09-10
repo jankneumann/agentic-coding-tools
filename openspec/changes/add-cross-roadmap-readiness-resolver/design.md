@@ -16,13 +16,13 @@ Alternative: make `Roadmap.ready_items` the sole helper. Rejected because it lac
 
 For a workspace with a valid matching checkpoint, its `completed_items` and `failed_items` are authoritative. For a workspace with no checkpoint, roadmap item statuses represent the valid never-started baseline. Cross-roadmap completion refs are derived from those effective terminal sets before any workspace is admitted.
 
-A checkpoint is inconsistent when it has an identity mismatch, names unknown terminal item IDs, duplicates an item across completed/failed sets, or disagrees with terminal roadmap statuses. Inconsistent/invalid workspaces are stale and withheld from readiness. A normal short-lived roadmap/checkpoint ordering mismatch is reported instead of silently guessed.
+A checkpoint is hard-invalid when it is malformed, has an identity mismatch, names unknown current or terminal item IDs, or places an item in both completed and failed sets. A hard-invalid workspace is stale and contributes neither ready entries nor external completion refs. A valid checkpoint that disagrees with terminal roadmap statuses is instead a soft `roadmap_checkpoint_divergence`: the report is stale and diagnostic, but checkpoint state still wins, the workspace remains resolvable, and checkpoint-completed items can unblock external dependents. This distinction preserves normal write-order lag without failing open.
 
 Alternative: union roadmap and checkpoint completions. Rejected because it promotes stale roadmap status over the canonical checkpoint and can unblock dependents incorrectly.
 
 ### D3 — Content-derived staleness token
 
-The report contract carries `source_fingerprint`, the SHA-256 of a canonical serialization of every readiness-relevant roadmap/checkpoint input, plus a top-level `stale` consistency boolean and a sorted `diagnostics` list. A later materialized projection stores the fingerprint and compares it to a fresh resolver result; inequality is the meaningful staleness signal. Diagnostics name workspace and reason codes derived only from parsed roadmap/checkpoint content. Missing checkpoint is recorded as `checkpoint_absent` informational state, not stale, because first-run absence is valid.
+The report contract carries `source_fingerprint`, the SHA-256 of one canonical JSON projection, plus a top-level `stale` consistency boolean and a sorted `diagnostics` list. Each workspace projection includes its repo-relative roadmap path and declared id; roadmap items sorted by item id with `item_id`, `status`, `priority`, `effort`, `depends_on`, `external_depends_on`, `superseded_by`, `change_id`, and `title`; and either an explicit absent-checkpoint sentinel or the checkpoint repo-relative path, `roadmap_id`, `current_item_id`, sorted completed ids, and sorted failed ids. Dependency/ref lists are sorted and JSON keys are sorted with compact separators. A malformed file contributes its repo-relative path, media kind, and raw-byte SHA-256 instead of unparsed content, so even invalid input has a stable fingerprint. A later materialized projection stores the fingerprint and compares it to a fresh resolver result; inequality is the meaningful staleness signal. Diagnostics name workspace and reason codes derived only from canonical roadmap/checkpoint content. Missing checkpoint is recorded as `checkpoint_absent` informational state, not stale, because first-run absence is valid.
 
 No timestamps are generated and no mtimes are read. The command serializes with stable key/list ordering and a trailing newline. The boolean reports canonical input inconsistency, while the fingerprint lets downstream projections detect drift.
 
@@ -36,7 +36,7 @@ Alternative: retain grouped per-roadmap ordering as the canonical form. Rejected
 
 ### D5 — Read-only CLI boundary
 
-`resolve_readiness.py --repo-root <path>` reads only active `openspec/roadmaps/*/roadmap.yaml` files and sibling `checkpoint.json` files, prints the schema-validated result, and performs no writes or network calls. Malformed canonical input produces deterministic diagnostics and a non-zero exit without ready entries from the affected workspace.
+`resolve_readiness.py --repo-root <path>` reads only active `openspec/roadmaps/*/roadmap.yaml` files and sibling `checkpoint.json` files, prints the schema-validated result, and performs no writes or network calls. Malformed roadmaps, duplicate declared roadmap ids, and hard-invalid checkpoints produce deterministic bounded diagnostics and a non-zero exit without ready entries or completion refs from the affected workspace. Soft roadmap/checkpoint divergence remains a successful diagnostic projection because the checkpoint supplies unambiguous authority.
 
 Alternative: ingest learnings, handoffs, or queue rows to enrich ranking. Rejected because those artifacts are advisory/projection state and would violate authority and determinism.
 
