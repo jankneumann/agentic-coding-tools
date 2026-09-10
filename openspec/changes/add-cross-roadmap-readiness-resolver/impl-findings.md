@@ -14,3 +14,6 @@ No roadmap re-decomposition or scope expansion is required.
 ## Remediation
 
 Both primary findings are fixed. The duplicate-item regression failed with two ready entries before the semantic guard and passes after a linear-time duplicate check emits `roadmap_invalid`. The direct `main()` regression proves hard-invalid input emits parseable newline-terminated JSON and exits 2. The focused matrix now passes 465 tests.
+## Convergence
+
+The final Codex verification and independent Antigravity round-2 review found no remaining blocking findings. Antigravity returned ten concrete `severity=none` findings and independently passed the 144-test roadmap-runtime suite, including all 14 readiness tests, plus Ruff. Implementation review converged across Codex and Antigravity.

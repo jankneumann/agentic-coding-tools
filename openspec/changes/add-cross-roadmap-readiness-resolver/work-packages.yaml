@@ -69,6 +69,7 @@ packages:
         - "apis"
         - "capabilities"
         - "decisions"
+        - "documentation"
         - "semantic_code"
     worktree:
       name: add-cross-roadmap-readiness-resolver-main
