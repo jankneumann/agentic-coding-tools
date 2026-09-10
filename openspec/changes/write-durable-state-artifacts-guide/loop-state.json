@@ -1,91 +1,17 @@
 {
-  "schema_version": 5,
+  "blocking_findings": [],
   "change_id": "write-durable-state-artifacts-guide",
+  "cli_review_enabled": true,
   "current_phase": "SUBMIT_PR",
-  "iteration": 0,
-  "total_iterations": 18,
-  "max_phase_iterations": 3,
+  "error": null,
+  "escalation_reason": "plan_review_convergence_failure: max_iter approved for escalation",
   "findings_trend": [
     26,
     25,
     21,
     11
   ],
-  "blocking_findings": [],
-  "vendor_availability": {},
-  "packages_status": {},
-  "package_authors": {},
-  "implementation_strategy": {},
-  "memory_ids": [],
-  "handoff_ids": [
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/plan-review-8-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-continuation-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-iteration-1-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-review-1-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-fix-1-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/validation-1.json"
-  ],
-  "phase_history": [
-    {
-      "at": "2026-09-08T09:56:41.052294+00:00",
-      "note": "Risk/verifiability judgment NOT CHECKED \u2014 no dispatch adapter available; fell back to the permissive signal-only verdict 'proceed'.",
-      "outcome": "DEGRADED",
-      "phase": "GATEKEEPER"
-    },
-    {
-      "at": "2026-09-09T13:16:13.196942+00:00",
-      "outcome": "converged",
-      "phase": "PLAN_REVIEW"
-    },
-    {
-      "at": "2026-09-10T04:19:56.502803+00:00",
-      "outcome": "complete",
-      "phase": "IMPLEMENT"
-    },
-    {
-      "at": "2026-09-10T04:22:37.794917+00:00",
-      "outcome": "complete",
-      "phase": "IMPL_ITERATE"
-    },
-    {
-      "at": "2026-09-10T04:43:50.521271+00:00",
-      "outcome": "not_converged",
-      "phase": "IMPL_REVIEW"
-    },
-    {
-      "at": "2026-09-10T04:47:41.772606+00:00",
-      "outcome": "fixed",
-      "phase": "IMPL_FIX"
-    },
-    {
-      "at": "2026-09-10T05:10:34.105146+00:00",
-      "outcome": "passed",
-      "phase": "VALIDATE"
-    }
-  ],
-  "last_handoff_id": "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/validation-1.json",
-  "started_at": "2026-09-08T09:56:40.846671+00:00",
-  "phase_started_at": "2026-09-10T05:11:08.922085+00:00",
-  "previous_phase": "PLAN_REVIEW",
-  "escalation_reason": "plan_review_convergence_failure: max_iter approved for escalation",
-  "val_review_enabled": false,
-  "cli_review_enabled": true,
-  "error": null,
-  "phase_archetype": "runner",
   "force": false,
-  "gate_signals": {
-    "external_dep_count": 0,
-    "has_broad_write_scope": false,
-    "has_db_migration": false,
-    "has_proposal": true,
-    "has_security_signal": false,
-    "has_specs": true,
-    "has_tasks": true,
-    "has_work_packages": true,
-    "package_count": 1,
-    "total_loc_estimate": 420
-  },
-  "gate_verdict": "proceed",
   "gate_decisions": [
     {
       "approval_id": null,
@@ -212,37 +138,148 @@
       "timeout_seconds": null
     },
     {
-      "gate": "pr_creation",
-      "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "block",
+      "gate": "pr_creation",
+      "notified": null,
+      "outcome": "blocked",
       "phase": "SUBMIT_PR",
-      "recorded_at": "2026-09-10T05:11:40.885651+00:00"
+      "posture_present": false,
+      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-10T05:11:40.885651+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
     },
     {
-      "gate": "pr_creation",
-      "outcome": "proceed",
-      "resolution": "console_approved",
-      "authorizing_disposition": "block",
-      "reason": "gate 'pr_creation' approved by the operator \u2014 Operator answered yes to the canonical PR-creation gate on 2026-09-10.",
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "block",
+      "gate": "pr_creation",
+      "note": "Operator answered yes to the canonical PR-creation gate on 2026-09-10.",
+      "notified": null,
+      "outcome": "proceed",
       "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'pr_creation' approved by the operator \u2014 Operator answered yes to the canonical PR-creation gate on 2026-09-10.",
       "recorded_at": "2026-09-10T07:59:21.342491+00:00",
-      "note": "Operator answered yes to the canonical PR-creation gate on 2026-09-10."
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "merge",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "SUBMIT_PR",
+      "posture_present": false,
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-10T08:03:01.997489+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
     }
   ],
-  "pending_gate": null,
-  "goal_gate": null
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 1,
+    "total_loc_estimate": 420
+  },
+  "gate_verdict": "proceed",
+  "goal_gate": null,
+  "handoff_ids": [
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/plan-review-8-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-continuation-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-iteration-1-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-review-1-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-fix-1-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/validation-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/submission-1.json"
+  ],
+  "implementation_strategy": {},
+  "iteration": 0,
+  "last_handoff_id": "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/submission-1.json",
+  "max_phase_iterations": 3,
+  "memory_ids": [],
+  "package_authors": {},
+  "packages_status": {},
+  "pending_gate": {
+    "change_id": "write-durable-state-artifacts-guide",
+    "context": {
+      "branch": "openspec/write-durable-state-artifacts-guide",
+      "change_id": "write-durable-state-artifacts-guide",
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/505"
+    },
+    "gate": "merge",
+    "phase": "SUBMIT_PR",
+    "posture": {
+      "disposition": "block",
+      "posture_present": false
+    },
+    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
+    "requested_at": "2026-09-10T08:03:01.997881+00:00",
+    "schema_version": 1
+  },
+  "phase_archetype": "runner",
+  "phase_history": [
+    {
+      "at": "2026-09-08T09:56:41.052294+00:00",
+      "note": "Risk/verifiability judgment NOT CHECKED \u2014 no dispatch adapter available; fell back to the permissive signal-only verdict 'proceed'.",
+      "outcome": "DEGRADED",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-09-09T13:16:13.196942+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-10T04:19:56.502803+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-09-10T04:22:37.794917+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-09-10T04:43:50.521271+00:00",
+      "outcome": "not_converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-10T04:47:41.772606+00:00",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-10T05:10:34.105146+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-09-10T08:02:46.844729+00:00",
+      "outcome": "created",
+      "phase": "SUBMIT_PR"
+    }
+  ],
+  "phase_started_at": "2026-09-10T05:11:08.922085+00:00",
+  "previous_phase": "PLAN_REVIEW",
+  "schema_version": 5,
+  "started_at": "2026-09-08T09:56:40.846671+00:00",
+  "total_iterations": 18,
+  "val_review_enabled": false,
+  "vendor_availability": {}
 }

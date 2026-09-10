@@ -254,3 +254,34 @@ Remediated the one medium implementation-review finding by guarding the document
 
 ### Context
 Completed ri-10 validation with all required phases passing. The package is explicitly non-deployable; 1,060 focused and affected tests passed, strict OpenSpec is 90/90, package/context/scope/diff gates pass, and advisory architecture analysis found no ri-10 runtime impact. PR creation and merge remain subject to the supervisor submission gate.
+
+---
+
+## Phase: Submission (2026-09-10)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Target the supervisor roadmap parent branch** — ri-10 is a stacked roadmap item whose intended parent is openspec/roadmap-roadmap-supervisor-orchestration; targeting main would include unrelated predecessor roadmap work.
+
+### Capability Gaps Observed
+- **tooling**: VS Code review-artifact opening was unavailable because the code CLI is not installed on PATH. (skill: review-artifacts, severity: low)
+- **authorization**: Final strategic memory was not stored because the coordinator HTTP memory endpoint returned unauthorized. (skill: coordination-bridge, severity: low)
+
+### Completed Work
+- Recorded operator PR-creation approval
+- Created https://github.com/jankneumann/agentic-coding-tools/pull/505
+- Resolved the curated 24-file review list
+- Attempted final strategic memory and preserved the degraded outcome
+
+### Next Steps
+- Review PR #505 and its validation evidence
+- Answer the separate merge-authorization gate
+- Use cleanup-feature as the only merge executor after authorization
+
+### Relevant Files
+- `openspec/changes/write-durable-state-artifacts-guide/validation-report.md` — passing validation evidence
+- `openspec/changes/write-durable-state-artifacts-guide/loop-state.json` — canonical lifecycle and gate decisions
+
+### Context
+Created PR #505 for the validated ri-10 branch against the supervisor-roadmap parent. Curated review artifacts were resolved, but the local code CLI was unavailable; final strategic memory also degraded because the coordinator HTTP endpoint returned unauthorized. The durable session log and local handoff preserve the full submission context while merge authorization remains pending.
