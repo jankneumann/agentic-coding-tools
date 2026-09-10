@@ -1,8 +1,8 @@
 # Validation Report: add-cross-roadmap-readiness-resolver
 
-**Date**: 2026-09-10 11:32:20 -04:00
-**Commit**: `f4eec8418875ba6e9075cd4b580ab9901d454af8`
-**Validated tree**: `a88a3faadec1650011b36ecbf510c0a2ae4b670a`
+**Date**: 2026-09-10 11:57:54 -04:00
+**Commit**: `973e971fb74882756d24b164d359b55fc9e14e42`
+**Validated tree**: `7ab8d725390ab5f888131c9d3a4004319467192c`
 **Branch**: `openspec/add-cross-roadmap-readiness-resolver`
 **Surface**: non-deployable deterministic Python CLI/runtime library
 
@@ -19,7 +19,7 @@
 | Traceability | ✓ | 3/3 requirements and 11/11 scenarios mapped to passing evidence in `change-context.md`. |
 | Spec Compliance | ✓ | Strict OpenSpec validation passed all 90 active items; change contract validates. |
 | Logs | ○ | Not applicable: no service process was deployed. |
-| CI/CD | ○ | No PR existed at validation time; local required gates passed. |
+| CI/CD | ⚠ | PR #509 is open. The ri-16-owned `test-infra-skills` failure was reproduced and fixed; the exact suite passes locally. The context-drift check remains red from integration-branch metadata outside ri-16. |
 
 ## Deploy
 
@@ -59,6 +59,7 @@ All three requirements and eleven scenarios are traced in `change-context.md` wi
 
 Validation matrix:
 
+- The exact `test-infra-skills` command passed 3,796 tests with 13 skips after the archival-stability remediation.
 - 465 focused roadmap-runtime, autopilot-roadmap, plan-roadmap cross-roadmap, and supervise tests passed.
 - 14 dedicated readiness tests passed, including schema validation, exact ownership, fail-closed invalid state, checkpoint precedence, global order, fingerprint stability, and CLI status.
 - Ruff passed for every touched Python source/test.
@@ -77,9 +78,11 @@ No service process was launched and no runtime log stream exists.
 
 ## CI/CD
 
-**Status**: not applicable
+**Status**: pass for ri-16-owned checks; inherited context-drift remains
 
-No pull request existed at validation time. PR checks become available after the submission gate permits creation.
+PR #509 exposed one ri-16-owned `test-infra-skills` failure. The exact CI command, `cd skills && uv run pytest -v`, failed at the existing archival-stability guard because `test_readiness.py` pinned this active change directory. Replacing the literal path with `change_dir(repo_root_from(__file__, 3), change_id)` made the guard and readiness tests pass. The full exact rerun passed 3,796 tests with 13 skips. Ruff passed.
+
+The separate `context-drift-gate` remains red because the integration base introduces `openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/work-packages.yaml` relative to `main`; that artifact is outside ri-16 and was not modified here.
 
 ## Known Limitation
 
