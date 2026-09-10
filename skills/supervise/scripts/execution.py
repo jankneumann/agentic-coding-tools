@@ -899,6 +899,7 @@ class ExecutionAdapter:
             "outcome",
             "resolved_at",
             "handoff_id",
+            "application_journal",
         ):
             attempt.pop(field, None)
         validate_delegated_dispatch_attempt(attempt)

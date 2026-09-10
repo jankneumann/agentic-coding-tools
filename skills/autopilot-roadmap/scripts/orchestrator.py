@@ -527,6 +527,27 @@ def _bound_application_journal(
     journal = attempt.get("application_journal")
     if journal is None:
         return None
+    prior_result = journal.get("result") if isinstance(journal, dict) else None
+    prior_generation = (
+        prior_result.get("lease_generation") if isinstance(prior_result, dict) else None
+    )
+    current_generation = result.get("lease_generation")
+    if (
+        attempt.get("status") == "launched"
+        and isinstance(attempt.get("continuation"), dict)
+        and isinstance(journal, dict)
+        and journal.get("state") == "effects_applied"
+        and isinstance(prior_result, dict)
+        and prior_result.get("outcome") == "parked"
+        and isinstance(prior_generation, int)
+        and isinstance(current_generation, int)
+        and prior_generation < current_generation == attempt.get("lease_generation")
+        and all(
+            prior_result.get(field) == result.get(field)
+            for field in ("dispatch_id", "change_id", "attempt")
+        )
+    ):
+        return None
     if (
         not isinstance(journal, dict)
         or journal.get("result") != result

@@ -229,7 +229,8 @@ If any phase **fails**, present findings and let the operator decide: fix, re-va
 
 ```bash
 python3 "<skill-base-dir>/../validate-feature/scripts/gate_logic.py" \
-  openspec/changes/<change-id>/validation-report.md
+  openspec/changes/<change-id>/validation-report.md \
+  --change-dir openspec/changes/<change-id>
 ```
 
 This checks **all required phases** (smoke tests, security scan, E2E tests) in `validation-report.md`:
@@ -244,7 +245,8 @@ If the gate halts:
 ```bash
 # Explicit user override (must be requested by user, never autonomous)
 python3 "<skill-base-dir>/../validate-feature/scripts/gate_logic.py" \
-  openspec/changes/<change-id>/validation-report.md --force
+  openspec/changes/<change-id>/validation-report.md \
+  --change-dir openspec/changes/<change-id> --force
 ```
 
 This is a **hard gate** — merge is blocked until all required phases pass or the user explicitly overrides.

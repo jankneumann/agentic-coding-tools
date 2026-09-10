@@ -998,6 +998,87 @@ def test_resumed_parked_generation_runs_normal_ack_go_with_exact_continuation(
     assert marker_record["owner_nonce"] == "owner-nonce-0002"
 
 
+def test_resumed_parked_generation_accepts_fresh_success_result(
+    tmp_path: Path,
+) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    parked = _result("parked-result.json", request)
+    adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[parked],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+    resumed = adapter.resume(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        approval_ref=approve_parked(
+            workspace, repo, _attempt(workspace), gate="pr_creation"
+        ),
+        kind="pending_gate",
+    )
+    _launch(adapter, workspace, resumed, owner="owner-nonce-0002")
+    succeeded = _result("success-result.json", resumed)
+
+    applied = adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[succeeded],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+
+    assert applied["completed_item_ids"] == ["ri-01"]
+    assert _attempt(workspace)["outcome"] == "success"
+
+
+def test_apply_replaces_legacy_parked_journal_after_resume(
+    tmp_path: Path,
+) -> None:
+    repo, workspace, managed_root = _workspace(tmp_path)
+    adapter = _adapter(managed_root, FakeClock())
+    request = _prepare(adapter, workspace, repo, managed_root)["requests"][0]
+    _launch(adapter, workspace, request)
+    parked = _result("parked-result.json", request)
+    adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[parked],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+    legacy_journal = _attempt(workspace)["application_journal"]
+    resumed = adapter.resume(
+        workspace,
+        dispatch_id=request["dispatch_id"],
+        approval_ref=approve_parked(
+            workspace, repo, _attempt(workspace), gate="pr_creation"
+        ),
+        kind="pending_gate",
+    )
+    checkpoint_path = workspace / "checkpoint.json"
+    checkpoint = json.loads(checkpoint_path.read_text())
+    checkpoint["dispatch_attempts"][0]["application_journal"] = legacy_journal
+    checkpoint_path.write_text(json.dumps(checkpoint, indent=2) + "\n")
+    _launch(adapter, workspace, resumed, owner="owner-nonce-0002")
+    succeeded = _result("success-result.json", resumed)
+
+    applied = adapter.apply(
+        workspace,
+        batch_id=request["dispatch_id"].split(":", 1)[0],
+        results=[succeeded],
+        dispatch_fn=lambda _item, _phase, context: context["dispatch_result"],
+        repo_root=repo,
+    )
+
+    assert applied["completed_item_ids"] == ["ri-01"]
+    assert _attempt(workspace)["application_journal"]["result"] == succeeded
+
+
 def test_pre_go_stale_takeover_preserves_parked_continuation(tmp_path: Path) -> None:
     repo, workspace, managed_root = _workspace(tmp_path)
     clock = FakeClock()

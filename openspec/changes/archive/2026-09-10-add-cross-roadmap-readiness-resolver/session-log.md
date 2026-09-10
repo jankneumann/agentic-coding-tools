@@ -115,3 +115,73 @@ Fresh validation against rebased head 6f130b8f passed every required non-deploya
 ### Context
 Validation evidence repair added the required Validation Review section and gate_logic parses it as pass. The status is grounded in the recorded VAL_REVIEW convergence plus retained Codex and Antigravity plan and implementation review evidence; all other exact-head validation evidence remains passing.
 
+---
+
+## Phase: Cleanup (2026-09-10)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Preserve stacked roadmap topology with a merge commit** `architectural: roadmap-orchestration` — PR #509 targets the long-lived supervisor roadmap integration branch and the established roadmap sync-point pattern preserves the exact CI-green feature history.
+2. **Use local cleanup coordination fallback** — The external coordinator queue registration was not authorized for repository metadata; GitHub and local hard gates remained authoritative.
+
+### Alternatives Considered
+- Rebase merge: rejected because The established stacked-roadmap merge pattern uses merge commits and preserving the exact validated head avoids rewriting the already-authorized history.
+
+### Trade-offs
+- Accepted a merge commit on the roadmap integration branch over rewriting feature commits because it preserves the validated stacked ancestry
+
+### Capability Gaps Observed
+- **workflow_contract**: cleanup-feature documents gate_logic.py without --change-dir, causing non-deployable changes to fail closed despite a declaration (skill: cleanup-feature, severity: major)
+- **workflow_state**: host-driven gate-answer records approval without applying the pending transition edge (skill: autopilot, severity: major)
+
+### Completed Work
+- merge PR #509
+- verify exact authorized head and all CI checks
+- pass pre-merge validation gate
+- confirm all OpenSpec tasks complete
+
+### Next Steps
+- archive add-cross-roadmap-readiness-resolver
+- refresh canonical specs and decision index
+- validate the archived integration branch
+- resume supervisor roadmap item ri-13
+
+### Relevant Files
+- `openspec/changes/add-cross-roadmap-readiness-resolver/validation-report.md` — final validation evidence
+- `openspec/roadmaps/supervisor-roadmap/roadmap.yaml` — roadmap execution state
+
+### Context
+Merged PR #509 at exact validated head 168bda14 into the roadmap integration branch; all tasks were complete and the change is ready to archive.
+
+---
+
+## Phase: Cleanup Verification (2026-09-10)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Complete ri-16 through the supervised dispatch state machine** `architectural: roadmap-orchestration` — The generation-2 success result is bound to the exact validated feature head and terminal loop-state evidence.
+
+### Completed Work
+- archive
+- spec-delta merge
+- decision-index refresh
+- roadmap checkpoint
+- learning entry
+- resume-journal regression fix
+- cleanup gate invocation fix
+
+### Next Steps
+- run strict OpenSpec and focused/full tests
+- commit and push the integration checkpoint
+- dispatch ri-13
+
+### Relevant Files
+- `skills/supervise/scripts/execution.py` — clears stale journal on resume
+- `skills/autopilot-roadmap/scripts/orchestrator.py` — legacy resumed-state compatibility
+- `openspec/roadmaps/roadmap-supervisor-orchestration/checkpoint.json` — ri-16 terminal execution record
+
+### Context
+Archived ri-16, projected three roadmap-orchestration spec requirements, completed the roadmap checkpoint, and repaired the resumed-generation journal invariant with regression coverage.
+
