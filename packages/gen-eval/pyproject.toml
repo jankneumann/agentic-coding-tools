@@ -21,7 +21,7 @@ dependencies = [
 # boundaries in the existing code; ``all`` is the union.
 [project.optional-dependencies]
 mcp = ["fastmcp>=2.0"]
-sdk = ["anthropic>=0.94", "openai>=1.50"]
+sdk = ["anthropic>=0.94", "openai>=3.8.0"]
 db = ["asyncpg>=0.29"]
 all = ["gen-eval[mcp,sdk,db]"]
 
