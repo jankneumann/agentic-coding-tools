@@ -1,0 +1,71 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Revision 4 provides deterministic, exhaustive category and severity mappings for bug-scrub, improve-harness, and explore-feature, enforcing canonical slug prefix normalization and fail-closed validation before atomic sidecar replacement.",
+      "resolution": "Preserve the exhaustive producer category tables, prefix normalization rules, and fail-closed validation tests during implementation.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 94,
+        "end": 114
+      }
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The task graph and work-package DAG are fully aligned: task 3.3 depends on task 0.2, wp-prioritize depends on wp-producers, and roadmap intake enforces new-roadmap envelope/capability scaffolding while keeping existing-roadmap mutation strictly behind refine-roadmap preview and apply.",
+      "resolution": "Maintain the task dependency graph, work package DAG, and refine-roadmap preview/apply transaction boundaries during implementation.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/tasks.md",
+      "line_range": {
+        "start": 64,
+        "end": 81
+      }
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "All new shared-runtime consumers are scoped and declared in skills/install-manifest.json and work-packages.yaml, ensuring portable skills pass install-manifest validation and mirror sync without un-declared dependencies.",
+      "resolution": "Retain the install-manifest declarations and verification gates during implementation and mirror synchronization.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml",
+      "line_range": {
+        "start": 38,
+        "end": 50
+      }
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "low",
+      "description": "Candidate work fields are specified as inert data: title, rationale, tags, and provenance are safely escaped during Markdown/terminal rendering, and provenance URIs are strictly un-fetched and un-executed.",
+      "resolution": "Ensure all candidate field renderers escape source strings as inert text during implementation.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 51,
+        "end": 56
+      }
+    }
+  ]
+}

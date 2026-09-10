@@ -1,0 +1,33 @@
+{
+  "review_type": "plan",
+  "target": "migrate-discovery-generators-to-emit-candidate-work-stubs",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Revision 4 closes the remaining mapping ambiguity by naming all eight exact bug-scrub category literals and preserving fail-closed handling outside that closed set.",
+      "resolution": "Preserve the exhaustive mapping and its malformed-input tests during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {"start": 94, "end": 114},
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The task graph and work-package DAG now agree that roadmap intake consumes the shared validation seam, while existing-roadmap mutation remains exclusively behind refine-roadmap preview/apply.",
+      "resolution": "Retain the dependency and transaction boundaries during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/tasks.md",
+      "line_range": {"start": 64, "end": 81},
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "migrate-discovery-generators-to-emit-candidate-work-stubs",
+  "reviewers": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 2,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "pi",
+      "agent_id": "pi",
+      "success": false,
+      "findings_count": 0,
+      "elapsed_seconds": 55.58356036292389,
+      "error": "Findings failed review-findings schema validation"
+    }
+  ],
+  "quorum_met": false,
+  "quorum_requested": 3,
+  "quorum_received": 2,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Revision 4 closes the remaining mapping ambiguity by naming all eight exact bug-scrub category literals and preserving fail-closed handling outside that closed set."
+    },
+    {
+      "id": 2,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The task graph and work-package DAG now agree that roadmap intake consumes the shared validation seam, while existing-roadmap mutation remains exclusively behind refine-roadmap preview/apply."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "All new shared-runtime consumers are scoped and declared in skills/install-manifest.json and work-packages.yaml, ensuring portable skills pass install-manifest validation and mirror sync without un-declared dependencies."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Candidate work fields are specified as inert data: title, rationale, tags, and provenance are safely escaped during Markdown/terminal rendering, and provenance URIs are strictly un-fetched and un-executed."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 4,
+    "confirmed_count": 2,
+    "unconfirmed_count": 2,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 4
+  }
+}

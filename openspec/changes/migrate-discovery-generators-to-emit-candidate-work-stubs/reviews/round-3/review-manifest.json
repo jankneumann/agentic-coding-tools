@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "change_id": "migrate-discovery-generators-to-emit-candidate-work-stubs",
+  "review_type": "plan",
+  "created_at": "2026-09-10T14:05:07Z",
+  "target": "migrate-discovery-generators-to-emit-candidate-work-stubs",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": [
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 101.94234973797575,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "qwen/qwen3-coder",
+      "models_attempted": [
+        "qwen/qwen3-coder"
+      ],
+      "elapsed_seconds": 55.58356036292389,
+      "error": "Findings failed review-findings schema validation: findings/0/criticality: 'none' is not one of ['low', 'medium', 'high', 'critical']; findings/0/disposition: 'accepted' is not one of ['fix', 'regenerate', 'accept', 'escalate']; findings/0/evidence_class: 'document_structure' is not one of ['deterministic', 'judgment']; findings/0/id: 'final-1' is not of type 'integer'; findings/0/type: 'none' is not one of ['spec_gap', 'contract_mismatch', 'architecture', 'security', 'performance', 'style', 'correctness', 'observability', 'compatibility', 'resilience', 'behavioral_failure']",
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 2,
+  "quorum_received": 1,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-plan.json",
+      "finding_count": 4
+    }
+  ]
+}
