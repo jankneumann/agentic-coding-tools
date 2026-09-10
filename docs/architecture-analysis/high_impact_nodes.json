@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-02T10:23:05+00:00",
+  "generated_at": "2026-09-10T08:12:22+00:00",
   "threshold": 5,
-  "total_high_impact": 118,
+  "total_high_impact": 119,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
@@ -457,6 +457,10 @@
     },
     {
       "id": "py:migrations._checksum",
+      "dependent_count": 5
+    },
+    {
+      "id": "py:migrations._is_already_applied_error",
       "dependent_count": 5
     },
     {

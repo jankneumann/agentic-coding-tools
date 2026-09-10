@@ -3,7 +3,7 @@ flowchart TB
     agents_config["agents_config (63 symbols)"]
     approval["approval (14 symbols)"]
     assurance["assurance (1 symbols)"]
-    audit["audit (17 symbols)"]
+    audit["audit (18 symbols)"]
     audit_triage["audit_triage (11 symbols)"]
     axi_output["axi_output (4 symbols)"]
     cloudflare_access["cloudflare_access (12 symbols)"]
@@ -15,7 +15,7 @@ flowchart TB
     coordination_cli["coordination_cli (34 symbols)"]
     coordination_mcp["coordination_mcp (80 symbols)"]
     db["db (23 symbols)"]
-    db_postgres["db_postgres (17 symbols)"]
+    db_postgres["db_postgres (18 symbols)"]
     discovery["discovery (20 symbols)"]
     docker_manager["docker_manager (8 symbols)"]
     event_bus["event_bus (22 symbols)"]
@@ -42,7 +42,7 @@ flowchart TB
     merge_train_service["merge_train_service (29 symbols)"]
     merge_train_types["merge_train_types (14 symbols)"]
     merge_watcher["merge_watcher (8 symbols)"]
-    migrations["migrations (5 symbols)"]
+    migrations["migrations (6 symbols)"]
     model_routing____init__["model_routing.__init__ (1 symbols)"]
     model_routing__exploration["model_routing.exploration (5 symbols)"]
     model_routing__feedback["model_routing.feedback (8 symbols)"]
@@ -176,7 +176,7 @@ flowchart TB
     coordination_mcp -->|"call, import"| telemetry
     coordination_mcp -->|"call, import"| work_queue
     db -->|"call, import"| config
-    db -->|"import"| db_postgres
+    db -->|"call, import"| db_postgres
     db_postgres -->|"import"| config
     discovery -->|"call, import"| audit
     discovery -->|"call, import"| config
