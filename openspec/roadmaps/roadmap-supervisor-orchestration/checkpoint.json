@@ -4,7 +4,7 @@
   "current_item_id": "ri-10",
   "phase": "completed",
   "created_at": "2026-09-01T02:35:00.134952+00:00",
-  "updated_at": "2026-09-10T22:30:56.264805+00:00",
+  "updated_at": "2026-09-10T22:43:11.789909+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -278,6 +278,150 @@
       "outcome": "success",
       "resolved_at": "2026-09-10T22:30:56.253696+00:00",
       "handoff_id": "local:openspec/changes/add-cross-roadmap-readiness-resolver/handoffs/validation-3.json"
+    },
+    {
+      "dispatch_id": "batch-d04b4c6458221e0731470363:ri-13:attempt-1",
+      "item_id": "ri-13",
+      "change_id": "add-supervisor-candidate-work-digest",
+      "phase": "autopilot",
+      "attempt": 1,
+      "status": "parked",
+      "prepared_at": "2026-09-10T22:38:01.760038+00:00",
+      "launch_token": "xfXGyyh0fwoxvddNz2bHDmlI3iTvE_jQ",
+      "launch_marker_path": ".supervised-dispatch/add-supervisor-candidate-work-digest/ri-13-attempt-1.marker",
+      "lease_generation": 1,
+      "launch_history": [
+        {
+          "generation": 1,
+          "owner_nonce": "codex-ri13-owner-20260910",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/add-supervisor-candidate-work-digest/ri-13-attempt-1.marker",
+          "observed_at": "2026-09-10T22:38:13.612750+00:00"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "codex-ri13-owner-20260910",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/add-supervisor-candidate-work-digest/ri-13-attempt-1.marker",
+          "observed_at": "2026-09-10T22:39:06.898467+00:00",
+          "handle": "/root/ri13_autopilot"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "codex-ri13-owner-20260910",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/add-supervisor-candidate-work-digest/ri-13-attempt-1.marker",
+          "observed_at": "2026-09-10T22:39:06.898467+00:00",
+          "handle": "/root/ri13_autopilot"
+        },
+        {
+          "generation": 1,
+          "owner_nonce": "codex-ri13-owner-20260910",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/add-supervisor-candidate-work-digest/ri-13-attempt-1.marker",
+          "observed_at": "2026-09-10T22:39:06.999271+00:00",
+          "handle": "/root/ri13_autopilot"
+        }
+      ],
+      "scope": {
+        "proof": "proven_disjoint",
+        "write_allow": [
+          ".agents/skills/supervise/SKILL.md",
+          ".claude/skills/supervise/SKILL.md",
+          "openspec/changes/add-supervisor-candidate-work-digest/contracts/**",
+          "openspec/changes/add-supervisor-candidate-work-digest/handoffs/**",
+          "openspec/changes/add-supervisor-candidate-work-digest/session-log.md",
+          "openspec/changes/add-supervisor-candidate-work-digest/tasks.md",
+          "skills/supervise/SKILL.md",
+          "skills/supervise/scripts/digest.py",
+          "skills/supervise/templates/rubric-prompt.md",
+          "skills/tests/supervise/fixtures/digest/**",
+          "skills/tests/supervise/test_cycle_state.py",
+          "skills/tests/supervise/test_digest.py",
+          "skills/tests/supervise/test_digest_routing.py",
+          "skills/tests/supervise/test_digest_schemas.py",
+          "skills/tests/supervise/test_rubric_prompt.py"
+        ],
+        "lock_keys": [
+          "contract:supervise.digest",
+          "contract:supervise.rubric.score",
+          "feature:add-supervisor-candidate-work-digest:contracts",
+          "feature:add-supervisor-candidate-work-digest:docs",
+          "feature:add-supervisor-candidate-work-digest:integration",
+          "feature:add-supervisor-candidate-work-digest:module",
+          "feature:add-supervisor-candidate-work-digest:prompt"
+        ]
+      },
+      "isolation": {
+        "mode": "managed_worktree",
+        "worktree_path": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/add-supervisor-candidate-work-digest",
+        "branch": "openspec/add-supervisor-candidate-work-digest"
+      },
+      "context": {
+        "invocation": "direct_autopilot_roadmap"
+      },
+      "lease": {
+        "generation": 1,
+        "owner_nonce": "codex-ri13-owner-20260910",
+        "state": "released",
+        "acquired_at": "2026-09-10T22:38:13.612750+00:00",
+        "heartbeat_at": "2026-09-10T22:38:13.612750+00:00",
+        "expires_at": "2026-09-10T23:38:13.612750+00:00"
+      },
+      "launch_evidence": {
+        "kind": "host_ack",
+        "generation": 1,
+        "handle": "/root/ri13_autopilot",
+        "observed_at": "2026-09-10T22:39:06.898467+00:00"
+      },
+      "launch_gate": {
+        "generation": 1,
+        "state": "entered",
+        "handle": "/root/ri13_autopilot",
+        "go_released_at": "2026-09-10T22:39:06.898467+00:00",
+        "entered_at": "2026-09-10T22:39:06.999271+00:00"
+      },
+      "application_journal": {
+        "schema_version": 1,
+        "state": "effects_applied",
+        "result": {
+          "attempt": 1,
+          "branch": "openspec/add-supervisor-candidate-work-digest",
+          "change_id": "add-supervisor-candidate-work-digest",
+          "dispatch_id": "batch-d04b4c6458221e0731470363:ri-13:attempt-1",
+          "evidence": {
+            "commit": "571f2857467a11281a7875b918dbe964e257c876",
+            "loop_state_digest": "46f02daefd1b01ee647af9a272935c711bbb3bd75d764e96b18a7962d2dadfb4",
+            "loop_state_path": "openspec/changes/add-supervisor-candidate-work-digest/loop-state.json"
+          },
+          "lease_generation": 1,
+          "outcome": "parked",
+          "parked": {
+            "deadline": null,
+            "gate": "proposal_approval",
+            "kind": "pending_gate",
+            "reason": "Repository trust posture is absent, so proposal_approval requires the operator explicit answer before implementation.",
+            "resume_hint": "Ask verbatim: Approve this OpenSpec proposal and begin implementation? Then record via runner.py gate-answer and resume autopilot."
+          },
+          "schema_version": 1,
+          "worktree_path": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/add-supervisor-candidate-work-digest"
+        },
+        "result_digest": "2b19ab8fe1a3c9a722ccb875f5977d236e53c48a2e627c16562ca3d8ed10f37f",
+        "bound_at": "2026-09-10T22:43:11.775956+00:00",
+        "callback_started_at": "2026-09-10T22:43:11.778835+00:00",
+        "callback_acknowledged_at": "2026-09-10T22:43:11.780190+00:00",
+        "terminal_persisted_at": "2026-09-10T22:43:11.781449+00:00",
+        "effects_applied_at": "2026-09-10T22:43:11.789869+00:00"
+      },
+      "outcome": "parked",
+      "resolved_at": "2026-09-10T22:43:11.781441+00:00",
+      "parked": {
+        "deadline": null,
+        "gate": "proposal_approval",
+        "kind": "pending_gate",
+        "reason": "Repository trust posture is absent, so proposal_approval requires the operator explicit answer before implementation.",
+        "resume_hint": "Ask verbatim: Approve this OpenSpec proposal and begin implementation? Then record via runner.py gate-answer and resume autopilot."
+      }
     }
   ],
   "gate_decisions": [
