@@ -1,0 +1,398 @@
+schema_version: 1
+
+feature:
+  id: restructure-documentation-layers
+  title: "Restructure documentation into concept, mechanism, and reference layers"
+  plan_revision: 1
+  created_by: claude-code
+
+contracts:
+  revision: 1
+  openapi:
+    # Documentation-only change: no service contracts. The README stub records the
+    # evaluation; consuming skills treat a README-only contracts/ dir as "none apply".
+    primary: "openspec/changes/restructure-documentation-layers/contracts/README.md"
+    files:
+      - "openspec/changes/restructure-documentation-layers/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  # ---------------------------------------------------------------- wave 1 --
+  - package_id: wp-contracts
+    title: "Contracts — record that no service contracts apply"
+    task_type: contracts
+    description: |
+      Task 1.1. Write contracts/README.md stating that OpenAPI, database, event, and
+      type-generation sub-types were evaluated and none apply to a documentation-only change.
+    role: contracts-author
+    priority: 1
+    depends_on: []
+    locks:
+      files: []
+      keys:
+        - "contract:restructure-documentation-layers/README.md"
+      ttl_minutes: 30
+      reason: "Contract stub consumed by every downstream package"
+    scope:
+      write_allow:
+        - "openspec/changes/restructure-documentation-layers/contracts/**"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces: []
+    worktree:
+      name: docs-layers-wp-contracts
+      mode: isolated
+    timeout_minutes: 15
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Contracts stub present"
+          kind: command
+          command: "test -s openspec/changes/restructure-documentation-layers/contracts/README.md"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "contracts_stub_present"
+    outputs:
+      result_keys:
+        - "contracts_stub_present"
+
+  # ---------------------------------------------------------------- wave 2 --
+  - package_id: wp-tests
+    title: "Tests first — pin the layered documentation structure (RED)"
+    task_type: tests
+    description: |
+      Tasks 2.1–2.6. Write skills/tests/docs/test_doc_structure.py: metadata parser and
+      completeness, relative-link resolution, /skill-name resolution, newcomer path and map
+      coverage, lessons tagging, README layer-0 rules, and the no-catalogue assertion.
+      Tests are expected RED at the end of this package; the three content packages turn
+      them GREEN.
+    role: implementer
+    archetype: implementer
+    priority: 2
+    depends_on:
+      - wp-contracts
+    locks:
+      files:
+        - "skills/tests/docs/test_doc_structure.py"
+      keys:
+        - "feature:restructure-documentation-layers:tests"
+      ttl_minutes: 120
+      reason: "Owns the documentation structure test module"
+    scope:
+      write_allow:
+        - "skills/tests/docs/**"
+      read_allow:
+        - "**"
+      deny:
+        - "skills/tests/docs/test_workflow_docs.py"
+    context_impact:
+      surfaces: []
+    worktree:
+      name: docs-layers-wp-tests
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "New tests collect and existing doc test stays green"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/docs/test_doc_structure.py --collect-only -q && skills/.venv/bin/python -m pytest skills/tests/docs/test_workflow_docs.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "doc_structure_tests_collected"
+    outputs:
+      result_keys:
+        - "doc_structure_tests_collected"
+
+  # ---------------------------------------------------------------- wave 3 --
+  - package_id: wp-entry-and-map
+    title: "Layer 0 entry points and the single map; retire the catalogue"
+    task_type: documentation
+    description: |
+      Tasks 3.1–3.5. Rewrite README.md to one screen with doc-meta; touch only the
+      Documentation section of CLAUDE.md; rewrite docs/guides/documentation.md as the layered
+      map; delete docs/skills-catalogue.md and move its preface into the generated inventory's
+      prose region; repoint the two remaining catalogue links.
+    role: implementer
+    archetype: implementer
+    priority: 3
+    depends_on:
+      - wp-tests
+    locks:
+      files:
+        - "README.md"
+        - "CLAUDE.md"
+        - "docs/guides/documentation.md"
+        - "docs/skills-catalogue.md"
+        - "docs/architecture-analysis/skills-inventory.md"
+      keys:
+        - "feature:restructure-documentation-layers:entrymap"
+      ttl_minutes: 120
+      reason: "Layer 0 and the documentation map"
+    scope:
+      write_allow:
+        - "README.md"
+        - "CLAUDE.md"
+        - "docs/guides/documentation.md"
+        - "docs/skills-catalogue.md"
+        - "docs/architecture-analysis/skills-inventory.md"
+        - "docs/skill-flow/README.md"
+        - "docs/skills-workflow.md"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces:
+        - documentation
+    worktree:
+      name: docs-layers-wp-entry-and-map
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "README, metadata, and catalogue tests pass; inventory producer stays fresh"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/docs -q -k 'readme or metadata or catalogue or workflow' && make context-refresh-check PYTHON=skills/.venv/bin/python"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "README.md"
+              - "docs/guides/documentation.md"
+            result_keys:
+              - "entry_and_map_green"
+    outputs:
+      result_keys:
+        - "entry_and_map_green"
+
+  - package_id: wp-guides
+    title: "Layer 1 guides — coordinator, execution environments, learning loop, frontmatter"
+    task_type: documentation
+    description: |
+      Tasks 4.1–4.7. New docs/guides/coordinator.md, execution-environments.md, and
+      learning-loop.md; prune docs/agent-coordinator.md and add its Design Principles section;
+      stub docs/cloud-vs-local-execution.md; fold the Railway migration doc into
+      docs/local-migration.md; add frontmatter to every existing guide and hand-written doc
+      this package owns; correct false Beads/Railway claims in the files touched.
+    role: implementer
+    archetype: implementer
+    priority: 3
+    depends_on:
+      - wp-tests
+    locks:
+      files:
+        - "docs/agent-coordinator.md"
+        - "docs/cloud-vs-local-execution.md"
+        - "docs/local-migration.md"
+      keys:
+        - "feature:restructure-documentation-layers:guides"
+      ttl_minutes: 120
+      reason: "Layer 1 guides and hand-written docs"
+    scope:
+      write_allow:
+        - "docs/guides/coordinator.md"
+        - "docs/guides/execution-environments.md"
+        - "docs/guides/learning-loop.md"
+        - "docs/guides/code-search.md"
+        - "docs/guides/git-conventions.md"
+        - "docs/guides/memory-conventions.md"
+        - "docs/guides/python-environment.md"
+        - "docs/guides/semantic-context-injection.md"
+        - "docs/guides/session-completion.md"
+        - "docs/guides/skills.md"
+        - "docs/guides/work-queue-truth-projection.md"
+        - "docs/guides/workflow.md"
+        - "docs/guides/worktree-management.md"
+        - "docs/agent-coordinator.md"
+        - "docs/architecture-artifacts.md"
+        - "docs/autopilot-phase-archetype-resolution.md"
+        - "docs/autopilot-provider-smoke.md"
+        - "docs/cloud-deployment.md"
+        - "docs/cloud-session-hooks.md"
+        - "docs/cloud-vs-local-execution.md"
+        - "docs/cloudflare-access-setup.md"
+        - "docs/cloudflare-setup.md"
+        - "docs/coordination-detection-template.md"
+        - "docs/coordinator-railway-to-local-migration.md"
+        - "docs/cross-repo-setup.md"
+        - "docs/local-migration.md"
+        - "docs/lock-key-namespaces.md"
+        - "docs/mental-models.md"
+        - "docs/openbao-secret-management.md"
+        - "docs/parallel-agentic-development.md"
+        - "docs/parallel-git-config.md"
+        - "docs/project-context-refresh.md"
+        - "docs/registry-identity-projection.md"
+        - "docs/script-skill-dependencies.md"
+        - "docs/software-factory-tooling.md"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces:
+        - documentation
+    worktree:
+      name: docs-layers-wp-guides
+      mode: isolated
+    timeout_minutes: 120
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Link, metadata, and newcomer-path tests pass for the guides"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/docs -q -k 'links or metadata or newcomer or skill_mentions'"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "docs/guides/coordinator.md"
+              - "docs/guides/execution-environments.md"
+              - "docs/guides/learning-loop.md"
+            result_keys:
+              - "guides_green"
+    outputs:
+      result_keys:
+        - "guides_green"
+
+  - package_id: wp-lessons
+    title: "Lessons corpus — status and evidence tags, retire by moving"
+    task_type: documentation
+    description: |
+      Tasks 5.1–5.2. Tag every bullet in docs/lessons-learned.md with status and evidence
+      (and by: for superseded); move retired bullets to docs/archive/lessons-retired.md;
+      preserve the Self-Healing section and Mission glossary entry that
+      factory-missions-architecture-alignment gates on.
+    role: implementer
+    archetype: implementer
+    priority: 3
+    depends_on:
+      - wp-tests
+    locks:
+      files:
+        - "docs/lessons-learned.md"
+        - "docs/archive/lessons-retired.md"
+      keys:
+        - "feature:restructure-documentation-layers:lessons"
+      ttl_minutes: 120
+      reason: "Lessons corpus tagging"
+    scope:
+      write_allow:
+        - "docs/lessons-learned.md"
+        - "docs/archive/lessons-retired.md"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces:
+        - documentation
+    worktree:
+      name: docs-layers-wp-lessons
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Lessons tagging test passes and gated sections survive"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/docs -q -k lessons && grep -q 'Self-Healing at Milestone Boundaries' docs/lessons-learned.md && grep -qE '^.*Mission' docs/lessons-learned.md"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts:
+              - "docs/lessons-learned.md"
+            result_keys:
+              - "lessons_green"
+    outputs:
+      result_keys:
+        - "lessons_green"
+
+  # ---------------------------------------------------------------- wave 4 --
+  - package_id: wp-integration
+    title: "Integration — merge, full doc suite, producer and decisions checks"
+    task_type: integration
+    description: |
+      Tasks 6.1–6.3. Merge the three content packages, run skills/tests/docs and
+      skills/tests/vision, run make context-refresh-check and make decisions (no diff),
+      validate the change strictly, tick task checkboxes, append the session-log entry.
+    role: integrator
+    priority: 4
+    depends_on:
+      - wp-entry-and-map
+      - wp-guides
+      - wp-lessons
+    locks:
+      files: []
+      keys:
+        - "feature:restructure-documentation-layers:integration"
+      ttl_minutes: 60
+      reason: "Sync-point merge and full verification"
+    scope:
+      write_allow:
+        - "openspec/changes/restructure-documentation-layers/**"
+      read_allow:
+        - "**"
+    context_impact:
+      surfaces: []
+    worktree:
+      name: docs-layers-wp-integration
+      mode: shared
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: A
+      steps:
+        - name: "Documentation and vision suites green"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/docs skills/tests/vision -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "doc_suites_green"
+        - name: "Producer fresh and decisions index unchanged"
+          kind: command
+          command: "make context-refresh-check PYTHON=skills/.venv/bin/python && make decisions PYTHON=skills/.venv/bin/python && git diff --quiet -- docs/decisions/"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "generated_artifacts_fresh"
+        - name: "Change validates strictly"
+          kind: command
+          command: "openspec validate restructure-documentation-layers --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "openspec_valid"
+    outputs:
+      result_keys:
+        - "doc_suites_green"
+        - "generated_artifacts_fresh"
+        - "openspec_valid"

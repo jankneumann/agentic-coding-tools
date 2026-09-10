@@ -34,6 +34,7 @@ CI verifies the index is fresh by re-running `make decisions` and failing on any
 - [evaluation-framework](./evaluation-framework.md)
 - [fitness-functions](./fitness-functions.md)
 - [gen-eval-framework](./gen-eval-framework.md)
+- [harness-engineering](./harness-engineering.md)
 - [merge-infrastructure](./merge-infrastructure.md)
 - [merge-pull-requests](./merge-pull-requests.md)
 - [observability](./observability.md)
