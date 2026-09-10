@@ -95,3 +95,66 @@ Applied the confirmed round-three plan-review correction and recorded the operat
 
 ### Context
 Fresh supervisor ri-10 planning cycle converged after evidence-backed reconciliation of archive stability, context-impact coverage, shared rehydration semantics, and package prerequisites.
+
+---
+
+## Phase: Implementation Continuation (2026-09-10)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Merge current main without rebasing the supervisor stack** `architectural: skill-workflow` — The ri-10 branch is seven commits atop the long-lived supervisor roadmap branch; a merge preserves that history and imports the approved openspec_paths helper and guard as exact main ancestors.
+2. **Use the shared archive-safe change resolver** `architectural: skill-workflow` — Resolving design.md through change_dir(ROOT, CHANGE_ID) preserves the eight-stage assertion after OpenSpec archival without copying path infrastructure into ri-10.
+
+### Alternatives Considered
+- Rebase or cherry-pick only the path helper commits: rejected because Either would rewrite the stacked roadmap history or duplicate partial current-main patches instead of satisfying the full synchronization prerequisite.
+
+### Trade-offs
+- Accepted A merge commit containing current-main integration plus task 3.2 over A smaller isolated task commit because The imported guard intentionally made the pre-fix tree red, so the archive-safe task edit was required to keep the synchronized commit green.
+
+### Open Questions
+- [ ] Checkpoint apparatus gap: project-context-refresh checkpoint.load_package omits feature-level contract files, so a package with an approved contract rationale is falsely blocked as spurious_rationale; base-relative validate_context_impact reports VALID/rationalized.
+
+### Completed Work
+- Merged origin/main and resolved five additive conflicts
+- Completed task 3.2 archive-stability and reference wording
+- Verified 719 focused tests, 71 coordinator conflict tests, 73 decision/bridge tests, 118 supervisor workflow tests, 735 context-engineering tests, 23 archetype tests, and strict OpenSpec 90/90
+
+### Next Steps
+- Run vendor-diverse implementation review with the degraded checkpoint called out
+- Run task 3.3 complete validation matrix
+
+### Relevant Files
+- `skills/tests/state-artifacts/test_state_artifacts_guide.py` — Archive-safe design lookup contract
+- `docs/guides/state-artifacts.md` — Canonical guide reference wording
+- `openspec/changes/write-durable-state-artifacts-guide/tasks.md` — Task 3.2 completion record
+
+### Context
+Synchronized the stacked ri-10 branch with current main, preserved both sides of five additive conflicts, and completed archive-safe design lookup plus reference-form normalization. Focused state-artifact/path tests pass 719/719; the required package checkpoint degraded because its loader drops feature-level contract files and falsely reports the otherwise-valid API rationale as spurious.
+
+---
+
+## Phase: Implementation Iteration 1 (2026-09-10)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Do not distort the valid context-impact declaration to satisfy a lossy checkpoint loader** — The base-relative gate proves the feature-level contract rationale is valid; removing it would make the authoritative package validation wrong, while changing shared checkpoint code exceeds ri-10 scope.
+
+### Trade-offs
+- Accepted Proceed with an explicitly degraded stale package checkpoint over Silently reporting a fresh checkpoint because The checkpoint is advisory and the failure is documented; fabricating a successful report would erase a real infrastructure limitation.
+
+### Open Questions
+- [ ] Shared follow-up should thread feature-level contract files into checkpoint context-impact evaluation.
+
+### Completed Work
+- Reviewed task 3.2 diff against proposal, design, and tasks
+- Confirmed no medium-or-higher findings
+- Recorded low out-of-scope checkpoint apparatus gap
+- Passed focused pytest, ruff, and strict OpenSpec checks
+
+### Next Steps
+- Run vendor-diverse per-package implementation review
+
+### Context
+Self-review found no ri-10 implementation defect at or above the medium remediation threshold. All scoped tests and lint checks pass; one low, out-of-scope shared checkpoint apparatus gap remains documented for follow-up.

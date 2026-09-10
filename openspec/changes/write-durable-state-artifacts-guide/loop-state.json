@@ -1,17 +1,73 @@
 {
-  "blocking_findings": [],
+  "schema_version": 5,
   "change_id": "write-durable-state-artifacts-guide",
-  "cli_review_enabled": true,
-  "current_phase": "IMPLEMENT",
-  "error": null,
-  "escalation_reason": "plan_review_convergence_failure: max_iter approved for escalation",
+  "current_phase": "IMPL_REVIEW",
+  "iteration": 0,
+  "total_iterations": 14,
+  "max_phase_iterations": 3,
   "findings_trend": [
     26,
     25,
     21,
     11
   ],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/plan-review-8-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-continuation-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-iteration-1-1.json"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-09-08T09:56:41.052294+00:00",
+      "note": "Risk/verifiability judgment NOT CHECKED \u2014 no dispatch adapter available; fell back to the permissive signal-only verdict 'proceed'.",
+      "outcome": "DEGRADED",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-09-09T13:16:13.196942+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-10T04:19:56.502803+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-09-10T04:22:37.794917+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    }
+  ],
+  "last_handoff_id": "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-iteration-1-1.json",
+  "started_at": "2026-09-08T09:56:40.846671+00:00",
+  "phase_started_at": "2026-09-10T04:22:37.842913+00:00",
+  "previous_phase": "PLAN_REVIEW",
+  "escalation_reason": "plan_review_convergence_failure: max_iter approved for escalation",
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": null,
   "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 1,
+    "total_loc_estimate": 420
+  },
+  "gate_verdict": "proceed",
   "gate_decisions": [
     {
       "approval_id": null,
@@ -138,50 +194,6 @@
       "timeout_seconds": null
     }
   ],
-  "gate_signals": {
-    "external_dep_count": 0,
-    "has_broad_write_scope": false,
-    "has_db_migration": false,
-    "has_proposal": true,
-    "has_security_signal": false,
-    "has_specs": true,
-    "has_tasks": true,
-    "has_work_packages": true,
-    "package_count": 1,
-    "total_loc_estimate": 420
-  },
-  "gate_verdict": "proceed",
-  "goal_gate": null,
-  "handoff_ids": [
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/plan-review-8-1.json"
-  ],
-  "implementation_strategy": {},
-  "iteration": 0,
-  "last_handoff_id": "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/plan-review-8-1.json",
-  "max_phase_iterations": 3,
-  "memory_ids": [],
-  "package_authors": {},
-  "packages_status": {},
   "pending_gate": null,
-  "phase_archetype": null,
-  "phase_history": [
-    {
-      "at": "2026-09-08T09:56:41.052294+00:00",
-      "note": "Risk/verifiability judgment NOT CHECKED \u2014 no dispatch adapter available; fell back to the permissive signal-only verdict 'proceed'.",
-      "outcome": "DEGRADED",
-      "phase": "GATEKEEPER"
-    },
-    {
-      "at": "2026-09-09T13:16:13.196942+00:00",
-      "outcome": "converged",
-      "phase": "PLAN_REVIEW"
-    }
-  ],
-  "phase_started_at": "2026-09-09T13:14:21.772414+00:00",
-  "previous_phase": "PLAN_REVIEW",
-  "schema_version": 5,
-  "started_at": "2026-09-08T09:56:40.846671+00:00",
-  "total_iterations": 12,
-  "val_review_enabled": false,
-  "vendor_availability": {}
+  "goal_gate": null
 }
