@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-09-10 — write-durable-state-artifacts-guide
+
+### Phase: Implementation Continuation
+
+**Merge current main without rebasing the supervisor stack** — The ri-10 branch is seven commits atop the long-lived supervisor roadmap branch; a merge preserves that history and imports the approved openspec_paths helper and guard as exact main ancestors.
+
+- Status: `active`
+- Source: [openspec/changes/write-durable-state-artifacts-guide/session-log.md](/openspec/changes/write-durable-state-artifacts-guide/session-log.md) (D1)
+
+---
+
+## 2026-09-10 — write-durable-state-artifacts-guide
+
+### Phase: Implementation Continuation
+
+**Use the shared archive-safe change resolver** — Resolving design.md through change_dir(ROOT, CHANGE_ID) preserves the eight-stage assertion after OpenSpec archival without copying path infrastructure into ri-10.
+
+- Status: `active`
+- Source: [openspec/changes/write-durable-state-artifacts-guide/session-log.md](/openspec/changes/write-durable-state-artifacts-guide/session-log.md) (D2)
+
+---
+
 ## 2026-09-08 — write-durable-state-artifacts-guide
 
 ### Phase: Implementation
