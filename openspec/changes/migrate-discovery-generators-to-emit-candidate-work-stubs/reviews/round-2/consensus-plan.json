@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "migrate-discovery-generators-to-emit-candidate-work-stubs",
+  "reviewers": [
+    {"vendor": "codex", "agent_id": "codex", "success": true, "findings_count": 3, "elapsed_seconds": 0.0, "error": null},
+    {"vendor": "antigravity", "agent_id": "antigravity", "success": false, "findings_count": 0, "elapsed_seconds": 0.0, "error": "round bound exceeded"},
+    {"vendor": "claude_code", "agent_id": "claude_code", "success": false, "findings_count": 0, "elapsed_seconds": 0.0, "error": "round bound exceeded"},
+    {"vendor": "grok", "agent_id": "grok", "success": false, "findings_count": 0, "elapsed_seconds": 0.0, "error": "round bound exceeded"},
+    {"vendor": "pi", "agent_id": "pi", "success": false, "findings_count": 0, "elapsed_seconds": 0.0, "error": "round bound exceeded"}
+  ],
+  "quorum_met": false,
+  "quorum_requested": 5,
+  "quorum_received": 1,
+  "consensus_findings": [
+    {"id": 1, "status": "unconfirmed", "primary_vendor": "codex", "primary_finding_id": 1, "matched_findings": [], "match_score": 0.0, "agreed_type": "spec_gap", "agreed_axis": "correctness", "agreed_criticality": "medium", "recommended_disposition": "fix", "description": "Nit: The exhaustive bug-scrub effort mapping used shorthand instead of exact Category literals."},
+    {"id": 2, "status": "unconfirmed", "primary_vendor": "codex", "primary_finding_id": 2, "matched_findings": [], "match_score": 0.0, "agreed_type": "architecture", "agreed_axis": "architecture", "agreed_criticality": "medium", "recommended_disposition": "fix", "description": "Nit: Task 3.3 omitted its dependency on the shared validator task 0.2."},
+    {"id": 3, "status": "unconfirmed", "primary_vendor": "codex", "primary_finding_id": 3, "matched_findings": [], "match_score": 0.0, "agreed_type": "correctness", "agreed_axis": "resilience", "agreed_criticality": "low", "recommended_disposition": "accept", "description": "Revision 3 closed the prior critical correctness and transaction-boundary gaps."}
+  ],
+  "summary": {"total_unique_findings": 3, "confirmed_count": 0, "unconfirmed_count": 3, "disagreement_count": 0, "blocking_count": 2, "advisory_count": 1}
+}

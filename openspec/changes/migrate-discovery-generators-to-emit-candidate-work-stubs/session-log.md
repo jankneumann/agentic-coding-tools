@@ -88,3 +88,34 @@ Closed the material semantic gaps in the ri-12 plan. The refined contracts now d
 ### Context
 Five-vendor consensus met quorum and identified seven blocking findings. All material defects were remediated in plan revision 3 and strict validation passes, but the bounded confirmation round did not complete, so the phase remains not_converged.
 
+---
+
+## Phase: Plan Review 2 (2026-09-10)
+
+**Agent**: codex-reviewer | **Session**: N/A
+
+### Decisions
+1. **Use exact bug-scrub category literals** — An executable closed mapping must name the repository contract values rather than prose shorthand.
+2. **Keep task and package dependency graphs aligned** — Candidate intake implementation consumes the shared validator and therefore depends on task 0.2 in both representations.
+
+### Capability Gaps Observed
+- **review_dispatch_timeout**: The sequential multi-vendor dispatcher can exceed a phase-level bound because timeout is applied inside individual vendor/model attempts and no partial manifest is persisted on interruption. (skill: parallel-review-plan, severity: high)
+
+### Completed Work
+- Ran round-2 primary review against commit 835224f9.
+- Started four-vendor dispatch with the documented 600-second timeout and reaped it at the supervising bound.
+- Persisted an explicit interrupted manifest and no-quorum consensus.
+- Fixed exact bug-scrub category mappings and the missing task 3.3 dependency; advanced the executable plan to revision 4.
+- Passed strict OpenSpec, work-package DAG/scope/overlap, and review-artifact validation.
+
+### Next Steps
+- Run another independent confirmation review against plan revision 4 before implementation.
+
+### Relevant Files
+- `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/reviews/round-2/consensus-plan.json` — round-2 no-quorum consensus
+- `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/reviews/round-2/review-manifest.json` — interrupted dispatch record
+- `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md` — revision-4 exact mappings
+
+### Context
+Confirmation review found two deterministic plan nits and remediated them in revision 4. The external vendor dispatcher exceeded the enforced round bound before persisting results, so quorum was 1/5 and the phase remains not_converged.
+

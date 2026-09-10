@@ -77,7 +77,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
       **Dependencies**: 3.1
 - [ ] 3.3 Implement the plan-roadmap candidate intake helper/CLI and canonical skill documentation for
       refine-roadmap/new-roadmap routing — **M**
-      **Dependencies**: 3.1, 3.2
+      **Dependencies**: 0.2, 3.1, 3.2
 - [ ] Checkpoint: plan-roadmap/refine-roadmap focused suites green; inspect for direct active-roadmap writes
 
 ## Phase 4 — integration and documentation

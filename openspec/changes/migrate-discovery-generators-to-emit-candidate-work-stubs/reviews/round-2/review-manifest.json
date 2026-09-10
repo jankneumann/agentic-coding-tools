@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "change_id": "migrate-discovery-generators-to-emit-candidate-work-stubs",
+  "review_type": "plan",
+  "created_at": "2026-09-10T13:51:36Z",
+  "target": "migrate-discovery-generators-to-emit-candidate-work-stubs",
+  "interrupted": true,
+  "interruption_reason": "supervisor round bound exceeded while dispatcher waited inside a vendor subprocess",
+  "dispatches": [
+    {"vendor": "antigravity", "success": false, "model_used": null, "models_attempted": [], "elapsed_seconds": null, "error": "interrupted before result persistence", "error_class": "round_bound_exceeded"},
+    {"vendor": "claude_code", "success": false, "model_used": null, "models_attempted": [], "elapsed_seconds": null, "error": "interrupted before result persistence", "error_class": "round_bound_exceeded"},
+    {"vendor": "grok", "success": false, "model_used": null, "models_attempted": [], "elapsed_seconds": null, "error": "interrupted before result persistence", "error_class": "round_bound_exceeded"},
+    {"vendor": "pi", "success": false, "model_used": null, "models_attempted": [], "elapsed_seconds": null, "error": "interrupted before result persistence", "error_class": "round_bound_exceeded"}
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 0,
+  "vendors": []
+}

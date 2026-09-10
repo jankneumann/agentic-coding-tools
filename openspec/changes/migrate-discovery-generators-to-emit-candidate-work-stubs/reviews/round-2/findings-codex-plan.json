@@ -1,0 +1,46 @@
+{
+  "review_type": "plan",
+  "target": "migrate-discovery-generators-to-emit-candidate-work-stubs",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: The supposedly exhaustive bug-scrub effort mapping still names shorthand categories (`test`, `deferred`, and `spec`) instead of the actual contract values `test-failure`, `deferred-issue`, and `spec-violation`, leaving those three mappings ambiguous to implement.",
+      "resolution": "Name all eight exact Category literal values in the effort table and preserve fail-closed handling only for values outside that closed set.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {"start": 96, "end": 101},
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: Task 3.3 implements candidate intake but has no dependency on task 0.2, even though the intake helper must use the shared validator delivered by 0.2; the package DAG has the dependency but the task DAG does not.",
+      "resolution": "Add task 0.2 to task 3.3 dependencies so the human-readable execution plan matches the validated work-package DAG.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/tasks.md",
+      "line_range": {"start": 76, "end": 79},
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Revision 3 closes the prior critical gaps with explicit priority normalization, slug normalization, exact dependency projection, complete new-roadmap envelopes, and transaction-owned existing-roadmap priority assignment.",
+      "resolution": "Preserve these contracts during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {"start": 29, "end": 151},
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

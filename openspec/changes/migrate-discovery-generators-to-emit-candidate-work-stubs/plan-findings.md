@@ -29,3 +29,15 @@ All consensus blocking defects were remediated and strict plan/package validatio
 green. A confirmation dispatch was started but stopped on the supervising agent's
 bounded-round instruction, so the recorded phase outcome remains `not_converged`
 pending an independent review of revision 3.
+
+## Parallel Review Round 2
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 1 | correctness | medium | The exhaustive bug-scrub effort table used shorthand rather than the eight exact `Category` literal values. | Named every literal exactly and retained fail-closed behavior for values outside the closed set. |
+| 2 | architecture | medium | Task 3.3 consumed the shared validator without a task-level dependency on 0.2. | Added 0.2 to the task dependency list, matching the executable package DAG. |
+| 3 | infrastructure | high | The documented 600-second vendor dispatch exceeded the supervising round bound before any external result was persisted. | Reaped the dispatcher and recorded all four external reviewers as interrupted; substantive quorum was 1/5 including the primary Codex review. |
+
+The two locally detected defects are fixed in plan revision 4. Round 2 remains
+`not_converged` because no independent vendor confirmation reached the artifact
+boundary before the enforced bound.

@@ -95,9 +95,10 @@ approval conversation in supervise and the mapping/mutation policy in plan-roadm
 
 Bug-scrub emits every finding already selected by its severity filter to the report
 output directory. Severity maps critical through info to priority 1 through 5;
-lint/type-error/code-marker map to XS, test/deferred map to S, and
-architecture/security/spec map to M, with unknown categories rejected rather than
-silently guessed. Improve-harness emits every ranked gap: critical/high/medium/low
+`lint`/`type-error`/`code-marker` map to XS,
+`test-failure`/`deferred-issue` map to S, and
+`architecture`/`security`/`spec-violation` map to M, with unknown categories
+rejected rather than silently guessed. Improve-harness emits every ranked gap: critical/high/medium/low
 map to priority 1/2/3/4 and effort L/M/S/XS, while source rank is retained in a
 bounded `source-rank-N` tag. A file report gets an adjacent sidecar;
 stdout-only behavior remains write-free without an explicit candidate output, and the

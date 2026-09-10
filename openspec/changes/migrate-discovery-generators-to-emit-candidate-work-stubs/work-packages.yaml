@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: migrate-discovery-generators-to-emit-candidate-work-stubs
   title: "Migrate discovery generators to emit candidate-work stubs"
-  plan_revision: 3
+  plan_revision: 4
   created_by: plan-feature
   deployable: false
 
