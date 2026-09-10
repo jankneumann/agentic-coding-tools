@@ -86,6 +86,7 @@ packages:
     context_impact:
       surfaces:
         - "apis"
+        - "documentation"
         - "semantic_code"
     worktree:
       name: contracts
@@ -233,6 +234,7 @@ packages:
     context_impact:
       surfaces:
         - "documentation"
+        - "semantic_code"
     worktree:
       name: skill-docs
       mode: isolated
@@ -288,6 +290,7 @@ packages:
         - "**/.venv/**"
     context_impact:
       surfaces:
+        - "apis"
         - "semantic_code"
         - "documentation"
         - "decisions"
