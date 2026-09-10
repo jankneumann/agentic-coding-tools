@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
+from openspec_paths import change_dir, repo_root_from
 
 
 jsonschema = pytest.importorskip("jsonschema")
 
 CONTRACT = (
-    Path(__file__).parents[3]
-    / "openspec/changes/add-revision-aware-semantic-index-registry/contracts"
+    change_dir(
+        repo_root_from(__file__, 3),
+        "add-revision-aware-semantic-index-registry",
+    )
+    / "contracts"
     / "index-record.schema.json"
 )
 NOW = "2026-07-23T12:00:00+00:00"

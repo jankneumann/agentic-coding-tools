@@ -200,6 +200,7 @@ _FALLBACK_ENUMS = {
         "observability", "resilience", "compatibility",
     ),
     "severity": ("critical", "nit", "optional", "fyi", "none"),
+    "evidence_class": ("deterministic", "judgment"),
 }
 
 
@@ -269,6 +270,16 @@ def build_review_prompt(pr_number: int, pr_size: dict) -> str:
         vocab_lines.append(
             f"  axis:        {_enum_hint(enums, 'axis')}"
             "   — which review dimension the finding belongs to"
+        )
+    if "evidence_class" in enums:
+        vocab_lines.append(
+            f"  evidence_class: {_enum_hint(enums, 'evidence_class')}"
+            "   — 'judgment' when the finding rests on your reasoning rather than"
+            " on a reproducible observation you actually made. Optional; omitted"
+            " means deterministic. Marking a finding 'judgment' means it is"
+            " reported and ranked but never blocks a merge, so prefer it when you"
+            " are not certain — an honest 60%-confidence finding is more useful"
+            " than a suppressed one or an overstated one."
         )
     vocab_block = "\n".join(vocab_lines)
 

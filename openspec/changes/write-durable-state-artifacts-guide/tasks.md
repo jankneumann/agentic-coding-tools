@@ -59,7 +59,7 @@
   - **Dependencies**: 2.2, 2.3
   - **Coverage**: Install changed canonical skill sources into `.agents` and `.claude`, then verify byte identity.
 
-- [ ] 3.2 Close archive-stability and reference-form drift gaps.
+- [x] 3.2 Close archive-stability and reference-form drift gaps.
   - **Size**: XS
   - **Spec scenarios**: all
   - **Design decisions**: D4

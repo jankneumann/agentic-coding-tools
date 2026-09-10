@@ -13,10 +13,10 @@ import itertools
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 import pytest
+from openspec_paths import change_dir, repo_root_from
 
 from src.agents_config import (
     ASSIGNMENT_ASSIGNED_BY,
@@ -31,15 +31,9 @@ from src.agents_config import (
 )
 from src.config import reset_config
 
-CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "openspec"
-    / "changes"
-    / "derive-agent-identity-from-registry"
-    / "contracts"
-    / "events"
-    / "profile-sync-audit.schema.json"
-)
+CONTRACT_PATH = change_dir(
+    repo_root_from(__file__, 2), "derive-agent-identity-from-registry"
+) / "contracts" / "events" / "profile-sync-audit.schema.json"
 
 
 # ---------------------------------------------------------------------------

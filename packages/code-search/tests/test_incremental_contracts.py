@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import jsonschema
 import pytest
+from openspec_paths import change_dir, repo_root_from
 
 
 CONTRACT_DIR = (
-    Path(__file__).parents[3]
-    / "openspec"
-    / "changes"
-    / "complete-incremental-semantic-indexing"
+    change_dir(
+        repo_root_from(__file__, 3),
+        "complete-incremental-semantic-indexing",
+    )
     / "contracts"
 )
 INDEX_ID = "11111111-1111-4111-8111-111111111111"

@@ -7,6 +7,7 @@ can run without any external services.
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -339,6 +340,72 @@ class TestCoordinatorIntegrationUnit:
         result = await coord.distribute_scenarios(scenarios)
         assert result == ["task-123"]
         mock_client.post.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_distribute_scenarios_body_matches_work_submit_contract(self) -> None:
+        """The submitted body must satisfy the repo's own /work/submit contract.
+
+        Regression: this path sent ``description`` and ``metadata``, but the
+        endpoint requires ``task_description`` and has no ``metadata`` field, so
+        every scenario submission failed with 422. The sibling success test above
+        mocks the client and only asserts that ``post`` was awaited, so it cannot
+        see the body at all — this one reads the contract from
+        ``openspec/contracts/agent-coordinator/openapi/work-queue.yaml`` and checks
+        the payload against it, so the test tracks the contract rather than a
+        hand-copied duplicate of it.
+        """
+        import yaml
+
+        contract = yaml.safe_load(
+            (
+                Path(__file__).resolve().parents[3]
+                / "openspec"
+                / "contracts"
+                / "agent-coordinator"
+                / "openapi"
+                / "work-queue.yaml"
+            ).read_text()
+        )
+        schema = contract["paths"]["/work/submit"]["post"]["requestBody"]["content"][
+            "application/json"
+        ]["schema"]
+        allowed = set(schema["properties"])
+        required = set(schema["required"])
+
+        coord = CoordinatorIntegration()
+        coord._available = True
+
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.json.return_value = {"task_id": "task-123"}
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        coord._client = mock_client
+
+        scenarios = [
+            Scenario(
+                id="test-1",
+                name="Test Scenario",
+                description="A test",
+                category="lock-lifecycle",
+                priority=99,  # out of the queue's 1..10 range
+                interfaces=["http"],
+                steps=[],
+            )
+        ]
+
+        await coord.distribute_scenarios(scenarios)
+
+        url, kwargs = mock_client.post.await_args.args[0], mock_client.post.await_args.kwargs
+        body = kwargs["json"]
+        assert url == "/work/submit"
+        assert required <= set(body), f"missing required fields: {required - set(body)}"
+        assert set(body) <= allowed, f"fields not in contract: {set(body) - allowed}"
+        assert body["task_description"] == "Evaluate scenario: Test Scenario"
+        assert body["input_data"]["scenario_id"] == "test-1"
+        # Out-of-range scenario priority is clamped, not passed through.
+        assert body["priority"] == 10
 
     @pytest.mark.asyncio
     async def test_recall_findings_parses_memories(self) -> None:

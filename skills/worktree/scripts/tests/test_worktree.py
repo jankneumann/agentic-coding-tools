@@ -382,6 +382,49 @@ class TestCmdSetup:
         assert entry is not None
         assert entry["branch"] == "claude/fix-branch-mismatch-9P9o1"
 
+    def test_bootstrap_subprocess_stdout_does_not_leak_onto_eval_contract(
+        self, git_repo: Path, monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
+    ) -> None:
+        """Regression: setup's stdout is a KEY=value contract a caller
+        `eval`s (`eval "$(worktree.py setup ...)"`). The bootstrap
+        subprocess's own output must never land on that stream -- a chatty
+        script (uv install/build progress, which worktree-bootstrap.sh's
+        `uv sync ... 2>&1` merges onto its own stdout) landing there is not
+        valid shell and breaks the eval before it reaches WORKTREE_PATH=/
+        WORKTREE_BRANCH=/BOOTSTRAPPED= (this file's own no_bootstrap=True
+        default hides that path entirely -- exercise it explicitly here).
+        Uses capfd, not capsys: a real subprocess writes at the OS file-
+        descriptor level, which only capfd observes.
+        """
+        fake_bootstrap = git_repo / "fake-bootstrap.sh"
+        fake_bootstrap.write_text(
+            "#!/bin/bash\n"
+            "echo 'Installing agent-coordinator dependencies...'\n"
+            "echo '  + not-shell-safe-line (parenthesis) and a $(command)'\n"
+            "exit 0\n"
+        )
+        fake_bootstrap.chmod(0o755)
+        monkeypatch.setattr(worktree, "_installed_bootstrap_script", lambda: fake_bootstrap)
+
+        args = _make_args("setup", change_id="test-feature", no_bootstrap=False)
+        with _chdir(git_repo):
+            result = worktree.cmd_setup(args)
+        assert result == 0
+
+        captured = capfd.readouterr()
+        assert "Installing agent-coordinator dependencies" not in captured.out
+        assert "not-shell-safe-line" not in captured.out
+        stdout_lines = [line for line in captured.out.splitlines() if line.strip()]
+        for line in stdout_lines:
+            key, sep, _value = line.partition("=")
+            assert sep == "=" and " " not in key, (
+                f"setup stdout must be pure KEY=value lines evalable by a caller, "
+                f"got non-conforming line: {line!r}\nfull stdout: {captured.out!r}"
+            )
+        assert "WORKTREE_PATH=" in captured.out
+        assert "WORKTREE_BRANCH=" in captured.out
+        assert "BOOTSTRAPPED=true" in captured.out
+
     def test_env_override_composes_with_agent_id(
         self, git_repo: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

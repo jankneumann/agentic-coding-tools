@@ -3,47 +3,143 @@
   "$id": "https://agentic-coding-tools.dev/schemas/review-findings.schema.json",
   "title": "Review Findings",
   "type": "object",
-  "required": ["review_type", "target", "findings"],
+  "required": [
+    "review_type",
+    "target",
+    "findings"
+  ],
   "properties": {
-    "review_type": { "type": "string", "enum": ["plan", "implementation"] },
-    "target": { "type": "string", "description": "feature_id for plan review, package_id for implementation review." },
-    "reviewer_vendor": { "type": "string" },
+    "review_type": {
+      "type": "string",
+      "enum": [
+        "plan",
+        "implementation"
+      ]
+    },
+    "target": {
+      "type": "string",
+      "description": "feature_id for plan review, package_id for implementation review."
+    },
+    "reviewer_vendor": {
+      "type": "string"
+    },
     "findings": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "type", "criticality", "description", "disposition", "axis", "severity"],
+        "required": [
+          "id",
+          "type",
+          "criticality",
+          "description",
+          "disposition",
+          "axis",
+          "severity"
+        ],
         "properties": {
-          "id": { "type": "integer" },
-          "type": { "type": "string", "enum": ["spec_gap", "contract_mismatch", "architecture", "security", "performance", "style", "correctness", "observability", "compatibility", "resilience", "behavioral_failure"] },
-          "criticality": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
-          "description": { "type": "string" },
-          "resolution": { "type": "string" },
-          "disposition": { "type": "string", "enum": ["fix", "regenerate", "accept", "escalate"] },
-          "package_id": { "type": "string" },
-          "file_path": { "type": "string", "description": "File path the finding relates to (optional, enables cross-vendor matching)" },
+          "id": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "spec_gap",
+              "contract_mismatch",
+              "architecture",
+              "security",
+              "performance",
+              "style",
+              "correctness",
+              "observability",
+              "compatibility",
+              "resilience",
+              "behavioral_failure"
+            ]
+          },
+          "criticality": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "resolution": {
+            "type": "string"
+          },
+          "disposition": {
+            "type": "string",
+            "enum": [
+              "fix",
+              "regenerate",
+              "accept",
+              "escalate"
+            ]
+          },
+          "package_id": {
+            "type": "string"
+          },
+          "file_path": {
+            "type": "string",
+            "description": "File path the finding relates to (optional, enables cross-vendor matching)"
+          },
           "line_range": {
             "oneOf": [
               {
                 "type": "object",
                 "properties": {
-                  "start": { "type": "integer" },
-                  "end": { "type": "integer" }
+                  "start": {
+                    "type": "integer"
+                  },
+                  "end": {
+                    "type": "integer"
+                  }
                 }
               },
-              { "type": "string", "pattern": "^\\s*\\d+(\\s*-\\s*\\d+)?\\s*$" }
+              {
+                "type": "string",
+                "pattern": "^\\s*\\d+(\\s*-\\s*\\d+)?\\s*$"
+              }
             ],
             "description": "Line range within file_path (optional). Two shapes are accepted, matching consensus_synthesizer._parse_line_range: the canonical object form, and the bare string form ('10' or '10-20') that vendors emit in practice. The parser was widened to accept the string; this schema was not, so the CLI replay path rejected documents the in-process path consumed fine. Keep the two in step."
           },
           "axis": {
             "type": "string",
-            "enum": ["correctness", "readability", "architecture", "security", "performance", "observability", "resilience", "compatibility"],
+            "enum": [
+              "correctness",
+              "readability",
+              "architecture",
+              "security",
+              "performance",
+              "observability",
+              "resilience",
+              "compatibility"
+            ],
             "description": "8-axis review categorization (5 code-review axes plus the fitness-function axes observability, resilience, compatibility)"
           },
           "severity": {
             "type": "string",
-            "enum": ["critical", "nit", "optional", "fyi", "none"],
+            "enum": [
+              "critical",
+              "nit",
+              "optional",
+              "fyi",
+              "none"
+            ],
             "description": "5-severity prefix (from code-review-and-quality skill)"
+          },
+          "evidence_class": {
+            "type": "string",
+            "enum": [
+              "deterministic",
+              "judgment"
+            ],
+            "default": "deterministic",
+            "description": "How this finding was established. 'deterministic' means a reproducible observation \u2014 a test failed, a schema mismatched, a scanner rule fired; re-running the same input yields the same finding, and a seeded defect can prove the detector works. 'judgment' means a model reasoned about the artifact; the finding may be correct and valuable but is not reproducible and cannot be falsified by seeding a defect. Only deterministic findings are counted as blocking by the consensus synthesizer. Optional and defaulting to 'deterministic' so existing emitters are unchanged; callers dispatching a judgment-class reviewer declare it at ingest rather than trusting the model to self-label."
           }
         }
       }

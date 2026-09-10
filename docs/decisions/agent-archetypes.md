@@ -5,58 +5,58 @@
 
 ---
 
-## 2026-08-16 — add-local-model-provider-tier
+## 2026-08-16 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Implementation
 
 **Served model map strips local roster metadata** — Review F-05: hardware metadata is load-time validation input, not part of the canonical ProviderModelMap contract
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D3)
 
 ---
 
-## 2026-08-16 — add-local-model-provider-tier
+## 2026-08-16 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Implementation
 
 **403 refusal declared as OpenAPI delta** — Review F-06: new response shape is a contract change and must be declared in this change's contracts
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D5)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D5)
 
 ---
 
-## 2026-08-15 — add-local-model-provider-tier
+## 2026-08-15 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Plan
 
 **local is a first-class provider (D1)** — Keeps local a distinct vendor for trust, routing, audit, and rate-limit policy; pi precedent reused
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D1)
 
 ---
 
-## 2026-08-15 — add-local-model-provider-tier
+## 2026-08-15 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Plan
 
 **Trust boundary enforced in resolver with audited refusals (D3)** — Prose gates are invisible to unattended loops; coordinator is the single decision point
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D2)
 
 ---
 
-## 2026-08-15 — add-local-model-provider-tier
+## 2026-08-15 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Plan
 
 **Hardware matching as machine-checked roster metadata (D4)** — GB10 is bandwidth-bound (~273 GB/s); active-parameter ceiling and dense >=30B rejection enforced at startup, not in comments
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D3)
 
 ---
 
@@ -93,33 +93,33 @@
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Vendor-diversity session state at openspec/changes/<id>/.dispatch-state.json with 0644 permissions (D9)** — Change-scoped, cleanup-managed, world-readable but world-write-rejected; defers coordinator-side state to follow-up
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D3)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **WP6 tests use exact log-format assertions to lock in spec contract** — Spec scenarios specify exact log strings; tests catch silent format drift
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D3)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan
 
 **Vendor-diversity policy is per-change, not per-package** — Implementable from existing change-id session state; per-package would force vendor-pool exhaustion on changes with many packages
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D4)

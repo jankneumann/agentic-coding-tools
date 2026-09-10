@@ -536,3 +536,37 @@ atlas: ## Render docs/architecture-analysis/atlas/index.html from the architectu
 
 atlas-check: ## Read-only freshness check for the rendered atlas (exit 2 = stale)
 	@$(PYTHON) skills/codebase-atlas/scripts/build_atlas.py --check
+
+# ---------------------------------------------------------------------------
+# security-seed-nvd — refresh the CVE database dependency-check matches against
+#
+# Separate from scanning on purpose. Updating inline would make every security
+# review depend on NVD being reachable and on the rate limit at that moment, so a
+# transient network fault would read as a security result. It would also turn a
+# one-minute scan into a multi-GB download. Seeded separately, a scan's verdict
+# is a function of the tree and the database, both of which hold still.
+#
+# Needs NVD_API_KEY in the environment. It lives in agent-coordinator/.secrets.yaml
+# (gitignored) and reaches OpenBao via `make bao-seed`; export it for this command
+# with, for example:
+#     export NVD_API_KEY="$$(python3 -c "import yaml;print(yaml.safe_load(open('agent-coordinator/.secrets.yaml'))['NVD_API_KEY'])")"
+#
+# The first seed downloads the full NVD corpus and takes a while. Later runs are
+# incremental. Refresh at least as often as DEPENDENCY_CHECK_MAX_DB_AGE_DAYS
+# (default 7), or the scanner reports NOT CHECKED rather than a false clean pass.
+# ---------------------------------------------------------------------------
+
+.PHONY: security-seed-nvd security-nvd-status
+security-seed-nvd: ## Download/refresh the NVD database for dependency-check (needs NVD_API_KEY)
+	@bash skills/security-review/scripts/run_dependency_check.sh --update-nvd
+
+security-nvd-status: ## Report the seeded NVD database's age against the freshness floor
+	@bash skills/security-review/scripts/run_dependency_check.sh --nvd-status
+
+.PHONY: security-bump-scanner-images security-check-scanner-images
+security-bump-scanner-images: ## Re-resolve pinned scanner image digests (deliberate bump)
+	@python3 skills/security-review/scripts/bump_scanner_images.py
+
+security-check-scanner-images: ## Report scanner image pins that are behind their tag (exit 1 on drift)
+	@python3 skills/security-review/scripts/bump_scanner_images.py --check
+

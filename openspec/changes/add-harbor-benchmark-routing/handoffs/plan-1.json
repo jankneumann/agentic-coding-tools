@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-01T11:44:02.406255+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned a Harbor-based archive-replay benchmark (114 archived OpenSpec changes as tasks) that sweeps combos {vendor, model, thinking, harness} across all 5 vendors and imports priors into the adaptive router's data plane, with a flagged ROUTING_ADAPTIVE read-path in resolve_for_phase. Gate 1 selected Approach A (Harbor substrate subsuming ri-05); tier coordinated; interview-mode discovery (9 questions, min confidence 0.90).",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Harbor as pinned package-local dependency (D1)",
+        "rationale": "Isolation, built-in claude-code/codex adapters, per-trial metrics; blast radius confined to packages/harbor-bench",
+        "capability": "evaluation-framework",
+        "supersedes": null
+      },
+      {
+        "title": "'combo' = {vendor, model, thinking, harness}; 'arm' reserved for rightsizing A/B (D2)",
+        "rationale": "Resolves the semantic clash with the skill-rightsizing roadmap scorecards",
+        "capability": "evaluation-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Migration 035 lands model_catalog + model_posteriors only (D3)",
+        "rationale": "Unblocks add-adaptive-model-router's data plane without claiming its live-dispatch tables",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Budget: $50 OpenRouter cap for metered pi; quota-window throttle for subscription vendors (D4)",
+        "rationale": "User clarified claude/codex/grok/antigravity are subscriptions; only OpenRouter is USD-metered",
+        "capability": "model-routing",
+        "supersedes": null
+      },
+      {
+        "title": "Container runtime is podman via Docker-compatible socket (D10)",
+        "rationale": "User directive: repo uses podman, not Docker; smoke trial is the acceptance check",
+        "capability": "evaluation-framework",
+        "supersedes": null
+      },
+      {
+        "title": "Feedback normalizers re-keyed to (vendor, model, thinking) before any prior fit (D9)",
+        "rationale": "Current vendor-only keying collapses thinking tiers, the dimension the sweep most needs to separate",
+        "capability": "model-routing",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement Phase 1 (contracts validation, package scaffold, sealed corpus manifest) first",
+      "Serialize migration 035 authorship via db:schema:model_routing lock (next free migration number: 035)"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-harbor-benchmark-routing/proposal.md",
+        "description": "approved proposal with selected approach"
+      },
+      {
+        "path": "openspec/changes/add-harbor-benchmark-routing/design.md",
+        "description": "decisions D1-D10"
+      },
+      {
+        "path": "openspec/changes/add-harbor-benchmark-routing/tasks.md",
+        "description": "6-phase TDD task list"
+      },
+      {
+        "path": "openspec/changes/add-harbor-benchmark-routing/work-packages.yaml",
+        "description": "9-package DAG, validated"
+      }
+    ]
+  }
+}

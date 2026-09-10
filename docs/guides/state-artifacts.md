@@ -41,4 +41,4 @@ Writers persist the authoritative artifact before emitting dependent records or 
 
 ## Skill contract
 
-Skills keep phase-specific commands, schemas, and gate behavior locally. They link here for shared holder, writer, authority, missing/stale, and rehydration semantics. If runtime behavior and this guide disagree, stop and fix the guide or implementation together; do not add another local restatement.
+Skills keep phase-specific commands, schemas, and gate behavior locally. They reference this canonical guide for shared holder, writer, authority, missing/stale, and rehydration semantics. If runtime behavior and this guide disagree, stop and fix the guide or implementation together; do not add another local restatement.

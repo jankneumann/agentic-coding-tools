@@ -8,7 +8,7 @@ Environment variables:
     AGENT_TYPE: Type of agent (claude_code, codex, etc.)
     SESSION_ID: Optional session identifier
     LOCK_TTL_MINUTES: Default lock TTL (default: 120)
-    DB_BACKEND: Database backend - "supabase" (default) or "postgres"
+    DB_BACKEND: Database backend - "postgres" (default) or "supabase"
     POSTGRES_DSN: PostgreSQL connection string (when DB_BACKEND=postgres)
     POSTGRES_POOL_MIN: Minimum pool size (default: 2)
     POSTGRES_POOL_MAX: Maximum pool size (default: 10)
@@ -136,7 +136,7 @@ class DatabaseConfig:
     @classmethod
     def from_env(cls) -> DatabaseConfig:
         return cls(
-            backend=os.environ.get("DB_BACKEND", "supabase"),
+            backend=os.environ.get("DB_BACKEND", "postgres"),
             postgres=PostgresConfig.from_env(),
         )
 
@@ -699,7 +699,7 @@ class Config:
                 f"Failed to load profile '{profile_name}': {exc}"
             ) from exc
 
-        db_backend = os.environ.get("DB_BACKEND", "supabase")
+        db_backend = os.environ.get("DB_BACKEND", "postgres")
         try:
             supabase_config: SupabaseConfig | None = SupabaseConfig.from_env()
         except ValueError:

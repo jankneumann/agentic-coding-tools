@@ -93,7 +93,14 @@ class ProfilesService:
 
     def __init__(self, db: DatabaseClient | None = None):
         self._db = db
-        self._cache: dict[str, tuple[AgentProfile, float]] = {}
+        #: cache_key -> (profile, original source, cached_at).
+        #:
+        #: The *source* is cached alongside the profile because callers gate
+        #: on it. Storing only (profile, cached_at) forced a cache hit to
+        #: report source='cache', erasing whether the row was reached by an
+        #: explicit assignment or by the agent_type fallback — a distinction
+        #: `trust_resolution` treats as security-relevant (see #408).
+        self._cache: dict[str, tuple[AgentProfile, str | None, float]] = {}
 
     @property
     def db(self) -> DatabaseClient:
@@ -134,12 +141,15 @@ class ProfilesService:
         # Check cache
         cache_key = f"{agent_id}:{agent_type}"
         if cache_key in self._cache:
-            profile, cached_at = self._cache[cache_key]
+            profile, cached_source, cached_at = self._cache[cache_key]
             if time.monotonic() - cached_at < config.profiles.cache_ttl_seconds:
+                # Report the ORIGINAL provenance, not "cache". A cached read is
+                # the same fact as the read that populated it; saying otherwise
+                # silently changes the answer callers compute from it.
                 return ProfileResult(
                     success=True,
                     profile=profile,
-                    source="cache",
+                    source=cached_source,
                     delegated_from=delegated_from,
                 )
 
@@ -156,7 +166,11 @@ class ProfilesService:
 
         # Cache successful lookups
         if profile_result.success and profile_result.profile:
-            self._cache[cache_key] = (profile_result.profile, time.monotonic())
+            self._cache[cache_key] = (
+                profile_result.profile,
+                profile_result.source,
+                time.monotonic(),
+            )
 
         return profile_result
 
