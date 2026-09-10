@@ -6,6 +6,10 @@ feature:
   plan_revision: 4
   created_by: autopilot-roadmap
   created_at: "2026-09-08T00:00:00Z"
+  # This roadmap item changes documentation, skill instructions, and tests only.
+  # Declare the surface because the stacked supervisor branch also contains
+  # deployable ancestors that would otherwise make inference overly broad.
+  deployable: false
 
 contracts:
   revision: 1

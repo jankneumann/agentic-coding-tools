@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "write-durable-state-artifacts-guide",
-  "current_phase": "VALIDATE",
+  "current_phase": "SUBMIT_PR",
   "iteration": 0,
-  "total_iterations": 17,
+  "total_iterations": 18,
   "max_phase_iterations": 3,
   "findings_trend": [
     26,
@@ -22,7 +22,8 @@
     "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-continuation-1.json",
     "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-iteration-1-1.json",
     "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-review-1-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-fix-1-1.json"
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-fix-1-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/validation-1.json"
   ],
   "phase_history": [
     {
@@ -55,17 +56,22 @@
       "at": "2026-09-10T04:47:41.772606+00:00",
       "outcome": "fixed",
       "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-10T05:10:34.105146+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
     }
   ],
-  "last_handoff_id": "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-fix-1-1.json",
+  "last_handoff_id": "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/validation-1.json",
   "started_at": "2026-09-08T09:56:40.846671+00:00",
-  "phase_started_at": "2026-09-10T04:47:41.921439+00:00",
+  "phase_started_at": "2026-09-10T05:11:08.922085+00:00",
   "previous_phase": "PLAN_REVIEW",
   "escalation_reason": "plan_review_convergence_failure: max_iter approved for escalation",
   "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": null,
+  "phase_archetype": "runner",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -204,8 +210,38 @@
       "recorded_at": "2026-09-09T13:12:44.043436+00:00",
       "resolution": "console_approved",
       "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-10T05:11:40.885651+00:00"
     }
   ],
-  "pending_gate": null,
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "write-durable-state-artifacts-guide",
+    "gate": "pr_creation",
+    "phase": "SUBMIT_PR",
+    "requested_at": "2026-09-10T05:11:40.886220+00:00",
+    "prompt": "Create the pull request for this change?",
+    "context": {
+      "branch": "openspec/write-durable-state-artifacts-guide",
+      "change_id": "write-durable-state-artifacts-guide"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": false
+    }
+  },
   "goal_gate": null
 }
