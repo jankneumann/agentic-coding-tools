@@ -11,20 +11,16 @@ import yaml
 from jsonschema import Draft202012Validator
 
 from models import Checkpoint, CheckpointPhase, Effort, FailedItem, ItemStatus, Roadmap, RoadmapItem
+from openspec_paths import change_dir, repo_root_from
 from readiness import _get_ready_items
 from resolve_readiness import main, readiness_exit_code, render_readiness, resolve_readiness
 
 
 ROOT = Path(__file__).resolve().parents[3]
 SCHEMAS = ROOT / "openspec" / "schemas"
-CONTRACT = (
-    ROOT
-    / "openspec"
-    / "changes"
-    / "add-cross-roadmap-readiness-resolver"
-    / "contracts"
-    / "readiness-result.schema.json"
-)
+CONTRACT = change_dir(
+    repo_root_from(__file__, 3), "add-cross-roadmap-readiness-resolver"
+) / "contracts" / "readiness-result.schema.json"
 
 
 def _item(item_id: str, **overrides: object) -> dict[str, object]:
