@@ -285,3 +285,55 @@ Completed ri-10 validation with all required phases passing. The package is expl
 
 ### Context
 Created PR #505 for the validated ri-10 branch against the supervisor-roadmap parent. Curated review artifacts were resolved, but the local code CLI was unavailable; final strategic memory also degraded because the coordinator HTTP endpoint returned unauthorized. The durable session log and local handoff preserve the full submission context while merge authorization remains pending.
+
+---
+
+## Phase: Cleanup (2026-09-10)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Preserve the stacked roadmap topology with a merge commit** — GitHub rejected rebase because the RI-10 branch intentionally contains a merge commit from synchronizing current main; the repository permits merge commits and PR #505 remained CLEAN and MERGEABLE.
+2. **No task migration** — Every RI-10 task is checked, so there are no residual tasks to move into a follow-up proposal or issue.
+
+### Alternatives Considered
+- Rebase merge: rejected because GitHub returned This branch cannot be rebased for the intentional stacked history
+
+### Trade-offs
+- Accepted a merge commit on the supervisor integration branch over rewriting the validated stacked history because it preserves the exact CI-green head and its roadmap ancestry
+
+### Completed Work
+- merge
+- task-migration check
+
+### Next Steps
+- archive write-durable-state-artifacts-guide
+- continue the supervisor roadmap
+
+### Context
+PR #505 merged into the supervisor roadmap integration branch after two fully green CI runs. All OpenSpec tasks are complete, so no migration is required; cleanup proceeds to archive the change and refresh derived decision artifacts.
+
+---
+
+## Phase: Cleanup Verification (2026-09-10)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Archive RI-10 on the supervisor integration branch** — PR #505 was intentionally stacked on that branch, so its archive and canonical spec projection must travel with the same roadmap integration history before the parent branch lands on main.
+
+### Completed Work
+- merge
+- task-migration check
+- archive
+- spec-delta merge
+- decision-index refresh
+- strict OpenSpec validation
+- roadmap checkpoint
+- learning entry
+
+### Next Steps
+- continue the supervisor roadmap
+
+### Context
+RI-10 cleanup completed on the supervisor roadmap integration branch. The proposal is archived, its three requirements are merged into the canonical skill-workflow spec, the decision index is regenerated, strict OpenSpec validation passes 89 of 89 items, and the roadmap checkpoint now marks ri-10 complete.

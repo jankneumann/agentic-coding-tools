@@ -235,7 +235,7 @@ items:
     Grok returned only a placeholder in round 2.'
 - item_id: ri-10
   title: Write durable state-artifacts guide
-  status: in_progress
+  status: completed
   priority: 2
   effort: S
   depends_on:
@@ -453,4 +453,4 @@ items:
     spend is auditable after a run.'
   external_depends_on:
   - dispatch-governance:dg-04
-updated_at: '2026-09-08T08:36:41.625401+00:00'
+updated_at: '2026-09-10T08:29:56.210005+00:00'
