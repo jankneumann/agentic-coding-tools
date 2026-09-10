@@ -13,10 +13,26 @@ noticing the pytest step had been ``in_progress`` for 68 minutes.
 
 Two runs were hung simultaneously, which is the second half of this guard. There
 was no ``concurrency`` group, so pushing the fix did not cancel the superseded
-run; both sat burning runner time toward a 6-hour ceiling. Cancellation is
-restricted to ``pull_request`` events on purpose: a push to ``main`` or a
-``merge_group`` entry must always run to completion, because nothing re-runs it
+run; both sat burning runner time toward a 6-hour ceiling. A push to ``main`` or
+a ``merge_group`` entry must always run to completion, because nothing re-runs it
 later and cancelling it would leave ``main`` with no recorded verdict.
+
+That second half asserted the wrong thing until 2026-09-10. It read the
+``cancel-in-progress`` *expression text* and required the substring
+``pull_request`` in it, which the value
+``${{ github.event_name == 'pull_request' }}`` satisfies — while a ``${{ }}``
+expression yields a *string*, and a non-empty string (``"false"`` included) is
+truthy for that field. So every event cancelled its predecessor, the guard stayed
+green, and 3 of the last 40 ``main`` runs were cancelled; ``1ad5da69`` sits on
+``main`` with no verdict of its own. The guard's own failure message described
+that outcome exactly, while passing.
+
+A config-text assertion standing in for a claim about runtime is only as true as
+the assumption that the runtime reads the config the way the reader does. So the
+property asserted below is now structural instead: a non-pull-request run must
+land in a group keyed on ``github.run_id``, which is unique per run. Nothing else
+can join that group, so nothing can cancel it — regardless of how the flag
+evaluates. That is a claim about group membership, which YAML *can* answer.
 
 Fifteen of twenty-one jobs were unbounded when this was written, including all
 six required status checks. A hang in any required check blocks every merge in
@@ -118,17 +134,28 @@ def test_superseded_pull_request_runs_are_cancelled(path: Path) -> None:
         f"{path.name}: concurrency group {group!r} is not workflow-scoped, so "
         f"unrelated workflows would cancel each other."
     )
-    assert "pull_request" in group or "github.ref" in group, (
-        f"{path.name}: concurrency group {group!r} does not vary per PR/ref, so "
-        f"one PR's run would cancel another's."
+    assert "pull_request" in group, (
+        f"{path.name}: concurrency group {group!r} does not vary per pull "
+        f"request, so one PR's run would cancel another's."
     )
 
-    cancel = str(concurrency.get("cancel-in-progress", ""))
-    assert "pull_request" in cancel, (
-        f"{path.name}: cancel-in-progress={cancel!r}. It must be conditioned on "
-        f"the event being a pull_request. Cancelling a push to main or a "
-        f"merge_group entry would leave main with no recorded verdict, because "
-        f"nothing re-runs those."
+    # A non-PR run must be alone in its group. `github.run_id` is unique per
+    # run, so keying the fallback on it makes every push and merge_group entry a
+    # singleton that nothing can cancel. Asserted on the group rather than on
+    # `cancel-in-progress`, because the flag's text said "PRs only" for weeks
+    # while the runtime cancelled everything -- see the module docstring.
+    assert "github.run_id" in group, (
+        f"{path.name}: concurrency group {group!r} does not fall back to "
+        f"github.run_id, so two pushes to the same ref share a group and the "
+        f"later one cancels the earlier. That leaves main with no recorded "
+        f"verdict, because nothing re-runs a push. Do not try to fix this by "
+        f"conditioning cancel-in-progress on the event name: that is what was "
+        f"here before, and a `${{{{ }}}}` expression yields a string, which is "
+        f"truthy even when it reads 'false'."
+    )
+    assert "github.ref" not in group, (
+        f"{path.name}: concurrency group {group!r} keys on github.ref, so every "
+        f"push to a branch shares one group and supersedes its predecessor."
     )
 
 
