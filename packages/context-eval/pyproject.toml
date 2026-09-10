@@ -37,7 +37,7 @@ build-backend = "uv_build"
 dev = [
     "pytest==9.1.1",
     "ruff==0.16.0",
-    "mypy==2.3.0",
+    "mypy==2.3.1",
     # Neither jsonschema nor pyyaml ships py.typed, and `mypy --strict` cannot
     # check the two imports this package cannot do without. Without both stub
     # packages the type gate reports `import-untyped` and stops being a gate.
