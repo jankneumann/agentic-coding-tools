@@ -1,0 +1,168 @@
+schema_version: 1
+
+feature:
+  id: write-durable-state-artifacts-guide
+  title: "Write the canonical durable state-artifacts guide"
+  plan_revision: 4
+  created_by: autopilot-roadmap
+  created_at: "2026-09-08T00:00:00Z"
+  # This roadmap item changes documentation, skill instructions, and tests only.
+  # Declare the surface because the stacked supervisor branch also contains
+  # deployable ancestors that would otherwise make inference overly broad.
+  deployable: false
+
+contracts:
+  revision: 1
+  # The schema requires an OpenAPI slot even when no runtime contract applies.
+  # This README is a no-contract declaration, not an API contract.
+  openapi:
+    primary: "openspec/changes/write-durable-state-artifacts-guide/contracts/README.md"
+    files:
+      - "openspec/changes/write-durable-state-artifacts-guide/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-state-artifacts-docs
+    title: "Canonical state-artifact guide and drift guards"
+    task_type: documentation
+    description: |
+      Implement tasks 1.1-3.3 as one sequential documentation package. Before
+      task 3.2, synchronize the feature branch with current `main` so the existing
+      `openspec_paths` helper and guard are available without package-owned writes.
+      Pin the shared artifact inventory and rehydration order with RED tests, write the
+      guide, replace duplicated skill semantics with references, align supervise,
+      install mirrors, preserve the regenerated skill-workflow decision index,
+      and run the complete validation set.
+    role: documentation-engineer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "docs/guides/state-artifacts.md"
+        - "docs/guides/documentation.md"
+        - "docs/decisions/skill-workflow.md"
+        - "skills/pyproject.toml"
+        - "skills/autopilot/SKILL.md"
+        - "skills/autopilot-roadmap/SKILL.md"
+        - "skills/session-log/SKILL.md"
+        - "skills/supervise/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+      keys:
+        - "feature:durable-state-artifacts:write"
+        - "feature:supervisor-rehydration:write"
+      ttl_minutes: 120
+      reason: "Canonical ownership and replay semantics span shared skill documentation"
+    scope:
+      write_allow:
+        - "docs/guides/state-artifacts.md"
+        - "docs/guides/documentation.md"
+        - "docs/decisions/skill-workflow.md"
+        - "skills/pyproject.toml"
+        - "skills/autopilot/SKILL.md"
+        - "skills/autopilot-roadmap/SKILL.md"
+        - "skills/session-log/SKILL.md"
+        - "skills/supervise/SKILL.md"
+        - "skills/implement-feature/SKILL.md"
+        - "skills/validate-feature/SKILL.md"
+        - "skills/tests/state-artifacts/**"
+        - ".agents/skills/autopilot/SKILL.md"
+        - ".agents/skills/autopilot-roadmap/SKILL.md"
+        - ".agents/skills/session-log/SKILL.md"
+        - ".agents/skills/supervise/SKILL.md"
+        - ".agents/skills/implement-feature/SKILL.md"
+        - ".agents/skills/validate-feature/SKILL.md"
+        - ".claude/skills/autopilot/SKILL.md"
+        - ".claude/skills/autopilot-roadmap/SKILL.md"
+        - ".claude/skills/session-log/SKILL.md"
+        - ".claude/skills/supervise/SKILL.md"
+        - ".claude/skills/implement-feature/SKILL.md"
+        - ".claude/skills/validate-feature/SKILL.md"
+        - "openspec/changes/write-durable-state-artifacts-guide/**"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/src/**"
+        - "agent-coordinator/database/**"
+        - "apps/**"
+    context_impact:
+      surfaces:
+        - "documentation"
+        - "decisions"
+        - "capabilities"
+        - "semantic_code"
+      rationale:
+        apis:
+          reason: "The work-package schema requires contracts.openapi to point at the no-contract README stub; the file explicitly declares that no API contract or runtime interface changes."
+          approved_by: "supervisor ri-10 plan review, 2026-09-09"
+    worktree:
+      name: write-durable-state-artifacts-guide-main
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "State-artifact and archive-stability contracts pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/state-artifacts skills/tests/openspec_paths -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "state_artifact_docs_green"
+        - name: "OpenSpec and package gates pass"
+          kind: command
+          command: "openspec validate write-durable-state-artifacts-guide --strict && skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "plan_and_scope_valid"
+        - name: "Install payload portability passes"
+          kind: command
+          command: "bash skills/install.sh --check"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "install_payload_valid"
+        - name: "No-contract context impact is rationalized"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_context_impact.py openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml --base main"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys:
+              - "context_impact_valid"
+    metadata:
+      loc_estimate: 420
+      complexity: low
+      package_kind: config
+    inputs:
+      dependency_learning:
+        - "openspec/roadmaps/roadmap-supervisor-orchestration/learnings/ri-07.md"
+        - "openspec/roadmaps/roadmap-supervisor-orchestration/learnings/ri-09.md"
+    outputs:
+      result_keys:
+        - "state_artifact_docs_green"
+        - "plan_and_scope_valid"
+        - "install_payload_valid"
+        - "context_impact_valid"
+      artifacts:
+        - "docs/guides/state-artifacts.md"
+        - "skills/tests/state-artifacts"
+

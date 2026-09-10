@@ -126,6 +126,7 @@ testpaths = [
     # `testpaths` and passes identically whether or not this line exists.
     "tests/setup-coordinator",
     "tests/codebase-atlas",
+    "tests/state-artifacts",
     "expedite/scripts/tests",
     # The CI-coverage guard itself. It used to sit loose in skills/tests, which
     # no testpaths entry names, so the test that asserts "every test directory
@@ -133,6 +134,11 @@ testpaths = [
     # working-directory bug went unnoticed for that reason. It has no skill
     # imports, so it is safe in the shared session.
     "tests/ci_coverage",
+    # Archive-path stability guard. Registered here for the same reason
+    # tests/ci_coverage is: a guard that lives in an uncollected directory is a
+    # guard that never runs. It imports nothing from any skill, so it is safe in
+    # the shared session.
+    "tests/openspec_paths",
     # NOTE: validate-feature/scripts/tests, autopilot/scripts/tests,
     # security-review/tests, parallel-infrastructure/tests and most dirs under
     # skills/tests/ are deliberately absent. Skills import siblings by flat

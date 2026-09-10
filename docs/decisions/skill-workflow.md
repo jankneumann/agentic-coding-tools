@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-09-10 — write-durable-state-artifacts-guide
+
+### Phase: Implementation Continuation
+
+**Merge current main without rebasing the supervisor stack** — The ri-10 branch is seven commits atop the long-lived supervisor roadmap branch; a merge preserves that history and imports the approved openspec_paths helper and guard as exact main ancestors.
+
+- Status: `active`
+- Source: [openspec/changes/write-durable-state-artifacts-guide/session-log.md](/openspec/changes/write-durable-state-artifacts-guide/session-log.md) (D1)
+
+---
+
+## 2026-09-10 — write-durable-state-artifacts-guide
+
+### Phase: Implementation Continuation
+
+**Use the shared archive-safe change resolver** — Resolving design.md through change_dir(ROOT, CHANGE_ID) preserves the eight-stage assertion after OpenSpec archival without copying path infrastructure into ri-10.
+
+- Status: `active`
+- Source: [openspec/changes/write-durable-state-artifacts-guide/session-log.md](/openspec/changes/write-durable-state-artifacts-guide/session-log.md) (D2)
+
+---
+
+## 2026-09-08 — write-durable-state-artifacts-guide
+
+### Phase: Implementation
+
+**Use portable repository-relative guide references** — Installed skill payloads cannot use relative Markdown links that escape the skill directory, so canonical and mirrored skills use the established bare backticked repository path `docs/guides/state-artifacts.md`.
+
+- Status: `active`
+- Source: [openspec/changes/write-durable-state-artifacts-guide/session-log.md](/openspec/changes/write-durable-state-artifacts-guide/session-log.md) (D1)
+
+---
+
 ## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
 
 ### Phase: Plan
@@ -126,58 +159,58 @@
 
 ---
 
-## 2026-08-19 — add-local-model-provider-tier
+## 2026-08-19 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: GitHub Review Remediation
 
 **Use Pi as the local execution boundary** — A raw chat-completions response cannot inspect files, run commands, edit, or write a real handoff. The adapter now launches the existing Pi coding-agent harness with a one-shot custom-provider extension.
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D1)
 
 ---
 
-## 2026-08-16 — add-local-model-provider-tier
+## 2026-08-16 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Implementation
 
 **Defense-in-depth trust boundary in the adapter** — Review F-02: resolver-only enforcement is defeated when the coordinator is unreachable; the local dispatch path now refuses absent/non-permitted archetypes itself
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D1)
 
 ---
 
-## 2026-08-16 — add-local-model-provider-tier
+## 2026-08-16 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Implementation
 
 **Probe cache TTL 30s + connection-error invalidation** — Review F-03: a permanent verdict cannot express liveness; policy engine re-consults each evaluation
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D2)
 
 ---
 
-## 2026-08-16 — add-local-model-provider-tier
+## 2026-08-16 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Implementation
 
 **Smoke path uses INIT/runner for local** — Review F-01 (critical): the IMPLEMENT payload violated the trust boundary the change itself introduces; refusals are now hard smoke failures
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D4)
 
 ---
 
-## 2026-08-15 — add-local-model-provider-tier
+## 2026-08-15 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: Plan
 
 **Health probe + concurrency cap in adapter (D5)** — Structured fallback, never a hang; policy engine must not switch to a dead endpoint
 
 - Status: `active`
-- Source: [openspec/changes/add-local-model-provider-tier/session-log.md](/openspec/changes/add-local-model-provider-tier/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md](/openspec/changes/archive/2026-09-08-add-local-model-provider-tier/session-log.md) (D4)
 
 ---
 
@@ -467,91 +500,91 @@
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan
 
 **Single umbrella change vs roadmap of 4 small changes** — One plan-approval gate + one PR keeps human-attention cost bounded; cross-WP dependencies become intra-change contracts in contracts/
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D1)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Foundation-only scope this session** — 2330 LOC spread across 7 WPs exceeds single-session capacity; 4 scope-isolated foundation packages provide clean checkpoint with no incomplete state
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D1)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **WP3-WP7 dispatched as serial sub-agent chain** — Each WP consumes prior schema/output; parallelism not possible within the gen-eval extension chain
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D1)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **WP1+WP2+WP6 dispatched in parallel via Task() sub-agents** — Disjoint write_allow scopes (README.md, docs/*, agents.yaml+review_dispatcher.py); ~2x speedup over sequential
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D2)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Defer 8.1 (E2E) and 8.3 (rebase test) with documented rationale rather than skipping silently** — Honest reporting > artificial completion; future operators see exactly what's verified vs deferred
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D2)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Pause before SUBMIT_PR for explicit user authorization** — Project guidelines: 'Do NOT create a pull request unless the user explicitly asks for one' — autopilot's --force authorized implementation, not PR creation
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D3)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Worker-vendor recording implemented as a new section 3z in implement-feature/SKILL.md** — Worker side of vendor-diversity needed wiring; SKILL.md was the natural integration point
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D4)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan
 
 **This proposal merges before harness-engineering-features** — Operator-selected; harness-engineering-features rebases onto our additive sections (no edits to existing content reduces conflict risk)
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D7)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D7)
 
 ---
 

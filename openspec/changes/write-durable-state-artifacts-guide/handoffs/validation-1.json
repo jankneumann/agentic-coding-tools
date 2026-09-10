@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-10T05:10:22.722089+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Completed ri-10 validation with all required phases passing. The package is explicitly non-deployable; 1,060 focused and affected tests passed, strict OpenSpec is 90/90, package/context/scope/diff gates pass, and advisory architecture analysis found no ri-10 runtime impact. PR creation and merge remain subject to the supervisor submission gate.",
+    "completed_work": [
+      "Completed task 3.3 and final task checkpoint",
+      "Passed 834 focused/guard tests and 226 affected tests",
+      "Passed mirror, strict OpenSpec, work-package, context-impact, scope, diff, traceability, and validation-report gates",
+      "Produced validation-report.md and architecture-impact.md"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Declare the documentation-only validation surface",
+        "rationale": "The stacked supervisor branch contains deployable ancestors, but ri-10 itself changes only documentation, skill instructions, OpenSpec artifacts, and structural tests; a persistent deployable false declaration prevents a misleading fail-closed classification.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Isolate the stale architecture refresh",
+        "rationale": "Generating fresh architecture artifacts under /tmp preserved valid structural evidence without adding unrelated current-main runtime projections to the ri-10 package.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Evaluate the SUBMIT_PR authorization gate",
+      "Do not merge without explicit operator authorization"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/write-durable-state-artifacts-guide/validation-report.md",
+        "description": "machine-gated validation report"
+      },
+      {
+        "path": "openspec/changes/write-durable-state-artifacts-guide/architecture-impact.md",
+        "description": "advisory structural impact report"
+      },
+      {
+        "path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+        "description": "completed task checklist"
+      }
+    ]
+  }
+}

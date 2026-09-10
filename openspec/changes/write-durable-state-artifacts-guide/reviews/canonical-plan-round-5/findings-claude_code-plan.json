@@ -1,0 +1,115 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "axis": "architecture",
+      "severity": "nit",
+      "criticality": "high",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": "19-34",
+      "description": "Nit: The eight-step rehydration contract exists only in design.md, which is archived with the change, so the durable spec cannot arbitrate a later guide edit. design.md:39-46 enumerates eight named steps (Bootstrap locator, Roadmap definition, Roadmap execution state, Change execution state, Learning context, Phase history, Handoff context, Rebuild projections). The delta at spec.md:19-21 only requires 'one ordered rehydration sequence', and its scenario at spec.md:23-28 pins three relations: locator-only use of the handoff, checkpoint before loop-state, advisory context after authoritative state. Step 2 (roadmap definition plus cycle ledger) and step 8 (Rebuild projections: derive coordinator and queue views from canonical state; never reverse the edge) appear in no scenario and in no success criterion. Step 8 is the ri-07 truth/projection rule that proposal.md:7 names as the reason this change exists, and design.md:29 says the test asserts 'canonical order markers' without the spec naming which markers are normative. After archival, openspec/specs/skill-workflow/spec.md is the surviving requirement, and a contributor who renames or drops 'Rebuild projections' from docs/guides/state-artifacts.md is contradicted only by an unanchored test assertion, with no requirement to point to when the assertion is challenged as over-strict.",
+      "resolution": "Extend the 'Deterministic fresh-session rehydration' requirement to enumerate the eight ordered step names as normative, or add a scenario asserting that the guide defines an ordered sequence whose second step loads roadmap definitions and whose terminal step rebuilds coordinator and queue projections from canonical state and never the reverse. Then reference that scenario from tasks.md 1.1 so the order markers the test pins have a requirement anchor.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "axis": "compatibility",
+      "severity": "nit",
+      "criticality": "high",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": "10-15",
+      "description": "Nit: The plan declares a prose README as an OpenAPI contract file, which makes the context-impact gate imply an undeclared 'apis' surface for the only package. work-packages.yaml:10-15 sets contracts.openapi.primary and contracts.openapi.files to openspec/changes/write-durable-state-artifacts-guide/contracts/README.md, while contracts/README.md:3 states that no OpenAPI, database, event, or generated-type contract applies. skills/validate-packages/scripts/validate_context_impact.py:232 passes that file list into infer_surfaces, and skills/validate-packages/scripts/context_impact.py:305-310 implies the 'apis' surface for any declared contract file the package owns, explicitly 'regardless of where it lives'. The README is owned by wp-state-artifacts-docs through the scope.write_allow entry at work-packages.yaml:81, and that glob is not boundless, so attribution is not suppressed. The package declares only documentation, decisions, and semantic_code at work-packages.yaml:88-92 and carries no rationale block, so 'apis' resolves to status undeclared and a nonzero exit. Task 3.2 (tasks.md:62-67) mandates the context-drift check as part of the final validation matrix, so the remaining open task is the one that trips it whenever the gate is run against the branch base rather than an uncommitted file list. The recorded checkpoint evidence showing status 'declared' was captured over a narrower changed-file set and does not cover this path.",
+      "resolution": "Set contracts.openapi.files to an empty list (keeping contracts/README.md as the required workflow artifact and, if the field is mandatory, leaving primary as the pointer), or declare the 'apis' surface with an explicit rationale explaining that the contract artifact is a prose no-op. Then re-run validate_context_impact.py with --base main and record the result as the evidence for task 3.2.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "type": "observability",
+      "axis": "observability",
+      "severity": "nit",
+      "criticality": "medium",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": "99-119",
+      "description": "Nit: The mirror-parity scenario is backed by a verification step that passes when the assertions do not run. spec.md:46-49 requires each changed mirror under .agents and .claude to be byte-identical to its canonical skills/ source, and tasks.md 1.1 folds that assertion into the same structural suite. design.md:57 states that fresh CI checkouts intentionally lack the ignored runtime mirrors, so the six mirror cases skip there. The package's only mirror-bearing verification step is 'skills/.venv/bin/python -m pytest skills/tests/state-artifacts -q' with expect_exit_code 0 (work-packages.yaml:102-110), and a fully skipped test exits 0. In any cloud-harness or fresh-clone run, that step emits result key state_artifact_docs_green and the coordinator credits the mirror scenario at verification tier B without a single byte comparison having executed. design.md:57 names 'install.sh --check' as the compensating control for exactly this case, but no verification step in the package runs it; the second step (work-packages.yaml:111-119) runs only OpenSpec strict validation and work-package validation. The flag exists (skills/install.sh:40), so the gap is a missing declaration, not a missing capability.",
+      "resolution": "Add a third verification step running 'skills/install.sh --check' with its own result key, and have the structural suite emit an explicit skip reason (or a xfail-strict marker) so a skipped mirror case is visible in the evidence rather than indistinguishable from a pass.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "axis": "compatibility",
+      "severity": "nit",
+      "criticality": "medium",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": "36-44",
+      "description": "Nit: Requirement 3 is written as a universal predicate over artifact writers, but the plan can only enforce it for six enumerated skills, and at least two known writers fall outside both the lock list and the write scope. spec.md:36-38 requires that 'Skills that create, mutate, or rehydrate durable orchestration artifacts SHALL link to the canonical guide'. The plan's enforced set is autopilot, autopilot-roadmap, session-log, supervise, implement-feature, and validate-feature (proposal.md:59, work-packages.yaml:45-50 and 63-80). skills/refine-roadmap/SKILL.md:128 reads checkpoint.json during rehydration and SKILL.md:88 gates a split on the item that checkpoint.json names, and skills/archive-roadmap/SKILL.md:13 relocates checkpoint.json as part of workspace archival. Both sit inside the requirement's predicate and outside scope.write_allow, so the drift guard cannot be extended to them without a scope violation. plan-findings.md:24 records 'Confirm all skill sources that materially create, mutate, or rehydrate these artifacts are in the link and mirror allowlists' as an open review question, and plan-findings.md:32 dispositioned only coordination-bridge, so these two were never ruled in or out. A reader auditing the requirement against the repository cannot tell whether their absence is a defect or a decision, and the structural test's notion of 'relevant' (spec.md:42) is defined nowhere normative.",
+      "resolution": "Bound the requirement rather than expand the package: name the six canonical sources in the requirement text as the normative link set, and add a short deferral note to plan-findings.md for refine-roadmap and archive-roadmap (checkpoint consumers and lifecycle movers, not authority owners) matching the treatment coordination-bridge already received.",
+      "disposition": "fix"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "axis": "correctness",
+      "severity": "nit",
+      "criticality": "medium",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": "30-34",
+      "description": "Nit: The missing-state scenario and the design's step 3 disagree about a never-started roadmap. spec.md:30-34 says that when a bootstrap handoff names an active roadmap or change whose canonical checkpoint or loop-state artifact is missing, rehydration SHALL report a degraded or inconsistent state. design.md:41 carves out the opposite case: 'a missing checkpoint is valid only for a never-started roadmap'. The two are reconcilable only by reading 'active' as excluding a roadmap that has been planned but never executed, and nothing in either document says so, even though plan-roadmap creates a workspace whose checkpoint.json is written later by autopilot-roadmap. The spec delta is the artifact that survives archival, so an implementer or a future structural test written from spec.md alone will treat a first-run roadmap as degraded and stop automatic advancement on a healthy workspace, which is a false alarm in exactly the state a new roadmap starts in.",
+      "resolution": "Add the carve-out to the scenario: a checkpoint that is absent because the roadmap has never started is valid, while a checkpoint absent for a roadmap the handoff claims is in progress is degraded. Keep the loop-state half unchanged, since ri-09 (proposal.md:7) is about a resume claim with no loop state.",
+      "disposition": "fix"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "axis": "correctness",
+      "severity": "nit",
+      "criticality": "low",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": "43-45",
+      "description": "Nit: Two of the eight steps are bounded by an adjective rather than a value, which undercuts the determinism the proposal claims. proposal.md:13 promises 'one deterministic bootstrap and rehydration order'. design.md:43 says step 5 loads 'direct-dependency learnings plus the bounded recent window' and design.md:45 says step 7 merges 'bounded next actions', with no number and no pointer to where the bound is defined. The machine path already has a concrete default: skills/roadmap-runtime/scripts/context.py:55 assembles context with recency_window=3. Task 2.1 (tasks.md:30-35) lists the coverage the guide must include and does not require the bound to be stated. The result is that a human or agent rehydrating by hand loads a different learning set than the assembler does for the same roadmap, and two sessions reading the same guide can reach different next actions while both claim to have followed the canonical order.",
+      "resolution": "Have the guide's step 5 cite the runtime's recency window (default 3, from roadmap-runtime context assembly) as the normative bound, or state explicitly that the bound is caller-configured and name the parameter. Add the bound to task 2.1's coverage list so the structural test can pin it.",
+      "disposition": "fix"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "axis": "architecture",
+      "severity": "fyi",
+      "criticality": "low",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/proposal.md",
+      "line_range": "56-62",
+      "description": "FYI: The proposal's Impact section understates the blast radius by two files that the package locks and writes. work-packages.yaml:44 and :58 lock and allow skills/pyproject.toml, which task 1.3 (tasks.md:19-24) edits to add tests/state-artifacts to testpaths, and work-packages.yaml:43 and :60 cover docs/decisions/skill-workflow.md, the derived index that design.md:35 says the standard phase-record writer regenerates. Neither appears in proposal.md:56-62. skills/pyproject.toml is shared build configuration that every skill test suite resolves through, so a reviewer sizing risk from the proposal alone reads this as touching only guides, skill markdown, mirrors, and a new test directory, and misses the one shared config edit. The reconciliation note at plan-findings.md:37 covers the decisions index but not the pyproject change.",
+      "resolution": "Add skills/pyproject.toml (testpaths registration) and docs/decisions/skill-workflow.md (regenerated derived index) to the proposal's Impact list so it matches locks.files and scope.write_allow.",
+      "disposition": "accept"
+    },
+    {
+      "id": 8,
+      "type": "resilience",
+      "axis": "resilience",
+      "severity": "none",
+      "criticality": "low",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": "30-34",
+      "description": "The fail-loud rule for missing canonical state is traced end to end rather than asserted once. The ri-09 failure named at proposal.md:7 (a handoff recording ESCALATE while no canonical loop-state.json existed) becomes design decision D3 at design.md:23 ('never synthesized from advisory data'), becomes a risk with a named mitigation at design.md:56, and lands as a testable scenario at spec.md:30-34 that forbids reconstructing authoritative phase state from the handoff, learning log, phase record, or queue. The negative clause is what makes it enforceable: a reviewer can point at a specific prohibited behavior rather than at an intent. Task 2.1 and task 2.3 both cite that scenario (tasks.md:32, tasks.md:46), so the guide text and the supervise alignment are pinned to the same requirement.",
+      "resolution": "No change required.",
+      "disposition": "accept"
+    },
+    {
+      "id": 9,
+      "type": "security",
+      "axis": "security",
+      "severity": "none",
+      "criticality": "low",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": "82-87",
+      "description": "The write scope is an exact allowlist with a defensive deny list, which matches the documentation-only claim. Every write target at work-packages.yaml:57-81 is an enumerated path except two bounded directory globs (the new test directory and the change's own OpenSpec directory), and design.md:50 states the rule explicitly: repository-wide write globs are forbidden. The deny list at work-packages.yaml:84-87 additionally blocks agent-coordinator/src, agent-coordinator/database, and apps, so a documentation agent that misreads its brief cannot reach runtime code, migrations, or application surfaces even if a write_allow glob were later loosened. This also keeps the package out of the boundless-scope class that skills/validate-packages/scripts/context_impact.py treats as attribution by co-presence, so its context-impact attribution stays meaningful.",
+      "resolution": "No change required.",
+      "disposition": "accept"
+    }
+  ]
+}

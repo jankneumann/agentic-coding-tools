@@ -22,9 +22,12 @@ from pathlib import Path
 
 import pytest
 
+from openspec_paths import change_dir
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CHANGE_ID = "inject-scoped-semantic-context-into-coding-jobs"
-CHANGE_LOCAL = REPO_ROOT / "openspec/changes" / CHANGE_ID / "contracts/schemas"
+
+CHANGE_LOCAL = change_dir(REPO_ROOT, CHANGE_ID) / "contracts/schemas"
 PROMOTED = REPO_ROOT / "openspec/contracts/code-search/schemas"
 
 SCHEMA_NAMES = (

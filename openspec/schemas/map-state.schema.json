@@ -1,0 +1,241 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/map-state.schema.json",
+  "title": "Agent-Activity Map State IR",
+  "description": "Intermediate representation of live agent activity across the work hierarchy (roadmap -> change -> work package -> files). Produced by a coordinator projection endpoint and consumed by map renderers, snapshot writers, and delta tooling. Draft contract for the codeviz roadmap items map-state-ir and agent-activity-map-lens. Invariant: every node and edge carries provenance naming the store it was read from - renderers MUST NOT display an edge this document cannot cite.",
+  "type": "object",
+  "required": ["schema_version", "snapshot_id", "generated_at", "snapshot_kind", "source", "nodes", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "snapshot_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique id for this document. Live projections use an opaque per-response id; frozen snapshots use the run-id of the event artifact that embeds them."
+    },
+    "base_snapshot_id": {
+      "type": "string",
+      "description": "Optional id of an earlier snapshot this one is intended to be diffed against (delta chains at sync points / checkpoints)."
+    },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "git_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$",
+      "description": "Repo head at generation time, when the producer runs inside a checkout."
+    },
+    "snapshot_kind": {
+      "type": "string",
+      "enum": ["live", "checkpoint", "frozen-export"],
+      "description": "live = transient coordinator projection; checkpoint = persisted at a sync point or roadmap checkpoint; frozen-export = self-contained shareable export."
+    },
+    "source": {
+      "type": "object",
+      "required": ["producer"],
+      "additionalProperties": false,
+      "properties": {
+        "producer": { "type": "string", "description": "Component that emitted the document, e.g. coordination_api:/map/state." },
+        "producer_version": { "type": "string" },
+        "coordinator_url": { "type": "string" },
+        "repo_ids": { "type": "array", "items": { "type": "string" }, "description": "Repos covered by this snapshot; single-entry until multi-repo federation lands." }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/node" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional stable-layout hints. Zones come from parallel_zones.json so the map keeps the same geography across sessions; positions persist a renderer's seeded layout.",
+      "properties": {
+        "zones": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["zone_id", "members"],
+            "additionalProperties": false,
+            "properties": {
+              "zone_id": { "type": "string" },
+              "label": { "type": "string" },
+              "members": { "type": "array", "items": { "type": "string" }, "description": "Node ids anchored inside this zone." },
+              "anchor": { "$ref": "#/$defs/point" }
+            }
+          }
+        },
+        "positions": {
+          "type": "object",
+          "description": "Map of node id to persisted canvas position.",
+          "additionalProperties": { "$ref": "#/$defs/point" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
+    "provenance": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Where this element was read from. At least one entry is mandatory; renderers surface these as clickable receipts.",
+      "items": {
+        "type": "object",
+        "required": ["store", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "store": {
+            "type": "string",
+            "enum": [
+              "work_queue",
+              "agent_sessions",
+              "file_locks",
+              "worktree_registry",
+              "audit_log",
+              "status_reports",
+              "work_packages_yaml",
+              "roadmap_yaml",
+              "openspec_change",
+              "scope_checker",
+              "parallel_zones",
+              "github",
+              "derived"
+            ],
+            "description": "Authoritative store the fact was read from. 'derived' marks values computed from other entries in the same list (e.g. agent activity), which MUST also be present."
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Pointer into the store: a row id, audit event id, registry key, file path plus glob, or derivation rule name. Human-followable."
+          },
+          "observed_at": { "type": "string", "format": "date-time" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Optional; omit for facts read verbatim from an authoritative store." }
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "kind", "label", "provenance"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^(roadmap|item|change|wp|agent|worktree|path|sync):.+$",
+          "description": "Namespaced stable id. Conventions: roadmap:<roadmap_id>, item:<roadmap_id>/<item_id>, change:<change_id>, wp:<change_id>/<package_id>, agent:<canonical_agent_id>, worktree:<branch>, path:<repo-relative-path-or-lock-key>, sync:<sync_point_id>."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["roadmap", "roadmap_item", "change", "work_package", "agent", "worktree", "path", "sync_point"]
+        },
+        "label": { "type": "string", "minLength": 1 },
+        "status": {
+          "type": "string",
+          "description": "Kind-specific lifecycle status, copied verbatim from the owning store (roadmap.yaml item status, work_queue status, sync-point state). Agent liveness lives in activity, not here."
+        },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "roadmap_id": { "type": "string" },
+        "item_id": { "type": "string" },
+        "change_id": { "type": "string" },
+        "package_id": { "type": "string" },
+        "priority": { "type": "integer" },
+        "effort": { "type": "string", "enum": ["XS", "S", "M", "L", "XL"] },
+        "claimed_by": { "type": "string", "description": "work_package only: node id of the claiming agent, mirrored by a claimed_by edge." },
+        "archetype": { "type": "string", "enum": ["architect", "reviewer", "implementer", "analyst", "runner"] },
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "work_package only: declared file intent from work-packages.yaml, rendered as the package's territory.",
+          "properties": {
+            "write_allow": { "type": "array", "items": { "type": "string" } },
+            "read_allow": { "type": "array", "items": { "type": "string" } },
+            "deny": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "identities": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "agent only: reconciliation of the three agent-id forms in use today. The node id uses the canonical form; these record the aliases it was joined from.",
+          "properties": {
+            "session_id": { "type": "string", "description": "agent_sessions.id" },
+            "registry_agent_id": { "type": "string", "description": "agent_id as written to .git-worktrees/.registry.json" },
+            "vendor": { "type": "string", "description": "Vendor suffix parsed from the <package>--<vendor> convention." },
+            "agent_type": { "type": "string" }
+          }
+        },
+        "activity": {
+          "type": "string",
+          "enum": ["working", "waiting", "idle", "stale", "disconnected"],
+          "description": "agent only: derived activity state. working = fresh heartbeat + active claim; waiting = latest status report has needs_human=true or a pending approval; idle = fresh heartbeat, no claim; stale = heartbeat older than the staleness threshold; disconnected = session ended or cleaned up. The derivation rule MUST appear as a 'derived' provenance entry."
+        },
+        "raw_status": { "type": "string", "enum": ["active", "idle", "disconnected"], "description": "agent only: verbatim agent_sessions.status the activity was derived from." },
+        "last_heartbeat": { "type": "string", "format": "date-time" },
+        "current_task": { "type": "string" },
+        "needs_human": { "type": "boolean" },
+        "worktree_path": { "type": "string" },
+        "branch": { "type": "string" },
+        "pinned": { "type": "boolean" },
+        "path_namespace": {
+          "type": "string",
+          "enum": ["file", "api", "db", "event", "flag", "env", "contract", "feature"],
+          "description": "path only: 'file' for real repo paths; otherwise the logical lock-key namespace sharing the file_locks.file_path column."
+        },
+        "metadata": { "type": "object", "description": "Producer extension point; renderers MUST NOT require it." }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "agent" } } },
+          "then": { "required": ["activity", "identities"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "work_package" } } },
+          "then": { "required": ["change_id", "package_id", "status"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "roadmap_item" } } },
+          "then": { "required": ["roadmap_id", "item_id", "status"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "path" } } },
+          "then": { "required": ["path_namespace"] }
+        }
+      ]
+    },
+    "edge": {
+      "type": "object",
+      "required": ["kind", "from", "to", "provenance"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "contains",
+            "depends_on",
+            "claimed_by",
+            "working_in",
+            "locks_path",
+            "scoped_to",
+            "touched",
+            "blocked_by"
+          ],
+          "description": "contains: hierarchy (roadmap>item, item>change, change>wp). depends_on: DAG edges from roadmap.yaml / work-packages.yaml. claimed_by: wp>agent from work_queue.claimed_by. working_in: agent>worktree from the registry. locks_path: agent>path from file_locks. scoped_to: wp>path declared intent from scope globs. touched: agent>path observed activity from scope_checker diffs or audit events - the intent-vs-reality counterpart of scoped_to. blocked_by: item/wp>item/wp from blocked state."
+        },
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "observed_at": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": "string", "format": "date-time", "description": "locks_path only: file_locks.expires_at, so renderers can fade expiring locks." },
+        "out_of_scope": { "type": "boolean", "description": "touched only: true when the touch falls outside the owning package's write_allow - the scope-violation signal." },
+        "metadata": { "type": "object", "description": "Producer extension point; renderers MUST NOT require it." }
+      }
+    }
+  }
+}

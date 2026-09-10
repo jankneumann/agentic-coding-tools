@@ -20,3 +20,15 @@
 {"event_type": "merge", "pr_number": 364, "backend": "direct", "success": true, "timestamp": "2026-09-02T03:30:13.815395+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 5.473}
 {"event_type": "merge", "pr_number": 350, "backend": "direct", "success": true, "timestamp": "2026-09-02T03:30:42.480094+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 5.614}
 {"event_type": "merge", "pr_number": 276, "backend": "direct", "success": true, "timestamp": "2026-09-02T03:31:37.705191+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 6.491}
+{"event_type": "merge", "pr_number": 458, "backend": "direct", "success": true, "timestamp": "2026-09-03T03:36:59.898260+00:00", "strategy": "rebase", "duration_seconds": 4.539}
+{"event_type": "merge", "pr_number": 462, "backend": "direct", "success": true, "timestamp": "2026-09-03T03:58:10.338235+00:00", "strategy": "rebase", "duration_seconds": 5.621}
+{"event_type": "merge", "pr_number": 438, "backend": "direct", "success": true, "timestamp": "2026-09-03T04:02:08.410458+00:00", "strategy": "rebase", "duration_seconds": 6.067}
+{"event_type": "merge", "pr_number": 466, "backend": "direct", "success": true, "timestamp": "2026-09-03T11:21:02.701809+00:00", "strategy": "rebase", "duration_seconds": 5.304}
+{"event_type": "merge", "pr_number": 469, "backend": "direct", "success": true, "timestamp": "2026-09-03T11:47:21.799035+00:00", "strategy": "rebase", "duration_seconds": 5.747}
+{"event_type": "merge", "pr_number": 472, "backend": "direct", "success": true, "timestamp": "2026-09-04T02:32:33.215192+00:00", "strategy": "squash", "duration_seconds": 4.803}
+{"event_type": "merge", "pr_number": 465, "backend": "direct", "success": true, "timestamp": "2026-09-04T03:07:40.758288+00:00", "strategy": "rebase", "duration_seconds": 4.415}
+{"event_type": "merge", "pr_number": 481, "backend": "direct", "success": true, "timestamp": "2026-09-04T08:14:17.804782+00:00", "strategy": "rebase", "duration_seconds": 5.551}
+{"event_type": "merge", "pr_number": 463, "backend": "direct", "success": true, "timestamp": "2026-09-04T11:17:31.492869+00:00", "strategy": "rebase", "duration_seconds": 7.341}
+{"event_type": "merge", "pr_number": 464, "backend": "direct", "success": true, "timestamp": "2026-09-04T11:23:03.629991+00:00", "strategy": "rebase", "duration_seconds": 5.509}
+{"event_type": "merge", "pr_number": 483, "backend": "direct", "success": true, "timestamp": "2026-09-04T12:44:36.800124+00:00", "strategy": "rebase", "duration_seconds": 5.077}
+{"event_type": "merge", "pr_number": 492, "backend": "direct", "success": true, "timestamp": "2026-09-08T13:09:30.594146+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 6.37}

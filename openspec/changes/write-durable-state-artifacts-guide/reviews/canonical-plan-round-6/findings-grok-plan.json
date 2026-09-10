@@ -1,0 +1,163 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: The plan requires the learning-context stage to use a runtime-configured bounded recent-learning window, but the guide and supervise prose omit that qualifier and the structural suite does not pin it. Evidence: specs/skill-workflow/spec.md:21 SHALL use the runtime-configured bounded recent-learning window; design.md:43 says runtime-configured bounded recent window; tasks.md:35 lists that phrase in task 2.1 coverage (marked complete); docs/guides/state-artifacts.md:25 and skills/supervise/SKILL.md:150 both say only the bounded recent learning window; skills/tests/state-artifacts/test_state_artifacts_guide.py asserts stage titles and conflict phrases but never runtime-configured. Consequence: a later edit can hard-code a numeric window into the canonical guide while remaining scenario-green under the current drift tests.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Add runtime-configured to guide step 5 and supervise Learning context, and assert that substring (or an equivalent non-numeric marker) in test_guide_pins_rehydration_order_and_conflict_rules.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 25,
+        "end": 25
+      }
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: Design Rehydration Algorithm step 2 makes the cycle ledger part of the shared eight-stage contract, but the canonical guide omits it while supervise keeps it as local procedure. Evidence: design.md:40 load and validate each named roadmap.yaml plus the cycle ledger; docs/guides/state-artifacts.md:22 only validates roadmap.yaml; skills/supervise/SKILL.md:147 validates roadmap.yaml plus openspec/supervise/cycle-ledger.json; specs/skill-workflow/spec.md:21 names the stage roadmap definition without mentioning the ledger. plan-findings.md already treats cycle-ledger.json as supervise-local operational state outside the five-class authority ladder. Consequence: readers of the guide and design disagree about whether cycle-ledger verification is required for every fresh-session rehydration.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Either demote cycle-ledger to a supervise-only elaboration of stage 2 in design.md, or add an explicit supervise-local note under guide step 2 so the shared algorithm and guide stay aligned without elevating the ledger into the five-class inventory.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 40,
+        "end": 40
+      }
+    },
+    {
+      "id": 3,
+      "type": "style",
+      "criticality": "low",
+      "description": "Optional: Residual link wording remains on non-normative surfaces after the portable-reference fix, which can re-blur the repository-relative reference versus clickable Markdown link distinction. Evidence: normative specs/skill-workflow/spec.md:46-51 requires a repository-relative reference and SHALL reference; skills use bare docs/guides/state-artifacts.md; but design.md:50 still says skill links, design.md:54-55 Over-linking / require links, design.md:61 inventory, links, work-packages.yaml:34 replace duplicated skill semantics with links, and docs/guides/state-artifacts.md:44 They link here. The installer rejects escaping relative Markdown links from skill payloads, so clickable-link wording remains a regression hazard even when the SHALL clause is correct.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "optional",
+      "resolution": "Prefer reference/references in design risks, validation bullets, work-package description, and the guide skill-contract sentence; keep clickable relative links only where install-safe (for example docs/guides/documentation.md).",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 50,
+        "end": 65
+      }
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The exact eight-stage rehydration sequence is consistent across the normative plan surfaces and the drift suite: bootstrap locator, roadmap definition, roadmap execution state, change execution state, learning context, phase history, handoff context, and rebuild/projection rebuild. design.md:39-46, specs/skill-workflow/spec.md:21, docs/guides/state-artifacts.md:21-28, skills/supervise/SKILL.md:139-153, and test_state_artifacts_guide.py ordered markers all name the same stages in the same order, with D3 declaring those stages normative.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No action; retain the exact ordered recovery contract.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 37,
+        "end": 46
+      }
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The in-scope workflow skill set is exactly six sources and the normative reference contract is a bare repository-relative path, not a clickable Markdown link. proposal.md:60, specs/skill-workflow/spec.md:46-51, tasks.md:10, work-packages.yaml locks/write_allow, and test SKILL_NAMES all list autopilot, autopilot-roadmap, session-log, supervise, implement-feature, and validate-feature; the suite asserts GUIDE_REFERENCE = docs/guides/state-artifacts.md as a substring.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No action; keep the bounded source set and portable reference wording.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 44,
+        "end": 52
+      }
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "First-run checkpoint absence is correctly separated from missing canonical state after claimed progress. specs/skill-workflow/spec.md:31-42 adds Never-started roadmap has no checkpoint versus Canonical state is missing; design.md:23 and design.md:41 require fail-loud handling only when progress is claimed; docs/guides/state-artifacts.md:30-33 states first-run absence is not corruption and claimed prior progress without the artifact is inconsistency.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No action; keep both scenarios and the progress-claim predicate.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 31,
+        "end": 42
+      }
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The no-contract README and package context-impact rationale are coherent for a documentation-only change. contracts/README.md declares no OpenAPI/database/event/generated-type contract; work-packages.yaml points contracts.openapi at that README with an explicit comment; context_impact.rationale.apis explains the schema-required stub and records supervisor approval; validate_context_impact.py against that changed file returns VALID.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action; keep the stub plus rationale rather than inventing a runtime API contract.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/contracts/README.md"
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Install mirror verification is declared with the correct local-versus-CI split: design.md:57 documents byte-compare as a pre-push local gate, six pytest mirror cases skip on fresh checkouts lacking ignored mirrors, and work-packages.yaml verification runs both pytest skills/tests/state-artifacts and bash skills/install.sh --check for payload portability. tasks.md:3.1 still requires install plus byte identity where mirrors exist.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "No action; do not treat skipped mirror cases on fresh CI as a missing control while install.sh --check remains in the matrix.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 126,
+        "end": 134
+      }
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "On the plan surfaces, the bounded recent-learning window is correctly left runtime-configurable rather than frozen to a numeric default: specs/skill-workflow/spec.md:21 and design.md:43 require a runtime-configured window inside the fixed learning-context stage, matching documentation-only scope (no runtime schema change).",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action on the plan requirement; pair with finding 1 so the guide and drift tests carry the same runtime-configured wording.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 43,
+        "end": 43
+      }
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Package parallelizability is correctly declined: a single sequential documentation package wp-state-artifacts-docs with depends_on [] is proportionate because the guide, six shared skill sources, generated mirrors, and one structural suite share one semantic drift boundary, with an explicit write_allow and denies on agent-coordinator/src, agent-coordinator/database, and apps.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action; do not split into parallel packages that would contend on the same SKILL.md files.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 28,
+        "end": 89
+      }
+    }
+  ]
+}

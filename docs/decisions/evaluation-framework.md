@@ -5,6 +5,61 @@
 
 ---
 
+## 2026-09-02 — add-harbor-benchmark-routing
+
+### Phase: Plan review remediation
+
+**Metered cap enforced by pre-launch reservation, not observed spend (D4)** — Trial cost is only known on completion, so `accumulated >= cap` admits trials that overshoot by one or more full trial costs when attempts run in parallel; admission is now spent + reserved + conservative estimate ≤ cap
+
+- Status: `active`
+- Source: [openspec/changes/add-harbor-benchmark-routing/session-log.md](/openspec/changes/add-harbor-benchmark-routing/session-log.md) (D2)
+
+---
+
+## 2026-09-02 — add-harbor-benchmark-routing
+
+### Phase: Plan review remediation
+
+**`task_type` is a specified deterministic reduction over `package_kind`, not a lookup (D7)** — only 34 of 115 archived changes declare any `package_kind` and 28 of those declare two or more distinct kinds, so multi-kind is the common case, not an edge case; without a rule, conversion either fails or labels trials arbitrarily and corrupts the posteriors it feeds
+
+- Status: `active`
+- Source: [openspec/changes/add-harbor-benchmark-routing/session-log.md](/openspec/changes/add-harbor-benchmark-routing/session-log.md) (D3)
+
+---
+
+## 2026-09-01 — add-harbor-benchmark-routing
+
+### Phase: Plan
+
+**Harbor as pinned package-local dependency (D1)** — Isolation, built-in claude-code/codex adapters, per-trial metrics; blast radius confined to packages/harbor-bench
+
+- Status: `active`
+- Source: [openspec/changes/add-harbor-benchmark-routing/session-log.md](/openspec/changes/add-harbor-benchmark-routing/session-log.md) (D1)
+
+---
+
+## 2026-09-01 — add-harbor-benchmark-routing
+
+### Phase: Plan
+
+**'combo' = {vendor, model, thinking, harness}; 'arm' reserved for rightsizing A/B (D2)** — Resolves the semantic clash with the skill-rightsizing roadmap scorecards
+
+- Status: `active`
+- Source: [openspec/changes/add-harbor-benchmark-routing/session-log.md](/openspec/changes/add-harbor-benchmark-routing/session-log.md) (D2)
+
+---
+
+## 2026-09-01 — add-harbor-benchmark-routing
+
+### Phase: Plan
+
+**Container runtime is podman via Docker-compatible socket (D10)** — User directive: repo uses podman, not Docker; smoke trial is the acceptance check
+
+- Status: `active`
+- Source: [openspec/changes/add-harbor-benchmark-routing/session-log.md](/openspec/changes/add-harbor-benchmark-routing/session-log.md) (D5)
+
+---
+
 ## 2026-07-22 — 2026-07-24-add-agy-grok-pi-harnesses
 
 ### Phase: Plan
@@ -16,33 +71,33 @@
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan Iteration 1
 
 **Findings filename bound to validator packaging, not surface (D8)** — findings-gen-eval.json + findings-playwright.json — distinct files when both run; eliminates OR-ambiguity
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D2)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan
 
 **behavioral_failure as a peer enum value, not a metadata discriminator on correctness** — JSON Schema validation can route on type-enum values; metadata discriminators are harder to filter on
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D3)
 
 ---
 
-## 2026-05-08 — factory-missions-architecture-alignment
+## 2026-05-08 — 2026-09-09-factory-missions-architecture-alignment
 
 ### Phase: Plan
 
 **Existing template-only gen-eval phase preserved as fallback path** — Backward compat; reduces conflict surface with harness-engineering-features which also touches validate-feature/SKILL.md
 
 - Status: `active`
-- Source: [openspec/changes/factory-missions-architecture-alignment/session-log.md](/openspec/changes/factory-missions-architecture-alignment/session-log.md) (D5)
+- Source: [openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md](/openspec/changes/archive/2026-09-09-factory-missions-architecture-alignment/session-log.md) (D5)

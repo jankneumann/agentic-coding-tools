@@ -1,0 +1,126 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Task 3.2 explicitly requires repairing the archive-unsafe literal change path in test_state_artifacts_guide.py (line 83) using change_dir(ROOT, CHANGE_ID) from openspec_paths, ensuring tests remain stable after change archival.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Verified task 3.2 coverage explicitly specifies: 'Resolve the design artifact with change_dir(ROOT, CHANGE_ID) from openspec_paths, preserve the same eight-stage assertion after archival'.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "line_range": {
+        "start": 62,
+        "end": 68
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Task 3.3 and work-packages.yaml verification steps include both the OpenSpec path-stability test suite (skills/tests/openspec_paths) and the repository-standard context-impact validator with --base main.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "Verified work-packages.yaml verification step 1 runs pytest against skills/tests/openspec_paths, and step 4 runs validate_context_impact.py --base main.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 109,
+        "end": 144
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The declared context_impact.surfaces in work-packages.yaml includes 'capabilities' alongside 'documentation', 'decisions', and 'semantic_code', accurately matching the change's impact on skill-workflow capability.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Verified context_impact.surfaces contains documentation, decisions, capabilities, and semantic_code.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 90,
+        "end": 95
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The exact eight-stage shared rehydration algorithm (bootstrap locator, roadmap definition, roadmap execution state, change execution state, learning context, phase history, handoff context, rebuild projections) cleanly excludes the supervise-local cycle-ledger.json, which is classified separately as supervise-local operational state.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Verified design.md lines 37-49 and spec.md requirement 'Deterministic fresh-session rehydration'.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 37,
+        "end": 49
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The recent-learning window in stage 5 of rehydration is specified as bounded and selected by roadmap runtime without freezing a numeric default into the normative documentation contract or claiming a nonexistent configuration surface.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Verified spec.md lines 21-22 and design.md line 43.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 19,
+        "end": 22
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Skill documentation references use portable repository-relative paths ('docs/guides/state-artifacts.md'), and work-packages.yaml includes 'bash skills/install.sh --check' to protect payload portability and mirror sync.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Verified design.md line 59, spec.md lines 44-46, test_state_artifacts_guide.py line 16, and work-packages.yaml lines 127-135.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 127,
+        "end": 135
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Packaging all tasks into one sequential work package (wp-state-artifacts-docs) is well-justified because the guide, six skill references, generated mirrors, and test module form a single semantic drift boundary.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Verified design.md lines 50-53, work-packages.yaml lines 27-40, and plan-findings.md lines 17 & 58.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 27,
+        "end": 40
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

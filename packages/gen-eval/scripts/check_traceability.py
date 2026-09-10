@@ -608,6 +608,30 @@ def _resolve_id_in_scope(
     raise UnresolvedRequirementError(req_id, _nearest_headings(slug, list(by_slug.values())))
 
 
+def _change_id_or_union(value: str) -> str | None:
+    """Normalize a blank ``--change`` to ``None`` — union mode.
+
+    Two emptiness tests over one variable is what made this necessary. The
+    resolver branched on ``change_id is not None`` while the report header
+    branched on truthiness, so ``--change ""`` — which is exactly what the CI
+    sweep passes for union mode (``run_gate ""``) — resolved the *shadow* path
+    against a change named ``""`` (no such directory, therefore archive-only,
+    no delta shadowed at all) while printing "union of on-branch deltas".
+
+    The consequence was that union mode never ran in CI from the day the sweep
+    was wired (2026-08-15) until 2026-09-09: `_union_effective_headings` was
+    unreachable, the post-merge debt sweep evaluated the canonical spec with
+    zero deltas, and because that run exits 0 unconditionally nothing ever
+    contradicted the header. Eight unaccounted requirements sat on main the
+    whole time and only surfaced when a pull request happened to touch a change
+    directory, which routes to the *other* resolution mode.
+
+    Normalizing once, here, is what makes the two tests agree by construction
+    rather than by everyone remembering which spelling means which mode.
+    """
+    return value or None
+
+
 def run_gate(
     *,
     contracts_root: Path,
@@ -618,6 +642,13 @@ def run_gate(
     change_id: str | None,
     base_ref: str = DEFAULT_BASE_REF,
 ) -> tuple[GateResult, TouchedSet | None]:
+    # Normalize here rather than only in the argument parser: `run_gate` is the
+    # API every caller reaches, and the CLI is just one of them. Two emptiness
+    # tests over this one variable are what let union mode go unrun for a month
+    # (see `_change_id_or_union`), so the collapse happens once, at the entry
+    # point, and every branch below sees a single spelling of "no change".
+    change_id = _change_id_or_union(change_id) if change_id is not None else None
+
     result = GateResult()
     resolver = RequirementResolver(specs_root, changes_root)
 
@@ -922,7 +953,16 @@ def main(argv: list[str] | None = None) -> int:
         "--base-ref", default=DEFAULT_BASE_REF, help="Integration branch (default: main)"
     )
     parser.add_argument("--scope", required=True, choices=["change", "capability"])
-    parser.add_argument("--change", dest="change_id", default=None)
+    parser.add_argument(
+        "--change",
+        dest="change_id",
+        default=None,
+        type=_change_id_or_union,
+        help=(
+            "Change id to shadow the archive with (blocking mode). Omit it, or "
+            "pass an empty string, for union mode over every on-branch delta."
+        ),
+    )
     args = parser.parse_args(argv)
 
     outcome = run_gate(

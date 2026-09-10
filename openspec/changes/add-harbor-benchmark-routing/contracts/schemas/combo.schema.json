@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "combo.schema.json",
+  "title": "Combo",
+  "description": "The sweep unit: one routed configuration. 'arm' is reserved for the rightsizing A/B (design.md D2).",
+  "type": "object",
+  "required": ["vendor", "model", "thinking", "harness"],
+  "additionalProperties": false,
+  "properties": {
+    "vendor": {
+      "type": "string",
+      "enum": ["claude_code", "codex", "grok", "antigravity", "pi"]
+    },
+    "model": { "type": "string", "minLength": 1 },
+    "thinking": {
+      "type": "string",
+      "description": "Vendor-specific free-form thinking/reasoning level, exactly as in archetypes.yaml tier entries. Empty string = vendor default."
+    },
+    "harness": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Executing agent adapter with version, e.g. 'claude-code@harbor-x.y.z' or 'harbor-bench/grok-adapter@<sha>'."
+    },
+    "billing": {
+      "type": "string",
+      "enum": ["metered", "subscription"],
+      "description": "Budget class (design.md D4). pi/OpenRouter is metered; others subscription."
+    }
+  }
+}

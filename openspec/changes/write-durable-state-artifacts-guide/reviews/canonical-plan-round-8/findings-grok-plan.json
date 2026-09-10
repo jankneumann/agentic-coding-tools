@@ -1,0 +1,103 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "After round-7, the plan requires synchronizing the feature branch with current main before consuming archive-path infrastructure. work-packages.yaml says synchronize before task 3.2 so the existing openspec_paths helper and guard are available without package-owned writes; tasks.md 3.2 Coverage starts with that sync then consumption; design.md D4 and plan-findings.md Round 7 restate the same prerequisite. External evidence matches: main has skills/tests/_shared/openspec_paths.py (change_dir) and skills/tests/openspec_paths/test_change_path_stability.py; this branch lacks both.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No plan change. Execute the sync as the first action of unchecked task 3.2, then import the main-landed helper.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "line_range": {
+        "start": 62,
+        "end": 67
+      }
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The package correctly consumes the shared helper and guard without owning them. design.md D4 forbids package-local copies; tasks.md 3.2 Coverage forbids creating or copying path infrastructure inside this package; plan-findings.md Round 7 states the existing write allowlist remains correct because the documentation package does not create, copy, or own those inputs. write_allow still covers only docs, the six skills, mirrors, skills/tests/state-artifacts/**, pyproject.toml, and the change directory\u2014not skills/tests/_shared/openspec_paths.py or skills/tests/openspec_paths/.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No plan change. Keep path infrastructure outside package writes; obtain it only via the required main sync.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 32,
+        "end": 35
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The archive-unsafe design.md lookup is explicitly owned by unchecked task 3.2, not left as a silent plan gap. Coverage requires resolving the design artifact with change_dir(ROOT, CHANGE_ID) and preserving the eight-stage assertion after archival; design.md D4 makes the same SHALL for any OpenSpec change-artifact lookup. Current implementation still pins openspec/changes/write-durable-state-artifacts-guide/design.md at test_state_artifacts_guide.py:83 with no openspec_paths import; that is pending 3.2 work, and the main-landed guard is exactly the suite that would fail that literal pin after sync.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No plan change. Treat the literal path as unfinished implementation under task 3.2.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 82,
+        "end": 96
+      }
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Task 3.3 and package verification both run the OpenSpec path-stability guard after 3.2. tasks.md 3.3 Coverage names the OpenSpec path-stability and CI test-coverage guards; work-packages.yaml verification step 1 runs pytest against skills/tests/state-artifacts and skills/tests/openspec_paths. Task dependencies place 3.3 after 3.1 and 3.2, so the guard command is intended to be executable only after the required sync.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "No plan change. Keep the guard in both the task matrix and the Tier-B verification step.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 111,
+        "end": 119
+      }
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Base-relative context-impact remains coherent with the declared surfaces. work-packages.yaml runs validate_context_impact.py with --base main and declares documentation, decisions, capabilities, and semantic_code, while rationalizing only the schema-required no-contract OpenAPI README stub. That matches proposal Impact (guide/index, generated docs/decisions/skill-workflow.md, modified capability skill-workflow, tests/pyproject) and the Round 6/7 plan-findings amendments that replaced the single-file --changed-file probe.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No plan change. Retain the four surfaces, the apis rationale, and the --base main gate.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 92,
+        "end": 147
+      }
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Single-package scope stays coherent with the sync-and-consume model. design.md Scope and Concurrency keeps one sequential documentation package with an explicit allowlist and forbids repository-wide write globs; work-packages.yaml declares only wp-state-artifacts-docs with depends_on: [] and the same documentation-only write surface. Round 7 clarification does not expand that surface to own openspec_paths; sync is a git prerequisite, not a package-owned write.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No plan change. Do not split the package or widen write_allow for main-landed path infrastructure.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 50,
+        "end": 52
+      }
+    }
+  ]
+}

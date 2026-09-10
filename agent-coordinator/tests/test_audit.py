@@ -1,5 +1,6 @@
 """Tests for the audit trail service."""
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -55,6 +56,47 @@ class TestAuditService:
 
         # Async logging returns success immediately
         assert result.success is True
+
+    @pytest.mark.asyncio
+    async def test_drain_raises_timeout_error_when_insert_never_completes(
+        self, db_client, monkeypatch
+    ):
+        """``drain()`` must surface a timeout rather than silently succeeding.
+
+        A prior version discarded the ``(done, pending)`` pair returned by
+        ``asyncio.wait``, so when the timeout elapsed with inserts still
+        outstanding, ``drain()`` returned normally — indistinguishable, to
+        the caller, from every insert having actually finished.
+        """
+        monkeypatch.setenv("AUDIT_ASYNC", "true")
+
+        from src.config import reset_config
+
+        reset_config()
+
+        service = AuditService(db_client)
+
+        # Replace the insert with one that never completes on its own, so the
+        # fire-and-forget task is still pending when drain() times out.
+        never_finishes = asyncio.Event()
+
+        async def _hang_forever(data):
+            await never_finishes.wait()
+            return AuditResult(success=True)
+
+        monkeypatch.setattr(service, "_insert_audit_entry", _hang_forever)
+
+        result = await service.log_operation(operation="hangs_forever")
+        assert result.success is True  # fire-and-forget: accepted, not written
+
+        with pytest.raises(TimeoutError):
+            await service.drain(timeout=0.05)
+
+        # Unblock the hung task and let it finish so nothing leaks past the
+        # test (pending tasks on a closed loop emit "Task was destroyed but
+        # it is pending" warnings).
+        never_finishes.set()
+        await service.drain(timeout=1.0)
 
     @pytest.mark.asyncio
     async def test_query_all(self, mock_supabase, db_client):

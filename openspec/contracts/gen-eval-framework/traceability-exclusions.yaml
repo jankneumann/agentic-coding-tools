@@ -3,6 +3,24 @@
 # Managed by skills/cite-requirements — hand edits are fine, the
 # walkthrough re-reads this file and never overwrites reasons.
 exclusions:
+  - requirement: gen-eval-framework.behavioral-findings-schema-conformance
+    reason: >-
+      A conformance rule over the JSON the findings emitter writes
+      (`review-findings.schema.json`). It constrains output shape, which every
+      run produces and no flag selects; the emitter and its schema test serve
+      it, not the CLI surface.
+  - requirement: gen-eval-framework.browser-driving-behavioral-validation-via-playwright-cli
+    reason: >-
+      Served by the `playwright-validator` peer skill, packaged separately per
+      design D2 of factory-missions-architecture-alignment precisely so its
+      Node and browser-binary dependencies stay out of the gen-eval Python
+      runtime. The gen-eval CLI dispatches to it; it exposes no flag of its
+      own for the browser-driving behaviour.
+  - requirement: gen-eval-framework.canonical-module-name-gen-eval
+    reason: >-
+      A rule about the package's importable top-level module name (`gen_eval`).
+      It is served by the package layout and `pyproject.toml`, and verified at
+      import time; no CLI invocation can configure or observe it.
   - requirement: gen-eval-framework.citations-may-name-requirements-in-another-capability
     reason: >-
       Served by the traceability gate (check_traceability.py) and its CI
@@ -23,6 +41,25 @@ exclusions:
       Served by the framework engine; the CLI contract exposes no flag surface
       for this behaviour — it is exercised by every run, not configured by any
       flag.
+  - requirement: gen-eval-framework.descriptor-model-naming-levels
+    reason: >-
+      A naming rule over the package's published Python type names (`*Spec` for
+      one surface element or a per-surface container, `*Descriptor` for a whole
+      document). It constrains what the library's symbols are called, not what
+      any HTTP operation does; the contract has no surface that could cite it.
+      Enforced instead by the type names themselves and by the import test that
+      the requirement's own second scenario describes.
+  - requirement: gen-eval-framework.distributable-python-package
+    reason: >-
+      A packaging rule — the framework builds and installs as a standalone
+      distribution. Served by `pyproject.toml`, the wheel build and its
+      install test; the CLI is a consumer of that packaging, not a surface
+      that configures it.
+  - requirement: gen-eval-framework.documented-consumer-adoption-contract
+    reason: >-
+      A documentation obligation: consumers are told how to depend on the
+      package. Served by the package README and the adoption docs, which no
+      contracted operation exposes.
   - requirement: gen-eval-framework.dogfood
     reason: >-
       Served by the framework engine; the CLI contract exposes no flag surface
@@ -43,6 +80,12 @@ exclusions:
       Served by the traceability gate (check_traceability.py) and its CI
       wiring, not by the gen-eval CLI; this contract exposes no surface for
       it.
+  - requirement: gen-eval-framework.framework-consumer-data-split
+    reason: >-
+      A rule about what ships inside the package (schemas, templates,
+      fixtures) versus what stays in consumer repos (descriptors, manifests,
+      scenarios). Served by the package manifest and directory layout; no flag
+      selects it.
   - requirement: gen-eval-framework.implemented-surface-subset-verification
     reason: >-
       Served by the framework engine; the CLI contract exposes no flag surface
@@ -53,11 +96,28 @@ exclusions:
       Served by the framework engine; the CLI contract exposes no flag surface
       for this behaviour — it is exercised by every run, not configured by any
       flag.
+  - requirement: gen-eval-framework.module-discovery-and-import-boundary
+    reason: >-
+      An import-graph constraint: the framework depends on no
+      `agent_coordinator.*` or `src.coordination_*` module. Served by the
+      package layout and enforced by static analysis over
+      `packages/gen-eval/src/gen_eval/**`, not by anything the CLI exposes.
+  - requirement: gen-eval-framework.optional-mcp-service-extra
+    reason: >-
+      An installable extra (`pip install gen-eval[mcp]`). Served by the
+      optional-dependency table in `pyproject.toml`; it is chosen at install
+      time, so no runtime flag can carry it.
   - requirement: gen-eval-framework.requirement-identifiers-are-stable-and-fail-closed
     reason: >-
       Served by the traceability gate (check_traceability.py) and its CI
       wiring, not by the gen-eval CLI; this contract exposes no surface for
       it.
+  - requirement: gen-eval-framework.renamed-published-types-retain-warning-aliases
+    reason: >-
+      A source-compatibility rule for consumers of the package's Python API:
+      a renamed published type stays importable under its old name and warns.
+      It is served by module-level alias definitions and their deprecation
+      warnings, which no contracted operation exposes or configures.
   - requirement: gen-eval-framework.reverse-enforcement-is-opt-in-per-capability-via-the-exclusions-file
     reason: >-
       Served by the traceability gate (check_traceability.py) and its CI

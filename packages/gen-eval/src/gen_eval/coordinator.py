@@ -106,13 +106,19 @@ class CoordinatorIntegration:
                     "/work/submit",
                     json={
                         "task_type": "gen-eval-scenario",
-                        "description": f"Evaluate scenario: {scenario.name}",
-                        "metadata": {
+                        # Contract field is task_description, not description, and
+                        # per-task payload goes in input_data; the endpoint has no
+                        # metadata field. See
+                        # openspec/contracts/agent-coordinator/openapi/work-queue.yaml.
+                        "task_description": f"Evaluate scenario: {scenario.name}",
+                        "input_data": {
                             "scenario_id": scenario.id,
                             "category": scenario.category,
                             "priority": scenario.priority,
                         },
-                        "priority": scenario.priority,
+                        # Scenario.priority is unbounded, the queue accepts 1..10.
+                        # Clamp rather than let an out-of-range value fail the submit.
+                        "priority": max(1, min(10, scenario.priority)),
                     },
                 )
                 if resp.is_success:

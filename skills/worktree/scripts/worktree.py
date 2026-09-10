@@ -691,9 +691,18 @@ def cmd_setup(args: argparse.Namespace) -> int:
             env = os.environ.copy()
             if agent_id:
                 env["AGENT_ID"] = agent_id
+            # setup's stdout contract is exactly the KEY=value lines printed
+            # below, for a caller to `eval "$(...)"`. Route the bootstrap
+            # subprocess's own stdout to OUR stderr — left unredirected it
+            # inherits our real stdout, so uv's chatty install/build output
+            # (uv sends it to stderr, but worktree-bootstrap.sh merges that
+            # with `2>&1`) lands ahead of WORKTREE_PATH= et al. in the same
+            # stream a caller is about to eval, which is not valid shell and
+            # breaks the eval before it ever reaches those assignments.
             result = subprocess.run(
                 ["bash", str(bootstrap_script), str(wt_path), str(main_repo)],
-                capture_output=False,
+                stdout=sys.stderr,
+                stderr=sys.stderr,
                 check=False,
                 env=env,
             )

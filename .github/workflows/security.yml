@@ -11,6 +11,13 @@ permissions:
   contents: read
   pull-requests: read
 
+# Same rule as ci.yml: cancel superseded pull_request runs only. A push to main
+# or a merge_group entry must finish, since nothing re-runs it later. The group
+# key is workflow-scoped, so CI and Security cancel independently.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   # Space-separated list of CVE/PYSEC IDs to ignore in pip-audit runs.
   # Each entry must have a written justification (disputed advisory, no fix
@@ -31,6 +38,7 @@ env:
 jobs:
   secret-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
@@ -41,6 +49,7 @@ jobs:
 
   dependency-audit-coordinator:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: agent-coordinator
@@ -66,6 +75,7 @@ jobs:
 
   dependency-audit-skills:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: skills

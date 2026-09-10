@@ -19,10 +19,26 @@ BEGIN
     END IF;
 END$$;
 
--- Grant usage so PostgREST can switch to these roles
-GRANT anon TO postgres;
-GRANT authenticated TO postgres;
-GRANT service_role TO postgres;
+-- Grant usage so PostgREST can switch to these roles.
+--
+-- Granted to CURRENT_USER, not to a hardcoded `postgres`. This file's whole
+-- job is to stand in for objects a managed provider would have created, so it
+-- cannot also assume the provider's conventional superuser name: a database
+-- owned by any other role (`coord`, `app`, an RDS master user) aborted here on
+-- `role "postgres" does not exist`, and because a first run treated every
+-- migration error as "already applied", the failure was recorded as success.
+-- The `auth` schema and the publication below were then never created, so 001,
+-- 002 and 015 aborted in turn and were likewise recorded — producing a
+-- database that reported every migration applied while missing half its
+-- tables. Granting to the role actually running the migration is what was
+-- meant in every case, including on Supabase, where CURRENT_USER *is*
+-- `postgres`. See issue #456.
+DO $$
+BEGIN
+    EXECUTE format('GRANT anon TO %I', CURRENT_USER);
+    EXECUTE format('GRANT authenticated TO %I', CURRENT_USER);
+    EXECUTE format('GRANT service_role TO %I', CURRENT_USER);
+END$$;
 
 -- =============================================================================
 -- AUTH SCHEMA (normally created by Supabase GoTrue)
