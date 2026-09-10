@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-02T10:23:05+00:00",
+  "generated_at": "2026-09-10T08:12:22+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -2412,7 +2412,7 @@
       "message": "Function 'AuditEntry' has no corresponding test references",
       "node_id": "py:audit.AuditEntry",
       "file": "audit.py",
-      "line": 18,
+      "line": 21,
       "suggestion": "Add tests that reference 'AuditEntry' (e.g., test_AuditEntry or import it in a test file)"
     },
     {
@@ -2421,7 +2421,7 @@
       "message": "Function 'from_dict' has no corresponding test references",
       "node_id": "py:audit.AuditEntry.from_dict",
       "file": "audit.py",
-      "line": 34,
+      "line": 37,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
@@ -2430,7 +2430,7 @@
       "message": "Function 'AuditResult' has no corresponding test references",
       "node_id": "py:audit.AuditResult",
       "file": "audit.py",
-      "line": 56,
+      "line": 59,
       "suggestion": "Add tests that reference 'AuditResult' (e.g., test_AuditResult or import it in a test file)"
     },
     {
@@ -2439,7 +2439,7 @@
       "message": "Function 'from_dict' has no corresponding test references",
       "node_id": "py:audit.AuditResult.from_dict",
       "file": "audit.py",
-      "line": 64,
+      "line": 67,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
@@ -2448,7 +2448,7 @@
       "message": "Function 'AuditService' has no corresponding test references",
       "node_id": "py:audit.AuditService",
       "file": "audit.py",
-      "line": 72,
+      "line": 75,
       "suggestion": "Add tests that reference 'AuditService' (e.g., test_AuditService or import it in a test file)"
     },
     {
@@ -2457,7 +2457,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:audit.AuditService.__init__",
       "file": "audit.py",
-      "line": 75,
+      "line": 78,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -2466,7 +2466,7 @@
       "message": "Function 'db' has no corresponding test references",
       "node_id": "py:audit.AuditService.db",
       "file": "audit.py",
-      "line": 79,
+      "line": 89,
       "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
     },
     {
@@ -2475,8 +2475,17 @@
       "message": "Function 'log_operation' has no corresponding test references",
       "node_id": "py:audit.AuditService.log_operation",
       "file": "audit.py",
-      "line": 84,
+      "line": 94,
       "suggestion": "Add tests that reference 'log_operation' (e.g., test_log_operation or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'drain' has no corresponding test references",
+      "node_id": "py:audit.AuditService.drain",
+      "file": "audit.py",
+      "line": 164,
+      "suggestion": "Add tests that reference 'drain' (e.g., test_drain or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -2484,7 +2493,7 @@
       "message": "Function '_insert_audit_entry' has no corresponding test references",
       "node_id": "py:audit.AuditService._insert_audit_entry",
       "file": "audit.py",
-      "line": 151,
+      "line": 197,
       "suggestion": "Add tests that reference '_insert_audit_entry' (e.g., test__insert_audit_entry or import it in a test file)"
     },
     {
@@ -2493,7 +2502,7 @@
       "message": "Function 'query' has no corresponding test references",
       "node_id": "py:audit.AuditService.query",
       "file": "audit.py",
-      "line": 159,
+      "line": 222,
       "suggestion": "Add tests that reference 'query' (e.g., test_query or import it in a test file)"
     },
     {
@@ -2502,7 +2511,7 @@
       "message": "Function 'timed' has no corresponding test references",
       "node_id": "py:audit.AuditService.timed",
       "file": "audit.py",
-      "line": 201,
+      "line": 264,
       "suggestion": "Add tests that reference 'timed' (e.g., test_timed or import it in a test file)"
     },
     {
@@ -2511,7 +2520,7 @@
       "message": "Function 'AuditTimer' has no corresponding test references",
       "node_id": "py:audit.AuditTimer",
       "file": "audit.py",
-      "line": 206,
+      "line": 269,
       "suggestion": "Add tests that reference 'AuditTimer' (e.g., test_AuditTimer or import it in a test file)"
     },
     {
@@ -2520,7 +2529,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:audit.AuditTimer.__init__",
       "file": "audit.py",
-      "line": 209,
+      "line": 272,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -2529,7 +2538,7 @@
       "message": "Function '__aenter__' has no corresponding test references",
       "node_id": "py:audit.AuditTimer.__aenter__",
       "file": "audit.py",
-      "line": 214,
+      "line": 277,
       "suggestion": "Add tests that reference '__aenter__' (e.g., test___aenter__ or import it in a test file)"
     },
     {
@@ -2538,7 +2547,7 @@
       "message": "Function '__aexit__' has no corresponding test references",
       "node_id": "py:audit.AuditTimer.__aexit__",
       "file": "audit.py",
-      "line": 218,
+      "line": 281,
       "suggestion": "Add tests that reference '__aexit__' (e.g., test___aexit__ or import it in a test file)"
     },
     {
@@ -2547,7 +2556,7 @@
       "message": "Function 'get_audit_service' has no corresponding test references",
       "node_id": "py:audit.get_audit_service",
       "file": "audit.py",
-      "line": 237,
+      "line": 300,
       "suggestion": "Add tests that reference 'get_audit_service' (e.g., test_get_audit_service or import it in a test file)"
     },
     {
@@ -6741,7 +6750,7 @@
       "message": "Function 'get_db' has no corresponding test references",
       "node_id": "py:db.get_db",
       "file": "db.py",
-      "line": 271,
+      "line": 275,
       "suggestion": "Add tests that reference 'get_db' (e.g., test_get_db or import it in a test file)"
     },
     {
@@ -6750,7 +6759,7 @@
       "message": "Function 'close_db' has no corresponding test references",
       "node_id": "py:db.close_db",
       "file": "db.py",
-      "line": 279,
+      "line": 283,
       "suggestion": "Add tests that reference 'close_db' (e.g., test_close_db or import it in a test file)"
     },
     {
@@ -6759,7 +6768,7 @@
       "message": "Function 'reset_db' has no corresponding test references",
       "node_id": "py:db.reset_db",
       "file": "db.py",
-      "line": 287,
+      "line": 291,
       "suggestion": "Add tests that reference 'reset_db' (e.g., test_reset_db or import it in a test file)"
     },
     {
@@ -6768,7 +6777,7 @@
       "message": "Function '_parse_iso_datetime' has no corresponding test references",
       "node_id": "py:db_postgres._parse_iso_datetime",
       "file": "db_postgres.py",
-      "line": 33,
+      "line": 37,
       "suggestion": "Add tests that reference '_parse_iso_datetime' (e.g., test__parse_iso_datetime or import it in a test file)"
     },
     {
@@ -6777,7 +6786,7 @@
       "message": "Function '_coerce_filter_value' has no corresponding test references",
       "node_id": "py:db_postgres._coerce_filter_value",
       "file": "db_postgres.py",
-      "line": 49,
+      "line": 53,
       "suggestion": "Add tests that reference '_coerce_filter_value' (e.g., test__coerce_filter_value or import it in a test file)"
     },
     {
@@ -6786,7 +6795,7 @@
       "message": "Function '_decode_query_value' has no corresponding test references",
       "node_id": "py:db_postgres._decode_query_value",
       "file": "db_postgres.py",
-      "line": 73,
+      "line": 77,
       "suggestion": "Add tests that reference '_decode_query_value' (e.g., test__decode_query_value or import it in a test file)"
     },
     {
@@ -6795,7 +6804,7 @@
       "message": "Function '_parse_postgrest_array_literal' has no corresponding test references",
       "node_id": "py:db_postgres._parse_postgrest_array_literal",
       "file": "db_postgres.py",
-      "line": 83,
+      "line": 87,
       "suggestion": "Add tests that reference '_parse_postgrest_array_literal' (e.g., test__parse_postgrest_array_literal or import it in a test file)"
     },
     {
@@ -6804,7 +6813,7 @@
       "message": "Function '_validate_identifier' has no corresponding test references",
       "node_id": "py:db_postgres._validate_identifier",
       "file": "db_postgres.py",
-      "line": 120,
+      "line": 124,
       "suggestion": "Add tests that reference '_validate_identifier' (e.g., test__validate_identifier or import it in a test file)"
     },
     {
@@ -6813,7 +6822,7 @@
       "message": "Function '_validate_select_clause' has no corresponding test references",
       "node_id": "py:db_postgres._validate_select_clause",
       "file": "db_postgres.py",
-      "line": 128,
+      "line": 132,
       "suggestion": "Add tests that reference '_validate_select_clause' (e.g., test__validate_select_clause or import it in a test file)"
     },
     {
@@ -6822,7 +6831,7 @@
       "message": "Function '_serialize_for_asyncpg' has no corresponding test references",
       "node_id": "py:db_postgres._serialize_for_asyncpg",
       "file": "db_postgres.py",
-      "line": 140,
+      "line": 144,
       "suggestion": "Add tests that reference '_serialize_for_asyncpg' (e.g., test__serialize_for_asyncpg or import it in a test file)"
     },
     {
@@ -6831,7 +6840,7 @@
       "message": "Function 'DirectPostgresClient' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient",
       "file": "db_postgres.py",
-      "line": 160,
+      "line": 164,
       "suggestion": "Add tests that reference 'DirectPostgresClient' (e.g., test_DirectPostgresClient or import it in a test file)"
     },
     {
@@ -6840,7 +6849,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.__init__",
       "file": "db_postgres.py",
-      "line": 167,
+      "line": 171,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -6849,7 +6858,7 @@
       "message": "Function '_get_pool' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient._get_pool",
       "file": "db_postgres.py",
-      "line": 171,
+      "line": 175,
       "suggestion": "Add tests that reference '_get_pool' (e.g., test__get_pool or import it in a test file)"
     },
     {
@@ -6858,7 +6867,7 @@
       "message": "Function 'rpc' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.rpc",
       "file": "db_postgres.py",
-      "line": 180,
+      "line": 184,
       "suggestion": "Add tests that reference 'rpc' (e.g., test_rpc or import it in a test file)"
     },
     {
@@ -6867,7 +6876,7 @@
       "message": "Function 'query' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.query",
       "file": "db_postgres.py",
-      "line": 210,
+      "line": 214,
       "suggestion": "Add tests that reference 'query' (e.g., test_query or import it in a test file)"
     },
     {
@@ -6876,7 +6885,7 @@
       "message": "Function 'insert' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.insert",
       "file": "db_postgres.py",
-      "line": 308,
+      "line": 312,
       "suggestion": "Add tests that reference 'insert' (e.g., test_insert or import it in a test file)"
     },
     {
@@ -6885,7 +6894,7 @@
       "message": "Function 'update' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.update",
       "file": "db_postgres.py",
-      "line": 336,
+      "line": 340,
       "suggestion": "Add tests that reference 'update' (e.g., test_update or import it in a test file)"
     },
     {
@@ -6894,7 +6903,7 @@
       "message": "Function 'delete' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.delete",
       "file": "db_postgres.py",
-      "line": 378,
+      "line": 382,
       "suggestion": "Add tests that reference 'delete' (e.g., test_delete or import it in a test file)"
     },
     {
@@ -6903,8 +6912,17 @@
       "message": "Function 'close' has no corresponding test references",
       "node_id": "py:db_postgres.DirectPostgresClient.close",
       "file": "db_postgres.py",
-      "line": 400,
+      "line": 404,
       "suggestion": "Add tests that reference 'close' (e.g., test_close or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function 'terminate' has no corresponding test references",
+      "node_id": "py:db_postgres.DirectPostgresClient.terminate",
+      "file": "db_postgres.py",
+      "line": 410,
+      "suggestion": "Add tests that reference 'terminate' (e.g., test_terminate or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -10761,10 +10779,19 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function '_is_already_applied_error' has no corresponding test references",
+      "node_id": "py:migrations._is_already_applied_error",
+      "file": "migrations.py",
+      "line": 87,
+      "suggestion": "Add tests that reference '_is_already_applied_error' (e.g., test__is_already_applied_error or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function 'run_migrations' has no corresponding test references",
       "node_id": "py:migrations.run_migrations",
       "file": "migrations.py",
-      "line": 55,
+      "line": 113,
       "suggestion": "Add tests that reference 'run_migrations' (e.g., test_run_migrations or import it in a test file)"
     },
     {
@@ -10773,7 +10800,7 @@
       "message": "Function 'ensure_schema' has no corresponding test references",
       "node_id": "py:migrations.ensure_schema",
       "file": "migrations.py",
-      "line": 146,
+      "line": 205,
       "suggestion": "Add tests that reference 'ensure_schema' (e.g., test_ensure_schema or import it in a test file)"
     },
     {
@@ -11943,7 +11970,7 @@
       "message": "Function 'list_policy_versions' has no corresponding test references",
       "node_id": "py:policy_engine.NativePolicyEngine.list_policy_versions",
       "file": "policy_engine.py",
-      "line": 394,
+      "line": 409,
       "suggestion": "Add tests that reference 'list_policy_versions' (e.g., test_list_policy_versions or import it in a test file)"
     },
     {
@@ -11952,7 +11979,7 @@
       "message": "Function 'rollback_policy' has no corresponding test references",
       "node_id": "py:policy_engine.NativePolicyEngine.rollback_policy",
       "file": "policy_engine.py",
-      "line": 413,
+      "line": 428,
       "suggestion": "Add tests that reference 'rollback_policy' (e.g., test_rollback_policy or import it in a test file)"
     },
     {
@@ -11961,7 +11988,7 @@
       "message": "Function '_log_policy_decision' has no corresponding test references",
       "node_id": "py:policy_engine.NativePolicyEngine._log_policy_decision",
       "file": "policy_engine.py",
-      "line": 439,
+      "line": 454,
       "suggestion": "Add tests that reference '_log_policy_decision' (e.g., test__log_policy_decision or import it in a test file)"
     },
     {
@@ -11970,7 +11997,7 @@
       "message": "Function 'CedarPolicyEngine' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine",
       "file": "policy_engine.py",
-      "line": 475,
+      "line": 490,
       "suggestion": "Add tests that reference 'CedarPolicyEngine' (e.g., test_CedarPolicyEngine or import it in a test file)"
     },
     {
@@ -11979,7 +12006,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.__init__",
       "file": "policy_engine.py",
-      "line": 485,
+      "line": 500,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -11988,7 +12015,7 @@
       "message": "Function 'db' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.db",
       "file": "policy_engine.py",
-      "line": 501,
+      "line": 516,
       "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
     },
     {
@@ -11997,7 +12024,7 @@
       "message": "Function '_load_default_policies' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._load_default_policies",
       "file": "policy_engine.py",
-      "line": 506,
+      "line": 521,
       "suggestion": "Add tests that reference '_load_default_policies' (e.g., test__load_default_policies or import it in a test file)"
     },
     {
@@ -12006,7 +12033,7 @@
       "message": "Function '_load_schema' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._load_schema",
       "file": "policy_engine.py",
-      "line": 520,
+      "line": 535,
       "suggestion": "Add tests that reference '_load_schema' (e.g., test__load_schema or import it in a test file)"
     },
     {
@@ -12015,7 +12042,7 @@
       "message": "Function '_load_policies' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._load_policies",
       "file": "policy_engine.py",
-      "line": 538,
+      "line": 553,
       "suggestion": "Add tests that reference '_load_policies' (e.g., test__load_policies or import it in a test file)"
     },
     {
@@ -12024,7 +12051,7 @@
       "message": "Function '_build_entity' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._build_entity",
       "file": "policy_engine.py",
-      "line": 593,
+      "line": 608,
       "suggestion": "Add tests that reference '_build_entity' (e.g., test__build_entity or import it in a test file)"
     },
     {
@@ -12033,7 +12060,7 @@
       "message": "Function '_build_resource_entity' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._build_resource_entity",
       "file": "policy_engine.py",
-      "line": 630,
+      "line": 645,
       "suggestion": "Add tests that reference '_build_resource_entity' (e.g., test__build_resource_entity or import it in a test file)"
     },
     {
@@ -12042,7 +12069,7 @@
       "message": "Function '_determine_resource_type' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._determine_resource_type",
       "file": "policy_engine.py",
-      "line": 657,
+      "line": 672,
       "suggestion": "Add tests that reference '_determine_resource_type' (e.g., test__determine_resource_type or import it in a test file)"
     },
     {
@@ -12051,7 +12078,7 @@
       "message": "Function 'check_operation' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.check_operation",
       "file": "policy_engine.py",
-      "line": 669,
+      "line": 684,
       "suggestion": "Add tests that reference 'check_operation' (e.g., test_check_operation or import it in a test file)"
     },
     {
@@ -12060,7 +12087,7 @@
       "message": "Function '_do_check_operation' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._do_check_operation",
       "file": "policy_engine.py",
-      "line": 710,
+      "line": 725,
       "suggestion": "Add tests that reference '_do_check_operation' (e.g., test__do_check_operation or import it in a test file)"
     },
     {
@@ -12069,7 +12096,7 @@
       "message": "Function 'check_network_access' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.check_network_access",
       "file": "policy_engine.py",
-      "line": 799,
+      "line": 814,
       "suggestion": "Add tests that reference 'check_network_access' (e.g., test_check_network_access or import it in a test file)"
     },
     {
@@ -12078,7 +12105,7 @@
       "message": "Function 'validate_policy' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.validate_policy",
       "file": "policy_engine.py",
-      "line": 818,
+      "line": 833,
       "suggestion": "Add tests that reference 'validate_policy' (e.g., test_validate_policy or import it in a test file)"
     },
     {
@@ -12087,7 +12114,7 @@
       "message": "Function 'list_policies' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.list_policies",
       "file": "policy_engine.py",
-      "line": 839,
+      "line": 854,
       "suggestion": "Add tests that reference 'list_policies' (e.g., test_list_policies or import it in a test file)"
     },
     {
@@ -12096,7 +12123,7 @@
       "message": "Function 'invalidate_cache' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.invalidate_cache",
       "file": "policy_engine.py",
-      "line": 858,
+      "line": 873,
       "suggestion": "Add tests that reference 'invalidate_cache' (e.g., test_invalidate_cache or import it in a test file)"
     },
     {
@@ -12105,7 +12132,7 @@
       "message": "Function 'list_policy_versions' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.list_policy_versions",
       "file": "policy_engine.py",
-      "line": 863,
+      "line": 878,
       "suggestion": "Add tests that reference 'list_policy_versions' (e.g., test_list_policy_versions or import it in a test file)"
     },
     {
@@ -12114,7 +12141,7 @@
       "message": "Function 'rollback_policy' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine.rollback_policy",
       "file": "policy_engine.py",
-      "line": 882,
+      "line": 897,
       "suggestion": "Add tests that reference 'rollback_policy' (e.g., test_rollback_policy or import it in a test file)"
     },
     {
@@ -12123,7 +12150,7 @@
       "message": "Function '_log_policy_decision' has no corresponding test references",
       "node_id": "py:policy_engine.CedarPolicyEngine._log_policy_decision",
       "file": "policy_engine.py",
-      "line": 909,
+      "line": 924,
       "suggestion": "Add tests that reference '_log_policy_decision' (e.g., test__log_policy_decision or import it in a test file)"
     },
     {
@@ -12132,7 +12159,7 @@
       "message": "Function 'get_policy_engine' has no corresponding test references",
       "node_id": "py:policy_engine.get_policy_engine",
       "file": "policy_engine.py",
-      "line": 949,
+      "line": 964,
       "suggestion": "Add tests that reference 'get_policy_engine' (e.g., test_get_policy_engine or import it in a test file)"
     },
     {
@@ -12141,7 +12168,7 @@
       "message": "Function 'reset_policy_engine' has no corresponding test references",
       "node_id": "py:policy_engine.reset_policy_engine",
       "file": "policy_engine.py",
-      "line": 966,
+      "line": 981,
       "suggestion": "Add tests that reference 'reset_policy_engine' (e.g., test_reset_policy_engine or import it in a test file)"
     },
     {
@@ -12150,7 +12177,7 @@
       "message": "Function 'reset_policy_instruments' has no corresponding test references",
       "node_id": "py:policy_engine.reset_policy_instruments",
       "file": "policy_engine.py",
-      "line": 972,
+      "line": 987,
       "suggestion": "Add tests that reference 'reset_policy_instruments' (e.g., test_reset_policy_instruments or import it in a test file)"
     },
     {
@@ -12591,7 +12618,7 @@
       "message": "Function 'db' has no corresponding test references",
       "node_id": "py:profiles.ProfilesService.db",
       "file": "profiles.py",
-      "line": 99,
+      "line": 106,
       "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
     },
     {
@@ -12600,7 +12627,7 @@
       "message": "Function 'invalidate_cache' has no corresponding test references",
       "node_id": "py:profiles.ProfilesService.invalidate_cache",
       "file": "profiles.py",
-      "line": 104,
+      "line": 111,
       "suggestion": "Add tests that reference 'invalidate_cache' (e.g., test_invalidate_cache or import it in a test file)"
     },
     {
@@ -12609,7 +12636,7 @@
       "message": "Function 'get_profile' has no corresponding test references",
       "node_id": "py:profiles.ProfilesService.get_profile",
       "file": "profiles.py",
-      "line": 114,
+      "line": 121,
       "suggestion": "Add tests that reference 'get_profile' (e.g., test_get_profile or import it in a test file)"
     },
     {
@@ -12618,7 +12645,7 @@
       "message": "Function 'check_operation' has no corresponding test references",
       "node_id": "py:profiles.ProfilesService.check_operation",
       "file": "profiles.py",
-      "line": 163,
+      "line": 177,
       "suggestion": "Add tests that reference 'check_operation' (e.g., test_check_operation or import it in a test file)"
     },
     {
@@ -12627,7 +12654,7 @@
       "message": "Function '_log_denial' has no corresponding test references",
       "node_id": "py:profiles.ProfilesService._log_denial",
       "file": "profiles.py",
-      "line": 224,
+      "line": 238,
       "suggestion": "Add tests that reference '_log_denial' (e.g., test__log_denial or import it in a test file)"
     },
     {
@@ -12636,7 +12663,7 @@
       "message": "Function 'get_profiles_service' has no corresponding test references",
       "node_id": "py:profiles.get_profiles_service",
       "file": "profiles.py",
-      "line": 247,
+      "line": 261,
       "suggestion": "Add tests that reference 'get_profiles_service' (e.g., test_get_profiles_service or import it in a test file)"
     },
     {
@@ -13392,7 +13419,7 @@
       "message": "Function 'TrustResolutionError' has no corresponding test references",
       "node_id": "py:trust_resolution.TrustResolutionError",
       "file": "trust_resolution.py",
-      "line": 25,
+      "line": 34,
       "suggestion": "Add tests that reference 'TrustResolutionError' (e.g., test_TrustResolutionError or import it in a test file)"
     },
     {
@@ -13401,7 +13428,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:trust_resolution.TrustResolutionError.__init__",
       "file": "trust_resolution.py",
-      "line": 33,
+      "line": 42,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -13410,7 +13437,7 @@
       "message": "Function '_audit_trust_resolution_failure' has no corresponding test references",
       "node_id": "py:trust_resolution._audit_trust_resolution_failure",
       "file": "trust_resolution.py",
-      "line": 48,
+      "line": 57,
       "suggestion": "Add tests that reference '_audit_trust_resolution_failure' (e.g., test__audit_trust_resolution_failure or import it in a test file)"
     },
     {
@@ -13419,7 +13446,7 @@
       "message": "Function 'resolve_trust_level' has no corresponding test references",
       "node_id": "py:trust_resolution.resolve_trust_level",
       "file": "trust_resolution.py",
-      "line": 74,
+      "line": 83,
       "suggestion": "Add tests that reference 'resolve_trust_level' (e.g., test_resolve_trust_level or import it in a test file)"
     },
     {
@@ -13581,7 +13608,7 @@
       "message": "Function '_ensure_instruments' has no corresponding test references",
       "node_id": "py:work_queue._ensure_instruments",
       "file": "work_queue.py",
-      "line": 30,
+      "line": 31,
       "suggestion": "Add tests that reference '_ensure_instruments' (e.g., test__ensure_instruments or import it in a test file)"
     },
     {
@@ -13590,7 +13617,7 @@
       "message": "Function 'Task' has no corresponding test references",
       "node_id": "py:work_queue.Task",
       "file": "work_queue.py",
-      "line": 68,
+      "line": 69,
       "suggestion": "Add tests that reference 'Task' (e.g., test_Task or import it in a test file)"
     },
     {
@@ -13599,7 +13626,7 @@
       "message": "Function 'from_dict' has no corresponding test references",
       "node_id": "py:work_queue.Task.from_dict",
       "file": "work_queue.py",
-      "line": 88,
+      "line": 89,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
@@ -13608,7 +13635,7 @@
       "message": "Function 'parse_dt' has no corresponding test references",
       "node_id": "py:work_queue.Task.from_dict.parse_dt",
       "file": "work_queue.py",
-      "line": 89,
+      "line": 90,
       "suggestion": "Add tests that reference 'parse_dt' (e.g., test_parse_dt or import it in a test file)"
     },
     {
@@ -13617,7 +13644,7 @@
       "message": "Function 'ClaimResult' has no corresponding test references",
       "node_id": "py:work_queue.ClaimResult",
       "file": "work_queue.py",
-      "line": 120,
+      "line": 121,
       "suggestion": "Add tests that reference 'ClaimResult' (e.g., test_ClaimResult or import it in a test file)"
     },
     {
@@ -13626,7 +13653,7 @@
       "message": "Function 'from_dict' has no corresponding test references",
       "node_id": "py:work_queue.ClaimResult.from_dict",
       "file": "work_queue.py",
-      "line": 133,
+      "line": 134,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
@@ -13635,7 +13662,7 @@
       "message": "Function 'CompleteResult' has no corresponding test references",
       "node_id": "py:work_queue.CompleteResult",
       "file": "work_queue.py",
-      "line": 157,
+      "line": 158,
       "suggestion": "Add tests that reference 'CompleteResult' (e.g., test_CompleteResult or import it in a test file)"
     },
     {
@@ -13644,7 +13671,7 @@
       "message": "Function 'from_dict' has no corresponding test references",
       "node_id": "py:work_queue.CompleteResult.from_dict",
       "file": "work_queue.py",
-      "line": 166,
+      "line": 167,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
@@ -13653,7 +13680,7 @@
       "message": "Function 'SubmitResult' has no corresponding test references",
       "node_id": "py:work_queue.SubmitResult",
       "file": "work_queue.py",
-      "line": 180,
+      "line": 181,
       "suggestion": "Add tests that reference 'SubmitResult' (e.g., test_SubmitResult or import it in a test file)"
     },
     {
@@ -13662,7 +13689,7 @@
       "message": "Function 'from_dict' has no corresponding test references",
       "node_id": "py:work_queue.SubmitResult.from_dict",
       "file": "work_queue.py",
-      "line": 187,
+      "line": 188,
       "suggestion": "Add tests that reference 'from_dict' (e.g., test_from_dict or import it in a test file)"
     },
     {
@@ -13671,7 +13698,7 @@
       "message": "Function 'WorkQueueService' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService",
       "file": "work_queue.py",
-      "line": 198,
+      "line": 199,
       "suggestion": "Add tests that reference 'WorkQueueService' (e.g., test_WorkQueueService or import it in a test file)"
     },
     {
@@ -13680,7 +13707,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.__init__",
       "file": "work_queue.py",
-      "line": 201,
+      "line": 202,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -13689,7 +13716,7 @@
       "message": "Function 'db' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.db",
       "file": "work_queue.py",
-      "line": 205,
+      "line": 206,
       "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
     },
     {
@@ -13698,7 +13725,7 @@
       "message": "Function '_resolve_trust_level' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService._resolve_trust_level",
       "file": "work_queue.py",
-      "line": 210,
+      "line": 211,
       "suggestion": "Add tests that reference '_resolve_trust_level' (e.g., test__resolve_trust_level or import it in a test file)"
     },
     {
@@ -13707,7 +13734,7 @@
       "message": "Function 'claim' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.claim",
       "file": "work_queue.py",
-      "line": 227,
+      "line": 228,
       "suggestion": "Add tests that reference 'claim' (e.g., test_claim or import it in a test file)"
     },
     {
@@ -13716,7 +13743,7 @@
       "message": "Function 'complete' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.complete",
       "file": "work_queue.py",
-      "line": 454,
+      "line": 474,
       "suggestion": "Add tests that reference 'complete' (e.g., test_complete or import it in a test file)"
     },
     {
@@ -13725,7 +13752,7 @@
       "message": "Function 'submit' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.submit",
       "file": "work_queue.py",
-      "line": 605,
+      "line": 631,
       "suggestion": "Add tests that reference 'submit' (e.g., test_submit or import it in a test file)"
     },
     {
@@ -13734,7 +13761,7 @@
       "message": "Function 'get_pending' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.get_pending",
       "file": "work_queue.py",
-      "line": 741,
+      "line": 773,
       "suggestion": "Add tests that reference 'get_pending' (e.g., test_get_pending or import it in a test file)"
     },
     {
@@ -13743,7 +13770,7 @@
       "message": "Function 'get_task' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.get_task",
       "file": "work_queue.py",
-      "line": 765,
+      "line": 797,
       "suggestion": "Add tests that reference 'get_task' (e.g., test_get_task or import it in a test file)"
     },
     {
@@ -13752,7 +13779,7 @@
       "message": "Function 'get_my_tasks' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.get_my_tasks",
       "file": "work_queue.py",
-      "line": 777,
+      "line": 809,
       "suggestion": "Add tests that reference 'get_my_tasks' (e.g., test_get_my_tasks or import it in a test file)"
     },
     {
@@ -13761,7 +13788,7 @@
       "message": "Function 'cancel_task_convention' has no corresponding test references",
       "node_id": "py:work_queue.WorkQueueService.cancel_task_convention",
       "file": "work_queue.py",
-      "line": 801,
+      "line": 833,
       "suggestion": "Add tests that reference 'cancel_task_convention' (e.g., test_cancel_task_convention or import it in a test file)"
     },
     {
@@ -13770,7 +13797,7 @@
       "message": "Function 'get_work_queue_service' has no corresponding test references",
       "node_id": "py:work_queue.get_work_queue_service",
       "file": "work_queue.py",
-      "line": 834,
+      "line": 866,
       "suggestion": "Add tests that reference 'get_work_queue_service' (e.g., test_get_work_queue_service or import it in a test file)"
     },
     {
@@ -13779,7 +13806,7 @@
       "message": "Function 'reset_instruments' has no corresponding test references",
       "node_id": "py:work_queue.reset_instruments",
       "file": "work_queue.py",
-      "line": 842,
+      "line": 874,
       "suggestion": "Add tests that reference 'reset_instruments' (e.g., test_reset_instruments or import it in a test file)"
     },
     {
@@ -14463,7 +14490,7 @@
       "message": "'AuditEntry' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditEntry",
       "file": "audit.py",
-      "line": 18,
+      "line": 21,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14472,7 +14499,7 @@
       "message": "'from_dict' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditEntry.from_dict",
       "file": "audit.py",
-      "line": 34,
+      "line": 37,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14481,7 +14508,7 @@
       "message": "'AuditResult' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditResult",
       "file": "audit.py",
-      "line": 56,
+      "line": 59,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14490,7 +14517,7 @@
       "message": "'from_dict' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditResult.from_dict",
       "file": "audit.py",
-      "line": 64,
+      "line": 67,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14499,7 +14526,7 @@
       "message": "'AuditService' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService",
       "file": "audit.py",
-      "line": 72,
+      "line": 75,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14508,7 +14535,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService.__init__",
       "file": "audit.py",
-      "line": 75,
+      "line": 78,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14517,7 +14544,7 @@
       "message": "'db' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService.db",
       "file": "audit.py",
-      "line": 79,
+      "line": 89,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14526,7 +14553,16 @@
       "message": "'log_operation' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService.log_operation",
       "file": "audit.py",
-      "line": 84,
+      "line": 94,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'drain' is unreachable from any entrypoint or test",
+      "node_id": "py:audit.AuditService.drain",
+      "file": "audit.py",
+      "line": 164,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14535,7 +14571,7 @@
       "message": "'_insert_audit_entry' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService._insert_audit_entry",
       "file": "audit.py",
-      "line": 151,
+      "line": 197,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14544,7 +14580,7 @@
       "message": "'query' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService.query",
       "file": "audit.py",
-      "line": 159,
+      "line": 222,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14553,7 +14589,7 @@
       "message": "'timed' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditService.timed",
       "file": "audit.py",
-      "line": 201,
+      "line": 264,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14562,7 +14598,7 @@
       "message": "'AuditTimer' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditTimer",
       "file": "audit.py",
-      "line": 206,
+      "line": 269,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14571,7 +14607,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditTimer.__init__",
       "file": "audit.py",
-      "line": 209,
+      "line": 272,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14580,7 +14616,7 @@
       "message": "'__aenter__' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditTimer.__aenter__",
       "file": "audit.py",
-      "line": 214,
+      "line": 277,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14589,7 +14625,7 @@
       "message": "'__aexit__' is unreachable from any entrypoint or test",
       "node_id": "py:audit.AuditTimer.__aexit__",
       "file": "audit.py",
-      "line": 218,
+      "line": 281,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17856,7 +17892,7 @@
       "message": "'close_db' is unreachable from any entrypoint or test",
       "node_id": "py:db.close_db",
       "file": "db.py",
-      "line": 279,
+      "line": 283,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17865,7 +17901,7 @@
       "message": "'reset_db' is unreachable from any entrypoint or test",
       "node_id": "py:db.reset_db",
       "file": "db.py",
-      "line": 287,
+      "line": 291,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17883,7 +17919,7 @@
       "message": "'_parse_iso_datetime' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._parse_iso_datetime",
       "file": "db_postgres.py",
-      "line": 33,
+      "line": 37,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17892,7 +17928,7 @@
       "message": "'_coerce_filter_value' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._coerce_filter_value",
       "file": "db_postgres.py",
-      "line": 49,
+      "line": 53,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17901,7 +17937,7 @@
       "message": "'_decode_query_value' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._decode_query_value",
       "file": "db_postgres.py",
-      "line": 73,
+      "line": 77,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17910,7 +17946,7 @@
       "message": "'_parse_postgrest_array_literal' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._parse_postgrest_array_literal",
       "file": "db_postgres.py",
-      "line": 83,
+      "line": 87,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17919,7 +17955,7 @@
       "message": "'_validate_identifier' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._validate_identifier",
       "file": "db_postgres.py",
-      "line": 120,
+      "line": 124,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17928,7 +17964,7 @@
       "message": "'_validate_select_clause' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._validate_select_clause",
       "file": "db_postgres.py",
-      "line": 128,
+      "line": 132,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17937,7 +17973,7 @@
       "message": "'_serialize_for_asyncpg' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres._serialize_for_asyncpg",
       "file": "db_postgres.py",
-      "line": 140,
+      "line": 144,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17946,7 +17982,7 @@
       "message": "'DirectPostgresClient' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient",
       "file": "db_postgres.py",
-      "line": 160,
+      "line": 164,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17955,7 +17991,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.__init__",
       "file": "db_postgres.py",
-      "line": 167,
+      "line": 171,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17964,7 +18000,7 @@
       "message": "'_get_pool' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient._get_pool",
       "file": "db_postgres.py",
-      "line": 171,
+      "line": 175,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17973,7 +18009,7 @@
       "message": "'rpc' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.rpc",
       "file": "db_postgres.py",
-      "line": 180,
+      "line": 184,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17982,7 +18018,7 @@
       "message": "'query' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.query",
       "file": "db_postgres.py",
-      "line": 210,
+      "line": 214,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -17991,7 +18027,7 @@
       "message": "'insert' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.insert",
       "file": "db_postgres.py",
-      "line": 308,
+      "line": 312,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18000,7 +18036,7 @@
       "message": "'update' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.update",
       "file": "db_postgres.py",
-      "line": 336,
+      "line": 340,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18009,7 +18045,7 @@
       "message": "'delete' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.delete",
       "file": "db_postgres.py",
-      "line": 378,
+      "line": 382,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -18018,7 +18054,16 @@
       "message": "'close' is unreachable from any entrypoint or test",
       "node_id": "py:db_postgres.DirectPostgresClient.close",
       "file": "db_postgres.py",
-      "line": 400,
+      "line": 404,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'terminate' is unreachable from any entrypoint or test",
+      "node_id": "py:db_postgres.DirectPostgresClient.terminate",
+      "file": "db_postgres.py",
+      "line": 410,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -21723,10 +21768,19 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'_is_already_applied_error' is unreachable from any entrypoint or test",
+      "node_id": "py:migrations._is_already_applied_error",
+      "file": "migrations.py",
+      "line": 87,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'run_migrations' is unreachable from any entrypoint or test",
       "node_id": "py:migrations.run_migrations",
       "file": "migrations.py",
-      "line": 55,
+      "line": 113,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -21735,7 +21789,7 @@
       "message": "'ensure_schema' is unreachable from any entrypoint or test",
       "node_id": "py:migrations.ensure_schema",
       "file": "migrations.py",
-      "line": 146,
+      "line": 205,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22878,7 +22932,7 @@
       "message": "'list_policy_versions' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.NativePolicyEngine.list_policy_versions",
       "file": "policy_engine.py",
-      "line": 394,
+      "line": 409,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22887,7 +22941,7 @@
       "message": "'rollback_policy' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.NativePolicyEngine.rollback_policy",
       "file": "policy_engine.py",
-      "line": 413,
+      "line": 428,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22896,7 +22950,7 @@
       "message": "'_log_policy_decision' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.NativePolicyEngine._log_policy_decision",
       "file": "policy_engine.py",
-      "line": 439,
+      "line": 454,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22905,7 +22959,7 @@
       "message": "'CedarPolicyEngine' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine",
       "file": "policy_engine.py",
-      "line": 475,
+      "line": 490,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22914,7 +22968,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.__init__",
       "file": "policy_engine.py",
-      "line": 485,
+      "line": 500,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22923,7 +22977,7 @@
       "message": "'db' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.db",
       "file": "policy_engine.py",
-      "line": 501,
+      "line": 516,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22932,7 +22986,7 @@
       "message": "'_load_default_policies' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._load_default_policies",
       "file": "policy_engine.py",
-      "line": 506,
+      "line": 521,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22941,7 +22995,7 @@
       "message": "'_load_schema' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._load_schema",
       "file": "policy_engine.py",
-      "line": 520,
+      "line": 535,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22950,7 +23004,7 @@
       "message": "'_load_policies' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._load_policies",
       "file": "policy_engine.py",
-      "line": 538,
+      "line": 553,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22959,7 +23013,7 @@
       "message": "'_build_entity' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._build_entity",
       "file": "policy_engine.py",
-      "line": 593,
+      "line": 608,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22968,7 +23022,7 @@
       "message": "'_build_resource_entity' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._build_resource_entity",
       "file": "policy_engine.py",
-      "line": 630,
+      "line": 645,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22977,7 +23031,7 @@
       "message": "'_determine_resource_type' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._determine_resource_type",
       "file": "policy_engine.py",
-      "line": 657,
+      "line": 672,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22986,7 +23040,7 @@
       "message": "'check_operation' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.check_operation",
       "file": "policy_engine.py",
-      "line": 669,
+      "line": 684,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -22995,7 +23049,7 @@
       "message": "'_do_check_operation' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._do_check_operation",
       "file": "policy_engine.py",
-      "line": 710,
+      "line": 725,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23004,7 +23058,7 @@
       "message": "'check_network_access' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.check_network_access",
       "file": "policy_engine.py",
-      "line": 799,
+      "line": 814,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23013,7 +23067,7 @@
       "message": "'validate_policy' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.validate_policy",
       "file": "policy_engine.py",
-      "line": 818,
+      "line": 833,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23022,7 +23076,7 @@
       "message": "'list_policies' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.list_policies",
       "file": "policy_engine.py",
-      "line": 839,
+      "line": 854,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23031,7 +23085,7 @@
       "message": "'invalidate_cache' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.invalidate_cache",
       "file": "policy_engine.py",
-      "line": 858,
+      "line": 873,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23040,7 +23094,7 @@
       "message": "'list_policy_versions' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.list_policy_versions",
       "file": "policy_engine.py",
-      "line": 863,
+      "line": 878,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23049,7 +23103,7 @@
       "message": "'rollback_policy' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine.rollback_policy",
       "file": "policy_engine.py",
-      "line": 882,
+      "line": 897,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23058,7 +23112,7 @@
       "message": "'_log_policy_decision' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.CedarPolicyEngine._log_policy_decision",
       "file": "policy_engine.py",
-      "line": 909,
+      "line": 924,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23067,7 +23121,7 @@
       "message": "'reset_policy_engine' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.reset_policy_engine",
       "file": "policy_engine.py",
-      "line": 966,
+      "line": 981,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23076,7 +23130,7 @@
       "message": "'reset_policy_instruments' is unreachable from any entrypoint or test",
       "node_id": "py:policy_engine.reset_policy_instruments",
       "file": "policy_engine.py",
-      "line": 972,
+      "line": 987,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23526,7 +23580,7 @@
       "message": "'db' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfilesService.db",
       "file": "profiles.py",
-      "line": 99,
+      "line": 106,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23535,7 +23589,7 @@
       "message": "'invalidate_cache' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfilesService.invalidate_cache",
       "file": "profiles.py",
-      "line": 104,
+      "line": 111,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23544,7 +23598,7 @@
       "message": "'get_profile' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfilesService.get_profile",
       "file": "profiles.py",
-      "line": 114,
+      "line": 121,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23553,7 +23607,7 @@
       "message": "'check_operation' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfilesService.check_operation",
       "file": "profiles.py",
-      "line": 163,
+      "line": 177,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -23562,7 +23616,7 @@
       "message": "'_log_denial' is unreachable from any entrypoint or test",
       "node_id": "py:profiles.ProfilesService._log_denial",
       "file": "profiles.py",
-      "line": 224,
+      "line": 238,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24381,7 +24435,7 @@
       "message": "'TrustResolutionError' is unreachable from any entrypoint or test",
       "node_id": "py:trust_resolution.TrustResolutionError",
       "file": "trust_resolution.py",
-      "line": 25,
+      "line": 34,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24390,7 +24444,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:trust_resolution.TrustResolutionError.__init__",
       "file": "trust_resolution.py",
-      "line": 33,
+      "line": 42,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24570,7 +24624,7 @@
       "message": "'_ensure_instruments' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue._ensure_instruments",
       "file": "work_queue.py",
-      "line": 30,
+      "line": 31,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24579,7 +24633,7 @@
       "message": "'Task' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.Task",
       "file": "work_queue.py",
-      "line": 68,
+      "line": 69,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24588,7 +24642,7 @@
       "message": "'from_dict' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.Task.from_dict",
       "file": "work_queue.py",
-      "line": 88,
+      "line": 89,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24597,7 +24651,7 @@
       "message": "'parse_dt' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.Task.from_dict.parse_dt",
       "file": "work_queue.py",
-      "line": 89,
+      "line": 90,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24606,7 +24660,7 @@
       "message": "'ClaimResult' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.ClaimResult",
       "file": "work_queue.py",
-      "line": 120,
+      "line": 121,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24615,7 +24669,7 @@
       "message": "'from_dict' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.ClaimResult.from_dict",
       "file": "work_queue.py",
-      "line": 133,
+      "line": 134,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24624,7 +24678,7 @@
       "message": "'CompleteResult' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.CompleteResult",
       "file": "work_queue.py",
-      "line": 157,
+      "line": 158,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24633,7 +24687,7 @@
       "message": "'from_dict' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.CompleteResult.from_dict",
       "file": "work_queue.py",
-      "line": 166,
+      "line": 167,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24642,7 +24696,7 @@
       "message": "'SubmitResult' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.SubmitResult",
       "file": "work_queue.py",
-      "line": 180,
+      "line": 181,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24651,7 +24705,7 @@
       "message": "'from_dict' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.SubmitResult.from_dict",
       "file": "work_queue.py",
-      "line": 187,
+      "line": 188,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24660,7 +24714,7 @@
       "message": "'WorkQueueService' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService",
       "file": "work_queue.py",
-      "line": 198,
+      "line": 199,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24669,7 +24723,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.__init__",
       "file": "work_queue.py",
-      "line": 201,
+      "line": 202,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24678,7 +24732,7 @@
       "message": "'db' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.db",
       "file": "work_queue.py",
-      "line": 205,
+      "line": 206,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24687,7 +24741,7 @@
       "message": "'_resolve_trust_level' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService._resolve_trust_level",
       "file": "work_queue.py",
-      "line": 210,
+      "line": 211,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24696,7 +24750,7 @@
       "message": "'claim' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.claim",
       "file": "work_queue.py",
-      "line": 227,
+      "line": 228,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24705,7 +24759,7 @@
       "message": "'complete' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.complete",
       "file": "work_queue.py",
-      "line": 454,
+      "line": 474,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24714,7 +24768,7 @@
       "message": "'submit' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.submit",
       "file": "work_queue.py",
-      "line": 605,
+      "line": 631,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24723,7 +24777,7 @@
       "message": "'get_pending' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.get_pending",
       "file": "work_queue.py",
-      "line": 741,
+      "line": 773,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24732,7 +24786,7 @@
       "message": "'get_task' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.get_task",
       "file": "work_queue.py",
-      "line": 765,
+      "line": 797,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24741,7 +24795,7 @@
       "message": "'get_my_tasks' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.get_my_tasks",
       "file": "work_queue.py",
-      "line": 777,
+      "line": 809,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24750,7 +24804,7 @@
       "message": "'cancel_task_convention' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.WorkQueueService.cancel_task_convention",
       "file": "work_queue.py",
-      "line": 801,
+      "line": 833,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24759,7 +24813,7 @@
       "message": "'reset_instruments' is unreachable from any entrypoint or test",
       "node_id": "py:work_queue.reset_instruments",
       "file": "work_queue.py",
-      "line": 842,
+      "line": 874,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24800,12 +24854,12 @@
     }
   ],
   "summary": {
-    "total_findings": 2755,
+    "total_findings": 2761,
     "errors": 0,
-    "warnings": 2667,
+    "warnings": 2673,
     "info": 88,
     "entrypoints_checked": 96,
     "flows_with_coverage": 0,
-    "flows_without_coverage": 1342
+    "flows_without_coverage": 1345
   }
 }
