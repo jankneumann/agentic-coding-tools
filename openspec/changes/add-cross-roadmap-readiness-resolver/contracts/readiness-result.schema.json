@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/readiness-result.schema.json",
+  "title": "Cross-roadmap readiness result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source_fingerprint", "stale", "diagnostics", "ready"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "source_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "stale": {"type": "boolean"},
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["roadmap_id", "code", "stale"],
+        "properties": {
+          "roadmap_id": {"type": "string", "minLength": 1},
+          "code": {
+            "enum": [
+              "checkpoint_absent",
+              "checkpoint_invalid",
+              "checkpoint_roadmap_mismatch",
+              "checkpoint_unknown_item",
+              "checkpoint_terminal_conflict",
+              "roadmap_checkpoint_divergence"
+            ]
+          },
+          "stale": {"type": "boolean"},
+          "detail": {"type": "string", "minLength": 1, "maxLength": 512}
+        }
+      }
+    },
+    "ready": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["roadmap_id", "item_id", "priority", "effort", "change_id", "title"],
+        "properties": {
+          "roadmap_id": {"type": "string", "minLength": 1},
+          "item_id": {"type": "string", "minLength": 1},
+          "priority": {"type": "integer", "minimum": 1},
+          "effort": {"enum": ["XS", "S", "M", "L", "XL"]},
+          "change_id": {"type": ["string", "null"]},
+          "title": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}
+
