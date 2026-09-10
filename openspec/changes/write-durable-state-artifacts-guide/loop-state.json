@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "write-durable-state-artifacts-guide",
-  "current_phase": "IMPL_REVIEW",
+  "current_phase": "VALIDATE",
   "iteration": 0,
-  "total_iterations": 14,
+  "total_iterations": 17,
   "max_phase_iterations": 3,
   "findings_trend": [
     26,
@@ -20,7 +20,9 @@
   "handoff_ids": [
     "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/plan-review-8-1.json",
     "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-continuation-1.json",
-    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-iteration-1-1.json"
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-iteration-1-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-review-1-1.json",
+    "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-fix-1-1.json"
   ],
   "phase_history": [
     {
@@ -43,11 +45,21 @@
       "at": "2026-09-10T04:22:37.794917+00:00",
       "outcome": "complete",
       "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-09-10T04:43:50.521271+00:00",
+      "outcome": "not_converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-10T04:47:41.772606+00:00",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
     }
   ],
-  "last_handoff_id": "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-iteration-1-1.json",
+  "last_handoff_id": "local:openspec/changes/write-durable-state-artifacts-guide/handoffs/implementation-fix-1-1.json",
   "started_at": "2026-09-08T09:56:40.846671+00:00",
-  "phase_started_at": "2026-09-10T04:22:37.842913+00:00",
+  "phase_started_at": "2026-09-10T04:47:41.921439+00:00",
   "previous_phase": "PLAN_REVIEW",
   "escalation_reason": "plan_review_convergence_failure: max_iter approved for escalation",
   "val_review_enabled": false,

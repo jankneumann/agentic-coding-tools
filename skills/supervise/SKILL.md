@@ -134,7 +134,7 @@ The recurring operating loop. Runs SENSE → RANK → digest, and **stops**.
 
 ### 1. Rehydrate
 
-The supervisor is a rehydratable role, not a resident process. Follow the canonical order below; the shared authority and conflict rules are defined in the guide linked above.
+The supervisor is a rehydratable role, not a resident process. Follow the canonical order below; the shared authority and conflict rules are defined in the guide referenced above.
 
 1. **Bootstrap locator.** Through the host bridge call `try_handoff_read(limit=1, supervisor_only=true)` and save the complete response outside the repository. Run the deterministic rehydrator, which also reads `openspec/supervise/supervisor-record.json`:
 

@@ -1,0 +1,75 @@
+{
+  "review_type": "implementation",
+  "target": "wp-state-artifacts-docs",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Nit: change-context.md:29-30 carries stale package-checkpoint evidence: it names only documentation and semantic_code and attributes degradation to pending projections/unconfigured indexing, while the current package declares four surfaces and the fresh checkpoint attempt actually failed closed on a lossy feature-level contract context.",
+      "resolution": "Update Implementation Evidence after review to distinguish the prior checkpoint artifact from the current failed checkpoint attempt, list all declared surfaces, and name the checkpoint loader limitation without presenting stale evidence as current.",
+      "disposition": "fix",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/change-context.md",
+      "line_range": {
+        "start": 29,
+        "end": 30
+      },
+      "axis": "observability",
+      "severity": "nit",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: The task 3.2 test now resolves design.md through the shared change_dir(ROOT, CHANGE_ID) helper while retaining the exact eight-stage ordering assertion, and the repository-wide archival guard plus the focused suite pass 719/719.",
+      "resolution": "Retain this archive-safe lookup and focused regression coverage.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 4,
+        "end": 98
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: The guide establishes question-scoped authority and a one-way canonical-state-to-projection boundary without introducing a sixth authority class or changing runtime behavior.",
+      "resolution": "Retain the single canonical inventory and thin skill references.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 1,
+        "end": 44
+      },
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: All six existing workflow skills keep their phase-specific commands and gates and add only the same repository-relative canonical-guide reference, preserving consumers while reducing semantic duplication.",
+      "resolution": "Keep the reference-only integration and install-time mirror parity checks.",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 11,
+        "end": 108
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    }
+  ]
+}
