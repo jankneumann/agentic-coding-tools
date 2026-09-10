@@ -44,6 +44,8 @@ _SKILLS_ROOT = Path(__file__).resolve().parents[2]
 _RUNTIME = _SKILLS_ROOT / "roadmap-runtime" / "scripts"
 if str(_SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(_SKILLS_ROOT))
+if str(_RUNTIME) not in sys.path:
+    sys.path.insert(0, str(_RUNTIME))
 
 from shared.trust_posture import Disposition as _Disposition  # noqa: E402
 from shared.trust_posture import Gate as _Gate  # noqa: E402
@@ -73,8 +75,8 @@ def _load_runtime_models():
 _models = _load_runtime_models()
 ItemStatus = _models.ItemStatus
 Roadmap = _models.Roadmap
-completed_external_refs = _models.completed_external_refs
 load_all_roadmaps = _models.load_all_roadmaps
+from resolve_readiness import resolve_readiness as _resolve_readiness  # noqa: E402
 
 #: Tracked so a rehydrated session on another machine inherits what has already
 #: been surfaced. The supervisor is a rehydratable role, not a resident process.
@@ -862,34 +864,16 @@ def is_unchanged(repo_root: Path, fingerprint: str | None = None) -> bool:
 # Ready set across roadmaps
 # --------------------------------------------------------------------------- #
 def ready_across_roadmaps(repo_root: Path) -> dict[str, list[dict[str, Any]]]:
-    """Ready items per roadmap, honoring in-roadmap deps and typed external edges.
-
-    Mirrors the orchestrator's admission rule (approved / in_progress with every
-    dependency completed) and adds ri-17's external resolution, so an item blocked
-    only by another roadmap's prerequisite disappears from the ready set until that
-    prerequisite completes — and reappears with no manual status edit.
-    """
+    """Group the canonical runtime resolver output for existing callers."""
     roadmaps = load_all_roadmaps(repo_root)
-    external_done = completed_external_refs(repo_root)
-    out: dict[str, list[dict[str, Any]]] = {}
-    for roadmap_id, roadmap in sorted(roadmaps.items()):
-        # Delegate to the shared admission rule rather than hand-rolling a copy.
-        # The first draft of this function WAS such a copy, and it had already
-        # drifted: it admitted items carrying a superseded_by edge, which both
-        # Roadmap.ready_items and the orchestrator exclude — the digest would
-        # have listed work another roadmap's item owns as "Ready now".
-        ready = roadmap.ready_items(external_done, include_in_progress=True)
-        ready.sort(key=lambda i: (i.priority, i.item_id))
-        out[roadmap_id] = [
-            {
-                "item_id": i.item_id,
-                "title": i.title,
-                "priority": i.priority,
-                "effort": i.effort.value,
-                "change_id": i.change_id,
-            }
-            for i in ready
-        ]
+    out: dict[str, list[dict[str, Any]]] = {
+        roadmap_id: [] for roadmap_id in sorted(roadmaps)
+    }
+    for item in _resolve_readiness(repo_root)["ready"]:
+        roadmap_id = item["roadmap_id"]
+        out.setdefault(roadmap_id, []).append(
+            {key: value for key, value in item.items() if key != "roadmap_id"}
+        )
     return out
 
 
