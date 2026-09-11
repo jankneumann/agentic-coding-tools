@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "add-supervisor-candidate-work-digest",
-  "current_phase": "PLAN_REVIEW",
+  "current_phase": "IMPLEMENT",
   "iteration": 0,
-  "total_iterations": 8,
+  "total_iterations": 10,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -44,13 +44,19 @@
       "at": "2026-09-11T01:59:31.093219+00:00",
       "outcome": "max_iter",
       "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-11T02:35:55.629382+00:00",
+      "phase": "PLAN_REVIEW",
+      "outcome": "operator_override_after_manual_fix",
+      "note": "Operator authorized implementation after revision 5 resolved the two max-iteration blockers and strict/package/DAG validation passed."
     }
   ],
   "last_handoff_id": "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/plan-review-3.json",
   "started_at": "2026-09-10T22:40:09.976184+00:00",
-  "phase_started_at": "2026-09-11T01:36:18.804572+00:00",
-  "previous_phase": null,
-  "escalation_reason": null,
+  "phase_started_at": "2026-09-11T02:35:55.629384+00:00",
+  "previous_phase": "PLAN_REVIEW",
+  "escalation_reason": "PLAN_REVIEW reached max_iter; revision 5 manually resolved both deterministic blockers",
   "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
@@ -115,24 +121,55 @@
       "disposition": "block",
       "phase": "PLAN_REVIEW",
       "recorded_at": "2026-09-11T02:00:51.671747+00:00"
+    },
+    {
+      "gate": "plan_review_convergence_failure",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'plan_review_convergence_failure' approved by the operator \u2014 Operator authorized recording the max-iteration escalation and immediately resuming after revision-5 blocker fixes.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "PLAN_REVIEW",
+      "recorded_at": "2026-09-11T02:34:42.077374+00:00",
+      "note": "Operator authorized recording the max-iteration escalation and immediately resuming after revision-5 blocker fixes."
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-09-11T02:34:56.387696+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator said proceed after being asked to record the convergence escalation as resolved and continue into implementation.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-09-11T02:35:06.461880+00:00",
+      "note": "Operator said proceed after being asked to record the convergence escalation as resolved and continue into implementation."
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "add-supervisor-candidate-work-digest",
-    "gate": "plan_review_convergence_failure",
-    "phase": "PLAN_REVIEW",
-    "requested_at": "2026-09-11T02:00:51.672248+00:00",
-    "prompt": "Plan review did not converge. Escalate for human handling?",
-    "context": {
-      "convergence_reason": "max_iter",
-      "rounds": "3",
-      "findings_trend": "5,7,2"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
