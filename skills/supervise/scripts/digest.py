@@ -850,6 +850,15 @@ def build_status_index(repo_root: Path) -> StatusIndex:
                     if change_id in by_change:
                         raise ValueError(f"ambiguous dependency change id: {change_id}")
                     by_change[change_id] = resolved
+    changes = root / "openspec/changes"
+    if changes.is_dir():
+        for directory in sorted(path for path in changes.iterdir() if path.is_dir()):
+            if directory.name == "archive":
+                continue
+            by_change.setdefault(
+                directory.name,
+                DependencyStatus(directory.name, "pending-stub", change_id=directory.name),
+            )
     archive = root / "openspec/changes/archive"
     if archive.is_dir():
         for directory in sorted(path for path in archive.iterdir() if path.is_dir()):

@@ -100,6 +100,9 @@ def test_status_index_distinguishes_completed_blocked_pending_and_archived(repo:
     archived = repo / "openspec/changes/archive/2026-09-01-add-archived"
     archived.mkdir(parents=True)
     (archived / "tasks.md").write_text("- [x] done\n", encoding="utf-8")
+    active = repo / "openspec/changes/add-active"
+    active.mkdir(parents=True)
+    (active / "tasks.md").write_text("- [x] implemented but not archived\n", encoding="utf-8")
 
     index = build_status_index(repo)
 
@@ -108,6 +111,8 @@ def test_status_index_distinguishes_completed_blocked_pending_and_archived(repo:
     assert index.resolve("add-blocked").status == "blocked"
     assert index.resolve("add-pending").completed is False
     assert index.resolve("add-archived").completed is True
+    assert index.resolve("add-active").status == "pending-stub"
+    assert index.resolve("add-active").completed is False
     assert index.resolve("add-missing").status == "unresolved"
 
 
