@@ -41,3 +41,19 @@
 - Total findings addressed: 12
 - Remaining findings below threshold: none
 - Termination reason: threshold met
+
+## Review Fix Revision 4
+
+<!-- Date: 2026-09-10 -->
+
+| Round-2 consensus | Resolution |
+|---|---|
+| Terminal-only prune could leave a stale digest | Every lifecycle mutation now bypasses unchanged reuse, rebuilds before SENSE, and frees capacity immediately. |
+| Staleness source timestamp was undefined | Use the last Git commit timestamp only when tracked artifact bytes match HEAD; otherwise null/degraded; never mtime. |
+| Refiner priority contract conflicted | Removed renumbering claim; explicit priority and insertion position are independent. |
+| 64 KiB covered evidence but not whole prompt | Bound the complete canonical manifest and fail before dispatch with `oversized:<stub_key>`. |
+| Multi-batch and ready-frontier instructions remained | Require one manifest and a strict all-status roadmap/active/archive index. |
+| Cached `scored_at` conflicted with maintenance `as_of` | Preserve `generated_at` for cache validation and add `state_updated_at` for lifecycle rebuilds. |
+| Multi-file publication and failure retry were underspecified | Add a durable roll-forward journal, digest-last commit marker, startup recovery, and no successful-ledger advance on failure. |
+| Digest omitted parts of ranking policy | Emit the penalty cap, risk direction, bucket orders, and tie-breaker in `weights`. |
+| Adjacent round-2 ambiguities | Define maintenance-before-overflow precedence, dry-run reporting, archived-completed source, and nullable `suggested_change_id` for `prov:` keys. |

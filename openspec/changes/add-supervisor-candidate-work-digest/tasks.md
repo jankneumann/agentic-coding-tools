@@ -29,9 +29,11 @@ GREEN). Capability short name: `sv` = `supervise`.
 ## Phase 1 — wp-digest-module: state helpers and `digest.py`
 
 - [ ] 1.1 RED: test strict reversible key encoding; retained-plus-fresh store merge;
-      byte-stable writes; terminal prune and due-deferral maintenance before unchanged
-      exit; the atomic 20-candidate capacity bound with named overflow; dry-run no-write
-      behavior; and cycle fingerprint stability across committed store/cache/digest outputs — **S**
+      byte-stable writes; terminal prune and due-deferral maintenance before SENSE and
+      unchanged exit; maintained-baseline precedence over later capacity failure; the
+      atomic 20-candidate capacity bound with named overflow; dry-run no-write and
+      pending-journal reporting behavior; `--force` cache reuse; and cycle fingerprint
+      stability across committed store/cache/digest outputs — **S**
       **Spec scenarios**: sv *Digest on a fresh cycle*, *Supervisor outputs do not
       invalidate their own cache*, *Lifecycle maintenance runs before unchanged exit*,
       *Dry run writes nothing*
@@ -44,8 +46,10 @@ GREEN). Capability short name: `sv` = `supervise`.
       **Dependencies**: 1.1
 
 - [ ] 1.3 RED: test exact batch-key/fingerprint matching; host-manifest `as_of` exactness
-      against missing/earlier/later/naive/future `scored_at`; fixed weights,
-      risk inversion, staleness cap/null behavior, strict dependency-status indexing
+      against missing/earlier/later/naive/future `scored_at`; cache-only validation
+      against preserved `generated_at`; `state_updated_at`; complete emitted ranking
+      policy; risk inversion; Git-commit staleness and modified/untracked/null behavior;
+      strict dependency-status indexing
       (empty/completed/archived/pending/blocked/unresolved/pending-stub), decision/readiness buckets, stable
       stub-key tie-break, shuffled inputs, schema-valid singleton caches, whole-backlog
       invalidation on changed fingerprint, byte-identical unchanged reuse, candidate-only
@@ -58,7 +62,11 @@ GREEN). Capability short name: `sv` = `supervise`.
 - [ ] 1.4 GREEN: implement `rank` and read-only `digest` rendering; source runtime schemas
       only from stable paths; keep reuse/cache diagnostics on stdout; validate prior bytes
       before reuse; stage cache/digest/mirror replacements in memory and publish only after
-      whole-document validation; update the rehydrated record through `write_mirror` — **M**
+      whole-document validation; publish through the fsynced roll-forward journal with
+      `digest.json` last; recover interruption at non-dry-run mutating command startup and
+      report without mutation on dry-run; leave the successful
+      ledger fingerprint unadvanced on scoring failure; update the rehydrated record
+      through `write_mirror` — **M**
       **Design decisions**: D2, D3, D5, D6
       **Dependencies**: 1.2, 1.3
 
@@ -66,7 +74,8 @@ GREEN). Capability short name: `sv` = `supervise`.
       evidence loader against valid UTF-8, URI, missing, binary,
       symlink, traversal, oversized, secret-bearing, and prompt-injection fixtures; prove
       unavailable evidence is not read and becomes null-staleness degradation; prove the
-      20-stub/64-KiB bounds and deterministic stdout bytes — **S**
+      20-stub/full-canonical-manifest 64-KiB bounds, including one individually oversized
+      stub, and deterministic stdout bytes — **S**
       **Spec scenarios**: sv *Unsafe or unavailable provenance is not read*
       **Dependencies**: 0.2
 
@@ -85,8 +94,10 @@ GREEN). Capability short name: `sv` = `supervise`.
       bypasses the preview*
       **Dependencies**: 0.2
 
-- [ ] 1.8 GREEN: implement `stub-to-request` without any roadmap write; use the canonical
-      readiness resolver and emit a temporary request for the host/refiner transaction — **S**
+- [ ] 1.8 GREEN: implement `stub-to-request` without any roadmap write; build the same
+      strict all-status index from roadmap YAML, active changes, and archived changes, use
+      ri-16's typed reference rules but not its ready frontier, and emit a temporary request
+      for the host/refiner transaction — **S**
       **Design decisions**: D4
       **Dependencies**: 1.7
 
@@ -117,8 +128,9 @@ GREEN). Capability short name: `sv` = `supervise`.
       **Dependencies**: 0.2
 
 - [ ] 2.2 GREEN: write `templates/rubric-prompt.md` with `{{batch}}`, `{{ready_set}}`, and
-      `{{fingerprint}}` slots; document deterministic chunk/merge behavior and resolver
-      fallback (omit model override if analyst resolution is unavailable) — **S**
+      `{{fingerprint}}` slots; document the single-manifest dispatch, exact timestamp
+      echo, 120-second timeout and one retry, and analyst fallback (omit model override if
+      analyst resolution is unavailable) — **S**
       **Design decisions**: D2, D8
       **Dependencies**: 2.1
 
@@ -136,7 +148,7 @@ GREEN). Capability short name: `sv` = `supervise`.
 
 - [ ] 3.2 GREEN: rewrite CYCLE steps 1–5 and Output/Idempotency sections around lifecycle
       preflight, store, bounded rubric dispatch, candidate rank/digest composition, back-edge
-      synchronization, and unchanged/due-transition behavior — **S**
+      synchronization, and unchanged/any-lifecycle-transition behavior — **S**
       **Design decisions**: D1, D2, D5, D6, D8
       **Dependencies**: 3.1
 
@@ -157,8 +169,12 @@ GREEN). Capability short name: `sv` = `supervise`.
 - [ ] 4.1 Run the complete supervise suite and ruff. Execute a two-cycle fixture flow:
       fresh store → bounded score → rank → mirror/rehydrate → candidate composition →
       decision → output-only commit simulation → unchanged cache hit/prune/due transition.
-      Exercise the 21st-candidate atomic overflow and timeout/invalid/partial-score paths,
-      proving the prior digest survives and no partial cache/mirror state lands. Execute the real stub-to-request → refiner preview → apply transaction and stale-SHA
+      Exercise terminal-only pruning, dry-run lifecycle reporting, modified/untracked
+      provenance, an individually oversized stub, the 21st-candidate atomic overflow, and
+      timeout/invalid/partial-score paths. Interrupt the journal after every target replace,
+      prove roll-forward recovery and retry without successful-ledger advancement, and prove
+      no mixed cache/mirror state lands. Execute the real stub-to-request → refiner preview
+      → apply transaction and stale-SHA
       refusal against a temporary roadmap — **M**
       **Dependencies**: all Phase 1–3 tasks
 

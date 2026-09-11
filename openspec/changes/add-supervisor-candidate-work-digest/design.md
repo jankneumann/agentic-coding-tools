@@ -25,9 +25,13 @@ a decision.
 accepted, including at the CLI boundary. They encode as `change--<id>` and
 `prov--<hex32>`; decoding revalidates the canonical form before any path is joined.
 The rank input is the union of fresh post-dedupe stubs and retained pending/deferred
-store files, deduplicated by key. Before the unchanged-fingerprint gate, `store
---prune-only` removes terminal files and reports whether a deferred `until` is due;
-a due transition bypasses the early exit and re-ranks from cached scores.
+store files, deduplicated by key. Before SENSE and the unchanged-fingerprint gate,
+`store --prune-only` removes terminal files and reports `lifecycle_changed` whenever it
+prunes a terminal decision or wakes a due deferral. Any lifecycle mutation bypasses the
+early exit and rebuilds the digest from cached scores; pruning before SENSE immediately
+frees store capacity for a fresh candidate in the same cycle. Under `--dry-run`, the same
+maintenance result and rebuilt digest are computed and emitted without persisting any
+prune, decision, cache, digest, ledger, journal, or mirror write.
 
 ## D2 — Ranking: rubric sub-agent scores, script ranks
 
@@ -48,15 +52,23 @@ into the prompt, and MUST equal the score document's `scored_at` exactly. A mode
 timestamp that differs from the manifest is rejected before any cache or digest write.
 The script computes mechanical signals itself — `dependency_ready` from a strict index of
 all roadmap item/change statuses plus archived changes, `staleness_days` as of the trusted
-manifest time, and `prior_decision`. An empty dependency list is ready; a dependency is
-ready only when its referenced item/change is completed or archived-completed; pending,
-blocked, unresolved, and pending-stub dependencies are not ready. Risk is
+manifest time, and `prior_decision`. For a tracked, unmodified provenance artifact,
+`staleness_days` subtracts the timestamp of the most recent Git commit that changed that
+exact repo-relative path (`git log -1 --format=%cI -- <path>`) from manifest `as_of`.
+Untracked, modified, missing, or otherwise unsafe artifacts have null staleness and a
+degraded marker; filesystem mtime is never used. An empty dependency list is ready; a
+dependency is ready only when its referenced item/change is completed or
+archived-completed; pending, blocked, unresolved, and pending-stub dependencies are not
+ready. The index walks strict roadmap YAML plus active change directories and treats a
+change as archived-completed only when it exists below `openspec/changes/archive/` and
+its archived `tasks.md` has no unchecked task. Risk is
 inverted: 5 means safest. The fixed score is `3*relevance + 3*value + 2*readiness +
 scope_fit + risk - min(floor(staleness_days / 30), 5)`; null staleness has no penalty
 and is marked degraded. The total order is: pending before future-deferred,
 dependency-ready before blocked, descending score, then ascending `stub_key`.
-Rejected stubs are excluded. These constants and buckets are emitted in `weights`, so
-a reader can recompute every rank and tied inputs always have one answer.
+Rejected stubs are excluded. `weights` emits the five numeric weights, the per-30-day
+penalty and cap, `risk_higher_is_safer`, both bucket orders, and the ascending `stub_key`
+tie-breaker, so a reader can reconstruct every rank and tied inputs always have one answer.
 
 **Why not deterministic-only.** A formula over `priority`/`effort`/readiness/staleness
 cannot judge relevance or value — it would rank a stale-but-high-priority finding above a
@@ -70,12 +82,14 @@ rubric caches, and `digest.json`, as it already excludes ledger/mirror state, so
 supervisor outputs cannot self-invalidate it. Unchanged fingerprint plus no due lifecycle
 transition means no dispatch and byte-for-byte reuse of the validated prior digest. A
 changed fingerprint re-scores the retained-plus-fresh backlog in one bounded batch. The
-store admits at most 20 surviving candidates; a would-be 21st candidate makes `store`
-fail atomically, leaves the prior store/digest untouched, and returns a degraded overflow
-record naming every unpersisted key so the host can carry those upstream inputs into the
-next cycle. This deliberately chooses a hard, visible capacity bound over unbounded model
-cost. `generated_at` is the host-owned manifest `as_of`, and persisted output contains no
-reuse/cache flags. Staleness uses that same trusted clock, not model-selected or wall time.
+store admits at most 20 surviving candidates; after pre-SENSE maintenance has committed
+any lifecycle rebuild, a would-be 21st candidate makes `store` fail atomically, leaves that
+maintained store/digest baseline untouched, and returns a degraded overflow record naming
+every unpersisted key so the host can carry those upstream inputs into the next cycle. This
+deliberately chooses a hard, visible capacity bound over unbounded model cost. On a scored
+rank, `generated_at` and `state_updated_at` both equal manifest `as_of`. A cache-only
+lifecycle rebuild preserves the cached scoring time in `generated_at` and sets
+`state_updated_at` to maintenance `as_of`; persisted output contains no reuse/cache flags.
 
 **Where the model is called.** From `SKILL.md`, by the host, as a sub-agent with the
 `templates/rubric-prompt.md` prompt and the batch as input, returning JSON only. Never from
@@ -137,9 +151,13 @@ a newer handoff's unrelated gates, decisions, and back-edge entries survive. The
 canonical record schemas and `_clean_digested_stub` preserve `roadmap_ref`, `route`,
 `until`, and `reason`; decision-specific validation requires a route for approval, a
 roadmap ref for `refine-roadmap`, null for `plan-roadmap`, and a reason for rejection.
-The next CYCLE's pre-fingerprint `store --prune-only` removes approved/rejected files and
-caches. Deferred files remain; when `until` is due, maintenance requests a cache-only
-re-rank and the decision becomes pending even if the tree fingerprint is unchanged.
+The next CYCLE's pre-SENSE, pre-fingerprint `store --prune-only` removes
+approved/rejected files and caches. Deferred files remain; when `until` is due, maintenance
+changes the decision to pending. Terminal pruning and due waking both request a cache-only
+re-rank, bypass the unchanged exit, and publish the maintained baseline before fresh store
+admission. The ranker validates each reused cache against its original scoring manifest:
+its `scored_at` must match the preserved `generated_at`, while maintenance `as_of` is used
+only for lifecycle decisions and the new `state_updated_at`; no scorer is dispatched.
 
 **Why prune next cycle, not immediately.** `decide` may run several times in one
 conversation; preflight pruning keeps cleanup inside the next audited CYCLE and, unlike
@@ -148,7 +166,7 @@ the old post-SENSE placement, still runs on an otherwise unchanged tree.
 ## D6 — Digest artifact and the unchanged-fingerprint path
 
 `digest.json` is deliberately candidate-work-focused:
-`{schema_version, fingerprint, generated_at, weights, sections:
+`{schema_version, fingerprint, generated_at, state_updated_at, weights, sections:
 {needs_decision[], new_this_cycle[], degraded[]}, ranked:[...]}`. `new_this_cycle` contains
 only keys freshly stored in this cycle; retained pending/deferred keys go under
 `needs_decision`; `ranked` contains the full retained-plus-fresh backlog. The host merges
@@ -156,17 +174,25 @@ these three candidate additions into the existing five-section digest after it h
 rendered pending gates (including deadlines), ready work, blockers, and degraded sensors.
 The candidate artifact cannot erase or replace those operational lines.
 
-`generated_at` is the host-owned batch-manifest `as_of`, not model or render time.
-`cached_scores` and `reused_prior` are stdout diagnostics, not persisted fields. When
-`cycle_state.py fingerprint` reports unchanged and maintenance reports no due transition,
-the skill schema-validates and re-presents the prior bytes. A due deferral is the explicit
-exception: maintenance changes the decision bucket using the host-owned `--as-of`, then
-rebuilds the digest from the existing validated cache without dispatching a scorer.
+`generated_at` is the original host-owned scoring-manifest `as_of`, not model or render
+time; `state_updated_at` is that same value on a scored run and the host-owned maintenance
+`as_of` on a cache-only lifecycle rebuild. `cached_scores` and `reused_prior` are stdout
+diagnostics, not persisted fields. When `cycle_state.py fingerprint` reports unchanged
+and maintenance reports no lifecycle mutation, the skill schema-validates and re-presents
+the prior bytes. Terminal pruning or a due deferral is the explicit exception: maintenance
+updates the backlog using its host-owned `--as-of`, then rebuilds from caches whose
+`scored_at` is validated against the preserved `generated_at`, without dispatching a
+scorer. `--force` bypasses the SENSE early exit but does not invalidate same-fingerprint
+rubric caches: it dispatches only for missing scores or a changed requested-key set and
+otherwise reuses validated bytes unless candidate composition changed.
 
 ## D7 — Sequencing
 
-- ri-05's `back_edge` slot/mirror and ri-16's cross-roadmap resolver are on main. This
-  change extends their stable contracts rather than carrying a mirror-only fallback.
+- ri-05's `back_edge` slot/mirror and ri-16's cross-roadmap reference validation are on
+  main. This change extends the stable record contracts. It does not use ri-16's
+  ready-frontier result as a status index: ranking and routing build their own strict
+  all-status index because completed, blocked, pending, and nonexistent dependencies must
+  remain distinguishable.
 - ri-12 (generators emit stubs) is the real producer; fixtures stand in until then.
 - `TestWorkflowContract` string assertions move with the reworded CYCLE sections.
 
@@ -177,8 +203,12 @@ model when resolution is unavailable. `digest.py prepare-batch` is the public, r
 boundary: it accepts the store/record/ready-set inputs plus the host-owned `--as-of`,
 loads and sanitizes evidence, sorts by `stub_key`, and emits one JSON manifest to stdout
 containing the fingerprint, `as_of`, requested keys, mechanical inputs, and prompt-ready
-payload. The store and therefore the manifest are capped at 20 stubs and 64 KiB total
-input; provenance excerpts are capped at 2 KiB each. The loader reads only
+payload. The store is capped at 20 stubs, and the complete canonical serialized prompt
+manifest—including stub payloads, mechanical inputs, delimiters, and evidence—is capped
+at 64 KiB; provenance excerpts are capped at 2 KiB each. If one stub alone would exceed
+the 64-KiB manifest bound, `prepare-batch` fails before dispatch, preserves the store and
+prior digest, and emits `oversized:<stub_key>` for host degradation and later correction.
+The loader reads only
 UTF-8 regular files whose resolved path stays inside the repository, rejects symlinks,
 and never fetches URIs. It calls
 `skills/roadmap-runtime/scripts/sanitizer.py::sanitize_string` before placing excerpts
@@ -188,13 +218,21 @@ found there. Missing, binary, URI, symlink, or out-of-root provenance yields no 
 
 The host gives the rubric dispatch 120 seconds and at most one retry. `rank` receives the
 manifest and the one returned score document, validates fingerprint, exact key coverage,
-and exact `scored_at == manifest.as_of`, builds all cache/digest/mirror replacements in
-memory, then publishes them atomically only after every validation passes. Timeout,
-missing output, retry exhaustion, partial/invalid output, or timestamp mismatch writes no
-cache/digest/mirror state, preserves the prior valid digest, and adds one degraded scoring
-line to the host-rendered cycle output. Stub files already accepted by `store` remain for
-the next cycle. This all-or-nothing boundary prevents a partial batch from becoming a
-mixed-evidence ranking.
+and exact `scored_at == manifest.as_of`, then builds every cache/digest/mirror replacement
+in memory. Publication uses `openspec/supervise/.digest-transaction.json`: the journal
+contains canonical replacement bytes and checksums, is atomically written and fsynced
+before target replacement, and lists a deterministic target order with `digest.json` last
+as the commit marker. Every non-dry-run mutating digest CLI entry point first detects a
+journal and idempotently rolls it forward, verifying an already-replaced target by checksum, then
+fsyncs the target directory and removes the journal. Read-only and dry-run commands report
+a pending recovery but do not mutate it. The journal is excluded from the cycle
+fingerprint.
+Timeout, missing output, retry exhaustion, partial/invalid output, timestamp mismatch, or
+oversized prompt writes no journal and no cache/digest/mirror state, preserves the prior
+valid digest, and does not advance the cycle ledger's last successful fingerprint, so the
+next cycle retries. Stub files already accepted by `store` remain. This recoverable
+all-or-nothing protocol prevents partial batches and interrupted replacement sequences
+from becoming a durable mixed-evidence ranking.
 
 ## Task sizing notes
 

@@ -6,17 +6,17 @@
 
 The `/supervise` skill SHALL maintain a ranked candidate-work backlog conforming to the stable runtime `digest.schema.json`. Fresh post-dedupe stubs SHALL be merged with retained pending/deferred store files, persisted byte-stably at `openspec/supervise/candidates/<encoded-stub-key>.json`, and represented in `back_edge.digested_stubs`. Keys SHALL be accepted only as `change:<valid-change-id>` or `prov:<hex32>` and SHALL be encoded reversibly before path construction.
 
-A host-dispatched analyst SHALL score one bounded batch against `rubric-score.schema.json`; `scripts/digest.py` SHALL perform no LLM or network call. The surviving store SHALL contain at most 20 candidates; overflow SHALL fail atomically, preserve the prior store/digest, and name every unpersisted key as degraded output. `digest.py prepare-batch --as-of <RFC3339>` SHALL emit the deterministic prompt manifest to stdout. The batch SHALL contain at most 20 stubs and 64 KiB total evidence, with each provenance excerpt capped at 2 KiB. Provenance content SHALL be treated as untrusted data: only contained UTF-8 regular repo files MAY be read, symlinks and URIs SHALL NOT be followed, excerpts SHALL be redacted by `skills/roadmap-runtime/scripts/sanitizer.py::sanitize_string` and delimited, and unavailable evidence SHALL produce `staleness_days: null` plus a degraded marker.
+A host-dispatched analyst SHALL score one bounded batch against `rubric-score.schema.json`; `scripts/digest.py` SHALL perform no LLM or network call. The surviving store SHALL contain at most 20 candidates; overflow SHALL fail atomically, preserve the post-maintenance store/digest baseline, and name every unpersisted key as degraded output. `digest.py prepare-batch --as-of <RFC3339>` SHALL emit the deterministic prompt manifest to stdout. The batch SHALL contain at most 20 stubs, and its complete canonical serialized prompt manifest—including stub payloads, mechanical inputs, delimiters, and evidence—SHALL be at most 64 KiB, with each provenance excerpt capped at 2 KiB. A single stub that would exceed the manifest bound SHALL make `prepare-batch` fail before dispatch, preserve the store and prior digest, and emit `oversized:<stub_key>` for degraded output. Provenance content SHALL be treated as untrusted data: only contained UTF-8 regular repo files MAY be read, symlinks and URIs SHALL NOT be followed, excerpts SHALL be redacted by `skills/roadmap-runtime/scripts/sanitizer.py::sanitize_string` and delimited, and unavailable evidence SHALL produce `staleness_days: null` plus a degraded marker.
 
-`digest.py rank` SHALL reject duplicate, missing, or unknown score keys, fingerprint mismatch, and any `scored_at` not exactly equal to the host-owned manifest `as_of`. It SHALL use this total order: pending before future-deferred; dependency-ready before blocked; descending `3*relevance + 3*value + 2*readiness + scope_fit + risk - min(floor(staleness_days/30), 5)` where risk 5 means safest and null staleness has no penalty; then ascending `stub_key`. Dependency readiness SHALL be computed from all roadmap item/change statuses plus archived changes: empty or completed/archived-completed prerequisites are ready; pending, blocked, unresolved, and pending-stub prerequisites are not. Rejected work SHALL be excluded. Score caches SHALL be schema-valid singleton rubric documents keyed by cycle fingerprint. The cycle fingerprint SHALL exclude the candidate store, rubric caches, and `digest.json` so supervisor-output-only commits do not invalidate it.
+`digest.py rank` SHALL reject duplicate, missing, or unknown score keys, fingerprint mismatch, and any `scored_at` not exactly equal to the host-owned manifest `as_of`. It SHALL use this total order: pending before future-deferred; dependency-ready before blocked; descending `3*relevance + 3*value + 2*readiness + scope_fit + risk - min(floor(staleness_days/30), 5)` where risk 5 means safest and null staleness has no penalty; then ascending `stub_key`. Dependency readiness SHALL be computed from a strict index of roadmap YAML, active change directories, and `openspec/changes/archive/`: empty or completed prerequisites are ready; an archived change is completed only when its archived `tasks.md` has no unchecked task; pending, blocked, unresolved, and pending-stub prerequisites are not ready. The ready-frontier resolver SHALL NOT be used as this status index. For a safe tracked provenance artifact whose working-tree bytes match `HEAD`, `staleness_days` SHALL use the last Git commit timestamp for that exact repo-relative path; untracked, modified, missing, and unsafe artifacts SHALL use null staleness and degradation, never filesystem mtime. Rejected work SHALL be excluded. Score caches SHALL be schema-valid singleton rubric documents keyed by cycle fingerprint. The cycle fingerprint SHALL exclude the candidate store, rubric caches, `digest.json`, and the transaction journal so supervisor-output-only commits do not invalidate it.
 
-`openspec/supervise/digest.json` SHALL be candidate-work-focused and composable: `new_this_cycle` SHALL contain only freshly stored keys, `needs_decision` SHALL contain retained pending/deferred keys, `degraded` SHALL identify candidate-evidence degradation, and `ranked` SHALL contain the full surviving backlog with all five factor scores and justifications plus mechanical signals. The host SHALL merge these additions into the existing five-section supervisor prose after rendering verified gates (including deadlines), ready work, blockers, and degraded sensors; the candidate artifact SHALL NOT replace those operational lines. `generated_at` SHALL equal the trusted manifest `as_of`; cache/reuse diagnostics SHALL be stdout-only. The host SHALL enforce a 120-second dispatch timeout and at most one retry. Only a wholly valid score document MAY atomically publish caches, digest, and mirror updates; timeout, missing/partial/invalid output, retry exhaustion, or timestamp mismatch SHALL preserve the prior valid digest, write none of those outputs, and render a degraded scoring line. Under `--dry-run`, nothing below `openspec/supervise/` SHALL be created, modified, or removed.
+`openspec/supervise/digest.json` SHALL be candidate-work-focused and composable: `new_this_cycle` SHALL contain only freshly stored keys, `needs_decision` SHALL contain retained pending/deferred keys, `degraded` SHALL identify candidate-evidence degradation, and `ranked` SHALL contain the full surviving backlog with all five factor scores and justifications plus mechanical signals. The host SHALL merge these additions into the existing five-section supervisor prose after rendering verified gates (including deadlines), ready work, blockers, and degraded sensors; the candidate artifact SHALL NOT replace those operational lines. `generated_at` SHALL equal the original trusted scoring-manifest `as_of`; `state_updated_at` SHALL equal `generated_at` on a scored run and maintenance `as_of` on a cache-only lifecycle rebuild. Cache/reuse diagnostics SHALL be stdout-only. The host SHALL enforce a 120-second dispatch timeout and at most one retry. Only a wholly valid score document MAY create a crash-recovery journal and publish caches, digest, and mirror updates; the journal SHALL contain replacement bytes/checksums, be durable before deterministic target replacement, place `digest.json` last, and be rolled forward idempotently by every later non-dry-run mutating digest command before new work. Read-only and dry-run commands SHALL report pending recovery without mutating it. Timeout, missing/partial/invalid output, retry exhaustion, timestamp mismatch, or oversized prompt SHALL preserve the prior valid digest, write no journal or output updates, leave the last successful fingerprint unadvanced, and render a degraded scoring line. Under `--dry-run`, nothing below `openspec/supervise/` SHALL be created, modified, or removed; lifecycle changes and rebuilt output SHALL be reported only on stdout.
 
 #### Scenario: Digest on a fresh cycle
 - **GIVEN** three schema-valid stubs survive dedupe and no cached scores exist
 - **WHEN** the CYCLE runs
 - **THEN** three encoded, byte-stable files SHALL exist under `openspec/supervise/candidates/`
-- **AND** the host SHALL dispatch rubric batches whose requested keys cover each stub exactly once
+- **AND** the host SHALL dispatch one rubric batch whose requested keys cover each stub exactly once
 - **AND** `digest.json` SHALL list the three stubs with ranks, five scores and justifications, mechanical signals, and `decision: pending`
 - **AND** all three keys SHALL appear only under `new_this_cycle`, not candidate `needs_decision`
 
@@ -42,7 +42,7 @@ A host-dispatched analyst SHALL score one bounded batch against `rubric-score.sc
 - **GIVEN** a batch manifest created with `--as-of 2026-09-11T01:00:00Z`
 - **WHEN** the rubric output has a missing, earlier, later, naive, or future `scored_at`
 - **THEN** `digest.py rank` SHALL reject it before any cache, digest, or mirror write
-- **AND** only an exact timestamp match SHALL be used for staleness and `generated_at`
+- **AND** only an exact timestamp match SHALL be used for cache validity and `generated_at`
 
 #### Scenario: Candidate capacity bounds dispatch cost
 - **GIVEN** a surviving store of 20 candidates and one additional fresh candidate
@@ -65,17 +65,42 @@ A host-dispatched analyst SHALL score one bounded batch against `rubric-score.sc
 - **AND** no rubric sub-agent SHALL be dispatched
 - **AND** the validated prior `digest.json` SHALL be re-presented byte for byte
 
+#### Scenario: Force does not discard valid scores
+- **GIVEN** an unchanged fingerprint, complete same-fingerprint caches, and no candidate composition or lifecycle change
+- **WHEN** CYCLE runs with `--force`
+- **THEN** it SHALL bypass the SENSE early exit without dispatching a rubric analyst
+- **AND** SHALL re-present the validated prior digest byte for byte
+
 #### Scenario: A changed tree re-scores the backlog
 - **GIVEN** valid caches from the prior cycle
 - **WHEN** a non-supervisor cycle input changes
 - **THEN** the fingerprint SHALL change
-- **AND** the complete retained-plus-fresh backlog SHALL be dispatched in deterministic bounded batches
+- **AND** the complete retained-plus-fresh backlog SHALL be dispatched in one deterministic bounded batch
 
 #### Scenario: Lifecycle maintenance runs before unchanged exit
 - **GIVEN** one approved stub file and one stub deferred until 2026-09-15
 - **WHEN** a normal CYCLE runs on 2026-09-16 over an otherwise unchanged tree
-- **THEN** the approved stub file and cache SHALL be pruned before the fingerprint early exit
+- **THEN** the approved stub file and cache SHALL be pruned before SENSE and the fingerprint early exit, immediately freeing capacity
 - **AND** the deferred stub SHALL return to pending and be re-ranked from its cache without rubric dispatch
+- **AND** the maintained digest SHALL exclude the approved stub, preserve its original `generated_at`, set `state_updated_at` to maintenance `as_of`, and be published before fresh store admission
+
+#### Scenario: A terminal-only prune rebuilds the digest
+- **GIVEN** one approved stub and no due deferral on an otherwise unchanged tree
+- **WHEN** lifecycle maintenance runs
+- **THEN** it SHALL report `lifecycle_changed`, bypass unchanged reuse, remove the stub and cache, and rebuild the digest from remaining validated caches
+- **AND** a later capacity failure SHALL preserve this maintained baseline rather than resurrecting the terminal candidate
+
+#### Scenario: A single oversized stub fails before dispatch
+- **GIVEN** one schema-valid stub whose canonical prompt manifest would exceed 64 KiB
+- **WHEN** `prepare-batch` runs
+- **THEN** it SHALL exit non-zero with `oversized:<stub_key>` and no analyst dispatch
+- **AND** the existing store and prior valid digest SHALL remain unchanged for later correction
+
+#### Scenario: Interrupted publication is recovered
+- **GIVEN** a valid rank transaction is interrupted after any target replacement
+- **WHEN** the next digest command starts
+- **THEN** it SHALL use the durable journal to roll every target forward and verify checksums with `digest.json` last
+- **AND** it SHALL remove the journal only after the recovered target directory is durable
 
 #### Scenario: Unsafe or unavailable provenance is not read
 - **WHEN** a stub names a URI, binary file, symlink, missing file, or path resolving outside the repository
@@ -96,7 +121,7 @@ A host-dispatched analyst SHALL score one bounded batch against `rubric-score.sc
 
 ### Requirement: Digest Approval Routing
 
-Approving a stub into an existing roadmap SHALL use `digest.py stub-to-request <stub_key> --roadmap <roadmap-id> --acceptance <text>... [--after <item-id>]` followed by `refiner.py preview` and, after operator confirmation, `refiner.py apply --expect-base-sha256 <preview-base>`. The request SHALL contain exactly one `op: add`; SHALL map title, description plus provenance, rationale, effort, and suggested change ID; SHALL assign the next free `ri-NN`; SHALL place by stub priority unless `--after` overrides it; and SHALL resolve prerequisites to local `depends_on`, typed `external_depends_on`, or already-satisfied archived dependencies. Unresolved candidate dependencies SHALL fail closed. The refiner SHALL own final priority renumbering.
+Approving a stub into an existing roadmap SHALL use `digest.py stub-to-request <stub_key> --roadmap <roadmap-id> --acceptance <text>... [--after <item-id>]` followed by `refiner.py preview` and, after operator confirmation, `refiner.py apply --expect-base-sha256 <preview-base>`. The request SHALL contain exactly one `op: add`; SHALL map title, description plus provenance, rationale, effort, and suggested change ID; SHALL assign the next free `ri-NN`; SHALL place by stub priority unless `--after` overrides it; and SHALL resolve prerequisites to local `depends_on`, typed `external_depends_on`, or already-satisfied archived dependencies. Unresolved candidate dependencies SHALL fail closed. The item's explicit priority SHALL remain the stub priority; `--after` controls insertion position independently and no renumbering is implied.
 
 `digest.py rank` SHALL synchronize every ranked pending/deferred item into `back_edge.digested_stubs`. `digest.py decide` SHALL merge into the rehydrated supervisor record and persist through `cycle_state.write_mirror`, preserving unrelated newer durable state. The canonical full and mirror schemas SHALL permit `roadmap_ref`, `route`, `until`, and `reason`; approved decisions SHALL require route, `refine-roadmap` approvals SHALL require a roadmap ref, `plan-roadmap` approvals SHALL carry a null roadmap ref, and rejected decisions SHALL require reason. A stub that fits no roadmap SHALL route to `/plan-roadmap --new <slug> "<pitch>" --draft`. No approval path SHALL dispatch an implementer, push, or open a PR.
 

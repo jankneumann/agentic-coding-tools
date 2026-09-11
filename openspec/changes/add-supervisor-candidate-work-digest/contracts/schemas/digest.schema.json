@@ -5,7 +5,7 @@
   "description": "openspec/supervise/digest.json — the ranked candidate-work digest produced by digest.py at the end of a CYCLE run.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "fingerprint", "generated_at", "weights", "sections", "ranked"],
+  "required": ["schema_version", "fingerprint", "generated_at", "state_updated_at", "weights", "sections", "ranked"],
   "$defs": {
     "rankedStub": {
       "type": "object",
@@ -16,7 +16,7 @@
         "rank": {"type": "integer", "minimum": 1},
         "score": {"type": "number"},
         "decision": {"type": "string", "enum": ["pending", "approved", "deferred", "rejected"]},
-        "suggested_change_id": {"type": "string", "pattern": "^(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*$"},
+        "suggested_change_id": {"type": ["string", "null"], "pattern": "^(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*$"},
         "title": {"type": "string"},
         "effort": {"type": "string", "enum": ["XS", "S", "M", "L", "XL"]},
         "factors": {
@@ -68,14 +68,19 @@
   "properties": {
     "schema_version": {"const": 1},
     "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "generated_at": {"type": "string", "format": "date-time", "description": "Host-owned as_of time from the validated batch manifest."},
+    "generated_at": {"type": "string", "format": "date-time", "description": "Original host-owned as_of time from the validated scoring manifest."},
+    "state_updated_at": {"type": "string", "format": "date-time", "description": "Host-owned scoring or later lifecycle-maintenance time."},
     "weights": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["relevance", "value", "readiness", "scope_fit", "risk", "staleness_penalty_per_30d"],
+      "required": ["relevance", "value", "readiness", "scope_fit", "risk", "staleness_penalty_per_30d", "staleness_penalty_cap", "risk_higher_is_safer", "decision_bucket_order", "dependency_bucket_order", "tie_breaker"],
       "properties": {
-        "relevance": {"type": "number"}, "value": {"type": "number"}, "readiness": {"type": "number"},
-        "scope_fit": {"type": "number"}, "risk": {"type": "number"}, "staleness_penalty_per_30d": {"type": "number"}
+        "relevance": {"const": 3}, "value": {"const": 3}, "readiness": {"const": 2},
+        "scope_fit": {"const": 1}, "risk": {"const": 1}, "staleness_penalty_per_30d": {"const": 1},
+        "staleness_penalty_cap": {"const": 5}, "risk_higher_is_safer": {"const": true},
+        "decision_bucket_order": {"const": ["pending", "future_deferred"]},
+        "dependency_bucket_order": {"const": ["ready", "blocked"]},
+        "tie_breaker": {"const": "stub_key:asc"}
       }
     },
     "sections": {

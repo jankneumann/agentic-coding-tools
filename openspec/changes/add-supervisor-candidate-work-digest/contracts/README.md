@@ -14,7 +14,9 @@ Evaluated sub-types:
 - **Type generation** — none.
 
 Consumed contracts (not owned here): `openspec/schemas/candidate-work.schema.json`, the
-`back_edge.digested_stubs` envelope introduced by ri-05, the roadmap-runtime strict roadmap loaders and archived-change registry, and
+`back_edge.digested_stubs` envelope introduced by ri-05, strict roadmap YAML loaders,
+active change directories, the completed-change convention (`openspec/changes/archive/`
+plus no unchecked archived task), Git path history, and
 `skills/refine-roadmap/templates/refinement-request.yaml`.
 
 Coordination boundary: `wp-digest-module` reads schema-valid rubric documents;

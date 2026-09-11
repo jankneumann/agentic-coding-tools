@@ -3,12 +3,12 @@ schema_version: 1
 feature:
   id: add-supervisor-candidate-work-digest
   title: "Add supervisor candidate-work digest"
-  plan_revision: 3
+  plan_revision: 4
   created_by: plan-feature
   deployable: false
 
 contracts:
-  revision: 3
+  revision: 4
   openapi:
     primary: "openspec/changes/add-supervisor-candidate-work-digest/contracts/README.md"
     files:
@@ -122,7 +122,7 @@ packages:
           kind: command
           command: "skills/.venv/bin/python -m ruff check skills/supervise/scripts/digest.py skills/supervise/scripts/cycle_state.py"
           evidence: {artifacts: [], result_keys: ["ruff_clean"]}
-    metadata: {loc_estimate: 620, complexity: medium, package_kind: algorithm}
+    metadata: {loc_estimate: 700, complexity: medium, package_kind: algorithm}
     outputs: {result_keys: ["digest_suite", "host_assisted", "ruff_clean"]}
 
   - package_id: wp-rubric-prompt

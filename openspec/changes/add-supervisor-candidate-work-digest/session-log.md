@@ -104,3 +104,61 @@ Resolved contract, fingerprint, reproducibility, composition, routing, and evide
 ### Context
 Multi-vendor plan review did not converge. Four successful reviewers produced 46 raw findings; consensus yielded 32 unique findings, 10 confirmed, and 5 blocking. Strict OpenSpec and work-package DAG/lock/overlap validation pass, but implementation must wait for the confirmed contract, resilience, and completeness blockers to be resolved.
 
+---
+
+## Phase: Plan Review (2026-09-11)
+
+**Agent**: code-reviewer | **Session**: N/A
+
+### Decisions
+1. **Return revision 3 to PLAN_FIX** — Confirmed blockers remain in lifecycle early-exit behavior, staleness derivation, priority contract consistency, oversized input handling, dependency-index instructions, failure retry/publication semantics, and ranking-policy observability.
+
+### Completed Work
+- Ran a separate round-2 vendor dispatch after PLAN_FIX cb449eb1; Antigravity, Claude, Grok, and Pi all completed.
+- Validated the Codex, Antigravity, Claude, and Grok findings documents and synthesized them without overwriting round-1 artifacts.
+- Round-2 consensus: 17 unique findings, 8 confirmed, 8 unconfirmed, 1 disagreement, 7 blocking, and 1 advisory.
+- Excluded Pi from consensus because multiple severity=none observations incorrectly began with the Critical prefix, violating the review skill's coherence contract.
+- Strict OpenSpec validation and work-package schema/DAG/lock/overlap validation passed.
+
+### Next Steps
+- Treat every lifecycle mutation, including terminal pruning, as a reason to bypass unchanged early exit and rebuild the digest.
+- Define the reproducible source-artifact timestamp used to compute staleness_days.
+- Remove the normative claim that refine-roadmap add renumbers priorities; align the spec with explicit priority plus independent insertion position.
+- Define complete-prompt byte accounting and fail-closed handling for one oversized but schema-valid stub.
+- Replace stale multi-batch/readiness-resolver instructions with the single-manifest protocol and exact all-status/archive dependency-index APIs.
+- Resolve the cached scored_at versus new as_of contradiction on due-deferral cache-only reranking.
+- Define an implementable crash-recoverable publish protocol and ensure failed scoring does not advance the successful-cycle fingerprint, so the next cycle retries.
+- Expose or stop claiming the full ranking policy in digest.json, and resolve the mirror-scope disagreement by using a narrowly scoped synchronization/check command.
+- Run the third and final PLAN_REVIEW round after PLAN_FIX.
+
+### Relevant Files
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/round-2/findings-codex-plan.json` — round-2 primary findings
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/round-2/consensus-plan.json` — round-2 consensus with seven blocking findings
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/round-2/review-manifest.json` — round-2 vendor dispatch evidence
+- `openspec/changes/add-supervisor-candidate-work-digest/design.md` — revision-3 design requiring fixes
+- `openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md` — normative contract requiring fixes
+- `openspec/changes/add-supervisor-candidate-work-digest/tasks.md` — stale implementation instructions requiring alignment
+
+### Context
+Round-2 multi-vendor plan review did not converge after PLAN_FIX cb449eb1. Four external reviewers completed; the coherent consensus set combined Codex, Antigravity, Claude, and Grok into 17 unique findings with 8 confirmed, 7 blocking, and 1 low-severity disagreement. Pi output was retained in the round artifact directory but excluded from consensus because its positive severity=none findings used contradictory Critical prefixes. Strict OpenSpec and work-package validation still pass.
+
+## Phase: Plan Fix (2026-09-11)
+
+**Agent**: software-architect | **Session**: N/A
+
+### Decisions
+1. **Make lifecycle maintenance a committed pre-SENSE baseline** — Terminal pruning and due waking both rebuild before fresh admission, so unchanged reuse and overflow cannot resurrect stale candidates.
+2. **Split scoring time from state-update time** — `generated_at` validates cached rubric evidence; `state_updated_at` records later cache-only maintenance without forcing a model dispatch.
+3. **Use a recoverable publication journal** — Canonical replacement bytes and checksums support deterministic roll-forward with `digest.json` last, while dry-run remains non-mutating.
+
+### Completed Work
+- Resolved all seven round-2 blocking findings and the adjacent dry-run, force, `prov:` key, archive-source, and maintenance/overflow ambiguities.
+- Bumped plan and contract revision to 4 and recorded the finding-to-resolution map in `plan-findings.md`.
+- Strict OpenSpec, work-package schema/overlap, dependency-DAG, JSON, and whitespace validation pass.
+
+### Next Steps
+- Run the third and final independent PLAN_REVIEW round.
+- On convergence, transition directly to IMPLEMENT and dispatch the contract-first work package.
+
+### Context
+Revision 4 is implementation-ready if the final review confirms convergence. The implementation contract now specifies one bounded prompt, deterministic evidence time, complete ranking-policy metadata, a strict dependency-status index, and crash-recoverable publication.
