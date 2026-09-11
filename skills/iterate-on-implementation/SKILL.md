@@ -651,8 +651,8 @@ PYEOF
       git commit -q -m "chore(choices): audit ledger for $CHANGE_ID"
       ;;
     unchanged)
-      # Entries and schema_version are unchanged: restore the committed
-      # pair and commit nothing. Every re-audit of an unchanged diff is a
+      # Entries and schema_version are unchanged: restore the committed pair
+      # and commit nothing. Every re-audit of an unchanged diff is a
       # commit-wise no-op.
       git checkout -- "$JSON_PATH" "$MD_PATH"
       ;;

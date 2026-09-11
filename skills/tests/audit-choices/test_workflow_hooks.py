@@ -1,0 +1,242 @@
+"""Content-pin tests for the three workflow hooks that wire audit-choices
+into the lifecycle: iterate-on-implementation Step 11.5, validate-feature
+Steps 11/12 + After Validation, and cleanup-feature Step 5.5. Design F1,
+F2, F4, F6, F8. Task 3.7.
+
+In the style of skills/tests/cleanup-feature/test_skill_md.py: these are
+markdown content assertions, not behavioral tests — the hooks themselves
+are SKILL.md prose/bash an agent executes, and a future rewrite could
+silently drop a requirement while still "looking right". Each assertion
+below exists because design.md names the specific rewrite it guards
+against.
+"""
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+SKILLS_ROOT = Path(__file__).resolve().parents[2]
+ITERATE_SKILL = SKILLS_ROOT / "iterate-on-implementation" / "SKILL.md"
+VALIDATE_SKILL = SKILLS_ROOT / "validate-feature" / "SKILL.md"
+CLEANUP_SKILL = SKILLS_ROOT / "cleanup-feature" / "SKILL.md"
+AUDIT_CHOICES_SKILL = SKILLS_ROOT / "audit-choices" / "SKILL.md"
+
+_FENCE = re.compile(r"```(?:bash|python)?\n(.*?)\n```", re.DOTALL)
+
+READER_PREFIX = "<skill-base-dir>/../audit-choices/scripts/"
+
+
+def _text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def _real_headings(text: str) -> list[tuple[int, int, str]]:
+    """``(start_offset, level, title)`` for every heading, skipping fenced
+    code blocks. Several of the illustrative report/summary templates in
+    these skills contain lines like ``## Phase Results`` *inside* a fenced
+    example — a naive line-anchored heading regex would treat those as real
+    document structure and truncate a section at the fence's own example
+    heading."""
+    out: list[tuple[int, int, str]] = []
+    fence = False
+    offset = 0
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            fence = not fence
+        elif not fence:
+            m = re.match(r"^(#{2,4})\s+(.*?)\s*$", line)
+            if m:
+                out.append((offset, len(m.group(1)), m.group(2)))
+        offset += len(line)
+    return out
+
+
+def _section(path: Path, needle: str, *, exact: bool = False) -> str:
+    """Return the text of the first heading whose title contains ``needle``.
+
+    The section runs from its own heading to the next heading at the same or
+    a shallower level, so an assertion scoped to a section cannot be
+    satisfied by prose that lives somewhere else in the file.
+    """
+    text = _text(path)
+    headings = _real_headings(text)
+    for index, (start, level, title) in enumerate(headings):
+        title_lower = title.lower()
+        matched = title_lower == needle.lower() if exact else needle.lower() in title_lower
+        if not matched:
+            continue
+        for follow_start, follow_level, _ in headings[index + 1 :]:
+            if follow_level <= level:
+                return text[start:follow_start]
+        return text[start:]
+    raise AssertionError(f"{path}: no heading found containing {needle!r}")
+
+
+def _fences(section_text: str) -> str:
+    """Concatenated content of every fenced code block in a section."""
+    return "\n".join(_FENCE.findall(section_text))
+
+
+def _assert_reader_invoked_skill_relative(fence: str, *, label: str) -> None:
+    """Every `needs_user.py` mention in a fenced block must be the tail of
+    the full skill-relative path — never a bare command and never a
+    repo-root `skills/audit-choices/...` path, neither of which resolves
+    inside the `.claude/skills/`/`.agents/skills/` runtime mirrors."""
+    matches = list(re.finditer(r"needs_user\.py", fence))
+    assert matches, f"{label}: no needs_user.py invocation found"
+    for m in matches:
+        start = m.start()
+        window = fence[max(0, start - len(READER_PREFIX)) : start]
+        assert window == READER_PREFIX, (
+            f"{label}: non-skill-relative needs_user.py invocation near "
+            f"{fence[max(0, start - 60): start + 20]!r}"
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# iterate-on-implementation Step 11.5
+# ─────────────────────────────────────────────────────────────────────────
+
+
+class TestIterateOnImplementationStep11_5:
+    def test_heading_exists_and_mentions_audit_choices(self):
+        text = _text(ITERATE_SKILL)
+        assert re.search(r"^###\s+11\.5\.", text, re.MULTILINE), "no ### 11.5. heading"
+        section = _section(ITERATE_SKILL, "11.5")
+        assert "audit-choices" in section.lower()
+
+    def test_not_gated_by_vendor_review(self):
+        section = _section(ITERATE_SKILL, "11.5")
+        assert re.search(r"not gated by `?VENDOR_REVIEW`?", section, re.I)
+        assert "skipped Step 11" in section
+
+    def test_single_skip_line_form(self):
+        section = _section(ITERATE_SKILL, "11.5")
+        assert "audit-choices: skipped (" in section
+        assert "continuing to summary" in section
+
+    def test_both_files_present_check(self):
+        section = _section(ITERATE_SKILL, "11.5")
+        fence = _fences(section)
+        assert '[ -s "$JSON_PATH" ]' in fence
+        assert '[ -s "$MD_PATH" ]' in fence
+
+    def test_git_add_stages_both_paths_under_change_dir_never_bare(self):
+        section = _section(ITERATE_SKILL, "11.5")
+        fence = _fences(section)
+        match = re.search(r"git add\s+((?:\"[^\"]+\"[\s\\]*)+)", fence)
+        assert match, "no `git add` invocation found in Step 11.5"
+        paths = re.findall(r'"([^"]+)"', match.group(1))
+        assert len(paths) == 2, f"expected exactly two pathspecs, got {paths}"
+        for p in paths:
+            assert p.startswith("openspec/changes/$CHANGE_ID/"), p
+
+    def test_states_f2_commit_rule(self):
+        section = _section(ITERATE_SKILL, "11.5")
+        assert re.search(r"`entries`\s+array", section)
+        assert "header.schema_version" in section
+        assert re.search(r"committed revision", section, re.I)
+        assert re.search(r"restor\w* the (committed )?pair", section, re.I)
+        assert re.search(r"commit\w* nothing", section, re.I)
+
+    def test_orphan_cleanup_names_tracked_and_untracked_cases(self):
+        section = _section(ITERATE_SKILL, "11.5")
+        assert "git checkout --" in section
+        assert "rm -f" in section
+
+    def test_step_12_summary_gains_choices_audit_line(self):
+        section = _section(ITERATE_SKILL, "12. Present Summary")
+        assert "Choices audit:" in section
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# validate-feature Steps 11/12 + After Validation
+# ─────────────────────────────────────────────────────────────────────────
+
+
+class TestValidateFeatureChoicesRow:
+    def test_choices_row_in_step_11_report_sketch(self):
+        section = _section(VALIDATE_SKILL, "11. Validation Report")
+        report_fence = _FENCE.findall(section)[0]
+        assert "Choices:" in report_fence
+
+    def test_choices_row_in_step_12_report_file_heredoc(self):
+        section = _section(VALIDATE_SKILL, "12. Persist Report")
+        assert "$CHOICES_ROW" in section
+
+    def test_no_ledger_and_zero_needs_user_forms_are_present_and_distinct(self):
+        text = _text(VALIDATE_SKILL)
+        assert "○ Choices: no ledger" in text
+        assert "✓ Choices: 0 needs-user" in text
+        assert "○ Choices: no ledger" != "✓ Choices: 0 needs-user"
+
+    def test_no_choices_markdown_heading(self):
+        text = _text(VALIDATE_SKILL)
+        assert not re.search(r"^#{1,6}\s+Choices\b", text, re.MULTILINE), (
+            "a `## Choices` (or similar) heading would be invisible to "
+            "gate_logic.py's allow-list today but picked up by a future edit"
+        )
+
+    def test_after_validation_echoes_warning_form(self):
+        section = _section(VALIDATE_SKILL, "After Validation", exact=True)
+        assert "⚠ Choices:" in section
+
+    def test_choices_row_never_changes_result(self):
+        section = _section(VALIDATE_SKILL, "11. Validation Report")
+        assert re.search(r"never change[s]? `?Result`?", section, re.I)
+
+    def test_reader_invoked_skill_relative(self):
+        section = _section(VALIDATE_SKILL, "11. Validation Report")
+        fence = _fences(section)
+        _assert_reader_invoked_skill_relative(fence, label="validate-feature")
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# cleanup-feature Step 5.5
+# ─────────────────────────────────────────────────────────────────────────
+
+
+class TestCleanupFeatureStep5_5:
+    def test_heading_exists_and_calls_needs_user_py(self):
+        text = _text(CLEANUP_SKILL)
+        assert re.search(r"^###\s+5\.5\.", text, re.MULTILINE), "no ### 5.5. heading"
+        section = _section(CLEANUP_SKILL, "5.5")
+        assert "needs_user.py" in section
+
+    def test_states_no_new_gate(self):
+        section = _section(CLEANUP_SKILL, "5.5")
+        assert re.search(r"no new gate", section, re.I)
+
+    def test_both_empty_case_wordings_present(self):
+        section = _section(CLEANUP_SKILL, "5.5")
+        assert "no choices ledger" in section
+        assert "no open choices" in section
+
+    def test_step_5a_early_exit_points_to_5_5_not_6(self):
+        section = _section(CLEANUP_SKILL, "5a. Detect open tasks")
+        assert "skip to Step 5.5" in section
+        assert "skip to Step 6" not in section
+
+    def test_reader_invoked_skill_relative(self):
+        section = _section(CLEANUP_SKILL, "5.5")
+        fence = _fences(section)
+        _assert_reader_invoked_skill_relative(fence, label="cleanup-feature")
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# audit-choices SKILL.md — --run-id and the range-argument resolution rule
+# ─────────────────────────────────────────────────────────────────────────
+
+
+class TestAuditChoicesArguments:
+    def test_run_id_documented(self):
+        section = _section(AUDIT_CHOICES_SKILL, "Arguments", exact=True)
+        assert "--run-id" in section
+
+    def test_range_form_and_resolution_rule_documented(self):
+        args_section = _section(AUDIT_CHOICES_SKILL, "Arguments", exact=True)
+        assert "<base-sha>..<head-sha>" in args_section
+
+        steps_section = _section(AUDIT_CHOICES_SKILL, "Steps", exact=True)
+        assert re.search(r"explicit range argument.*use it as given", steps_section, re.I)

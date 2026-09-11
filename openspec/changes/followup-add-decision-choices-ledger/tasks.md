@@ -220,7 +220,7 @@ refer to this change's `design.md`.
   pass whether or not the documented resolution works, which is exactly the
   bypass this task forbids elsewhere.
 
-- [ ] 3.7 Pin the three workflow hooks with SKILL.md content tests
+- [x] 3.7 Pin the three workflow hooks with SKILL.md content tests
   **Spec scenarios**: skill-workflow.8, skill-workflow.9, skill-workflow.10, skill-workflow.11, skill-workflow.12
   **Design decisions**: F1, F2, F4, F6, F8
   **Dependencies**: 3.1, 3.2, 3.3
