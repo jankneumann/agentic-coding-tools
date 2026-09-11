@@ -147,6 +147,72 @@ class TestMixedLedger:
         assert all(e["verdict"] == "needs-user" for e in payload)
 
 
+class TestMalformedButReadableLedger:
+    """Finding 3 (impl-round-1): `needs_user.py` caught `JSONDecodeError`/
+    `OSError`, but a *readable* ledger with malformed content still raised —
+    one shape via a plain `TypeError` iterating `None`, the other via
+    `choices_ledger.rank_entries`'s dict lookup on an unhashable type. F3
+    requires the reader to never raise and always exit 0."""
+
+    def test_null_entries_does_not_raise(self, tmp_path, capsys):
+        change_dir = tmp_path / "openspec" / "changes" / "my-change"
+        change_dir.mkdir(parents=True)
+        (change_dir / "choices.json").write_text(json.dumps({"entries": None}))
+
+        exit_code = needs_user.main(
+            ["--change-id", "my-change", "--repo-root", str(tmp_path), "--format", "text"]
+        )
+        out = capsys.readouterr()
+        assert exit_code == 0
+        assert out.out == ""
+
+    def test_null_entries_json_mode_prints_empty_array(self, tmp_path, capsys):
+        change_dir = tmp_path / "openspec" / "changes" / "my-change"
+        change_dir.mkdir(parents=True)
+        (change_dir / "choices.json").write_text(json.dumps({"entries": None}))
+
+        exit_code = needs_user.main(
+            ["--change-id", "my-change", "--repo-root", str(tmp_path), "--format", "json"]
+        )
+        out = capsys.readouterr()
+        assert exit_code == 0
+        assert json.loads(out.out) == []
+
+    def test_list_valued_confidence_does_not_raise(self, tmp_path, capsys):
+        change_dir = tmp_path / "openspec" / "changes" / "my-change"
+        change_dir.mkdir(parents=True)
+        entry = _entry("Chose something", "needs-user", "low")
+        entry["confidence"] = ["low", "medium"]  # malformed: list, not str
+        (change_dir / "choices.json").write_text(
+            json.dumps({"entries": [entry]})
+        )
+
+        exit_code = needs_user.main(
+            ["--change-id", "my-change", "--repo-root", str(tmp_path), "--format", "text"]
+        )
+        out = capsys.readouterr()
+        assert exit_code == 0
+        assert out.out == ""
+
+    def test_list_valued_confidence_warns_once(self, tmp_path, capsys):
+        change_dir = tmp_path / "openspec" / "changes" / "my-change"
+        change_dir.mkdir(parents=True)
+        entry = _entry("Chose something", "needs-user", "low")
+        entry["confidence"] = ["low", "medium"]
+        (change_dir / "choices.json").write_text(
+            json.dumps({"entries": [entry]})
+        )
+
+        exit_code = needs_user.main(
+            ["--change-id", "my-change", "--repo-root", str(tmp_path), "--format", "json"]
+        )
+        out = capsys.readouterr()
+        assert exit_code == 0
+        assert json.loads(out.out) == []
+        assert out.err.strip() != ""
+        assert len(out.err.strip().splitlines()) == 1
+
+
 class TestUnreadableLedger:
     def test_text_mode_warns_once_and_exits_zero(self, tmp_path, capsys):
         change_dir = tmp_path / "openspec" / "changes" / "my-change"
