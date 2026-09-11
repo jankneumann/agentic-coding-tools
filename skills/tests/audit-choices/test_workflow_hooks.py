@@ -12,6 +12,7 @@ against.
 """
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -163,6 +164,100 @@ class TestIterateOnImplementationStep11_5:
         assert re.search(r"committed revision", section, re.I)
         assert re.search(r"restor\w* the (committed )?pair", section, re.I)
         assert re.search(r"commit\w* nothing", section, re.I)
+
+    def test_f2_comparison_behavior_unchanged_changed_new(self, tmp_path):
+        """Finding 7 (impl-round-1): test_states_f2_commit_rule only asserts
+        comment strings, so a rewrite that compared the whole document (or
+        subtracted only generated_at/run_id) would keep those strings green
+        while never actually skipping a commit — header.git_sha and
+        audited_range move on every run and would make every re-audit look
+        "changed". Following test_orphan_cleanup_behavior's pattern: extract
+        the real comparison Python from the fence and execute it against
+        real git fixtures. header.git_sha moving between the committed and
+        fresh revisions must NOT by itself flip the verdict."""
+        section = _section(ITERATE_SKILL, "11.5")
+        fence = _fences(section)
+        match = re.search(
+            r"compare=\$\(python3 - \"\$JSON_PATH\" <<'PYEOF'\n(.*?)\nPYEOF", fence, re.DOTALL
+        )
+        assert match, "could not locate the F2 comparison python snippet in Step 11.5"
+        compare_py = match.group(1)
+        assert "entries" in compare_py and "schema_version" in compare_py
+
+        script_path = tmp_path / "compare.py"
+        script_path.write_text(compare_py)
+
+        def git(repo: Path, *args: str) -> subprocess.CompletedProcess:
+            return subprocess.run(
+                ["git", "-C", str(repo), *args], capture_output=True, text=True, check=True
+            )
+
+        def run_compare(repo: Path) -> str:
+            result = subprocess.run(
+                ["python3", str(script_path), "choices.json"],
+                cwd=repo,
+                capture_output=True,
+                text=True,
+            )
+            assert result.returncode == 0, result.stderr
+            return result.stdout.strip()
+
+        entries_a = [{"stable_id": "a" * 40, "choice": "x", "verdict": "sound"}]
+        entries_b = [{"stable_id": "b" * 40, "choice": "y", "verdict": "sound"}]
+
+        def doc(entries: list[dict], *, git_sha: str, schema_version: int = 1) -> str:
+            return json.dumps(
+                {
+                    "header": {
+                        "schema_version": schema_version,
+                        "git_sha": git_sha,
+                        "generated_at": "irrelevant",
+                        "run_id": "irrelevant",
+                    },
+                    "audited_range": {"base_sha": "irrelevant", "head_sha": git_sha},
+                    "entries": entries,
+                }
+            )
+
+        # Case 1: unchanged entries and schema_version, but header.git_sha
+        # and audited_range moved (every run's git_sha differs) — must
+        # report "unchanged". A whole-header (or subtractive-only) compare
+        # would wrongly call this "changed".
+        repo_unchanged = tmp_path / "unchanged"
+        repo_unchanged.mkdir()
+        git(repo_unchanged, "init", "-q")
+        git(repo_unchanged, "config", "user.email", "a@b.c")
+        git(repo_unchanged, "config", "user.name", "Test")
+        (repo_unchanged / "choices.json").write_text(doc(entries_a, git_sha="c" * 40))
+        git(repo_unchanged, "add", ".")
+        git(repo_unchanged, "commit", "-q", "-m", "prior")
+        (repo_unchanged / "choices.json").write_text(doc(entries_a, git_sha="d" * 40))
+        assert run_compare(repo_unchanged) == "unchanged"
+
+        # Case 2: entries actually differ — must report "changed".
+        repo_changed = tmp_path / "changed"
+        repo_changed.mkdir()
+        git(repo_changed, "init", "-q")
+        git(repo_changed, "config", "user.email", "a@b.c")
+        git(repo_changed, "config", "user.name", "Test")
+        (repo_changed / "choices.json").write_text(doc(entries_a, git_sha="c" * 40))
+        git(repo_changed, "add", ".")
+        git(repo_changed, "commit", "-q", "-m", "prior")
+        (repo_changed / "choices.json").write_text(doc(entries_b, git_sha="d" * 40))
+        assert run_compare(repo_changed) == "changed"
+
+        # Case 3: no committed revision at all (first audit) — must report
+        # "new".
+        repo_new = tmp_path / "new"
+        repo_new.mkdir()
+        git(repo_new, "init", "-q")
+        git(repo_new, "config", "user.email", "a@b.c")
+        git(repo_new, "config", "user.name", "Test")
+        (repo_new / "placeholder").write_text("x")
+        git(repo_new, "add", "placeholder")
+        git(repo_new, "commit", "-q", "-m", "init, no choices.json yet")
+        (repo_new / "choices.json").write_text(doc(entries_a, git_sha="c" * 40))
+        assert run_compare(repo_new) == "new"
 
     def test_orphan_cleanup_names_tracked_and_untracked_cases(self):
         section = _section(ITERATE_SKILL, "11.5")
