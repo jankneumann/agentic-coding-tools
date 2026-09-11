@@ -17,9 +17,7 @@
     ],
     "keys": [
       "feature:add-supervisor-candidate-work-digest:contracts"
-    ],
-    "ttl_minutes": 60,
-    "reason": "Freeze all runtime and persistence contracts"
+    ]
   },
   "scope": {
     "write_allow": [

@@ -1,14 +1,15 @@
 # Change Context: add-supervisor-candidate-work-digest
 
-Phase 1 traceability skeleton. Contract references are generated from traced contract
-documents; implementation files and evidence remain unset until their respective phases.
+Phase 2 implementation traceability. Contract references remain empty because this change
+adds local JSON Schema/runtime contracts rather than traced OpenAPI operations; implementation
+files and deterministic test evidence are now recorded.
 
 ## Requirement Traceability Matrix
 
 | Req ID | Spec Source | Description | Contract Ref | Design Decision | Files Changed | Test(s) | Evidence |
 |--------|------------|-------------|-------------|----------------|---------------|---------|----------|
-| supervise.1 | `specs/supervise/spec.md` — Candidate-Work Digest | Maintain a bounded, deterministic, crash-recoverable candidate backlog with safe evidence loading, exact rubric coverage, stable ranking, lifecycle maintenance, and composable supervisor output. | --- | D1, D2, D3, D5, D6, D8 | --- | `test_digest_schemas.py`, `test_digest.py`, `test_digest_routing.py`, `test_digest_evidence.py`, `test_rubric_prompt.py`, `test_cycle_state.py`, `test_workflow_contract.py` | --- |
-| supervise.2 | `specs/supervise/spec.md` — Approval Routing | Convert an approved digest stub into one validated roadmap request, require preview/SHA-guarded apply, preserve durable decision state, and never write roadmaps or dispatch implementation from digest code. | --- | D3, D4, D5 | --- | `test_supervisor_record_schema.py`, `test_supervisor_record.py`, `test_digest_routing.py`, `test_workflow_contract.py` | --- |
+| supervise.1 | `specs/supervise/spec.md` — Candidate-Work Digest | Maintain a bounded, deterministic, crash-recoverable candidate backlog with safe evidence loading, exact rubric coverage, stable ranking, lifecycle maintenance, and composable supervisor output. | --- | D1, D2, D3, D5, D6, D8 | `openspec/schemas/supervise-*.json`, `skills/supervise/scripts/digest.py`, `cycle_state.py`, `templates/rubric-prompt.md`, `SKILL.md` | `test_digest_schemas.py`, `test_digest.py`, `test_digest_routing.py`, `test_digest_evidence.py`, `test_rubric_prompt.py`, `test_cycle_state.py`, `test_workflow_contract.py` | pass `31ee545e` — 313 supervise tests, exact schema/runtime parity, strict OpenSpec |
+| supervise.2 | `specs/supervise/spec.md` — Approval Routing | Convert an approved digest stub into one validated roadmap request, require preview/SHA-guarded apply, preserve durable decision state, and never write roadmaps or dispatch implementation from digest code. | --- | D3, D4, D5 | `openspec/schemas/supervisor-record*.json`, `skills/supervise/scripts/digest.py`, `cycle_state.py`, `SKILL.md` | `test_supervisor_record_schema.py`, `test_supervisor_record.py`, `test_digest_routing.py`, `test_workflow_contract.py` | pass `0541ab2b` — routing/status/rehydration tests and AST no-roadmap-write guard |
 
 ## Requirement-to-Package Assignment
 
@@ -34,11 +35,14 @@ documents; implementation files and evidence remain unset until their respective
 
 | Finding ID | Package | Type | Criticality | Disposition | Resolution |
 |------------|---------|------|-------------|-------------|------------|
+| INT-1 | wp-digest-module | correctness | critical | fix | Added RED/GREEN coverage and `pending-stub` indexing for active OpenSpec changes (`0541ab2b`). |
+| RP-4 | wp-rubric-prompt | security | nit | fix | Extended the untrusted boundary to the ready set and pinned it with a regression test (`31ee545e`). |
+| RP-5 | wp-rubric-prompt | security | optional | fix | Moved trusted dispatch instructions before all untrusted payloads and forbade duplicate trailing trusted sections (`31ee545e`). |
 
 ## Coverage Summary
 
 - **Requirements traced**: 2/2
 - **Tests mapped**: 2/2 requirements have at least one planned test
-- **Evidence collected**: 0/2 requirements have pass/fail evidence
-- **Gaps identified**: implementation and validation evidence pending
-- **Deferred items**: none
+- **Evidence collected**: 2/2 requirements have passing deterministic evidence
+- **Gaps identified**: none
+- **Deferred items**: cross-vendor quorum was unavailable for two documentation-sized package reviews after Grok/Claude timeouts and Pi schema-invalid output; valid findings were remediated and the degradation is retained in review manifests

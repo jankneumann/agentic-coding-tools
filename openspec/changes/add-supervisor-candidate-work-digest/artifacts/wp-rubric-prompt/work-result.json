@@ -12,9 +12,7 @@
     ],
     "keys": [
       "feature:add-supervisor-candidate-work-digest:prompt"
-    ],
-    "ttl_minutes": 60,
-    "reason": "Rubric prompt contract"
+    ]
   },
   "scope": {
     "write_allow": [

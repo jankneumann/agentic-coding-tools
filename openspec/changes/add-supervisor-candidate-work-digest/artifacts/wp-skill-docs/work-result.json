@@ -12,9 +12,7 @@
     ],
     "keys": [
       "feature:add-supervisor-candidate-work-digest:docs"
-    ],
-    "ttl_minutes": 60,
-    "reason": "Supervise workflow contract and mirrors"
+    ]
   },
   "scope": {
     "write_allow": [

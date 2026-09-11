@@ -168,7 +168,7 @@ GREEN). Capability short name: `sv` = `supervise`.
 
 ## Phase 4 — wp-integration
 
-- [ ] 4.1 Run the complete supervise suite and ruff. Execute a two-cycle fixture flow:
+- [x] 4.1 Run the complete supervise suite and ruff. Execute a two-cycle fixture flow:
       fresh store → bounded score → rank → mirror/rehydrate → candidate composition →
       decision → output-only commit simulation → unchanged cache hit/prune/due transition.
       Exercise terminal-only pruning, dry-run lifecycle reporting, modified/untracked
@@ -182,7 +182,7 @@ GREEN). Capability short name: `sv` = `supervise`.
       refusal against a temporary roadmap — **M**
       **Dependencies**: all Phase 1–3 tasks
 
-- [ ] 4.2 Run all `skills/tests`, work-package schema/DAG/overlap validation, context-impact
+- [x] 4.2 Run all `skills/tests`, work-package schema/DAG/overlap validation, context-impact
       validation against the feature base, and `openspec validate
       add-supervisor-candidate-work-digest --strict`; append the Implementation PhaseRecord,
       update checkboxes, commit, and push — **S**

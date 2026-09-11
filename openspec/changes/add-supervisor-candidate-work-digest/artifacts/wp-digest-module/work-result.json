@@ -13,9 +13,7 @@
     ],
     "keys": [
       "feature:add-supervisor-candidate-work-digest:module"
-    ],
-    "ttl_minutes": 150,
-    "reason": "Digest runtime and narrow cycle-state integration"
+    ]
   },
   "scope": {
     "write_allow": [
