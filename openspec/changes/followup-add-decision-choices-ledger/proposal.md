@@ -37,7 +37,9 @@ tests that pin them:
 - `skills/audit-choices/SKILL.md` documents an optional `--run-id` argument so
   the Step 11.5 hook can name the run that produced a ledger. `run_audit.py`
   has required `--run-id` since Phase 2; only the Arguments section was
-  missing it.
+  missing it. With the reader above, that is the whole of what this change
+  touches inside `audit-choices`: one new read-only script, one documented
+  argument, no new writer.
 - An end-to-end pytest drives the audit against a fixture repo seeded from the
   archived parent change's artifacts, exercising every scenario in the parent
   spec delta plus the five carried or added here; a second test pins the three

@@ -108,15 +108,19 @@ schema, ledger format, driver, or the skill's read-only posture.
   only the two obviously per-run header fields is not enough; `git_sha` and
   `audited_range` are equally volatile and equally uninteresting.
 
-  The comparison is therefore positive rather than subtractive: Step 11.5
-  compares **only the `entries` array**, verbatim as written, between the
-  freshly produced `choices.json` and the committed revision
-  (`git show HEAD:openspec/changes/$CHANGE_ID/choices.json`). `entries` is
-  already canonically ordered by `rank_entries` at write time, so equal entry
-  sets serialize identically. `schema_version` is compared too, so a schema
-  bump is never silently dropped. Everything else — `generated_at`, `run_id`,
-  `git_sha`, `generator`, `event_kind`, `audited_range`, `auditor` — is
-  ignored for the purpose of this decision.
+  The comparison is therefore positive rather than subtractive, and it names
+  its two keys by their real location in the document. `build_document`
+  produces `{header, change_id, audited_range, entries[, auditor]}`, so the
+  six header fields are nested under `header` and are *not* document-root
+  keys. Step 11.5 parses both JSON documents and compares exactly two things:
+  the `entries` array and `header.schema_version`. `entries` is canonically
+  ordered by `rank_entries` at write time, so equal entry sets compare equal;
+  `header.schema_version` is included so a schema bump is never silently
+  dropped. Every other field is ignored **by name**: `header.generated_at`,
+  `header.run_id`, `header.git_sha`, `header.generator`,
+  `header.event_kind`, and the root-level `change_id`, `audited_range` and
+  `auditor`. Comparing `header` as a whole would always differ; looking for a
+  root-level `schema_version` would find nothing.
 
   When the change has no committed `choices.json` yet, there is nothing to
   compare and the pair always commits — `git show` failing on an unknown path
@@ -146,7 +150,7 @@ schema, ledger format, driver, or the skill's read-only posture.
   requires the *gates* to tell those two cases apart, and they do it
   themselves: each hook tests for `openspec/changes/<id>/choices.json` before
   calling the reader and picks its own wording (`○ Choices: no ledger` vs
-  `✓ Choices: <n> entries, 0 needs-user` in validate-feature; `no choices
+  `✓ Choices: 0 needs-user` in validate-feature; `no choices
   ledger` vs `no open choices` in cleanup-feature). Keeping the branch in the
   two callers rather than in the reader costs one `test -f` each and leaves
   the reader's contract — print the open entries, nothing else, exit 0 — as
@@ -176,7 +180,7 @@ schema, ledger format, driver, or the skill's read-only posture.
   section would be dangerous today; it is chosen because it leaves no heading
   for a future allow-list edit to pick up by accident, and because choices
   belong inside the presentation the human already reads. The row form —
-  `○ Choices: no ledger` / `✓ Choices: 5 entries, 0 needs-user` /
+  `○ Choices: no ledger` / `✓ Choices: 0 needs-user` /
   `⚠ Choices: 2 needs-user entries (choices.md)` followed by the reader's
   lines — is invisible to that parser, so "approve/reject semantics otherwise
   unchanged" is true by construction rather than by discipline. The `⚠`
