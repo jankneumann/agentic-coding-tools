@@ -263,6 +263,108 @@ class TestIterateOnImplementationStep11_5:
         section = _section(ITERATE_SKILL, "12. Present Summary")
         assert "Choices audit:" in section
 
+    def _extract_case_block(self) -> str:
+        fence = _fences(_section(ITERATE_SKILL, "11.5"))
+        match = re.search(r'case "\$compare" in\n(.*?)\n  esac', fence, re.DOTALL)
+        assert match, "could not locate the compare-result case block in Step 11.5"
+        return 'case "$compare" in\n' + match.group(1) + "\n  esac"
+
+    def test_git_commands_in_case_block_are_guarded(self):
+        """Finding 4 (impl-round-1): Step 11.5's prose promises every branch
+        warns and continues, but `git add`, `git commit`, and the
+        unchanged-path `git checkout --` were unguarded. Without `set -e`
+        the step could fall through with no SKIP_REASON and no warning
+        (looking like a silent success); with `set -e` it could abort the
+        workflow. Content-pin: every git invocation in the compare-result
+        case block must be followed by an `||` failure handler."""
+        case_block = self._extract_case_block()
+        git_lines = [
+            line for line in case_block.splitlines() if re.match(r"\s*git (add|commit|checkout)\b", line)
+        ]
+        assert len(git_lines) >= 3, f"expected git add/commit/checkout, found: {git_lines}"
+        for i, line in enumerate(git_lines):
+            # The guard may be on the same line (`git foo ... || { ... }`) or
+            # a continuation line (`git foo \` then `  || { ... }` next).
+            window = case_block[case_block.index(line) : case_block.index(line) + 200]
+            assert "||" in window, f"unguarded git command: {line!r}"
+
+    def test_git_commit_failure_sets_skip_reason_not_silent(self, tmp_path):
+        """Executable proof: run the real `new|changed` case block against a
+        repo where `git commit` fails (nothing to commit, because the
+        working-tree files are already byte-identical to HEAD) and assert
+        SKIP_REASON is set rather than the block falling through silently."""
+        case_block = self._extract_case_block()
+
+        def git(repo: Path, *args: str) -> subprocess.CompletedProcess:
+            return subprocess.run(
+                ["git", "-C", str(repo), *args], capture_output=True, text=True, check=True
+            )
+
+        repo = tmp_path / "commit-fails"
+        repo.mkdir()
+        git(repo, "init", "-q")
+        git(repo, "config", "user.email", "a@b.c")
+        git(repo, "config", "user.name", "Test")
+        change_dir = repo / "openspec" / "changes" / "my-change"
+        change_dir.mkdir(parents=True)
+        (change_dir / "choices.json").write_text('{"entries": []}\n')
+        (change_dir / "choices.md").write_text("# Choices Ledger\n")
+        git(repo, "add", ".")
+        git(repo, "commit", "-q", "-m", "chore(choices): prior audit")
+
+        script = (
+            "run_case_under_test() {\n"
+            'compare="changed"\n'
+            'CHANGE_ID="my-change"\n'
+            'SKIP_REASON=""\n'
+            + case_block
+            + "\n}\nrun_case_under_test\n"
+            'echo "SKIP_REASON:$SKIP_REASON"\n'
+        )
+        result = subprocess.run(["bash", "-c", script], cwd=repo, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        assert "SKIP_REASON:git commit failed" in result.stdout, (
+            f"a failing git commit must set SKIP_REASON, got stdout={result.stdout!r} "
+            f"stderr={result.stderr!r}"
+        )
+
+    def test_git_checkout_restore_failure_sets_skip_reason_not_silent(self, tmp_path):
+        """Same proof for the `unchanged` branch's `git checkout --`: point
+        it at paths git has never heard of, so the checkout fails, and
+        assert SKIP_REASON is set instead of the branch silently succeeding."""
+        case_block = self._extract_case_block()
+
+        def git(repo: Path, *args: str) -> subprocess.CompletedProcess:
+            return subprocess.run(
+                ["git", "-C", str(repo), *args], capture_output=True, text=True, check=True
+            )
+
+        repo = tmp_path / "checkout-fails"
+        repo.mkdir()
+        git(repo, "init", "-q")
+        git(repo, "config", "user.email", "a@b.c")
+        git(repo, "config", "user.name", "Test")
+        (repo / "README.md").write_text("placeholder\n")
+        git(repo, "add", ".")
+        git(repo, "commit", "-q", "-m", "init")
+
+        script = (
+            "run_case_under_test() {\n"
+            'compare="unchanged"\n'
+            'JSON_PATH="never-committed.json"\n'
+            'MD_PATH="never-committed.md"\n'
+            'SKIP_REASON=""\n'
+            + case_block
+            + "\n}\nrun_case_under_test\n"
+            'echo "SKIP_REASON:$SKIP_REASON"\n'
+        )
+        result = subprocess.run(["bash", "-c", script], cwd=repo, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        assert "SKIP_REASON:restore of unchanged pair failed" in result.stdout, (
+            f"a failing git checkout -- must set SKIP_REASON, got stdout={result.stdout!r} "
+            f"stderr={result.stderr!r}"
+        )
+
     def test_stale_half_detected_via_generated_at_mismatch(self, tmp_path):
         """Finding 2 (impl-round-1): the partial-pair guard only tested
         non-emptiness (`[ -s "$JSON_PATH" ]` / `[ -s "$MD_PATH" ]`).
