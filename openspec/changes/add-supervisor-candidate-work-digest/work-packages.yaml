@@ -187,7 +187,7 @@ packages:
       read_allow: ["**"]
       deny: ["**/.venv/**", "skills/**/scripts/**"]
     context_impact:
-      surfaces: ["documentation"]
+      surfaces: ["documentation", "semantic_code"]
     worktree: {name: skill-docs, mode: shared}
     timeout_minutes: 75
     retry_budget: 2

@@ -23,7 +23,7 @@ GREEN). Capability short name: `sv` = `supervise`.
       **Contracts**: all four runtime schemas plus two change-local source schemas
       **Dependencies**: 0.1
 
-- [ ] Checkpoint: schema tests green; runtime copies match change-local sources; review
+- [x] Checkpoint: schema tests green; runtime copies match change-local sources; review
       the diff and run strict OpenSpec validation
 
 ## Phase 1 — wp-digest-module: state helpers and `digest.py`
@@ -116,7 +116,7 @@ GREEN). Capability short name: `sv` = `supervise`.
       **Design decisions**: D3, D5
       **Dependencies**: 1.4, 1.9
 
-- [ ] Checkpoint: supervise suite green including host-assisted invariant; ruff clean;
+- [x] Checkpoint: supervise suite green including host-assisted invariant; ruff clean;
       verify only the declared module/state/test files changed
 
 ## Phase 2 — wp-rubric-prompt: bounded analyst contract
@@ -136,11 +136,11 @@ GREEN). Capability short name: `sv` = `supervise`.
       **Design decisions**: D2, D8
       **Dependencies**: 2.1
 
-- [ ] Checkpoint: prompt contract test green; review the prompt as a security boundary
+- [x] Checkpoint: prompt contract test green; review the prompt as a security boundary
 
 ## Phase 3 — wp-skill-docs: compose candidate state into CYCLE and INTAKE
 
-- [ ] 3.1 RED: extend `TestWorkflowContract` so CYCLE runs maintenance before unchanged
+- [x] 3.1 RED: extend `TestWorkflowContract` so CYCLE runs maintenance before unchanged
       exit, merges retained backlog with fresh stubs, uses bounded analyst dispatch, renders
       candidate additions without replacing gate deadlines/ready/blocker/sensor lines,
       records keys, and keeps dry-run non-persisting; INTAKE names the exact preview/apply/
@@ -148,23 +148,23 @@ GREEN). Capability short name: `sv` = `supervise`.
       **Spec scenarios**: all CYCLE composition and approval routing scenarios
       **Dependencies**: 1.4, 1.6, 1.8, 1.10, 2.2
 
-- [ ] 3.2 GREEN: rewrite CYCLE steps 1–5 and Output/Idempotency sections around lifecycle
+- [x] 3.2 GREEN: rewrite CYCLE steps 1–5 and Output/Idempotency sections around lifecycle
       preflight, store, bounded rubric dispatch, candidate rank/digest composition, back-edge
       synchronization, and unchanged/any-lifecycle-transition behavior — **S**
       **Design decisions**: D1, D2, D5, D6, D8
       **Dependencies**: 3.1
 
-- [ ] 3.3 GREEN: add INTAKE "approve from digest" with acceptance drafting, request
+- [x] 3.3 GREEN: add INTAKE "approve from digest" with acceptance drafting, request
       generation, preview, operator confirmation, apply with expected SHA, decide, and
       `/plan-roadmap --new <slug> "<pitch>" --draft` fallback — **S**
       **Design decisions**: D4, D5
       **Dependencies**: 3.1
 
-- [ ] 3.4 Run `bash skills/install.sh --check`, resync mirrors if required, then prove
+- [x] 3.4 Run `bash skills/install.sh --check`, resync mirrors if required, then prove
       canonical and `.agents`/`.claude` supervise skills are byte-identical — **XS**
       **Dependencies**: 3.2, 3.3
 
-- [ ] Checkpoint: supervise workflow tests green; mirrors synchronized
+- [x] Checkpoint: supervise workflow tests green; mirrors synchronized
 
 ## Phase 4 — wp-integration
 
