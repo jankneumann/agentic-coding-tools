@@ -5,58 +5,69 @@
 
 ---
 
-## 2026-09-11 — rescope-merge-pull-requests-to-plan-execute
+## 2026-09-11 — 2026-09-10-rescope-merge-pull-requests-to-plan-execute
 
 ### Phase: Plan
 
 **Invert default path to plan-then-execute** — Discovery 1.1: analysis, operator discussion, persist merge-plan.json, execute node-by-node. Interactive loop remains --interactive only.
 
 - Status: `active`
-- Source: [openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md) (D1)
 
 ---
 
-## 2026-09-11 — rescope-merge-pull-requests-to-plan-execute
+## 2026-09-11 — 2026-09-10-rescope-merge-pull-requests-to-plan-execute
 
 ### Phase: Implementation
 
 **Dedicated --proposal-accepted flag** — execute_plan previously never merged OpenSpec nodes. Generic --approve-gate must stay powerless; the dedicated flag records the proposal-acceptance workflow.
 
 - Status: `active`
-- Source: [openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md) (D1)
 
 ---
 
-## 2026-09-11 — rescope-merge-pull-requests-to-plan-execute
+## 2026-09-11 — 2026-09-10-rescope-merge-pull-requests-to-plan-execute
+
+### Phase: Cleanup
+
+**Rebase-merge PR 527** — OpenSpec PRs use rebase to preserve conventional commits. Operator requested merge via /cleanup-feature.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md) (D1)
+
+---
+
+## 2026-09-11 — 2026-09-10-rescope-merge-pull-requests-to-plan-execute
 
 ### Phase: Implementation
 
 **Cheap-path comment hand-off is quick-task** — automation nodes with comments drop cheap path; _delegation_commands uses quick-task rather than empty list.
 
 - Status: `active`
-- Source: [openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md) (D2)
 
 ---
 
-## 2026-09-11 — rescope-merge-pull-requests-to-plan-execute
+## 2026-09-11 — 2026-09-10-rescope-merge-pull-requests-to-plan-execute
 
 ### Phase: Plan
 
 **Kind heuristic plus operator override** — Discovery 3.1: plan iff all files under openspec/changes/<id>/; persisted kind is authoritative.
 
 - Status: `active`
-- Source: [openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md) (D3)
 
 ---
 
-## 2026-09-11 — rescope-merge-pull-requests-to-plan-execute
+## 2026-09-11 — 2026-09-10-rescope-merge-pull-requests-to-plan-execute
 
 ### Phase: Plan
 
 **Cheap path for scoped automation** — Discovery 4.1: dependabot/renovate/jules/sentinel/bolt/palette skip iterate and vendor review when CI is green and comments are zero.
 
 - Status: `active`
-- Source: [openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md) (D4)
 
 ---
 

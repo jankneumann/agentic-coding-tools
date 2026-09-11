@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-10T08:12:22+00:00",
+  "generated_at": "2026-09-11T03:29:59+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -9456,10 +9456,19 @@
     {
       "severity": "warning",
       "category": "test_coverage",
+      "message": "Function '_change_dir' has no corresponding test references",
+      "node_id": "py:kanban_viz_files._change_dir",
+      "file": "kanban_viz_files.py",
+      "line": 58,
+      "suggestion": "Add tests that reference '_change_dir' (e.g., test__change_dir or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
       "message": "Function '_load_schema' has no corresponding test references",
       "node_id": "py:kanban_viz_files._load_schema",
       "file": "kanban_viz_files.py",
-      "line": 69,
+      "line": 90,
       "suggestion": "Add tests that reference '_load_schema' (e.g., test__load_schema or import it in a test file)"
     },
     {
@@ -9468,7 +9477,7 @@
       "message": "Function 'SchemaValidationError' has no corresponding test references",
       "node_id": "py:kanban_viz_files.SchemaValidationError",
       "file": "kanban_viz_files.py",
-      "line": 107,
+      "line": 128,
       "suggestion": "Add tests that reference 'SchemaValidationError' (e.g., test_SchemaValidationError or import it in a test file)"
     },
     {
@@ -9477,7 +9486,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:kanban_viz_files.SchemaValidationError.__init__",
       "file": "kanban_viz_files.py",
-      "line": 115,
+      "line": 136,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -9486,7 +9495,7 @@
       "message": "Function '_validate_against' has no corresponding test references",
       "node_id": "py:kanban_viz_files._validate_against",
       "file": "kanban_viz_files.py",
-      "line": 124,
+      "line": 145,
       "suggestion": "Add tests that reference '_validate_against' (e.g., test__validate_against or import it in a test file)"
     },
     {
@@ -9495,7 +9504,7 @@
       "message": "Function '_validate_slug' has no corresponding test references",
       "node_id": "py:kanban_viz_files._validate_slug",
       "file": "kanban_viz_files.py",
-      "line": 135,
+      "line": 156,
       "suggestion": "Add tests that reference '_validate_slug' (e.g., test__validate_slug or import it in a test file)"
     },
     {
@@ -9504,7 +9513,7 @@
       "message": "Function '_git_sha' has no corresponding test references",
       "node_id": "py:kanban_viz_files._git_sha",
       "file": "kanban_viz_files.py",
-      "line": 142,
+      "line": 163,
       "suggestion": "Add tests that reference '_git_sha' (e.g., test__git_sha or import it in a test file)"
     },
     {
@@ -9513,7 +9522,7 @@
       "message": "Function '_atomic_write' has no corresponding test references",
       "node_id": "py:kanban_viz_files._atomic_write",
       "file": "kanban_viz_files.py",
-      "line": 156,
+      "line": 177,
       "suggestion": "Add tests that reference '_atomic_write' (e.g., test__atomic_write or import it in a test file)"
     },
     {
@@ -9522,7 +9531,7 @@
       "message": "Function 'write_saved_view' has no corresponding test references",
       "node_id": "py:kanban_viz_files.write_saved_view",
       "file": "kanban_viz_files.py",
-      "line": 171,
+      "line": 192,
       "suggestion": "Add tests that reference 'write_saved_view' (e.g., test_write_saved_view or import it in a test file)"
     },
     {
@@ -9531,7 +9540,7 @@
       "message": "Function 'write_audit_event' has no corresponding test references",
       "node_id": "py:kanban_viz_files.write_audit_event",
       "file": "kanban_viz_files.py",
-      "line": 211,
+      "line": 232,
       "suggestion": "Add tests that reference 'write_audit_event' (e.g., test_write_audit_event or import it in a test file)"
     },
     {
@@ -20445,10 +20454,19 @@
     {
       "severity": "warning",
       "category": "orphan",
+      "message": "'_change_dir' is unreachable from any entrypoint or test",
+      "node_id": "py:kanban_viz_files._change_dir",
+      "file": "kanban_viz_files.py",
+      "line": 58,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
       "message": "'_load_schema' is unreachable from any entrypoint or test",
       "node_id": "py:kanban_viz_files._load_schema",
       "file": "kanban_viz_files.py",
-      "line": 69,
+      "line": 90,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20457,7 +20475,7 @@
       "message": "'SchemaValidationError' is unreachable from any entrypoint or test",
       "node_id": "py:kanban_viz_files.SchemaValidationError",
       "file": "kanban_viz_files.py",
-      "line": 107,
+      "line": 128,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20466,7 +20484,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:kanban_viz_files.SchemaValidationError.__init__",
       "file": "kanban_viz_files.py",
-      "line": 115,
+      "line": 136,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -24854,12 +24872,12 @@
     }
   ],
   "summary": {
-    "total_findings": 2761,
+    "total_findings": 2763,
     "errors": 0,
-    "warnings": 2673,
+    "warnings": 2675,
     "info": 88,
     "entrypoints_checked": 96,
     "flows_with_coverage": 0,
-    "flows_without_coverage": 1345
+    "flows_without_coverage": 1346
   }
 }

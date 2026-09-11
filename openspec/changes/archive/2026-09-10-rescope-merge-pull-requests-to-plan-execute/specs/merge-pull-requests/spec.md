@@ -407,6 +407,13 @@ nodes via `/iterate-on-plan` and OpenSpec `implementation` nodes via
 SHALL receive a `quick-task` hand-off. Automated code-writing remains forbidden
 inside `execute_plan.py`.
 
+#### Scenario: Unresolved comments produce a delegation hand-off
+
+- **WHEN** execution finds unresolved review comments on the node being executed
+- **THEN** the skill SHALL record the unresolved-comment summary on the node
+- **AND** SHALL offer to delegate resolution to `/iterate-on-plan`, `/iterate-on-implementation`, or `quick-task` according to the node's `remediation_skill`
+- **AND** SHALL NOT modify the PR branch's code automatically
+
 #### Scenario: Unresolved comments on an implementation node invoke iterate-on-implementation
 
 - **WHEN** execution finds unresolved review comments on an OpenSpec `implementation` node

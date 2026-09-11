@@ -5,14 +5,14 @@
 
 ---
 
-## 2026-09-11 — rescope-merge-pull-requests-to-plan-execute
+## 2026-09-11 — 2026-09-10-rescope-merge-pull-requests-to-plan-execute
 
 ### Phase: Plan
 
 **Sync-point not held across iterate** — Iterate worktrees are active agents. Re-check the guard after iterate returns; never auto-force.
 
 - Status: `active`
-- Source: [openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md) (D6)
+- Source: [openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md) (D6)
 
 ---
 

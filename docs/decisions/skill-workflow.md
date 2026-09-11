@@ -5,14 +5,14 @@
 
 ---
 
-## 2026-09-11 — rescope-merge-pull-requests-to-plan-execute
+## 2026-09-11 — 2026-09-10-rescope-merge-pull-requests-to-plan-execute
 
 ### Phase: Plan
 
 **Conductor invokes iterate skills in worktrees** — Discovery 2.1: land the 2026-08-24 deferred seam. execute_plan never edits PR branches. iterate-on-plan for plan nodes, iterate-on-implementation for implementation nodes, both with --vendor-review.
 
 - Status: `active`
-- Source: [openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md) (D2)
 
 ---
 

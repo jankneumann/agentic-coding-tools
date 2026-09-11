@@ -2,25 +2,25 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-09-10T08:12:22+00:00  
-Git SHA: `1b66afea72aae92e937c58ab985170c1c3e3c1b9`
+Generated: 2026-09-11T03:29:59+00:00  
+Git SHA: `d675881c443e54e69ac22020f2c7024e0e9c8149`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **27 Postgres tables**. The codebase contains 1095 functions (437 async) and 250 classes.
+This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (83 tools, 11 resources, 2 prompts), backed by **27 Postgres tables**. The codebase contains 1096 functions (437 async) and 250 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1912 |
+| Total nodes | 1861 |
 | Total edges | 1205 |
 | Python modules | 77 |
-| Functions | 1095 (437 async) |
+| Functions | 1096 (437 async) |
 | Classes | 250 |
 | Mcp Endpoints | 96 |
 | DB tables | 27 |
-| Python nodes | 1474 |
+| Python nodes | 1423 |
 | Sql nodes | 438 |
 
 ## Module Responsibility Map
@@ -61,7 +61,7 @@ This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (8
 | `help_service` | Foundation | Return a compact overview of all capability groups. | 15 / 0 |
 | `http_proxy` | Service | Validate URL against SSRF allowlist. | 58 / 4 |
 | `issue_service` | Foundation | Render a PostgREST array literal for the ``cs`` (contains) operator. | 22 / 5 |
-| `kanban_viz_files` | Service | Load a schema file by name (e.g. ``saved-view.json``). | 5 / 5 |
+| `kanban_viz_files` | Service | Locate a change's directory whether it is active or archived. | 5 / 5 |
 | `langfuse_middleware` | Service | Extract agent identity from the request API key. | 1 / 4 |
 | `langfuse_tracing` | Service | Initialize the Langfuse client from configuration. | 7 / 2 |
 | `locks` | Foundation | Lazy-init metric instruments. Returns None tuple when disabled. | 19 / 18 |
@@ -278,18 +278,18 @@ This is a **Python MCP server** with 77 modules exposing **96 MCP endpoints** (8
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2761 findings** across 4 categories:
+**2763 findings** across 4 categories:
 
-### Orphan — 1224
+### Orphan — 1225
 
-1224 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+1225 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'PollConfig' is unreachable from any entrypoint or test
 - 'ModeConfig' is unreachable from any entrypoint or test
 - 'CliConfig' is unreachable from any entrypoint or test
-- ... and 1219 more
+- ... and 1220 more
 
 ### Reachability — 96
 
@@ -304,16 +304,16 @@ Breakdown: 88 info, 8 warning.
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
 - ... and 91 more
 
-### Test Coverage — 1345
+### Test Coverage — 1346
 
-1345 functions lack test references — consider adding tests for critical paths.
+1346 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 1340 more
+- ... and 1341 more
 
 ### Disconnected Flow (expected) — 96
 
@@ -374,9 +374,9 @@ Breakdown: 88 info, 8 warning.
 
 | Indicator | Value |
 |-----------|-------|
-| Async ratio | 437/1095 (40%) |
-| Docstring coverage | 784/1095 (72%) |
-| Dead code candidates | 503 |
+| Async ratio | 437/1096 (40%) |
+| Docstring coverage | 785/1096 (72%) |
+| Dead code candidates | 504 |
 
 ### Hot Functions
 
@@ -397,7 +397,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ### Dead Code Candidates
 
-503 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
+504 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
 
 - **agents_config** (10): `mutations`, `get_mcp_env`, `reset_agents_config`, `get_agent_isolation`, `get_phase_mapping`, `reset_archetypes_config`, ... (+4)
 - **approval** (8): `db`, `submit_request`, `check_request`, `decide_request`, `expire_stale_requests`, `list_pending`, ... (+2)
@@ -426,7 +426,7 @@ Functions called by the most other functions — changes here have wide blast ra
 - **handoffs** (4): `db`, `write`, `read`, `get_recent`
 - **help_service** (1): `_register`
 - **issue_service** (10): `db`, `create`, `list_issues`, `show`, `update`, `close`, ... (+4)
-- **kanban_viz_files** (1): `_load_schema`
+- **kanban_viz_files** (2): `_change_dir`, `_load_schema`
 - **langfuse_middleware** (1): `dispatch`
 - **langfuse_tracing** (4): `create_span`, `end_span`, `trace_operation`, `reset_langfuse`
 - **locks** (8): `is_valid_lock_key`, `db`, `acquire`, `release`, `check`, `extend`, ... (+2)
@@ -460,7 +460,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1194 independent groups** identified. The largest interconnected group has 545 modules; 1498 modules are leaf nodes (safe to modify in isolation).
+**1143 independent groups** identified. The largest interconnected group has 545 modules; 1447 modules are leaf nodes (safe to modify in isolation).
 
 **41 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -488,9 +488,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1498)
+### Leaf Modules (1447)
 
-1498 modules have no dependents — changes are fully isolated. 1170 of the 1194 groups are singletons.
+1447 modules have no dependents — changes are fully isolated. 1119 of the 1143 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -500,7 +500,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1474 nodes)"]
+    Backend["Backend (1423 nodes)"]
     Database["Database (438 nodes)"]
 ```
 
@@ -541,7 +541,7 @@ flowchart TB
     help_service["help_service (6 symbols)"]
     http_proxy["http_proxy (69 symbols)"]
     issue_service["issue_service (23 symbols)"]
-    kanban_viz_files["kanban_viz_files (10 symbols)"]
+    kanban_viz_files["kanban_viz_files (11 symbols)"]
     langfuse_middleware["langfuse_middleware (5 symbols)"]
     langfuse_tracing["langfuse_tracing (10 symbols)"]
     locks["locks (19 symbols)"]
@@ -580,7 +580,6 @@ flowchart TB
     sync_points["sync_points (5 symbols)"]
     teams["teams (14 symbols)"]
     telemetry["telemetry (20 symbols)"]
-    tests__test_architecture["tests.test_architecture (52 symbols)"]
     trust_levels["trust_levels (2 symbols)"]
     trust_resolution["trust_resolution (5 symbols)"]
     watchdog["watchdog (18 symbols)"]

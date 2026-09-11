@@ -81,3 +81,33 @@ Planned inverting merge-pull-requests from an interactive per-PR console to a pl
 ### Context
 Implemented Approach 1 in the feature worktree: schema 1.1, classify_kind, build_plan/render_plan, execute_plan delegation and cheap-path, next_node, iterate_preconditions, SKILL.md default conductor. 192 script tests passed. Coordinator package worktrees were not used; DAG packages ran in one worktree.
 
+---
+
+## Phase: Cleanup (2026-09-11)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Rebase-merge PR 527** `architectural: merge-pull-requests` — OpenSpec PRs use rebase to preserve conventional commits. Operator requested merge via /cleanup-feature.
+2. **No open-task migration** — tasks.md had zero unchecked items.
+3. **Staged rollout not applicable** — Skill/spec-only change with no feature flag or production traffic surface.
+
+### Trade-offs
+- Accepted Merge after CI green without GitHub reviewDecision over Wait for a GitHub approval review because Operator explicitly invoked /cleanup-feature to merge PR 527.
+
+### Completed Work
+- merge
+- pre-merge-gate
+- architecture-refresh
+
+### Next Steps
+- openspec archive
+- make decisions
+- push archive commit to main
+
+### Relevant Files
+- `openspec/changes/rescope-merge-pull-requests-to-plan-execute/validation-report.md` — pre-merge gate
+
+### Context
+Merged PR #527 with rebase (OpenSpec default). Pre-merge gate passed (Spec Compliance; container phases not applicable — deployable:false). All tasks were already checked. Archiving the change onto main.
+

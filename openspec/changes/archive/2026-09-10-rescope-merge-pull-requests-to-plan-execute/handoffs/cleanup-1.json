@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-11T03:30:48.919614+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "grok",
+    "session_id": null,
+    "summary": "Merged PR #527 with rebase (OpenSpec default). Pre-merge gate passed (Spec Compliance; container phases not applicable \u2014 deployable:false). All tasks were already checked. Archiving the change onto main.",
+    "completed_work": [
+      "merge",
+      "pre-merge-gate",
+      "architecture-refresh"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Rebase-merge PR 527",
+        "rationale": "OpenSpec PRs use rebase to preserve conventional commits. Operator requested merge via /cleanup-feature.",
+        "capability": "merge-pull-requests",
+        "supersedes": null
+      },
+      {
+        "title": "No open-task migration",
+        "rationale": "tasks.md had zero unchecked items.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Staged rollout not applicable",
+        "rationale": "Skill/spec-only change with no feature flag or production traffic surface.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "openspec archive",
+      "make decisions",
+      "push archive commit to main"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/rescope-merge-pull-requests-to-plan-execute/validation-report.md",
+        "description": "pre-merge gate"
+      }
+    ]
+  }
+}
