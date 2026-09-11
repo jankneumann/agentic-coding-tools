@@ -1,0 +1,151 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: Step 11.5 embeds `/audit-choices \"$CHANGE_ID\" --run-id \"$RUN_ID\"` inside a ```bash``` command substitution (`audit_output=$(/audit-choices ...)`). `/audit-choices` is a skill slash-command, not a filesystem binary: running the fence as shell yields `No such file or directory` (exit 127), so every run takes `SKIP_REASON=\"audit dispatch failed\"` and never produces or commits a ledger. Sibling skills are invoked from bash via `python3 \"<skill-base-dir>/../...\"`; skill dispatch elsewhere in this file is agent prose/`Task(...)`, not `$(/skill-name ...)`. The prose says \"Dispatch the audit-choices skill\" while the fence treats it as a shell CLI, so the intended executor is ambiguous at the point of use.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Split Step 11.5 into (1) an agent-level instruction to dispatch `/audit-choices $CHANGE_ID --run-id ...` (or an equivalent provider-neutral dispatch), then (2) a pure-bash block that only does the F2/F6 existence check, comparison, orphan cleanup, and commit/restore \u2014 with WARNING detection based on files/driver output the shell can actually observe.",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": {
+        "start": 573,
+        "end": 584
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The partial-pair guard only checks that both paths are non-empty (`[ -s \"$JSON_PATH\" ]` / `[ -s \"$MD_PATH\" ]`). `write_ledger_pair` writes `choices.json` then `choices.md` as separate operations; on a re-audit, an interruption after the JSON rewrite leaves new non-empty JSON beside the still-present prior `choices.md`. Both `-s` checks pass, the F2 compare reports `changed`, and the step `git add`s/`git commit`s a mismatched pair (fresh JSON + stale markdown). First-audit half-writes (JSON only) are handled; the re-audit half-write shape that F6\u2019s non-atomic write implies is not.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Treat a re-audit as partial unless `choices.md` is demonstrably rendered from the fresh JSON (e.g. rewrite/compare mtime after JSON, or always restore both paths and skip whenever the pair was not produced in one successful `write_ledger_pair` call). Extend the orphan-cleanup behavioral test with a tracked pair whose JSON is rewritten and whose MD is left stale.",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": {
+        "start": 586,
+        "end": 660
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `load_needs_user_entries` does `entries = doc.get(\"entries\", [])` and then iterates. When the key is present with JSON `null`, `.get` returns `None` (the default is not used), and `for e in entries` raises `TypeError: 'NoneType' object is not iterable`. That violates F3\u2019s \"never raises\" / always-exit-0 contract and would make both gate hooks fail instead of rendering the empty forms. Unreadable JSON is caught; this readable-but-malformed shape is not.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "After loading the doc, coerce with `entries = doc.get(\"entries\") if isinstance(doc.get(\"entries\"), list) else []` (and keep the existing try/except). Add a unit test that writes `{\"entries\": null}` and asserts exit 0 with empty stdout.",
+      "file_path": "skills/audit-choices/scripts/needs_user.py",
+      "line_range": {
+        "start": 50,
+        "end": 54
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Critical: In validate-feature Step 11, `CHOICES_LINES` is assigned only in the `else` branch (ledger present). Step 12\u2019s unquoted heredoc expands `$CHOICES_LINES` unconditionally. Under `set -u` (nounset), a no-ledger run aborts with `CHOICES_LINES: unbound variable` while writing `validation-report.md` \u2014 a new failure mode on the path that should print `\u25cb Choices: no ledger` and continue. Reproduced: `set -u` + unset `CHOICES_LINES` in `<<EOF` exits 127.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Initialize `CHOICES_LINES=\"\"` before the `if`, or use `${CHOICES_LINES-}` / `${CHOICES_LINES:-}` in the heredoc (and prefer a quoted heredoc body for the static parts).",
+      "file_path": "skills/validate-feature/SKILL.md",
+      "line_range": {
+        "start": 1044,
+        "end": 1090
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: Faithfulness to F2 is pinned only by prose assertions (`\"entries\" array`, `header.schema_version`, \"commit nothing\") in `test_states_f2_commit_rule`. No test extracts or executes the comparison Python the way `test_orphan_cleanup_behavior` extracts the orphan-cleanup snippet. A rewrite that compared the whole document (or subtracted only `generated_at`/`run_id`) while leaving those comment strings would keep the suite green but would never skip commits, because `header.git_sha` and `audited_range` move every run \u2014 the exact failure F2 was written to prevent.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Extract the comparison snippet from Step 11.5 and run it against fixture ledgers: no HEAD revision \u2192 `new`; same entries/schema_version with different git_sha/audited_range/generated_at \u2192 `unchanged`; different entries \u2192 `changed`.",
+      "file_path": "skills/tests/audit-choices/test_workflow_hooks.py",
+      "line_range": {
+        "start": 136,
+        "end": 142
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: `test_workflow_hooks.py` never asserts that Step 11.5\u2019s audit invocation is something a shell (or an unambiguous agent step) can actually run successfully. Finding 1\u2019s `$(/audit-choices ...)` form would not fail any current hook test, so skill-workflow.8\u2019s success path (audit runs and may commit) is unpinned while only the skip/orphan branches are covered.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "After fixing the invocation shape, assert the fence does not call a root-path `/audit-choices` binary and that skill dispatch is specified outside command substitution (or that a real `python3 \"<skill-base-dir>/../audit-choices/scripts/run_audit.py\"` path is used if that becomes the design).",
+      "file_path": "skills/tests/audit-choices/test_workflow_hooks.py",
+      "line_range": {
+        "start": 103,
+        "end": 165
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: F2\u2019s comparison Python correctly builds `(entries, header.schema_version)` and treats a missing `git show HEAD:\u2026` revision as `new` (always commit). That matches design F2 and would skip only when entries and schema_version are unchanged despite volatile header/range fields.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Keep this comparison shape; add an executable pin as in finding 5 so it cannot regress silently.",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": {
+        "start": 619,
+        "end": 650
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: The F6 orphan-cleanup loop decides per path via `git ls-files --error-unmatch` whether to `git checkout --` or `rm -f`, and `test_orphan_cleanup_behavior` executes that snippet against both untracked and tracked partial-pair fixtures \u2014 correctly guarding the earlier bug where an unconditional `rm -f` deleted a pair the checkout had just restored.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Keep the if/else per-path cleanup; extend coverage for the stale-MD re-audit shape (finding 2).",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": {
+        "start": 598,
+        "end": 616
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Both gate hooks invoke the reader via `python3 \"<skill-base-dir>/../audit-choices/scripts/needs_user.py\"`, and `_assert_reader_invoked_skill_relative` fails on a bare command or repo-root `skills/...` path \u2014 so runtime mirrors under `.claude/skills/` and `.agents/skills/` stay resolvable.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No change.",
+      "file_path": "skills/validate-feature/SKILL.md",
+      "line_range": {
+        "start": 1049,
+        "end": 1050
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

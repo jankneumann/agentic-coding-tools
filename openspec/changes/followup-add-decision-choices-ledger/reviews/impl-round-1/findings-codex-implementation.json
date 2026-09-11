@@ -1,0 +1,67 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": {
+        "start": 577,
+        "end": 577
+      },
+      "description": "Critical: Step 11.5 puts `/audit-choices` inside a `bash` command substitution, but `/audit-choices` is an agent slash command, not a shell executable. When the audit-choices skill is installed, the availability check passes and the shell then tries to execute an absolute path named `/audit-choices`, so the audit is skipped every time instead of producing and committing the ledger.",
+      "resolution": "Make the executor boundary explicit: invoke the audit-choices skill as an agent instruction outside the literal shell block, or replace this line with a real shell command that runs the underlying skill driver through a skill-relative script path."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": {
+        "start": 590,
+        "end": 660
+      },
+      "description": "Critical: The partial-pair guard only checks that both files are non-empty. On a re-audit with an existing committed ledger, if `choices.json` is rewritten with changed entries and the process stops before `choices.md` is re-rendered, both paths are still non-empty because the old markdown remains. The `changed` branch then stages both pathspecs and commits fresh JSON with stale markdown, violating the requirement that the workflow not commit a partial ledger pair.",
+      "resolution": "Detect whether the two files were produced by the same audit before staging. For example, snapshot both paths before the audit and treat `choices.json` changed while `choices.md` did not change as a partial pair to restore/remove, or re-render/validate the markdown from the fresh JSON before committing."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "resilience",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": {
+        "start": 608,
+        "end": 666
+      },
+      "description": "Critical: The Step 11.5 prose promises every branch is warn-and-continue, but several git commands are not guarded. `git checkout --` in the partial cleanup, `git add`, `git commit`, and the unchanged-path `git checkout --` can fail; without `set -e` the function can fall through with no `SKIP_REASON` and no warning, and with `set -e` the workflow can abort, both contradicting F6 and the non-blocking scenario.",
+      "resolution": "Wrap each mutating git command or command group in explicit failure handling that sets `SKIP_REASON` and returns from `audit_choices_step`; call the function under `if ! audit_choices_step; then ...` or ensure the function itself never returns a failing status."
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "resilience",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/audit-choices/scripts/needs_user.py",
+      "line_range": {
+        "start": 50,
+        "end": 54
+      },
+      "description": "Critical: `needs_user.py` is not actually never-raise. It catches JSON decoding and I/O errors, but a parseable malformed ledger can still raise from `choices_ledger.rank_entries`; for example a `needs-user` entry with a list-valued `confidence` raises `TypeError: unhashable type: 'list'`, which would make validation or cleanup fail on a corrupted ledger.",
+      "resolution": "Treat schema-invalid or malformed entry data as an unreadable ledger for this reader: wrap entry extraction/ranking/formatting in a broad defensive exception path, print one stderr warning, return `[]`, and add tests for parseable-but-invalid ledgers."
+    }
+  ]
+}
