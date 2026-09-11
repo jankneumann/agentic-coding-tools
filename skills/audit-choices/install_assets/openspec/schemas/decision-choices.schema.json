@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/decision-choices.schema.json",
+  "title": "Decision Choices Ledger",
+  "description": "Per-change ledger of implementation-time decisions made where the spec was silent, produced by an independent read-only auditor pass. choices.json is the source of truth; choices.md is rendered from it ranked least-confident first.",
+  "type": "object",
+  "required": ["header", "change_id", "audited_range", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "header": {
+      "type": "object",
+      "description": "Codeviz artifact header (event artifact form). Field set matches skills/prioritize-proposals/scripts/artifact_header.py; migrate to skills/shared/artifact_header.py when it ships.",
+      "required": ["schema_version", "generated_at", "git_sha", "generator", "run_id", "event_kind"],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "git_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "generator": { "type": "string", "pattern": "^audit-choices@" },
+        "run_id": { "type": "string", "minLength": 1 },
+        "event_kind": { "type": "string", "const": "choices-ledger" }
+      }
+    },
+    "change_id": {
+      "type": "string",
+      "description": "OpenSpec change id this ledger audits, or 'range:<base>..<head>' for standalone commit-range audits.",
+      "minLength": 1
+    },
+    "audited_range": {
+      "type": "object",
+      "required": ["base_sha", "head_sha"],
+      "additionalProperties": false,
+      "properties": {
+        "base_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "head_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "auditor": {
+      "type": "object",
+      "description": "Provenance of the independent auditor dispatch.",
+      "additionalProperties": false,
+      "properties": {
+        "vendor": { "type": "string" },
+        "archetype": { "type": "string" },
+        "dispatch_mode": { "type": "string", "enum": ["subagent", "provider-neutral", "inline-fallback"] }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "required": ["stable_id", "choice", "scenario", "gap", "reach", "verdict", "verdict_rationale", "confidence", "provenance", "self_reported"],
+      "additionalProperties": false,
+      "properties": {
+        "stable_id": {
+          "type": "string",
+          "description": "Content-derived hash of (normalized choice headline + primary file set + gap text). Idempotent across re-audits of an unchanged decision.",
+          "pattern": "^[0-9a-f]{16,64}$"
+        },
+        "choice": {
+          "type": "string",
+          "description": "Headline of the decision the implementation embodies.",
+          "minLength": 1
+        },
+        "scenario": {
+          "type": "string",
+          "description": "Concrete scenario walked end to end in plain language: triggering event, behavior as built, and the alternative behavior. Must stand alone without the diff or transcript.",
+          "minLength": 1
+        },
+        "gap": {
+          "type": "string",
+          "description": "What the spec, design, or tasks left unspecified that forced this choice.",
+          "minLength": 1
+        },
+        "reach": {
+          "type": "string",
+          "description": "What this choice constrains or enables for future work.",
+          "minLength": 1
+        },
+        "verdict": {
+          "type": "string",
+          "enum": ["sound", "unsound", "needs-user"]
+        },
+        "verdict_rationale": { "type": "string", "minLength": 1 },
+        "confidence": {
+          "type": "string",
+          "description": "Auditor's confidence in its own verdict. Rendering orders ascending: low, medium, high.",
+          "enum": ["low", "medium", "high"]
+        },
+        "provenance": {
+          "type": "object",
+          "required": ["commits", "files"],
+          "additionalProperties": false,
+          "properties": {
+            "commits": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+              "minItems": 1
+            },
+            "files": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "minItems": 1
+            }
+          }
+        },
+        "self_reported": {
+          "type": "boolean",
+          "description": "True when a matching implementer-reported decision exists in session-log/handoffs; false when the auditor found a decision the implementer never reported."
+        },
+        "session_log_ref": {
+          "type": "string",
+          "description": "Cross-reference to the matching self-reported decision: '<change-id>#D<n>' or phase-qualified '<change-id>#<phase-slug>/D<n>'. Present iff self_reported is true.",
+          "pattern": "^[a-z0-9][a-z0-9-]*#([a-z0-9][a-z0-9-]*/)?D[0-9]+$"
+        }
+      }
+    }
+  }
+}

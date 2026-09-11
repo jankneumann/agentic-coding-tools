@@ -187,6 +187,9 @@
     "archive-roadmap": {
       "distribution": "portable"
     },
+    "audit-choices": {
+      "distribution": "portable"
+    },
     "autopilot": {
       "distribution": "portable"
     },
