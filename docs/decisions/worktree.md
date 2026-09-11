@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-11 — rescope-merge-pull-requests-to-plan-execute
+
+### Phase: Plan
+
+**Sync-point not held across iterate** — Iterate worktrees are active agents. Re-check the guard after iterate returns; never auto-force.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md) (D6)
+
+---
+
 ## 2026-05-19 — 2026-05-20-enforce-local-worktree-invariant
 
 ### Phase: Implement
