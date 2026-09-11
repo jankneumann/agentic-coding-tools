@@ -1,0 +1,22 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": {
+        "start": 578,
+        "end": 582
+      },
+      "description": "Critical: The unavailable-audit branch collapses two distinct F6 cases into `SKIP_REASON=\"audit-choices not installed\"`: the skill missing and the harness exposing no sub-agent dispatch tool. For the no-dispatch-tool case, the required single warning does not name the actual reason, so the scenario's `log a single warning naming the reason` requirement is not satisfied.",
+      "resolution": "Split the availability check into separate outcomes, e.g. `audit-choices not installed` when the skill directory/runtime mirror is absent and `no sub-agent dispatch tool` when dispatch is unavailable. Add a workflow-hook content assertion that pins both reasons."
+    }
+  ]
+}
