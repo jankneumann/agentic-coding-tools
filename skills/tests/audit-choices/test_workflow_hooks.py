@@ -263,6 +263,78 @@ class TestIterateOnImplementationStep11_5:
         section = _section(ITERATE_SKILL, "12. Present Summary")
         assert "Choices audit:" in section
 
+    def test_stale_half_detected_via_generated_at_mismatch(self, tmp_path):
+        """Finding 2 (impl-round-1): the partial-pair guard only tested
+        non-emptiness (`[ -s "$JSON_PATH" ]` / `[ -s "$MD_PATH" ]`).
+        `write_ledger_pair` writes choices.json then renders choices.md as a
+        second, separate operation, so an interruption between them leaves a
+        *fresh* choices.json sitting beside the *previous* run's
+        choices.md — both non-empty, both checks pass, and a byte-blind
+        comparison would call it "changed" and commit a mismatched pair.
+        This runs the actual Step 11.5 snippet (the non-emptiness check,
+        the new generated_at consistency check, and the partial-pair
+        cleanup) against a real git repo with exactly that shape, and
+        proves it discards the stale half instead of committing it."""
+        section = _section(ITERATE_SKILL, "11.5")
+        fence = _fences(section)
+        match = re.search(
+            r"  local json_ok=false md_ok=false\n(.*?)\n  fi\n\n  # F2:",
+            fence,
+            re.DOTALL,
+        )
+        assert match, "could not locate the partial-pair detection block in Step 11.5"
+        snippet = "local json_ok=false md_ok=false\n" + match.group(1) + "\n  fi"
+        assert "generated_at" in snippet, "extraction missed the staleness check"
+
+        script = (
+            "run_check_under_test() {\n"
+            'JSON_PATH="choices.json"\n'
+            'MD_PATH="choices.md"\n'
+            'SKIP_REASON=""\n'
+            + snippet
+            + "\n}\nrun_check_under_test\n"
+            'echo "SKIP_REASON:$SKIP_REASON"\n'
+        )
+
+        def git(repo: Path, *args: str) -> subprocess.CompletedProcess:
+            return subprocess.run(
+                ["git", "-C", str(repo), *args], capture_output=True, text=True, check=True
+            )
+
+        repo = tmp_path / "stale"
+        repo.mkdir()
+        git(repo, "init", "-q")
+        git(repo, "config", "user.email", "a@b.c")
+        git(repo, "config", "user.name", "Test")
+
+        committed_json = '{"header": {"generated_at": "2026-09-01T00:00:00Z"}, "entries": []}\n'
+        committed_md = "# Choices Ledger\n\n**Generated**: 2026-09-01T00:00:00Z\n"
+        (repo / "choices.json").write_text(committed_json)
+        (repo / "choices.md").write_text(committed_md)
+        git(repo, "add", ".")
+        git(repo, "commit", "-q", "-m", "chore(choices): prior audit")
+
+        # Simulate an interruption: choices.json rewritten by a fresh run,
+        # choices.md left as the stale previous render. Both are non-empty.
+        (repo / "choices.json").write_text(
+            '{"header": {"generated_at": "2026-09-11T00:00:00Z"}, "entries": []}\n'
+        )
+
+        result = subprocess.run(["bash", "-c", script], cwd=repo, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+
+        assert "SKIP_REASON:partial ledger pair discarded" in result.stdout, (
+            f"expected the stale half to be discarded, got stdout={result.stdout!r} "
+            f"stderr={result.stderr!r}"
+        )
+        # Both paths were tracked, so the cleanup must restore (not delete)
+        # them, and the working tree must end up clean — the fresh,
+        # mismatched choices.json must NOT survive.
+        assert (repo / "choices.json").read_text() == committed_json
+        assert (repo / "choices.md").read_text() == committed_md
+        status = git(repo, "status", "--porcelain").stdout
+        assert status == "", f"working tree must be clean after restore, got: {status!r}"
+
 
 # ─────────────────────────────────────────────────────────────────────────
 # validate-feature Steps 11/12 + After Validation
