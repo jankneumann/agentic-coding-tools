@@ -612,6 +612,15 @@ class TestValidateFeatureChoicesRow:
         section = _section(VALIDATE_SKILL, "12. Persist Report")
         assert "$CHOICES_ROW" in section
 
+    def test_choices_lines_in_step_12_report_file_heredoc(self):
+        """Finding 8 (impl-round-1): the sibling test above only asserted
+        `$CHOICES_ROW`, so a regression dropping `$CHOICES_LINES` from the
+        heredoc — losing the needs-user entry lines from the persisted
+        validation-report.md while the summary row itself still looked
+        fine — would have passed."""
+        section = _section(VALIDATE_SKILL, "12. Persist Report")
+        assert "$CHOICES_LINES" in section
+
     def test_no_ledger_and_zero_needs_user_forms_are_present_and_distinct(self):
         text = _text(VALIDATE_SKILL)
         assert "○ Choices: no ledger" in text
