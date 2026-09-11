@@ -36,7 +36,7 @@ refer to this change's `design.md`.
 
 ## Phase 3 — Workflow hooks and documentation
 
-- [ ] 3.0 Add the read-only `needs_user.py` reader to audit-choices
+- [x] 3.0 Add the read-only `needs_user.py` reader to audit-choices
   **Spec scenarios**: skill-workflow.9, skill-workflow.10, skill-workflow.11
   **Design decisions**: F3
   **Dependencies**: none (parent 2.8 archived)
