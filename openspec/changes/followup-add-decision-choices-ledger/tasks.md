@@ -80,8 +80,10 @@ refer to this change's `design.md`.
   **Dependencies**: 3.0
   **Files**: `skills/cleanup-feature/SKILL.md`
   **Size**: S
-  Insert `### 5.5. Surface open needs-user choices` after Step 5c and before
-  Step 6: run `needs_user.py --change-id "$CHANGE_ID"`, print the lines (or
+  Insert `### 5.5. Surface open needs-user choices` immediately before the
+  `### 6. Archive OpenSpec Proposal` heading (cleanup-feature has two `5c`
+  headings and a `5d` between the open-task migration and archive; anchor on
+  Step 6, not on 5c): run `needs_user.py --change-id "$CHANGE_ID"`, print the lines (or
   "no open choices"), and proceed to archive on the existing confirmation —
   no prompt, no migration, no new gate. Note in the step that the ledger
   archives with the change directory unchanged.

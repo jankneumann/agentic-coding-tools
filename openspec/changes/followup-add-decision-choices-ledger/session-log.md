@@ -49,3 +49,24 @@
 ### Context
 Addressed 16 findings (6 high, 7 medium, 3 low) against the verbatim Phase 3 carry-forward. Added design.md (F1-F7), three spec scenarios (cleanup gate, absent ledger, standalone range), a shared read-only reader task (3.0) and a hook content-test task (3.7), a scenario key table, Files scope on every task, and split 3.6 into a deterministic pytest end-to-end. openspec validate --strict passes; no findings at or above medium remain.
 
+---
+
+## Phase: Plan Iteration 2 (2026-09-11)
+
+**Agent**: architect | **Session**: N/A
+
+### Decisions
+1. **Anchor cleanup-feature Step 5.5 on the Step 6 heading, not on 5c** — Duplicate 5c headings and an intervening 5d staged-rollout block make 'after 5c' resolve two ways; 'immediately before ### 6. Archive' resolves one way.
+
+### Alternatives Considered
+- Renumber cleanup-feature's duplicate 5c/5b headings in this change: rejected because out of scope; a numbering cleanup deserves its own small change so the hook diff stays reviewable
+
+### Trade-offs
+- Accepted 12-char stable_id prefix in the reader's text mode over full ids on every line because unambiguous within one ledger; full ids available via --format json
+
+### Completed Work
+- [medium] clarity: Step 5.5 placement anchored on the Step 6 heading (tasks 3.3, design F1)
+
+### Context
+Re-analysis of the iteration-1 output found one medium finding: task 3.3's Step 5.5 placement was ambiguous because cleanup-feature has two 5c headings and a 5d block before Step 6. Anchored the hook immediately before the Step 6 Archive heading in tasks.md and design F1. Remaining findings are low; loop terminates at threshold with openspec validate --strict green.
+

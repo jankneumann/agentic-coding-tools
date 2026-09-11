@@ -58,9 +58,11 @@ schema, ledger format, driver, or the skill's read-only posture.
     a `Choices:` row in the existing Phase Results block, echoed once more
     under After Validation when any `needs-user` entry is open.
   - `cleanup-feature`: new **Step 5.5 "Surface open `needs-user` choices"**
-    after Step 5 (Migrate Open Tasks) and before Step 6 (Archive). This is the
-    same place open tasks are surfaced and the last moment before archive
-    freezes the ledger. Not Step 2 (PR approval — too early, the ledger may
+    anchored immediately before the `### 6. Archive OpenSpec Proposal`
+    heading. (The skill's Step 5 region has two `5c` headings and a `5d`
+    staged-rollout block; anchoring on Step 6 is the only unambiguous
+    position.) This is the same region where open tasks are surfaced and the
+    last moment before archive freezes the ledger. Not Step 2 (PR approval — too early, the ledger may
     not exist yet) and not 2.5a (a hard gate; adding anything there reads as
     a new gate).
   - *Alternative rejected*: hooking validate-feature at Step 7.0 (the drift
