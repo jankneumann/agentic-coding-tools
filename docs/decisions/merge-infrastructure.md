@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-11 — rescope-merge-pull-requests-to-plan-execute
+
+### Phase: Plan
+
+**Compact agent context from merge-plan.json** — Per-node /compact; do not overload autopilot loop-state.json. Main-context convergence stays once per pass.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md) (D5)
+
+---
+
 ## 2026-08-20 — 2026-08-24-add-merge-plan-orchestration
 
 ### Phase: Implementation
