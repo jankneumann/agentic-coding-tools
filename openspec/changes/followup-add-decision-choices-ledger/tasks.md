@@ -151,7 +151,7 @@ refer to this change's `design.md`.
 
 - [ ] Checkpoint: run `cd skills && uv run pytest tests/audit-choices -q`, `bash skills/install.sh --check`, review diff, verify scope
 
-- [ ] 3.4 Update docs/guides/workflow.md with the audit-choices skill
+- [x] 3.4 Update docs/guides/workflow.md with the audit-choices skill
   **Dependencies**: none (parent 2.8 archived)
   **Files**: `docs/guides/workflow.md`
   **Size**: XS
