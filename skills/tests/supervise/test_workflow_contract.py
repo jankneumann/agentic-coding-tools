@@ -20,10 +20,108 @@ def _execute_section() -> str:
     )
 
 
+def _cycle_section() -> str:
+    return _section(
+        _SOURCE_SKILL.read_text(encoding="utf-8"),
+        "## Verb: `cycle`",
+        "## Verb: `execute`",
+    )
+
+
+def _intake_section() -> str:
+    return _section(
+        _SOURCE_SKILL.read_text(encoding="utf-8"),
+        "## Verb: `intake`",
+        "## Verb: `cycle`",
+    )
+
+
 def test_contract_inspects_the_canonical_source_contribution() -> None:
     assert _SOURCE_SKILL == Path(__file__).resolve().parents[2] / "supervise" / "SKILL.md"
     assert ".agents" not in _SOURCE_SKILL.parts
     assert ".claude" not in _SOURCE_SKILL.parts
+
+
+def test_installed_supervise_skill_mirrors_are_byte_identical_when_present() -> None:
+    canonical = _SOURCE_SKILL.read_bytes()
+    root = _SOURCE_SKILL.parents[2]
+    for relative in (
+        ".claude/skills/supervise/SKILL.md",
+        ".agents/skills/supervise/SKILL.md",
+    ):
+        mirror = root / relative
+        if mirror.is_file():
+            assert mirror.read_bytes() == canonical
+
+
+def test_cycle_runs_lifecycle_maintenance_before_unchanged_exit_and_sense() -> None:
+    cycle = _cycle_section()
+
+    maintenance = cycle.index("store --prune-only")
+    unchanged = cycle.index("fingerprint")
+    sense = cycle.index("### 2. Sense")
+    assert maintenance < unchanged < sense
+    assert "lifecycle_changed" in cycle
+    assert "terminal" in cycle
+    assert "due deferral" in cycle
+    assert "cache-only" in cycle
+    assert "maintained baseline" in cycle
+
+
+def test_cycle_stores_retained_plus_fresh_and_dispatches_one_bounded_analyst() -> None:
+    cycle = _cycle_section()
+    pipeline = cycle[cycle.index("### 3. Dedupe"):]
+
+    ordered = ["dedupe", "digest.py store", "prepare-batch --as-of", "rank --manifest"]
+    positions = [pipeline.index(token) for token in ordered]
+    assert positions == sorted(positions)
+    assert "retained pending/deferred" in cycle
+    assert "at most 20" in cycle
+    assert "64 KiB" in cycle
+    assert "analyst archetype" in cycle
+    assert "120 seconds" in cycle
+    assert "one retry" in cycle
+    assert "omit the explicit model" in cycle
+    assert "prior valid digest" in cycle
+
+
+def test_cycle_composes_candidate_sections_without_erasing_operational_lines() -> None:
+    cycle = _cycle_section()
+
+    for operational in ("pending_gates", "deadline", "Ready now", "Blocked", "Degraded"):
+        assert operational in cycle
+    for candidate in ("needs_decision", "new_this_cycle", "ranked", "digest.json"):
+        assert candidate in cycle
+    assert "must not replace" in cycle
+    assert "back_edge.digested_stubs" in cycle
+    assert "record --keys" in cycle
+
+
+def test_cycle_dry_run_passes_no_write_mode_through_candidate_pipeline() -> None:
+    cycle = _cycle_section()
+
+    assert "store --prune-only --dry-run" in cycle
+    assert "rank --dry-run" in cycle
+    assert "no candidate, cache, digest, journal, mirror, ledger, or handoff write" in cycle
+
+
+def test_intake_approval_uses_exact_preview_apply_decide_sequence() -> None:
+    intake = _intake_section()
+    approval = _section(intake, "### Approve from digest", "###")
+
+    ordered = [
+        "stub-to-request",
+        "refiner.py preview",
+        "operator confirmation",
+        "refiner.py apply --expect-base-sha256",
+        "digest.py decide",
+    ]
+    positions = [approval.index(token) for token in ordered]
+    assert positions == sorted(positions)
+    assert '/plan-roadmap --new <slug> "<pitch>" --draft' in approval
+    assert "route: plan-roadmap" in approval
+    assert "roadmap_ref: null" in approval
+    assert "does not dispatch an implementer" in approval
 
 
 def test_execute_requires_one_durable_roadmap_altitude_approval_before_mutation() -> None:
