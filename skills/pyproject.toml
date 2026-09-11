@@ -138,6 +138,10 @@ testpaths = [
     # guard that never runs. It imports nothing from any skill, so it is safe in
     # the shared session.
     "tests/openspec_paths",
+    # audit-choices. Its three script modules (choices_ledger, collect_evidence,
+    # run_audit) are flat-name-unique across every skill, so the shared session
+    # resolves them unambiguously and this directory is safe to list here.
+    "tests/audit-choices",
     # NOTE: validate-feature/scripts/tests, autopilot/scripts/tests,
     # security-review/tests, parallel-infrastructure/tests and most dirs under
     # skills/tests/ are deliberately absent. Skills import siblings by flat
