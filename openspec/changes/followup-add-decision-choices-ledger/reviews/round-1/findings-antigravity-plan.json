@@ -1,0 +1,67 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/specs/skill-workflow/spec.md",
+      "description": "Requirement: 'Choices audit workflow integration' explicitly mandates that both validation and cleanup gates shall surface open needs-user entries from the ledger. However, spec.md only provides scenario 'needs-user entries surface at the validation gate' and completely omits a scenario for the cleanup gate (which Task 3.3 implements).",
+      "resolution": "Add a new scenario 'needs-user entries surface at the cleanup gate' to spec.md under the 'Choices audit workflow integration' requirement and map Task 3.3 to it."
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "description": "Scenario ordinal collision and range mismatch. The archived parent spec (openspec/changes/archive/2026-09-10-add-decision-choices-ledger/specs/skill-workflow/spec.md) contains 7 scenarios (skill-workflow.1 through skill-workflow.7). In tasks.md, Task 3.1 is assigned skill-workflow.7 (colliding with parent scenario 7 'Rendering enforces the ranking invariant') and Task 3.2 is assigned skill-workflow.8. Furthermore, Task 3.6 claims to cover 'skill-workflow.1 through skill-workflow.8', omitting the 9th scenario.",
+      "resolution": "Update scenario references in tasks.md: assign Task 3.1 to skill-workflow.8, Task 3.2 to skill-workflow.9, Task 3.3 to skill-workflow.10 (after adding the cleanup gate scenario to spec.md), and update Task 3.6 to specify 'skill-workflow.1 through skill-workflow.10'."
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "architecture",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "description": "Dangling design decision references and missing design artifact context. tasks.md references design decisions D5 and D6 for Tasks 3.1, 3.2, 3.3, and 3.5, but followup-add-decision-choices-ledger contains no design.md file nor an explicit reference establishing that D1..D9 are inherited from the archived parent change.",
+      "resolution": "Add a design.md file in openspec/changes/followup-add-decision-choices-ledger/ explicitly referencing parent design decisions D1..D9 from archive/2026-09-10-add-decision-choices-ledger/design.md and documenting how D5/D6 govern Phase 3 workflow hooks."
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "optional",
+      "axis": "observability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "description": "Incomplete testability and verification specification in Task 3.6. Task 3.6 ('Run an end-to-end audit against an archived-change fixture') claims to cover all spec scenarios including non-blocking workflow invocation (Task 3.1) and gate surfacing (Tasks 3.2 and 3.3). However, tasks.md specifies no automated test suite additions (e.g. in skills/tests/audit-choices/ or skills/validate-feature/scripts/tests/) to verify prompt/SKILL.md workflow hook execution automatically.",
+      "resolution": "Add explicit unit/integration test verification tasks (or sub-steps in Task 3.6) that mock or exercise gate_logic.py and skill workflow hook rendering against choices.json fixtures containing needs-user entries."
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "nit",
+      "axis": "architecture",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/proposal.md",
+      "description": "Ambiguity regarding python driver changes vs SKILL.md prompt wiring for surfacing needs-user entries. Proposal asserts 'No change to the schema, the ledger format, the audit driver, or the skill's read-only posture. This change is wiring and documentation only.' However, gate_logic.py currently has no logic for reading choices.json or surfacing needs-user entries. If gate_logic.py needs modification to surface needs-user entries programmatically at validation and cleanup gates, proposal.md should explicitly clarify that gate_logic.py will be updated.",
+      "resolution": "Clarify in proposal.md and design.md that gate_logic.py is included in the scope of workflow gate integration changes for surfacing needs-user ledger entries."
+    }
+  ]
+}
