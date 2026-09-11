@@ -235,3 +235,37 @@ The proposal's substantive review blockers are resolved, but autopilot policy st
 
 ### Context
 Revision 5 passes strict OpenSpec, package scope/overlap, and dependency-DAG validation. Implementation begins contract-first in the existing managed feature worktree.
+
+---
+
+## Phase: Implementation (2026-09-11)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Emit complete refinement requests** `architectural: supervise` — Real preview/apply testing proved the refiner requires top-level rationale, actor, and source in addition to operations; stub-to-request now emits that envelope and remains a pure no-roadmap-write boundary.
+2. **Use the repository CI-isolated pytest topology** — A monolithic skills/tests process is architecturally unsupported because standalone skills share flat module names; the authoritative default testpaths plus one-process-per-suite topology passed.
+3. **Retain degraded package-review quorum** — Grok and Claude timed out on two small packages and Pi twice returned schema-invalid findings. Valid findings were reproduced and fixed with tests; manifests preserve the incomplete external coverage without treating malformed output as evidence.
+
+### Capability Gaps Observed
+- **adapter_failure**: Implementation review adapters can exceed their declared timeout or return nonconforming finding objects, preventing two-vendor quorum despite successful deterministic verification. (skill: parallel-review-implementation, severity: medium)
+
+### Completed Work
+- Five work packages completed with TDD and scope checks
+- Stable digest/rubric/record schemas installed
+- Candidate digest runtime and crash journal implemented
+- CYCLE and INTAKE workflows composed
+- Real refiner preview/apply/stale-SHA integration verified
+- Spec/evidence validation report passed
+
+### Next Steps
+- Run full /validate-feature add-supervisor-candidate-work-digest
+- Review and merge the implementation pull request
+
+### Relevant Files
+- `skills/supervise/scripts/digest.py` — Candidate store, ranking, lifecycle, recovery, and routing runtime
+- `skills/supervise/SKILL.md` — CYCLE and INTAKE host orchestration
+- `openspec/changes/add-supervisor-candidate-work-digest/validation-report.md` — Implementation spec/evidence gate
+
+### Context
+Implemented the approved candidate-work digest across stable schemas, crash-recoverable runtime state, bounded analyst prompting, supervisor workflow composition, and approval routing. All deterministic implementation, package, traceability, and spec/evidence gates pass; two documentation-sized review packages retain explicit degraded-quorum evidence after external adapter failures.
