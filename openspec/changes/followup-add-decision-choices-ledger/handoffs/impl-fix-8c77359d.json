@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-11T00:00:00Z",
+  "payload": {
+    "agent_name": "impl-fix-8c77359d (IMPL_FIX, non-isolated)",
+    "session_id": null,
+    "summary": "Fixed all 8 findings from openspec/changes/followup-add-decision-choices-ledger/reviews/impl-round-1/ against skills/iterate-on-implementation/SKILL.md Step 11.5, skills/validate-feature/SKILL.md Step 11/12, and skills/audit-choices/scripts/needs_user.py, each with an executable test that fails before the fix and passes after (verified for every finding by temporarily reverting the production edit and rerunning, or by direct logical/manual reproduction where reverting was impractical). All findings were confirmed real on inspection; none were rejected. Committed one commit per finding (finding 2's fix landed in finding 1's commit since both touched the same Step 11.5 rewrite in one pass; its test is a separate commit). All four required gates pass. Branch pushed to origin/openspec/followup-add-decision-choices-ledger--fix1.",
+    "completed_work": [
+      "Finding 1 (CRITICAL): split the /audit-choices dispatch out of the bash fence into a numbered agent-facing instruction (with explicit SKIP_REASON values for unavailable/dispatch-failed/WARNING), leaving only bookkeeping (presence checks, comparison, staging, commit, restore) in the fenced bash. Added test_dispatch_is_not_a_bash_command (also satisfies finding 8's 'no slash command in a bash fence' requirement). Verified: old `if ! audit_output=$(/audit-choices ...)` string is a substring of a fence; new dispatch line lives only in prose.",
+      "Finding 2 (CRITICAL): added a generated_at consistency check (JSON header.generated_at vs Markdown's rendered **Generated**: line) after the non-emptiness checks, routing a mismatch through the same discard-and-skip path as a missing half. Added test_stale_half_detected_via_generated_at_mismatch, which extracts the real snippet and runs it against a git repo shaped like an interrupted re-audit (fresh JSON, stale MD, both tracked and committed) and asserts the stale pair is discarded, not committed.",
+      "Finding 3 (HIGH): wrapped needs_user.py's parse+filter+rank in one broad except so a readable-but-malformed ledger (null entries, list-valued confidence) warns once and returns [] instead of raising TypeError. Added 4 new tests in test_needs_user.py; verified all 4 fail with the documented TypeErrors against the pre-fix code and pass after.",
+      "Finding 4 (HIGH): guarded every git command in the compare-result case block (git add, git commit, the unchanged-path git checkout --) with `|| { SKIP_REASON=...; return; }`, matching the orphan-cleanup block's existing guard style. Added a content-pin test plus two executable proofs (a real git-commit failure via 'nothing to commit', a real git-checkout failure via an unknown path) showing SKIP_REASON is set instead of the branch silently succeeding (reproduced the pre-fix silent-empty-SKIP_REASON bug manually).",
+      "Finding 5 (MEDIUM): initialized CHOICES_LINES=\"\" before the ledger-presence if/else in validate-feature/SKILL.md Step 11. Added an executable test that runs the real snippet under `set -u` in the no-ledger case; verified it dies with 'CHOICES_LINES: unbound variable' (exit 127) against the pre-fix content and survives after.",
+      "Finding 6 (MEDIUM): the dispatch-failed/unavailable/WARNING early-return branch (now `if [ -n \"$SKIP_REASON\" ]; then return; fi`, introduced by the finding-1 restructuring) now runs the same tracked/untracked orphan discard the partial-pair case uses before returning, preserving the original SKIP_REASON unless the discard itself fails. Added an executable test reproducing a truncated choices.json left behind by a failed dispatch, against a repo with a previously committed pair; verified it fails against the bare-return shape and passes after.",
+      "Finding 7 (MEDIUM): added test_f2_comparison_behavior_unchanged_changed_new, which extracts the real F2 comparison Python from the fence and runs it against three real git fixtures (unchanged entries + moved git_sha -> 'unchanged'; changed entries -> 'changed'; no committed revision -> 'new'). Confirmed by manual reasoning that a whole-document-equality rewrite would fail the first case (git_sha differs -> false positive 'changed').",
+      "Finding 8 (LOW): the no-slash-command-in-fence assertion is covered by finding 1's test_dispatch_is_not_a_bash_command. Added test_choices_lines_in_step_12_report_file_heredoc asserting $CHOICES_LINES (not just $CHOICES_ROW) appears in validate-feature Step 12's persisted-report heredoc.",
+      "Ran all four required gates after every change and again at the end: pytest tests/audit-choices (116 passed), install.sh --check (passed), dependency_direction.py (passed), pytest tests/ci_coverage (124 passed)",
+      "Pushed openspec/followup-add-decision-choices-ledger--fix1 (8 commits on top of 9fb7d9a9)"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Split /audit-choices dispatch into an agent instruction, keep only bookkeeping in bash",
+        "rationale": "Finding 1's root cause is treating a slash command as a shell executable. The fix must remove the command substitution around `/audit-choices` entirely rather than trying to make the guard 'more careful' about exit 127 — the guard cannot distinguish a real dispatch failure from 'the shell can't find this program' because both look identical from bash's perspective. Moved the decision logic (unavailable / dispatch-failed / WARNING -> SKIP_REASON) into agent-facing numbered prose, and had the bash block start by checking `if [ -n \"$SKIP_REASON\" ]` before doing any file work.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Fixed findings 1 and 2 in a single SKILL.md edit, but kept separate commits (finding 2's test in its own commit)",
+        "rationale": "Both findings touch the same Step 11.5 file checks region and were naturally addressed together while rewriting that block once. Recorded finding 2's fix explicitly in a follow-up test commit whose message notes the fix landed in the prior (finding 1) commit, to keep per-finding traceability in the log even though the code changes were not physically separable into two diffs without an awkward re-edit.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Route the finding-6 discard through the same per-path tracked/untracked branching as the partial-pair block, but as a separate inline loop rather than a shared function",
+        "rationale": "Extracting a shared `_discard_orphans` helper would have broken the existing test_orphan_cleanup_behavior, whose regex extracts the partial-pair `if` block by name and asserts `for f in` appears directly inside it. Duplicating the small loop (already the pattern this SKILL.md uses elsewhere) avoided that regression while still closing the gap.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Detect the finding-2 stale half via the Markdown's rendered **Generated**: line vs the JSON's header.generated_at, per design.md's own suggestion",
+        "rationale": "choices_ledger.render_markdown() prints `header.generated_at` verbatim into `**Generated**: <value>`, so the two are guaranteed to match for any pair written in one write_ledger_pair() call and guaranteed to differ whenever the JSON was rewritten without a matching Markdown re-render — exactly the interruption window F6 describes. No change to choices_ledger.py was needed or made (out of scope per design.md's non-goals).",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Hand off to the next autopilot phase (vendor review round 2, or validate-feature) per the orchestrator's normal sequence",
+      "If Step 11.5 is touched again, re-run the four executable (non-content-pin) tests specifically: test_orphan_cleanup_behavior, test_stale_half_detected_via_generated_at_mismatch, test_git_commit_failure_sets_skip_reason_not_silent / test_git_checkout_restore_failure_sets_skip_reason_not_silent, test_dispatch_failed_branch_still_discards_orphan, and test_f2_comparison_behavior_unchanged_changed_new — these actually execute the extracted bash/python rather than pattern-matching prose"
+    ],
+    "relevant_files": [
+      "skills/iterate-on-implementation/SKILL.md",
+      "skills/validate-feature/SKILL.md",
+      "skills/audit-choices/scripts/needs_user.py",
+      "skills/tests/audit-choices/test_workflow_hooks.py",
+      "skills/tests/audit-choices/test_needs_user.py",
+      "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "openspec/changes/followup-add-decision-choices-ledger/reviews/impl-round-1/"
+    ]
+  },
+  "notes": {}
+}
