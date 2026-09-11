@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from build_plan import build_plan  # noqa: E402
-from execute_plan import ExecutionDependencies, _delegation_commands, execute_node  # noqa: E402
+from execute_plan import _delegation_commands, execute_node  # noqa: E402
 from merge_plan import validate_plan  # noqa: E402
 from next_node import next_ready_pr  # noqa: E402
 from plan_storage import FilePlanStore  # noqa: E402
