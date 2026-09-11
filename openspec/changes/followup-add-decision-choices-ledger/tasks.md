@@ -173,7 +173,7 @@ refer to this change's `design.md`.
   `make decisions` and stage `docs/decisions/` in the same commit so the CI
   freshness gate stays green.
 
-- [ ] 3.6 Pin the driver end-to-end against archived-change fixture data
+- [x] 3.6 Pin the driver end-to-end against archived-change fixture data
   **Spec scenarios**: skill-workflow.1, skill-workflow.3 through skill-workflow.7 (driver run), skill-workflow.11 (reader half only)
   **Design decisions**: F5, F6
   **Dependencies**: 3.0
