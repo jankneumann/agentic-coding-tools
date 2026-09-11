@@ -47,14 +47,18 @@ surfaced; they MUST NOT introduce a new blocking gate for the audit.
 
 - WHEN `validate-feature` or `cleanup-feature` reaches its decision point and
   the change has no `choices.json`, or has one with no `needs-user` entries
-- THEN the presentation SHALL state that no open choices exist
+- THEN the presentation SHALL say so explicitly, in that gate's own
+  established form, rather than omitting the subject
+- AND the two cases SHALL be distinguishable from each other: "no ledger" and
+  "a ledger with nothing open" MUST NOT render identically
 - AND neither skill SHALL fail, warn, or prompt on the missing entries
 
 #### Scenario: Standalone invocation against a commit range
 
-- WHEN the audit is invoked with a single `<base-sha>..<head-sha>` argument
-  and no change directory
-- THEN the invocation SHALL derive the audited base and head from that
-  argument rather than from a change directory
-- AND the ledger's recorded `change_id` SHALL be `range:<base-sha>..<head-sha>`
+- WHEN `/audit-choices` is invoked with a single `<base-sha>..<head-sha>`
+  argument and no change directory
+- THEN the skill SHALL take the audited base and head from that argument
+  rather than resolving them from a change's base commit
+- AND the ledger it persists SHALL record `change_id` as
+  `range:<base-sha>..<head-sha>`
 - AND the driver SHALL exit with status 0

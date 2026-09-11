@@ -63,7 +63,8 @@ absent ledger, standalone range) where the carried set left a requirement
 clause or an implementing task without a scenario; see `plan-findings.md`.
 
 The alternative considered was filing each task as a standalone GitHub issue.
-Rejected: `tasks.md` encodes a dependency graph (3.6 depends on 3.0–3.3) and
+Rejected: `tasks.md` encodes a dependency graph (3.6 depends on 3.0; 3.7 on
+3.1–3.3) and
 per-task spec-scenario linkage, and issues would flatten both into prose. The
 parent change's own record is the right shape to carry forward.
 

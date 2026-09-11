@@ -60,3 +60,15 @@ threshold; everything else below it.
 ### Termination
 
 All remaining findings are below the medium threshold after this iteration.
+
+## Correction from plan review round 2
+
+Multi-vendor review round 2 (codex, grok) found the parallelizability summary
+above stale. Round 1's fixes took `skill-workflow.8` off task 3.6 — it is
+`iterate-on-implementation` behavior, covered by 3.1 + 3.7 — so 3.6 no longer
+waits on the three hook tasks:
+
+- Independent tasks: 3.0, 3.1, 3.4, 3.5 — 4
+- Sequential chains: 3.0 → {3.2, 3.3, 3.6}; {3.1, 3.2, 3.3} → 3.7
+- Max parallel width: 4 (unchanged); 3.6 and 3.7 can now run concurrently
+  once their own upstreams land, where before 3.7 strictly trailed 3.6.

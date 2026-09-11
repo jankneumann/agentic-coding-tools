@@ -1,0 +1,49 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "summary": "The range-invocation scenario has no executable implementation path in scope.",
+      "file": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "description": "Critical: Task 3.6 says to invoke the CLI with a single `<base>..<head>` argument, but the existing `skills/audit-choices/scripts/run_audit.py` CLI only accepts required `--change-id`, `--base-sha`, `--head-sha`, and `--run-id` flags, while the proposal/design explicitly exclude driver changes. As written, scenario skill-workflow.12 cannot be made to pass by the listed tasks/files.",
+      "resolution": "Add an explicit implementation task and file scope for the executable range parser that the pytest will invoke, either by allowing a scoped `run_audit.py` CLI change or by adding a separate wrapper script used by `/audit-choices` and the test. Otherwise remove the scenario/test claim from this follow-up.",
+      "recommendation": "Define the actual executable entry point for `<base>..<head>` and update the no-driver-change scope statement accordingly.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "summary": "The Step 11.5 no-op commit comparison is defined in a way that still changes on re-audit.",
+      "file": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "description": "Critical: F2 says Step 11.5 compares the entry payload, but then defines that as `choices.json` with only `generated_at` and `run_id` removed from the header. The existing writer also records `header.git_sha` and `audited_range`, so a re-audit after the previous choices commit can differ even when entries are unchanged. Task 3.7 only content-tests SKILL.md wording and does not prove the promised no-op commit behavior.",
+      "resolution": "Define the normalized comparison precisely around the stable entry payload, or explicitly list every volatile/non-entry field to ignore, including `git_sha` and `audited_range` if those should not force a commit. Add a verification task or hook test that simulates an unchanged re-audit and asserts no commit is made.",
+      "recommendation": "Tighten F2 and task 3.7 so the commit policy is both implementable and tested against the existing ledger fields.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "summary": "Task 3.6 claims coverage for an archive/validation absence scenario without exercising archive or validation behavior.",
+      "file": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "description": "Nit: Task 3.6 maps skill-workflow.2, `Missing ledger does not block archive`, onto an audit-driver fixture. The described assertions cover driver output and reader silence, but they do not run or inspect validation/archive behavior where the scenario's blocking semantics actually live. This overstates scenario coverage.",
+      "resolution": "Either add an explicit assertion that exercises the optional-artifact/archive path, or remove skill-workflow.2 from task 3.6 and point to the existing parent test that already covers the optional ledger artifact, if one exists.",
+      "recommendation": "Make the scenario coverage table match what the pytest can actually prove.",
+      "disposition": "fix"
+    }
+  ]
+}
