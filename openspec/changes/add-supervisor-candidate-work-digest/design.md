@@ -9,7 +9,7 @@ and routes approval through `refine-roadmap`'s transaction. Approach 1 (Gate 1).
 
 ## D1 — Stub store: one tracked file per stub, lifecycle elsewhere
 
-**Decision.** `openspec/supervise/candidates/<stub_key>.json`, written by SENSE after
+**Decision.** `openspec/supervise/candidates/<encoded-stub-key>.json`, written by SENSE after
 dedupe with `indent=2, sort_keys=True` and a trailing newline. The file is the stub payload
 exactly as validated against `candidate-work.schema.json`; nothing else. Lifecycle
 (`pending | approved | deferred | rejected`) is in `back_edge.digested_stubs`.
@@ -21,8 +21,13 @@ supervisor fact, not a finding fact; keeping the file byte-identical to the vali
 lets `stub_key` stay stable and lets ri-12's generators overwrite a stub without clobbering
 a decision.
 
-**`stub_key` as filename.** `change:<id>` and `prov:<hex32>` are filesystem-safe after
-replacing `:` with `--`; the mapping is reversible and tested.
+**`stub_key` as filename.** Only `change:<valid-change-id>` and `prov:<hex32>` are
+accepted, including at the CLI boundary. They encode as `change--<id>` and
+`prov--<hex32>`; decoding revalidates the canonical form before any path is joined.
+The rank input is the union of fresh post-dedupe stubs and retained pending/deferred
+store files, deduplicated by key. Before the unchanged-fingerprint gate, `store
+--prune-only` removes terminal files and reports whether a deferred `until` is due;
+a due transition bypasses the early exit and re-ranks from cached scores.
 
 ## D2 — Ranking: rubric sub-agent scores, script ranks
 
@@ -36,12 +41,16 @@ replacing `:` with `--`; the mapping is reversible and tested.
 | `scope_fit` | Is it one change, or several, or a fragment? | stub `effort`, sibling stubs |
 | `risk` | Blast radius if it goes wrong | stub `tags`, provenance generator |
 
-`digest.py rank` validates the scores (`rubric-score.schema.json`), computes mechanical
-signals itself — `dependency_ready` (every `depends_on` resolves to a completed item or an
-archived change), `staleness_days` (age of the provenance artifact's last commit),
-`prior_decision` — and orders by `score = Σ w_f · factor_f − staleness_penalty`, with
-`deferred` stubs sunk below every `pending` one and `rejected` excluded. Weights are module
-constants, documented in the digest output so a reader can recompute any rank by hand.
+`digest.py rank` validates the scores (`rubric-score.schema.json`) and requires score
+keys to be a unique exact match for the requested batch. It computes mechanical signals
+itself — `dependency_ready` from the canonical cross-roadmap resolver,
+`staleness_days` as of the rubric document's `scored_at`, and `prior_decision`. Risk is
+inverted: 5 means safest. The fixed score is `3*relevance + 3*value + 2*readiness +
+scope_fit + risk - min(floor(staleness_days / 30), 5)`; null staleness has no penalty
+and is marked degraded. The total order is: pending before future-deferred,
+dependency-ready before blocked, descending score, then ascending `stub_key`.
+Rejected stubs are excluded. These constants and buckets are emitted in `weights`, so
+a reader can recompute every rank and tied inputs always have one answer.
 
 **Why not deterministic-only.** A formula over `priority`/`effort`/readiness/staleness
 cannot judge relevance or value — it would rank a stale-but-high-priority finding above a
@@ -49,28 +58,33 @@ fresh, important one. **Why not model-only.** The skill promises that an unchang
 re-runs identically; a free-form ranking cannot keep that promise. The split keeps each
 half where it is strong and makes the join point (the score file) inspectable.
 
-**Reproducibility.** Scores are cached at `<stub_key>.rubric.json` with the cycle
-fingerprint they were produced under. Unchanged fingerprint ⇒ no dispatch, identical
-digest. Changed fingerprint ⇒ re-score only stubs whose provenance artifact or dependency
-set changed (others keep their cached scores), so a small tree change does not re-judge the
-whole backlog.
+**Reproducibility.** Each cache is a schema-valid singleton rubric document at
+`<encoded-stub-key>.rubric.json`. The cycle fingerprint excludes the candidate store,
+rubric caches, and `digest.json`, as it already excludes ledger/mirror state, so writing
+supervisor outputs cannot self-invalidate it. Unchanged fingerprint plus no due lifecycle
+transition means no dispatch and byte-for-byte reuse of the validated prior digest. A
+changed fingerprint re-scores the full retained-plus-fresh backlog; partial invalidation is
+deliberately deferred to avoid introducing a second fingerprint contract. `generated_at`
+is the maximum `scored_at` among score inputs and persisted output contains no reuse/cache
+flags. Staleness uses that same evidence clock, not wall time.
 
 **Where the model is called.** From `SKILL.md`, by the host, as a sub-agent with the
 `templates/rubric-prompt.md` prompt and the batch as input, returning JSON only. Never from
 `scripts/` — `TestHostAssistedInvariant` covers `digest.py` automatically because it walks
 the whole directory.
 
-## D3 — `digest.py` is a new module; `cycle_state.py` keeps its surface
+## D3 — `digest.py` owns behavior; `cycle_state.py` exposes narrow state helpers
 
 **Decision.** `store`, `rank`, `digest`, `stub-to-request`, `decide` live in
 `skills/supervise/scripts/digest.py`, importing `stub_key`, `ready_across_roadmaps`,
-`compute_fingerprint`, `load_ledger`, `classify_write` from `cycle_state`.
+`compute_fingerprint`, `load_ledger`, `classify_write`, and `write_mirror` from
+`cycle_state`. `cycle_state.py` changes only to exclude derived supervisor artifacts
+from the cycle fingerprint and to preserve the extended `digested_stubs` fields.
 
 **Why.** `cycle_state.py` is 586 lines of idempotency machinery with its own CLI; adding
-five subcommands and a rubric model would double it. A second module also lets the two
-implementation packages of this change run in parallel (module vs prompt template) and
-keeps change 2's `supervisor-record` additions to `cycle_state.py` from colliding with this
-change's work.
+five subcommands and ranking logic there would double it. The narrow helper changes keep
+state normalization in its existing owner while the digest module and prompt template
+remain independently implementable after the contract package lands.
 
 ## D4 — Approval goes through `refine-roadmap`, never a supervise-side roadmap write
 
@@ -83,11 +97,17 @@ change's work.
 | `description` + `\n\nProvenance: <source_artifact> (<finding_ids>)` | `description` |
 | `rationale` | `rationale` |
 | `effort` | `effort` |
-| `priority` | `priority` (refiner renumbers) |
-| `depends_on` (change-ids) | `depends_on` (resolved to item ids where they match; unresolved ones go to the description) |
+| `priority` | insertion position; `refiner` then renumbers the roadmap |
+| target-roadmap change dependency | local `depends_on: [ri-NN]` |
+| other-roadmap change dependency | `external_depends_on: [roadmap-id:ri-NN]` |
+| archived-completed dependency | omitted as already satisfied |
 | `suggested_change_id` | `change_id` (refiner rejects collisions) |
 | — | `item_id`: next free `ri-NN` |
 | — | `acceptance_outcomes`: from `--acceptance`, required |
+
+Already-qualified roadmap refs are validated and preserved. `change:<id>` candidate refs
+are normalized before resolution; unresolved `prov:` or change refs fail closed and name
+the dependency for operator disposition. `--after` overrides priority-derived placement.
 
 **Why the host drafts acceptance outcomes.** They are the one roadmap field a stub cannot
 supply and the one `refine-roadmap` refuses to accept empty. Drafting them in conversation
@@ -98,30 +118,55 @@ replaces the artifact and erases statuses and provenance. The transaction is the
 
 ## D5 — `decide` writes the supervisor record's `back_edge`; the cycle prunes
 
-**Decision.** `digest.py decide` appends/replaces the `digested_stubs` entry in the
-non-derivable mirror (change 2's `openspec/supervise/supervisor-record.json`) and the
-handoff write at cycle end carries it. The next CYCLE removes `approved`/`rejected` stub
-files and their `.rubric.json`; `deferred` files stay and return to `pending` after `until`.
+**Decision.** `rank` synchronizes every ranked pending/deferred stub into
+`back_edge.digested_stubs`, using the score evidence time as `decided_at` for a new
+pending observation and preserving existing decision timestamps. `digest.py decide`
+accepts the rehydrated record, replaces the matching entry, and calls `write_mirror`, so
+a newer handoff's unrelated gates, decisions, and back-edge entries survive. The
+canonical record schemas and `_clean_digested_stub` preserve `roadmap_ref`, `route`,
+`until`, and `reason`; decision-specific validation requires a route for approval, a
+roadmap ref for `refine-roadmap`, null for `plan-roadmap`, and a reason for rejection.
+The next CYCLE's pre-fingerprint `store --prune-only` removes approved/rejected files and
+caches. Deferred files remain; when `until` is due, maintenance requests a cache-only
+re-rank and the decision becomes pending even if the tree fingerprint is unchanged.
 
 **Why prune next cycle, not immediately.** `decide` may run several times in one
-conversation; deferring deletion to the cycle keeps every mutation of
-`openspec/supervise/` inside the audited `snapshot-writes` / `audit-since` window.
+conversation; preflight pruning keeps cleanup inside the next audited CYCLE and, unlike
+the old post-SENSE placement, still runs on an otherwise unchanged tree.
 
 ## D6 — Digest artifact and the unchanged-fingerprint path
 
-`digest.json` (`digest.schema.json`): `{schema_version, fingerprint, generated_at,
-sections: {needs_decision[], ready_now[], new_this_cycle[], blocked[], degraded[]},
-ranked[]: {stub_key, rank, score, factors{...}, signals{...}, decision, suggested_change_id}}`.
-When `cycle_state.py fingerprint` reports `unchanged`, the skill re-presents the prior
-`digest.json` (and says so) rather than re-ranking — the existing stop rule, now with an
-artifact to re-present.
+`digest.json` is deliberately candidate-work-focused:
+`{schema_version, fingerprint, generated_at, weights, sections:
+{needs_decision[], new_this_cycle[], degraded[]}, ranked:[...]}`. `new_this_cycle` contains
+only keys freshly stored in this cycle; retained pending/deferred keys go under
+`needs_decision`; `ranked` contains the full retained-plus-fresh backlog. The host merges
+these three candidate additions into the existing five-section digest after it has
+rendered pending gates (including deadlines), ready work, blockers, and degraded sensors.
+The candidate artifact cannot erase or replace those operational lines.
+
+`generated_at` is evidence time (the maximum rubric `scored_at`), not render time.
+`cached_scores` and `reused_prior` are stdout diagnostics, not persisted fields. When
+`cycle_state.py fingerprint` reports unchanged and maintenance reports no due transition,
+the skill schema-validates and re-presents the prior bytes. A due deferral is the explicit
 
 ## D7 — Sequencing
 
-- Depends on change 2's `back_edge` slot and mirror; until it lands, `decide` writes to a
-  `back_edge` key in the mirror file only (same shape), so this change is testable alone.
+- ri-05's `back_edge` slot/mirror and ri-16's cross-roadmap resolver are on main. This
+  change extends their stable contracts rather than carrying a mirror-only fallback.
 - ri-12 (generators emit stubs) is the real producer; fixtures stand in until then.
 - `TestWorkflowContract` string assertions move with the reworded CYCLE sections.
+
+## D8 — Evidence is bounded untrusted data
+
+The host uses the analyst archetype for rubric batches and omits an explicit model when
+resolution is unavailable. Batches are sorted by `stub_key`, capped at 20 stubs and 64
+KiB total input; provenance excerpts are capped at 2 KiB each. The loader reads only
+UTF-8 regular files whose resolved path stays inside the repository, rejects symlinks,
+and never fetches URIs. It applies the existing secret sanitizer before placing excerpts
+inside explicit untrusted-data delimiters; the prompt says never to follow instructions
+found there. Missing, binary, URI, symlink, or out-of-root provenance yields no excerpt,
+`staleness_days: null`, and a degraded marker. Multi-batch scores are exact-set validated,
 
 ## Task sizing notes
 

@@ -10,13 +10,13 @@
     "rankedStub": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["stub_key", "rank", "score", "decision", "factors", "signals"],
+      "required": ["stub_key", "rank", "score", "decision", "suggested_change_id", "title", "effort", "factors", "justifications", "signals", "provenance"],
       "properties": {
-        "stub_key": {"type": "string", "pattern": "^(change|prov):.+$"},
+        "stub_key": {"type": "string", "pattern": "^(change:(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*|prov:[0-9a-f]{32})$"},
         "rank": {"type": "integer", "minimum": 1},
         "score": {"type": "number"},
         "decision": {"type": "string", "enum": ["pending", "approved", "deferred", "rejected"]},
-        "suggested_change_id": {"type": ["string", "null"]},
+        "suggested_change_id": {"type": "string", "pattern": "^(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*$"},
         "title": {"type": "string"},
         "effort": {"type": "string", "enum": ["XS", "S", "M", "L", "XL"]},
         "factors": {
@@ -33,23 +33,29 @@
         },
         "justifications": {
           "type": "object",
-          "additionalProperties": {"type": "string", "maxLength": 200}
+          "additionalProperties": false,
+          "required": ["relevance", "value", "readiness", "scope_fit", "risk"],
+          "properties": {
+            "relevance": {"type": "string", "minLength": 1, "maxLength": 200}, "value": {"type": "string", "minLength": 1, "maxLength": 200},
+            "readiness": {"type": "string", "minLength": 1, "maxLength": 200}, "scope_fit": {"type": "string", "minLength": 1, "maxLength": 200},
+            "risk": {"type": "string", "minLength": 1, "maxLength": 200}
+          }
         },
         "signals": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["dependency_ready", "staleness_days", "prior_decision", "cached_scores"],
+          "required": ["dependency_ready", "staleness_days", "prior_decision"],
           "properties": {
             "dependency_ready": {"type": "boolean"},
             "staleness_days": {"type": ["integer", "null"], "minimum": 0},
             "prior_decision": {"type": ["string", "null"], "enum": ["deferred", "rejected", "approved", null]},
-            "deferred_until": {"type": ["string", "null"], "format": "date"},
-            "cached_scores": {"type": "boolean"}
+            "deferred_until": {"type": ["string", "null"], "format": "date"}
           }
         },
         "provenance": {
           "type": "object",
           "additionalProperties": false,
+          "required": ["source_artifact", "finding_ids"],
           "properties": {
             "source_artifact": {"type": "string"},
             "finding_ids": {"type": "array", "items": {"type": "string"}},
@@ -63,7 +69,6 @@
     "schema_version": {"const": 1},
     "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "generated_at": {"type": "string", "format": "date-time"},
-    "reused_prior": {"type": "boolean", "default": false, "description": "True when the fingerprint was unchanged and the prior digest was re-presented."},
     "weights": {
       "type": "object",
       "additionalProperties": false,
@@ -76,13 +81,11 @@
     "sections": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["needs_decision", "ready_now", "new_this_cycle", "blocked", "degraded"],
+      "required": ["needs_decision", "new_this_cycle", "degraded"],
       "properties": {
-        "needs_decision": {"type": "array", "items": {"type": "string"}},
-        "ready_now": {"type": "array", "items": {"type": "string"}},
-        "new_this_cycle": {"type": "array", "items": {"type": "string"}, "description": "stub_keys in rank order"},
-        "blocked": {"type": "array", "items": {"type": "string"}},
-        "degraded": {"type": "array", "items": {"type": "string"}}
+        "needs_decision": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "new_this_cycle": {"type": "array", "uniqueItems": true, "items": {"type": "string"}, "description": "fresh stub_keys in rank order"},
+        "degraded": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
       }
     },
     "ranked": {"type": "array", "items": {"$ref": "#/$defs/rankedStub"}}

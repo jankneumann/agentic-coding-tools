@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "add-supervisor-candidate-work-digest",
-  "current_phase": "PLAN",
+  "current_phase": "PLAN_ITERATE",
   "iteration": 0,
-  "total_iterations": 2,
+  "total_iterations": 3,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -24,7 +24,7 @@
   ],
   "last_handoff_id": "gatekeeper:add-supervisor-candidate-work-digest:20260910T2240Z",
   "started_at": "2026-09-10T22:40:09.976184+00:00",
-  "phase_started_at": "2026-09-10T22:41:37.795957+00:00",
+  "phase_started_at": "2026-09-11T00:05:12.055959+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": false,
@@ -60,27 +60,24 @@
       "disposition": "block",
       "phase": "PLAN",
       "recorded_at": "2026-09-10T22:41:51.899501+00:00"
+    },
+    {
+      "gate": "proposal_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 Operator approved ri-13 and requested implementation to begin.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "PLAN",
+      "recorded_at": "2026-09-11T00:05:12.055943+00:00",
+      "note": "Operator approved ri-13 and requested implementation to begin."
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "add-supervisor-candidate-work-digest",
-    "gate": "proposal_approval",
-    "phase": "PLAN",
-    "requested_at": "2026-09-10T22:41:51.899764+00:00",
-    "prompt": "Approve this OpenSpec proposal and begin implementation?",
-    "context": {
-      "proposal_path": "openspec/changes/add-supervisor-candidate-work-digest/proposal.md",
-      "approach": "exists"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
-    },
-    "edge": {
-      "outcome": "exists",
-      "target": "PLAN_ITERATE"
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }

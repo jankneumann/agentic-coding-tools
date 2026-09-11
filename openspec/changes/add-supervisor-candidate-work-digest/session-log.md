@@ -41,3 +41,31 @@
 ### Context
 Refined the supervisor-roadmap ri-13 sketch into a full plan: a tracked stub store under openspec/supervise/candidates/, a hybrid ranking where a host-dispatched rubric sub-agent returns schema-constrained five-factor scores and digest.py computes the final order deterministically with cached scores per fingerprint, a digest.json artifact, and approval routed through refine-roadmap's previewed add transaction. Tier: coordinated. Gate 1 selected Approach 1.
 
+---
+
+## Phase: Plan Iteration 1 (2026-09-11)
+
+**Agent**: software-architect | **Session**: N/A
+
+### Decisions
+1. **Use a fixed deterministic rank contract** — Weights 3/3/2/1/1, capped staleness, readiness/decision buckets, and stub_key tie-breaking make rankings reproducible and testable.
+2. **Keep digest.json candidate-work-focused and composable** — Existing operational five-section state remains authoritative; candidate additions cannot erase gates, deadlines, readiness, blockers, or sensor degradation.
+3. **Extend the canonical supervisor-record contract** — Approval, deferral, and rejection metadata must survive sanitizer, mirror, handoff, and rehydration round trips.
+
+### Alternatives Considered
+- Let digest.json replace the full supervisor digest: rejected because It would duplicate and risk regressing established operational state semantics.
+- Add per-stub evidence fingerprints now: rejected because A second invalidation contract increases scope; revision 2 conservatively re-scores the backlog on any non-supervisor fingerprint change.
+
+### Trade-offs
+- Accepted Whole-backlog re-scoring on a changed cycle fingerprint over Partial cache invalidation because Keeps the first implementation deterministic and reviewable while output-only cycles remain cache hits.
+- Accepted Bounded, redacted provenance excerpts over Maximum source context because Prevents path, secret, prompt-injection, and unbounded-context risks at the model boundary.
+
+### Completed Work
+- Addressed 12 plan findings and wrote plan-findings.md.
+- Refined proposal, design, tasks, spec delta, schemas, contracts README, and work-packages revision 2.
+- Strict OpenSpec validation passes.
+- Work-package schema, DAG, lock, and overlap validation passes.
+
+### Context
+Resolved contract, fingerprint, reproducibility, composition, routing, and evidence-security blockers in the approved ri-13 plan. Revision 2 now has explicit ranking policy, candidate-only digest composition, durable decision fields, and a validated two-lane implementation DAG.
+

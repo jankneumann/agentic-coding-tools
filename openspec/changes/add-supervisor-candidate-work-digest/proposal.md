@@ -27,11 +27,13 @@ without first writing a proposal for it. The handoff record change
 
 ## What Changes
 
-1. **Stub store.** `openspec/supervise/candidates/<stub_key>.json` — one tracked file
+1. **Stub store.** `openspec/supervise/candidates/<encoded-stub-key>.json` — one tracked file
    per surviving stub, written by SENSE after dedupe, byte-stable (`sort_keys`,
    trailing newline). Lifecycle lives in `back_edge.digested_stubs`, not in the file;
-   a stub whose decision is `approved` or `rejected` is removed from the store by the
-   next cycle. The path is inside the supervisor's `_ALLOWED_WRITE_PREFIXES`.
+   a pre-fingerprint maintenance pass removes `approved`/`rejected` files and wakes
+   due deferrals even when the repository tree is otherwise unchanged. The path is
+   inside the supervisor's `_ALLOWED_WRITE_PREFIXES`; keys are accepted only in the
+   canonical `change:<change-id>` or `prov:<hex32>` forms and encoded reversibly.
 
 2. **Structured rubric, sub-agent scored, deterministically ranked.**
    `contracts/schemas/rubric-score.schema.json` fixes five factors, each 1–5 with a
@@ -39,40 +41,67 @@ without first writing a proposal for it. The handoff record change
    if done), `readiness` (can it start now), `scope_fit` (is it one change), `risk`
    (blast radius). The host dispatches one rubric sub-agent per batch with the stub,
    its provenance artifact excerpt, and the ready set; the sub-agent's only output is
-   schema-valid JSON. `cycle_state.py rank --scores scores.json` validates the scores,
+   schema-valid JSON. `digest.py rank --scores scores.json` validates the scores,
    folds in the mechanical signals it computes itself (dependency readiness from
    `ready_across_roadmaps`, provenance staleness, prior `deferred` → sink, prior
    `rejected` → drop), and emits the ordered digest with per-factor breakdown.
-   Weights live in code. Scores are cached at
-   `openspec/supervise/candidates/<stub_key>.rubric.json` keyed by the cycle
-   fingerprint; an unchanged fingerprint reuses them, so two runs over an unchanged
-   tree rank identically without re-dispatching.
+   The total order is dependency-ready pending work first, then weighted score
+   (`3*relevance + 3*value + 2*readiness + scope_fit + risk`, with risk inverted so 5
+   is safest), then `stub_key`; future-deferred work is a final bucket. One point is
+   deducted per complete 30 days of staleness, capped at five. Scores are cached as
+   singleton rubric documents at
+   `openspec/supervise/candidates/<encoded-stub-key>.rubric.json`, keyed by the cycle
+   fingerprint. Supervisor-owned store/cache/digest files are excluded from that
+   fingerprint, so output-only commits do not invalidate the cache. A changed cycle
+   fingerprint deliberately re-scores the backlog; an unchanged fingerprint reuses
+   it without dispatch.
 
-3. **Digest artifact.** `cycle_state.py digest` renders the ranked list into the
-   existing five sections and writes `openspec/supervise/digest.json`
-   (`contracts/schemas/digest.schema.json`); the host prints the prose from it.
-   Every ranked stub carries `stub_key`, `rank`, factor scores, mechanical signals,
-   and `decision: pending`. When the fingerprint is unchanged the prior digest is
-   re-presented from `back_edge` and the store, not re-ranked.
+3. **Candidate digest artifact, composed by the host.** `digest.py rank` writes the
+   candidate-focused `openspec/supervise/digest.json`
+   (`contracts/schemas/digest.schema.json`); `digest.py digest` renders only its
+   candidate additions. Fresh candidates appear under **New this cycle**, retained
+   pending/deferred backlog appears under **Needs a decision**, and every candidate is
+   present in `ranked`. The host composes those additions with the existing verified
+   gates, active changes, ready roadmap items, blockers, and degraded sensors; the
+   artifact never replaces those operational sections. The persisted file contains no
+   run-dependent reuse flags, and `generated_at` comes from the score evidence, so
+   identical inputs are byte-identical. On an unchanged fingerprint with no due
+   lifecycle transition, the prior file is validated and re-presented byte for byte.
 
-4. **Approval → refine-roadmap.** `cycle_state.py stub-to-request <stub_key>
+4. **Approval → refine-roadmap.** `digest.py stub-to-request <stub_key>
    --roadmap <id> [--after ri-NN]` renders a `refine-roadmap` request YAML with one
-   `op: add` whose item maps 1:1 from the stub (`title`, `description` +
-   provenance line, `rationale`, `effort`, `priority`, `depends_on`) and an
+   `op: add` whose item maps the stub (`title`, `description` + provenance line,
+   `rationale`, `effort`, dependency refs) and an
    `acceptance_outcomes` placeholder the host drafts in-conversation and the operator
-   confirms. The host runs `refiner.py preview`, shows effects, then `apply
+   confirms. Local change dependencies become `depends_on`; cross-roadmap dependencies
+   become `external_depends_on`; satisfied archived dependencies are omitted; unresolved
+   candidate dependencies stop request generation. Stub priority chooses insertion
+   position unless `--after` is supplied, after which `refiner.py` renumbers priorities.
+   The host runs `refiner.py preview`, shows effects, then `apply
    --expect-base-sha256`. A stub that needs a new roadmap goes through
-   `/plan-roadmap --new --draft` instead. Neither path dispatches implementers.
+   `/plan-roadmap --new <slug> "<pitch>" --draft` instead. Neither path dispatches
+   implementers.
 
-5. **Decisions persist.** Each operator decision (`approved` with the resulting
-   `roadmap_ref`, `deferred` with optional `until`, `rejected` with reason) is
-   recorded in `back_edge.digested_stubs` via `cycle_state.py decide`, written to the
-   supervisor record (handoff + mirror) at the end of the cycle, and the ledger's
-   `seen_keys` is updated as today.
+5. **Decisions persist.** Ranking synchronizes every pending/deferred backlog entry to
+   `back_edge.digested_stubs`. Each operator decision (`approved` with route and the
+   resulting `roadmap_ref` when applicable, `deferred` with optional `until`, `rejected`
+   with reason) is merged into the rehydrated record via `digest.py decide`; canonical
+   supervisor-record schemas and `cycle_state` sanitization gain those optional fields.
+   The supervisor record (handoff + mirror) and the ledger's `seen_keys` are updated as
+   today, without overwriting newer handoff-carried durable state.
 
-6. **SKILL.md.** CYCLE steps 2–5 are rewritten around the store, rubric dispatch,
-   `rank`, `digest`, and the decision loop; INTAKE gains "approve from digest".
-   `TestWorkflowContract` moves with the reworded sections.
+6. **Bounded, untrusted rubric evidence.** Rubric batches contain at most 20 stubs and
+   64 KiB total prompt evidence, with at most 2 KiB from each provenance artifact.
+   Evidence is read only from contained regular repo files (never symlinks or URIs),
+   redacted, and delimited as untrusted data; unavailable provenance yields
+   `staleness_days: null`, no penalty, and a degraded marker. Score keys must be a
+   unique exact match for each batch. Large backlogs are chunked by `stub_key` and
+   merged before the single deterministic global sort.
+
+7. **SKILL.md.** CYCLE steps 1–5 are rewritten around lifecycle maintenance, retained
+   backlog, store, bounded rubric dispatch, `rank`, composable rendering, and the
+   decision loop; INTAKE gains "approve from digest". `TestWorkflowContract` moves with
+   the reworded sections.
 
 ## Approaches Considered
 
@@ -146,12 +175,15 @@ periodic checkpoint. The digest logic lands in a new `scripts/digest.py` so
 | Interpretability | Per-item breakdown | 100% of ranked stubs carry five factor scores, justifications, and mechanical signals | VALIDATE (unit) |
 | Safety | Roadmap mutation | Approval always goes through `refiner.py preview` then `apply --expect-base-sha256`; no direct `roadmap.yaml` write from supervise scripts | VALIDATE (unit + contract test) |
 | Isolation | Host-assisted invariant | `skills/supervise/scripts/` still imports no LLM SDK and makes no network call | VALIDATE (existing test) |
-| Compatibility | Dry-run | `--dry-run` writes nothing under `openspec/supervise/` and reuses cached scores only | VALIDATE (unit) |
+| Compatibility | Dry-run | `--dry-run` writes nothing under `openspec/supervise/`; cached scores may be read and any rebuild is emitted only to stdout | VALIDATE (unit) |
+| Security | Rubric evidence | No URI/symlink/out-of-root read; 2 KiB per artifact, 64 KiB per batch, secret redaction, data delimiters | VALIDATE (unit) |
 
 ## Impact
 
-- new `skills/supervise/scripts/digest.py` (`store`, `rank`, `digest`, `stub-to-request`, `decide` subcommands; imports `cycle_state` helpers), `skills/supervise/SKILL.md`, `skills/supervise/templates/rubric-prompt.md`
-- Contracts: `rubric-score.schema.json`, `digest.schema.json`
+- new `skills/supervise/scripts/digest.py` (`store`, `rank`, `digest`, `stub-to-request`, `decide` subcommands; imports `cycle_state` helpers), updates to `cycle_state.py`, `skills/supervise/SKILL.md`, `skills/supervise/templates/rubric-prompt.md`
+- Contracts: change-local and stable runtime copies of `rubric-score.schema.json` and
+  `digest.schema.json`; extensions to canonical `supervisor-record.schema.json` and
+  `supervisor-record-mirror.schema.json`
 - Specs: `supervise` (ADDED Candidate-Work Digest, ADDED Digest Approval Routing)
 - Tests: `skills/tests/supervise/`
 
@@ -165,27 +197,21 @@ periodic checkpoint. The digest logic lands in a new `scripts/digest.py` so
 ## Dependencies
 
 - `ri-02` create-supervise-skill-with-conversational-intake — completed
-- `ri-05` extend-handoff-document-with-supervisor-record — planned (this branch); provides `back_edge`
+- `ri-05` extend-handoff-document-with-supervisor-record — completed; provides `back_edge`
 - `ri-11` define-canonical-candidate-work-schema — completed
-- `ri-16` add-cross-roadmap-readiness-resolver — **not started**. Declared by the
-  roadmap as a dependency, but this plan does not need the resolver itself: its
-  mechanical readiness signal reads `cycle_state.ready_across_roadmaps`, which
-  ri-02 shipped. Sequence after ri-16 only if the roadmap ordering is enforced.
+- `ri-16` add-cross-roadmap-readiness-resolver — completed; its canonical resolver is
+  used for dependency readiness and routing local versus cross-roadmap prerequisites.
 - `refine-roadmap` skill — on main (`e610553c`)
 
-> **Rebase note (ri-04, `route-supervise-gates-through-the-approval-gate-service`).**
-> That change rewrote `skills/supervise/SKILL.md`'s `cycle` **§5. Digest, then stop**
-> as a `cycle_state.py gate-check` / `gate-answer` protocol block (the roadmap-approval
-> gate that was prose is now recorded), and lightly touched the closing "Why the gate
-> sits here" / "On approval" paragraphs. This plan's own rewrite of `cycle` §2–§5
-> should land on top of that block rather than reintroducing the retired
-> `Then **stop**.` prose. `skills/supervise/scripts/cycle_state.py` itself needs no
-> rebase note — ri-04 only added new `gate-check` / `gate-answer` / `gate-log`
-> subcommands there; it did not touch the digest/rank/dedupe functions this change
-> extends.
+> **Integration note (ri-04, `route-supervise-gates-through-the-approval-gate-service`).**
+> The current `cycle` §5 is the `cycle_state.py gate-check` / `gate-answer` protocol.
+> This change composes the artifact-backed candidate digest before that block and
+> preserves the existing roadmap-approval gate; it must not reintroduce the retired
+> prose-only stop.
 
 ## Acceptance Outcomes
 
 - A supervise session produces a ranked digest of schema-valid candidate stubs on request or at its periodic checkpoint.
-- Approving a stub from the digest routes it into /plan-roadmap without leaving the conversation.
+- Approving a stub from the digest refines an existing roadmap, or scaffolds a draft
+  proposal with `/plan-roadmap --new` when no roadmap fits, without leaving the conversation.
 - Digest state (last-digested stubs, standing decisions) survives session rehydration via the handoff record.

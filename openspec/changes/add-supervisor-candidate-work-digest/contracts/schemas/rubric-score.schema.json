@@ -21,7 +21,7 @@
       "additionalProperties": false,
       "required": ["stub_key", "relevance", "value", "readiness", "scope_fit", "risk"],
       "properties": {
-        "stub_key": {"type": "string", "pattern": "^(change|prov):.+$"},
+        "stub_key": {"type": "string", "pattern": "^(change:(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*|prov:[0-9a-f]{32})$"},
         "relevance": {"$ref": "#/$defs/factor"},
         "value": {"$ref": "#/$defs/factor"},
         "readiness": {"$ref": "#/$defs/factor"},
@@ -44,6 +44,6 @@
       "additionalProperties": false,
       "properties": {"vendor": {"type": "string"}, "model": {"type": "string"}, "archetype": {"type": "string"}}
     },
-    "scores": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/stubScore"}}
+    "scores": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"$ref": "#/$defs/stubScore"}}
   }
 }

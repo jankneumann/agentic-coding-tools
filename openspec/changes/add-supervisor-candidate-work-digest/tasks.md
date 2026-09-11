@@ -1,152 +1,163 @@
 # Tasks — add-supervisor-candidate-work-digest
 
-Five phases, one per work package. Test tasks precede the implementation they verify
-(TDD RED → GREEN). Sizes per the plan-feature Task Sizing Reference; no task is L or XL.
-
-Capability short name: `sv` = `supervise`. Contracts:
-`contracts/schemas/rubric-score.schema.json`, `contracts/schemas/digest.schema.json`.
+Five phases, one per work package. Tests precede the behavior they verify (TDD RED →
+GREEN). Capability short name: `sv` = `supervise`.
 
 ---
 
-## Phase 0 — wp-contracts: rubric and digest shapes frozen first
+## Phase 0 — wp-contracts: runtime and persistence contracts first
 
-- [ ] 0.1 Test: both schemas are valid 2020-12 documents; a full rubric fixture validates;
-      a score of 0 or 6, a missing factor, and a bad fingerprint each fail; the digest
-      fixture validates and `factors` keys equal the rubric's five — **XS**
-      **Spec scenarios**: sv *Schema-invalid rubric output is rejected*
-      **Contracts**: both
+- [ ] 0.1 RED: add schema fixtures/tests covering full rubric and digest documents; exact
+      five-factor justification coverage; strict canonical stub keys; duplicate/missing/
+      unknown score-key semantic rejection; and supervisor-record decisions for approved
+      refine-roadmap, approved plan-roadmap, deferred, rejected, and invalid metadata — **S**
+      **Spec scenarios**: sv *Score coverage must exactly match each batch*, *Decisions
+      round-trip without state loss*
       **Dependencies**: None
 
-- [ ] 0.2 Fixtures: `skills/tests/supervise/fixtures/digest/{stubs/*.json, rubric-valid.json,
-      rubric-invalid-*.json, digest-expected.json, roadmap-x/roadmap.yaml}` — **XS**
-      **Contracts**: both
+- [ ] 0.2 GREEN: finalize the change-local schemas, install byte-identical stable runtime
+      copies at `openspec/schemas/supervise-rubric-score.schema.json` and
+      `openspec/schemas/supervise-digest.schema.json`, and extend both canonical
+      supervisor-record schemas with `roadmap_ref`, `route`, `until`, `reason`, and
+      decision-specific conditions — **S**
+      **Contracts**: all four runtime schemas plus two change-local source schemas
       **Dependencies**: 0.1
 
-- [ ] Checkpoint: schema test green, review the diff, confirm only the change directory and
-      the fixtures directory changed
+- [ ] Checkpoint: schema tests green; runtime copies match change-local sources; review
+      the diff and run strict OpenSpec validation
 
-## Phase 1 — wp-digest-module: `digest.py`
+## Phase 1 — wp-digest-module: state helpers and `digest.py`
 
-- [ ] 1.1 Test: `store` writes one byte-stable file per surviving stub under
-      `openspec/supervise/candidates/` named by the reversible `stub_key` mapping; re-run
-      over the same stubs changes no bytes; `--dry-run` writes nothing; every path passes
-      `classify_write` — **S**
-      **Spec scenarios**: sv *Digest on a fresh cycle*, *Dry run writes nothing*
-      **Design decisions**: D1
-      **Dependencies**: None
+- [ ] 1.1 RED: test strict reversible key encoding; retained-plus-fresh store merge;
+      byte-stable writes; terminal prune and due-deferral maintenance before unchanged
+      exit; dry-run no-write behavior; and cycle fingerprint stability across committed
+      store/cache/digest outputs — **S**
+      **Spec scenarios**: sv *Digest on a fresh cycle*, *Supervisor outputs do not
+      invalidate their own cache*, *Lifecycle maintenance runs before unchanged exit*,
+      *Dry run writes nothing*
+      **Dependencies**: 0.2
 
-- [ ] 1.2 Implement `store` (+ `key_to_filename` / `filename_to_key`) in `digest.py` — **S**
+- [ ] 1.2 GREEN: implement store/key/maintenance behavior in `digest.py`; update
+      `cycle_state._tree_listing` to exclude the candidate store, rubric caches, and
+      digest artifact while preserving all non-supervisor inputs — **S**
       **Design decisions**: D1, D3
       **Dependencies**: 1.1
 
-- [ ] 1.3 Test: `rank` rejects each invalid rubric fixture naming stub + field and writes
-      nothing; valid scores + fixture tree produce `digest-expected.json` byte-for-byte;
-      `dependency_ready`, `staleness_days`, `prior_decision` computed from the fixture
-      tree; `rejected` excluded, `deferred` sunk, `deferred` past `until` back to pending;
-      changing one factor reorders exactly per the weights; scores cached per stub with
-      the fingerprint; unchanged fingerprint → `cached_scores: true` and no
-      `--scores` needed — **S**
-      **Spec scenarios**: sv *Ranking is a pure function of scores and signals*, *Unchanged
-      fingerprint reuses cached scores*, *Prior decisions shape the ranking*,
-      *Schema-invalid rubric output is rejected*
-      **Contracts**: rubric-score, digest
-      **Design decisions**: D2
-      **Dependencies**: None
+- [ ] 1.3 RED: test exact batch-key matching; 20-stub/64-KiB limits; fixed weights,
+      risk inversion, staleness cap/null behavior, decision/readiness buckets, stable
+      stub-key tie-break, shuffled inputs, schema-valid singleton caches, whole-backlog
+      invalidation on changed fingerprint, byte-identical unchanged reuse, candidate-only
+      section assignment, and rank-to-back-edge synchronization — **M**
+      **Spec scenarios**: sv *Ranking has one deterministic answer*, *Score coverage must
+      exactly match each batch*, *A changed tree re-scores the backlog*, *Retained backlog
+      is composed without operational regression*, *Digest state survives rehydration*
+      **Dependencies**: 0.2
 
-- [ ] 1.4 Implement `rank` — validation, mechanical signals, weights, caching, ordering,
-      `digest.json` write; and `digest` (section assignment + prose render) — **M**
-      **Design decisions**: D2, D6
+- [ ] 1.4 GREEN: implement `rank` and read-only `digest` rendering; source runtime schemas
+      only from stable paths; keep reuse/cache diagnostics on stdout; validate prior bytes
+      before reuse; update the rehydrated record through `write_mirror` — **M**
+      **Design decisions**: D2, D3, D5, D6
       **Dependencies**: 1.2, 1.3
 
-- [ ] Checkpoint: `skills/tests/supervise` green including `TestHostAssistedInvariant`
-      (which now covers `digest.py`), review the diff, confirm `cycle_state.py` unchanged
+- [ ] 1.5 RED: test the bounded evidence loader against valid UTF-8, URI, missing, binary,
+      symlink, traversal, oversized, secret-bearing, and prompt-injection fixtures; prove
+      unavailable evidence is not read and becomes null-staleness degradation — **S**
+      **Spec scenarios**: sv *Unsafe or unavailable provenance is not read*
+      **Dependencies**: 0.2
 
-- [ ] 1.5 Test: `stub-to-request` emits one `op: add` with the D4 field mapping, next free
-      `item_id`, `change_id` from the stub, provenance line, `--acceptance` values;
-      refuses without `--acceptance`; the emitted request passes `refiner.preview_refinement`
-      against the fixture roadmap with one new item and no errors — **S**
-      **Spec scenarios**: sv *Approve a stub into an existing roadmap*, *Missing acceptance
-      outcomes are refused*, *Approval never bypasses the preview*
-      **Design decisions**: D4
-      **Dependencies**: None
-
-- [ ] 1.6 Implement `stub-to-request` — **S**
-      **Design decisions**: D4
+- [ ] 1.6 GREEN: implement contained regular-file loading, 2-KiB excerpting, existing
+      sanitizer reuse, untrusted-data framing, deterministic 20-stub chunking, and one
+      global merge/sort — **S**
+      **Design decisions**: D8
       **Dependencies**: 1.5
 
-- [ ] 1.7 Test: `decide` records `{stub_key, decision, roadmap_ref|route, until, reason,
-      decided_at}` in the mirror's `back_edge.digested_stubs`, replacing an existing entry
-      for the same key; the next `store` run prunes `approved`/`rejected` files and their
-      `.rubric.json`; `deferred` files survive; an AST walk over `skills/supervise/scripts/`
-      finds no write to any path ending in `roadmap.yaml` — **S**
-      **Spec scenarios**: sv *Decision is recorded and the store is pruned*, *Deferred stub
-      returns after its date*, *Approval never bypasses the preview*
-      **Design decisions**: D5
-      **Dependencies**: None
+- [ ] 1.7 RED: test stub-to-request priority placement/`--after`, next free item ID,
+      provenance, acceptance requirement, local/cross-roadmap/completed dependency
+      resolution, unresolved dependency refusal, change-ID collision, real refiner preview
+      and apply, and stale-base refusal — **M**
+      **Spec scenarios**: sv *Approve a stub into an existing roadmap*, *Unresolved
+      dependency is refused*, *Missing acceptance outcomes are refused*, *Approval never
+      bypasses the preview*
+      **Dependencies**: 0.2
 
-- [ ] 1.8 Implement `decide` and the prune step in `store` — **S**
-      **Design decisions**: D5
+- [ ] 1.8 GREEN: implement `stub-to-request` without any roadmap write; use the canonical
+      readiness resolver and emit a temporary request for the host/refiner transaction — **S**
+      **Design decisions**: D4
       **Dependencies**: 1.7
 
-- [ ] Checkpoint: supervise suite green, `ruff` clean, review the cumulative diff against
-      `write_allow`
+- [ ] 1.9 RED: test rank-created pending entries and `decide` round trips for all decisions,
+      conditional metadata validation, newer-handoff state preservation, same-key replace,
+      unrelated-entry preservation, and an AST guard against roadmap writes/LLM/network
+      calls — **S**
+      **Spec scenarios**: sv *Digest state survives rehydration*, *Decisions round-trip
+      without state loss*, *Approval never bypasses the preview*
+      **Dependencies**: 0.2
 
-## Phase 2 — wp-rubric-prompt: the sub-agent contract
+- [ ] 1.10 GREEN: extend `_clean_digested_stub`; implement rehydrated-record merge and
+      `decide`; preserve idempotent `write_mirror` behavior — **S**
+      **Design decisions**: D3, D5
+      **Dependencies**: 1.4, 1.9
 
-- [ ] 2.1 Test: `templates/rubric-prompt.md` names all five factors with the D2 questions,
-      states the 1–5 scale and the risk inversion, instructs JSON-only output, and embeds
-      the schema `$id`; a fixture batch rendered through the template contains every stub
-      key and its provenance excerpt — **XS**
-      **Spec scenarios**: sv *Digest on a fresh cycle*
-      **Contracts**: rubric-score
-      **Design decisions**: D2
-      **Dependencies**: None
+- [ ] Checkpoint: supervise suite green including host-assisted invariant; ruff clean;
+      verify only the declared module/state/test files changed
 
-- [ ] 2.2 Write `templates/rubric-prompt.md` as a pure template with `{{batch}}`,
-      `{{ready_set}}`, `{{fingerprint}}` slots the host fills; document the slots at the
-      top — **S**
-      **Design decisions**: D2
+## Phase 2 — wp-rubric-prompt: bounded analyst contract
+
+- [ ] 2.1 RED: test that the template names all five factors and fixed scale (including
+      risk inversion), embeds the stable runtime schema ID, requires JSON-only exact-key
+      output, identifies the analyst archetype, declares batch/evidence limits, and marks
+      stub/provenance blocks as untrusted data whose instructions must not be followed — **S**
+      **Spec scenarios**: sv *Digest on a fresh cycle*, *Unsafe or unavailable provenance
+      is not read*
+      **Dependencies**: 0.2
+
+- [ ] 2.2 GREEN: write `templates/rubric-prompt.md` with `{{batch}}`, `{{ready_set}}`, and
+      `{{fingerprint}}` slots; document deterministic chunk/merge behavior and resolver
+      fallback (omit model override if analyst resolution is unavailable) — **S**
+      **Design decisions**: D2, D8
       **Dependencies**: 2.1
 
-- [ ] Checkpoint: prompt test green, review the diff
+- [ ] Checkpoint: prompt contract test green; review the prompt as a security boundary
 
-## Phase 3 — wp-skill-docs: rewire CYCLE and INTAKE
+## Phase 3 — wp-skill-docs: compose candidate state into CYCLE and INTAKE
 
-- [ ] 3.1 Test: `TestWorkflowContract` extended — CYCLE step 2 stores stubs, step 4 dispatches
-      the rubric sub-agent then runs `digest.py rank`, step 5 renders from `digest.json`;
-      the unchanged-fingerprint rule re-presents `digest.json`; INTAKE has an "approve from
-      digest" step naming `stub-to-request`, `refiner.py preview`, `apply
-      --expect-base-sha256`, and `decide`; existing assertions (`snapshot-writes`,
-      `audit-since`, `record --keys`, dry-run `MUST NOT invoke` block) still hold — **XS**
-      **Spec scenarios**: sv *Digest on a fresh cycle*, *Approve a stub into an existing
-      roadmap*, *New-roadmap stub falls back to plan-roadmap*
-      **Design decisions**: D2, D4, D6
-      **Dependencies**: None
+- [ ] 3.1 RED: extend `TestWorkflowContract` so CYCLE runs maintenance before unchanged
+      exit, merges retained backlog with fresh stubs, uses bounded analyst dispatch, renders
+      candidate additions without replacing gate deadlines/ready/blocker/sensor lines,
+      records keys, and keeps dry-run non-persisting; INTAKE names the exact preview/apply/
+      decide and new-roadmap fallback sequence — **S**
+      **Spec scenarios**: all CYCLE composition and approval routing scenarios
+      **Dependencies**: 1.4, 1.6, 1.8, 1.10, 2.2
 
-- [ ] 3.2 Rewrite CYCLE steps 2–5 in `skills/supervise/SKILL.md` around store, rubric
-      dispatch, `rank`, `digest.json`; update the Output table and Idempotency section for
-      the store, cache, and `digest.json` — **S**
-      **Design decisions**: D1, D2, D6
+- [ ] 3.2 GREEN: rewrite CYCLE steps 1–5 and Output/Idempotency sections around lifecycle
+      preflight, store, bounded rubric dispatch, candidate rank/digest composition, back-edge
+      synchronization, and unchanged/due-transition behavior — **S**
+      **Design decisions**: D1, D2, D5, D6, D8
       **Dependencies**: 3.1
 
-- [ ] 3.3 Add the INTAKE "approve from digest" step: `stub-to-request`, `refiner.py preview`,
-      operator confirmation, `apply --expect-base-sha256`, `decide`; plan-roadmap fallback
-      for new-roadmap stubs — **XS**
+- [ ] 3.3 GREEN: add INTAKE "approve from digest" with acceptance drafting, request
+      generation, preview, operator confirmation, apply with expected SHA, decide, and
+      `/plan-roadmap --new <slug> "<pitch>" --draft` fallback — **S**
       **Design decisions**: D4, D5
       **Dependencies**: 3.1
 
-- [ ] 3.4 Run `install.sh` to resync mirrors — **XS**
+- [ ] 3.4 Run `bash skills/install.sh --check`, resync mirrors if required, then prove
+      canonical and `.agents`/`.claude` supervise skills are byte-identical — **XS**
       **Dependencies**: 3.2, 3.3
 
-- [ ] Checkpoint: supervise suite green, mirrors synced
+- [ ] Checkpoint: supervise workflow tests green; mirrors synchronized
 
 ## Phase 4 — wp-integration
 
-- [ ] 4.1 Run all `skills/tests`, `ruff` on `skills/supervise`; run one scripted end-to-end
-      cycle over the fixture tree (store → rank with the valid rubric fixture → digest →
-      decide → store prunes) and diff against `digest-expected.json` — **S**
+- [ ] 4.1 Run the complete supervise suite and ruff. Execute a two-cycle fixture flow:
+      fresh store → bounded score → rank → mirror/rehydrate → candidate composition →
+      decision → output-only commit simulation → unchanged cache hit/prune/due transition.
+      Execute the real stub-to-request → refiner preview → apply transaction and stale-SHA
+      refusal against a temporary roadmap — **M**
       **Dependencies**: all Phase 1–3 tasks
 
-- [ ] 4.2 `openspec validate add-supervisor-candidate-work-digest --strict`; append the
-      Implementation `PhaseRecord`; update checkboxes; commit; push — **XS**
+- [ ] 4.2 Run all `skills/tests`, work-package schema/DAG/overlap validation, context-impact
+      validation against the feature base, and `openspec validate
+      add-supervisor-candidate-work-digest --strict`; append the Implementation PhaseRecord,
+      update checkboxes, commit, and push — **S**
       **Dependencies**: 4.1
