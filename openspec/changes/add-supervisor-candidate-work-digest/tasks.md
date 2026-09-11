@@ -7,7 +7,7 @@ GREEN). Capability short name: `sv` = `supervise`.
 
 ## Phase 0 — wp-contracts: runtime and persistence contracts first
 
-- [ ] 0.1 RED: add schema fixtures/tests covering full rubric and digest documents; exact
+- [x] 0.1 RED: add schema fixtures/tests covering full rubric and digest documents; exact
       five-factor justification coverage; strict canonical stub keys; duplicate/missing/
       unknown score-key semantic rejection; and supervisor-record decisions for approved
       refine-roadmap, approved plan-roadmap, deferred, rejected, and invalid metadata — **S**
@@ -15,7 +15,7 @@ GREEN). Capability short name: `sv` = `supervise`.
       round-trip without state loss*
       **Dependencies**: None
 
-- [ ] 0.2 GREEN: finalize the change-local schemas, install byte-identical stable runtime
+- [x] 0.2 GREEN: finalize the change-local schemas, install byte-identical stable runtime
       copies at `openspec/schemas/supervise-rubric-score.schema.json` and
       `openspec/schemas/supervise-digest.schema.json`, and extend both canonical
       supervisor-record schemas with `roadmap_ref`, `route`, `until`, `reason`, and

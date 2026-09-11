@@ -58,7 +58,7 @@ packages:
       read_allow: ["**"]
       deny: ["**/.venv/**"]
     context_impact:
-      surfaces: ["capabilities", "apis", "documentation"]
+      surfaces: ["capabilities", "apis", "documentation", "semantic_code"]
     worktree: {name: contracts, mode: shared}
     timeout_minutes: 60
     retry_budget: 1
