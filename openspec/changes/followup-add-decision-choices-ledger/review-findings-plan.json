@@ -1,43 +1,119 @@
 {
   "review_type": "plan",
   "target": "followup-add-decision-choices-ledger",
-  "reviewer_vendor": "claude_code",
+  "reviewer_vendor": "grok",
   "findings": [
     {
       "id": 1,
-      "type": "spec_gap",
-      "criticality": "medium",
+      "type": "correctness",
+      "criticality": "high",
       "axis": "correctness",
-      "severity": "optional",
+      "severity": "critical",
       "disposition": "fix",
       "evidence_class": "deterministic",
       "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
-      "description": "Task 3.2 says to add a `Choices:` row to 'the Step 11 Phase Results template', but skills/validate-feature/SKILL.md contains two distinct Phase Results blocks inside Step 11: an illustrative report sketch with an h3 `### Phase Results` heading, and the heredoc that actually writes $REPORT_FILE with an h2 `## Phase Results` whose body is the placeholder `<phase results from Step 10>`. Only the second one reaches validation-report.md, and its content is assembled at Step 10, not typed in Step 11. As written the task can be satisfied by editing the sketch alone, in which case the gate presentation shows a Choices row that never appears in the persisted report, and task 3.7's content test would pass while the behavior is absent.",
-      "resolution": "Name both edit sites in task 3.2: the illustrative `### Phase Results` sketch (so the documented format includes the row) and the Step 10 phase-results assembly that feeds the heredoc's `<phase results from Step 10>` placeholder (so the row reaches validation-report.md). Have task 3.7 assert the row appears in the assembly site, not only in the sketch."
+      "line_range": {
+        "start": 84,
+        "end": 103
+      },
+      "description": "Critical: Tasks 3.2 and 3.7 invent a 'Step 10 phase-results assembly' and claim Step 11 contains two Phase Results blocks. In skills/validate-feature/SKILL.md, Step 10 is Teardown; the illustrative `### Phase Results` sketch is under Step 11; the heredoc that writes `$REPORT_FILE` with `## Phase Results` and placeholder `<phase results from Step 10>` is under Step 12 Persist Report. There is no Step 10 assembly block to edit or assert, so the dual-edit/dual-assert instructions are not implementable as written and risk editing only the sketch.",
+      "resolution": "Rewrite 3.2/3.7 against the real structure: require a `Choices:` row in (1) the Step 11 sketch and (2) explicit fill instructions for the Step 12 heredoc placeholder (or an adjacent assembly snippet that produces those lines). Have 3.7 assert both loci, not a nonexistent Step 10 assembly."
     },
     {
       "id": 2,
-      "type": "contract_mismatch",
-      "criticality": "medium",
+      "type": "correctness",
+      "criticality": "high",
       "axis": "correctness",
-      "severity": "optional",
+      "severity": "critical",
       "disposition": "fix",
       "evidence_class": "deterministic",
       "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
-      "description": "Task 3.6 instructs the end-to-end test to copy the archived parent's artifacts and to 'resolve the archive dir at test time — never pin the path', but does not name the mechanism. AGENTS.md states the rule concretely: resolve at read time with `change_dir()` from `openspec_paths`, and a guard test enforces it. That helper already exists at skills/tests/_shared/openspec_paths.py and its `change_dir(repo_root, change_id)` returns the active `openspec/changes/<id>/` when present and the archived directory otherwise — exactly what task 3.6 needs. Leaving it unnamed invites a hand-rolled glob over `openspec/changes/archive/*-add-decision-choices-ledger` that satisfies the prose but fails the guard.",
-      "resolution": "In task 3.6, replace 'resolve the archive dir at test time — never pin the path' with an explicit instruction to use `change_dir()` from `skills/tests/_shared/openspec_paths.py`, passing change id `add-decision-choices-ledger`, and add that file to the task's **Files** line as a read dependency."
+      "line_range": {
+        "start": 148,
+        "end": 176
+      },
+      "description": "Critical: Task 3.6 claims skill-workflow.12 by invoking 'the CLI' with a single `<base>..<head>` argument and asserting base/head were derived from it. `skills/audit-choices/scripts/run_audit.py` has no such arity \u2014 it requires `--change-id`, `--base-sha`, and `--head-sha` separately \u2014 and range resolution lives only as agent instructions in `audit-choices/SKILL.md` Step 1. Under the proposal's no-driver-change constraint, that pytest assertion has no existing entry point to call; a test that fabricates `change_id=range:...` still fails the task's own anti-bypass rule.",
+      "resolution": "Either (a) add a small pure range-arg parser (outside persistence) that 3.6 can unit-test and that SKILL.md Step 1 must call, or (b) move scenario 12 coverage to a 3.7-style content pin of the Arguments/Step 1 range form and narrow the scenario/task to match what Phase 2 actually shipped."
     },
     {
       "id": 3,
-      "type": "architecture",
-      "criticality": "low",
-      "axis": "architecture",
-      "severity": "fyi",
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
       "disposition": "fix",
       "evidence_class": "deterministic",
       "file_path": "openspec/changes/followup-add-decision-choices-ledger/design.md",
-      "description": "Decision F4 justifies the row form by asserting that a `## Choices` section 'would be one heading away from becoming a gate input' in validate-feature/scripts/gate_logic.py. That overstates the mechanism. gate_logic.py computes required phases from two fixed allowlists — ALWAYS_REQUIRED_PHASES ({'Spec Compliance'}) plus REQUIRED_PHASES ({'Smoke Tests','Security','E2E Tests'}) when the surface is deployable, plus 'Architecture' in blocking mode. An unrecognized `## Choices` heading is simply not consulted, so it could not become a gate input without a code change to those dicts. The row form is still the right call, but the stated reason is not the real one and a future reader may act on it.",
-      "resolution": "Restate F4's rationale accurately: gate_logic.py consults a fixed allowlist of phase headings, so a `## Choices` section would be inert today; the row form is chosen because it keeps choices inside the existing Phase Results presentation and leaves no heading that a future allowlist edit could pick up by accident. Keep the 'never emit a `## Choices` section' instruction in task 3.2 and the assertion in task 3.7 unchanged."
+      "line_range": {
+        "start": 234,
+        "end": 238
+      },
+      "description": "Nit: design.md Risks still says 'Scenario 11 asserts only the recorded `change_id` and the exit code' for the standalone `range:` ledger-path quirk. After F7 renumbering, standalone range is skill-workflow.12; skill-workflow.11 is 'Absent or empty ledger is silent at the gates'.",
+      "resolution": "Replace 'Scenario 11' with 'Scenario 12' (skill-workflow.12) in that Risks bullet so the ordinal matches tasks.md's scenario key table."
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/proposal.md",
+      "line_range": {
+        "start": 65,
+        "end": 68
+      },
+      "description": "Nit: proposal.md Selected Approach says `tasks.md` encodes a dependency graph where '3.6 depends on 3.0\u20133.3', but tasks.md lists 3.6 Dependencies as 3.0 only and explicitly states it does not depend on 3.1\u20133.3 (scenario 8 stays on 3.1+3.7). plan-findings.md's parallelizability graph still shows `3.0 \u2192 {3.2, 3.3} \u2192 3.6`.",
+      "resolution": "Align proposal.md (and the plan-findings parallelizability summary) with tasks.md: 3.6 depends only on 3.0; 3.7 depends on 3.1\u20133.3."
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "axis": "compatibility",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 46,
+        "end": 51
+      },
+      "description": "Nit: Scenario 'Absent or empty ledger is silent at the gates' requires that both validate-feature and cleanup-feature presentations 'SHALL state that no open choices exist'. Tasks 3.2/3.7 pin validate-feature to `\u25cb Choices: no ledger` and `\u2713 Choices: <n> entries, 0 needs-user`, which never use that phrase; only cleanup uses `no open choices`. Spec SHALL and task strings disagree.",
+      "resolution": "Either loosen the scenario to allow gate-specific equivalent wording (and cite the \u25cb/\u2713 forms), or change the validate-feature row strings so both gates literally state that no open choices exist."
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "line_range": {
+        "start": 178,
+        "end": 198
+      },
+      "description": "Nit: F2's load-bearing 'commit only when entry payload changed' rule (compare `choices.json` with `generated_at`/`run_id` stripped; restore both files when only the volatile header moved) is specified in task 3.1/design F2 but task 3.7 does not assert that wording \u2014 only VENDOR_REVIEW, the skip line, both-files-present, and the two `git add` pathspecs. A SKILL.md rewrite could drop the payload comparison, emit content-free `chore(choices):` commits every run, and still pass 3.7.",
+      "resolution": "Extend 3.7's iterate-on-implementation assertions to require the entry-payload comparison / `generated_at`+`run_id` strip / restore-on-header-only wording from F2."
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "accept",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "line_range": {
+        "start": 148,
+        "end": 172
+      },
+      "description": "Optional: Task 3.6 lists skill-workflow.2 ('Missing ledger does not block archive') under its driver e2e via 'absence does not block (2)'. Parent/canonical scenario 2's THEN is that validation must not fail and archive must proceed without a ledger \u2014 behavior this fixture-repo driver run never exercises.",
+      "resolution": "Drop skill-workflow.2 from 3.6's scenario list (keep absence covered under scenario 11's reader/gate silence), or add an explicit archive/validate non-failure assertion if that coverage is still desired here."
     }
   ]
 }

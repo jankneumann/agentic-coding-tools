@@ -99,18 +99,30 @@ schema, ledger format, driver, or the skill's read-only posture.
   and stages a repo-root `choices.md` that does not exist — committing half
   the pair. The pathspec is spelled out for both files for that reason.)
 
-  **The "commit only when changed" test is on entries, not on file bytes.**
-  `choices_ledger.make_header` stamps a fresh `generated_at` and `run_id` on
-  every run, and `render_markdown` prints `generated_at` into `choices.md`, so
-  a byte comparison always differs and D3 idempotence (stable `stable_id`s
-  across runs) says nothing about byte-stability. Step 11.5 compares the
-  **entry payload** — `choices.json` with `generated_at` and `run_id` removed
-  from the header — against the committed revision. When only the volatile
-  header moved, it restores the committed pair (`git checkout -- <both
-  paths>`) and commits nothing; otherwise it commits
-  `chore(choices): audit ledger for <change-id>`. Every re-audit of an
-  unchanged diff is therefore a no-op commit-wise, which is what F2 always
-  intended and what a byte test could not deliver.
+  **The "commit only when changed" test is on `entries` alone.**
+  A byte comparison always differs: `choices_ledger.make_header` stamps a
+  fresh `generated_at` and `run_id` every run, `render_markdown` prints
+  `generated_at` into `choices.md`, `header.git_sha` moves with every commit,
+  and `audited_range.head_sha` moves with it — and D3 idempotence (stable
+  `stable_id`s across runs) says nothing about byte-stability. Subtracting
+  only the two obviously per-run header fields is not enough; `git_sha` and
+  `audited_range` are equally volatile and equally uninteresting.
+
+  The comparison is therefore positive rather than subtractive: Step 11.5
+  compares **only the `entries` array**, verbatim as written, between the
+  freshly produced `choices.json` and the committed revision
+  (`git show HEAD:openspec/changes/$CHANGE_ID/choices.json`). `entries` is
+  already canonically ordered by `rank_entries` at write time, so equal entry
+  sets serialize identically. `schema_version` is compared too, so a schema
+  bump is never silently dropped. Everything else — `generated_at`, `run_id`,
+  `git_sha`, `generator`, `event_kind`, `audited_range`, `auditor` — is
+  ignored for the purpose of this decision.
+
+  When `entries` and `schema_version` are unchanged, Step 11.5 restores the
+  committed pair (`git checkout -- <both paths>`) and commits nothing;
+  otherwise it commits `chore(choices): audit ledger for <change-id>`. Every
+  re-audit of an unchanged diff is a commit-wise no-op, which is what F2
+  always intended and what a byte test could not deliver.
 
   The staging, the comparison and the commit are all inside the
   warn-and-continue guard.
@@ -233,8 +245,9 @@ schema, ledger format, driver, or the skill's read-only posture.
   data.
 - **Standalone `range:` form writes to an odd path.** With `change_id =
   "range:<base>..<head>"`, the driver writes under
-  `openspec/changes/range:<base>..<head>/`. Scenario 11 asserts only the
-  recorded `change_id` and the exit code; the location is out of scope here
+  `openspec/changes/range:<base>..<head>/`. Scenario `skill-workflow.12`
+  asserts only the recorded `change_id` and the exit code; the location is
+  out of scope here
   and is recommended as follow-up `fix-audit-choices-range-ledger-path`.
 - **Audit cost per convergence.** Step 11.5 adds one sub-agent dispatch to
   every `iterate-on-implementation` run. Accepted: the parent deferred

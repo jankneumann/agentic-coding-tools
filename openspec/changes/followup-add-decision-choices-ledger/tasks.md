@@ -87,13 +87,17 @@ refer to this change's `design.md`.
   **Dependencies**: 3.0
   **Files**: `skills/validate-feature/SKILL.md`
   **Size**: S
-  Step 11 of this skill contains **two** Phase Results blocks and the row must
-  reach both: the illustrative `### Phase Results` sketch that documents the
-  report format, and the Step 10 phase-results assembly whose output fills the
-  `<phase results from Step 10>` placeholder in the heredoc that actually
-  writes `$REPORT_FILE` under an `## Phase Results` heading. Editing only the
-  sketch produces a documented row that never appears in
-  `validation-report.md`.
+  The row must reach **two** places, in two different steps. `### 11.
+  Validation Report` holds an illustrative report sketch with an
+  `### Phase Results` heading — that documents the format. `### 12. Persist
+  Report` holds the `cat > "$REPORT_FILE"` heredoc that actually writes the
+  file, under an `## Phase Results` heading whose entire body is the
+  placeholder `<phase results from Step 10>`. (Step 10 is Teardown; that
+  placeholder is a stale cross-reference already in the skill — do not
+  propagate it, and do not attempt to fix it here.) Editing only the Step 11
+  sketch produces a documented row that never reaches
+  `validation-report.md`, so Step 12 needs explicit instruction to carry the
+  `Choices:` row into the persisted report.
   Row forms: `○ Choices: no ledger`, `✓ Choices: <n> entries, 0 needs-user`,
   or `⚠ Choices: <n> needs-user entries (choices.md)` followed by
   `needs_user.py` output lines. Echo the `⚠` form once under After Validation.
@@ -146,7 +150,7 @@ refer to this change's `design.md`.
   freshness gate stays green.
 
 - [ ] 3.6 Pin the driver end-to-end against archived-change fixture data
-  **Spec scenarios**: skill-workflow.1 through skill-workflow.7 (driver run), skill-workflow.9 through skill-workflow.11 (reader output), skill-workflow.12 (range form)
+  **Spec scenarios**: skill-workflow.1, skill-workflow.3 through skill-workflow.7 (driver run), skill-workflow.9 through skill-workflow.11 (reader output)
   **Design decisions**: F5, F6
   **Dependencies**: 3.0
   **Files**: `skills/tests/audit-choices/test_end_to_end.py`
@@ -164,20 +168,28 @@ refer to this change's `design.md`.
   use over a literal path. Make one base and one implementing commit, and a
   canned candidate set with one `sound`, one `unsound`, one `needs-user`, and
   one matching a session-log Decision bullet.
-  Assert: schema-valid pair with the six-field header (1); absence does not
-  block (2); the working-tree snapshot diff is exactly the pair (3); `ok=True`
-  with adverse verdicts present (4); `self_reported` resolves both ways (5);
-  a second run keeps every `stable_id` and the count (6); `choices.md` order
-  (7); `needs_user.py` lists exactly the `needs-user` entry and is empty for
-  a change with no ledger (9–11). For (12), invoke the CLI with a single
-  `<base>..<head>` **argument** and assert the audited base and head were
-  derived from it — a test that hands the driver a precomputed
-  `range:<base>..<head>` change id passes even when argument parsing is
-  broken.
+  Assert: schema-valid pair with the six-field header (1); the working-tree
+  snapshot diff is exactly the pair (3); `ok=True` with adverse verdicts
+  present (4); `self_reported` resolves both ways (5); a second run keeps
+  every `stable_id` and the count (6); `choices.md` order (7);
+  `needs_user.py` lists exactly the `needs-user` entry and is empty for a
+  change with no ledger (9–11).
+  **Not covered here, deliberately.** skill-workflow.2 ("Missing ledger does
+  not block archive") is validation and archive behavior, which a driver
+  fixture never exercises; it stays with the parent's own coverage.
+  skill-workflow.8 is `iterate-on-implementation` behavior and belongs to 3.1
+  + 3.7. skill-workflow.12 has no programmatic entry point to call:
+  `run_audit.py` takes `--change-id`, `--base-sha` and `--head-sha`
+  separately, and the `<base>..<head>` argument form is resolved by
+  `audit-choices/SKILL.md` Step 1 as an agent instruction. Under the
+  proposal's no-driver-change constraint it is pinned by 3.7 as a content
+  assertion instead — a pytest that fabricates `change_id="range:..."` would
+  pass whether or not the documented resolution works, which is exactly the
+  bypass this task forbids elsewhere.
 
 - [ ] 3.7 Pin the three workflow hooks with SKILL.md content tests
-  **Spec scenarios**: skill-workflow.8, skill-workflow.9, skill-workflow.10, skill-workflow.11
-  **Design decisions**: F1, F2, F4, F6
+  **Spec scenarios**: skill-workflow.8, skill-workflow.9, skill-workflow.10, skill-workflow.11, skill-workflow.12
+  **Design decisions**: F1, F2, F4, F6, F8
   **Dependencies**: 3.1, 3.2, 3.3
   **Files**: `skills/tests/audit-choices/test_workflow_hooks.py`
   **Size**: S
@@ -187,14 +199,24 @@ refer to this change's `design.md`.
     `VENDOR_REVIEW`, the single skip line, the both-files-present check, and
     a `git add` whose two pathspecs are both under
     `openspec/changes/$CHANGE_ID/` (assert no bare `choices.md` argument).
-  - validate-feature's Step 10 phase-results assembly and its Step 11 sketch
-    both carry a `Choices:` row, no line in the file begins with
-    `## Choices` (inline-code mentions are fine, a heading is not), and the
-    `○` no-ledger and `✓` zero-needs-user forms are both present
-    (scenario 11's gate side).
+  - the same step states the F2 commit rule: that the comparison is on the
+    `entries` array against the committed revision, and that a run whose
+    entries are unchanged restores the pair and commits nothing. Without this
+    assertion a rewrite could drop the comparison and emit a content-free
+    `chore(choices):` commit on every run while still passing every other
+    check here.
+  - validate-feature carries a `Choices:` row in **both** the Step 11 report
+    sketch and the Step 12 `$REPORT_FILE` heredoc, no line in the file begins
+    with `## Choices` (inline-code mentions are fine, a heading is not), and
+    the `○` no-ledger and `✓` zero-needs-user forms are both present and
+    distinct (scenario 11's gate side).
   - cleanup-feature has a `### 5.5.` calling `needs_user.py`, states no new
     gate, carries the `no open choices` wording, and its Step 5a early exit
     names Step 5.5 rather than Step 6.
-  - audit-choices Arguments documents `--run-id`.
+  - audit-choices Arguments documents `--run-id`, and documents the
+    `<base-sha>..<head-sha>` form together with the Step 1 rule that an
+    explicit range argument is used as given rather than resolved from a
+    change's base commit (scenario 12 — see 3.6 for why this is a content
+    assertion and not a driver test).
 
 - [ ] Checkpoint: run the four skill gates (`cd skills && bash install.sh --check`; `python validate-feature/scripts/linters/dependency_direction.py --skills-root .`; `make context-refresh PYTHON=skills/.venv/bin/python`; `python -m pytest tests/ci_coverage -q`), resync runtime copies (`bash skills/install.sh --mode rsync --deps none --python-tools none`), review diff, verify scope
