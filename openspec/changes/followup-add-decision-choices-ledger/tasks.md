@@ -149,7 +149,7 @@ refer to this change's `design.md`.
   common happy path and jumps straight over 5.5. Point it at Step 5.5 instead
   so a fully-completed change still surfaces its open choices before archive.
 
-- [ ] Checkpoint: run `cd skills && uv run pytest tests/audit-choices -q`, `bash skills/install.sh --check`, review diff, verify scope
+- [x] Checkpoint: run `cd skills && uv run pytest tests/audit-choices -q`, `bash skills/install.sh --check`, review diff, verify scope
 
 - [x] 3.4 Update docs/guides/workflow.md with the audit-choices skill
   **Dependencies**: none (parent 2.8 archived)
@@ -262,4 +262,4 @@ refer to this change's `design.md`.
     change's base commit (scenario 12 — see 3.6 for why this is a content
     assertion and not a driver test).
 
-- [ ] Checkpoint: run the four skill gates (`cd skills && bash install.sh --check`; `python validate-feature/scripts/linters/dependency_direction.py --skills-root .`; `make context-refresh PYTHON=skills/.venv/bin/python`; `python -m pytest tests/ci_coverage -q`), resync runtime copies (`bash skills/install.sh --mode rsync --deps none --python-tools none`), review diff, verify scope
+- [x] Checkpoint: run the four skill gates (`cd skills && bash install.sh --check`; `python validate-feature/scripts/linters/dependency_direction.py --skills-root .`; `make context-refresh PYTHON=skills/.venv/bin/python`; `python -m pytest tests/ci_coverage -q`), resync runtime copies (`bash skills/install.sh --mode rsync --deps none --python-tools none`), review diff, verify scope
