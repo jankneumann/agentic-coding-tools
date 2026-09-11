@@ -65,7 +65,9 @@ refer to this change's `design.md`.
   own range resolution and the independent sub-agent dispatch.
   Then, per F2: verify **both** `choices.json` and `choices.md` exist and are
   non-empty (if only one does, restore both with `git checkout --` and take
-  the skip line — F6); compare the fresh `choices.json`'s `entries` array and
+  the skip line, discarding the orphan with `git checkout --` when the path
+  is tracked and `rm -f` when it is not, since `git checkout --` does nothing
+  for an untracked first-run file — F6); compare the fresh `choices.json`'s `entries` array and
   `schema_version` against the committed revision
   (`git show HEAD:openspec/changes/$CHANGE_ID/choices.json`), ignoring
   `generated_at`, `run_id`, `git_sha`, `generator`, `event_kind`,
@@ -103,8 +105,14 @@ refer to this change's `design.md`.
   `validation-report.md`, so Step 12 needs explicit instruction to carry the
   `Choices:` row into the persisted report.
   Row forms: `○ Choices: no ledger`, `✓ Choices: <n> entries, 0 needs-user`,
-  or `⚠ Choices: <n> needs-user entries (choices.md)` followed by
-  `needs_user.py` output lines. Echo the `⚠` form once under After Validation.
+  or `⚠ Choices: <n> needs-user entries (choices.md)` followed by the reader's
+  output lines. The row picks between `○` and `✓` by testing for
+  `openspec/changes/$CHANGE_ID/choices.json` itself — the reader is silent for
+  both empty cases by design (F3) and scenario 11 requires them to render
+  differently. Invoke the reader the way this repo invokes every sibling-skill
+  script, `python3 "<skill-base-dir>/../audit-choices/scripts/needs_user.py"`,
+  never a bare command or a repo-root `skills/...` path: the runtime mirrors
+  under `.claude/skills/` and `.agents/skills/` have neither on the path. Echo the `⚠` form once under After Validation.
   State explicitly that the row never changes Result (`⚠` is already "passed
   with warnings"). Never emit a `## Choices` section — `gate_logic.py` reads a
   fixed allow-list of phase headings and the row form leaves nothing for a
@@ -120,9 +128,15 @@ refer to this change's `design.md`.
   choices` immediately before the `### 6. Archive OpenSpec Proposal` heading
   (the file labels two different headings `5c` and has a `5d` between the
   open-task migration and archive; anchor on Step 6, never on 5c). It runs
-  `needs_user.py --change-id "$CHANGE_ID"`, prints the lines or `no open
-  choices`, and proceeds to archive on the existing confirmation — no prompt,
-  no migration, no new gate. Note that the ledger archives with the change
+  `python3 "<skill-base-dir>/../audit-choices/scripts/needs_user.py"
+  --change-id "$CHANGE_ID"` — skill-relative, like every other sibling-skill
+  call in this repo, so it resolves inside the `.claude/skills/` and
+  `.agents/skills/` mirrors too. It prints the entry lines when there are
+  any; otherwise it distinguishes the two empty cases scenario 11 requires to
+  differ, by testing for `openspec/changes/$CHANGE_ID/choices.json` and
+  printing `no choices ledger` when it is absent and `no open choices` when
+  it exists with nothing open. Then it proceeds to archive on the existing
+  confirmation — no prompt, no migration, no new gate. Note that the ledger archives with the change
   directory unchanged.
   Second, retarget the Step 5a early exit: `#### 5a. Detect open tasks` ends
   with "If **all tasks are checked** (`- [x]`), skip to Step 6", which is the
@@ -163,13 +177,16 @@ refer to this change's `design.md`.
   `iterate-on-implementation` behavior and belongs to 3.1 + 3.7 — so this task
   does not depend on 3.1–3.3.
   Build a `tmp_path` git repo (pattern of
-  `test_readonly_posture.fixture_repo`) whose `openspec/changes/<id>/` holds
-  the archived parent's `proposal.md`, `design.md` and `session-log.md`,
-  copied as fixture data. Locate them with `change_dir()` from
-  `skills/tests/_shared/openspec_paths.py` passing change id
-  `add-decision-choices-ledger` — that helper returns the active directory
-  when present and the archived one otherwise, and a guard test enforces its
-  use over a literal path. Make one base and one implementing commit, and a
+  `test_readonly_posture.fixture_repo`). Read the archived parent's
+  `proposal.md`, `design.md` and `session-log.md` from the real repo with
+  `change_dir(real_repo_root, "add-decision-choices-ledger")` from
+  `skills/tests/_shared/openspec_paths.py` — that helper returns the active
+  directory when present and the archived one otherwise, and a guard test
+  enforces its use over a literal path. Copy them into the fixture repo under
+  a **synthetic** change id (`fixture-decision-choices-ledger`), not the real
+  one: the real id is how you find the source artifacts, never how the
+  fixture names its own active change, or the test re-encodes the archival
+  coupling the path-stability rule exists to prevent. Make one base and one implementing commit, and a
   canned candidate set with one `sound`, one `unsound`, one `needs-user`, and
   one matching a session-log Decision bullet.
   Assert: schema-valid pair with the six-field header (1); the working-tree
@@ -215,8 +232,15 @@ refer to this change's `design.md`.
     the `○` no-ledger and `✓` zero-needs-user forms are both present and
     distinct (scenario 11's gate side).
   - cleanup-feature has a `### 5.5.` calling `needs_user.py`, states no new
-    gate, carries the `no open choices` wording, and its Step 5a early exit
-    names Step 5.5 rather than Step 6.
+    gate, carries **both** empty-case wordings (`no choices ledger` and `no
+    open choices`) so scenario 11's two cases stay distinguishable, and its
+    Step 5a early exit names Step 5.5 rather than Step 6.
+  - both gate hooks invoke the reader through
+    `<skill-base-dir>/../audit-choices/scripts/needs_user.py`; assert no bare
+    `needs_user.py` command and no repo-root `skills/audit-choices/...` path
+    appears in either file's hook block.
+  - the Step 11.5 orphan cleanup names both the tracked case
+    (`git checkout --`) and the untracked first-audit case (`rm -f`).
   - audit-choices Arguments documents `--run-id`, and documents the
     `<base-sha>..<head-sha>` form together with the Step 1 rule that an
     explicit range argument is used as given rather than resolved from a
