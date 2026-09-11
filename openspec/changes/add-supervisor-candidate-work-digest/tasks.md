@@ -28,7 +28,7 @@ GREEN). Capability short name: `sv` = `supervise`.
 
 ## Phase 1 — wp-digest-module: state helpers and `digest.py`
 
-- [ ] 1.1 RED: test strict reversible key encoding; retained-plus-fresh store merge;
+- [x] 1.1 RED: test strict reversible key encoding; retained-plus-fresh store merge;
       byte-stable writes; terminal prune and due-deferral maintenance before SENSE and
       unchanged exit; maintained-baseline precedence over later capacity failure; the
       atomic 20-candidate capacity bound with named overflow; dry-run no-write and
@@ -39,13 +39,13 @@ GREEN). Capability short name: `sv` = `supervise`.
       *Dry run writes nothing*
       **Dependencies**: 0.2
 
-- [ ] 1.2 GREEN: implement store/key/maintenance behavior in `digest.py`; update
+- [x] 1.2 GREEN: implement store/key/maintenance behavior in `digest.py`; update
       `cycle_state._tree_listing` to exclude the candidate store, rubric caches, and
       digest artifact while preserving all non-supervisor inputs — **S**
       **Design decisions**: D1, D3
       **Dependencies**: 1.1
 
-- [ ] 1.3 RED: test exact batch-key/fingerprint matching; host-manifest `as_of` exactness
+- [x] 1.3 RED: test exact batch-key/fingerprint matching; host-manifest `as_of` exactness
       against missing/earlier/later/naive/future `scored_at`; cache-only validation
       against preserved `generated_at`; `state_updated_at`; complete emitted ranking
       policy; risk inversion; Git-commit staleness and modified/untracked/future-clock-skew
@@ -59,7 +59,7 @@ GREEN). Capability short name: `sv` = `supervise`.
       is composed without operational regression*, *Digest state survives rehydration*
       **Dependencies**: 0.2
 
-- [ ] 1.4 GREEN: implement `rank` and read-only `digest` rendering; source runtime schemas
+- [x] 1.4 GREEN: implement `rank` and read-only `digest` rendering; source runtime schemas
       only from stable paths; keep reuse/cache diagnostics on stdout; validate prior bytes
       before reuse; stage cache/digest/mirror replacements in memory and publish only after
       whole-document validation; publish replacement and deletion operations through the
@@ -72,7 +72,7 @@ GREEN). Capability short name: `sv` = `supervise`.
       **Design decisions**: D2, D3, D5, D6
       **Dependencies**: 1.2, 1.3
 
-- [ ] 1.5 RED: test the public `prepare-batch --as-of` manifest contract and bounded
+- [x] 1.5 RED: test the public `prepare-batch --as-of` manifest contract and bounded
       evidence loader against valid UTF-8, URI, missing, binary,
       symlink, traversal, oversized, secret-bearing, and prompt-injection fixtures; prove
       unavailable evidence is not read and becomes null-staleness degradation; prove the
@@ -81,13 +81,13 @@ GREEN). Capability short name: `sv` = `supervise`.
       **Spec scenarios**: sv *Unsafe or unavailable provenance is not read*
       **Dependencies**: 0.2
 
-- [ ] 1.6 GREEN: implement `prepare-batch`, contained regular-file loading, 2-KiB
+- [x] 1.6 GREEN: implement `prepare-batch`, contained regular-file loading, 2-KiB
       excerpting, `roadmap-runtime` `sanitize_string` reuse, untrusted-data framing, and
       deterministic one-batch manifest output — **S**
       **Design decisions**: D8
       **Dependencies**: 1.5
 
-- [ ] 1.7 RED: test stub-to-request priority placement/`--after`, next free item ID,
+- [x] 1.7 RED: test stub-to-request priority placement/`--after`, next free item ID,
       provenance, acceptance requirement, local/cross-roadmap/completed dependency
       resolution, unresolved dependency refusal, change-ID collision, real refiner preview
       and apply, and stale-base refusal — **M**
@@ -96,14 +96,14 @@ GREEN). Capability short name: `sv` = `supervise`.
       bypasses the preview*
       **Dependencies**: 0.2
 
-- [ ] 1.8 GREEN: implement `stub-to-request` without any roadmap write; build the same
+- [x] 1.8 GREEN: implement `stub-to-request` without any roadmap write; build the same
       strict all-status index from roadmap YAML, active changes, and archived changes, use
       ri-16's typed reference rules but not its ready frontier, and emit a temporary request
       for the host/refiner transaction — **S**
       **Design decisions**: D4
       **Dependencies**: 1.7
 
-- [ ] 1.9 RED: test rank-created pending entries and `decide` round trips for all decisions,
+- [x] 1.9 RED: test rank-created pending entries and `decide` round trips for all decisions,
       conditional metadata validation, newer-handoff state preservation, same-key replace,
       unrelated-entry preservation, and an AST guard against roadmap writes/LLM/network
       calls — **S**
@@ -111,7 +111,7 @@ GREEN). Capability short name: `sv` = `supervise`.
       without state loss*, *Approval never bypasses the preview*
       **Dependencies**: 0.2
 
-- [ ] 1.10 GREEN: extend `_clean_digested_stub`; implement rehydrated-record merge and
+- [x] 1.10 GREEN: extend `_clean_digested_stub`; implement rehydrated-record merge and
       `decide`; preserve idempotent `write_mirror` behavior — **S**
       **Design decisions**: D3, D5
       **Dependencies**: 1.4, 1.9
