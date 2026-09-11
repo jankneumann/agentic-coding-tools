@@ -960,7 +960,12 @@ def stub_to_request(
     operation: dict[str, Any] = {"op": "add", "item": item}
     if after is not None:
         operation["after"] = after
-    return {"operations": [operation]}
+    return {
+        "rationale": stub["rationale"],
+        "actor": "supervise",
+        "source": f"candidate-digest:{key}",
+        "operations": [operation],
+    }
 
 
 

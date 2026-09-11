@@ -11,11 +11,18 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS = REPO_ROOT / "skills/supervise/scripts"
+REFINER_SCRIPTS = REPO_ROOT / "skills/refine-roadmap/scripts"
 SCHEMAS = REPO_ROOT / "openspec/schemas"
-if str(SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS))
+for scripts_dir in (SCRIPTS, REFINER_SCRIPTS):
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
 
 from digest import build_status_index, store_candidates, stub_to_request  # noqa: E402
+from refiner import (  # noqa: E402
+    BaseRoadmapChangedError,
+    apply_refinement,
+    preview_refinement,
+)
 
 
 def _item(item_id: str, *, status: str, change_id: str | None = None) -> dict:
@@ -82,6 +89,7 @@ def repo(tmp_path: Path) -> Path:
         "supervise-rubric-score.schema.json",
         "supervisor-record.schema.json",
         "supervisor-record-mirror.schema.json",
+        "roadmap.schema.json",
     ):
         shutil.copy2(SCHEMAS / name, schemas / name)
     return root
@@ -141,7 +149,10 @@ def test_stub_to_request_maps_fields_next_id_position_and_dependency_types(repo:
         after="ri-01",
     )
 
-    assert list(request) == ["operations"]
+    assert list(request) == ["rationale", "actor", "source", "operations"]
+    assert request["rationale"] == stub["rationale"]
+    assert request["actor"] == "supervise"
+    assert request["source"] == "candidate-digest:change:add-routed-work"
     assert len(request["operations"]) == 1
     operation = request["operations"][0]
     assert operation["op"] == "add"
@@ -201,4 +212,37 @@ def test_stub_to_request_refuses_change_id_collision(repo: Path) -> None:
     with pytest.raises(ValueError, match="collision"):
         stub_to_request(
             repo, "change:add-routed-work", roadmap_id="target", acceptance=["done"]
+        )
+
+
+def test_stub_request_runs_real_refiner_preview_apply_and_stale_sha_refusal(repo: Path) -> None:
+    target = _roadmap(repo, "target", [_item("ri-01", status="completed", change_id="add-done")])
+    stub = _stub()
+    store_candidates(repo, [stub], record=None, as_of="2026-09-11T01:00:00Z")
+    request = stub_to_request(
+        repo,
+        "change:add-routed-work",
+        roadmap_id="target",
+        acceptance=["Roadmap transaction completes"],
+    )
+
+    preview = preview_refinement(target, request, repo)
+    assert preview.errors == []
+    result = apply_refinement(
+        target,
+        request,
+        repo,
+        expected_base_sha256=preview.base_sha256,
+        strict_validator=lambda _root: [],
+    )
+
+    assert result.scaffolded_change_ids == ["add-routed-work"]
+    assert (repo / "openspec/changes/add-routed-work/proposal.md").is_file()
+    with pytest.raises(BaseRoadmapChangedError, match="changed after preview"):
+        apply_refinement(
+            target,
+            request,
+            repo,
+            expected_base_sha256=preview.base_sha256,
+            strict_validator=lambda _root: [],
         )
