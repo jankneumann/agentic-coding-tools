@@ -13,6 +13,7 @@ against.
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 SKILLS_ROOT = Path(__file__).resolve().parents[2]
@@ -144,6 +145,96 @@ class TestIterateOnImplementationStep11_5:
         section = _section(ITERATE_SKILL, "11.5")
         assert "git checkout --" in section
         assert "rm -f" in section
+
+    def test_orphan_cleanup_branches_per_path_on_ls_files(self):
+        """F6: the orphan cleanup must decide *per path*, via `git ls-files
+        --error-unmatch`, whether to `git checkout --` (tracked) or `rm -f`
+        (untracked) — never run both commands unconditionally against both
+        paths, which would delete a tracked file the checkout just
+        restored. See test_orphan_cleanup_behavior below for the executable
+        proof."""
+        fence = _fences(_section(ITERATE_SKILL, "11.5"))
+        assert "git ls-files --error-unmatch" in fence
+        # The checkout and the rm -f must be in different branches of the
+        # same conditional, not two unconditional statements back to back.
+        assert re.search(
+            r"if git ls-files --error-unmatch .*?\n\s*git checkout --.*?\n\s*else\n\s*rm -f",
+            fence,
+            re.DOTALL,
+        ), "checkout and rm -f must be if/else branches, not sequential commands"
+
+    def test_orphan_cleanup_behavior(self, tmp_path):
+        """Executable proof for F6: run the *actual* orphan-cleanup snippet
+        extracted from Step 11.5 against a real git repo, for both the
+        first-audit (fully untracked) and post-first-audit (fully tracked,
+        truncated write) partial-pair shapes. A prior version of this hook
+        ran `git checkout -- $JSON_PATH $MD_PATH` unconditionally and then
+        `rm -f` unconditionally, which silently deleted a tracked pair the
+        checkout had just restored — this test would have caught that."""
+        section = _section(ITERATE_SKILL, "11.5")
+        fence = _fences(section)
+        match = re.search(
+            r'if \[ "\$json_ok" != "\$md_ok" \]; then\n(.*?)\n  fi',
+            fence,
+            re.DOTALL,
+        )
+        assert match, "could not locate the partial-pair cleanup block in Step 11.5"
+        cleanup_snippet = match.group(1)
+        assert "for f in" in cleanup_snippet, "extraction missed the per-path loop"
+
+        script = (
+            "run_cleanup_under_test() {\n"
+            'JSON_PATH="choices.json"\n'
+            'MD_PATH="choices.md"\n'
+            + cleanup_snippet
+            + "\n}\nrun_cleanup_under_test\n"
+        )
+
+        def run_cleanup(repo: Path) -> None:
+            result = subprocess.run(
+                ["bash", "-c", script], cwd=repo, capture_output=True, text=True
+            )
+            assert result.returncode == 0, result.stderr
+
+        def git(repo: Path, *args: str) -> subprocess.CompletedProcess:
+            return subprocess.run(
+                ["git", "-C", str(repo), *args], capture_output=True, text=True, check=True
+            )
+
+        # Case 1: first audit ever — both paths untracked.
+        repo1 = tmp_path / "untracked"
+        repo1.mkdir()
+        git(repo1, "init", "-q")
+        (repo1 / "choices.json").write_text('{"entries": []}\n')
+        # choices.md deliberately absent: interrupted before rendering.
+        run_cleanup(repo1)
+        assert not (repo1 / "choices.json").exists()
+        assert not (repo1 / "choices.md").exists()
+
+        # Case 2: a prior audit already committed a full pair; this run
+        # truncated choices.json mid-write before touching choices.md.
+        repo2 = tmp_path / "tracked"
+        repo2.mkdir()
+        git(repo2, "init", "-q")
+        git(repo2, "config", "user.email", "a@b.c")
+        git(repo2, "config", "user.name", "Test")
+        (repo2 / "choices.json").write_text('{"entries": [], "committed": true}\n')
+        (repo2 / "choices.md").write_text("# Choices Ledger\n\ncommitted\n")
+        git(repo2, "add", ".")
+        git(repo2, "commit", "-q", "-m", "chore(choices): prior audit")
+        committed_json = (repo2 / "choices.json").read_text()
+        committed_md = (repo2 / "choices.md").read_text()
+
+        (repo2 / "choices.json").write_text("")  # truncated mid-write
+        run_cleanup(repo2)
+
+        assert (repo2 / "choices.json").exists(), (
+            "a tracked file must be restored by `git checkout --`, not deleted"
+        )
+        assert (repo2 / "choices.json").read_text() == committed_json
+        assert (repo2 / "choices.md").read_text() == committed_md
+        status = git(repo2, "status", "--porcelain").stdout
+        assert status == "", f"working tree must be clean after restore, got: {status!r}"
 
     def test_step_12_summary_gains_choices_audit_line(self):
         section = _section(ITERATE_SKILL, "12. Present Summary")
