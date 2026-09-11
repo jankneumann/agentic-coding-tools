@@ -115,6 +115,28 @@
 
 ---
 
+## 2026-08-21 — add-decision-choices-ledger
+
+### Phase: Plan
+
+**Separate decision-choices schema instead of extending review-findings** — review-findings validator hard-requires axis/severity and its consumers assume code-anchored defects; decision entries are intent-anchored. Follows validate-feature-findings-gate precedent.
+
+- Status: `active`
+- Source: [openspec/changes/add-decision-choices-ledger/session-log.md](/openspec/changes/add-decision-choices-ledger/session-log.md) (D1)
+
+---
+
+## 2026-08-21 — add-decision-choices-ledger
+
+### Phase: Plan
+
+**Cross-reference-only linkage to self-reported decisions, never write-back** — Positions the ledger as the audit counterpart to the self-reported docs/decisions archive; writing into session-log or docs/decisions would break the deterministic drift gates and the read-only auditor principle.
+
+- Status: `active`
+- Source: [openspec/changes/add-decision-choices-ledger/session-log.md](/openspec/changes/add-decision-choices-ledger/session-log.md) (D3)
+
+---
+
 ## 2026-08-19 — 2026-09-08-add-local-model-provider-tier
 
 ### Phase: GitHub Review Remediation
