@@ -25,6 +25,10 @@ Produce a per-change **choices ledger** (`choices.json` + `choices.md`) recordin
 - `<change-id>` — audit an OpenSpec change (e.g. `add-decision-choices-ledger`). The audited range defaults to the change's base commit through `HEAD`.
 - `<base-sha>..<head-sha>` — audit an explicit commit range standalone, with no OpenSpec change directory involved. `change_id` in the resulting ledger is recorded as `range:<base>..<head>`.
 
+Optional, trailing, and combinable with either form above:
+
+- `--run-id <id>` — names the run that produced the ledger (`run_audit.py` has required `--run-id` since Phase 2; this documents the argument, not new behavior). When omitted, the skill chooses its own id. `iterate-on-implementation`'s Step 11.5 passes `--run-id iterate-on-implementation-<UTC ISO timestamp>` so a ledger can be traced back to the workflow run that produced it.
+
 ## Read-Only Contract
 
 **The auditor MUST NOT modify any file outside `openspec/changes/<change-id>/choices.json` and `choices.md`.** It MUST NOT write to `session-log.md`, `docs/decisions/`, or any source file — those are producer-owned and CI-diff-enforced (`make decisions`), and a write from this skill would corrupt the deterministic drift gates those producers depend on. The only writer in this skill is `choices_ledger.write_ledger_pair()`; nothing else in `skills/audit-choices/scripts/` opens a file for writing.
