@@ -38,3 +38,25 @@ passed before this iteration. No critical findings.
 ### Deferred / out of scope
 
 - `run_audit.py` resolves `change_dir` from the raw id, so the `range:<base>..<head>` standalone form writes under `openspec/changes/range:...`. Latent Phase 2 quirk; not touched here (proposal: no driver change). Recommend a follow-up proposal `fix-audit-choices-range-ledger-path`.
+
+## Iteration 2 — 2026-09-11T03:40:00Z
+
+Re-analysis of the iteration-1 output across all eight axes. One finding at
+threshold; everything else below it.
+
+| # | Type | Criticality | Description | Resolution |
+|---|------|-------------|-------------|------------|
+| 17 | clarity | medium | Task 3.3 placed Step 5.5 "after Step 5c and before Step 6". cleanup-feature has two `5c` headings (Mark original tasks.md; Pre-Launch Checklist) and a `5d` staged-rollout block between them and Step 6, so the hook could land in two different places. | Task 3.3 and design F1 now anchor Step 5.5 immediately before the `### 6. Archive OpenSpec Proposal` heading and say why. |
+| 18 | clarity | low | Reader line format truncates `stable_id` to 12 chars in text mode; scenarios say "with its `stable_id`". A prefix is unambiguous within one ledger and full ids are available via `--format json`. | No change; noted for the implementer. |
+| 19 | parallelizability | low | 3.7 could start alongside 3.6 once 3.1–3.3 land; already reflected in the dependency lines. | No change. |
+
+### Parallelizability assessment (unchanged)
+
+- Independent tasks: 3.0, 3.1, 3.4, 3.5 — 4
+- Sequential chains: 3.0 → {3.2, 3.3} → 3.6; {3.1, 3.2, 3.3} → 3.7
+- Max parallel width: 4
+- File overlap: none
+
+### Termination
+
+All remaining findings are below the medium threshold after this iteration.
