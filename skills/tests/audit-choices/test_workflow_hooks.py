@@ -117,6 +117,29 @@ class TestIterateOnImplementationStep11_5:
         assert "audit-choices: skipped (" in section
         assert "continuing to summary" in section
 
+    def test_dispatch_is_not_a_bash_command(self):
+        """Finding 1 (impl-round-1): `/audit-choices` is an agent slash
+        command, not a shell executable. A shell that tries to run it fails
+        with exit 127 on every single run, and the warn-and-continue guard
+        silently converts that into a false "skipped" success — the audit
+        would never run on any invocation while every run reported success.
+        The dispatch must therefore be stated as a numbered agent
+        instruction *outside* any fenced bash/python block; only the
+        bookkeeping (presence checks, comparison, staging, commit, restore)
+        may live inside a fence."""
+        section = _section(ITERATE_SKILL, "11.5")
+        fence = _fences(section)
+        assert "/audit-choices" not in fence, (
+            "the /audit-choices dispatch must not appear inside a bash fence "
+            f"in Step 11.5; found it in: {fence!r}"
+        )
+        # The dispatch instruction must still exist somewhere in the section
+        # (as agent-facing prose), and must name the run-id argument.
+        assert '/audit-choices "$CHANGE_ID" --run-id "$RUN_ID"' in section
+        # Bookkeeping in the fence must not branch on a captured exit status
+        # of the dispatch itself (the old `if ! audit_output=$(...)` shape).
+        assert "audit_output" not in fence
+
     def test_both_files_present_check(self):
         section = _section(ITERATE_SKILL, "11.5")
         fence = _fences(section)

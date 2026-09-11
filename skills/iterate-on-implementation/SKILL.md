@@ -555,31 +555,51 @@ If all vendor review findings are below the remediation threshold, proceed to th
 
 Dispatch the `audit-choices` skill against this iteration and commit the resulting ledger pair when it changed. Every branch below is wrapped in a warn-and-continue guard: nothing in this step may `exit 1`, `set -e`-abort, or return a failing outcome to autopilot. A successful commit or restore prints nothing extra; every other branch prints exactly one `audit-choices: skipped (<reason>) — continuing to summary` line. The step always falls through to Step 12.
 
+First, compute the shared paths and a `SKIP_REASON` placeholder — this is ordinary shell, safe to run unconditionally:
+
 ```bash
 CHANGE_DIR="openspec/changes/$CHANGE_ID"
 JSON_PATH="$CHANGE_DIR/choices.json"
 MD_PATH="$CHANGE_DIR/choices.md"
 RUN_ID="iterate-on-implementation-$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 SKIP_REASON=""
+```
 
+**Dispatch the audit yourself, as the executing agent — not inside a bash fence.**
+`/audit-choices` is an agent slash command routed through sub-agent dispatch; it
+is not a shell executable. It MUST NOT be invoked inside a bash fence, via
+command substitution (`$(...)`), or have its exit status tested with `$?` — a
+shell asked to run a program literally named `/audit-choices` fails with exit
+127 on every single run, and the warn-and-continue guard around it silently
+turns that into a false "skipped" success, hiding total, permanent failure of
+this step behind a benign-looking log line. Perform these numbered actions
+directly rather than delegating them to bash:
+
+1. If `skills/audit-choices/` (or its installed runtime-mirror equivalent
+   under `.claude/skills/` / `.agents/skills/`) is not present, or this
+   harness exposes no sub-agent dispatch tool, set
+   `SKIP_REASON="audit-choices not installed"` and do not attempt dispatch —
+   go straight to the bash block below.
+2. Otherwise, dispatch `/audit-choices "$CHANGE_ID" --run-id "$RUN_ID"` and
+   capture its full output.
+   - If the dispatch errors, times out, or returns no parseable candidate
+     array, set `SKIP_REASON="audit dispatch failed"`.
+   - Else if the captured output contains the line `audit-choices: WARNING`
+     (driver `ok=False`), set `SKIP_REASON="audit reported a WARNING"`.
+   - Else leave `SKIP_REASON` empty. The driver has written (or attempted to
+     write) `choices.json`/`choices.md` under `$CHANGE_DIR`; the bash block
+     below verifies what actually landed and decides the rest.
+
+**Then run this bash block exactly once**, regardless of how the dispatch
+above ended. It performs no dispatch of its own — only the presence checks,
+the staleness/comparison logic, staging, commit, and restore, none of which
+can silently 127 the way a slash command run from a shell would:
+
+```bash
 audit_choices_step() {
-  # "Unavailable" (F6): the skill is not installed in the runtime skill
-  # directory, or no independent sub-agent can be dispatched.
-  if [ ! -d "<skill-base-dir>/../audit-choices" ]; then
-    SKIP_REASON="audit-choices not installed"
-    return
-  fi
-
-  # "Fails" (F6): run_audit.py exits non-zero (it never should), prints an
-  # `audit-choices: WARNING` line (driver ok=False — including "dispatch
-  # returned no parseable candidate array"), or any command below raises.
-  local audit_output
-  if ! audit_output=$(/audit-choices "$CHANGE_ID" --run-id "$RUN_ID" 2>&1); then
-    SKIP_REASON="audit dispatch failed"
-    return
-  fi
-  if printf '%s' "$audit_output" | grep -q "audit-choices: WARNING"; then
-    SKIP_REASON="audit reported a WARNING"
+  if [ -n "$SKIP_REASON" ]; then
+    # The agent-performed dispatch above already failed, was unavailable, or
+    # reported a WARNING — nothing to verify or commit.
     return
   fi
 
@@ -595,6 +615,32 @@ audit_choices_step() {
     SKIP_REASON="audit produced no ledger"
     return
   fi
+
+  # Both files are non-empty, but non-emptiness alone cannot tell a fresh
+  # pair from a stale half: an interruption *between* the JSON rewrite and
+  # the Markdown re-render leaves a fresh choices.json sitting beside the
+  # *previous* run's choices.md, and both checks above pass. Detect that by
+  # requiring the Markdown's rendered `**Generated**:` value to match the
+  # JSON's `header.generated_at` exactly — render_markdown() prints that
+  # field verbatim, so any interruption between the two writes changes one
+  # without the other. A mismatch is treated exactly like a missing half.
+  if [ "$json_ok" = true ] && [ "$md_ok" = true ]; then
+    local json_generated_at md_generated_at
+    json_generated_at=$(python3 - "$JSON_PATH" <<'PYEOF'
+import json, sys
+try:
+    doc = json.load(open(sys.argv[1]))
+    print(doc.get("header", {}).get("generated_at", ""))
+except Exception:
+    print("__unreadable__")
+PYEOF
+    )
+    md_generated_at=$(grep -m1 '^\*\*Generated\*\*:' "$MD_PATH" | sed 's/^\*\*Generated\*\*: *//')
+    if [ "$json_generated_at" != "$md_generated_at" ]; then
+      md_ok=false  # stale half: route through the same discard-and-skip path below
+    fi
+  fi
+
   if [ "$json_ok" != "$md_ok" ]; then
     # Partial pair: discard the orphan rather than commit half of it.
     # `git checkout --` restores a tracked path but silently does nothing
