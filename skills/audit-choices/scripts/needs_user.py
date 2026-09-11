@@ -43,15 +43,26 @@ def load_needs_user_entries(repo_root: Path, change_id: str) -> list[dict[str, A
 
     try:
         doc = json.loads(ledger_path.read_text())
-    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
+        entries = doc.get("entries") if isinstance(doc, dict) else None
+        if not isinstance(entries, list):
+            # Covers both a missing `entries` key and a present-but-null (or
+            # otherwise non-list) one: `doc.get("entries", [])` only falls
+            # back to `[]` when the key is *absent* — `{"entries": null}` has
+            # the key, so `.get` returns `None` and a bare `for e in entries`
+            # would raise `TypeError: 'NoneType' object is not iterable`.
+            entries = []
+        needs_user_entries = [
+            e for e in entries if isinstance(e, dict) and e.get("verdict") == "needs-user"
+        ]
+        # rank_entries -> _rank_key looks up `entry.get("confidence", "")` in
+        # a dict; a list- or dict-valued `confidence` field (malformed but
+        # schema-adjacent input) makes that lookup raise
+        # `TypeError: unhashable type`. The whole load path — parse, filter,
+        # rank — must be total per F3, so it is wrapped as one unit below.
+        return choices_ledger.rank_entries(needs_user_entries)
+    except Exception as exc:  # noqa: BLE001 - F3: never raise, warn once, return [].
         print(f"needs_user: WARNING - could not read {ledger_path}: {exc}", file=sys.stderr)
         return []
-
-    entries = doc.get("entries", []) if isinstance(doc, dict) else []
-    needs_user_entries = [
-        e for e in entries if isinstance(e, dict) and e.get("verdict") == "needs-user"
-    ]
-    return choices_ledger.rank_entries(needs_user_entries)
 
 
 def _format_text_line(entry: dict[str, Any]) -> str:
