@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "add-supervisor-candidate-work-digest",
-  "current_phase": "PLAN_ITERATE",
+  "current_phase": "PLAN_FIX",
   "iteration": 0,
-  "total_iterations": 3,
+  "total_iterations": 5,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -13,24 +13,36 @@
   "implementation_strategy": {},
   "memory_ids": [],
   "handoff_ids": [
-    "gatekeeper:add-supervisor-candidate-work-digest:20260910T2240Z"
+    "gatekeeper:add-supervisor-candidate-work-digest:20260910T2240Z",
+    "d7524bcf-1481-43e4-8076-09eca4ebf7d2",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/plan-review-1.json"
   ],
   "phase_history": [
     {
       "at": "2026-09-10T22:41:37.744254+00:00",
       "outcome": "proceed",
       "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-09-11T00:32:27.251760+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-09-11T00:56:24.010294+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
     }
   ],
-  "last_handoff_id": "gatekeeper:add-supervisor-candidate-work-digest:20260910T2240Z",
+  "last_handoff_id": "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/plan-review-1.json",
   "started_at": "2026-09-10T22:40:09.976184+00:00",
-  "phase_started_at": "2026-09-11T00:05:12.055959+00:00",
+  "phase_started_at": "2026-09-11T00:56:24.062000+00:00",
   "previous_phase": null,
   "escalation_reason": null,
   "val_review_enabled": false,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": "gatekeeper",
+  "phase_archetype": "reviewer",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -47,35 +59,35 @@
   "gate_verdict": "proceed",
   "gate_decisions": [
     {
-      "gate": "proposal_approval",
-      "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "block",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "blocked",
       "phase": "PLAN",
-      "recorded_at": "2026-09-10T22:41:51.899501+00:00"
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-10T22:41:51.899501+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
     },
     {
-      "gate": "proposal_approval",
-      "outcome": "proceed",
-      "resolution": "console_approved",
-      "authorizing_disposition": "block",
-      "reason": "gate 'proposal_approval' approved by the operator \u2014 Operator approved ri-13 and requested implementation to begin.",
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "block",
+      "gate": "proposal_approval",
+      "note": "Operator approved ri-13 and requested implementation to begin.",
+      "notified": null,
+      "outcome": "proceed",
       "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 Operator approved ri-13 and requested implementation to begin.",
       "recorded_at": "2026-09-11T00:05:12.055943+00:00",
-      "note": "Operator approved ri-13 and requested implementation to begin."
+      "resolution": "console_approved",
+      "timeout_seconds": null
     }
   ],
   "pending_gate": null,

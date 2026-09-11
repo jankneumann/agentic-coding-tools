@@ -68,7 +68,7 @@
   "properties": {
     "schema_version": {"const": 1},
     "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "generated_at": {"type": "string", "format": "date-time"},
+    "generated_at": {"type": "string", "format": "date-time", "description": "Host-owned as_of time from the validated batch manifest."},
     "weights": {
       "type": "object",
       "additionalProperties": false,

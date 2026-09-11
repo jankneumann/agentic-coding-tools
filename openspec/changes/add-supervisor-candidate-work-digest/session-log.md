@@ -69,3 +69,38 @@ Refined the supervisor-roadmap ri-13 sketch into a full plan: a tracked stub sto
 ### Context
 Resolved contract, fingerprint, reproducibility, composition, routing, and evidence-security blockers in the approved ri-13 plan. Revision 2 now has explicit ranking policy, candidate-only digest composition, durable decision fields, and a validated two-lane implementation DAG.
 
+---
+
+## Phase: Plan Review (2026-09-11)
+
+**Agent**: code-reviewer | **Session**: N/A
+
+### Decisions
+1. **Return the proposal to PLAN_FIX** — Consensus reports five blocking findings, including an undefined trusted staleness clock, no concrete sanitized-batch preparation interface, and two truncated design decisions; implementation is not yet safe.
+
+### Completed Work
+- Dispatched read-only plan reviews to antigravity, claude_code, grok, and pi; 3/4 external vendors returned schema-valid findings and pi failed schema validation.
+- Combined the primary Codex review with three valid vendor reviews: 46 raw findings, 32 unique findings, 10 confirmed, 22 unconfirmed, 0 disagreements.
+- Consensus recorded 5 blocking and 9 advisory findings in reviews/consensus-plan.json.
+- Strict OpenSpec validation passed.
+- Work-package schema, dependency DAG, lock, scope-overlap, and lock-overlap validation passed.
+
+### Next Steps
+- Define a trusted, reproducible evidence-time source for staleness and generated_at; cover future/skewed timestamps and artifact-age derivation.
+- Add a concrete CLI/API contract for sanitized evidence preparation and multi-document batch ingestion with global exact-set validation before writes.
+- Bound whole-cycle rubric dispatch and define timeout, retry, partial-batch, prior-digest fallback, and all-or-nothing persistence behavior.
+- Complete the truncated D6 and D8 decisions and name the concrete secret-redaction implementation.
+- Resolve code-verified unconfirmed contract risks: refine-roadmap add does not renumber priorities, ready_across_roadmaps cannot resolve completed/blocked dependencies, and mirror file write scopes omit digest.py/rubric-prompt.md copies.
+- Run another PLAN_REVIEW round after PLAN_FIX.
+
+### Relevant Files
+- `openspec/changes/add-supervisor-candidate-work-digest/review-findings-plan.json` — primary reviewer findings
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/consensus-plan.json` — multi-vendor consensus with blocking findings
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/review-manifest.json` — vendor dispatch evidence
+- `openspec/changes/add-supervisor-candidate-work-digest/design.md` — plan decisions requiring fixes
+- `openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md` — normative requirements requiring fixes
+- `openspec/changes/add-supervisor-candidate-work-digest/work-packages.yaml` — validated DAG with mirror-scope follow-up
+
+### Context
+Multi-vendor plan review did not converge. Four successful reviewers produced 46 raw findings; consensus yielded 32 unique findings, 10 confirmed, and 5 blocking. Strict OpenSpec and work-package DAG/lock/overlap validation pass, but implementation must wait for the confirmed contract, resilience, and completeness blockers to be resolved.
+

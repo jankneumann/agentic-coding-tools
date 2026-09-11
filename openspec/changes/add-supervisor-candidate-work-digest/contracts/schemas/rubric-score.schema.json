@@ -38,7 +38,7 @@
   "properties": {
     "schema_version": {"const": 1},
     "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "cycle_state.py fingerprint the scores were produced under."},
-    "scored_at": {"type": "string", "format": "date-time"},
+    "scored_at": {"type": "string", "format": "date-time", "description": "Must exactly echo the host-owned as_of timestamp from the prepare-batch manifest; rank rejects any mismatch."},
     "scorer": {
       "type": "object",
       "additionalProperties": false,

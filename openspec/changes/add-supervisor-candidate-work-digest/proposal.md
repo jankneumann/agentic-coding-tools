@@ -39,12 +39,12 @@ without first writing a proposal for it. The handoff record change
    `contracts/schemas/rubric-score.schema.json` fixes five factors, each 1–5 with a
    one-line justification: `relevance` (is the finding still true), `value` (impact
    if done), `readiness` (can it start now), `scope_fit` (is it one change), `risk`
-   (blast radius). The host dispatches one rubric sub-agent per batch with the stub,
-   its provenance artifact excerpt, and the ready set; the sub-agent's only output is
-   schema-valid JSON. `digest.py rank --scores scores.json` validates the scores,
-   folds in the mechanical signals it computes itself (dependency readiness from
-   `ready_across_roadmaps`, provenance staleness, prior `deferred` → sink, prior
-   `rejected` → drop), and emits the ordered digest with per-factor breakdown.
+   (blast radius). The host runs `digest.py prepare-batch --as-of <RFC3339>` to build
+   one bounded, sanitized manifest and dispatches one rubric sub-agent with that payload;
+   the sub-agent's only output is schema-valid JSON. `digest.py rank --batch-manifest
+   <path> --scores <path>` validates exact keys, fingerprint, and the echoed host-owned
+   timestamp before folding in dependency status, provenance staleness, and prior decision
+   signals and emitting the ordered digest with per-factor breakdown.
    The total order is dependency-ready pending work first, then weighted score
    (`3*relevance + 3*value + 2*readiness + scope_fit + risk`, with risk inverted so 5
    is safest), then `stub_key`; future-deferred work is a final bucket. One point is
@@ -52,9 +52,10 @@ without first writing a proposal for it. The handoff record change
    singleton rubric documents at
    `openspec/supervise/candidates/<encoded-stub-key>.rubric.json`, keyed by the cycle
    fingerprint. Supervisor-owned store/cache/digest files are excluded from that
-   fingerprint, so output-only commits do not invalidate the cache. A changed cycle
-   fingerprint deliberately re-scores the backlog; an unchanged fingerprint reuses
-   it without dispatch.
+   fingerprint, so output-only commits do not invalidate the cache. The store is capped
+   at 20 surviving candidates: overflow fails atomically and is surfaced as degraded
+   output, bounding each changed-cycle scoring run to one batch. An unchanged fingerprint
+   reuses the prior validated digest without dispatch.
 
 3. **Candidate digest artifact, composed by the host.** `digest.py rank` writes the
    candidate-focused `openspec/supervise/digest.json`
@@ -64,7 +65,7 @@ without first writing a proposal for it. The handoff record change
    present in `ranked`. The host composes those additions with the existing verified
    gates, active changes, ready roadmap items, blockers, and degraded sensors; the
    artifact never replaces those operational sections. The persisted file contains no
-   run-dependent reuse flags, and `generated_at` comes from the score evidence, so
+   run-dependent reuse flags, and `generated_at` comes from the host-owned manifest, so
    identical inputs are byte-identical. On an unchanged fingerprint with no due
    lifecycle transition, the prior file is validated and re-presented byte for byte.
 
@@ -75,8 +76,8 @@ without first writing a proposal for it. The handoff record change
    `acceptance_outcomes` placeholder the host drafts in-conversation and the operator
    confirms. Local change dependencies become `depends_on`; cross-roadmap dependencies
    become `external_depends_on`; satisfied archived dependencies are omitted; unresolved
-   candidate dependencies stop request generation. Stub priority chooses insertion
-   position unless `--after` is supplied, after which `refiner.py` renumbers priorities.
+   candidate dependencies stop request generation. Stub priority is copied explicitly;
+   `--after` changes YAML insertion position but does not imply priority renumbering.
    The host runs `refiner.py preview`, shows effects, then `apply
    --expect-base-sha256`. A stub that needs a new roadmap goes through
    `/plan-roadmap --new <slug> "<pitch>" --draft` instead. Neither path dispatches
@@ -90,13 +91,14 @@ without first writing a proposal for it. The handoff record change
    The supervisor record (handoff + mirror) and the ledger's `seen_keys` are updated as
    today, without overwriting newer handoff-carried durable state.
 
-6. **Bounded, untrusted rubric evidence.** Rubric batches contain at most 20 stubs and
-   64 KiB total prompt evidence, with at most 2 KiB from each provenance artifact.
-   Evidence is read only from contained regular repo files (never symlinks or URIs),
-   redacted, and delimited as untrusted data; unavailable provenance yields
-   `staleness_days: null`, no penalty, and a degraded marker. Score keys must be a
-   unique exact match for each batch. Large backlogs are chunked by `stub_key` and
-   merged before the single deterministic global sort.
+6. **Bounded, untrusted, transactional rubric evidence.** The single batch contains at
+   most 20 stubs and 64 KiB total prompt evidence, with at most 2 KiB from each provenance
+   artifact. Evidence is read only from contained regular repo files (never symlinks or
+   URIs), redacted with `roadmap-runtime`'s `sanitize_string`, and delimited as untrusted
+   data; unavailable provenance yields `staleness_days: null`, no penalty, and a degraded
+   marker. The host enforces a 120-second timeout and one retry. Any missing, partial,
+   invalid, or timestamp-mismatched result preserves the prior valid digest and publishes
+   no cache/digest/mirror update.
 
 7. **SKILL.md.** CYCLE steps 1–5 are rewritten around lifecycle maintenance, retained
    backlog, store, bounded rubric dispatch, `rank`, composable rendering, and the

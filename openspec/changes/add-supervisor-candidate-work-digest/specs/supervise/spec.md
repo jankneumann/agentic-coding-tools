@@ -6,11 +6,11 @@
 
 The `/supervise` skill SHALL maintain a ranked candidate-work backlog conforming to the stable runtime `digest.schema.json`. Fresh post-dedupe stubs SHALL be merged with retained pending/deferred store files, persisted byte-stably at `openspec/supervise/candidates/<encoded-stub-key>.json`, and represented in `back_edge.digested_stubs`. Keys SHALL be accepted only as `change:<valid-change-id>` or `prov:<hex32>` and SHALL be encoded reversibly before path construction.
 
-A host-dispatched analyst SHALL score bounded batches against `rubric-score.schema.json`; `scripts/digest.py` SHALL perform no LLM or network call. Each batch SHALL contain at most 20 stubs and 64 KiB total evidence, with each provenance excerpt capped at 2 KiB. Provenance content SHALL be treated as untrusted data: only contained UTF-8 regular repo files MAY be read, symlinks and URIs SHALL NOT be followed, excerpts SHALL be secret-redacted and delimited, and unavailable evidence SHALL produce `staleness_days: null` plus a degraded marker.
+A host-dispatched analyst SHALL score one bounded batch against `rubric-score.schema.json`; `scripts/digest.py` SHALL perform no LLM or network call. The surviving store SHALL contain at most 20 candidates; overflow SHALL fail atomically, preserve the prior store/digest, and name every unpersisted key as degraded output. `digest.py prepare-batch --as-of <RFC3339>` SHALL emit the deterministic prompt manifest to stdout. The batch SHALL contain at most 20 stubs and 64 KiB total evidence, with each provenance excerpt capped at 2 KiB. Provenance content SHALL be treated as untrusted data: only contained UTF-8 regular repo files MAY be read, symlinks and URIs SHALL NOT be followed, excerpts SHALL be redacted by `skills/roadmap-runtime/scripts/sanitizer.py::sanitize_string` and delimited, and unavailable evidence SHALL produce `staleness_days: null` plus a degraded marker.
 
-`digest.py rank` SHALL reject duplicate, missing, or unknown score keys and SHALL use this total order: pending before future-deferred; dependency-ready before blocked; descending `3*relevance + 3*value + 2*readiness + scope_fit + risk - min(floor(staleness_days/30), 5)` where risk 5 means safest and null staleness has no penalty; then ascending `stub_key`. Rejected work SHALL be excluded. Score caches SHALL be schema-valid singleton rubric documents keyed by cycle fingerprint. The cycle fingerprint SHALL exclude the candidate store, rubric caches, and `digest.json` so supervisor-output-only commits do not invalidate it.
+`digest.py rank` SHALL reject duplicate, missing, or unknown score keys, fingerprint mismatch, and any `scored_at` not exactly equal to the host-owned manifest `as_of`. It SHALL use this total order: pending before future-deferred; dependency-ready before blocked; descending `3*relevance + 3*value + 2*readiness + scope_fit + risk - min(floor(staleness_days/30), 5)` where risk 5 means safest and null staleness has no penalty; then ascending `stub_key`. Dependency readiness SHALL be computed from all roadmap item/change statuses plus archived changes: empty or completed/archived-completed prerequisites are ready; pending, blocked, unresolved, and pending-stub prerequisites are not. Rejected work SHALL be excluded. Score caches SHALL be schema-valid singleton rubric documents keyed by cycle fingerprint. The cycle fingerprint SHALL exclude the candidate store, rubric caches, and `digest.json` so supervisor-output-only commits do not invalidate it.
 
-`openspec/supervise/digest.json` SHALL be candidate-work-focused and composable: `new_this_cycle` SHALL contain only freshly stored keys, `needs_decision` SHALL contain retained pending/deferred keys, `degraded` SHALL identify candidate-evidence degradation, and `ranked` SHALL contain the full surviving backlog with all five factor scores and justifications plus mechanical signals. The host SHALL merge these additions into the existing five-section supervisor prose after rendering verified gates (including deadlines), ready work, blockers, and degraded sensors; the candidate artifact SHALL NOT replace those operational lines. `generated_at` SHALL be the maximum rubric `scored_at`; cache/reuse diagnostics SHALL be stdout-only. Under `--dry-run`, nothing below `openspec/supervise/` SHALL be created, modified, or removed.
+`openspec/supervise/digest.json` SHALL be candidate-work-focused and composable: `new_this_cycle` SHALL contain only freshly stored keys, `needs_decision` SHALL contain retained pending/deferred keys, `degraded` SHALL identify candidate-evidence degradation, and `ranked` SHALL contain the full surviving backlog with all five factor scores and justifications plus mechanical signals. The host SHALL merge these additions into the existing five-section supervisor prose after rendering verified gates (including deadlines), ready work, blockers, and degraded sensors; the candidate artifact SHALL NOT replace those operational lines. `generated_at` SHALL equal the trusted manifest `as_of`; cache/reuse diagnostics SHALL be stdout-only. The host SHALL enforce a 120-second dispatch timeout and at most one retry. Only a wholly valid score document MAY atomically publish caches, digest, and mirror updates; timeout, missing/partial/invalid output, retry exhaustion, or timestamp mismatch SHALL preserve the prior valid digest, write none of those outputs, and render a degraded scoring line. Under `--dry-run`, nothing below `openspec/supervise/` SHALL be created, modified, or removed.
 
 #### Scenario: Digest on a fresh cycle
 - **GIVEN** three schema-valid stubs survive dedupe and no cached scores exist
@@ -37,6 +37,26 @@ A host-dispatched analyst SHALL score bounded batches against `rubric-score.sche
 - **WHEN** a rubric document contains a duplicate key, omits a requested key, names an unknown key, misses a factor or justification, or scores outside 1–5
 - **THEN** `digest.py rank` SHALL exit non-zero naming the stub and defect
 - **AND** no cache or `digest.json` SHALL be written
+
+#### Scenario: Scoring time is host-owned
+- **GIVEN** a batch manifest created with `--as-of 2026-09-11T01:00:00Z`
+- **WHEN** the rubric output has a missing, earlier, later, naive, or future `scored_at`
+- **THEN** `digest.py rank` SHALL reject it before any cache, digest, or mirror write
+- **AND** only an exact timestamp match SHALL be used for staleness and `generated_at`
+
+#### Scenario: Candidate capacity bounds dispatch cost
+- **GIVEN** a surviving store of 20 candidates and one additional fresh candidate
+- **WHEN** `digest.py store` evaluates the union
+- **THEN** it SHALL fail without changing the store or prior digest
+- **AND** stdout SHALL name the unpersisted key and the host SHALL render a degraded capacity line
+- **AND** no rubric dispatch SHALL occur for that failed store attempt
+
+#### Scenario: Scoring failure preserves the prior digest
+- **GIVEN** a prior valid digest and a changed fingerprint requiring scoring
+- **WHEN** the analyst times out twice or returns a missing, partial, or invalid score document
+- **THEN** no cache, digest, or mirror update SHALL be published
+- **AND** the prior valid digest SHALL remain byte-identical
+- **AND** the host SHALL render one degraded scoring line and retry on a later cycle
 
 #### Scenario: Supervisor outputs do not invalidate their own cache
 - **GIVEN** a completed cycle's store, caches, digest, ledger, and mirror are committed

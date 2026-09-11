@@ -1,0 +1,231 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "performance",
+      "criticality": "high",
+      "description": "Critical: Per-batch caps (20 stubs / 64 KiB) do not bound how many batches a cycle may dispatch, and a changed non-supervisor fingerprint deliberately re-scores the entire retained-plus-fresh backlog. A growing candidate store can therefore cause unbounded rubric dispatch, latency, and cost in a single CYCLE.",
+      "disposition": "fix",
+      "axis": "performance",
+      "severity": "critical",
+      "resolution": "Add a deterministic per-cycle dispatch budget (max stubs and/or batches), define carry-forward ordering for work beyond the budget, and add a scenario proving a large backlog cannot trigger unbounded dispatch.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 61,
+        "end": 69
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: The plan validates completed rubric documents and exact key coverage, but never defines timeout, retry, partial-batch, or fallback behavior when a rubric sub-agent fails, returns nothing, or only some batches complete. Prior cache/digest reuse safety under that failure mode is undefined.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "resolution": "Specify bounded timeout/retry and an all-or-nothing scoring transaction: on any batch failure, preserve the last valid digest/caches (or emit an explicit degraded no-update result), and add a multi-batch partial-failure test.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 9,
+        "end": 39
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Ranking treats model-produced rubric scored_at as the staleness clock and as digest generated_at (max scored_at), while the schema only checks date-time syntax. A hallucinated, naive, skewed, or future timestamp can change penalties, ordering, and persisted evidence time without detection, undermining the byte-identical reproducibility claim.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Make evidence time host/script-owned, or validate each scored_at against a host-provided bounded clock before rank; define one deterministic generated_at rule and test future/stale/naive/cross-batch timestamps.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 44,
+        "end": 69
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: Bounded provenance loading, secret redaction, untrusted framing, and deterministic chunking are assigned to digest.py (tasks 1.5\u20131.6 / D8), but the declared CLI is only store, rank, digest, stub-to-request, and decide. The host therefore has no concrete callable contract for building the sanitized batch payload the rubric prompt consumes before dispatch.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "critical",
+      "resolution": "Add a public prepare-batches (or equivalent) CLI/API and payload schema covering fresh/retained inputs, ready-set, size accounting, chunk IDs, degraded evidence, and dry-run stdout/file behavior; wire that interface into tasks and SKILL.md.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/proposal.md",
+      "line_range": {
+        "start": 183,
+        "end": 183
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: proposal/CLI show digest.py rank --scores scores.json (singular), while rubric-score.schema.json caps scores at maxItems 20 per document and the design chunks large backlogs into multiple batches. There is no contract for how multiple batch score documents are passed into rank or exact-set validated together before cache/digest writes.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Define a multi-document scores input (directory, repeated --scores, or manifest), require all-batch exact-set validation before any cache/digest write, and align the proposal CLI, schema description, and rank tests.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/rubric-score.schema.json",
+      "line_range": {
+        "start": 38,
+        "end": 48
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "medium",
+      "description": "Nit: D8 says evidence loading 'applies the existing secret sanitizer', but supervise's cycle_state._sanitize_text only strips control characters and execution.py sanitizes secret-shaped context keys\u2014not arbitrary provenance file text. The required redactor is unnamed and does not exist as described.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "resolution": "Name a concrete content redaction helper to reuse or add one under digest.py, with fixtures proving API keys/tokens in excerpts are scrubbed before prompt assembly.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 164,
+        "end": 168
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Dry-run forbids creating, modifying, or removing anything under openspec/supervise/, while lifecycle maintenance must prune terminal files and may wake due deferrals before the unchanged-fingerprint exit. The plan never states whether dry-run skips prune/wake entirely or recomputes a stdout-only digest without mutating store/mirror.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Add an explicit dry-run \u00d7 lifecycle rule and scenario: no prune/decide/mirror/store writes; define whether due deferrals affect stdout ranking only.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 54,
+        "end": 69
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: D6 ends on the incomplete sentence 'A due deferral is the explicit', leaving the unchanged-fingerprint exception unfinished.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Complete the D6 sentence with the intended due-deferral bypass/re-rank behavior, or delete the fragment.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 148,
+        "end": 152
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 9,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: D8 ends mid-sentence after 'Multi-batch scores are exact-set validated,', so the security-boundary write-ordering decision is incomplete.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Finish D8 with the intended all-batch validation and atomic cache/digest write ordering.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 160,
+        "end": 169
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Optional: Cache hit/miss, dispatch count, degraded-evidence keys, and scoring aborts are described as stdout diagnostics only, with no structured requirement an operator or test can assert across hosts.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "optional",
+      "resolution": "Accept stdout-only diagnostics for this change, or add a minimal machine-readable summary schema for cache reuse, batch counts, and degraded keys.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 148,
+        "end": 150
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Optional: stub-to-request must emit a temporary refine-roadmap request for preview/apply, but the plan does not say the file must live outside the repository like other supervise mktemp artifacts, risking audit-since false positives if implementers write under openspec/.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "optional",
+      "resolution": "Document that request YAML is written via mktemp outside the repo (or another audit-safe path) before refiner preview/apply.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 89,
+        "end": 110
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "security",
+      "criticality": "low",
+      "description": "The plan correctly treats provenance as untrusted data: contained UTF-8 regular files only, no symlink/URI/out-of-root reads, batch/excerpt caps, delimiters, and the host-assisted no-LLM/no-network invariant for scripts/.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Retain the negative evidence-loader tests and host-assisted invariant coverage during implementation.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 7,
+        "end": 13
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Roadmap mutation correctly stays on refine-roadmap's preview then apply --expect-base-sha256 transaction, with stable runtime schema installation outside the archivable change directory and explicit stale-SHA refusal tests.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Keep the real refiner preview/apply integration scenario and byte-identical runtime schema checks.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 78,
+        "end": 99
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 14,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The work-package DAG is acyclic, wp-digest-module and wp-rubric-prompt may run in parallel after wp-contracts with non-overlapping write scopes, and fingerprint self-invalidation is addressed by excluding candidate store, rubric caches, and digest.json from the cycle fingerprint.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Preserve the contract-first parallel split and the two-cycle output-only cache-hit proof in integration.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/work-packages.yaml",
+      "line_range": {
+        "start": 78,
+        "end": 170
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

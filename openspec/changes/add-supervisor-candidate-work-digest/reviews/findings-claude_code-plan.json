@@ -1,0 +1,279 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 79,
+        "end": 79
+      },
+      "description": "Critical: The plan asserts that the refiner renumbers priorities after an add, and builds stub-priority placement on that assertion. It does not. `_renumber_priorities` (skills/refine-roadmap/scripts/refiner.py:220) is called only from `_apply_split` (line 346) and `_apply_reorder` (line 361); `_apply_add` (lines 249-259) never calls it. `_normalize_new_item` (line 166) instead defaults an absent `priority` to `max(existing)+1`. So an item inserted via `after: ri-02` occupies list position 3 but carries the numerically lowest priority, and both the refiner's own readiness sort (refiner.py:486) and the canonical resolver (skills/roadmap-runtime/scripts/resolve_readiness.py:394) order by `priority` first. An approved high-priority stub would therefore land at the back of the ready frontier \u2014 the exact inversion the digest exists to prevent. spec.md:79 ('The refiner SHALL own final priority renumbering') and design.md:100 ('insertion position; `refiner` then renumbers the roadmap') are both false against the consumed contract.",
+      "resolution": "Correct design.md:100 and spec.md:79 to state that `op: add` does not renumber. Have `stub-to-request` emit an explicit `priority` in the item mapping computed from the target roadmap's current priorities, and add a task-1.7 test asserting the applied item's priority matches its intended rank position, not `max+1`. Alternatively, file the renumber-on-add gap against refine-roadmap and depend on it explicitly."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 47,
+        "end": 48
+      },
+      "description": "Critical: `staleness_days` has no defined clock source, which breaks the plan's headline reproducibility guarantee. design.md:47-48 and 69 say staleness is computed 'as of the rubric document's `scored_at`' and 'uses that same evidence clock, not wall time' \u2014 that pins the *reference* time but never the *artifact* time it is subtracted from. `candidate-work.schema.json` carries no timestamp field (openspec/schemas/candidate-work.schema.json:38-59), so the value must come from the provenance file. If it is filesystem mtime, a fresh clone or a new worktree yields different staleness for an identical tree, the weighted score shifts, and the ordering changes \u2014 directly contradicting the NFR at proposal.md:174 ('Same scores + same tree \u21d2 byte-identical `digest.json`') and spec.md:30-33. Worse, mtime changes do not move the cycle fingerprint (cycle_state.py:690-711), so the cache would keep serving a score whose staleness input has silently drifted. If it is instead a git commit date, that is reproducible but requires a subprocess call and a documented rule for uncommitted artifacts.",
+      "resolution": "Name the clock in design.md D2 and in the spec's Candidate-Work Digest requirement: derive artifact age from the last git commit touching `provenance.source_artifact` (falling back to `staleness_days: null` plus a degraded marker when the path is untracked or git is unavailable), never from mtime. Add a task-1.3 test that computes staleness twice across two checkouts of the same tree and asserts identical `digest.json` bytes."
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 46,
+        "end": 47
+      },
+      "description": "Critical: `dependency_ready` \u2014 the second key in the total order \u2014 is sourced from a helper that cannot answer the question. proposal.md:45-46 says readiness comes 'from `ready_across_roadmaps`' and design.md:46-47 from 'the canonical cross-roadmap resolver'. Both return only the *ready frontier*: `resolve_readiness` (skills/roadmap-runtime/scripts/resolve_readiness.py:376-404) emits rows of `{roadmap_id, item_id, priority, effort, change_id, title}` for items that may start now, and `ready_across_roadmaps` (cycle_state.py:866-877) just regroups them. A stub's `depends_on` names change-ids (candidate-work.schema.json:76-80); a dependency that is already *completed* never appears in `ready`, so a fully-unblocked stub scores `dependency_ready: false` and sinks below genuinely blocked work. The same missing change-id-to-status index is what `stub-to-request` needs for design.md:102-103 ('archived-completed dependency \u2014 omitted as already satisfied'). The semantics of `dependency_ready` for a stub with an empty `depends_on`, and for a stub depending on another pending stub, are also undefined, and no task or scenario exercises the resolution itself.",
+      "resolution": "Define `dependency_ready` in the spec as: every entry in `depends_on` resolves to a completed roadmap item, a completed archived change, or is absent \u2014 with an empty `depends_on` trivially ready and an unresolvable ref forcing `dependency_ready: false`. Build the change-id-to-(roadmap, item, status) index from `load_all_roadmaps` plus the `openspec/changes/archive/` scan rather than from the ready frontier, and correct proposal.md:45-46 and design.md:46-47. Add a task-1.3 case per resolution outcome."
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "critical",
+      "axis": "compatibility",
+      "severity": "critical",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/work-packages.yaml",
+      "line_range": {
+        "start": 176,
+        "end": 184
+      },
+      "description": "Critical: `wp-skill-docs` must pass `bash skills/install.sh --check` (work-packages.yaml:198-201) and prove the canonical and mirrored supervise skills are byte-identical (tasks.md:144-146), but its `write_allow` covers only the two `SKILL.md` mirrors. The installer mirrors whole skill directories: `.claude/skills/supervise/scripts/` and `.agents/skills/supervise/scripts/` each currently hold `cycle_state.py`, `execution.py`, and `gate_router.py`. The new `skills/supervise/scripts/digest.py` and `skills/supervise/templates/rubric-prompt.md` therefore need four additional mirror files that no package is scoped to write, and `wp-digest-module` and `wp-rubric-prompt` are not scoped for them either. The check step fails, and resyncing to make it pass is an out-of-scope write.",
+      "resolution": "Add `.claude/skills/supervise/scripts/digest.py`, `.agents/skills/supervise/scripts/digest.py`, `.claude/skills/supervise/templates/rubric-prompt.md`, and `.agents/skills/supervise/templates/rubric-prompt.md` to `wp-skill-docs.scope.write_allow` (or broaden to `.claude/skills/supervise/**` and `.agents/skills/supervise/**`), and confirm no overlap rule is tripped by the shared `install.sh` resync."
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "readability",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 151,
+        "end": 170
+      },
+      "description": "Nit: Two design decisions end mid-sentence, so the rules they were stating are absent. design.md:151 reads 'A due deferral is the explicit' and is immediately followed by the D7 heading \u2014 the due-deferral exception to the unchanged-fingerprint path, which spec.md:54-58 depends on, is never actually stated in D6. design.md:169 reads 'Multi-batch scores are exact-set validated,' and is immediately followed by the 'Task sizing notes' heading \u2014 the cross-batch merge rule in D8 is likewise cut off. An implementer reading D6 and D8 gets no rule at the two points the review brief calls out as highest risk.",
+      "resolution": "Complete both sentences. D6 should state what a due deferral is an explicit exception to and what it licenses (cache-only re-rank without dispatch, on an unchanged fingerprint). D8 should state how per-batch score documents are merged before the single global sort and what happens when one batch is missing or duplicated across batches."
+    },
+    {
+      "id": 6,
+      "type": "resilience",
+      "criticality": "medium",
+      "axis": "resilience",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 162,
+        "end": 165
+      },
+      "description": "Nit: Batch chunking has no defined behavior when a single stub exceeds the 64 KiB budget on its own. `candidate-work.schema.json` places `minLength: 1` but no maximum on `title`, `description`, and `rationale` (lines 23-37), so one verbose generator stub can exhaust the batch budget before any provenance excerpt is added. design.md:162-165 and spec.md:9 state the 20-stub and 64 KiB caps but give no rule for this case: dropping the stub silently loses a candidate from `ranked`, and emitting it anyway breaks the cap the security requirement rests on. Task 1.6 ('deterministic 20-stub chunking') and task 1.5's 'oversized' fixture both address provenance excerpt size, not stub payload size.",
+      "resolution": "Add a stated rule to D8 and the spec: truncate stub free-text fields to a fixed per-field budget before batching so no single stub can exceed the batch cap, and mark any truncated stub degraded. Add a task-1.6 case for a single stub larger than 64 KiB asserting it still appears exactly once in `ranked`."
+    },
+    {
+      "id": 7,
+      "type": "security",
+      "criticality": "medium",
+      "axis": "security",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 167,
+        "end": 168
+      },
+      "description": "Nit: 'the existing secret sanitizer' (design.md:167-168, echoed as 'existing sanitizer reuse' in tasks.md:68-69) does not identify a module, and neither sanitizer inside the supervise skill redacts secrets from free text. `cycle_state._sanitize_text` (skills/supervise/scripts/cycle_state.py:230-231) strips control characters only, and `execution._SECRET_KEY` (skills/supervise/scripts/execution.py:59-63, 154-155) matches dictionary *keys* and raises rather than redacting. The only real text redactor is `sanitize_string` in `skills/roadmap-runtime/scripts/sanitizer.py`, which lives in a different skill and is never named. An implementer building `digest.py` around `cycle_state` imports would most naturally reach for `_sanitize_text` and ship provenance excerpts to a third-party model unredacted, satisfying the letter of the task while violating spec.md:9.",
+      "resolution": "Name `skills/roadmap-runtime/scripts/sanitizer.sanitize_string` explicitly in D8 and task 1.6, and confirm the supervise scripts already resolve that path (cycle_state.py:43-48 puts `roadmap-runtime/scripts` on `sys.path`). Keep the task-1.5 secret-bearing fixture as the gate."
+    },
+    {
+      "id": 8,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "axis": "observability",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/digest.schema.json",
+      "line_range": {
+        "start": 72,
+        "end": 79
+      },
+      "description": "Nit: The frozen `weights` object cannot carry what the design says it carries. design.md:52-53 claims 'These constants and buckets are emitted in `weights`, so a reader can recompute every rank and tied inputs always have one answer', but the schema fixes `weights` to exactly six numeric properties (`relevance`, `value`, `readiness`, `scope_fit`, `risk`, `staleness_penalty_per_30d`) under `additionalProperties: false`. There is no slot for the staleness cap of five, the risk-direction convention, the pending-before-deferred and ready-before-blocked bucket order, or the `stub_key` tie-break. A consumer holding only `digest.json` can reproduce the weighted sum but not the total order, so the interpretability NFR at proposal.md:175 is only partly met by the artifact.",
+      "resolution": "Either extend `weights` with the bucket order, staleness cap, risk direction, and tie-break key (and update both change-local and stable runtime copies in task 0.2), or narrow design.md:52-53 to claim only the numeric weights and point readers to the spec for the bucket order. Prefer the former, since the artifact is the durable surface."
+    },
+    {
+      "id": 9,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "security",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/tasks.md",
+      "line_range": {
+        "start": 83,
+        "end": 84
+      },
+      "description": "Nit: The `stub-to-request` output location is never specified. tasks.md:83-84 says only 'emit a temporary request for the host/refiner transaction', and spec.md:79 names no path. The choice is load-bearing in three places: `classify_write` (cycle_state.py:883-910) forbids any absolute path and any repo-relative path outside `_ALLOWED_WRITE_PREFIXES`, so a request under `/tmp` is invisible to the audit while one under `openspec/supervise/` is audited; spec.md:13 forbids creating anything under `openspec/supervise/` during a dry run, which would block request generation there; and `audit_since_snapshot` (cycle_state.py:988) only sees repo-relative changes. Task 1.7 exercises the real preview and apply without pinning where the request lives.",
+      "resolution": "State the path in D4 and the Digest Approval Routing requirement \u2014 a temporary file outside the repository is the cleanest choice given the dry-run and write-audit constraints \u2014 and add a task-1.8 assertion that no repository path is created by `stub-to-request`."
+    },
+    {
+      "id": 10,
+      "type": "compatibility",
+      "criticality": "medium",
+      "axis": "compatibility",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "skills/supervise/SKILL.md",
+      "line_range": {
+        "start": 199,
+        "end": 206
+      },
+      "description": "Nit: The fate of CYCLE step 4 is left unresolved. Today it runs `/prioritize-proposals` over 'the surviving stubs plus active proposals and ready roadmap items' as one ranked list (SKILL.md:199-206), and `TestWorkflowContract` pins the string (skills/tests/supervise/test_cycle_state.py:509). The new design produces a candidate-only ranking, while proposal.md:194 keeps proposal ranking in `/prioritize-proposals` and out of scope. tasks.md:132-134 says to rewrite steps 1-5 but never says whether the `/prioritize-proposals` invocation survives, what the operator now sees for active proposals, or how the two ranked lists compose. Relatedly, the outputs table at SKILL.md:435 lists `/prioritize-proposals` artifacts and is not updated to add `openspec/supervise/digest.json` or the candidates store.",
+      "resolution": "State in task 3.2 whether step 4 retains the `/prioritize-proposals` call for proposals alongside `digest.py rank` for stubs, and how the host presents both without duplicating a stub that also has a proposal. Add the new digest and candidates paths to the SKILL.md outputs table and to the task-3.1 assertions."
+    },
+    {
+      "id": 11,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 48,
+        "end": 49
+      },
+      "description": "Nit: 'Risk is inverted: 5 means safest' (design.md:48) describes a scoring convention, but tasks.md:47 asks the implementer to 'test ... risk inversion', which reads as a code transform. The rubric contract already defines the inverted scale at the source \u2014 rubric-score.schema.json:29 says '5 = lowest risk, 1 = highest; scored so that higher is always better' \u2014 and the formula adds `+ risk` unmodified. An implementer who applies `6 - risk` in `rank` to satisfy the task would double-invert and systematically promote the riskiest candidates, and the ordering tests in task 1.3 would still pass because they would be written against the same mistaken reading.",
+      "resolution": "Restate design.md:48 as 'risk is already scored inverted by the rubric contract; `rank` applies no transform' and reword tasks.md:47 to 'test that a higher `risk` score raises the total, with no arithmetic inversion applied'. Add one fixture pair differing only in `risk` that asserts the direction."
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "resilience",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 81,
+        "end": 81
+      },
+      "description": "Nit: `digest.py decide` has no defined `rank` to write when the target key has no existing back-edge entry. `digestedStub` requires `rank` with `minimum: 1` and a parseable `decided_at` (openspec/schemas/supervisor-record.schema.json:65-76), and `_clean_digested_stub` drops any entry failing either check (skills/supervise/scripts/cycle_state.py:311-326). But spec.md:81 has `rank` synchronize only ranked pending and deferred items, so the INTAKE 'approve from digest' path (tasks.md:138-142) can reach `decide` for a key that was never ranked in this session, or whose entry was lost. Task 1.9 tests 'same-key replace' and 'unrelated-entry preservation' but not the create-on-absent case. A second issue in the same area: approved and rejected entries keep a stale `rank` forever, since re-ranking skips them.",
+      "resolution": "Specify `decide`'s behavior for an absent entry \u2014 either refuse and name the missing key, or create the entry with a documented rank derived from the current `digest.json`. Add the case to task 1.9. Consider recording the digest fingerprint alongside `rank` so a stale rank on a terminal entry is self-describing."
+    },
+    {
+      "id": 13,
+      "type": "performance",
+      "criticality": "medium",
+      "axis": "performance",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 66,
+        "end": 68
+      },
+      "description": "Nit: Whole-backlog re-scoring on any fingerprint change has no cost bound, and the fingerprint is very sensitive. `compute_fingerprint` hashes the full tree listing plus the worktree diff (skills/supervise/scripts/cycle_state.py:124-169, 690-711), so in an active repository essentially every cycle sees a changed fingerprint and re-dispatches the entire retained-plus-fresh backlog (design.md:66-68, spec.md:48-52). Nothing caps the backlog: `ranked` has no `maxItems` in digest.schema.json:91, and the 20-stub batch cap bounds each call but not the number of calls. A 200-stub backlog means ten analyst sub-agents every cycle, forever, and the cache only helps on the rare fully-unchanged tree. The NFR table (proposal.md:172-179) has no cost or latency row.",
+      "resolution": "Add a bounded-cost rule: cap the number of stubs scored per cycle (scoring the highest-priority unscored ones first and carrying forward prior scores for the remainder, marked degraded), or add a cost/latency NFR row with a stated ceiling. Either way, state the expected number of dispatches as a function of backlog size so the trade-off deferred in design.md:67-68 is visible to the operator."
+    },
+    {
+      "id": 14,
+      "type": "resilience",
+      "criticality": "medium",
+      "axis": "resilience",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 89,
+        "end": 95
+      },
+      "description": "Nit: D4 treats `refiner.py apply` as a pure roadmap edit, but it also scaffolds a change directory and runs repository-wide strict validation. `apply_refinement` creates `openspec/changes/<change_id>/` for every new item (skills/refine-roadmap/scripts/refiner.py:670-683) and then calls the default strict validator, which shells out to `openspec validate --strict --all` (lines 604-615, 700-704). Two consequences go unremarked: approving a stub immediately makes `dedupe_stubs` suppress that key as `change-exists` (cycle_state.py:784-785) and changes the cycle fingerprint, and any unrelated invalid active change blocks every stub approval repo-wide. It also makes task 1.7's 'real refiner preview and apply' costly and environment-dependent unless the test injects the `strict_validator` seam (refiner.py:624) or builds a fixture repo where the CLI passes.",
+      "resolution": "Document the scaffolding side effect in D4 and in the Digest Approval Routing requirement, including its interaction with dedupe and the fingerprint. Name the `strict_validator` injection point in task 1.7 and state the fixture repository shape the real preview and apply test runs against."
+    },
+    {
+      "id": 15,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "optional",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 147,
+        "end": 152
+      },
+      "description": "Optional: On the due-deferral path, `digest.json` changes content while both of its identity fields stay fixed. `fingerprint` is unchanged by definition (the tree did not move) and `generated_at` is the maximum rubric `scored_at`, which does not move either because no new scoring occurs (design.md:63-69, 147-150). Yet the deferred stub crosses from the future-deferred bucket into pending, so ranks shift and the bytes differ (spec.md:54-58). A consumer treating the pair as a change key \u2014 a reasonable reading given the byte-identity guarantees elsewhere \u2014 would conclude nothing happened.",
+      "resolution": "Consider a deterministic discriminator in the artifact, such as the set of lifecycle transitions applied this cycle or a monotonic revision counter derived from them. It stays compatible with the no-run-dependent-flags rule because it is a function of persisted state, not of the run."
+    },
+    {
+      "id": 16,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "disposition": "accept",
+      "evidence_class": "deterministic",
+      "file_path": "skills/supervise/SKILL.md",
+      "line_range": {
+        "start": 164,
+        "end": 167
+      },
+      "description": "FYI: The interaction between the operator's `--force` flag and the no-dispatch-on-unchanged rule is unstated. SKILL.md:164-167 lets `--force` bypass the unchanged-fingerprint early exit for both normal and dry-run cycles, while spec.md:41-46 requires that an unchanged fingerprint with no due transition dispatch no rubric sub-agent. Whether `--force` re-dispatches scoring, re-renders from cache, or only bypasses the SENSE gate is not decided anywhere in the plan, and task 3.2 rewrites exactly this block.",
+      "resolution": "Decide in task 3.2 and record it in the spec. Bypassing only the SENSE gate while still honouring the score cache is the reading most consistent with the reproducibility NFR; a forced re-score would need its own justification."
+    },
+    {
+      "id": 17,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "none",
+      "disposition": "accept",
+      "evidence_class": "deterministic",
+      "file_path": "skills/tests/supervise/test_cycle_state.py",
+      "line_range": {
+        "start": 475,
+        "end": 489
+      },
+      "description": "The host-assisted invariant claim in design.md:72-74 checks out. `TestHostAssistedInvariant` walks `skills/supervise/scripts` with `rglob(\"*.py\")` and asserts no LLM SDK import and no network client in any file it finds, so `digest.py` is covered the moment it lands with no new test and no way to opt out. Placing the ranking module in that directory is what makes the invariant structural rather than aspirational, and the split of model judgment into a schema-constrained score file with arithmetic in code gives the join point an inspectable, diffable artifact.",
+      "resolution": "No change needed."
+    }
+  ]
+}

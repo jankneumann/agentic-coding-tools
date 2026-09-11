@@ -30,8 +30,8 @@ GREEN). Capability short name: `sv` = `supervise`.
 
 - [ ] 1.1 RED: test strict reversible key encoding; retained-plus-fresh store merge;
       byte-stable writes; terminal prune and due-deferral maintenance before unchanged
-      exit; dry-run no-write behavior; and cycle fingerprint stability across committed
-      store/cache/digest outputs — **S**
+      exit; the atomic 20-candidate capacity bound with named overflow; dry-run no-write
+      behavior; and cycle fingerprint stability across committed store/cache/digest outputs — **S**
       **Spec scenarios**: sv *Digest on a fresh cycle*, *Supervisor outputs do not
       invalidate their own cache*, *Lifecycle maintenance runs before unchanged exit*,
       *Dry run writes nothing*
@@ -43,8 +43,10 @@ GREEN). Capability short name: `sv` = `supervise`.
       **Design decisions**: D1, D3
       **Dependencies**: 1.1
 
-- [ ] 1.3 RED: test exact batch-key matching; 20-stub/64-KiB limits; fixed weights,
-      risk inversion, staleness cap/null behavior, decision/readiness buckets, stable
+- [ ] 1.3 RED: test exact batch-key/fingerprint matching; host-manifest `as_of` exactness
+      against missing/earlier/later/naive/future `scored_at`; fixed weights,
+      risk inversion, staleness cap/null behavior, strict dependency-status indexing
+      (empty/completed/archived/pending/blocked/unresolved/pending-stub), decision/readiness buckets, stable
       stub-key tie-break, shuffled inputs, schema-valid singleton caches, whole-backlog
       invalidation on changed fingerprint, byte-identical unchanged reuse, candidate-only
       section assignment, and rank-to-back-edge synchronization — **M**
@@ -55,19 +57,22 @@ GREEN). Capability short name: `sv` = `supervise`.
 
 - [ ] 1.4 GREEN: implement `rank` and read-only `digest` rendering; source runtime schemas
       only from stable paths; keep reuse/cache diagnostics on stdout; validate prior bytes
-      before reuse; update the rehydrated record through `write_mirror` — **M**
+      before reuse; stage cache/digest/mirror replacements in memory and publish only after
+      whole-document validation; update the rehydrated record through `write_mirror` — **M**
       **Design decisions**: D2, D3, D5, D6
       **Dependencies**: 1.2, 1.3
 
-- [ ] 1.5 RED: test the bounded evidence loader against valid UTF-8, URI, missing, binary,
+- [ ] 1.5 RED: test the public `prepare-batch --as-of` manifest contract and bounded
+      evidence loader against valid UTF-8, URI, missing, binary,
       symlink, traversal, oversized, secret-bearing, and prompt-injection fixtures; prove
-      unavailable evidence is not read and becomes null-staleness degradation — **S**
+      unavailable evidence is not read and becomes null-staleness degradation; prove the
+      20-stub/64-KiB bounds and deterministic stdout bytes — **S**
       **Spec scenarios**: sv *Unsafe or unavailable provenance is not read*
       **Dependencies**: 0.2
 
-- [ ] 1.6 GREEN: implement contained regular-file loading, 2-KiB excerpting, existing
-      sanitizer reuse, untrusted-data framing, deterministic 20-stub chunking, and one
-      global merge/sort — **S**
+- [ ] 1.6 GREEN: implement `prepare-batch`, contained regular-file loading, 2-KiB
+      excerpting, `roadmap-runtime` `sanitize_string` reuse, untrusted-data framing, and
+      deterministic one-batch manifest output — **S**
       **Design decisions**: D8
       **Dependencies**: 1.5
 
@@ -152,7 +157,8 @@ GREEN). Capability short name: `sv` = `supervise`.
 - [ ] 4.1 Run the complete supervise suite and ruff. Execute a two-cycle fixture flow:
       fresh store → bounded score → rank → mirror/rehydrate → candidate composition →
       decision → output-only commit simulation → unchanged cache hit/prune/due transition.
-      Execute the real stub-to-request → refiner preview → apply transaction and stale-SHA
+      Exercise the 21st-candidate atomic overflow and timeout/invalid/partial-score paths,
+      proving the prior digest survives and no partial cache/mirror state lands. Execute the real stub-to-request → refiner preview → apply transaction and stale-SHA
       refusal against a temporary roadmap — **M**
       **Dependencies**: all Phase 1–3 tasks
 

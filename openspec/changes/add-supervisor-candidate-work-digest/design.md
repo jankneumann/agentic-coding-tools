@@ -42,9 +42,15 @@ a due transition bypasses the early exit and re-ranks from cached scores.
 | `risk` | Blast radius if it goes wrong | stub `tags`, provenance generator |
 
 `digest.py rank` validates the scores (`rubric-score.schema.json`) and requires score
-keys to be a unique exact match for the requested batch. It computes mechanical signals
-itself — `dependency_ready` from the canonical cross-roadmap resolver,
-`staleness_days` as of the rubric document's `scored_at`, and `prior_decision`. Risk is
+keys to be a unique exact match for the requested batch manifest. The manifest is emitted
+by `digest.py prepare-batch --as-of <RFC3339>`; `--as-of` is supplied by the host, copied
+into the prompt, and MUST equal the score document's `scored_at` exactly. A model-produced
+timestamp that differs from the manifest is rejected before any cache or digest write.
+The script computes mechanical signals itself — `dependency_ready` from a strict index of
+all roadmap item/change statuses plus archived changes, `staleness_days` as of the trusted
+manifest time, and `prior_decision`. An empty dependency list is ready; a dependency is
+ready only when its referenced item/change is completed or archived-completed; pending,
+blocked, unresolved, and pending-stub dependencies are not ready. Risk is
 inverted: 5 means safest. The fixed score is `3*relevance + 3*value + 2*readiness +
 scope_fit + risk - min(floor(staleness_days / 30), 5)`; null staleness has no penalty
 and is marked degraded. The total order is: pending before future-deferred,
@@ -63,10 +69,13 @@ half where it is strong and makes the join point (the score file) inspectable.
 rubric caches, and `digest.json`, as it already excludes ledger/mirror state, so writing
 supervisor outputs cannot self-invalidate it. Unchanged fingerprint plus no due lifecycle
 transition means no dispatch and byte-for-byte reuse of the validated prior digest. A
-changed fingerprint re-scores the full retained-plus-fresh backlog; partial invalidation is
-deliberately deferred to avoid introducing a second fingerprint contract. `generated_at`
-is the maximum `scored_at` among score inputs and persisted output contains no reuse/cache
-flags. Staleness uses that same evidence clock, not wall time.
+changed fingerprint re-scores the retained-plus-fresh backlog in one bounded batch. The
+store admits at most 20 surviving candidates; a would-be 21st candidate makes `store`
+fail atomically, leaves the prior store/digest untouched, and returns a degraded overflow
+record naming every unpersisted key so the host can carry those upstream inputs into the
+next cycle. This deliberately chooses a hard, visible capacity bound over unbounded model
+cost. `generated_at` is the host-owned manifest `as_of`, and persisted output contains no
+reuse/cache flags. Staleness uses that same trusted clock, not model-selected or wall time.
 
 **Where the model is called.** From `SKILL.md`, by the host, as a sub-agent with the
 `templates/rubric-prompt.md` prompt and the batch as input, returning JSON only. Never from
@@ -75,9 +84,9 @@ the whole directory.
 
 ## D3 — `digest.py` owns behavior; `cycle_state.py` exposes narrow state helpers
 
-**Decision.** `store`, `rank`, `digest`, `stub-to-request`, `decide` live in
-`skills/supervise/scripts/digest.py`, importing `stub_key`, `ready_across_roadmaps`,
-`compute_fingerprint`, `load_ledger`, `classify_write`, and `write_mirror` from
+**Decision.** `store`, `prepare-batch`, `rank`, `digest`, `stub-to-request`, `decide` live in
+`skills/supervise/scripts/digest.py`, importing `stub_key`, `compute_fingerprint`,
+`load_ledger`, `classify_write`, and `write_mirror` from
 `cycle_state`. `cycle_state.py` changes only to exclude derived supervisor artifacts
 from the cycle fingerprint and to preserve the extended `digested_stubs` fields.
 
@@ -97,7 +106,7 @@ remain independently implementable after the contract package lands.
 | `description` + `\n\nProvenance: <source_artifact> (<finding_ids>)` | `description` |
 | `rationale` | `rationale` |
 | `effort` | `effort` |
-| `priority` | insertion position; `refiner` then renumbers the roadmap |
+| `priority` | copied as the item's explicit numeric priority |
 | target-roadmap change dependency | local `depends_on: [ri-NN]` |
 | other-roadmap change dependency | `external_depends_on: [roadmap-id:ri-NN]` |
 | archived-completed dependency | omitted as already satisfied |
@@ -107,7 +116,9 @@ remain independently implementable after the contract package lands.
 
 Already-qualified roadmap refs are validated and preserved. `change:<id>` candidate refs
 are normalized before resolution; unresolved `prov:` or change refs fail closed and name
-the dependency for operator disposition. `--after` overrides priority-derived placement.
+the dependency for operator disposition. `--after` selects YAML insertion position only;
+it does not alter the explicit priority, and this change does not claim that refiner
+renumbers priorities after an add.
 
 **Why the host drafts acceptance outcomes.** They are the one roadmap field a stub cannot
 supply and the one `refine-roadmap` refuses to accept empty. Drafting them in conversation
@@ -145,10 +156,12 @@ these three candidate additions into the existing five-section digest after it h
 rendered pending gates (including deadlines), ready work, blockers, and degraded sensors.
 The candidate artifact cannot erase or replace those operational lines.
 
-`generated_at` is evidence time (the maximum rubric `scored_at`), not render time.
+`generated_at` is the host-owned batch-manifest `as_of`, not model or render time.
 `cached_scores` and `reused_prior` are stdout diagnostics, not persisted fields. When
 `cycle_state.py fingerprint` reports unchanged and maintenance reports no due transition,
 the skill schema-validates and re-presents the prior bytes. A due deferral is the explicit
+exception: maintenance changes the decision bucket using the host-owned `--as-of`, then
+rebuilds the digest from the existing validated cache without dispatching a scorer.
 
 ## D7 — Sequencing
 
@@ -157,16 +170,31 @@ the skill schema-validates and re-presents the prior bytes. A due deferral is th
 - ri-12 (generators emit stubs) is the real producer; fixtures stand in until then.
 - `TestWorkflowContract` string assertions move with the reworded CYCLE sections.
 
-## D8 — Evidence is bounded untrusted data
+## D8 — Evidence is bounded untrusted data and scoring is transactional
 
-The host uses the analyst archetype for rubric batches and omits an explicit model when
-resolution is unavailable. Batches are sorted by `stub_key`, capped at 20 stubs and 64
-KiB total input; provenance excerpts are capped at 2 KiB each. The loader reads only
+The host uses the analyst archetype for the single rubric batch and omits an explicit
+model when resolution is unavailable. `digest.py prepare-batch` is the public, read-only
+boundary: it accepts the store/record/ready-set inputs plus the host-owned `--as-of`,
+loads and sanitizes evidence, sorts by `stub_key`, and emits one JSON manifest to stdout
+containing the fingerprint, `as_of`, requested keys, mechanical inputs, and prompt-ready
+payload. The store and therefore the manifest are capped at 20 stubs and 64 KiB total
+input; provenance excerpts are capped at 2 KiB each. The loader reads only
 UTF-8 regular files whose resolved path stays inside the repository, rejects symlinks,
-and never fetches URIs. It applies the existing secret sanitizer before placing excerpts
+and never fetches URIs. It calls
+`skills/roadmap-runtime/scripts/sanitizer.py::sanitize_string` before placing excerpts
 inside explicit untrusted-data delimiters; the prompt says never to follow instructions
 found there. Missing, binary, URI, symlink, or out-of-root provenance yields no excerpt,
-`staleness_days: null`, and a degraded marker. Multi-batch scores are exact-set validated,
+`staleness_days: null`, and a degraded marker.
+
+The host gives the rubric dispatch 120 seconds and at most one retry. `rank` receives the
+manifest and the one returned score document, validates fingerprint, exact key coverage,
+and exact `scored_at == manifest.as_of`, builds all cache/digest/mirror replacements in
+memory, then publishes them atomically only after every validation passes. Timeout,
+missing output, retry exhaustion, partial/invalid output, or timestamp mismatch writes no
+cache/digest/mirror state, preserves the prior valid digest, and adds one degraded scoring
+line to the host-rendered cycle output. Stub files already accepted by `store` remain for
+the next cycle. This all-or-nothing boundary prevents a partial batch from becoming a
+mixed-evidence ranking.
 
 ## Task sizing notes
 

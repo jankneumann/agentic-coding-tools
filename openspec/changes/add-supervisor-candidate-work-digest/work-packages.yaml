@@ -3,20 +3,18 @@ schema_version: 1
 feature:
   id: add-supervisor-candidate-work-digest
   title: "Add supervisor candidate-work digest"
-  plan_revision: 2
+  plan_revision: 3
   created_by: plan-feature
   deployable: false
 
 contracts:
-  revision: 2
+  revision: 3
   openapi:
     primary: "openspec/changes/add-supervisor-candidate-work-digest/contracts/README.md"
     files:
       - "openspec/changes/add-supervisor-candidate-work-digest/contracts/README.md"
       - "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/rubric-score.schema.json"
       - "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/digest.schema.json"
-      - "openspec/schemas/supervise-rubric-score.schema.json"
-      - "openspec/schemas/supervise-digest.schema.json"
       - "openspec/schemas/supervisor-record.schema.json"
       - "openspec/schemas/supervisor-record-mirror.schema.json"
 
@@ -78,7 +76,7 @@ packages:
   - package_id: wp-digest-module
     title: "Digest runtime, state integration, and routing"
     task_type: implementation
-    description: "Phase 1 tasks 1.1-1.10: store, rank, evidence, routing, decision merge, and fingerprint exclusions."
+    description: "Phase 1 tasks 1.1-1.10: store, prepare-batch, transactional rank, routing, decision merge, and fingerprint exclusions."
     role: implementer
     priority: 2
     depends_on: ["wp-contracts"]
@@ -124,7 +122,7 @@ packages:
           kind: command
           command: "skills/.venv/bin/python -m ruff check skills/supervise/scripts/digest.py skills/supervise/scripts/cycle_state.py"
           evidence: {artifacts: [], result_keys: ["ruff_clean"]}
-    metadata: {loc_estimate: 560, complexity: medium, package_kind: algorithm}
+    metadata: {loc_estimate: 620, complexity: medium, package_kind: algorithm}
     outputs: {result_keys: ["digest_suite", "host_assisted", "ruff_clean"]}
 
   - package_id: wp-rubric-prompt
@@ -180,6 +178,12 @@ packages:
         - "skills/tests/supervise/test_workflow_contract.py"
         - ".claude/skills/supervise/SKILL.md"
         - ".agents/skills/supervise/SKILL.md"
+        - ".claude/skills/supervise/scripts/digest.py"
+        - ".agents/skills/supervise/scripts/digest.py"
+        - ".claude/skills/supervise/scripts/cycle_state.py"
+        - ".agents/skills/supervise/scripts/cycle_state.py"
+        - ".claude/skills/supervise/templates/rubric-prompt.md"
+        - ".agents/skills/supervise/templates/rubric-prompt.md"
       read_allow: ["**"]
       deny: ["**/.venv/**", "skills/**/scripts/**"]
     context_impact:
