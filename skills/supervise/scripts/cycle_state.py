@@ -86,6 +86,19 @@ LEDGER_PATH = "openspec/supervise/cycle-ledger.json"
 #: deliberately absent: they are a projection of loop state and are rebuilt.
 MIRROR_PATH = "openspec/supervise/supervisor-record.json"
 
+# Derived candidate-digest outputs are committed for auditability but must not
+# make the next supervise cycle look like a changed input tree.
+_FINGERPRINT_EXCLUDED_PREFIXES = (
+    "openspec/supervise/candidates/",
+    "openspec/supervise/rubric-cache/",
+)
+_FINGERPRINT_EXCLUDED_PATHS = {
+    LEDGER_PATH,
+    MIRROR_PATH,
+    "openspec/supervise/digest.json",
+    "openspec/supervise/.digest-transaction.json",
+}
+
 LEDGER_SCHEMA_VERSION = 1
 SUPERVISOR_RECORD_SCHEMA_VERSION = 1
 
@@ -145,7 +158,8 @@ def _tree_listing(repo_root: Path) -> str:
         for line in completed.stdout.splitlines()
         # ls-tree format: "<mode> <type> <object>\t<path>"
         if "\t" in line
-        and line.split("\t", 1)[1] not in {LEDGER_PATH, MIRROR_PATH}
+        and line.split("\t", 1)[1] not in _FINGERPRINT_EXCLUDED_PATHS
+        and not line.split("\t", 1)[1].startswith(_FINGERPRINT_EXCLUDED_PREFIXES)
     ]
     worktree = subprocess.run(
         [
@@ -160,6 +174,10 @@ def _tree_listing(repo_root: Path) -> str:
             ".",
             f":(exclude){LEDGER_PATH}",
             f":(exclude){MIRROR_PATH}",
+            ":(exclude)openspec/supervise/candidates/**",
+            ":(exclude)openspec/supervise/rubric-cache/**",
+            ":(exclude)openspec/supervise/digest.json",
+            ":(exclude)openspec/supervise/.digest-transaction.json",
         ],
         capture_output=True,
         text=True,
@@ -332,6 +350,11 @@ def _clean_digested_stub(value: Any) -> dict[str, Any] | None:
     if suggested is None or isinstance(suggested, str):
         if "suggested_change_id" in value:
             cleaned["suggested_change_id"] = _clean_optional_text(suggested)
+    for metadata_field in ("roadmap_ref", "route", "until", "reason"):
+        field_value = value.get(metadata_field)
+        if field_value is None or isinstance(field_value, str):
+            if metadata_field in value:
+                cleaned[metadata_field] = _clean_optional_text(field_value)
     return cleaned
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import shutil
 import subprocess
@@ -18,6 +19,7 @@ SCHEMAS = REPO_ROOT / "openspec" / "schemas"
 if str(SCRIPTS) not in sys.path:  # pragma: no cover - import wiring
     sys.path.insert(0, str(SCRIPTS))
 
+from digest import decide  # noqa: E402
 from cycle_state import (  # noqa: E402
     MIRROR_PATH,
     audit_writes,
@@ -50,7 +52,22 @@ def tree(tmp_path: Path) -> Path:
 
 
 def _json(name: str) -> dict:
-    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+    data = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+    # wp-contracts made stub identity canonical but the shared legacy fixtures are
+    # outside this package's write scope. Normalize that one old record at the
+    # test boundary until the fixture-owning package migrates it.
+    record = data.get("supervisor_record") if isinstance(data, dict) else None
+    if not isinstance(record, dict):
+        record = data
+    entries = (record.get("back_edge") or {}).get("digested_stubs") if isinstance(record, dict) else None
+    if isinstance(entries, list):
+        for entry in entries:
+            if entry.get("stub_key") == "change:extend-handoff-document-with-supervisor-record":
+                entry["stub_key"] = "change:add-extend-handoff-document-with-supervisor-record"
+                entry["suggested_change_id"] = "add-extend-handoff-document-with-supervisor-record"
+                entry.setdefault("route", "plan-roadmap")
+                entry.setdefault("roadmap_ref", None)
+    return data
 
 
 def _validator(name: str) -> Draft202012Validator:
@@ -371,3 +388,133 @@ class TestRehydrateDegradation:
 
         assert json.loads(captured.out)["pending_gates"] == mirror["pending_gates"]
         assert "Degraded: handoff" in captured.err
+
+
+
+class TestDigestDecisionMerge:
+    @pytest.mark.parametrize(
+        ("decision", "metadata"),
+        [
+            (
+                "approved",
+                {"route": "refine-roadmap", "roadmap_ref": "roadmap-one:ri-09"},
+            ),
+            ("approved", {"route": "plan-roadmap", "roadmap_ref": None}),
+            ("deferred", {"until": "2026-10-01"}),
+            ("rejected", {"reason": "The evidence is obsolete"}),
+            ("pending", {}),
+        ],
+    )
+    def test_decide_replaces_same_key_and_preserves_newer_unrelated_state(
+        self, tree: Path, decision: str, metadata: dict
+    ) -> None:
+        record = _json("minimal.json")
+        record["written_at"] = "2026-09-11T00:59:00Z"
+        record["pending_gates"] = [
+            {
+                "gate": "proposal_approval",
+                "change_id": "alpha-v4",
+                "requested_at": "2026-09-10T00:00:00Z",
+                "deadline": "2026-09-20T00:00:00Z",
+                "source": "supervise",
+            }
+        ]
+        record["back_edge"]["digested_stubs"] = [
+            {
+                "stub_key": "change:add-target",
+                "rank": 1,
+                "decision": "pending",
+                "decided_at": "2026-09-10T00:00:00Z",
+                "suggested_change_id": "add-target",
+            },
+            {
+                "stub_key": "change:add-unrelated",
+                "rank": 2,
+                "decision": "deferred",
+                "decided_at": "2026-09-09T00:00:00Z",
+                "suggested_change_id": "add-unrelated",
+                "until": "2026-12-01",
+            },
+        ]
+
+        mirror = decide(
+            tree,
+            "change:add-target",
+            decision=decision,
+            record=record,
+            as_of="2026-09-11T01:00:00Z",
+            **metadata,
+        )
+
+        assert mirror["pending_gates"] == record["pending_gates"]
+        assert len(mirror["back_edge"]["digested_stubs"]) == 2
+        by_key = {
+            item["stub_key"]: item for item in mirror["back_edge"]["digested_stubs"]
+        }
+        assert by_key["change:add-target"]["decision"] == decision
+        assert by_key["change:add-target"]["decided_at"] == "2026-09-11T01:00:00Z"
+        assert by_key["change:add-unrelated"] == record["back_edge"]["digested_stubs"][1]
+        for field, value in metadata.items():
+            assert by_key["change:add-target"][field] == value
+        _validator("supervisor-record-mirror.schema.json").validate(mirror)
+
+    @pytest.mark.parametrize(
+        ("decision", "metadata", "match"),
+        [
+            ("approved", {}, "route"),
+            ("approved", {"route": "refine-roadmap"}, "roadmap_ref"),
+            ("rejected", {}, "reason"),
+            ("deferred", {"until": "not-a-date"}, "until"),
+        ],
+    )
+    def test_decide_rejects_invalid_conditional_metadata_without_write(
+        self, tree: Path, decision: str, metadata: dict, match: str
+    ) -> None:
+        record = _json("minimal.json")
+        record["back_edge"]["digested_stubs"] = [
+            {
+                "stub_key": "change:add-target",
+                "rank": 1,
+                "decision": "pending",
+                "decided_at": "2026-09-10T00:00:00Z",
+                "suggested_change_id": "add-target",
+            }
+        ]
+        with pytest.raises(Exception, match=match):
+            decide(
+                tree,
+                "change:add-target",
+                decision=decision,
+                record=record,
+                as_of="2026-09-11T01:00:00Z",
+                **metadata,
+            )
+        assert not (tree / MIRROR_PATH).exists()
+
+    def test_decide_refuses_unknown_stub_key(self, tree: Path) -> None:
+        with pytest.raises(ValueError, match="unknown digested stub"):
+            decide(
+                tree,
+                "change:add-missing",
+                decision="rejected",
+                record=_json("minimal.json"),
+                as_of="2026-09-11T01:00:00Z",
+                reason="No evidence",
+            )
+
+
+def test_digest_runtime_has_no_model_network_or_roadmap_write_capability() -> None:
+    source = (SCRIPTS / "digest.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imported = {
+        alias.name.split(".", 1)[0]
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in node.names
+    }
+    assert imported.isdisjoint({"anthropic", "openai", "httpx", "requests", "urllib"})
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            if node.func.attr in {"write_text", "write_bytes", "replace", "unlink"}:
+                rendered = ast.unparse(node)
+                assert "roadmap.yaml" not in rendered
