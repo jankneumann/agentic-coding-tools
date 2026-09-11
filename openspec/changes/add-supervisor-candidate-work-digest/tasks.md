@@ -48,8 +48,8 @@ GREEN). Capability short name: `sv` = `supervise`.
 - [ ] 1.3 RED: test exact batch-key/fingerprint matching; host-manifest `as_of` exactness
       against missing/earlier/later/naive/future `scored_at`; cache-only validation
       against preserved `generated_at`; `state_updated_at`; complete emitted ranking
-      policy; risk inversion; Git-commit staleness and modified/untracked/null behavior;
-      strict dependency-status indexing
+      policy; risk inversion; Git-commit staleness and modified/untracked/future-clock-skew
+      null behavior; strict dependency-status indexing
       (empty/completed/archived/pending/blocked/unresolved/pending-stub), decision/readiness buckets, stable
       stub-key tie-break, shuffled inputs, schema-valid singleton caches, whole-backlog
       invalidation on changed fingerprint, byte-identical unchanged reuse, candidate-only
@@ -62,8 +62,10 @@ GREEN). Capability short name: `sv` = `supervise`.
 - [ ] 1.4 GREEN: implement `rank` and read-only `digest` rendering; source runtime schemas
       only from stable paths; keep reuse/cache diagnostics on stdout; validate prior bytes
       before reuse; stage cache/digest/mirror replacements in memory and publish only after
-      whole-document validation; publish through the fsynced roll-forward journal with
-      `digest.json` last; recover interruption at non-dry-run mutating command startup and
+      whole-document validation; publish replacement and deletion operations through the
+      fsynced roll-forward journal, including terminal candidate/cache removal, with
+      `digest.json` last; recover interruption at every operation boundary on non-dry-run
+      mutating command startup and
       report without mutation on dry-run; leave the successful
       ledger fingerprint unadvanced on scoring failure; update the rehydrated record
       through `write_mirror` — **M**
@@ -170,9 +172,11 @@ GREEN). Capability short name: `sv` = `supervise`.
       fresh store → bounded score → rank → mirror/rehydrate → candidate composition →
       decision → output-only commit simulation → unchanged cache hit/prune/due transition.
       Exercise terminal-only pruning, dry-run lifecycle reporting, modified/untracked
-      provenance, an individually oversized stub, the 21st-candidate atomic overflow, and
-      timeout/invalid/partial-score paths. Interrupt the journal after every target replace,
-      prove roll-forward recovery and retry without successful-ledger advancement, and prove
+      provenance (including future-dated Git history), an individually oversized stub, the
+      21st-candidate atomic overflow, and timeout/invalid/partial-score paths. Interrupt
+      scored and terminal-only/mixed lifecycle journals after every delete/replace boundary,
+      prove per-parent fsync, roll-forward recovery, and retry without successful-ledger
+      advancement, and prove
       no mixed cache/mirror state lands. Execute the real stub-to-request → refiner preview
       → apply transaction and stale-SHA
       refusal against a temporary roadmap — **M**

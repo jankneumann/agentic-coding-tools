@@ -57,3 +57,14 @@
 | Multi-file publication and failure retry were underspecified | Add a durable roll-forward journal, digest-last commit marker, startup recovery, and no successful-ledger advance on failure. |
 | Digest omitted parts of ranking policy | Emit the penalty cap, risk direction, bucket orders, and tie-breaker in `weights`. |
 | Adjacent round-2 ambiguities | Define maintenance-before-overflow precedence, dry-run reporting, archived-completed source, and nullable `suggested_change_id` for `prov:` keys. |
+
+## Manual Review Fix Revision 5
+
+<!-- Date: 2026-09-10 -->
+
+| Round-3 blocker | Resolution |
+|---|---|
+| Future-dated Git commit could produce negative staleness | Emit null staleness plus `clock_skew:<source_artifact>` degradation; no negative value reaches the formula. |
+| Replacement-only journal omitted lifecycle deletions | Journal typed replace/delete operations together; terminal stub/cache deletions, mirror, and digest share one recoverable transaction with per-parent fsync and digest last. |
+
+The two deterministic blockers are fixed in the plan. Automatic PLAN_REVIEW exhausted its configured three-round limit, so resumption remains subject to the recorded escalation gate.

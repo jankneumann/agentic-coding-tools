@@ -56,7 +56,9 @@ manifest time, and `prior_decision`. For a tracked, unmodified provenance artifa
 `staleness_days` subtracts the timestamp of the most recent Git commit that changed that
 exact repo-relative path (`git log -1 --format=%cI -- <path>`) from manifest `as_of`.
 Untracked, modified, missing, or otherwise unsafe artifacts have null staleness and a
-degraded marker; filesystem mtime is never used. An empty dependency list is ready; a
+degraded marker; filesystem mtime is never used. If the Git commit timestamp is later than
+manifest `as_of`, staleness is also null with `clock_skew:<source_artifact>` degradation,
+so negative staleness can neither violate the schema nor increase a score. An empty dependency list is ready; a
 dependency is ready only when its referenced item/change is completed or
 archived-completed; pending, blocked, unresolved, and pending-stub dependencies are not
 ready. The index walks strict roadmap YAML plus active change directories and treats a
@@ -219,14 +221,17 @@ found there. Missing, binary, URI, symlink, or out-of-root provenance yields no 
 The host gives the rubric dispatch 120 seconds and at most one retry. `rank` receives the
 manifest and the one returned score document, validates fingerprint, exact key coverage,
 and exact `scored_at == manifest.as_of`, then builds every cache/digest/mirror replacement
-in memory. Publication uses `openspec/supervise/.digest-transaction.json`: the journal
-contains canonical replacement bytes and checksums, is atomically written and fsynced
-before target replacement, and lists a deterministic target order with `digest.json` last
-as the commit marker. Every non-dry-run mutating digest CLI entry point first detects a
-journal and idempotently rolls it forward, verifying an already-replaced target by checksum, then
-fsyncs the target directory and removes the journal. Read-only and dry-run commands report
-a pending recovery but do not mutate it. The journal is excluded from the cycle
-fingerprint.
+in memory. Publication uses `openspec/supervise/.digest-transaction.json`. Its ordered operations
+encode either `{op: replace, target, bytes, sha256}` or `{op: delete, target}`. A scored
+transaction includes cache, mirror, and digest replacements; a lifecycle transaction also
+includes every terminal stub/cache deletion plus the rebuilt mirror and digest. The journal
+is atomically written and fsynced before any target mutation. Recovery idempotently applies
+sorted non-digest deletes/replacements, verifies replaced bytes by checksum, fsyncs every
+affected parent directory, then replaces and fsyncs `digest.json` last as the commit marker.
+It removes the journal only after all targets are durable and fsyncs the journal's parent.
+Every non-dry-run mutating digest CLI entry point recovers first. Read-only and dry-run
+commands report pending recovery and refuse to serve a candidate digest from mixed state
+without mutating it. The journal is excluded from the cycle fingerprint.
 Timeout, missing output, retry exhaustion, partial/invalid output, timestamp mismatch, or
 oversized prompt writes no journal and no cache/digest/mirror state, preserves the prior
 valid digest, and does not advance the cycle ledger's last successful fingerprint, so the

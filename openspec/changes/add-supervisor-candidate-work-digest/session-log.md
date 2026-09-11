@@ -162,3 +162,59 @@ Round-2 multi-vendor plan review did not converge after PLAN_FIX cb449eb1. Four 
 
 ### Context
 Revision 4 is implementation-ready if the final review confirms convergence. The implementation contract now specifies one bounded prompt, deterministic evidence time, complete ranking-policy metadata, a strict dependency-status index, and crash-recoverable publication.
+
+---
+
+## Phase: Plan Review (2026-09-11)
+
+**Agent**: code-reviewer | **Session**: N/A
+
+### Decisions
+1. **Stop automatic review iteration at max_iter** — Two blocking contract gaps remain after the third and final review: future-dated Git commits can produce invalid or rank-boosting negative staleness, and lifecycle deletions are not represented by the replacement-only crash journal.
+2. **Exclude incoherent Pi findings from consensus** — Pi returned severity none observations prefixed Critical and nit findings with disposition accept, violating the review skill severity-prefix and disposition coherence contract.
+
+### Alternatives Considered
+- Treat revision 4 as converged based on Antigravity positives: rejected because Codex and Grok independently reproduced both blockers from the normative text and schemas; deterministic safety/correctness gaps cannot be waived by one positive review.
+
+### Trade-offs
+- Accepted A max-iteration stop for operator disposition over Beginning implementation with underspecified time-skew and deletion-recovery semantics because Both gaps can produce schema-invalid ranking or durable mixed lifecycle state after a crash.
+
+### Completed Work
+- Dispatched fresh round-3 reviews to Antigravity, Claude Code, Grok, and Pi; Antigravity, Grok, and Pi completed, while Claude Code timed out after 600 seconds.
+- Validated Codex, Antigravity, and Grok findings and synthesized quorum consensus without overwriting rounds 1 or 2.
+- Round-3 consensus: 12 unique findings, 3 confirmed, 7 unconfirmed, 2 disagreements, 2 blocking, and 5 advisory.
+- Strict OpenSpec validation and work-package schema/DAG/lock/overlap validation passed.
+
+### Next Steps
+- Define future-commit clock-skew handling so staleness_days is never negative and add a corresponding test.
+- Extend the durable journal to encode terminal stub/cache deletions in the same lifecycle transaction as mirror/digest replacements, with deletion-boundary crash tests.
+- After operator disposition or a manual plan fix, repeat validation before implementation.
+
+### Relevant Files
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/round-3/findings-codex-plan.json` — Primary final-round findings.
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/round-3/consensus-plan.json` — Quorum consensus with two blocking disagreements.
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/round-3/review-manifest.json` — Fresh vendor dispatch evidence.
+- `openspec/changes/add-supervisor-candidate-work-digest/design.md` — Revision-4 design containing the remaining staleness and journal gaps.
+- `openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md` — Normative contract containing the remaining gaps.
+
+### Context
+Third and final multi-vendor plan review of revision 4 did not converge. Three coherent reviewers reached quorum after Claude timed out; consensus contains two deterministic blocking disagreements, each supported by Codex and Grok and opposed by Antigravity. Because the configured maximum of three PLAN_REVIEW iterations is exhausted, the phase outcome is max_iter rather than another automatic PLAN_FIX loop.
+
+## Phase: Manual Plan Fix (2026-09-11)
+
+**Agent**: software-architect | **Session**: N/A
+
+### Decisions
+1. **Fail closed on future Git timestamps** — Clock skew yields null staleness and explicit degradation; it can never boost rank.
+2. **Journal deletions with replacements** — Terminal candidate/cache removal and rebuilt mirror/digest state form one typed, roll-forward transaction with per-parent durability.
+
+### Completed Work
+- Resolved both deterministic blockers from final review and incorporated the low-cost routing/Impact clarity notes.
+- Bumped plan and contract revision to 5.
+
+### Next Steps
+- Re-run strict OpenSpec and package validations.
+- Obtain the recorded escalation-resume authorization required after the three-round review limit.
+
+### Context
+The proposal's substantive review blockers are resolved, but autopilot policy still requires an operator decision before the loop can leave max-iteration escalation and enter implementation.

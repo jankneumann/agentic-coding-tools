@@ -47,7 +47,8 @@ without first writing a proposal for it. The handoff record change
    timestamp before folding in dependency status, provenance staleness, and prior decision
    signals and emitting the ordered digest with per-factor breakdown. Staleness uses the
    last Git commit timestamp for an unchanged tracked source artifact; modified, untracked,
-   missing, and unsafe sources degrade to null rather than using clone-dependent mtime.
+   missing, unsafe, and future-dated sources degrade to null rather than using
+   clone-dependent mtime or producing negative staleness.
    The total order is dependency-ready pending work first, then weighted score
    (`3*relevance + 3*value + 2*readiness + scope_fit + risk`, with risk inverted so 5
    is safest), then `stub_key`; future-deferred work is a final bucket. One point is
@@ -106,8 +107,9 @@ without first writing a proposal for it. The handoff record change
    marker. The host enforces a 120-second timeout and one retry. Any missing, partial,
    invalid, timestamp-mismatched, or oversized result preserves the prior valid digest and
    does not advance the successful cycle fingerprint. Valid multi-file updates use a
-   durable roll-forward journal containing replacement bytes/checksums, with `digest.json`
-   replaced last; every digest command recovers an interrupted journal before new work.
+   durable roll-forward journal containing typed replace and delete operations. Lifecycle
+   maintenance includes terminal candidate/cache deletions and mirror/digest replacements in
+   one transaction; non-digest parents are fsynced before `digest.json` is replaced last.
 
 7. **SKILL.md.** CYCLE steps 1–5 are rewritten around lifecycle maintenance, retained
    backlog, store, bounded rubric dispatch, `rank`, composable rendering, and the
@@ -193,7 +195,7 @@ periodic checkpoint. The digest logic lands in a new `scripts/digest.py` so
 
 ## Impact
 
-- new `skills/supervise/scripts/digest.py` (`store`, `rank`, `digest`, `stub-to-request`, `decide` subcommands; imports `cycle_state` helpers), updates to `cycle_state.py`, `skills/supervise/SKILL.md`, `skills/supervise/templates/rubric-prompt.md`
+- new `skills/supervise/scripts/digest.py` (`store`, `prepare-batch`, `rank`, `digest`, `stub-to-request`, `decide` subcommands; imports `cycle_state` helpers), updates to `cycle_state.py`, `skills/supervise/SKILL.md`, `skills/supervise/templates/rubric-prompt.md`
 - Contracts: change-local and stable runtime copies of `rubric-score.schema.json` and
   `digest.schema.json`; extensions to canonical `supervisor-record.schema.json` and
   `supervisor-record-mirror.schema.json`

@@ -3,12 +3,12 @@ schema_version: 1
 feature:
   id: add-supervisor-candidate-work-digest
   title: "Add supervisor candidate-work digest"
-  plan_revision: 4
+  plan_revision: 5
   created_by: plan-feature
   deployable: false
 
 contracts:
-  revision: 4
+  revision: 5
   openapi:
     primary: "openspec/changes/add-supervisor-candidate-work-digest/contracts/README.md"
     files:
