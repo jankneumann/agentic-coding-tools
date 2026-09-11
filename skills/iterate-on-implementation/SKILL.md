@@ -549,6 +549,124 @@ If all vendor review findings are below the remediation threshold, proceed to th
 
 ---
 
+### 11.5. Audit Choices (non-blocking)
+
+**This step is NOT gated by `VENDOR_REVIEW`; it runs on every converged iteration, including runs that skipped Step 11.** (Step 11 opens with "Skip this step if `VENDOR_REVIEW=false`" — an `11.5` heading sitting under it would otherwise read as part of that skipped block, disabling the audit on exactly the runs that skip vendor review.)
+
+Dispatch the `audit-choices` skill against this iteration and commit the resulting ledger pair when it changed. Every branch below is wrapped in a warn-and-continue guard: nothing in this step may `exit 1`, `set -e`-abort, or return a failing outcome to autopilot. A successful commit or restore prints nothing extra; every other branch prints exactly one `audit-choices: skipped (<reason>) — continuing to summary` line. The step always falls through to Step 12.
+
+```bash
+CHANGE_DIR="openspec/changes/$CHANGE_ID"
+JSON_PATH="$CHANGE_DIR/choices.json"
+MD_PATH="$CHANGE_DIR/choices.md"
+RUN_ID="iterate-on-implementation-$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+SKIP_REASON=""
+
+audit_choices_step() {
+  # "Unavailable" (F6): the skill is not installed in the runtime skill
+  # directory, or no independent sub-agent can be dispatched.
+  if [ ! -d "<skill-base-dir>/../audit-choices" ]; then
+    SKIP_REASON="audit-choices not installed"
+    return
+  fi
+
+  # "Fails" (F6): run_audit.py exits non-zero (it never should), prints an
+  # `audit-choices: WARNING` line (driver ok=False — including "dispatch
+  # returned no parseable candidate array"), or any command below raises.
+  local audit_output
+  if ! audit_output=$(/audit-choices "$CHANGE_ID" --run-id "$RUN_ID" 2>&1); then
+    SKIP_REASON="audit dispatch failed"
+    return
+  fi
+  if printf '%s' "$audit_output" | grep -q "audit-choices: WARNING"; then
+    SKIP_REASON="audit reported a WARNING"
+    return
+  fi
+
+  # Verify both files exist and are non-empty before touching git at all.
+  # write_ledger_pair writes choices.json then renders choices.md as a
+  # second, separate operation, so an interruption between them leaves the
+  # JSON on disk with no rendering — the "partial pair" case (F6).
+  local json_ok=false md_ok=false
+  [ -s "$JSON_PATH" ] && json_ok=true
+  [ -s "$MD_PATH" ] && md_ok=true
+
+  if [ "$json_ok" = false ] && [ "$md_ok" = false ]; then
+    SKIP_REASON="audit produced no ledger"
+    return
+  fi
+  if [ "$json_ok" != "$md_ok" ]; then
+    # Partial pair: discard the orphan rather than commit half of it.
+    # `git checkout --` restores a tracked path but silently does nothing
+    # for an untracked one, so the tracked half (if any) is restored with
+    # `git checkout --` and the untracked first-audit half is removed with
+    # `rm -f`.
+    git checkout -- "$JSON_PATH" "$MD_PATH" 2>/dev/null
+    rm -f "$JSON_PATH" "$MD_PATH"
+    SKIP_REASON="partial ledger pair discarded"
+    return
+  fi
+
+  # F2: compare exactly the `entries` array and `header.schema_version`
+  # against the committed revision — never the whole `header` (its other
+  # five fields, and the root-level change_id/audited_range/auditor, move
+  # on every run) and never a byte diff (D3 idempotence is about stable
+  # stable_ids, not byte-stability).
+  local compare
+  compare=$(python3 - "$JSON_PATH" <<'PYEOF'
+import json, subprocess, sys
+
+json_path = sys.argv[1]
+fresh = json.load(open(json_path))
+
+committed = subprocess.run(
+    ["git", "show", f"HEAD:{json_path}"], capture_output=True, text=True
+)
+if committed.returncode != 0:
+    print("new")  # no committed revision: nothing to compare, always commit
+    sys.exit(0)
+
+try:
+    committed_doc = json.loads(committed.stdout)
+except json.JSONDecodeError:
+    print("new")
+    sys.exit(0)
+
+fresh_key = (fresh.get("entries", []), fresh.get("header", {}).get("schema_version"))
+committed_key = (
+    committed_doc.get("entries", []),
+    committed_doc.get("header", {}).get("schema_version"),
+)
+print("unchanged" if fresh_key == committed_key else "changed")
+PYEOF
+  ) || { SKIP_REASON="comparison failed"; return; }
+
+  case "$compare" in
+    new|changed)
+      # Stage both paths under the change directory — not a bare
+      # `choices.md`, which resolves against the working directory and
+      # would stage a nonexistent repo-root file, committing half the pair.
+      git add "openspec/changes/$CHANGE_ID/choices.json" \
+              "openspec/changes/$CHANGE_ID/choices.md"
+      git commit -q -m "chore(choices): audit ledger for $CHANGE_ID"
+      ;;
+    unchanged)
+      # Entries and schema_version are unchanged: restore the committed
+      # pair and commit nothing. Every re-audit of an unchanged diff is a
+      # commit-wise no-op.
+      git checkout -- "$JSON_PATH" "$MD_PATH"
+      ;;
+  esac
+}
+
+audit_choices_step
+if [ -n "$SKIP_REASON" ]; then
+  echo "audit-choices: skipped ($SKIP_REASON) — continuing to summary"
+fi
+```
+
+---
+
 ### 12. Present Summary
 
 Present a summary of all iterations:
@@ -588,6 +706,9 @@ If `CAN_HANDOFF=true`, write a completion handoff containing:
 - Consensus findings: <confirmed count> confirmed, <unconfirmed count> unconfirmed, <disagreement count> disagreements
 - Remediation cycle: <ran / not needed>
 - New findings addressed in remediation: <count or "N/A">
+
+### Choices Audit
+- Choices audit: <committed <n> entries | unchanged, nothing committed | skipped (<reason>)>
 ```
 
 ## Semantic Code Context

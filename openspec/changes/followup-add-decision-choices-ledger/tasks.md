@@ -52,7 +52,7 @@ refer to this change's `design.md`.
   json mode). Reuse `choices_ledger.rank_entries`; open no file
   for writing.
 
-- [ ] 3.1 Add the Step 11.5 audit invocation to iterate-on-implementation
+- [x] 3.1 Add the Step 11.5 audit invocation to iterate-on-implementation
   **Spec scenarios**: skill-workflow.8 (Workflow invocation is non-blocking)
   **Design decisions**: D6, F1, F2, F6, F8
   **Dependencies**: none (parent 2.8 archived)
