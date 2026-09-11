@@ -144,7 +144,7 @@ packages:
       read_allow: ["**"]
       deny: ["**/.venv/**", "skills/supervise/scripts/**"]
     context_impact:
-      surfaces: ["documentation", "architecture"]
+      surfaces: ["documentation", "architecture", "semantic_code"]
     worktree: {name: rubric-prompt, mode: isolated}
     timeout_minutes: 60
     retry_budget: 2

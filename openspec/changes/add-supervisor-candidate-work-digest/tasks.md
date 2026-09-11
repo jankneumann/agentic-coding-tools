@@ -121,7 +121,7 @@ GREEN). Capability short name: `sv` = `supervise`.
 
 ## Phase 2 — wp-rubric-prompt: bounded analyst contract
 
-- [ ] 2.1 RED: test that the template names all five factors and fixed scale (including
+- [x] 2.1 RED: test that the template names all five factors and fixed scale (including
       risk inversion), embeds the stable runtime schema ID, requires JSON-only exact-key
       output, identifies the analyst archetype, declares batch/evidence limits, and marks
       stub/provenance blocks as untrusted data whose instructions must not be followed — **S**
@@ -129,7 +129,7 @@ GREEN). Capability short name: `sv` = `supervise`.
       is not read*
       **Dependencies**: 0.2
 
-- [ ] 2.2 GREEN: write `templates/rubric-prompt.md` with `{{batch}}`, `{{ready_set}}`, and
+- [x] 2.2 GREEN: write `templates/rubric-prompt.md` with `{{batch}}`, `{{ready_set}}`, and
       `{{fingerprint}}` slots; document the single-manifest dispatch, exact timestamp
       echo, 120-second timeout and one retry, and analyst fallback (omit model override if
       analyst resolution is unavailable) — **S**
