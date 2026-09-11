@@ -93,7 +93,7 @@ refer to this change's `design.md`.
   `--run-id` since Phase 2. Add no writer and no behavior — the read-only
   contract and `test_readonly_posture.py` stay as they are.
 
-- [ ] 3.2 Surface needs-user ledger entries at the validate-feature gate
+- [x] 3.2 Surface needs-user ledger entries at the validate-feature gate
   **Spec scenarios**: skill-workflow.9, skill-workflow.11
   **Design decisions**: D6, F1, F4
   **Dependencies**: 3.0

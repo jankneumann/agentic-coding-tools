@@ -1020,6 +1020,9 @@ Produce a structured summary of all phases:
 ⚠ Log Analysis: 3 warnings found
   - [WARNING] Deprecated function call: old_api_handler (line 142)
 ✓ CI/CD: All checks passing
+○ Choices: no ledger _or_ ✓ Choices: 0 needs-user _or_ ⚠ Choices: 2 needs-user entries (choices.md)
+  - a1b2c3d4e5f6  low  Chose per-request retry budget of 3
+  - f6e5d4c3b2a1  medium  Chose synchronous validation
 
 ### Result
 
@@ -1036,9 +1039,29 @@ Use these symbols:
 - ⚠ — Phase passed with warnings
 - ○ — Phase skipped
 
+**Choices row.** Compute it by testing for the ledger's presence first — the reader below is silent for both "no ledger" and "a ledger with nothing open" by design, so the row's own `○`/`✓`/`⚠` choice is what tells those two cases apart, never the reader's (lack of) output:
+
+```bash
+CHOICES_JSON="$OPENSPEC_PATH/changes/$CHANGE_ID/choices.json"
+if [ ! -f "$CHOICES_JSON" ]; then
+  CHOICES_ROW="○ Choices: no ledger"
+else
+  CHOICES_LINES=$(python3 "<skill-base-dir>/../audit-choices/scripts/needs_user.py" \
+    --change-id "$CHANGE_ID" --repo-root "$PROJECT_ROOT")
+  CHOICES_COUNT=$(printf '%s\n' "$CHOICES_LINES" | grep -c . || true)
+  if [ "$CHOICES_COUNT" -gt 0 ]; then
+    CHOICES_ROW="⚠ Choices: $CHOICES_COUNT needs-user entries (choices.md)"
+  else
+    CHOICES_ROW="✓ Choices: 0 needs-user"
+  fi
+fi
+```
+
+Always invoke the reader through the skill-relative path above (`<skill-base-dir>/../audit-choices/scripts/needs_user.py`), the way this repo invokes every sibling-skill script — never a bare `needs_user.py` command or a repo-root `skills/audit-choices/...` path, neither of which resolves inside the `.claude/skills/` and `.agents/skills/` runtime mirrors. The `Choices:` row never changes `Result`: `⚠` is already defined above as "passed with warnings" and never flips PASS/FAIL, exactly like every other warning row in this report. Never emit a `## Choices` heading — `gate_logic.py` (Step 7.0's pre-merge gate) reads a fixed allow-list of `##` phase headings with a `**Status**` line, and the row form is deliberately invisible to that parser so it cannot be picked up by a future allow-list edit.
+
 ### 12. Persist Report
 
-Write the validation report to the OpenSpec change directory:
+Write the validation report to the OpenSpec change directory. `$CHOICES_ROW` (and the reader's entry lines, if any) computed above is part of the phase results and MUST be carried into the persisted file below — the `<phase results from Step 10>` placeholder in the heredoc stands for the full Step 11 phase-results block, this row included, not just the container phases:
 
 ```bash
 REPORT_FILE="$OPENSPEC_PATH/changes/$CHANGE_ID/validation-report.md"
@@ -1058,6 +1081,8 @@ cat > "$REPORT_FILE" << EOF
 ## Phase Results
 
 <phase results from Step 10>
+$CHOICES_ROW
+$CHOICES_LINES
 
 ## Result
 
@@ -1186,6 +1211,16 @@ Option 3: Skip non-critical failures and proceed:
 ```
 
 Present the validation report and let the user decide the next step.
+
+**Echo open choices, if any.** When the Choices row computed in Step 11 is the `⚠` form (open `needs-user` entries), echo it once more here, alongside its entry lines, so the human deciding the next step sees it at the same point they make the decision:
+
+```
+⚠ Choices: 2 needs-user entries (choices.md)
+  - a1b2c3d4e5f6  low  Chose per-request retry budget of 3
+  - f6e5d4c3b2a1  medium  Chose synchronous validation
+```
+
+This is presentation only — it never changes PASS/FAIL and introduces no new gate.
 
 ## Semantic Code Context
 
