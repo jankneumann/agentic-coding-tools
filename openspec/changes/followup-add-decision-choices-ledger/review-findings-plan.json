@@ -1,0 +1,43 @@
+{
+  "review_type": "plan",
+  "target": "followup-add-decision-choices-ledger",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "description": "Task 3.2 says to add a `Choices:` row to 'the Step 11 Phase Results template', but skills/validate-feature/SKILL.md contains two distinct Phase Results blocks inside Step 11: an illustrative report sketch with an h3 `### Phase Results` heading, and the heredoc that actually writes $REPORT_FILE with an h2 `## Phase Results` whose body is the placeholder `<phase results from Step 10>`. Only the second one reaches validation-report.md, and its content is assembled at Step 10, not typed in Step 11. As written the task can be satisfied by editing the sketch alone, in which case the gate presentation shows a Choices row that never appears in the persisted report, and task 3.7's content test would pass while the behavior is absent.",
+      "resolution": "Name both edit sites in task 3.2: the illustrative `### Phase Results` sketch (so the documented format includes the row) and the Step 10 phase-results assembly that feeds the heredoc's `<phase results from Step 10>` placeholder (so the row reaches validation-report.md). Have task 3.7 assert the row appears in the assembly site, not only in the sketch."
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "description": "Task 3.6 instructs the end-to-end test to copy the archived parent's artifacts and to 'resolve the archive dir at test time — never pin the path', but does not name the mechanism. AGENTS.md states the rule concretely: resolve at read time with `change_dir()` from `openspec_paths`, and a guard test enforces it. That helper already exists at skills/tests/_shared/openspec_paths.py and its `change_dir(repo_root, change_id)` returns the active `openspec/changes/<id>/` when present and the archived directory otherwise — exactly what task 3.6 needs. Leaving it unnamed invites a hand-rolled glob over `openspec/changes/archive/*-add-decision-choices-ledger` that satisfies the prose but fails the guard.",
+      "resolution": "In task 3.6, replace 'resolve the archive dir at test time — never pin the path' with an explicit instruction to use `change_dir()` from `skills/tests/_shared/openspec_paths.py`, passing change id `add-decision-choices-ledger`, and add that file to the task's **Files** line as a read dependency."
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "fyi",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "description": "Decision F4 justifies the row form by asserting that a `## Choices` section 'would be one heading away from becoming a gate input' in validate-feature/scripts/gate_logic.py. That overstates the mechanism. gate_logic.py computes required phases from two fixed allowlists — ALWAYS_REQUIRED_PHASES ({'Spec Compliance'}) plus REQUIRED_PHASES ({'Smoke Tests','Security','E2E Tests'}) when the surface is deployable, plus 'Architecture' in blocking mode. An unrecognized `## Choices` heading is simply not consulted, so it could not become a gate input without a code change to those dicts. The row form is still the right call, but the stated reason is not the real one and a future reader may act on it.",
+      "resolution": "Restate F4's rationale accurately: gate_logic.py consults a fixed allowlist of phase headings, so a `## Choices` section would be inert today; the row form is chosen because it keeps choices inside the existing Phase Results presentation and leaves no heading that a future allowlist edit could pick up by accident. Keep the 'never emit a `## Choices` section' instruction in task 3.2 and the assertion in task 3.7 unchanged."
+    }
+  ]
+}

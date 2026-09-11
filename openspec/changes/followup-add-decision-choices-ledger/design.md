@@ -51,17 +51,30 @@ schema, ledger format, driver, or the skill's read-only posture.
   - `iterate-on-implementation`: new **Step 11.5 "Audit Choices
     (non-blocking)"** between 11c (vendor-review remediation) and 12 (Present
     Summary). This is "after its converged review step and before its final
-    summary" in the requirement; it runs whether or not Step 11 was skipped
-    (`VENDOR_REVIEW=false`).
+    summary" in the requirement. Step 11 opens with "Skip this step if
+    `VENDOR_REVIEW=false`", and an `11.5` heading sitting under it reads as
+    part of the skipped block — which would disable the audit on exactly the
+    runs that skip vendor review. The step's first line therefore states the
+    always-run rule outright ("This step is NOT gated by `VENDOR_REVIEW`; it
+    runs on every converged iteration, including runs that skipped Step 11"),
+    and task 3.7 asserts that wording is present.
   - `validate-feature`: the human decision point is the **Step 11 Validation
     Report** plus the **After Validation** prompt that presents it. Choices are
     a `Choices:` row in the existing Phase Results block, echoed once more
     under After Validation when any `needs-user` entry is open.
   - `cleanup-feature`: new **Step 5.5 "Surface open `needs-user` choices"**
     anchored immediately before the `### 6. Archive OpenSpec Proposal`
-    heading. (The skill's Step 5 region has two `5c` headings and a `5d`
-    staged-rollout block; anchoring on Step 6 is the only unambiguous
-    position.) This is the same region where open tasks are surfaced and the
+    heading. (The skill's Step 5 region carries the label `5c` twice — once
+    as `#### 5c. Mark original tasks.md` inside Step 5 and once as
+    `### 5c. Pre-Launch Checklist` — plus a `5d` staged-rollout block;
+    anchoring on Step 6 is the only unambiguous position.)
+    **The Step 5a early exit must be retargeted.** `#### 5a. Detect open
+    tasks` ends with "If **all tasks are checked** (`- [x]`), skip to Step
+    6" — the common happy path, and it would jump straight over 5.5, so a
+    fully-completed change would archive without ever surfacing its open
+    `needs-user` entries. That line is retargeted to Step 5.5, which is why
+    task 3.3 edits two places in the file and task 3.7 asserts the skip
+    target. This is the same region where open tasks are surfaced and the
     last moment before archive freezes the ledger. Not Step 2 (PR approval — too early, the ledger may
     not exist yet) and not 2.5a (a hard gate; adding anything there reads as
     a new gate).
@@ -69,19 +82,46 @@ schema, ledger format, driver, or the skill's read-only posture.
     prompt). That prompt only fires on drift; the ledger must surface on every
     run.
 
-- **F2: Step 11.5 commits the ledger pair.** The loop's last commit is Step
-  10; an audit after it would leave `choices.json`/`choices.md` untracked, and
-  both gates read the ledger from the branch (validate-feature) or the change
-  directory that archive moves (cleanup-feature). Step 11.5 therefore runs
-  `git add openspec/changes/$CHANGE_ID/choices.json choices.md` and commits
-  `chore(choices): audit ledger for <change-id>` **only when the pair changed**
-  (a no-diff re-audit — D3 idempotence — commits nothing). The commit itself
-  is inside the warn-and-continue guard.
+- **F2: Step 11.5 commits the ledger pair, comparing entries and not bytes.**
+  The loop's last commit is Step 10; an audit after it would leave
+  `choices.json`/`choices.md` untracked, and both gates read the ledger from
+  the branch (validate-feature) or the change directory that archive moves
+  (cleanup-feature). Step 11.5 therefore stages **both paths under the change
+  directory**:
+
+  ```bash
+  git add "openspec/changes/$CHANGE_ID/choices.json" \
+          "openspec/changes/$CHANGE_ID/choices.md"
+  ```
+
+  (An earlier draft wrote `git add openspec/changes/$CHANGE_ID/choices.json
+  choices.md`, where the second path resolves against the working directory
+  and stages a repo-root `choices.md` that does not exist — committing half
+  the pair. The pathspec is spelled out for both files for that reason.)
+
+  **The "commit only when changed" test is on entries, not on file bytes.**
+  `choices_ledger.make_header` stamps a fresh `generated_at` and `run_id` on
+  every run, and `render_markdown` prints `generated_at` into `choices.md`, so
+  a byte comparison always differs and D3 idempotence (stable `stable_id`s
+  across runs) says nothing about byte-stability. Step 11.5 compares the
+  **entry payload** — `choices.json` with `generated_at` and `run_id` removed
+  from the header — against the committed revision. When only the volatile
+  header moved, it restores the committed pair (`git checkout -- <both
+  paths>`) and commits nothing; otherwise it commits
+  `chore(choices): audit ledger for <change-id>`. Every re-audit of an
+  unchanged diff is therefore a no-op commit-wise, which is what F2 always
+  intended and what a byte test could not deliver.
+
+  The staging, the comparison and the commit are all inside the
+  warn-and-continue guard.
   - *Alternative rejected*: leave the pair uncommitted for the user. Silent
     loss at the first `git stash`/worktree teardown, and the gates never see
     it.
   - *Alternative rejected*: amend the last iteration commit. The repo's
     reconcile rule is "new commit, do NOT amend" (validate-feature 7.0).
+  - *Alternative rejected*: commit on every successful audit. One
+    content-free commit per `iterate-on-implementation` run, on every change,
+    purely to restamp a timestamp.
 
 - **F3: One shared reader, `skills/audit-choices/scripts/needs_user.py`.**
   CLI: `--change-id`, `--repo-root` (default `.`), `--format text|json`
@@ -101,9 +141,16 @@ schema, ledger format, driver, or the skill's read-only posture.
     are shell steps in SKILL.md; they need a CLI entry point.
 
 - **F4: Choices are a Phase Results row, never a `## Choices` section.**
-  `validate-feature/scripts/gate_logic.py` parses `## <heading>` sections with
-  a `**Status**` line to compute pass/fail for required phases. A `## Choices`
-  section would be one heading away from becoming a gate input. The row form —
+  `validate-feature/scripts/gate_logic.py` computes pass/fail by looking up a
+  fixed allow-list of phase headings — `ALWAYS_REQUIRED_PHASES`
+  (`Spec Compliance`) plus `REQUIRED_PHASES` (`Smoke Tests`, `Security`,
+  `E2E Tests`) when the surface is deployable, plus `Architecture` in blocking
+  mode — and reading each one's `**Status**` line. An unrecognized
+  `## Choices` section is never consulted, so it could not become a gate input
+  without also editing those dicts. The row form is not chosen because a
+  section would be dangerous today; it is chosen because it leaves no heading
+  for a future allow-list edit to pick up by accident, and because choices
+  belong inside the presentation the human already reads. The row form —
   `○ Choices: no ledger` / `✓ Choices: 5 entries, 0 needs-user` /
   `⚠ Choices: 2 needs-user entries (choices.md)` followed by the reader's
   lines — is invisible to that parser, so "approve/reject semantics otherwise
@@ -133,17 +180,49 @@ schema, ledger format, driver, or the skill's read-only posture.
   - *Fails*: `run_audit.py` exits non-zero (it never should), prints an
     `audit-choices: WARNING` line (driver `ok=False`), or any command in the
     step raises.
+  - *Partial pair*: `choices_ledger.write_ledger_pair` writes `choices.json`
+    and then renders `choices.md` as a second, separate operation, so an
+    interruption between them leaves the JSON on disk with no rendering. The
+    step therefore checks that **both** files exist and are non-empty before
+    staging anything; if only one is present it treats the run as a failure,
+    restores both paths with `git checkout --` (discarding the orphan), and
+    takes the skip line. This is the hook-level guarantee behind the spec's
+    "SHALL NOT commit a partial ledger pair"; the driver itself is not made
+    atomic, because the proposal forbids driver changes.
   - In every case Step 11.5 emits exactly one line —
     `audit-choices: skipped (<reason>) — continuing to summary` — records the
     reason in the Step 12 summary under a `Choices audit:` line, and proceeds.
     Nothing in Step 11.5 may `exit 1`, `set -e`-abort, or return a failing
     outcome to autopilot.
 
-- **F7: Scenario ordinals are retained and keyed.** Tasks keep the parent's
-  `skill-workflow.N` references so the parent's dependency graph reads
-  unchanged; `tasks.md` carries a key table resolving each ordinal to a
-  scenario title and its location (canonical spec for 1–6, this delta for
-  7–11). New scenarios added by this iteration continue the sequence.
+- **F8: `audit-choices` gains an optional `--run-id` argument.**
+  `run_audit.py` has required `--run-id` since Phase 2, but
+  `skills/audit-choices/SKILL.md` documents only two argument forms,
+  `<change-id>` and `<base-sha>..<head-sha>`. F2 prescribes
+  `run_id=iterate-on-implementation-<UTC ISO timestamp>` so a ledger can be
+  traced back to the run that produced it, and there is no documented way to
+  pass it. The skill's Arguments section gains an optional trailing
+  `--run-id <id>` (documentation only — the driver already accepts it), and
+  the skill keeps choosing its own id when the caller omits it. This is the
+  one place the change touches `audit-choices` itself, and it adds no writer
+  and no behavior: the read-only posture and its mechanical test are
+  untouched.
+  - *Alternative rejected*: drop the prescribed `run_id` and let the skill
+    pick one. Then no ledger names the workflow step that produced it, and
+    the `Choices audit:` summary line cannot cite a correlatable id.
+
+- **F7: Scenario ordinals follow the parent's document order, and the key
+  table is the authority.** The carried-forward tasks inherited ordinals that
+  did not survive checking: the archived parent's spec delta has **seven**
+  scenarios, all seven merged into `openspec/specs/skill-workflow/spec.md`,
+  and an earlier draft of the key table listed six of them in an order that
+  matched neither document. Ordinals are therefore assigned by the parent
+  delta's own document order — `skill-workflow.1` through `.7` canonical,
+  `.8` through `.12` for this delta's five scenarios in their document order —
+  and `tasks.md` carries the table that resolves each one to a title and a
+  location. Renumbering the task references was preferred over patching the
+  table in place: an ordinal that resolves to two different scenarios
+  depending on which document you open is worse than a diff.
 
 ## Risks / Trade-offs
 

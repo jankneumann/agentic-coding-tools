@@ -34,15 +34,23 @@ tests that pin them:
 - `docs/guides/workflow.md` documents the skill.
 - The decision-index README producer gains the ledger positioning note, with
   `docs/decisions/README.md` regenerated in the same commit.
+- `skills/audit-choices/SKILL.md` documents an optional `--run-id` argument so
+  the Step 11.5 hook can name the run that produced a ledger. `run_audit.py`
+  has required `--run-id` since Phase 2; only the Arguments section was
+  missing it.
 - An end-to-end pytest drives the audit against a fixture repo seeded from the
   archived parent change's artifacts, exercising every scenario in the parent
   spec delta plus the five carried or added here; a second test pins the three
   SKILL.md hooks.
 
-No change to the schema, the ledger format, the audit driver, or the skill's
-read-only posture. The reader opens no file for writing. Decisions specific
-to this change (hook placement, ledger commit policy, report-row form, fixture
-strategy, failure semantics) are recorded in `design.md` as F1–F7; the
+No change to the schema, the ledger format, the audit driver, `gate_logic.py`,
+or the skill's read-only posture. Both gate hooks are SKILL.md steps that
+shell out to the reader, so no validation or cleanup code path is touched; the
+reader opens no file for writing and the mechanical read-only test is
+unchanged. The one edit inside `audit-choices` is the Arguments documentation
+above. Decisions specific to this change (hook placement, ledger commit
+policy, report-row form, fixture strategy, failure semantics, scenario
+ordinals, the `--run-id` contract) are recorded in `design.md` as F1–F8; the
 parent's D1–D8 stand unchanged.
 
 ## Selected Approach

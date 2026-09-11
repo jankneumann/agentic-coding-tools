@@ -1,0 +1,61 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "summary": "F2 stages the wrong markdown path for the ledger pair",
+      "file": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "line_range": {
+        "start": 72,
+        "end": 78
+      },
+      "description": "Critical: F2 says Step 11.5 runs `git add openspec/changes/$CHANGE_ID/choices.json choices.md`; the second path is repository-root `choices.md`, not `openspec/changes/$CHANGE_ID/choices.md`, so implementing the plan literally can commit only half of the ledger pair.",
+      "recommendation": "Change the planned command to stage both full paths, e.g. `git add \"openspec/changes/$CHANGE_ID/choices.json\" \"openspec/changes/$CHANGE_ID/choices.md\"`, and make task 3.7 assert both ledger paths are named in the hook.",
+      "resolution": "Correct F2's command and extend the workflow-hook content test so the regression is pinned before implementation.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "critical",
+      "summary": "The no-diff re-audit commit policy is incompatible with the existing ledger writer",
+      "file": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "line_range": {
+        "start": 72,
+        "end": 79
+      },
+      "description": "Critical: F2 claims a no-diff re-audit commits nothing, but `run_audit.py` creates a fresh header each run (`generated_at` and `run_id`) and `choices_ledger.write_ledger()` always rewrites `choices.json`, with `choices.md` rendering the generated timestamp. Task 3.6 only checks stable IDs and count, so the plan does not verify the commit-skipping behavior it relies on.",
+      "recommendation": "Either remove the no-diff commit claim, or add an explicit implementation/test plan that detects semantic no-op audits, restores or preserves the prior ledger bytes, and proves `git diff --exit-code -- choices.json choices.md` is clean after a no-op re-audit.",
+      "resolution": "Revise F2 and task 3.6 so commit policy matches the existing volatile header behavior, or add a scoped task that makes no-op audit output byte-stable without changing the ledger schema.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "critical",
+      "summary": "The range scenario is not actually covered by the planned test",
+      "file": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "line_range": {
+        "start": 111,
+        "end": 130
+      },
+      "description": "Critical: Scenario 11 is about invoking the audit with an explicit `<base-sha>..<head-sha>` range and no change directory, but task 3.6 only says to assert the ledger records `change_id == \"range:<base>..<head>\"` and exits 0. That can be satisfied by calling `run_audit.py` with a precomputed synthetic change id, bypassing the standalone range argument resolution the requirement names.",
+      "recommendation": "Update task 3.6 to exercise the actual `/audit-choices <base>..<head>` resolution path, or add a small tested range-resolver entry point under `skills/audit-choices/scripts/` and have both the skill text and test use it.",
+      "resolution": "Make the test fail if `<base>..<head>` parsing is broken, rather than only checking that `run_audit.py` can persist a caller-supplied `range:` change id.",
+      "disposition": "fix"
+    }
+  ]
+}

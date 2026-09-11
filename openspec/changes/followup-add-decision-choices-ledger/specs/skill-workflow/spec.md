@@ -19,7 +19,9 @@ surfaced; they MUST NOT introduce a new blocking gate for the audit.
   sub-agent can be dispatched)
 - THEN the workflow SHALL log a single warning naming the reason
 - AND SHALL continue to its summary step with a non-failing outcome
-- AND no ledger file SHALL be left half-written
+- AND the workflow SHALL NOT commit a partial ledger pair: when only one of
+  `choices.json` and `choices.md` was produced, the workflow SHALL treat the
+  audit as failed and leave neither file staged
 
 #### Scenario: needs-user entries surface at the validation gate
 
@@ -50,7 +52,9 @@ surfaced; they MUST NOT introduce a new blocking gate for the audit.
 
 #### Scenario: Standalone invocation against a commit range
 
-- WHEN the audit is invoked with an explicit `<base-sha>..<head-sha>` range
+- WHEN the audit is invoked with a single `<base-sha>..<head-sha>` argument
   and no change directory
-- THEN the ledger's recorded `change_id` SHALL be `range:<base-sha>..<head-sha>`
+- THEN the invocation SHALL derive the audited base and head from that
+  argument rather than from a change directory
+- AND the ledger's recorded `change_id` SHALL be `range:<base-sha>..<head-sha>`
 - AND the driver SHALL exit with status 0
