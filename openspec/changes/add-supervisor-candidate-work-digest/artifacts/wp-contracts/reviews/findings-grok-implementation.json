@@ -1,0 +1,171 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Critical: skills/tests/supervise/test_digest_schemas.py:15 pins openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas as a literal path. skills/tests/openspec_paths/test_change_path_stability.py already fails on this file, and archival will move the directory so the byte-identity check breaks on landing day rather than contract drift.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "critical",
+      "resolution": "Resolve with change_dir(repo_root_from(__file__, 3), 'add-supervisor-candidate-work-digest') / 'contracts/schemas' (or compare only the durable openspec/schemas copies if change-local identity is no longer required at test time).",
+      "package_id": "wp-contracts",
+      "file_path": "skills/tests/supervise/test_digest_schemas.py",
+      "line_range": {
+        "start": 15,
+        "end": 15
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: test_supervisor_record_schema.py mutates approved digested_stubs in memory (rewriting stub_key/suggested_change_id and injecting route/roadmap_ref) before validating full.json, mirror.json, and handoff-with-record.json. Those on-disk fixtures no longer satisfy the tightened schemas, so the tests no longer prove the checked-in fixtures are valid.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Accept for this package: write_allow excludes skills/tests/supervise/fixtures/supervisor-record/**, and decision metadata is covered by fixtures/digest/supervisor-decisions.json. Follow up by refreshing the supervisor-record fixtures once scope allows.",
+      "package_id": "wp-contracts",
+      "file_path": "skills/tests/supervise/test_supervisor_record_schema.py",
+      "line_range": {
+        "start": 70,
+        "end": 119
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Optional: task 0.1 / spec scenario 'Score coverage must exactly match each batch' calls out scores outside 1\u20135, and the rubric schema correctly rejects them, but test_digest_schemas.py has no explicit out-of-range score assertion (only missing factor/justification and key-coverage cases).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Optional follow-up: parametrize score 0 and 6 under relevance (or each factor) and expect jsonschema.ValidationError. Schema mins/maxes already enforce the bound.",
+      "package_id": "wp-contracts",
+      "file_path": "skills/tests/supervise/test_digest_schemas.py",
+      "line_range": {
+        "start": 96,
+        "end": 125
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "FYI: cycle_state._clean_digested_stub still accepts the pre-contract stub_key pattern ^(change|prov):.+$ and still drops roadmap_ref/route/until/reason. Approved records that pass the new schemas would be stripped back to the old shape if cleaned by today's sanitizer. Design D5 assigns that update to later digest-module work, not wp-contracts.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "resolution": "No action in wp-contracts. wp-digest-module must extend _clean_digested_stub before decide/rank persist decision metadata through rehydration.",
+      "package_id": "wp-contracts",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 311,
+        "end": 335
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Approved/rejected decision conditions match the Digest Approval Routing requirement: approved requires non-null route; refine-roadmap requires a roadmap_ref string; plan-roadmap requires roadmap_ref const null; rejected requires reason; deferred permits optional until. Full and mirror digestedStub definitions are identical, and supervisor-decisions fixtures round-trip both schemas.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/schemas/supervisor-record.schema.json",
+      "line_range": {
+        "start": 67,
+        "end": 105
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Package scope is clean \u2014 every files_modified path is inside write_allow, deny is untouched, locks match the declared contract set, and change-local rubric/digest schemas are byte-identical to the durable openspec/schemas/supervise-*.schema.json installs so runtime lookup does not depend on the active change directory.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/artifacts/wp-contracts/work-result.json",
+      "line_range": {
+        "start": 42,
+        "end": 56
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Contracts stay data-only \u2014 additionalProperties is false on digest/rubric/ranked objects, stub_key and suggested_change_id patterns reject path-like and non-canonical keys, and untrusted provenance read/redaction policy is correctly left to digest.py rather than encoded as false safety in the schema.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/schemas/supervise-digest.schema.json",
+      "line_range": {
+        "start": 1,
+        "end": 98
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "performance",
+      "criticality": "low",
+      "description": "none: RubricScore.scores carries minItems 1 and maxItems 20, matching the bounded batch size from the Candidate-Work Digest requirement and preventing schema-valid oversized score documents from entering rank.",
+      "disposition": "accept",
+      "axis": "performance",
+      "severity": "none",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/schemas/supervise-rubric-score.schema.json",
+      "line_range": {
+        "start": 47,
+        "end": 47
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 9,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: test_score_coverage_semantics_reject_duplicate_missing_and_unknown_keys pins the application-level rank defects (duplicate=/missing=/unknown=) that JSON Schema cannot express, so later digest.py work inherits an explicit, named failure contract rather than an informal comment.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "package_id": "wp-contracts",
+      "file_path": "skills/tests/supervise/test_digest_schemas.py",
+      "line_range": {
+        "start": 31,
+        "end": 125
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 10,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: Digest weights are frozen as consts (including risk_higher_is_safer, bucket orders, staleness penalty/cap, and stub_key:asc tie-break), so a ranked digest cannot silently reinterpret scores under a drifted policy document; invalid or partial score docs remain schema-invalid before any cache/digest write owned by later packages.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/schemas/supervise-digest.schema.json",
+      "line_range": {
+        "start": 73,
+        "end": 84
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

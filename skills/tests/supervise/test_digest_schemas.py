@@ -10,9 +10,10 @@ from pathlib import Path
 import jsonschema
 import pytest
 from jsonschema import Draft202012Validator, FormatChecker
+from openspec_paths import change_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-CHANGE_SCHEMA_DIR = REPO_ROOT / "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas"
+CHANGE_SCHEMA_DIR = change_dir(REPO_ROOT, "add-supervisor-candidate-work-digest") / "contracts/schemas"
 RUNTIME_SCHEMA_DIR = REPO_ROOT / "openspec/schemas"
 FIXTURE_DIR = Path(__file__).parent / "fixtures/digest"
 RECORD_FIXTURE_DIR = Path(__file__).parent / "fixtures/supervisor-record"

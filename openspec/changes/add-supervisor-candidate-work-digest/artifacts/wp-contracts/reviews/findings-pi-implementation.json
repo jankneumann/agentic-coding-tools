@@ -1,0 +1,107 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Newly added JSON schemas for digest and rubric-score correctly define the contract for supervisor candidate work digest functionality.",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Extended supervisor-record schemas correctly add decision metadata fields (roadmap_ref, route, until, reason) with proper conditional validation constraints.",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Schema validation tests comprehensively cover positive cases, negative validation scenarios, and edge cases for stub key formats and decision metadata combinations.",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Changes properly separate concerns between runtime schemas (in openspec/schemas/) and local change schemas (in openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/).",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "Schema definitions appropriately constrain input data with regex patterns, enum values, and required field validations to prevent injection or malformed data issues.",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 6,
+      "type": "performance",
+      "criticality": "low",
+      "description": "Schema design follows efficient JSON structure patterns with appropriate typing and constraints for parsing performance.",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "axis": "performance",
+      "severity": "none"
+    },
+    {
+      "id": 7,
+      "type": "style",
+      "criticality": "low",
+      "description": "Schema files follow consistent JSON formatting and documentation conventions with clear field descriptions.",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "axis": "readability",
+      "severity": "none"
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Schema definitions include sufficient metadata fields (fingerprint, timestamps, weights) to enable tracking and debugging of digest generation processes.",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "axis": "observability",
+      "severity": "none"
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Schema design includes appropriate nullable fields and error handling patterns to support graceful degradation scenarios.",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 10,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Schema changes maintain backward compatibility through additive changes and proper versioning (schema_version: 1).",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "axis": "compatibility",
+      "severity": "none"
+    }
+  ]
+}
