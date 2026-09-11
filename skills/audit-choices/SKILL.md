@@ -121,7 +121,7 @@ The artifact is optional: its absence never fails validation or blocks archive (
 ## Verification
 
 1. Run `cd skills && uv run pytest tests/audit-choices/ -q` and confirm all tests pass, including `test_readonly_posture.py`'s working-tree-snapshot assertion.
-2. Run `grep -rniE 'anthropic|openai|import claude' skills/audit-choices/scripts/` and confirm it finds nothing — no LLM SDK import anywhere in this skill's Python (host-assisted invariant).
+2. Run `grep -rniE 'anthropic|openai|import claude' "<skill-base-dir>/scripts/"` and confirm it finds nothing — no LLM SDK import anywhere in this skill's Python (host-assisted invariant).
 3. Validate a produced `choices.json` against `openspec/schemas/decision-choices.schema.json` with `jsonschema.Draft202012Validator` and confirm it passes, including the six-field header.
 4. Confirm `choices.md`'s first entry is a lowest-confidence entry and no entry precedes one of strictly lower confidence.
 5. Re-run the audit over an unchanged range and confirm `choices.json`'s entry count and every `stable_id` are unchanged — no duplicates.
