@@ -389,7 +389,7 @@ Before archiving, check for incomplete tasks in the proposal. Open tasks must no
 
 Read `openspec/changes/<change-id>/tasks.md` and scan for unchecked items (`- [ ]`).
 
-If **all tasks are checked** (`- [x]`), skip to Step 6.
+If **all tasks are checked** (`- [x]`), skip to Step 5.5.
 
 If there are **open tasks**, collect them with their context:
 - Task number and description (e.g., `3.2 Add retry logic for failed requests`)
@@ -549,6 +549,36 @@ Promote the change through fixed traffic stages with a monitoring window between
 - Operator intervention requested (manual rollback always wins)
 
 On rollback: flip the flag to **0%**, capture the rollout-state snapshot (metrics, logs, traces from the failure window), file an issue tagged `rollback-postmortem`, and DO NOT re-promote until root cause is identified.
+
+### 5.5. Surface open needs-user choices
+
+Before archiving, surface any open `needs-user` entries from the change's choices ledger, if it has one. This is presentation only — it introduces no new gate; archive proceeds on the existing confirmation exactly as before, and the ledger (if any) archives unchanged with the change directory.
+
+```bash
+CHOICES_JSON="openspec/changes/$CHANGE_ID/choices.json"
+if [ ! -f "$CHOICES_JSON" ]; then
+  echo "no choices ledger"
+else
+  CHOICES_LINES=$(python3 "<skill-base-dir>/../audit-choices/scripts/needs_user.py" \
+    --change-id "$CHANGE_ID")
+  if [ -n "$CHOICES_LINES" ]; then
+    echo "$CHOICES_LINES"
+  else
+    echo "no open choices"
+  fi
+fi
+```
+
+Invoke the reader through the skill-relative path above
+(`<skill-base-dir>/../audit-choices/scripts/needs_user.py`) — like every
+other sibling-skill call in this repo, so it resolves inside the
+`.claude/skills/` and `.agents/skills/` runtime mirrors too, never a bare
+`needs_user.py` command or a repo-root `skills/audit-choices/...` path.
+The two empty cases stay distinguishable, per scenario `skill-workflow.11`:
+`no choices ledger` when `choices.json` is absent, `no open choices` when
+it exists but the reader (silent by design for both cases, F3) returns
+nothing. When there are open entries, print them and proceed to archive —
+no prompt, no migration, no new gate.
 
 ### 6. Archive OpenSpec Proposal
 

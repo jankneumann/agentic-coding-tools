@@ -124,7 +124,7 @@ refer to this change's `design.md`.
   fixed allow-list of phase headings and the row form leaves nothing for a
   future allow-list edit to pick up (F4).
 
-- [ ] 3.3 Surface needs-user ledger entries at the cleanup-feature gate
+- [x] 3.3 Surface needs-user ledger entries at the cleanup-feature gate
   **Spec scenarios**: skill-workflow.10, skill-workflow.11
   **Design decisions**: D6, F1
   **Dependencies**: 3.0
