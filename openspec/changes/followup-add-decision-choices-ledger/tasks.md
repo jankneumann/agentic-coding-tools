@@ -161,7 +161,7 @@ refer to this change's `design.md`.
   Infrastructure Skills naming the ledger pair and the two gates that surface
   it.
 
-- [ ] 3.5 Add the ledger positioning note at the decision-index README producer
+- [x] 3.5 Add the ledger positioning note at the decision-index README producer
   **Design decisions**: D5
   **Dependencies**: none (parent 2.8 archived)
   **Files**: `skills/explore-feature/scripts/decision_index.py`, `docs/decisions/README.md` (regenerated, not hand-edited)
