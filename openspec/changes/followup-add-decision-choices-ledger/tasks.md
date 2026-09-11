@@ -65,10 +65,14 @@ refer to this change's `design.md`.
   own range resolution and the independent sub-agent dispatch.
   Then, per F2: verify **both** `choices.json` and `choices.md` exist and are
   non-empty (if only one does, restore both with `git checkout --` and take
-  the skip line — F6); compare the entry payload (`choices.json` with
-  `generated_at` and `run_id` removed from the header) against the committed
-  revision; when only the volatile header moved, restore the pair and commit
-  nothing; otherwise stage **both paths under the change directory** —
+  the skip line — F6); compare the fresh `choices.json`'s `entries` array and
+  `schema_version` against the committed revision
+  (`git show HEAD:openspec/changes/$CHANGE_ID/choices.json`), ignoring
+  `generated_at`, `run_id`, `git_sha`, `generator`, `event_kind`,
+  `audited_range` and `auditor`, all of which move on every run (F2); when
+  there is no committed revision the pair is new and always commits; when
+  both match, restore the pair (`git checkout --`) and commit nothing;
+  otherwise stage **both paths under the change directory** —
   `git add "openspec/changes/$CHANGE_ID/choices.json"
   "openspec/changes/$CHANGE_ID/choices.md"`, not a bare `choices.md` — and
   commit `chore(choices): audit ledger for <change-id>`.

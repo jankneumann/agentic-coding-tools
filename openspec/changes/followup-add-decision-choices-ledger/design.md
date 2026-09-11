@@ -118,7 +118,10 @@ schema, ledger format, driver, or the skill's read-only posture.
   `git_sha`, `generator`, `event_kind`, `audited_range`, `auditor` — is
   ignored for the purpose of this decision.
 
-  When `entries` and `schema_version` are unchanged, Step 11.5 restores the
+  When the change has no committed `choices.json` yet, there is nothing to
+  compare and the pair always commits — `git show` failing on an unknown path
+  is the first-audit case, not an error to warn about. Otherwise, when
+  `entries` and `schema_version` are unchanged, Step 11.5 restores the
   committed pair (`git checkout -- <both paths>`) and commits nothing;
   otherwise it commits `chore(choices): audit ledger for <change-id>`. Every
   re-audit of an unchanged diff is a commit-wise no-op, which is what F2
