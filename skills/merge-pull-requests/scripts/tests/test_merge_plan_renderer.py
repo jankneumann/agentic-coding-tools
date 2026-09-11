@@ -21,8 +21,8 @@ def test_render_plan_includes_every_node_outcome_and_dependency_edge() -> None:
 
     rendered = render_plan(plan)
 
-    assert "| #10 | First | openspec | merged |" in rendered
-    assert "| #11 | Second | dependabot | pending |" in rendered
+    assert "| #10 | First | openspec | implementation | iterate-on-implementation | merged |" in rendered
+    assert "| #11 | Second | dependabot | automation | none | pending |" in rendered
     assert "#11 → #10" in rendered
 
 

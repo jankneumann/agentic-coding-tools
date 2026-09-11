@@ -17,14 +17,17 @@ Discover, triage, and merge open pull requests from multiple sources. Handles Op
 
 ## Arguments
 
-`$ARGUMENTS` supports two modes:
+`$ARGUMENTS` supports:
 
-- Interactive analysis/triage: optional `--dry-run` (report only, no mutations).
-- Fresh-context plan execution: `--execute <merge-plan.json> --pr <number>`, with
-  optional `--approve-gate` only after the operator explicitly approves that node's
-  surfaced human gates, and optional `--claim-id <stable-attempt-id>` only when
-  resuming the same recorded attempt. OpenSpec proposal-acceptance gates cannot be
-  released by `--approve-gate`.
+- **Default (plan-then-execute):** analyze the cohort, discuss the merge plan
+  with the operator, persist `merge-plan.json`, then execute ready nodes one at
+  a time. Optional `--dry-run` (analysis + plan only, no mutations).
+- **`--interactive`:** the legacy per-PR merge/skip/close/address-comments menu.
+- **`--execute <merge-plan.json> --pr <number>`:** merge kernel for one node.
+  `--approve-gate` records operator approval for non-OpenSpec human gates.
+  `--proposal-accepted` records that the dedicated OpenSpec proposal-acceptance
+  workflow completed (generic `--approve-gate` still cannot release that gate).
+  `--claim-id` resumes the same recorded attempt.
 
 ## Script Location
 
@@ -110,9 +113,54 @@ python merge_watcher.py run --interval 60
 
 When the coordinator is available, the watcher runs as a background asyncio task (disable via `MERGE_WATCHER_DISABLED=1`).
 
+## Default conductor (plan-then-execute)
+
+This is the default path. `--interactive` keeps the legacy per-PR menu (Steps 3–11
+below). `execute_plan.py` remains the merge kernel: it MUST NOT `git checkout`,
+`git commit`, or `git push` a PR branch.
+
+1. **Analyze** (Steps 1–2, then discover / staleness / comments / CI-failure class).
+   Classify each node (`classify_kind.py`): `plan` iff every changed file is under
+   `openspec/changes/<change-id>/`; OpenSpec/product diffs are `implementation`;
+   dependabot/renovate/sentinel/bolt/palette/jules are `automation`. Persist
+   `kind`, `change_id`, `remediation_skill`.
+2. **Discuss** the DAG, kinds, cheap-path vs remediate, obsolete closes, and
+   operator-inserted runtime edges (`amend_plan`). Do not merge, refresh, or
+   iterate until the operator approves this revision.
+3. **Loop** `next_node.py` until no ready pending node remains:
+   - **Preconditions:** `iterate-on-plan` only if the proposal is unapproved;
+     `iterate-on-implementation` only if it is approved. Wrong pairing → halt.
+   - **Remediate** `plan` via `/iterate-on-plan <change-id> --vendor-review` and
+     `implementation` via `/iterate-on-implementation <change-id> --vendor-review`
+     in that skill's managed worktree. Do **not** hold the main sync-point across
+     iterate. After iterate returns, re-run the active-agent guard before
+     `--execute`. Never auto-`--force`.
+   - **Cheap path:** `automation` with green CI and zero comments → `--execute`
+     with no iterate and no `vendor_review.py`.
+   - **Merge:** `--execute <plan> --pr <n>`. After dedicated OpenSpec acceptance,
+     pass `--proposal-accepted`. Skip `vendor_review.py` when iterate consensus
+     `head_sha` matches the live PR head. Vendor disagreement still halts.
+     Unanimous agreement does not release `proposal_acceptance`.
+   - **Compact:** after `outcome=merged`, request `/compact` and resume from the
+     same `merge-plan.json` plus `next_node.py`. Do not write autopilot
+     `loop-state.json`. Main-context convergence stays once per pass (Step 11.6).
+
+```bash
+python3 "<skill-base-dir>/scripts/build_plan.py" \
+  --prs /tmp/discovered-prs.json \
+  --staleness /tmp/staleness.json \
+  --comments /tmp/comments.json \
+  --output merge-plan.json
+
+python3 "<skill-base-dir>/scripts/next_node.py" merge-plan.json
+
+python3 "<skill-base-dir>/scripts/execute_plan.py" \
+  --execute merge-plan.json --pr 42
+```
+
 ## Durable Merge Plan and Fresh-Context Execution
 
-The analysis round can persist its joined `discover_prs.py`,
+The analysis round persists its joined `discover_prs.py`,
 `check_staleness.py`, and `analyze_comments.py` outputs as a durable plan. Save
 those outputs as JSON, then run the producer from the canonical skill tree:
 
@@ -204,7 +252,10 @@ git checkout main
 git pull origin main
 ```
 
-### 3. Discover and Classify Open PRs
+### 3. Discover and Classify Open PRs (`--interactive` continues here)
+
+The default path is the **Default conductor** above. Steps 3–11 remain the
+`--interactive` per-PR menu.
 
 ```bash
 python3 <agent-skills-dir>/merge-pull-requests/scripts/discover_prs.py
@@ -908,9 +959,9 @@ touch docs/merge-logs/.gitkeep
 
 ### PRs Processed
 
-| PR | Origin | Action | Rationale |
-|----|--------|--------|-----------|
-| #<number> | <origin> | <merged/closed/skipped> | <brief rationale> |
+| PR | Origin | Kind | Skill | Action | Rationale |
+|----|--------|------|-------|--------|-----------|
+| #<number> | <origin> | <plan/implementation/automation> | <remediation_skill> | <merged/closed/skipped> | <brief rationale> |
 
 ### Vendor Review Findings
 - <PR #N>: <N> confirmed findings (<disposition>), <N> unconfirmed (<disposition>)

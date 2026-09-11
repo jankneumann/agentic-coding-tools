@@ -2,15 +2,18 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-coding-tools/contracts/merge-plan.schema.json",
   "title": "MergePlan",
-  "description": "Durable merge plan emitted by the merge-pull-requests analysis round and consumed by plan-driven execution. Separates plan definition from live state.",
+  "description": "Durable merge plan emitted by the merge-pull-requests analysis round and consumed by plan-driven execution. Separates plan definition from live state. Schema 1.1 adds kind, change_id, remediation_skill, ci_failure_class, and a plan-level compact resume pointer.",
   "type": "object",
   "required": ["schema_version", "generated_at", "storage_tier", "nodes"],
   "additionalProperties": false,
   "properties": {
-    "schema_version": {"type": "string", "const": "1.0"},
+    "schema_version": {"type": "string", "const": "1.1"},
     "generated_at": {"type": "string", "format": "date-time"},
     "storage_tier": {"enum": ["file", "coordinator"]},
     "base_branch": {"type": "string", "default": "main"},
+    "approved_at": {"type": ["string", "null"], "format": "date-time"},
+    "last_merged_pr": {"type": ["integer", "null"], "minimum": 1},
+    "compact_requested": {"type": "boolean", "default": false},
     "nodes": {
       "type": "array",
       "items": {"$ref": "#/$defs/node"}
@@ -31,7 +34,7 @@
         "auto_executable": {"type": "boolean"},
         "definition": {
           "type": "object",
-          "required": ["depends_on", "gates"],
+          "required": ["depends_on", "gates", "kind", "remediation_skill"],
           "additionalProperties": false,
           "properties": {
             "depends_on": {
@@ -46,7 +49,13 @@
               }
             },
             "changed_files": {"type": "array", "items": {"type": "string"}},
-            "inserted_reason": {"type": "string"}
+            "inserted_reason": {"type": "string"},
+            "kind": {"enum": ["plan", "implementation", "automation"]},
+            "change_id": {"type": ["string", "null"]},
+            "remediation_skill": {
+              "enum": ["iterate-on-plan", "iterate-on-implementation", "quick-task", "none"]
+            },
+            "kind_overridden": {"type": "boolean", "default": false}
           }
         },
         "state": {
@@ -59,9 +68,14 @@
             "claimed_by": {"type": ["string", "null"]},
             "staleness": {"enum": ["fresh", "stale", "obsolete", "unknown"]},
             "ci_state": {"enum": ["clean", "unstable", "blocked", "dirty", "unknown"]},
+            "ci_failure_class": {
+              "type": ["string", "null"],
+              "enum": ["transient", "pr_specific", "stale_base", null]
+            },
             "unresolved_comments": {"type": "integer", "minimum": 0},
             "unresolved_comment_summary": {"type": ["string", "null"]},
             "vendor_verdict": {"type": ["object", "null"], "additionalProperties": true},
+            "iterate_consensus_path": {"type": ["string", "null"]},
             "blocking_reason": {"type": ["string", "null"]}
           }
         }

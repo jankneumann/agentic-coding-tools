@@ -18,6 +18,28 @@
 
 ## 2026-09-11 — rescope-merge-pull-requests-to-plan-execute
 
+### Phase: Implementation
+
+**Dedicated --proposal-accepted flag** — execute_plan previously never merged OpenSpec nodes. Generic --approve-gate must stay powerless; the dedicated flag records the proposal-acceptance workflow.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md) (D1)
+
+---
+
+## 2026-09-11 — rescope-merge-pull-requests-to-plan-execute
+
+### Phase: Implementation
+
+**Cheap-path comment hand-off is quick-task** — automation nodes with comments drop cheap path; _delegation_commands uses quick-task rather than empty list.
+
+- Status: `active`
+- Source: [openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/rescope-merge-pull-requests-to-plan-execute/session-log.md) (D2)
+
+---
+
+## 2026-09-11 — rescope-merge-pull-requests-to-plan-execute
+
 ### Phase: Plan
 
 **Kind heuristic plus operator override** — Discovery 3.1: plan iff all files under openspec/changes/<id>/; persisted kind is authoritative.
