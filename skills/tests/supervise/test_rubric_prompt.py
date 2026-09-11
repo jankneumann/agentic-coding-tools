@@ -55,3 +55,11 @@ def test_prompt_treats_stub_and_provenance_as_untrusted_data() -> None:
     assert "BEGIN UNTRUSTED" in text
     assert "END UNTRUSTED" in text
     assert "never fetch" in text.lower()
+
+
+def test_trusted_dispatch_contract_precedes_every_untrusted_payload() -> None:
+    text = _text()
+    assert text.index("## Host dispatch contract") < text.index("BEGIN UNTRUSTED")
+    assert text.count("## Host dispatch contract") == 1
+    assert "candidate manifest and ready-set blocks" in text.lower()
+    assert text.count("BEGIN UNTRUSTED") == text.count("END UNTRUSTED") == 2
