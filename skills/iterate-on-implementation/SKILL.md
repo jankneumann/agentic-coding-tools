@@ -598,11 +598,20 @@ audit_choices_step() {
   if [ "$json_ok" != "$md_ok" ]; then
     # Partial pair: discard the orphan rather than commit half of it.
     # `git checkout --` restores a tracked path but silently does nothing
-    # for an untracked one, so the tracked half (if any) is restored with
-    # `git checkout --` and the untracked first-audit half is removed with
-    # `rm -f`.
-    git checkout -- "$JSON_PATH" "$MD_PATH" 2>/dev/null
-    rm -f "$JSON_PATH" "$MD_PATH"
+    # for an untracked one, so each path is decided on its own: a path
+    # `git ls-files --error-unmatch` knows is restored with
+    # `git checkout --`, and a path it does not know (the first-audit case,
+    # where no ledger was ever committed) is removed with `rm -f`. Applying
+    # both commands unconditionally to both paths would delete a tracked
+    # file this branch just restored, leaving a clean pair showing as
+    # deleted in `git status`.
+    for f in "$JSON_PATH" "$MD_PATH"; do
+      if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+        git checkout -- "$f"
+      else
+        rm -f "$f"
+      fi
+    done
     SKIP_REASON="partial ledger pair discarded"
     return
   fi
