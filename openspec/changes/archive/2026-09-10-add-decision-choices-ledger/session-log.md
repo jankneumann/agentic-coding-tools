@@ -39,3 +39,27 @@
 ### Context
 Planned an independent, human-focused decision choices ledger: a read-only auditor pass reconstructing implementation-time decisions from git history and session artifacts, emitting choices.json/choices.md ranked least-confident first. Approach 1 (new artifact + standalone audit-choices skill + non-blocking workflow hooks) selected at Gate 1; discovery fixed invocation (both standalone and hooked), format (md + JSON sidecar), decision-index relationship (cross-reference only), and escalation (needs-user surfaces at existing gates).
 
+---
+
+## Phase: Cleanup (2026-09-11)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Rebase-merge rather than squash** — The repo classifier maps claude/* to openspec origin and openspec to rebase. The twelve commits are conventional and self-contained with no WIP fragments, which is the condition rebase-merge exists to preserve.
+2. **Open tasks migrated to a follow-up proposal, not GitHub issues** — The coordinator transport is none, so the skill's Option B applies. tasks.md encodes a dependency graph (3.6 depends on 3.1/3.2/3.3) and per-task spec-scenario linkage; issues would flatten both into prose.
+3. **Spec delta split before archiving** — Requirement 'Choices audit workflow integration' is implemented by tasks 3.1 and 3.2, neither of which shipped. Archiving it whole would have merged two unimplemented scenarios into openspec/specs/ as canonical. It moves to the follow-up's delta instead.
+4. **Four stale-branch gates fixed during the merge, not waived** — The branch predated path stability, install portability, context producers and CI coverage registration. Each failure was a real defect in what would have landed, so each was fixed rather than overridden.
+
+### Completed Work
+- merge
+- task-migration
+- spec-delta-split
+- archive
+
+### Next Steps
+- followup-add-decision-choices-ledger
+
+### Context
+PR #411 merged to main by rebase, preserving its twelve conventional commits. Phases 1 and 2 shipped; Phase 3's eight tasks were migrated to a follow-up proposal rather than dropped, and the spec delta was split so the canonical spec does not claim the unimplemented workflow-integration requirement.
+

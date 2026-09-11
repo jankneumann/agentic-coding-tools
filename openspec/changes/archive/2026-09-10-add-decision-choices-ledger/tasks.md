@@ -99,3 +99,19 @@
   **Dependencies**: 3.1, 3.2, 3.3
   **Size**: M
 - [ ] Checkpoint: run tests, review diff, verify scope
+
+## Migration Notes
+
+Open tasks migrated to follow-up proposal `followup-add-decision-choices-ledger`
+on 2026-09-11, at cleanup time after PR #411 merged.
+
+The eight unchecked Phase 3 items above are carried forward there verbatim, with
+their numbering, dependencies, sizes and spec-scenario references preserved. They
+are left unchecked here on purpose: this change shipped Phases 1 and 2 only, and
+marking them complete would misreport what landed.
+
+The spec delta was split to match. `### Requirement: Choices audit workflow
+integration` and its two scenarios moved to the follow-up's delta, because tasks
+3.1 and 3.2 implement them and neither shipped. Archiving that requirement here
+would have promoted it into `openspec/specs/skill-workflow/` as canonical while
+nothing implemented it.

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-11T01:53:53.028202+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "PR #411 merged to main by rebase, preserving its twelve conventional commits. Phases 1 and 2 shipped; Phase 3's eight tasks were migrated to a follow-up proposal rather than dropped, and the spec delta was split so the canonical spec does not claim the unimplemented workflow-integration requirement.",
+    "completed_work": [
+      "merge",
+      "task-migration",
+      "spec-delta-split",
+      "archive"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Rebase-merge rather than squash",
+        "rationale": "The repo classifier maps claude/* to openspec origin and openspec to rebase. The twelve commits are conventional and self-contained with no WIP fragments, which is the condition rebase-merge exists to preserve.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Open tasks migrated to a follow-up proposal, not GitHub issues",
+        "rationale": "The coordinator transport is none, so the skill's Option B applies. tasks.md encodes a dependency graph (3.6 depends on 3.1/3.2/3.3) and per-task spec-scenario linkage; issues would flatten both into prose.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Spec delta split before archiving",
+        "rationale": "Requirement 'Choices audit workflow integration' is implemented by tasks 3.1 and 3.2, neither of which shipped. Archiving it whole would have merged two unimplemented scenarios into openspec/specs/ as canonical. It moves to the follow-up's delta instead.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Four stale-branch gates fixed during the merge, not waived",
+        "rationale": "The branch predated path stability, install portability, context producers and CI coverage registration. Each failure was a real defect in what would have landed, so each was fixed rather than overridden.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "followup-add-decision-choices-ledger"
+    ],
+    "relevant_files": []
+  }
+}
