@@ -17,6 +17,7 @@ Unified skills with **tiered execution** — each skill auto-selects its tier at
   /iterate-on-plan <change-id> --prototype-context <change-id>  → Convergence: synthesize variants into design.md/tasks.md
 /implement-feature <change-id>                         → PR review gate (runs spec + evidence validation)
   /iterate-on-implementation <change-id> (optional)    → Refinement complete
+  /audit-choices <change-id> | <base>..<head>          → Automatic at Step 11.5 of iterate-on-implementation; standalone on demand
   /parallel-review-implementation <change-id> (optional) → Per-package review (vendor-diverse)
 /cleanup-feature <change-id>                           → Done (runs deploy + security validation before merge)
 
@@ -38,6 +39,7 @@ Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases (
 - **`validate-feature`** — Validation phases (spec, evidence, deploy, smoke, security, e2e); called by implement-feature, cleanup-feature, and merge-pull-requests with `--phase` selectors
 - **`parallel-review-plan`** / **`parallel-review-implementation`** — Vendor-diverse review utilities (used by implement-feature and autopilot)
 - **`coordinator-task-status-renderer`** — Renders the coordinator-owned status block inside `openspec/changes/<id>/tasks.md`. The block (between `<!-- GENERATED: begin coordinator:tasks-status -->` / `end` markers) is an *informational projection* of coordinator state; the hand-authored checkboxes outside the block remain the authoritative source. Wired into `.githooks/pre-commit` (re-render on staged tasks.md), `.githooks/post-merge` (refresh after merges that touch tasks.md), and `/plan-feature` Gate 2 (seeds coordinator issues on Approve).
+- **`audit-choices`** — Independent, read-only audit of implementation-time decisions made where the spec was silent, producing the `choices.json`/`choices.md` ledger pair. Invoked automatically and non-blockingly at `iterate-on-implementation` Step 11.5, and can also be run standalone against any change id or commit range. Open `needs-user` ledger entries surface at the `validate-feature` and `cleanup-feature` human decision points, the same way deferred tasks do — never a new gate.
 
 See [Parallel Agentic Development](../parallel-agentic-development.md) for the full implementation reference.
 
