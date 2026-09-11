@@ -599,7 +599,23 @@ can silently 127 the way a slash command run from a shell would:
 audit_choices_step() {
   if [ -n "$SKIP_REASON" ]; then
     # The agent-performed dispatch above already failed, was unavailable, or
-    # reported a WARNING — nothing to verify or commit.
+    # reported a WARNING. There is nothing to verify or commit, but the
+    # driver may still have written — or truncated mid-write — choices.json
+    # (or choices.md) before it failed. An early `return` here without
+    # discarding that orphan would leave a dirty, uncommitted file sitting
+    # in the worktree on every skip, even though this step is supposed to
+    # leave things clean whenever it declines to commit. Route through the
+    # same tracked/untracked discard the partial-pair case below uses,
+    # preserving the original SKIP_REASON unless the discard itself fails.
+    local reason="$SKIP_REASON"
+    for f in "$JSON_PATH" "$MD_PATH"; do
+      if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+        git checkout -- "$f" || { SKIP_REASON="orphan restore failed"; return; }
+      else
+        rm -f "$f" || { SKIP_REASON="orphan removal failed"; return; }
+      fi
+    done
+    SKIP_REASON="$reason"
     return
   fi
 
