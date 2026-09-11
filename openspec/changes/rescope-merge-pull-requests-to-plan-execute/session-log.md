@@ -41,3 +41,43 @@
 ### Context
 Planned inverting merge-pull-requests from an interactive per-PR console to a plan-then-execute conductor. Gate 1 selected Approach 1: SKILL.md conducts; execute_plan.py stays the fail-closed merge kernel; iterate-on-plan and iterate-on-implementation with --vendor-review own PR-branch edits.
 
+---
+
+## Phase: Implementation (2026-09-11)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Dedicated --proposal-accepted flag** `architectural: merge-pull-requests` — execute_plan previously never merged OpenSpec nodes. Generic --approve-gate must stay powerless; the dedicated flag records the proposal-acceptance workflow.
+2. **Cheap-path comment hand-off is quick-task** `architectural: merge-pull-requests` — automation nodes with comments drop cheap path; _delegation_commands uses quick-task rather than empty list.
+
+### Alternatives Considered
+- Remove origin==openspec from the human_gate check: rejected because Would let --approve-gate merge OpenSpec PRs, violating the dedicated-workflow invariant.
+
+### Trade-offs
+- Accepted Single feature worktree implementation over Per-package coordinated worktrees because Avoid git-index races; coordinator lock claims were unauthorized earlier in planning though issue seed succeeded.
+
+### Open Questions
+- [ ] Sequential-tier sessions with no vendor CLIs: fail closed vs degrade on merge-triggered iterate review.
+
+### Completed Work
+- schema 1.1 on skill contract and change contract
+- classify_kind + CI failure class + build_plan persistence
+- execute_plan kind routing, consensus skip, cheap path, compact_requested
+- next_node.py and iterate_preconditions.py
+- SKILL.md default conductor plus --interactive label on Steps 3-11
+- spec Purpose, change-context, 192 tests green
+
+### Next Steps
+- validate-feature spec,evidence
+- PR review of SKILL.md conductor vs leftover interactive steps 3-11
+
+### Relevant Files
+- `skills/merge-pull-requests/SKILL.md` — default conductor
+- `skills/merge-pull-requests/scripts/execute_plan.py` — kernel routing
+- `skills/merge-pull-requests/scripts/classify_kind.py` — kind heuristic
+- `skills/merge-pull-requests/contracts/merge-plan.schema.json` — schema 1.1
+
+### Context
+Implemented Approach 1 in the feature worktree: schema 1.1, classify_kind, build_plan/render_plan, execute_plan delegation and cheap-path, next_node, iterate_preconditions, SKILL.md default conductor. 192 script tests passed. Coordinator package worktrees were not used; DAG packages ran in one worktree.
+

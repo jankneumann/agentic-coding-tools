@@ -186,8 +186,7 @@ def test_unresolved_comments_persist_summary_and_return_delegation(
     )
 
     assert result["action"] == "delegate_comments"
-    assert "iterate-on-implementation" in result["delegation"][0]
-    assert "quick-task" in result["delegation"][1]
+    assert result["delegation"][0].startswith("/quick-task")
     node = FilePlanStore(path).load()["nodes"][1]
     assert node["state"]["unresolved_comments"] == 2
     assert "src/a.py" in node["state"]["unresolved_comment_summary"]
@@ -446,11 +445,18 @@ def test_crash_after_remote_merge_is_reconciled_on_retry(tmp_path: Path) -> None
 def test_vendor_review_eligible_without_verdict_blocks(tmp_path: Path) -> None:
     plan = valid_plan()
     plan["nodes"][0]["state"]["outcome"] = "merged"
+    node = plan["nodes"][1]
+    node["origin"] = "other"
+    node["auto_executable"] = False
+    node["definition"]["kind"] = "implementation"
+    node["definition"]["remediation_skill"] = "quick-task"
+    node["definition"]["gates"] = ["required_review"]
     path = persisted_plan(tmp_path, plan)
 
     result = execute_node(
         path,
         11,
+        approve_gate=True,
         dependencies=dependencies(
             review_vendor=lambda *_args: {
                 "eligibility": {"eligible": True, "reason": "needs_review"},
@@ -514,3 +520,94 @@ def test_final_save_failure_leaves_reconcilable_in_progress_claim(
         ),
     )
     assert result["action"] == "reconciled"
+
+
+def test_plan_kind_delegation_uses_iterate_on_plan() -> None:
+    from execute_plan import _delegation_commands
+
+    node = valid_plan()["nodes"][0]
+    node["definition"]["kind"] = "plan"
+    node["definition"]["remediation_skill"] = "iterate-on-plan"
+    node["definition"]["change_id"] = "add-widget"
+    commands = _delegation_commands(node, "openspec/add-widget")
+    assert commands == ["/iterate-on-plan add-widget --vendor-review"]
+
+
+def test_implementation_kind_delegation_uses_iterate_on_implementation() -> None:
+    from execute_plan import _delegation_commands
+
+    node = valid_plan()["nodes"][0]
+    commands = _delegation_commands(node, "openspec/first")
+    assert commands == ["/iterate-on-implementation first --vendor-review"]
+
+
+def test_cheap_path_skips_vendor_review(tmp_path: Path) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    path = persisted_plan(tmp_path, plan)
+
+    result = execute_node(
+        path,
+        11,
+        dependencies=dependencies(
+            review_vendor=lambda pr, *_rest: pytest.fail(
+                "cheap-path must not dispatch vendor review"
+            ),
+        ),
+    )
+    assert result["outcome"] == "merged"
+    loaded = FilePlanStore(path).load()
+    assert loaded["last_merged_pr"] == 11
+    assert loaded["compact_requested"] is True
+
+
+def test_iterate_consensus_matching_head_skips_vendor_review(tmp_path: Path) -> None:
+    plan = valid_plan()
+    plan["nodes"][0]["state"]["outcome"] = "merged"
+    node = plan["nodes"][1]
+    node["origin"] = "other"
+    node["auto_executable"] = False
+    node["definition"]["kind"] = "implementation"
+    node["definition"]["remediation_skill"] = "iterate-on-implementation"
+    node["definition"]["change_id"] = "first"
+    node["definition"]["gates"] = ["required_review"]
+    node["state"]["iterate_consensus_path"] = (
+        "openspec/changes/first/reviews/consensus-impl.json"
+    )
+    node["state"]["vendor_verdict"] = {"head_sha": "abc123"}
+    path = persisted_plan(tmp_path, plan)
+
+    result = execute_node(
+        path,
+        11,
+        approve_gate=True,
+        dependencies=dependencies(
+            get_live_status=lambda _pr: passing_status(head_sha="abc123"),
+            review_vendor=lambda pr, *_rest: pytest.fail(
+                "current iterate consensus must skip vendor_review.py"
+            ),
+        ),
+    )
+    assert result["outcome"] == "merged"
+
+
+def test_execute_plan_source_does_not_checkout_or_commit_pr_branch() -> None:
+    source = (Path(__file__).resolve().parent.parent / "execute_plan.py").read_text(
+        encoding="utf-8"
+    )
+    assert "git checkout" not in source
+    assert "git commit" not in source
+    assert "git push" not in source
+
+
+def test_proposal_accepted_allows_openspec_merge_after_dedicated_workflow(
+    tmp_path: Path,
+) -> None:
+    path = persisted_plan(tmp_path)
+    result = execute_node(
+        path,
+        10,
+        proposal_accepted=True,
+        dependencies=dependencies(),
+    )
+    assert result["outcome"] == "merged"

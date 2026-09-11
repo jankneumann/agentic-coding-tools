@@ -1,5 +1,12 @@
 # merge-pull-requests — Delta Spec
 
+Purpose (replaces TBD): Plan-then-execute conductor for merging open pull
+requests: analyze merge order, discuss and persist a durable merge plan,
+remediate plan-only OpenSpec PRs via `/iterate-on-plan` and implementation PRs
+via `/iterate-on-implementation` (both with multi-vendor review), then merge
+through the fail-closed execute kernel. The interactive per-PR menu remains
+available as `--interactive`.
+
 ## ADDED Requirements
 
 ### Requirement: Plan-Then-Execute Default Path
