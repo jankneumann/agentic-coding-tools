@@ -44,6 +44,7 @@
       "worktree"
     ],
     "cleanup-feature": [
+      "audit-choices",
       "coordination-bridge",
       "explore-feature",
       "merge-pull-requests",
@@ -74,6 +75,7 @@
       "worktree"
     ],
     "iterate-on-implementation": [
+      "audit-choices",
       "coordination-bridge",
       "parallel-infrastructure",
       "worktree"
@@ -151,6 +153,7 @@
       "shared"
     ],
     "validate-feature": [
+      "audit-choices",
       "coordination-bridge",
       "refresh-architecture",
       "security-review",
