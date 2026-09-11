@@ -140,7 +140,17 @@ schema, ledger format, driver, or the skill's read-only posture.
 
 - **F3: One shared reader, `skills/audit-choices/scripts/needs_user.py`.**
   CLI: `--change-id`, `--repo-root` (default `.`), `--format text|json`
-  (default `text`). Loads `openspec/changes/<change-id>/choices.json`, keeps
+  (default `text`). **The reader does not distinguish "no ledger" from "a
+  ledger with nothing open" — it is silent for both, deliberately, so that a
+  caller can pipe it without branching.** Scenario `skill-workflow.11`
+  requires the *gates* to tell those two cases apart, and they do it
+  themselves: each hook tests for `openspec/changes/<id>/choices.json` before
+  calling the reader and picks its own wording (`○ Choices: no ledger` vs
+  `✓ Choices: <n> entries, 0 needs-user` in validate-feature; `no choices
+  ledger` vs `no open choices` in cleanup-feature). Keeping the branch in the
+  two callers rather than in the reader costs one `test -f` each and leaves
+  the reader's contract — print the open entries, nothing else, exit 0 — as
+  narrow as F3 intends. Loads `openspec/changes/<change-id>/choices.json`, keeps
   entries with `verdict == "needs-user"`, orders them with
   `choices_ledger.rank_entries` (least-confident first), prints one line per
   entry in text mode (`<stable_id[:12]>  <confidence>  <choice headline>`) or
@@ -199,9 +209,15 @@ schema, ledger format, driver, or the skill's read-only posture.
     and then renders `choices.md` as a second, separate operation, so an
     interruption between them leaves the JSON on disk with no rendering. The
     step therefore checks that **both** files exist and are non-empty before
-    staging anything; if only one is present it treats the run as a failure,
-    restores both paths with `git checkout --` (discarding the orphan), and
-    takes the skip line. This is the hook-level guarantee behind the spec's
+    staging anything; if only one is present it treats the run as a failure
+    and takes the skip line. Discarding the orphan needs two cases, because
+    `git checkout -- <path>` restores a tracked file but silently does
+    nothing for an untracked one: a path that `git ls-files --error-unmatch`
+    knows is restored with `git checkout --`, and a path it does not know —
+    the first-audit case, where no ledger was ever committed — is removed
+    with `rm -f`. A single `git checkout --` for both would leave a
+    first-run orphan sitting in the worktree while the design claimed it was
+    discarded. This is the hook-level guarantee behind the spec's
     "SHALL NOT commit a partial ledger pair"; the driver itself is not made
     atomic, because the proposal forbids driver changes.
   - In every case Step 11.5 emits exactly one line —
