@@ -263,6 +263,70 @@ class TestIterateOnImplementationStep11_5:
         section = _section(ITERATE_SKILL, "12. Present Summary")
         assert "Choices audit:" in section
 
+    def test_dispatch_failed_branch_still_discards_orphan(self, tmp_path):
+        """Finding 6 (impl-round-1, antigravity): the dispatch-failed/
+        unavailable/WARNING branch returned before the partial-pair block,
+        so if the driver wrote or truncated choices.json before failing,
+        the orphan stayed on disk. Run the actual `audit_choices_step`
+        early-return branch (SKIP_REASON pre-set, as the agent-performed
+        dispatch above would do on failure) against a repo where a
+        previous audit is committed and the driver has since truncated
+        choices.json mid-write, and confirm the orphan is discarded and
+        the original SKIP_REASON is preserved."""
+        section = _section(ITERATE_SKILL, "11.5")
+        fence = _fences(section)
+        match = re.search(
+            r'  if \[ -n "\$SKIP_REASON" \]; then\n(.*?)\n  fi\n\n  # Verify',
+            fence,
+            re.DOTALL,
+        )
+        assert match, "could not locate the early-return orphan-discard block in Step 11.5"
+        early_return_block = match.group(1)
+        assert "for f in" in early_return_block, "extraction missed the per-path loop"
+
+        def git(repo: Path, *args: str) -> subprocess.CompletedProcess:
+            return subprocess.run(
+                ["git", "-C", str(repo), *args], capture_output=True, text=True, check=True
+            )
+
+        repo = tmp_path / "dispatch-failed"
+        repo.mkdir()
+        git(repo, "init", "-q")
+        git(repo, "config", "user.email", "a@b.c")
+        git(repo, "config", "user.name", "Test")
+        (repo / "choices.json").write_text('{"entries": [], "committed": true}\n')
+        (repo / "choices.md").write_text("# Choices Ledger\n\ncommitted\n")
+        git(repo, "add", ".")
+        git(repo, "commit", "-q", "-m", "chore(choices): prior audit")
+        committed_json = (repo / "choices.json").read_text()
+        committed_md = (repo / "choices.md").read_text()
+
+        # The driver started writing but the dispatch failed mid-run,
+        # truncating choices.json before the agent-performed dispatch step
+        # set SKIP_REASON="audit dispatch failed".
+        (repo / "choices.json").write_text("")
+
+        script = (
+            "run_early_return_under_test() {\n"
+            'JSON_PATH="choices.json"\n'
+            'MD_PATH="choices.md"\n'
+            'SKIP_REASON="audit dispatch failed"\n'
+            + early_return_block
+            + "\n}\nrun_early_return_under_test\n"
+            'echo "SKIP_REASON:$SKIP_REASON"\n'
+        )
+        result = subprocess.run(["bash", "-c", script], cwd=repo, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+
+        # The original failure reason survives the cleanup.
+        assert "SKIP_REASON:audit dispatch failed" in result.stdout
+        # The orphan is discarded: the tracked pair is restored, not left
+        # truncated or partially staged.
+        assert (repo / "choices.json").read_text() == committed_json
+        assert (repo / "choices.md").read_text() == committed_md
+        status = git(repo, "status", "--porcelain").stdout
+        assert status == "", f"working tree must be clean after restore, got: {status!r}"
+
     def _extract_case_block(self) -> str:
         fence = _fences(_section(ITERATE_SKILL, "11.5"))
         match = re.search(r'case "\$compare" in\n(.*?)\n  esac', fence, re.DOTALL)
