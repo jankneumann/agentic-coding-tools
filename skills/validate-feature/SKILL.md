@@ -1043,6 +1043,7 @@ Use these symbols:
 
 ```bash
 CHOICES_JSON="$OPENSPEC_PATH/changes/$CHANGE_ID/choices.json"
+CHOICES_LINES=""
 if [ ! -f "$CHOICES_JSON" ]; then
   CHOICES_ROW="○ Choices: no ledger"
 else

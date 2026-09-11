@@ -479,6 +479,53 @@ class TestValidateFeatureChoicesRow:
         fence = _fences(section)
         _assert_reader_invoked_skill_relative(fence, label="validate-feature")
 
+    def test_choices_lines_initialized_before_branch(self):
+        """Finding 5 (impl-round-1): CHOICES_LINES is assigned only in the
+        ledger-present branch, and Step 12's heredoc expands it
+        unconditionally. Under `set -u` a no-ledger run dies with
+        `CHOICES_LINES: unbound variable` while writing
+        validation-report.md — the exact path that should print
+        `○ Choices: no ledger` and continue. It must be initialized before
+        the `if`."""
+        section = _section(VALIDATE_SKILL, "11. Validation Report")
+        fence = _fences(section)
+        match = re.search(r'CHOICES_JSON="[^"]+"\n(.*?)\nif \[ ! -f "\$CHOICES_JSON" \]', fence)
+        assert match, "could not locate the CHOICES_JSON/CHOICES_LINES setup"
+        assert 'CHOICES_LINES=""' in match.group(1), (
+            "CHOICES_LINES must be initialized before the ledger-presence "
+            "branch, not only inside the ledger-present `else`"
+        )
+
+    def test_no_ledger_path_survives_set_u(self, tmp_path):
+        """Executable proof: run the real Choices-row snippet from Step 11
+        under `set -u`, in the no-ledger case, and confirm it does not abort
+        with `unbound variable` — i.e. CHOICES_LINES is always defined by
+        the time Step 12's heredoc (`$CHOICES_ROW` / `$CHOICES_LINES`)
+        expands it."""
+        section = _section(VALIDATE_SKILL, "11. Validation Report")
+        fence = _fences(section)
+        start = fence.find('CHOICES_JSON="')
+        assert start != -1, "could not locate the Choices-row snippet"
+        snippet = fence[start:]
+        assert snippet.rstrip().endswith("fi"), f"unexpected snippet tail: {snippet[-40:]!r}"
+
+        script = (
+            "set -u\n"
+            'OPENSPEC_PATH="openspec"\n'
+            'CHANGE_ID="my-change"\n'
+            'PROJECT_ROOT="."\n'
+            + snippet
+            + '\n# Step 12 use, unquoted like the real heredoc expansion:\n'
+            "echo \"row=$CHOICES_ROW lines=$CHOICES_LINES\"\n"
+        )
+        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, capture_output=True, text=True)
+        assert result.returncode == 0, (
+            f"no-ledger path must survive `set -u`, got rc={result.returncode} "
+            f"stderr={result.stderr!r}"
+        )
+        assert "unbound variable" not in result.stderr
+        assert "row=○ Choices: no ledger" in result.stdout
+
 
 # ─────────────────────────────────────────────────────────────────────────
 # cleanup-feature Step 5.5
