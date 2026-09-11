@@ -46,7 +46,7 @@ This is **not** a self-review step. The auditor is dispatched as a separate sub-
 Run it standalone to preview what the auditor will see:
 
 ```bash
-python3 skills/audit-choices/scripts/collect_evidence.py \
+python3 "<skill-base-dir>/scripts/collect_evidence.py" \
   --change-id <change-id> --base-sha <base> --head-sha <head> --repo-root .
 ```
 
