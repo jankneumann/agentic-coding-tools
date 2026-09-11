@@ -42,11 +42,14 @@ refer to this change's `design.md`.
   **Dependencies**: none (parent 2.8 archived)
   **Files**: `skills/audit-choices/scripts/needs_user.py`, `skills/tests/audit-choices/test_needs_user.py`
   **Size**: S
-  Write the test first: absent ledger → empty stdout, exit 0; ledger with
-  zero `needs-user` → empty stdout, exit 0; mixed ledger → only `needs-user`
-  lines, least-confident first, `stable_id`/confidence/headline per line;
-  `--format json` → the same entries as a JSON array; unreadable JSON → exit 0
-  with one stderr warning. Reuse `choices_ledger.rank_entries`; open no file
+  Write the test first, and spell the empty cases per format. Text mode:
+  absent ledger → empty stdout, exit 0; ledger with zero `needs-user` →
+  empty stdout, exit 0; mixed ledger → only `needs-user` lines,
+  least-confident first, `stable_id`/confidence/headline per line. JSON mode
+  (`--format json`): the same entries as a JSON array, and `[]` — not empty
+  stdout — for both empty cases, so a caller can pipe it without branching.
+  Either mode: unreadable JSON → exit 0 with one stderr warning (and `[]` in
+  json mode). Reuse `choices_ledger.rank_entries`; open no file
   for writing.
 
 - [ ] 3.1 Add the Step 11.5 audit invocation to iterate-on-implementation
@@ -67,10 +70,13 @@ refer to this change's `design.md`.
   non-empty (if only one does, restore both with `git checkout --` and take
   the skip line, discarding the orphan with `git checkout --` when the path
   is tracked and `rm -f` when it is not, since `git checkout --` does nothing
-  for an untracked first-run file — F6); compare the fresh `choices.json`'s `entries` array and
-  `schema_version` against the committed revision
-  (`git show HEAD:openspec/changes/$CHANGE_ID/choices.json`), ignoring
-  `generated_at`, `run_id`, `git_sha`, `generator`, `event_kind`,
+  for an untracked first-run file — F6); parse the fresh `choices.json` and
+  the committed revision
+  (`git show HEAD:openspec/changes/$CHANGE_ID/choices.json`) and compare
+  exactly `entries` and `header.schema_version` — the six header fields are
+  nested under `header`, there is no root-level `schema_version` — ignoring
+  `header.generated_at`, `header.run_id`, `header.git_sha`,
+  `header.generator`, `header.event_kind`, and root-level `change_id`,
   `audited_range` and `auditor`, all of which move on every run (F2); when
   there is no committed revision the pair is new and always commits; when
   both match, restore the pair (`git checkout --`) and commit nothing;
@@ -104,7 +110,7 @@ refer to this change's `design.md`.
   sketch produces a documented row that never reaches
   `validation-report.md`, so Step 12 needs explicit instruction to carry the
   `Choices:` row into the persisted report.
-  Row forms: `○ Choices: no ledger`, `✓ Choices: <n> entries, 0 needs-user`,
+  Row forms: `○ Choices: no ledger`, `✓ Choices: 0 needs-user`,
   or `⚠ Choices: <n> needs-user entries (choices.md)` followed by the reader's
   output lines. The row picks between `○` and `✓` by testing for
   `openspec/changes/$CHANGE_ID/choices.json` itself — the reader is silent for
@@ -168,7 +174,7 @@ refer to this change's `design.md`.
   freshness gate stays green.
 
 - [ ] 3.6 Pin the driver end-to-end against archived-change fixture data
-  **Spec scenarios**: skill-workflow.1, skill-workflow.3 through skill-workflow.7 (driver run), skill-workflow.9 through skill-workflow.11 (reader output)
+  **Spec scenarios**: skill-workflow.1, skill-workflow.3 through skill-workflow.7 (driver run), skill-workflow.11 (reader half only)
   **Design decisions**: F5, F6
   **Dependencies**: 3.0
   **Files**: `skills/tests/audit-choices/test_end_to_end.py`
@@ -193,8 +199,14 @@ refer to this change's `design.md`.
   snapshot diff is exactly the pair (3); `ok=True` with adverse verdicts
   present (4); `self_reported` resolves both ways (5); a second run keeps
   every `stable_id` and the count (6); `choices.md` order (7);
-  `needs_user.py` lists exactly the `needs-user` entry and is empty for a
-  change with no ledger (9–11).
+  `needs_user.py` lists exactly the `needs-user` entry, is empty for a change
+  with no ledger, and prints `[]` in json mode for both empty cases — the
+  reader half of (11).
+  Also drive the driver with `change_id=f"range:{base}..{head}"` and explicit
+  `--base-sha`/`--head-sha`, asserting exit 0 and that the persisted ledger
+  records that `change_id` and audited range. This is the executable half of
+  scenario 12 and nothing more: it does **not** show that a `<base>..<head>`
+  argument resolves, which is why 3.7 pins the resolution rule separately.
   **Not covered here, deliberately.** skill-workflow.2 ("Missing ledger does
   not block archive") is validation and archive behavior, which a driver
   fixture never exercises; it stays with the parent's own coverage.
@@ -230,7 +242,10 @@ refer to this change's `design.md`.
     sketch and the Step 12 `$REPORT_FILE` heredoc, no line in the file begins
     with `## Choices` (inline-code mentions are fine, a heading is not), and
     the `○` no-ledger and `✓` zero-needs-user forms are both present and
-    distinct (scenario 11's gate side).
+    distinct (scenario 11's gate side), and the After Validation section
+    mentions the `⚠` Choices echo — F1 names that prompt as half the human
+    decision point, and without this assertion a rewrite could drop the echo
+    and still pass every other check here.
   - cleanup-feature has a `### 5.5.` calling `needs_user.py`, states no new
     gate, carries **both** empty-case wordings (`no choices ledger` and `no
     open choices`) so scenario 11's two cases stay distinguishable, and its
