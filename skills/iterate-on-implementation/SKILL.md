@@ -651,11 +651,15 @@ PYEOF
     # both commands unconditionally to both paths would delete a tracked
     # file this branch just restored, leaving a clean pair showing as
     # deleted in `git status`.
+    # Every git/rm invocation below is guarded: an unguarded command here
+    # could fall through with no SKIP_REASON and no warning (or abort the
+    # whole workflow under `set -e`), contradicting F6 and the "warn and
+    # continue, never fail" contract this step promises on every branch.
     for f in "$JSON_PATH" "$MD_PATH"; do
       if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
-        git checkout -- "$f"
+        git checkout -- "$f" || { SKIP_REASON="orphan restore failed"; return; }
       else
-        rm -f "$f"
+        rm -f "$f" || { SKIP_REASON="orphan removal failed"; return; }
       fi
     done
     SKIP_REASON="partial ledger pair discarded"
@@ -696,20 +700,26 @@ print("unchanged" if fresh_key == committed_key else "changed")
 PYEOF
   ) || { SKIP_REASON="comparison failed"; return; }
 
+  # Every git command below is guarded, for the same reason as the orphan
+  # cleanup above: none of them may fall through with no SKIP_REASON, and
+  # none may abort the workflow.
   case "$compare" in
     new|changed)
       # Stage both paths under the change directory — not a bare
       # `choices.md`, which resolves against the working directory and
       # would stage a nonexistent repo-root file, committing half the pair.
       git add "openspec/changes/$CHANGE_ID/choices.json" \
-              "openspec/changes/$CHANGE_ID/choices.md"
-      git commit -q -m "chore(choices): audit ledger for $CHANGE_ID"
+              "openspec/changes/$CHANGE_ID/choices.md" \
+        || { SKIP_REASON="git add failed"; return; }
+      git commit -q -m "chore(choices): audit ledger for $CHANGE_ID" \
+        || { SKIP_REASON="git commit failed"; return; }
       ;;
     unchanged)
       # Entries and schema_version are unchanged: restore the committed pair
       # and commit nothing. Every re-audit of an unchanged diff is a
       # commit-wise no-op.
-      git checkout -- "$JSON_PATH" "$MD_PATH"
+      git checkout -- "$JSON_PATH" "$MD_PATH" \
+        || { SKIP_REASON="restore of unchanged pair failed"; return; }
       ;;
   esac
 }
