@@ -33,3 +33,44 @@
 ### Context
 Planned phase 3: packed review packets as default input, concurrent vendor dispatch implementing the existing parallel SHALL, and verify-then-wire structured-output flags. Does not wait on dg-02.
 
+---
+
+## Phase: Implementation (2026-09-12)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Packet markdown is the dispatch prompt** `architectural: skill-workflow` — converge() builds review_packet.py output and passes the body as prompt; packet_path is optional kwargs.
+2. **Thread pool concurrent dispatch with async submit-then-poll** `architectural: skill-workflow` — D2: wall clock is max(vendor). Async vendors must not submit+poll one-by-one.
+3. **Wire only empirically verified schema flags** `architectural: skill-workflow` — Claude and agy accept --json-schema; Codex needs a file path the sentinel cannot supply; pi --mode json is NDJSON.
+
+### Alternatives Considered
+- Process-per-vendor worktree as the default cwd: rejected because Expensive; D2 keeps shared read-only cwd with snapshot fallback.
+- Copy Grok --json-schema onto Codex exec: rejected because Codex flag is --output-schema FILE; inline sentinel would be a guessed flag.
+
+### Trade-offs
+- Accepted Fake-CLI overlap as the CI performance gate over Live 4-minute p50 in CI because D4: live p50 is validation evidence, not a unit-test fail.
+
+### Open Questions
+- [ ] Record live 4-vendor p50 in validation-report.md
+
+### Completed Work
+- review_packet.py + schema tests
+- converge() packed prompt
+- concurrent dispatch_and_wait + snapshot fallback
+- structured-output probe table and agents.yaml wiring
+- packet-plus-concurrency fixture
+
+### Next Steps
+- validate-feature pack-and-parallelize-vendor-review
+- optional live p50 measurement
+
+### Relevant Files
+- `skills/parallel-infrastructure/scripts/review_packet.py` — Packet builder
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — Concurrent dispatch
+- `skills/autopilot/scripts/convergence_loop.py` — Packet passed as review prompt
+- `agent-coordinator/agents.yaml` — Verified --json-schema flags
+
+### Context
+Implemented packed review packets, concurrent dispatch_and_wait, and verify-then-wire structured-output flags. Two 2s stub vendors overlap at ~2.0s. Claude and Antigravity gained --json-schema; Codex --output-schema was verified but not wired (file path vs inline sentinel).
+
