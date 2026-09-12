@@ -300,7 +300,7 @@ review found that requirement still forbade writing outside
   loses the only signal that the standalone-audit tree has stopped being
   bounded.
 
-- [ ] 5.3 Document where a standalone audit writes
+- [x] 5.3 Document where a standalone audit writes
   **Design decisions**: D1, D8
   **Dependencies**: 4.2, 5.1
   **Files**: `docs/guides/workflow.md`, `skills/audit-choices/SKILL.md`
