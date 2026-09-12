@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/review-ledger.schema.json",
+  "title": "Gate-time review finding ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "change_id", "items"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "change_id": { "type": "string", "minLength": 1 },
+    "compacted_at": { "type": "string", "format": "date-time" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "status",
+          "axis",
+          "type",
+          "criticality",
+          "evidence_class",
+          "fingerprint",
+          "first_seen_round",
+          "last_seen_round",
+          "description"
+        ],
+        "properties": {
+          "id": { "type": "integer", "minimum": 1 },
+          "status": { "type": "string", "enum": ["open", "addressed", "retired", "parked"] },
+          "axis": { "type": "string" },
+          "type": { "type": "string" },
+          "criticality": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+          "evidence_class": { "type": "string", "enum": ["deterministic", "judgment"] },
+          "file_path": { "type": "string" },
+          "line_start": { "type": "integer" },
+          "line_end": { "type": "integer" },
+          "fingerprint": { "type": "string", "minLength": 1 },
+          "first_seen_round": { "type": "integer", "minimum": 1 },
+          "last_seen_round": { "type": "integer", "minimum": 1 },
+          "vendor_hits": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "description": { "type": "string" },
+          "resolution": { "type": "string" },
+          "parked_reason": { "type": "string" }
+        }
+      }
+    }
+  }
+}
