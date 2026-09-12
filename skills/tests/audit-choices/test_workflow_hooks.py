@@ -96,6 +96,18 @@ def _assert_reader_invoked_skill_relative(fence: str, *, label: str) -> None:
         )
 
 
+def _choices_row_snippet(fence: str) -> str:
+    """The Choices-row snippet from validate-feature Step 11, anchored on
+    whichever variable actually starts it — `VALIDATION_ROOT=` (finding 1,
+    impl-round-2 fix) or, pre-fix, `CHOICES_JSON=` directly — so a test using
+    this helper demonstrates the real pre-fix behavior (resolving through
+    `$OPENSPEC_PATH`/`$PROJECT_ROOT`) rather than merely failing to find a
+    marker that doesn't exist yet."""
+    candidates = [i for i in (fence.find('VALIDATION_ROOT="'), fence.find('CHOICES_JSON="')) if i != -1]
+    assert candidates, "could not locate the Choices-row snippet"
+    return fence[min(candidates):]
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # iterate-on-implementation Step 11.5
 # ─────────────────────────────────────────────────────────────────────────
@@ -669,24 +681,29 @@ class TestValidateFeatureChoicesRow:
         under `set -u`, in the no-ledger case, and confirm it does not abort
         with `unbound variable` — i.e. CHOICES_LINES is always defined by
         the time Step 12's heredoc (`$CHOICES_ROW` / `$CHOICES_LINES`)
-        expands it."""
+        expands it.
+
+        The snippet resolves the ledger via `git rev-parse --show-toplevel`
+        (finding 1, impl-round-2), not `$OPENSPEC_PATH`/`$PROJECT_ROOT`, so
+        this runs inside a real (empty) git repo rather than an arbitrary
+        `tmp_path` that git would refuse to root."""
         section = _section(VALIDATE_SKILL, "11. Validation Report")
         fence = _fences(section)
-        start = fence.find('CHOICES_JSON="')
-        assert start != -1, "could not locate the Choices-row snippet"
-        snippet = fence[start:]
+        snippet = _choices_row_snippet(fence)
         assert snippet.rstrip().endswith("fi"), f"unexpected snippet tail: {snippet[-40:]!r}"
+
+        repo = tmp_path / "worktree"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
 
         script = (
             "set -u\n"
-            'OPENSPEC_PATH="openspec"\n'
             'CHANGE_ID="my-change"\n'
-            'PROJECT_ROOT="."\n'
             + snippet
             + '\n# Step 12 use, unquoted like the real heredoc expansion:\n'
             "echo \"row=$CHOICES_ROW lines=$CHOICES_LINES\"\n"
         )
-        result = subprocess.run(["bash", "-c", script], cwd=tmp_path, capture_output=True, text=True)
+        result = subprocess.run(["bash", "-c", script], cwd=repo, capture_output=True, text=True)
         assert result.returncode == 0, (
             f"no-ledger path must survive `set -u`, got rc={result.returncode} "
             f"stderr={result.stderr!r}"
