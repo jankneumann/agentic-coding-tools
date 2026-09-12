@@ -210,8 +210,38 @@
       "recorded_at": "2026-09-11T02:35:06.461880+00:00",
       "resolution": "console_approved",
       "timeout_seconds": null
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-09-12T03:31:47.830888+00:00"
     }
   ],
-  "pending_gate": null,
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "add-supervisor-candidate-work-digest",
+    "gate": "escalate_resume",
+    "phase": "ESCALATE",
+    "requested_at": "2026-09-12T03:31:47.831253+00:00",
+    "prompt": "Has this escalation been resolved? Resume the loop?",
+    "context": {
+      "escalation_reason": "IMPL_REVIEW reached max_iter with two confirmed deterministic blockers",
+      "previous_phase": "IMPL_REVIEW"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": false
+    }
+  },
   "goal_gate": null
 }
