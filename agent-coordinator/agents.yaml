@@ -85,7 +85,8 @@ agents:
       command: claude
       dispatch_modes:
         review:
-          args: ["--print", "--allowedTools", "Read,Grep,Glob"]
+          # --json-schema verified 2026-09-12 (claude 2.1.268 --help).
+          args: ["--print", "--allowedTools", "Read,Grep,Glob", "--json-schema", "@review-findings-schema"]
         alternative:
           args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash"]
         quick:
@@ -111,7 +112,8 @@ agents:
       dispatch_modes:
         review:
           # Sync: --print --remote blocks and returns stdout
-          args: ["--print", "--remote", "--allowedTools", "Read,Grep,Glob"]
+          # --json-schema verified 2026-09-12 (same claude CLI as claude-local).
+          args: ["--print", "--remote", "--allowedTools", "Read,Grep,Glob", "--json-schema", "@review-findings-schema"]
         alternative:
           # Async: --remote without --print returns immediately
           args: ["--remote"]
@@ -262,7 +264,10 @@ agents:
           # Read-only-ness comes from --mode plan (no edits), not from
           # withholding permissions. This was the only dispatch mode missing
           # the flag.
-          args: ["--mode", "plan", "--dangerously-skip-permissions"]
+          #
+          # --json-schema verified 2026-09-12 (agy 1.2.2 --help: schema string
+          # or path). Sentinel injected by CliVendorAdapter._resolve_args.
+          args: ["--mode", "plan", "--dangerously-skip-permissions", "--json-schema", "@review-findings-schema"]
         alternative:
           args: ["--mode", "accept-edits", "--dangerously-skip-permissions"]
         quick:

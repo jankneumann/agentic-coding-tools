@@ -61,7 +61,7 @@
   **Dependencies**: 1.2
   **Files**: `openspec/changes/pack-and-parallelize-vendor-review/contracts/vendor-structured-output.md`
 
-- [ ] 4.2 Wire `agents.yaml` review args only for rows marked `verified`
+- [x] 4.2 Wire `agents.yaml` review args only for rows marked `verified`
   **Dependencies**: 4.1
   **Files**: `agent-coordinator/agents.yaml`
 
