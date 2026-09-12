@@ -43,6 +43,7 @@ SCRIPTS_DIR = REAL_REPO_ROOT / "skills" / "audit-choices" / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import choices_ledger  # noqa: E402
+import choices_paths  # noqa: E402
 import needs_user  # noqa: E402
 import run_audit  # noqa: E402
 
@@ -419,14 +420,23 @@ class TestNeedsUserReaderIntegration:
 
 
 class TestStandaloneRangeInvocation:
-    def test_range_change_id_and_audited_range_are_persisted(self, audited_fixture, monkeypatch):
+    def test_cli_exit_code_and_no_range_directory_under_changes(
+        self, audited_fixture, monkeypatch
+    ):
+        """One case kept on `_cli()` for the exit-code contract. `_cli()`
+        passes neither `now` nor `git_sha`, so it can't know the run id it
+        produced (task 4.3) -- the location/content assertions below use
+        `run_audit.run_audit()` directly with explicit `now`/`git_sha`
+        instead, the pattern `test_readonly_posture.py` already uses."""
         repo_root = audited_fixture["repo_root"]
         base_sha = audited_fixture["base_sha"]
         head_sha = audited_fixture["head_sha"]
         range_change_id = f"range:{base_sha}..{head_sha}"
 
-        candidates_path = repo_root / "range-candidates.json"
-        candidates_path.write_text(json.dumps([_candidate("Chose a range default", "sound", "high", head_sha)]))
+        candidates_path = repo_root / "range-candidates-cli.json"
+        candidates_path.write_text(
+            json.dumps([_candidate("Chose a range default via CLI", "sound", "high", head_sha)])
+        )
 
         argv = [
             "run_audit.py",
@@ -437,7 +447,7 @@ class TestStandaloneRangeInvocation:
             "--head-sha",
             head_sha,
             "--run-id",
-            "run-range-001",
+            "run-range-cli-001",
             "--candidates",
             str(candidates_path),
             "--repo-root",
@@ -447,7 +457,137 @@ class TestStandaloneRangeInvocation:
         exit_code = run_audit._cli()
         assert exit_code == 0
 
-        ledger_path = repo_root / "openspec" / "changes" / range_change_id / "choices.json"
-        doc = json.loads(ledger_path.read_text())
+        # This change's whole purpose: no directory named after the commit
+        # range exists anywhere under openspec/changes/.
+        changes_dir = repo_root / "openspec" / "changes"
+        for entry in changes_dir.iterdir():
+            assert "range:" not in entry.name
+            assert ".." not in entry.name
+
+    def test_range_run_writes_under_choices_root_with_latest_copies(self, audited_fixture):
+        repo_root = audited_fixture["repo_root"]
+        base_sha = audited_fixture["base_sha"]
+        head_sha = audited_fixture["head_sha"]
+        range_change_id = f"range:{base_sha}..{head_sha}"
+        now = datetime(2026, 9, 12, 3, 0, 0, tzinfo=timezone.utc)
+
+        result = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id=range_change_id,
+            base_sha=base_sha,
+            head_sha=head_sha,
+            candidates=[_candidate("Chose a range default", "sound", "high", head_sha)],
+            run_id="run-range-002",
+            now=now,
+            git_sha=head_sha,
+        )
+        assert result.ok is True
+
+        # Locate by globbing <run-id>* rather than by exact name: a
+        # collision would place the run at a -2 sibling whose suffix no
+        # header field records (D7/D8).
+        expected_base_run_id = choices_paths.build_run_id(now, head_sha)
+        choices_root = repo_root / "openspec" / "choices"
+        matches = sorted(choices_root.glob(f"{expected_base_run_id}*"))
+        assert len(matches) == 1, f"expected exactly one run directory, got {matches}"
+        run_dir = matches[0]
+
+        assert result.json_path == run_dir / "choices.json"
+        assert result.md_path == run_dir / "choices.md"
+
+        doc = json.loads((run_dir / "choices.json").read_text())
         assert doc["change_id"] == range_change_id
         assert doc["audited_range"] == {"base_sha": base_sha, "head_sha": head_sha}
+        # audited_range carries both full 40-character shas.
+        assert len(doc["audited_range"]["base_sha"]) == 40
+        assert len(doc["audited_range"]["head_sha"]) == 40
+
+        # latest.json / latest.md are byte-equal copies of this run's pair (D6).
+        assert (choices_root / "latest.json").read_bytes() == (run_dir / "choices.json").read_bytes()
+        assert (choices_root / "latest.md").read_bytes() == (run_dir / "choices.md").read_bytes()
+
+        # No directory whose name contains "range:" or ".." exists anywhere
+        # under openspec/changes/.
+        changes_dir = repo_root / "openspec" / "changes"
+        for entry in changes_dir.iterdir():
+            assert "range:" not in entry.name
+            assert ".." not in entry.name
+
+    def test_second_range_run_creates_new_directory_and_preserves_first(self, audited_fixture):
+        """D8: a range ledger is a per-run snapshot. Through `_cli()` the
+        caller cannot choose `now`, and back-to-back runs land in the same
+        UTC second, which would exercise the collision guard rather than
+        this distinct-snapshot case -- so this drives `run_audit()` directly
+        with two distinct `now` values, same as the pattern above."""
+        repo_root = audited_fixture["repo_root"]
+        base_sha = audited_fixture["base_sha"]
+        head_sha = audited_fixture["head_sha"]
+        range_change_id = f"range:{base_sha}..{head_sha}"
+        candidate = _candidate("Chose a range default for the snapshot test", "sound", "high", head_sha)
+
+        now1 = datetime(2026, 9, 12, 5, 0, 0, tzinfo=timezone.utc)
+        now2 = datetime(2026, 9, 12, 6, 0, 0, tzinfo=timezone.utc)
+
+        result1 = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id=range_change_id,
+            base_sha=base_sha,
+            head_sha=head_sha,
+            candidates=[candidate],
+            run_id="run-range-003a",
+            now=now1,
+            git_sha=head_sha,
+        )
+        assert result1.ok is True
+        run_dir1 = result1.json_path.parent
+        doc1_before_second_run = (run_dir1 / "choices.json").read_bytes()
+
+        result2 = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id=range_change_id,
+            base_sha=base_sha,
+            head_sha=head_sha,
+            candidates=[candidate],
+            run_id="run-range-003b",
+            now=now2,
+            git_sha=head_sha,
+        )
+        assert result2.ok is True
+        run_dir2 = result2.json_path.parent
+
+        # A second directory, distinct from the first.
+        assert run_dir1 != run_dir2
+        # The first run is byte-unchanged after the second.
+        assert (run_dir1 / "choices.json").read_bytes() == doc1_before_second_run
+
+        # Same decision content -> the same stable_id in both snapshots.
+        doc1 = json.loads((run_dir1 / "choices.json").read_text())
+        doc2 = json.loads((run_dir2 / "choices.json").read_text())
+        ids1 = {e["stable_id"] for e in doc1["entries"]}
+        ids2 = {e["stable_id"] for e in doc2["entries"]}
+        assert ids1 == ids2
+
+        # latest.* now mirrors the second run, not the first.
+        choices_root = repo_root / "openspec" / "choices"
+        assert (choices_root / "latest.json").read_bytes() == (run_dir2 / "choices.json").read_bytes()
+        assert (choices_root / "latest.md").read_bytes() == (run_dir2 / "choices.md").read_bytes()
+
+    def test_change_id_run_in_same_fixture_still_writes_to_changes_tree(self, audited_fixture):
+        repo_root = audited_fixture["repo_root"]
+        base_sha = audited_fixture["base_sha"]
+        head_sha = audited_fixture["head_sha"]
+        other_change_id = "another-change-in-the-same-repo"
+
+        result = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id=other_change_id,
+            base_sha=base_sha,
+            head_sha=head_sha,
+            candidates=[_candidate("Chose an ordinary change-id destination", "sound", "high", head_sha)],
+            run_id="run-other-001",
+            now=datetime(2026, 9, 12, 7, 0, 0, tzinfo=timezone.utc),
+            git_sha=head_sha,
+        )
+        assert result.ok is True
+        assert (repo_root / "openspec" / "changes" / other_change_id / "choices.json").exists()
+        assert not (repo_root / "openspec" / "choices").exists()

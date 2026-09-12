@@ -195,7 +195,7 @@ review found that requirement still forbade writing outside
   a file for writing; the contract in 5.1 names exactly these effects plus the
   retention move 5.2 adds.
 
-- [ ] 4.3 Extend the end-to-end test to the range destination
+- [x] 4.3 Extend the end-to-end test to the range destination
   **Spec scenarios**: skill-workflow.12, skill-workflow.13
   **Design decisions**: D1
   **Dependencies**: 4.2
@@ -230,7 +230,7 @@ review found that requirement still forbade writing outside
   change-id run in the same fixture still writes to `openspec/changes/<id>/`
   and nothing to `openspec/choices/`.
 
-- [ ] Checkpoint: run `cd skills && uv run pytest tests/audit-choices tests/shared -q`, review diff, verify scope
+- [x] Checkpoint: run `cd skills && uv run pytest tests/audit-choices tests/shared -q`, review diff, verify scope
 
 ## Phase 5 — Contract, retention wiring, and docs
 
