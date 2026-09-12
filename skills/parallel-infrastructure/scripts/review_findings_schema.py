@@ -191,21 +191,19 @@ DETERMINISTIC = "deterministic"
 
 
 def _find_sidecar_json(filename: str, start: Path | None = None) -> Path | None:
-    """Locate a runtime JSON sidecar (coercion table or timeout budget)."""
+    """Locate a runtime JSON sidecar (coercion table or timeout budget).
+
+    Looks beside this module, then ``openspec/schemas/``, then the
+    skill-local ``install_assets`` copy. Does not bind to an OpenSpec
+    change directory — those move on archive.
+    """
     here = (start or Path(__file__)).resolve()
-    candidates = [
-        here.parent / filename,
-        *(base / "openspec" / "schemas" / filename for base in [here, *here.parents]),
-        *(
-            base
-            / "openspec"
-            / "changes"
-            / "harden-review-dispatch-parse-and-timeouts"
-            / "contracts"
-            / filename
-            for base in [here, *here.parents]
-        ),
-    ]
+    candidates = [here.parent / filename]
+    for base in [here, *here.parents]:
+        candidates.append(base / "openspec" / "schemas" / filename)
+        candidates.append(
+            base / "install_assets" / "openspec" / "schemas" / filename
+        )
     for candidate in candidates:
         if candidate.is_file():
             return candidate

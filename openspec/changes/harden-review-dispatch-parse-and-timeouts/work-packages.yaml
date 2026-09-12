@@ -56,14 +56,9 @@ packages:
         - "openspec/schemas/review-findings.schema.json"
       deny: []
     context_impact:
-      surfaces: []
-      rationale:
-        capabilities:
-          reason: "Contract schemas only; skill-workflow spec delta is owned by wp-prompts."
-          approved_by: "plan-feature"
-        documentation:
-          reason: "No user-facing docs in this package."
-          approved_by: "plan-feature"
+      surfaces:
+        - "apis"
+        - "documentation"
     worktree:
       name: wp-contracts
       mode: isolated
@@ -121,6 +116,7 @@ packages:
       surfaces:
         - "capabilities"
         - "documentation"
+        - "semantic_code"
     worktree:
       name: wp-prompts
       mode: isolated
@@ -173,6 +169,7 @@ packages:
     context_impact:
       surfaces:
         - "capabilities"
+        - "semantic_code"
     worktree:
       name: wp-dispatcher
       mode: isolated
@@ -216,14 +213,9 @@ packages:
         - "openspec/**"
       deny: []
     context_impact:
-      surfaces: []
-      rationale:
-        capabilities:
-          reason: "Tests only; no spec delta in this package."
-          approved_by: "plan-feature"
-        documentation:
-          reason: "No docs in this package."
-          approved_by: "plan-feature"
+      surfaces:
+        - "semantic_code"
+        - "documentation"
     worktree:
       name: wp-integration
       mode: isolated

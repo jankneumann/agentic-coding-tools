@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "default_seconds": 300,
+  "empty_findings_min_seconds": 15,
+  "vendors": {
+    "claude_code": { "timeout_seconds": 720 },
+    "grok": { "timeout_seconds": 600 },
+    "codex": { "timeout_seconds": 480 },
+    "antigravity": { "timeout_seconds": 240 },
+    "pi": { "timeout_seconds": 600 },
+    "gemini": { "timeout_seconds": 240 }
+  }
+}
