@@ -3,19 +3,13 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from jsonschema import Draft202012Validator, ValidationError
 import pytest
+from openspec_paths import change_dir, repo_root_from
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-CONTRACTS = (
-    REPO_ROOT
-    / "openspec"
-    / "changes"
-    / "ledger-driven-review-convergence"
-    / "contracts"
-)
+REPO_ROOT = repo_root_from(__file__, 3)
+CONTRACTS = change_dir(REPO_ROOT, "ledger-driven-review-convergence") / "contracts"
 
 LEDGER_SCHEMA = json.loads((CONTRACTS / "review-ledger.schema.json").read_text())
 PARKED_SCHEMA = json.loads(
