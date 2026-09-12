@@ -320,4 +320,4 @@ review found that requirement still forbade writing outside
   fires against a fresh dated directory.
   Depends on 5.1 because both edit `SKILL.md`.
 
-- [ ] Checkpoint: run the four skill gates (`cd skills && bash install.sh --check`; `uv run python validate-feature/scripts/linters/dependency_direction.py --skills-root .`; `make context-refresh PYTHON=skills/.venv/bin/python`; `uv run pytest tests/ci_coverage -q`), resync runtime copies (`bash skills/install.sh --mode rsync --deps none --python-tools none`), review diff, verify scope
+- [x] Checkpoint: run the four skill gates (`cd skills && bash install.sh --check`; `uv run python validate-feature/scripts/linters/dependency_direction.py --skills-root .`; `make context-refresh PYTHON=skills/.venv/bin/python`; `uv run pytest tests/ci_coverage -q`), resync runtime copies (`bash skills/install.sh --mode rsync --deps none --python-tools none`), review diff, verify scope
