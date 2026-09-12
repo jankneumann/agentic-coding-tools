@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-11T03:29:59+00:00",
+  "generated_at": "2026-09-12T03:03:32+00:00",
   "summary": {
     "total_comments": 2608,
     "total_with_markers": 20,
@@ -11,9 +11,9 @@
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1861,
+    "total_graph_nodes": 1913,
     "documented_nodes": 279,
-    "documentation_coverage": 0.15
+    "documentation_coverage": 0.146
   },
   "marker_hotspots": [
     {

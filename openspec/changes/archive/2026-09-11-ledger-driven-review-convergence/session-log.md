@@ -79,3 +79,38 @@ Planned phase 2: a gate-time finding ledger with compact, delta review, tighter 
 ### Context
 Implemented the gate-time review ledger, heuristic compact, delta prompts, D3 blocking, parked disagreement, scoped fix payloads, and collapsed the PLAN_REVIEW outer bounce so PLAN_FIX/IMPL_FIX are phase_history sub-steps inside converge().
 
+---
+
+## Phase: Cleanup (2026-09-12)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Rebase-merge PR 531 then archive on main** `architectural: skill-workflow` — OpenSpec agent PR; preserve plan/implement/CI-fix commits. Archive belongs on main because the code is already merged.
+2. **No open-task migration** `architectural: skill-workflow` — tasks.md is fully checked; nothing to send to coordinator issues or a follow-up proposal.
+
+### Alternatives Considered
+- Squash-merge: rejected because Would collapse plan vs implement vs CI-fix history that git blame/bisect should keep.
+
+### Trade-offs
+- Accepted Defer cleanup commit to main-context convergence over Cleanup committing and pushing on its own because One commit should carry archive + spec merge + decision index + refresh.
+
+### Open Questions
+- [ ] Codex P1/P2 follow-ups on real fixer wiring and post-fix scope checks remain unaddressed.
+
+### Completed Work
+- merge
+- task-migration-none
+- archive
+
+### Next Steps
+- pack-and-parallelize-vendor-review (phase 3)
+- optional follow-ups from Codex review
+
+### Relevant Files
+- `openspec/changes/ledger-driven-review-convergence/` — change directory to archive
+- `openspec/specs/skill-workflow/spec.md` — spec delta merge target
+
+### Context
+PR 531 was rebase-merged by merge-pull-requests. All tasks were already checked so none were migrated. Archiving the change on main and regenerating the decision index in the same convergence commit.
+

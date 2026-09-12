@@ -135,6 +135,13 @@ cold review.
 - **THEN** the finding SHALL NOT block convergence
 - **AND** `fix_callback` SHALL NOT receive it
 
+#### Scenario: Convergence blocked by insufficient quorum
+
+- **GIVEN** only 1 vendor returned valid results with 0 findings
+- **WHEN** the exit condition is checked
+- **THEN** convergence SHALL NOT be declared
+- **AND** the system SHALL pause with reason "quorum_lost"
+
 #### Scenario: Max iterations reached
 
 - **GIVEN** the plan review has run 3 rounds without zero blocking items
@@ -159,6 +166,30 @@ Disagreement SHALL park rather than stall or abort.
 - **GIVEN** round 1 has 3 blocking items and round 2 has 3
 - **WHEN** trend analysis runs after round 2
 - **THEN** the system SHALL escalate with reason `stalled`
+
+#### Scenario: Decreasing trend continues (no stall)
+
+- **GIVEN** round 1 has 10 blocking findings, round 2 has 5, and round 3 has 3
+- **WHEN** trend analysis runs after round 3
+- **THEN** the system SHALL NOT escalate because post-compact blocking is strictly decreasing
+
+#### Scenario: Flat trend triggers stall
+
+- **GIVEN** round 1 has 5 blocking findings, round 2 has 5, and round 3 has 5
+- **WHEN** trend analysis runs after round 3
+- **THEN** the system SHALL escalate because post-compact blocking is not strictly decreasing
+
+#### Scenario: Unconfirmed finding in final round
+
+- **GIVEN** a single-vendor medium-severity judgment finding in round 3 (final round)
+- **WHEN** the exit condition is checked
+- **THEN** the finding SHALL NOT block convergence
+
+#### Scenario: Vendor disagreement
+
+- **GIVEN** claude recommends "fix" and codex recommends "accept" for the same finding
+- **WHEN** consensus synthesis classifies this as "disagreement"
+- **THEN** the finding SHALL be parked rather than aborting the loop
 
 ### Requirement: Disagreement Classification
 
@@ -190,6 +221,13 @@ disagreement exists.
 - **THEN** the loop SHALL return converged with parked leftovers
 - **AND** `parked-disagreements.json` SHALL contain the finding
 
+#### Scenario: Disagreement finding escalates
+
+- **GIVEN** a consensus report with a disagreement finding
+- **WHEN** the integration gate checks at SUBMIT_PR
+- **THEN** the gate MAY return BLOCKED_ESCALATE for parked leftovers
+- **AND** mid-loop `converge()` SHALL NOT abort solely because a disagreement exists
+
 ### Requirement: State Machine Phases
 
 The state machine SHALL support phases: INIT, PLAN, PLAN_REVIEW, PLAN_FIX,
@@ -208,6 +246,25 @@ review of the whole artifact. The state machine SHALL persist its state to
   as compact+delta inside the same PLAN_REVIEW phase
 - **AND** the outer machine SHALL NOT bounce PLAN_REVIEW → PLAN_FIX →
   PLAN_REVIEW as a second engine
+
+#### Scenario: Normal phase progression (simple feature)
+
+- **GIVEN** a simple feature with no review findings and no complexity checkpoints
+- **WHEN** the loop runs to completion
+- **THEN** phases SHALL progress: INIT -> PLAN -> PLAN_REVIEW -> IMPLEMENT -> IMPL_REVIEW -> VALIDATE -> SUBMIT_PR -> DONE
+
+#### Scenario: Phase progression with fixes needed
+
+- **GIVEN** a feature where plan review finds medium-severity issues
+- **WHEN** the loop processes plan review
+- **THEN** `converge()` SHALL apply fixes via `fix_callback` inside PLAN_REVIEW
+- **AND** the outer machine SHALL NOT bounce PLAN_REVIEW -> PLAN_FIX -> PLAN_REVIEW as a second engine
+
+#### Scenario: Complex feature with VAL_REVIEW
+
+- **GIVEN** a feature that triggered complexity gate checkpoints (e.g., database migrations)
+- **WHEN** validation passes
+- **THEN** phases SHALL include VAL_REVIEW before SUBMIT_PR
 
 #### Scenario: Resume after interruption
 
@@ -248,3 +305,9 @@ The fix prompt SHALL forbid adding architecture and expanding scope.
 - **THEN** the system SHALL dispatch the fix to codex in alternative mode,
   scoped to the intersection of wp-api's write_allow and the finding
   `file_path`
+
+#### Scenario: Fix scope enforcement
+
+- **GIVEN** a fix dispatch to wp-api with write_allow of `["src/api/**"]`
+- **WHEN** the fix modifies `src/frontend/app.tsx`
+- **THEN** the system SHALL reject the fix as a scope violation
