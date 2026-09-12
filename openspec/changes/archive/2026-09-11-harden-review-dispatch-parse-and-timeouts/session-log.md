@@ -68,3 +68,22 @@ Planned phase 1 of multi-vendor review robustness: schema-derived prompts, coerc
 ### Context
 Implemented phase 1 review-dispatch robustness: schema-derived prompts, coerce-then-validate, one repair retry, per-vendor timeout budget through converge(), judgment ingest, raw stdout sidecars, and fast-empty rejection. Local-parallel in the feature worktree because this harness has no coordinator lock MCP.
 
+---
+
+## Phase: Cleanup (2026-09-12)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Rebase-merge PR 529** `architectural: skill-workflow` — OpenSpec agent PR; preserve plan then implement then CI-fix commits.
+
+### Completed Work
+- merge
+- archive
+
+### Next Steps
+- implement ledger-driven-review-convergence
+
+### Context
+Merged PR #529 with rebase strategy. All tasks were checked so none were migrated. Archiving the OpenSpec change and regenerating the decision index.
+

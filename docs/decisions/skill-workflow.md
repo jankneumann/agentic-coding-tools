@@ -5,69 +5,80 @@
 
 ---
 
-## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
 
 ### Phase: Plan
 
 **Keep the findings schema strict** — Coerce then validate rather than loosening axis/severity required fields (ri-14).
 
 - Status: `active`
-- Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D1)
 
 ---
 
-## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
 
 ### Phase: Implementation
 
 **Runtime JSON sidecars next to the helper** — Load coercion and timeout tables from files beside review_findings_schema.py so they survive change archival.
 
 - Status: `active`
-- Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D1)
 
 ---
 
-## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
+
+### Phase: Cleanup
+
+**Rebase-merge PR 529** — OpenSpec agent PR; preserve plan then implement then CI-fix commits.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
 
 ### Phase: Plan
 
 **One repair retry** — A second constrained rewrite with validator errors; no unbounded re-review.
 
 - Status: `active`
-- Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D2)
 
 ---
 
-## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
 
 ### Phase: Implementation
 
 **Repair is a second dispatch with the same timeout** — Exactly one constrained rewrite; AUTH/UNAVAILABLE/CAPACITY skip repair.
 
 - Status: `active`
-- Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D2)
 
 ---
 
-## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
 
 ### Phase: Plan
 
 **Per-vendor timeout budget passed through converge()** — Archive p50 for Claude is 410s against a 300s default that converge() never overrode.
 
 - Status: `active`
-- Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D3)
 
 ---
 
-## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
+## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
 
 ### Phase: Plan
 
 **Model-review ingest is judgment** — evidence_class already exists; ingest defaulted to deterministic and made every LLM finding blockable.
 
 - Status: `active`
-- Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D4)
+- Source: [openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/archive/2026-09-11-harden-review-dispatch-parse-and-timeouts/session-log.md) (D4)
 
 ---
 
