@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-09-12 — pack-and-parallelize-vendor-review
+
+### Phase: Plan
+
+**Packet not repo-walk** — Timeouts are a symptom of tool-using exploration; pack diff, specs, schema, open ledger.
+
+- Status: `active`
+- Source: [openspec/changes/pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/pack-and-parallelize-vendor-review/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — pack-and-parallelize-vendor-review
+
+### Phase: Plan
+
+**Concurrent CLI dispatch** — The spec already SHALL parallel; sequential was a write-conflict guard that does not apply to read-only review.
+
+- Status: `active`
+- Source: [openspec/changes/pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/pack-and-parallelize-vendor-review/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — pack-and-parallelize-vendor-review
+
+### Phase: Plan
+
+**Verify-then-wire structured output** — Do not guess CLI flags; only verified rows change agents.yaml.
+
+- Status: `active`
+- Source: [openspec/changes/pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/pack-and-parallelize-vendor-review/session-log.md) (D3)
+
+---
+
 ## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
 
 ### Phase: Plan
