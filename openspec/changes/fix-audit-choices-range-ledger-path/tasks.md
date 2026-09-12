@@ -75,7 +75,7 @@ review found that requirement still forbade writing outside
 
 ## Phase 2 — Extract the shared helper
 
-- [ ] 2.1 Write tests for `skills/shared/artifact_paths.py`
+- [x] 2.1 Write tests for `skills/shared/artifact_paths.py`
   **Design decisions**: D2, D3
   **Dependencies**: 1.1
   **Files**: `skills/tests/shared/test_artifact_paths.py`
