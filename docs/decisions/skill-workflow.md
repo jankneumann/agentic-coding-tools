@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
+
+### Phase: Plan
+
+**Keep the findings schema strict** — Coerce then validate rather than loosening axis/severity required fields (ri-14).
+
+- Status: `active`
+- Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
+
+### Phase: Plan
+
+**One repair retry** — A second constrained rewrite with validator errors; no unbounded re-review.
+
+- Status: `active`
+- Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
+
+### Phase: Plan
+
+**Per-vendor timeout budget passed through converge()** — Archive p50 for Claude is 410s against a 300s default that converge() never overrode.
+
+- Status: `active`
+- Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D3)
+
+---
+
+## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
+
+### Phase: Plan
+
+**Model-review ingest is judgment** — evidence_class already exists; ingest defaulted to deterministic and made every LLM finding blockable.
+
+- Status: `active`
+- Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D4)
+
+---
+
 ## 2026-09-11 — 2026-09-10-rescope-merge-pull-requests-to-plan-execute
 
 ### Phase: Plan
