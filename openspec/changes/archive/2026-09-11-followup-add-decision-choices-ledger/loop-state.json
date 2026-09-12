@@ -1,0 +1,272 @@
+{
+  "schema_version": 5,
+  "change_id": "followup-add-decision-choices-ledger",
+  "current_phase": "DONE",
+  "iteration": 4,
+  "total_iterations": 4,
+  "max_phase_iterations": 3,
+  "findings_trend": [
+    19,
+    3,
+    1,
+    3
+  ],
+  "blocking_findings": [],
+  "vendor_availability": {
+    "antigravity": false,
+    "claude_code": true,
+    "codex": true,
+    "grok": true,
+    "pi": true
+  },
+  "packages_status": {},
+  "package_authors": {
+    "phase-3": "claude_code"
+  },
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper-4f1a7c9e",
+    "plan-iteration-2-1",
+    "plan-review-round-4",
+    "implement-55e90746",
+    "impl-iterate-62e32b92",
+    "impl-review-round-4",
+    "validate-aadfeb07",
+    "validate2-cb016f99"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-09-11T02:39:08.744822+00:00",
+      "outcome": "proceed",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-09-11T03:25:39.051156+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-09-11T05:38:26.507004+00:00",
+      "note": "4 rounds run against a configured max of 3; trend 16,10,4,7. All findings fixed; round 4 fixes unverified.",
+      "outcome": "max_iter",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-11T09:01:04.475134+00:00",
+      "outcome": "converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-11T09:01:04.525841+00:00",
+      "note": "Budget exhausted at 4 rounds (max 3). Operator chose to proceed to IMPLEMENT rather than run a fifth round.",
+      "outcome": "operator_accepted",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-11T15:41:19.706326+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-09-11T15:41:19.754856+00:00",
+      "note": "Attempt 1: harness isolation-mismatch, no work produced. Attempt 2 re-dispatched non-isolated and completed.",
+      "outcome": "failed",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-09-11T22:16:06.750841+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-09-11T22:44:04.938786+00:00",
+      "note": "8 findings fixed with tests; 116 tests pass, all four skill gates green.",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-12T00:59:47.979995+00:00",
+      "note": "Round 2: 3 findings fixed (validation-gate ledger path, masking test, split skip reason). 243 tests pass.",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-12T01:22:05.639068+00:00",
+      "note": "Round 4: 2 findings fixed (staged pair after failed commit; argparse non-zero exit). 250 tests pass.",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-12T01:32:02.850293+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-12T01:32:02.900211+00:00",
+      "note": "4 rounds run against a max of 3; trend 19,3,1,3. Operator chose to proceed to VALIDATE.",
+      "outcome": "operator_accepted",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-12T01:41:56.045654+00:00",
+      "outcome": "failed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-09-12T01:43:54.444350+00:00",
+      "note": "Scenario 11 coverage made executable at both gates; verified by branch-swap. 257 tests pass.",
+      "outcome": "fixed",
+      "phase": "VAL_FIX"
+    },
+    {
+      "at": "2026-09-12T01:51:13.322301+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "phase": "SUBMIT_PR",
+      "outcome": "created",
+      "at": "2026-09-12T01:57:36.715430+00:00",
+      "note": "PR #530 opened from openspec/followup-add-decision-choices-ledger."
+    },
+    {
+      "phase": "SUBMIT_PR",
+      "outcome": "merge_authorized",
+      "at": "2026-09-12T02:03:06.150161+00:00",
+      "note": "Operator authorized merge of PR #530; cleanup-feature remains the executor."
+    },
+    {
+      "phase": "DONE",
+      "outcome": "done",
+      "at": "2026-09-12T02:03:13.831461+00:00",
+      "note": "Goal gate passed against the feature worktree; PR #530 awaiting /cleanup-feature."
+    }
+  ],
+  "last_handoff_id": "validate2-cb016f99",
+  "started_at": "2026-09-11T02:37:01.637488+00:00",
+  "phase_started_at": "2026-09-12T01:51:13.386241+00:00",
+  "previous_phase": "SUBMIT_PR",
+  "escalation_reason": null,
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "runner",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": false,
+    "package_count": 0,
+    "total_loc_estimate": null
+  },
+  "gate_verdict": "proceed",
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "outcome": "blocked",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-11T02:39:26.707726+00:00",
+      "resolution": "posture_block"
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "note": "Operator approved via autopilot console; scope is the verbatim Phase 3 carry-forward from the archived parent change.",
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 Operator approved via autopilot console; scope is the verbatim Phase 3 carry-forward from the archived parent change.",
+      "recorded_at": "2026-09-11T03:12:49.935702+00:00",
+      "resolution": "console_approved"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-12T01:51:25.632553+00:00"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' approved by the operator \u2014 Operator approved PR creation via autopilot console after reviewing the evidence summary.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-12T01:57:04.729807+00:00",
+      "note": "Operator approved PR creation via autopilot console after reviewing the evidence summary."
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-12T01:58:09.049743+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 Operator authorized merge via autopilot console. PR #530, CI green (22 pass, 1 skip, 0 fail). Merge executed separately by /cleanup-feature.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-12T02:03:06.100100+00:00",
+      "note": "Operator authorized merge via autopilot console. PR #530, CI green (22 pass, 1 skip, 0 fail). Merge executed separately by /cleanup-feature."
+    }
+  ],
+  "pending_gate": null,
+  "goal_gate": {
+    "verdict": "passed",
+    "reason": "all required evidence present",
+    "evidence": {
+      "merge_authorized": true,
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/530",
+      "report_path": ".git-worktrees/followup-add-decision-choices-ledger/openspec/changes/followup-add-decision-choices-ledger/validation-report.md",
+      "checked_at": "2026-09-12T02:03:13.825934+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-09-12T01:51:13.322301+00:00",
+      "report_mtime": "2026-09-12T01:51:07.185630+00:00",
+      "required_sections": [
+        "Spec Compliance"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "pass"
+      }
+    }
+  }
+}
