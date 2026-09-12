@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T01:19:58.511414+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "grok",
+    "session_id": null,
+    "summary": "Implemented phase 1 review-dispatch robustness: schema-derived prompts, coerce-then-validate, one repair retry, per-vendor timeout budget through converge(), judgment ingest, raw stdout sidecars, and fast-empty rejection. Local-parallel in the feature worktree because this harness has no coordinator lock MCP.",
+    "completed_work": [
+      "prompt_contract and coerce_findings_payload",
+      "CliVendorAdapter ingest, repair, judgment, fast-empty",
+      "write_raw_output sidecars",
+      "converge() timeout_seconds=None and schema-derived prompt"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Runtime JSON sidecars next to the helper",
+        "rationale": "Load coercion and timeout tables from files beside review_findings_schema.py so they survive change archival.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Repair is a second dispatch with the same timeout",
+        "rationale": "Exactly one constrained rewrite; AUTH/UNAVAILABLE/CAPACITY skip repair.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "validate-feature spec,evidence then PR review",
+      "Then implement ledger-driven-review-convergence"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+        "description": "ingest/repair/timeout"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_findings_schema.py",
+        "description": "prompt_contract and coercion"
+      }
+    ]
+  }
+}

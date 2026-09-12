@@ -610,6 +610,8 @@ class TestMemoryCallbackCalled:
         call_arg = memory_cb.call_args_list[0][0][0]
         assert "Round 1" in call_arg
         assert "0 blocking" in call_arg
+        kwargs = ctx["orchestrator"].dispatch_and_wait.call_args.kwargs
+        assert kwargs.get("timeout_seconds") is None
 
 
 class TestBuildReviewPrompt:
@@ -619,6 +621,8 @@ class TestBuildReviewPrompt:
         prompt = build_review_prompt(tmp_path, 2)
         assert "Round 2" in prompt
         assert "findings" in prompt.lower()
+        assert "axis" in prompt
+        assert "severity" in prompt
 
     def test_with_proposal(self, tmp_path: Path) -> None:
         (tmp_path / "proposal.md").write_text("# My Proposal\nDetails here.")
