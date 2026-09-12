@@ -1,0 +1,243 @@
+schema_version: 1
+
+feature:
+  id: harden-review-dispatch-parse-and-timeouts
+  title: "Harden review dispatch parse and timeouts"
+  plan_revision: 1
+  created_by: grok
+  created_at: "2026-09-11T00:00:00Z"
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/README.md"
+    files:
+      - "openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/README.md"
+      - "openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/finding-coercion.schema.json"
+      - "openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/dispatch-timeout-budget.schema.json"
+      - "openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/vendor-raw-output.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Dispatch robustness contracts"
+    task_type: contracts
+    description: "JSON Schemas and seed documents for finding coercion, per-vendor timeout budgets, and raw stdout sidecar metadata."
+    role: contracts
+    priority: 1
+    depends_on: []
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 1
+    locks:
+      files:
+        - "openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/finding-coercion.schema.json"
+        - "openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/dispatch-timeout-budget.schema.json"
+        - "openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/vendor-raw-output.schema.json"
+      keys:
+        - "contract:openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/finding-coercion.schema.json"
+        - "contract:openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/dispatch-timeout-budget.schema.json"
+        - "contract:openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/vendor-raw-output.schema.json"
+      ttl_minutes: 60
+      reason: "Freeze dispatcher robustness contracts"
+    scope:
+      write_allow:
+        - "openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/**"
+      read_allow:
+        - "openspec/changes/harden-review-dispatch-parse-and-timeouts/**"
+        - "openspec/schemas/review-findings.schema.json"
+      deny: []
+    context_impact:
+      surfaces: []
+      rationale:
+        capabilities:
+          reason: "Contract schemas only; skill-workflow spec delta is owned by wp-prompts."
+          approved_by: "plan-feature"
+        documentation:
+          reason: "No user-facing docs in this package."
+          approved_by: "plan-feature"
+    worktree:
+      name: wp-contracts
+      mode: isolated
+    verification:
+      tier_required: C
+      steps:
+        - name: "JSON Schema syntax validation"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json; from pathlib import Path; from jsonschema import Draft202012Validator as V; d=Path(\"openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts\"); [V.check_schema(json.loads(p.read_text())) for p in d.glob(\"*.schema.json\")]'"
+          evidence:
+            artifacts:
+              - "openspec/changes/harden-review-dispatch-parse-and-timeouts/contracts/finding-coercion.schema.json"
+            result_keys: ["schemas_parse"]
+    outputs:
+      result_keys: ["schemas_parse"]
+    metadata:
+      loc_estimate: 120
+      package_kind: data_model
+
+  - package_id: wp-prompts
+    title: "Schema-derived review prompts"
+    task_type: implement
+    description: "Shared prompt_contract helper plus coerce_findings_payload, wired into converge, review skills, and vendor_review."
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_findings_schema.py"
+        - "skills/merge-pull-requests/scripts/vendor_review.py"
+      keys:
+        - "feature:harden-review-dispatch-parse-and-timeouts:implement"
+      ttl_minutes: 120
+      reason: "Single prompt helper"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_findings_schema.py"
+        - "skills/parallel-infrastructure/tests/**"
+        - "skills/tests/parallel-infrastructure/**"
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/parallel-review-plan/SKILL.md"
+        - "skills/parallel-review-implementation/SKILL.md"
+        - "skills/merge-pull-requests/scripts/vendor_review.py"
+        - "skills/tests/merge-pull-requests/**"
+        - "skills/tests/autopilot/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/schemas/review-findings.schema.json"
+        - "openspec/changes/harden-review-dispatch-parse-and-timeouts/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "documentation"
+    worktree:
+      name: wp-prompts
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Prompt helper unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_review_findings_schema.py skills/tests/parallel-infrastructure/test_finding_coercion.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["prompt_helper_tests"]
+    outputs:
+      result_keys: ["prompt_helper_tests"]
+    metadata:
+      loc_estimate: 250
+      package_kind: config
+
+  - package_id: wp-dispatcher
+    title: "Dispatcher repair timeout sidecar ingest"
+    task_type: implement
+    description: "Repair retry, raw sidecars, per-vendor timeout through converge, judgment ingest, fast-empty rejection."
+    role: implementer
+    priority: 3
+    depends_on: ["wp-prompts"]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+        - "skills/autopilot/scripts/convergence_loop.py"
+      keys:
+        - "feature:harden-review-dispatch-parse-and-timeouts:dispatch"
+      ttl_minutes: 120
+      reason: "Dispatcher robustness path"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+        - "skills/parallel-infrastructure/scripts/tests/**"
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/tests/autopilot/**"
+        - "skills/tests/parallel-infrastructure/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/harden-review-dispatch-parse-and-timeouts/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "capabilities"
+    worktree:
+      name: wp-dispatcher
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Dispatcher unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py skills/tests/autopilot/test_convergence_loop.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["dispatcher_tests"]
+    outputs:
+      result_keys: ["dispatcher_tests"]
+    metadata:
+      loc_estimate: 400
+      package_kind: integration
+
+  - package_id: wp-integration
+    title: "Replay fixtures and validate change"
+    task_type: integrate
+    description: "Archived invalid-JSON/timeout blob replay plus openspec validate and unit suites."
+    role: integrator
+    priority: 4
+    depends_on: ["wp-dispatcher"]
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files: []
+      keys:
+        - "feature:harden-review-dispatch-parse-and-timeouts:integration"
+      ttl_minutes: 60
+      reason: "Integration replay"
+    scope:
+      write_allow:
+        - "skills/tests/parallel-infrastructure/test_review_dispatch_replay.py"
+        - "openspec/changes/harden-review-dispatch-parse-and-timeouts/tasks.md"
+      read_allow:
+        - "skills/**"
+        - "openspec/**"
+      deny: []
+    context_impact:
+      surfaces: []
+      rationale:
+        capabilities:
+          reason: "Tests only; no spec delta in this package."
+          approved_by: "plan-feature"
+        documentation:
+          reason: "No docs in this package."
+          approved_by: "plan-feature"
+    worktree:
+      name: wp-integration
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "OpenSpec strict validate"
+          kind: command
+          command: "openspec validate harden-review-dispatch-parse-and-timeouts --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_valid"]
+    outputs:
+      result_keys: ["openspec_valid"]
+    metadata:
+      loc_estimate: 150
+      package_kind: integration

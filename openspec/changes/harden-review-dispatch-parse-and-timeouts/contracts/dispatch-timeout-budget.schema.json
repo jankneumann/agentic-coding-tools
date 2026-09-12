@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/dispatch-timeout-budget.schema.json",
+  "title": "Per-vendor review dispatch timeout budget",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "default_seconds", "empty_findings_min_seconds", "vendors"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "default_seconds": {
+      "type": "integer",
+      "minimum": 30,
+      "description": "Timeout for a vendor not listed in vendors."
+    },
+    "empty_findings_min_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "A findings:[] result faster than this is success=false (blinded empty)."
+    },
+    "vendors": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["timeout_seconds"],
+        "properties": {
+          "timeout_seconds": { "type": "integer", "minimum": 30 }
+        }
+      }
+    }
+  }
+}
