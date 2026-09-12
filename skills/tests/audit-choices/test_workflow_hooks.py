@@ -130,6 +130,36 @@ class TestIterateOnImplementationStep11_5:
         assert "audit-choices: skipped (" in section
         assert "continuing to summary" in section
 
+    def test_executable_block_is_self_contained(self):
+        """Every fence in Step 11.5 runs in its own shell process, and the
+        agent-performed dispatch sits between two of them. A block that read
+        `$JSON_PATH` or `$MD_PATH` from an earlier fence would see them empty,
+        `[ -s "" ]` would be false for both, and the step would report
+        `audit produced no ledger` on every successful audit — the same
+        silent-total-failure shape as running `/audit-choices` from a shell.
+        So the block that does the work must define its own paths."""
+        section = _section(ITERATE_SKILL, "11.5")
+        work = next(f for f in _FENCE.findall(section) if "audit_choices_step()" in f)
+
+        for var in ("CHANGE_DIR", "JSON_PATH", "MD_PATH", "SKIP_REASON"):
+            assigned = re.search(rf"^{var}=", work, re.M)
+            assert assigned, (
+                f"${var} is read by the Step 11.5 work block but never assigned "
+                "in it; shell state does not survive between fences."
+            )
+            first_use = work.index(f"${var}") if f"${var}" in work else len(work)
+            assert assigned.start() < first_use, (
+                f"${var} is used before it is assigned in the Step 11.5 work block."
+            )
+
+    def test_run_id_is_handed_over_explicitly(self):
+        """The run id is minted in one fence and used by the agent dispatch in
+        the next step, so the skill must say how it crosses that boundary
+        rather than relying on an inherited variable."""
+        section = _section(ITERATE_SKILL, "11.5")
+        assert "shell state does not survive" in section.lower()
+        assert re.search(r"--run-id <the run id", section)
+
     def test_unavailable_cases_have_distinct_skip_reasons(self):
         """Finding 3 (impl-round-2): F6 names two different "unavailable"
         causes — the skill directory (or its runtime mirror) being absent,
@@ -160,7 +190,7 @@ class TestIterateOnImplementationStep11_5:
         )
         # The dispatch instruction must still exist somewhere in the section
         # (as agent-facing prose), and must name the run-id argument.
-        assert '/audit-choices "$CHANGE_ID" --run-id "$RUN_ID"' in section
+        assert re.search(r"/audit-choices <change-id> --run-id <the run id", section)
         # Bookkeeping in the fence must not branch on a captured exit status
         # of the dispatch itself (the old `if ! audit_output=$(...)` shape).
         assert "audit_output" not in fence
