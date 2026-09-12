@@ -7,8 +7,9 @@ import sys
 from pathlib import Path
 
 import pytest
+from openspec_paths import change_dir, repo_root_from
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = repo_root_from(__file__, 3)
 SCRIPTS = REPO_ROOT / "skills" / "parallel-infrastructure" / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
@@ -30,13 +31,7 @@ from review_ledger import (  # noqa: E402
     save,
 )
 
-CONTRACTS = (
-    REPO_ROOT
-    / "openspec"
-    / "changes"
-    / "ledger-driven-review-convergence"
-    / "contracts"
-)
+CONTRACTS = change_dir(REPO_ROOT, "ledger-driven-review-convergence") / "contracts"
 LEDGER_SCHEMA = json.loads((CONTRACTS / "review-ledger.schema.json").read_text())
 
 
