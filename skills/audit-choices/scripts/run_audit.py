@@ -218,8 +218,22 @@ def _run_audit_inner(
     if choices_paths.is_range_change_id(change_id):
         choices_root = choices_paths.choices_root_for(repo_root)
         paths = choices_paths.build_choices_paths(choices_root, change_dir.name)
-        shutil.copyfile(json_path, paths.latest_json)
-        shutil.copyfile(md_path, paths.latest_md)
+        # Guarded for the same reason retention is (D8): the pair is already
+        # on disk at this point, so letting a copy failure reach the outer
+        # handler would report ok=False with json_path=None for a run whose
+        # ledger was in fact persisted. The workflow would then skip
+        # committing a ledger that exists. latest.* is a convenience pointer,
+        # not the artifact.
+        try:
+            shutil.copyfile(json_path, paths.latest_json)
+            shutil.copyfile(md_path, paths.latest_md)
+        except OSError as exc:
+            logger.warning(
+                "audit-choices: could not update the latest.* pointers at %s; "
+                "the run's ledger pair is written and valid: %s",
+                choices_root,
+                exc,
+            )
 
         # D8: retention runs last and can never turn this successful write
         # into a failure — a housekeeping failure is not a write failure.

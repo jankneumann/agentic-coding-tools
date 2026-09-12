@@ -111,7 +111,9 @@ class RetentionResult:
 
 def list_active_runs(base_dir: Path) -> list[Path]:
     """Return active run directories under `base_dir`, sorted chronologically
-    (lexical sort — valid because run-ids start with `YYYY-MM-DD`).
+    Ordered by `(base name, collision ordinal)`, not lexically: a plain name
+    sort puts `<base>-10` before `<base>-2`, which would make retention
+    archive the wrong run as "oldest" once collisions reach two digits.
 
     Skips `archive/` and anything that doesn't parse as a run-id.
     """

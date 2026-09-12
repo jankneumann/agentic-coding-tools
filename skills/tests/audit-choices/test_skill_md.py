@@ -66,23 +66,49 @@ def _paragraph_containing(text: str, needle: str) -> str:
     return text[start:] if end == -1 else text[start:end]
 
 
+def _assert_names_all_three_effects(passage: str, label: str) -> None:
+    """D6's whole argument for enumerating effects rather than loosening to a
+    rule is that the enumeration stays literal and checkable. Three effects
+    are permitted on a range run — the run directory's pair, the latest.*
+    copies, and retention's archive move — so all three must be named.
+
+    impl-round-2 found the first version asserted only `openspec/choices/`
+    and `openspec/choices/archive/`; the first is a substring of the second,
+    so it added nothing, and neither mentioned latest.* at all.
+    """
+    assert "openspec/choices/archive/" in passage, f"{label} omits the archive move"
+    assert "latest.json" in passage and "latest.md" in passage, (
+        f"{label} omits the latest.* pointers"
+    )
+    # The run directory itself, distinct from the archive path. Matched on
+    # the stem so "run directories" and "that run's ..." both count; an
+    # exact "run directory" is too brittle for prose that legitimately
+    # pluralises or uses the possessive.
+    assert (
+        "run director" in passage
+        or "run's" in passage
+        or "-HHMMSS-" in passage
+    ), f"{label} omits the run directory"
+
+
 def test_read_only_contract_names_the_range_form_destinations():
     text = (SKILL_DIR / "SKILL.md").read_text()
     contract_paragraph = _paragraph_containing(text, "MUST NOT modify any file outside")
-    assert "openspec/choices/" in contract_paragraph
-    assert "openspec/choices/archive/" in contract_paragraph
+    # D6 enumerates three effects, so assert three. Note that
+    # `"openspec/choices/" in x` is subsumed by the archive assertion — the
+    # archive path contains it — so the run directory is pinned via the
+    # `<run-id>` wording instead, and the latest.* pointers by name.
+    _assert_names_all_three_effects(contract_paragraph, "Read-Only Contract")
 
 
 def test_red_flags_bullet_names_the_range_form_destinations():
     text = (SKILL_DIR / "SKILL.md").read_text()
     red_flags = _section(text, "Red Flags")
     bullet = _paragraph_containing(red_flags, "the read-only contract has been violated")
-    assert "openspec/choices/" in bullet
-    assert "openspec/choices/archive/" in bullet
+    _assert_names_all_three_effects(bullet, "Red Flags bullet")
 
 
 def test_output_section_lists_the_range_form_destination():
     text = (SKILL_DIR / "SKILL.md").read_text()
     output_section = _section(text, "Output")
-    assert "openspec/choices/" in output_section
-    assert "openspec/choices/archive/" in output_section
+    _assert_names_all_three_effects(output_section, "Output section")
