@@ -42,6 +42,7 @@ _CHANGE_KEY = re.compile(
     r"^change:(?P<value>(?:add|update|remove|refactor)-[a-z0-9]+(?:-[a-z0-9]+)*)$"
 )
 _PROV_KEY = re.compile(r"^prov:(?P<value>[0-9a-f]{32})$")
+_ROADMAP_REF = re.compile(r"^[a-z0-9-]+:ri-[0-9]{2,}$")
 
 
 class CandidateCapacityError(ValueError):
@@ -1212,8 +1213,11 @@ def decide(
     if decision == "approved":
         if route not in {"refine-roadmap", "plan-roadmap"}:
             raise ValueError("approved decision requires route")
-        if route == "refine-roadmap" and roadmap_ref is None:
-            raise ValueError("refine-roadmap approval requires roadmap_ref")
+        if route == "refine-roadmap":
+            if roadmap_ref is None:
+                raise ValueError("refine-roadmap approval requires roadmap_ref")
+            if not isinstance(roadmap_ref, str) or _ROADMAP_REF.fullmatch(roadmap_ref) is None:
+                raise ValueError("malformed roadmap_ref: expected <roadmap-id>:ri-<nn>")
         if route == "plan-roadmap" and roadmap_ref is not None:
             raise ValueError("plan-roadmap approval requires null roadmap_ref")
     if decision == "rejected" and not (isinstance(reason, str) and reason.strip()):
@@ -1277,6 +1281,7 @@ def _decision_drift_keys(
     for key in sorted(remaining):
         prior = prior_by_key.get(key)
         if prior is None:
+            drifted.append(key)
             continue
         source = maintenance.decisions.get(key) or {}
         decision = source.get("decision", "pending")

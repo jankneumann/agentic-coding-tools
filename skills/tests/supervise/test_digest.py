@@ -238,6 +238,38 @@ def test_lifecycle_prunes_terminal_even_when_surviving_store_entry_is_unscored(
     assert manifest["requested_keys"] == ["change:add-candidate-1"]
 
 
+def test_lifecycle_marks_unranked_survivor_as_changed_after_interrupted_empty_rebuild(
+    repo: Path,
+) -> None:
+    scored, unscored = _stub(0), _stub(1)
+    store_candidates(repo, [scored], record=_record([]), as_of=NOW)
+    manifest = _manifest([scored])
+    rank_candidates(repo, manifest, _scores(manifest), record=_record([]), fresh_keys=[])
+    store_candidates(repo, [unscored], record=_record([]), as_of=NOW)
+    mirror = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+    terminal = decide(
+        repo,
+        "change:add-candidate-0",
+        decision="rejected",
+        record=mirror,
+        as_of=NOW,
+        reason="Already covered",
+    )
+
+    interrupted = store_candidates(repo, [], record=terminal, as_of=NOW, prune_only=True)
+    assert interrupted["lifecycle_changed"] is True
+    assert interrupted["rebuilt_digest"]["ranked"] == []
+    assert (repo / "openspec/supervise/candidates/change--add-candidate-1.json").exists()
+
+    result = store_candidates(repo, [], record=terminal, as_of=NOW, prune_only=True)
+
+    assert result["lifecycle_changed"] is True
+    assert result["rebuilt_digest"]["ranked"] == []
+    assert (repo / "openspec/supervise/candidates/change--add-candidate-1.json").exists()
+    manifest = prepare_batch(repo, fingerprint="b" * 64, as_of=NOW, record=terminal)
+    assert manifest["requested_keys"] == ["change:add-candidate-1"]
+
+
 def test_dry_run_refuses_pending_recovery_without_writes(repo: Path) -> None:
     store_candidates(repo, [_stub(0)], record=_record([]), as_of=NOW)
     candidate = repo / "openspec/supervise/candidates/change--add-candidate-0.json"
@@ -960,6 +992,59 @@ def test_terminal_decisions_remain_in_durable_history_after_pruning(repo: Path) 
     by_key = {entry["stub_key"]: entry for entry in persisted["back_edge"]["digested_stubs"]}
     assert by_key["change:add-candidate-0"]["decision"] == "approved"
     assert by_key["change:add-candidate-1"]["decision"] == "pending"
+
+
+def test_decide_rejects_malformed_refine_roadmap_ref_without_writing_mirror(
+    repo: Path,
+) -> None:
+    stub = _stub(0)
+    store_candidates(repo, [stub], record=_record([]), as_of=NOW)
+    manifest = _manifest([stub])
+    rank_candidates(repo, manifest, _scores(manifest), record=_record([]), fresh_keys=[])
+    mirror_path = repo / "openspec/supervise/supervisor-record.json"
+    mirror = json.loads(mirror_path.read_text())
+    before = mirror_path.read_bytes()
+
+    with pytest.raises(ValueError, match="roadmap_ref"):
+        decide(
+            repo,
+            "change:add-candidate-0",
+            decision="approved",
+            record=mirror,
+            as_of=NOW,
+            route="refine-roadmap",
+            roadmap_ref="not a roadmap ref",
+        )
+
+    assert mirror_path.read_bytes() == before
+    persisted = json.loads(mirror_path.read_text())
+    entries = persisted["back_edge"]["digested_stubs"]
+    assert entries == mirror["back_edge"]["digested_stubs"]
+    assert entries[0]["stub_key"] == "change:add-candidate-0"
+    assert entries[0]["decision"] == "pending"
+
+
+def test_decide_accepts_canonical_refine_roadmap_ref(repo: Path) -> None:
+    stub = _stub(0)
+    store_candidates(repo, [stub], record=_record([]), as_of=NOW)
+    manifest = _manifest([stub])
+    rank_candidates(repo, manifest, _scores(manifest), record=_record([]), fresh_keys=[])
+    mirror = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+
+    approved = decide(
+        repo,
+        "change:add-candidate-0",
+        decision="approved",
+        record=mirror,
+        as_of=NOW,
+        route="refine-roadmap",
+        roadmap_ref="main-roadmap:ri-01",
+    )
+
+    entry = approved["back_edge"]["digested_stubs"][0]
+    assert entry["decision"] == "approved"
+    assert entry["route"] == "refine-roadmap"
+    assert entry["roadmap_ref"] == "main-roadmap:ri-01"
 
 
 def test_transaction_journal_operation_count_is_bounded(repo: Path) -> None:
