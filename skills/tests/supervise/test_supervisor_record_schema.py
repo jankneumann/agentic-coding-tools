@@ -71,26 +71,10 @@ class TestSupervisorRecordFixtures:
         self, fixture_name: str, full_schema: dict
     ) -> None:
         record = _load_json(FIXTURE_DIR / fixture_name)
-        for stub in record["back_edge"]["digested_stubs"]:
-            if stub["decision"] == "approved":
-                stub.update(
-                    stub_key="change:add-supervisor-record",
-                    suggested_change_id="add-supervisor-record",
-                    route="plan-roadmap",
-                    roadmap_ref=None,
-                )
         _validator(full_schema).validate(record)
 
     def test_mirror_fixture_validates(self, mirror_schema: dict) -> None:
         record = _load_json(FIXTURE_DIR / "mirror.json")
-        for stub in record["back_edge"]["digested_stubs"]:
-            if stub["decision"] == "approved":
-                stub.update(
-                    stub_key="change:add-supervisor-record",
-                    suggested_change_id="add-supervisor-record",
-                    route="plan-roadmap",
-                    roadmap_ref=None,
-                )
         _validator(mirror_schema).validate(record)
 
     def test_pending_gate_without_deadline_is_rejected(self, full_schema: dict) -> None:
@@ -108,14 +92,6 @@ class TestSupervisorRecordFixtures:
         full_record = _load_json(FIXTURE_DIR / "full.json")
         assert handoff["supervisor_record"] == full_record
         record = copy.deepcopy(handoff["supervisor_record"])
-        for stub in record["back_edge"]["digested_stubs"]:
-            if stub["decision"] == "approved":
-                stub.update(
-                    stub_key="change:add-supervisor-record",
-                    suggested_change_id="add-supervisor-record",
-                    route="plan-roadmap",
-                    roadmap_ref=None,
-                )
         _validator(full_schema).validate(record)
 
 

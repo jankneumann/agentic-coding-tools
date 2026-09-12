@@ -33,7 +33,7 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -109,6 +109,9 @@ _GATES = frozenset(g.value for g in _Gate)
 _DISPOSITIONS = frozenset(d.value for d in _Disposition)
 _GATE_SOURCES = frozenset({"autopilot", "supervise", "escalation"})
 _STUB_DECISIONS = frozenset({"approved", "deferred", "rejected", "pending"})
+_CANONICAL_STUB_KEY_RE = re.compile(
+    r"^(change:(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*|prov:[0-9a-f]{32})$"
+)
 _CHANGE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _ROADMAP_REF_RE = re.compile(r"^[a-z0-9-]+:ri-[0-9]{2,}$")
 
@@ -326,17 +329,41 @@ def _clean_standing_decision(value: Any, *, now: datetime) -> dict[str, Any] | N
     return cleaned
 
 
+def _canonicalize_legacy_stub_key(stub_key_value: Any) -> str | None:
+    cleaned = _clean_optional_text(stub_key_value)
+    if cleaned is None:
+        return None
+    if _CANONICAL_STUB_KEY_RE.fullmatch(cleaned):
+        return cleaned
+    if cleaned.startswith("change:"):
+        legacy = cleaned.removeprefix("change:")
+        candidate = f"change:add-{legacy}"
+        if _CANONICAL_STUB_KEY_RE.fullmatch(candidate):
+            return candidate
+    return None
+
+
+def _canonicalize_suggested_change_id(value: Any) -> str | None:
+    cleaned = _clean_optional_text(value)
+    if cleaned is None:
+        return None
+    if re.fullmatch(r"(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*", cleaned):
+        return cleaned
+    candidate = f"add-{cleaned}"
+    if re.fullmatch(r"(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*", candidate):
+        return candidate
+    return None
+
+
 def _clean_digested_stub(value: Any) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
-    stub_key_value = value.get("stub_key")
     rank = value.get("rank")
     decision = value.get("decision")
     decided_at = value.get("decided_at")
-    cleaned_stub_key = _clean_optional_text(stub_key_value)
+    cleaned_stub_key = _canonicalize_legacy_stub_key(value.get("stub_key"))
     if (
         cleaned_stub_key is None
-        or re.fullmatch(r"^(change|prov):.+$", cleaned_stub_key) is None
         or not isinstance(rank, int) or isinstance(rank, bool) or rank < 1
         or decision not in _STUB_DECISIONS
         or _parse_datetime(decided_at) is None
@@ -346,15 +373,35 @@ def _clean_digested_stub(value: Any) -> dict[str, Any] | None:
         "stub_key": cleaned_stub_key, "rank": rank,
         "decision": decision, "decided_at": decided_at,
     }
-    suggested = value.get("suggested_change_id")
-    if suggested is None or isinstance(suggested, str):
-        if "suggested_change_id" in value:
-            cleaned["suggested_change_id"] = _clean_optional_text(suggested)
-    for metadata_field in ("roadmap_ref", "route", "until", "reason"):
-        field_value = value.get(metadata_field)
-        if field_value is None or isinstance(field_value, str):
-            if metadata_field in value:
-                cleaned[metadata_field] = _clean_optional_text(field_value)
+    if "suggested_change_id" in value:
+        suggested = _canonicalize_suggested_change_id(value.get("suggested_change_id"))
+        if suggested is not None:
+            cleaned["suggested_change_id"] = suggested
+    if decision == "approved":
+        route = _clean_optional_text(value.get("route"))
+        roadmap_ref = _clean_optional_text(value.get("roadmap_ref"))
+        if route not in {"refine-roadmap", "plan-roadmap"}:
+            route = "plan-roadmap"
+            roadmap_ref = None
+        if route == "plan-roadmap":
+            roadmap_ref = None
+        if route == "refine-roadmap" and roadmap_ref is None:
+            return None
+        cleaned["route"] = route
+        cleaned["roadmap_ref"] = roadmap_ref
+    elif decision == "deferred":
+        until = _clean_optional_text(value.get("until"))
+        if until is not None:
+            try:
+                date.fromisoformat(until)
+            except ValueError:
+                return None
+            cleaned["until"] = until
+    elif decision == "rejected":
+        reason = _clean_optional_text(value.get("reason"))
+        if not reason:
+            return None
+        cleaned["reason"] = reason
     return cleaned
 
 

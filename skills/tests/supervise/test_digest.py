@@ -211,6 +211,33 @@ def test_maintained_baseline_survives_later_capacity_failure(repo: Path) -> None
     assert len(names) == 19
 
 
+def test_lifecycle_prunes_terminal_even_when_surviving_store_entry_is_unscored(
+    repo: Path,
+) -> None:
+    scored, unscored = _stub(0), _stub(1)
+    store_candidates(repo, [scored], record=_record([]), as_of=NOW)
+    manifest = _manifest([scored])
+    rank_candidates(repo, manifest, _scores(manifest), record=_record([]), fresh_keys=[])
+    store_candidates(repo, [unscored], record=_record([]), as_of=NOW)
+    mirror = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+    terminal = decide(
+        repo,
+        "change:add-candidate-0",
+        decision="rejected",
+        record=mirror,
+        as_of=NOW,
+        reason="Already covered",
+    )
+
+    result = store_candidates(repo, [], record=terminal, as_of=NOW, prune_only=True)
+
+    assert result["pruned_keys"] == ["change:add-candidate-0"]
+    assert (repo / "openspec/supervise/candidates/change--add-candidate-1.json").exists()
+    assert not (repo / "openspec/supervise/candidates/change--add-candidate-0.json").exists()
+    manifest = prepare_batch(repo, fingerprint="b" * 64, as_of=NOW, record=terminal)
+    assert manifest["requested_keys"] == ["change:add-candidate-1"]
+
+
 def test_dry_run_refuses_pending_recovery_without_writes(repo: Path) -> None:
     store_candidates(repo, [_stub(0)], record=_record([]), as_of=NOW)
     candidate = repo / "openspec/supervise/candidates/change--add-candidate-0.json"
@@ -232,6 +259,51 @@ def test_dry_run_refuses_pending_recovery_without_writes(repo: Path) -> None:
 
     assert candidate.read_bytes() == before
     assert journal.exists()
+
+
+def test_mutating_command_recovers_pending_transaction_then_requires_rehydrate(
+    repo: Path,
+) -> None:
+    stale = _record(
+        [
+            {
+                "stub_key": "change:add-candidate-0",
+                "rank": 1,
+                "decision": "pending",
+                "decided_at": "2026-09-11T01:00:00Z",
+                "suggested_change_id": "add-candidate-0",
+            }
+        ]
+    )
+    recovered = _record(
+        [
+            {
+                "stub_key": "change:add-candidate-9",
+                "rank": 1,
+                "decision": "pending",
+                "decided_at": "2026-09-12T01:00:00Z",
+                "suggested_change_id": "add-candidate-9",
+            }
+        ]
+    )
+    publish_transaction(
+        repo,
+        [
+            {
+                "op": "replace",
+                "target": "openspec/supervise/supervisor-record.json",
+                "bytes": json.dumps(recovered, indent=2, sort_keys=True) + "\n",
+            }
+        ],
+        apply=False,
+    )
+
+    with pytest.raises(ValueError, match="rehydrate and retry"):
+        store_candidates(repo, [_stub(0)], record=stale, as_of=NOW)
+
+    persisted = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+    assert persisted["back_edge"]["digested_stubs"][0]["stub_key"] == "change:add-candidate-9"
+    assert not (repo / "openspec/supervise/.digest-transaction.json").exists()
 
 
 def test_supervisor_outputs_do_not_change_cycle_fingerprint(repo: Path) -> None:
@@ -314,6 +386,7 @@ def test_rank_rejects_manifest_score_mismatches_without_writes(
     repo: Path, mutation: str, match: str
 ) -> None:
     stub = _stub(0)
+    store_candidates(repo, [stub], record=_record([]), as_of=NOW)
     manifest = _manifest([stub])
     scores = _scores(manifest)
     if mutation == "fingerprint":
@@ -339,7 +412,9 @@ def test_rank_rejects_manifest_score_mismatches_without_writes(
     [None, "2026-09-11T00:59:59Z", "2026-09-11T01:00:01Z", "2026-09-11T01:00:00"],
 )
 def test_rank_rejects_any_nonexact_or_naive_scoring_time(repo: Path, scored_at: str | None) -> None:
-    manifest = _manifest([_stub(0)])
+    stub = _stub(0)
+    store_candidates(repo, [stub], record=_record([]), as_of=NOW)
+    manifest = _manifest([stub])
     scores = _scores(manifest)
     if scored_at is None:
         del scores["scored_at"]
@@ -351,6 +426,7 @@ def test_rank_rejects_any_nonexact_or_naive_scoring_time(repo: Path, scored_at: 
 
 def test_rank_uses_formula_policy_buckets_and_stable_key_tie_break(repo: Path) -> None:
     stubs = [_stub(2), _stub(1), _stub(0)]
+    store_candidates(repo, stubs, record=_record([]), as_of=NOW)
     manifest = _manifest(stubs)
     manifest["candidates"][0]["signals"].update(
         {"prior_decision": "deferred", "deferred_until": "2026-12-01"}
@@ -401,6 +477,7 @@ def test_rank_assigns_candidate_sections_writes_singleton_caches_and_syncs_mirro
     repo: Path,
 ) -> None:
     stubs = [_stub(0), _stub(1)]
+    store_candidates(repo, stubs, record=_record([]), as_of=NOW)
     manifest = _manifest(stubs)
 
     digest = rank_candidates(
@@ -429,8 +506,104 @@ def test_rank_assigns_candidate_sections_writes_singleton_caches_and_syncs_mirro
     assert all(entry["decision"] == "pending" for entry in entries)
 
 
+def test_force_same_fingerprint_reuses_prior_digest_and_cache_without_new_scoring(
+    repo: Path,
+) -> None:
+    stubs = [_stub(0), _stub(1)]
+    store_candidates(repo, stubs, record=_record([]), as_of=NOW)
+    first_manifest = _manifest(stubs)
+    first_digest = rank_candidates(
+        repo, first_manifest, _scores(first_manifest), record=_record([]), fresh_keys=[]
+    )
+    first_bytes = (repo / "openspec/supervise/digest.json").read_bytes()
+    later_manifest = prepare_batch(
+        repo,
+        fingerprint=first_manifest["fingerprint"],
+        as_of="2026-09-12T03:04:05Z",
+        record=json.loads((repo / "openspec/supervise/supervisor-record.json").read_text()),
+    )
+
+    reused = rank_candidates(repo, later_manifest, None, record=_record([]), fresh_keys=[])
+
+    assert reused == first_digest
+    assert reused["generated_at"] == first_manifest["as_of"]
+    assert (repo / "openspec/supervise/digest.json").read_bytes() == first_bytes
+
+
+def test_rank_rejects_stale_manifest_when_store_candidate_bytes_changed(repo: Path) -> None:
+    original = _stub(0)
+    store_candidates(repo, [original], record=_record([]), as_of=NOW)
+    stale_manifest = prepare_batch(repo, fingerprint="a" * 64, as_of=NOW, record=_record([]))
+    refreshed = {**original, "description": "Different candidate bytes"}
+    store_candidates(repo, [refreshed], record=_record([]), as_of=NOW)
+
+    with pytest.raises(ValueError, match="manifest candidate does not match current store"):
+        rank_candidates(
+            repo, stale_manifest, _scores(stale_manifest), record=_record([]), fresh_keys=[]
+        )
+
+    assert not (repo / "openspec/supervise/digest.json").exists()
+
+
+def test_rank_rejects_stale_nonempty_manifest_when_store_is_emptied(repo: Path) -> None:
+    stub = _stub(0)
+    store_candidates(repo, [stub], record=_record([]), as_of=NOW)
+    stale_manifest = prepare_batch(repo, fingerprint="a" * 64, as_of=NOW, record=_record([]))
+    (repo / "openspec/supervise/candidates/change--add-candidate-0.json").unlink()
+
+    with pytest.raises(ValueError, match="manifest candidate keys do not match current store"):
+        rank_candidates(
+            repo, stale_manifest, _scores(stale_manifest), record=_record([]), fresh_keys=[]
+        )
+
+    assert not (repo / "openspec/supervise/digest.json").exists()
+    assert not (repo / "openspec/supervise/.digest-transaction.json").exists()
+
+
+def test_rank_normalizes_due_deferral_from_stale_record(repo: Path) -> None:
+    stub = _stub(0)
+    store_candidates(repo, [stub], record=_record([]), as_of=NOW)
+    stale_record = _record(
+        [
+            {
+                "stub_key": "change:add-candidate-0",
+                "rank": 1,
+                "decision": "deferred",
+                "decided_at": "2026-09-10T00:00:00Z",
+                "until": "2026-09-15",
+            }
+        ]
+    )
+    manifest = prepare_batch(repo, fingerprint="a" * 64, as_of=NOW, record=stale_record)
+
+    digest = rank_candidates(repo, manifest, _scores(manifest), record=stale_record, fresh_keys=[])
+
+    assert digest["ranked"][0]["decision"] == "pending"
+    assert digest["ranked"][0]["signals"]["deferred_until"] is None
+    mirror = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+    assert mirror["back_edge"]["digested_stubs"][0]["decision"] == "pending"
+    assert "until" not in mirror["back_edge"]["digested_stubs"][0]
+
+
+def test_zero_candidate_batch_publishes_valid_empty_digest_without_scores(repo: Path) -> None:
+    manifest = prepare_batch(repo, fingerprint="a" * 64, as_of=NOW, record=_record([]))
+
+    digest = rank_candidates(repo, manifest, None, record=_record([]), fresh_keys=[])
+
+    assert manifest["requested_keys"] == []
+    assert digest["ranked"] == []
+    assert digest["sections"] == {
+        "needs_decision": [],
+        "new_this_cycle": [],
+        "degraded": [],
+    }
+    persisted = json.loads((repo / "openspec/supervise/digest.json").read_text())
+    assert persisted == digest
+
+
 def test_ranking_is_byte_identical_for_shuffled_input(repo: Path) -> None:
     stubs = [_stub(0), _stub(1)]
+    store_candidates(repo, stubs, record=_record([]), as_of=NOW)
     first_manifest = _manifest(stubs)
     first = rank_candidates(
         repo, first_manifest, _scores(first_manifest), record=_record([]), fresh_keys=[]

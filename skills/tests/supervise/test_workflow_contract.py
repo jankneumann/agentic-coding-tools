@@ -68,6 +68,15 @@ def test_cycle_runs_lifecycle_maintenance_before_unchanged_exit_and_sense() -> N
     assert "maintained baseline" in cycle
 
 
+def test_cycle_rehydrates_after_recovery_and_skips_empty_candidate_dispatch() -> None:
+    cycle = _cycle_section()
+
+    assert "rehydrate and retry" in cycle
+    assert "zero-candidate" in cycle
+    assert "no analyst dispatch" in cycle
+    assert "valid empty digest" in cycle
+
+
 def test_cycle_stores_retained_plus_fresh_and_dispatches_one_bounded_analyst() -> None:
     cycle = _cycle_section()
     pipeline = cycle[cycle.index("### 3. Dedupe") :]

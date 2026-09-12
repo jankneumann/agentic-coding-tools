@@ -114,6 +114,8 @@ def test_prepare_batch_never_reads_unsafe_or_unavailable_evidence(
     reports.mkdir(exist_ok=True)
     if fixture == "binary":
         (repo / source).write_bytes(b"safe-prefix\x00secret")
+        _git(repo, "add", source)
+        _git(repo, "commit", "-m", "binary evidence")
     elif fixture == "symlink":
         outside = tmp_path / "outside.md"
         outside.write_text("DO NOT READ", encoding="utf-8")
@@ -139,6 +141,45 @@ def test_modified_and_untracked_evidence_have_null_staleness(repo: Path) -> None
     modified = prepare_batch(repo, fingerprint="a" * 64, as_of=AS_OF, record=None)
     assert modified["candidates"][0]["signals"]["staleness_days"] is None
     assert any("modified" in value for value in modified["candidates"][0]["degraded"])
+
+
+def test_offset_crossing_git_timestamp_never_produces_negative_staleness(repo: Path) -> None:
+    artifact = repo / "offset.md"
+    artifact.write_text("offset\n", encoding="utf-8")
+    _git(repo, "add", "offset.md")
+    subprocess.run(
+        ["git", "-C", str(repo), "commit", "-m", "offset evidence"],
+        check=True,
+        capture_output=True,
+        env={
+            **__import__("os").environ,
+            "GIT_AUTHOR_DATE": "2026-09-20T00:30:00+02:00",
+            "GIT_COMMITTER_DATE": "2026-09-20T00:30:00+02:00",
+        },
+    )
+    store_candidates(repo, [_stub("offset.md")], record=None, as_of="2026-09-19T23:00:00Z")
+
+    manifest = prepare_batch(repo, fingerprint="a" * 64, as_of="2026-09-19T23:00:00Z", record=None)
+
+    assert manifest["candidates"][0]["signals"]["staleness_days"] == 0
+    assert manifest["candidates"][0]["degraded"] == []
+
+
+def test_git_evidence_checks_use_literal_pathspecs(repo: Path) -> None:
+    literal = repo / "reports/name[abc].md"
+    sibling = repo / "reports/namea.md"
+    literal.parent.mkdir()
+    literal.write_text("literal\n", encoding="utf-8")
+    sibling.write_text("sibling\n", encoding="utf-8")
+    _git(repo, "add", "reports/name[abc].md", "reports/namea.md")
+    _git(repo, "commit", "-m", "literal path evidence")
+    literal.write_text("modified literal\n", encoding="utf-8")
+    store_candidates(repo, [_stub("reports/name[abc].md")], record=None, as_of=AS_OF)
+
+    manifest = prepare_batch(repo, fingerprint="a" * 64, as_of=AS_OF, record=None)
+
+    assert manifest["candidates"][0]["signals"]["staleness_days"] is None
+    assert manifest["candidates"][0]["degraded"] == ["evidence_modified:reports/name[abc].md"]
 
 
 def test_future_git_timestamp_degrades_to_clock_skew(repo: Path) -> None:

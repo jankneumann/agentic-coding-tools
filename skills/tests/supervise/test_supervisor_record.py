@@ -52,22 +52,7 @@ def tree(tmp_path: Path) -> Path:
 
 
 def _json(name: str) -> dict:
-    data = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
-    # wp-contracts made stub identity canonical but the shared legacy fixtures are
-    # outside this package's write scope. Normalize that one old record at the
-    # test boundary until the fixture-owning package migrates it.
-    record = data.get("supervisor_record") if isinstance(data, dict) else None
-    if not isinstance(record, dict):
-        record = data
-    entries = (record.get("back_edge") or {}).get("digested_stubs") if isinstance(record, dict) else None
-    if isinstance(entries, list):
-        for entry in entries:
-            if entry.get("stub_key") == "change:extend-handoff-document-with-supervisor-record":
-                entry["stub_key"] = "change:add-extend-handoff-document-with-supervisor-record"
-                entry["suggested_change_id"] = "add-extend-handoff-document-with-supervisor-record"
-                entry.setdefault("route", "plan-roadmap")
-                entry.setdefault("roadmap_ref", None)
-    return data
+    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 
 
 def _validator(name: str) -> Draft202012Validator:
@@ -196,6 +181,43 @@ class TestPriorCarryForward:
 
 
 class TestMirror:
+    def test_legacy_digested_stub_sanitizes_to_schema_writable_metadata(
+        self, tree: Path
+    ) -> None:
+        record = _json("minimal.json")
+        record["back_edge"]["digested_stubs"] = [
+            {
+                "stub_key": "change:extend-handoff-document-with-supervisor-record",
+                "rank": 1,
+                "decision": "approved",
+                "decided_at": "2026-08-31T23:20:00Z",
+                "suggested_change_id": "extend-handoff-document-with-supervisor-record",
+            },
+            {
+                "stub_key": "change:invalid/candidate",
+                "rank": 2,
+                "decision": "pending",
+                "decided_at": "2026-08-31T23:21:00Z",
+            },
+        ]
+
+        mirror = write_mirror(tree, record, now=NOW)
+
+        entries = mirror["back_edge"]["digested_stubs"]
+        assert entries == [
+            {
+                "stub_key": "change:add-extend-handoff-document-with-supervisor-record",
+                "rank": 1,
+                "decision": "approved",
+                "decided_at": "2026-08-31T23:20:00Z",
+                "suggested_change_id": "add-extend-handoff-document-with-supervisor-record",
+                "route": "plan-roadmap",
+                "roadmap_ref": None,
+            }
+        ]
+        _validator("supervisor-record-mirror.schema.json").validate(mirror)
+
+
     def test_writes_only_sanitized_non_derivable_sections(self, tree: Path) -> None:
         record = _json("full.json")
         record["pending_gates"][0]["unknown"] = "drop me"
@@ -465,6 +487,7 @@ class TestDigestDecisionMerge:
             ("approved", {"route": "refine-roadmap"}, "roadmap_ref"),
             ("rejected", {}, "reason"),
             ("deferred", {"until": "not-a-date"}, "until"),
+            ("deferred", {"until": "2026-10-01T00:00:00Z"}, "until"),
         ],
     )
     def test_decide_rejects_invalid_conditional_metadata_without_write(

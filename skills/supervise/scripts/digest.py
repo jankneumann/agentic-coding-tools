@@ -17,7 +17,7 @@ import sys
 import re
 import tempfile
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -86,6 +86,15 @@ def _parse_time(value: str) -> datetime:
     if parsed.tzinfo is None:
         raise ValueError("as_of must be an RFC3339 date-time with a timezone")
     return parsed
+
+
+def _recover_then_require_rehydrate(repo_root: Path) -> None:
+    recover_transaction(repo_root)
+    raise ValueError("recovered pending digest transaction; rehydrate and retry")
+
+
+def _literal_pathspec(source: str) -> str:
+    return f":(literal){source}"
 
 
 def encode_stub_key(key: str) -> str:
@@ -258,7 +267,7 @@ def store_candidates(
     if pending_recovery:
         if dry_run:
             raise ValueError("pending digest transaction recovery")
-        recover_transaction(root)
+        _recover_then_require_rehydrate(root)
     stored = _stored_candidates(root)
     maintenance = _maintenance(stored, record, as_of=as_of)
 
@@ -560,6 +569,82 @@ def _mirror_document(
     return mirror
 
 
+def _validate_manifest_current_store(
+    repo_root: Path, manifest: dict[str, Any], by_candidate: dict[str, dict[str, Any]], *, dry_run: bool
+) -> None:
+    if dry_run:
+        return
+    stored = _stored_candidates(repo_root)
+    requested = set(manifest["requested_keys"])
+    if set(stored) != requested:
+        raise ValueError("manifest candidate keys do not match current store")
+    for key, candidate in by_candidate.items():
+        stub = candidate.get("stub")
+        if not isinstance(stub, dict):
+            raise ValueError(f"invalid manifest candidate: {key}")
+        if _canonical_bytes(stored[key][1]) != _canonical_bytes(stub):
+            raise ValueError(f"manifest candidate does not match current store for {key}")
+
+
+def _valid_prior_digest_for_reuse(repo_root: Path, manifest: dict[str, Any]) -> dict[str, Any] | None:
+    prior = _load_prior_digest(repo_root)
+    if prior is None or prior.get("fingerprint") != manifest.get("fingerprint"):
+        return None
+    requested = set(manifest.get("requested_keys") or [])
+    prior_keys = {item["stub_key"] for item in prior.get("ranked", [])}
+    if prior_keys != requested:
+        return None
+    generated_at = prior["generated_at"]
+    for key in sorted(requested):
+        path = _cache_path(repo_root, key)
+        try:
+            cache = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ValueError(f"missing valid cache for {key}: {exc}") from exc
+        _validate(repo_root, "supervise-rubric-score.schema.json", cache)
+        if (
+            cache.get("fingerprint") != manifest.get("fingerprint")
+            or cache.get("scored_at") != generated_at
+            or len(cache["scores"]) != 1
+            or cache["scores"][0].get("stub_key") != key
+        ):
+            raise ValueError(f"cache identity mismatch for {key}")
+    return prior
+
+
+def _publish_empty_digest(
+    repo_root: Path, manifest: dict[str, Any], record: dict[str, Any] | None, *, dry_run: bool
+) -> dict[str, Any]:
+    digest = {
+        "schema_version": 1,
+        "fingerprint": manifest["fingerprint"],
+        "generated_at": manifest["as_of"],
+        "state_updated_at": manifest["as_of"],
+        "weights": dict(_WEIGHTS),
+        "sections": {"needs_decision": [], "new_this_cycle": [], "degraded": []},
+        "ranked": [],
+    }
+    _validate(repo_root, "supervise-digest.schema.json", digest)
+    mirror = _mirror_document(
+        repo_root, record, [], as_of=manifest["as_of"], fingerprint=manifest["fingerprint"]
+    )
+    operations = [
+        {
+            "op": "replace",
+            "target": "openspec/supervise/supervisor-record.json",
+            "bytes": _canonical_bytes(mirror).decode("utf-8"),
+        },
+        {
+            "op": "replace",
+            "target": DIGEST_PATH.as_posix(),
+            "bytes": _canonical_bytes(digest).decode("utf-8"),
+        },
+    ]
+    if not dry_run:
+        publish_transaction(repo_root, operations)
+    return digest
+
+
 def rank_candidates(
     repo_root: Path,
     manifest: dict[str, Any],
@@ -574,11 +659,32 @@ def rank_candidates(
     if (root / JOURNAL_PATH).is_file():
         if dry_run:
             raise ValueError("pending digest transaction recovery")
-        recover_transaction(root)
+        _recover_then_require_rehydrate(root)
+    _parse_time(manifest.get("as_of"))
+    requested = manifest.get("requested_keys")
+    if not isinstance(requested, list) or len(set(requested)) != len(requested):
+        raise ValueError("manifest requested_keys must be unique")
+    candidates = manifest.get("candidates")
+    if not isinstance(candidates, list):
+        raise ValueError("manifest candidates must be an array")
+    by_candidate = {
+        row["stub_key"]: row
+        for row in candidates
+        if isinstance(row, dict) and isinstance(row.get("stub_key"), str)
+    }
+    if set(by_candidate) != set(requested) or len(by_candidate) != len(requested):
+        raise ValueError("manifest candidate keys do not exactly match requested_keys")
+    _validate_manifest_current_store(root, manifest, by_candidate, dry_run=dry_run)
+
     if scores is None:
+        reused = _valid_prior_digest_for_reuse(root, manifest)
+        if reused is not None:
+            return reused
+        if not requested:
+            return _publish_empty_digest(root, manifest, record, dry_run=dry_run)
         cached_rows: list[dict[str, Any]] = []
         scorer: dict[str, Any] | None = None
-        for key in sorted(manifest.get("requested_keys") or []):
+        for key in sorted(requested):
             path = _cache_path(root, key)
             try:
                 cached = json.loads(path.read_text(encoding="utf-8"))
@@ -603,19 +709,13 @@ def rank_candidates(
         if scorer is not None:
             scores["scorer"] = scorer
     by_score = _validate_score_join(root, manifest, scores)
-    candidates = manifest.get("candidates")
-    if not isinstance(candidates, list):
-        raise ValueError("manifest candidates must be an array")
-    by_candidate = {
-        row["stub_key"]: row
-        for row in candidates
-        if isinstance(row, dict) and isinstance(row.get("stub_key"), str)
-    }
-    requested = manifest["requested_keys"]
-    if set(by_candidate) != set(requested) or len(by_candidate) != len(requested):
-        raise ValueError("manifest candidate keys do not exactly match requested_keys")
 
-    prior = _decision_index(record)
+    manifest_stored = {
+        key: (Path(), candidate["stub"])
+        for key, candidate in by_candidate.items()
+        if isinstance(candidate.get("stub"), dict)
+    }
+    prior = _maintenance(manifest_stored, record, as_of=manifest["as_of"]).decisions
     ranked: list[dict[str, Any]] = []
     degraded: set[str] = set()
     for key in requested:
@@ -652,7 +752,7 @@ def rank_candidates(
             "prior_decision": decision
             if decision in {"approved", "deferred", "rejected"}
             else None,
-            "deferred_until": signals.get("deferred_until"),
+            "deferred_until": prior.get(key, {}).get("until"),
         }
         ranked.append(
             {
@@ -752,7 +852,6 @@ def rank_candidates(
         publish_transaction(root, operations)
     return digest
 
-
 def _git_output(repo_root: Path, args: Sequence[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", "-C", str(repo_root), *args],
@@ -782,10 +881,11 @@ def _artifact_evidence(
         return None, None, [f"evidence_missing:{source}"]
     if not resolved.is_relative_to(repo_root) or not resolved.is_file():
         return None, None, [f"evidence_traversal:{source}"]
-    tracked = _git_output(repo_root, ["ls-files", "--error-unmatch", "--", source])
+    literal = _literal_pathspec(source)
+    tracked = _git_output(repo_root, ["ls-files", "--error-unmatch", "--", literal])
     if tracked.returncode != 0:
         return None, None, [f"evidence_untracked:{source}"]
-    modified = _git_output(repo_root, ["diff", "--quiet", "HEAD", "--", source])
+    modified = _git_output(repo_root, ["diff", "--quiet", "HEAD", "--", literal])
     if modified.returncode != 0:
         return None, None, [f"evidence_modified:{source}"]
     with candidate.open("rb") as handle:
@@ -796,13 +896,15 @@ def _artifact_evidence(
         excerpt = raw[:MAX_EVIDENCE_BYTES].decode("utf-8")
     except UnicodeDecodeError:
         return None, None, [f"evidence_binary:{source}"]
-    committed = _git_output(repo_root, ["log", "-1", "--format=%cI", "--", source])
+    committed = _git_output(repo_root, ["log", "-1", "--format=%cI", "--", literal])
     if committed.returncode != 0 or not committed.stdout.strip():
         return None, None, [f"evidence_untracked:{source}"]
     source_time = _parse_time(committed.stdout.strip())
-    if source_time > as_of:
+    source_utc = source_time.astimezone(timezone.utc)
+    as_of_utc = as_of.astimezone(timezone.utc)
+    if source_utc > as_of_utc:
         return None, None, [f"clock_skew:{source}"]
-    staleness = (as_of.date() - source_time.date()).days
+    staleness = max(0, (as_of_utc.date() - source_utc.date()).days)
     sanitized = _sanitize_string(excerpt)
     framed = (
         f"--- BEGIN UNTRUSTED PROVENANCE {source} ---\n"
@@ -842,7 +944,7 @@ def prepare_batch(
         stored[key] = (_candidate_path(root, key), stub)
     if len(stored) > MAX_CANDIDATES:
         raise CandidateCapacityError(sorted(stored)[MAX_CANDIDATES:])
-    decisions = _decision_index(record)
+    decisions = _maintenance(stored, record, as_of=as_of).decisions
     status_index = build_status_index(root)
     candidates: list[dict[str, Any]] = []
     for key, (_, stub) in sorted(stored.items()):
@@ -1100,7 +1202,7 @@ def decide(
     """Replace one digested-stub decision in the rehydrated durable record."""
     root = Path(repo_root).resolve()
     if (root / JOURNAL_PATH).is_file():
-        recover_transaction(root)
+        _recover_then_require_rehydrate(root)
     encode_stub_key(key)
     _parse_time(as_of)
     if decision not in {"pending", "approved", "deferred", "rejected"}:
@@ -1116,9 +1218,9 @@ def decide(
         raise ValueError("rejected decision requires reason")
     if until is not None:
         try:
-            datetime.fromisoformat(until)
+            date.fromisoformat(until)
         except (TypeError, ValueError) as exc:
-            raise ValueError("until must be an ISO date") from exc
+            raise ValueError("until must be a calendar date") from exc
 
     source = dict(record)
     back_edge = dict(source.get("back_edge") or {})
@@ -1188,7 +1290,8 @@ def _lifecycle_rebuild(
     ranked: list[dict[str, Any]] = []
     if prior_digest is not None:
         generated_at = prior_digest["generated_at"]
-        for key in sorted(remaining):
+        prior_ranked_keys = {item["stub_key"] for item in prior_digest["ranked"]}
+        for key in sorted(remaining & prior_ranked_keys):
             cache_path = _cache_path(repo_root, key)
             try:
                 cache = json.loads(cache_path.read_text(encoding="utf-8"))
@@ -1244,7 +1347,8 @@ def _lifecycle_rebuild(
         )
     entries: list[dict[str, Any]] = []
     prior_entries = _decision_index(record)
-    order = [item["stub_key"] for item in ranked] or sorted(remaining)
+    order = [item["stub_key"] for item in ranked]
+    order.extend(key for key in sorted(remaining) if key not in set(order))
     for rank, key in enumerate(order, 1):
         source = dict(maintenance.decisions.get(key) or prior_entries.get(key) or {})
         entry = {
@@ -1260,14 +1364,15 @@ def _lifecycle_rebuild(
             if field in source:
                 entry[field] = source[field]
         entries.append(entry)
+    back_edge = record.get("back_edge") if isinstance(record, dict) else {}
+    if not isinstance(back_edge, dict):
+        back_edge = {}
     mirror = _mirror_document(
         repo_root,
         record,
         entries,
         as_of=as_of,
-        fingerprint=(prior_digest or {}).get(
-            "fingerprint", (record or {}).get("back_edge", {}).get("last_fingerprint")
-        ),
+        fingerprint=(prior_digest or {}).get("fingerprint") or back_edge.get("last_fingerprint"),
     )
     operations.append(
         {
