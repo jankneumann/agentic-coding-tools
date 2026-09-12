@@ -238,9 +238,10 @@ schema, ledger format, driver, or the skill's read-only posture.
   traced back to the run that produced it, and there is no documented way to
   pass it. The skill's Arguments section gains an optional trailing
   `--run-id <id>` (documentation only — the driver already accepts it), and
-  the skill keeps choosing its own id when the caller omits it. This is the
-  one place the change touches `audit-choices` itself, and it adds no writer
-  and no behavior: the read-only posture and its mechanical test are
+  the skill keeps choosing its own id when the caller omits it. Together with
+  the F3 reader, this is the whole of what the change touches inside
+  `audit-choices`: one new read-only script and one documented argument.
+  Neither adds a writer — the read-only posture and its mechanical test are
   untouched.
   - *Alternative rejected*: drop the prescribed `run_id` and let the skill
     pick one. Then no ledger names the workflow step that produced it, and
