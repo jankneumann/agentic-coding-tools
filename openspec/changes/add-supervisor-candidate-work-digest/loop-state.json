@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "add-supervisor-candidate-work-digest",
-  "current_phase": "IMPL_REVIEW",
+  "current_phase": "IMPL_FIX",
   "iteration": 0,
-  "total_iterations": 14,
+  "total_iterations": 15,
   "max_phase_iterations": 3,
   "findings_trend": [],
   "blocking_findings": [],
@@ -21,7 +21,8 @@
     "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-1.json",
     "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-iteration-1-1.json",
     "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-1-1.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-1-1.json"
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-1-1.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-2-1.json"
   ],
   "phase_history": [
     {
@@ -71,14 +72,19 @@
       "phase": "IMPL_REVIEW"
     },
     {
-      "phase": "IMPL_FIX",
+      "at": "2026-09-12T02:17:03+00:00",
       "outcome": "fixed",
-      "at": "2026-09-12T02:17:03+00:00"
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-12T02:51:08.338440+00:00",
+      "outcome": "not_converged",
+      "phase": "IMPL_REVIEW"
     }
   ],
-  "last_handoff_id": "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-1-1.json",
+  "last_handoff_id": "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-2-1.json",
   "started_at": "2026-09-10T22:40:09.976184+00:00",
-  "phase_started_at": "2026-09-12T02:18:45.901162+00:00",
+  "phase_started_at": "2026-09-12T02:51:08.386913+00:00",
   "previous_phase": "PLAN_REVIEW",
   "escalation_reason": "PLAN_REVIEW reached max_iter; revision 5 manually resolved both deterministic blockers",
   "val_review_enabled": false,
