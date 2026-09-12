@@ -81,7 +81,22 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--change-id", required=True)
     p.add_argument("--repo-root", default=".")
     p.add_argument("--format", choices=["text", "json"], default="text")
-    args = p.parse_args(argv)
+
+    # argparse exits 2 on a usage error, which would be a non-zero exit from a
+    # script in this skill — the SKILL.md red-flag list names that explicitly
+    # ("every entry point in this skill is required to exit 0"). A malformed
+    # invocation is still a reason to say something, so warn once and return
+    # the empty result rather than letting SystemExit escape.
+    try:
+        args = p.parse_args(argv)
+    except SystemExit as exc:
+        if exc.code not in (0, None):
+            print(
+                "needs_user: WARNING - bad arguments; returning no entries",
+                file=sys.stderr,
+            )
+            return 0
+        raise
 
     entries = load_needs_user_entries(Path(args.repo_root).resolve(), args.change_id)
 
