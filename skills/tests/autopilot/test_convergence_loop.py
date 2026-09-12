@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -22,7 +23,7 @@ for p in (_SCRIPTS_DIR, _PARALLEL_DIR):
 from consensus_synthesizer import ConsensusFinding, ConsensusReport
 from convergence_loop import build_review_prompt, converge
 from review_dispatcher import ReviewResult
-from review_ledger import ScopeViolation, reject_out_of_scope_fix
+from review_ledger import ScopeViolation, load_or_create, reject_out_of_scope_fix
 
 
 def _make_review_result(
@@ -437,4 +438,230 @@ def test_missing_ledger_still_runs(tmp_path: Path) -> None:
         )
     assert result.converged is True
     assert (artifacts / ".review-ledger" / "ledger.json").exists()
+
+
+def _init_git_repo(path: Path) -> None:
+    subprocess.run(["git", "init"], cwd=path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=path, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"],
+        cwd=path, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "commit.gpgsign", "false"],
+        cwd=path, check=True, capture_output=True,
+    )
+    (path / "README").write_text("init\n")
+    subprocess.run(["git", "add", "README"], cwd=path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "init"], cwd=path, check=True, capture_output=True,
+    )
+
+
+def _blocking_round(tmp_path: Path) -> tuple[dict, object]:
+    finding = _make_consensus_finding(1, status="confirmed", criticality="high")
+    results_r1 = [
+        _make_review_result("vendor_a", findings=[{
+            "id": 1, "type": "bug", "criticality": "high",
+            "description": "High bug", "disposition": "fix",
+            "file_path": "src/api.py",
+        }]),
+        _make_review_result("vendor_b", findings=[{
+            "id": 1, "type": "bug", "criticality": "high",
+            "description": "High bug", "disposition": "fix",
+            "file_path": "src/api.py",
+        }]),
+    ]
+    results_r2 = [
+        _make_review_result("vendor_a", findings=[]),
+        _make_review_result("vendor_b", findings=[]),
+    ]
+    ctx = _setup_converge(
+        [results_r1, results_r2],
+        [
+            _make_consensus_report(findings=[finding]),
+            _make_consensus_report(findings=[]),
+        ],
+        tmp_path,
+    )
+    return ctx, finding
+
+
+def test_failed_fix_callback_does_not_mark_addressed(tmp_path: Path) -> None:
+    ctx, _finding = _blocking_round(tmp_path)
+
+    def boom(_blocking: list, _path: Path) -> None:
+        raise RuntimeError("fixer exploded")
+
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        with pytest.raises(RuntimeError, match="fixer exploded"):
+            converge(
+                change_id="test-change",
+                review_type="implementation",
+                artifacts_dir=ctx["artifacts_dir"],
+                worktree_path=tmp_path,
+                orchestrator=ctx["orchestrator"],
+                fix_callback=boom,
+            )
+    ledger = load_or_create(ctx["artifacts_dir"], "test-change")
+    assert ledger["items"][0]["status"] == "open"
+
+
+def test_absent_fix_callback_does_not_mark_addressed(tmp_path: Path) -> None:
+    finding = _make_consensus_finding(1, status="confirmed", criticality="high")
+    results = [
+        _make_review_result("vendor_a", findings=[{
+            "id": 1, "type": "bug", "criticality": "high",
+            "description": "High bug", "disposition": "fix",
+            "file_path": "src/api.py",
+        }]),
+        _make_review_result("vendor_b", findings=[{
+            "id": 1, "type": "bug", "criticality": "high",
+            "description": "High bug", "disposition": "fix",
+            "file_path": "src/api.py",
+        }]),
+    ]
+    ctx = _setup_converge(
+        [results],
+        [_make_consensus_report(findings=[finding])],
+        tmp_path,
+    )
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        result = converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=ctx["artifacts_dir"],
+            worktree_path=tmp_path,
+            orchestrator=ctx["orchestrator"],
+            max_rounds=1,
+        )
+    assert result.converged is False
+    ledger = load_or_create(ctx["artifacts_dir"], "test-change")
+    assert ledger["items"][0]["status"] == "open"
+
+
+def test_successful_fix_marks_addressed(tmp_path: Path) -> None:
+    ctx, _finding = _blocking_round(tmp_path)
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=ctx["artifacts_dir"],
+            worktree_path=tmp_path,
+            orchestrator=ctx["orchestrator"],
+            fix_callback=MagicMock(),
+        )
+    ledger = load_or_create(ctx["artifacts_dir"], "test-change")
+    assert ledger["items"][0]["status"] == "addressed"
+
+
+def test_converge_rejects_out_of_scope_fix(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "api.py").write_text("ok\n")
+    (src / "frontend.tsx").write_text("ui\n")
+    subprocess.run(["git", "add", "src"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "src"], cwd=tmp_path, check=True, capture_output=True,
+    )
+    ctx, _finding = _blocking_round(tmp_path)
+
+    def edit_unrelated(_blocking: list, worktree: Path) -> None:
+        (worktree / "src" / "frontend.tsx").write_text("hacked\n")
+
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        with pytest.raises(ScopeViolation):
+            converge(
+                change_id="test-change",
+                review_type="implementation",
+                artifacts_dir=ctx["artifacts_dir"],
+                worktree_path=tmp_path,
+                orchestrator=ctx["orchestrator"],
+                fix_callback=edit_unrelated,
+            )
+    ledger = load_or_create(ctx["artifacts_dir"], "test-change")
+    assert ledger["items"][0]["status"] == "open"
+
+
+def test_last_fix_diff_includes_committed_callback_edits(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    ctx, _finding = _blocking_round(tmp_path)
+
+    def commit_fix(_blocking: list, worktree: Path) -> None:
+        target = worktree / "src" / "api.py"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("fixed-the-bug\n")
+        subprocess.run(
+            ["git", "add", "src/api.py"], cwd=worktree, check=True, capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "fix api"], cwd=worktree,
+            check=True, capture_output=True,
+        )
+
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=ctx["artifacts_dir"],
+            worktree_path=tmp_path,
+            orchestrator=ctx["orchestrator"],
+            fix_callback=commit_fix,
+        )
+    round2 = ctx["orchestrator"].dispatch_and_wait.call_args_list[1].kwargs["prompt"]
+    assert "fixed-the-bug" in round2
+    assert "(empty-diff)" not in round2
+
+
+def test_spec_gap_payload_includes_derived_spec_file(tmp_path: Path) -> None:
+    finding = _make_consensus_finding(
+        1, status="confirmed", criticality="high",
+    )
+    finding.agreed_type = "spec_gap"
+    results_r1 = [
+        _make_review_result("vendor_a", findings=[{
+            "id": 1, "type": "spec_gap", "criticality": "high",
+            "description": "Test finding 1", "disposition": "fix",
+            "file_path": "src/api.py", "capability": "api",
+        }]),
+        _make_review_result("vendor_b", findings=[{
+            "id": 1, "type": "spec_gap", "criticality": "high",
+            "description": "Test finding 1", "disposition": "fix",
+            "file_path": "src/api.py", "capability": "api",
+        }]),
+    ]
+    results_r2 = [
+        _make_review_result("vendor_a", findings=[]),
+        _make_review_result("vendor_b", findings=[]),
+    ]
+    ctx = _setup_converge(
+        [results_r1, results_r2],
+        [
+            _make_consensus_report(findings=[finding]),
+            _make_consensus_report(findings=[]),
+        ],
+        tmp_path,
+    )
+    spec = ctx["artifacts_dir"] / "specs" / "api" / "spec.md"
+    spec.parent.mkdir(parents=True)
+    spec.write_text("# API\nsrc/api.py\n")
+    fix_cb = MagicMock()
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=ctx["artifacts_dir"],
+            worktree_path=tmp_path,
+            orchestrator=ctx["orchestrator"],
+            fix_callback=fix_cb,
+        )
+    payload = fix_cb.call_args[0][0][0]
+    assert payload["spec_file"] == str(spec)
+    assert str(spec) in payload["allowed_paths"]
+    ledger = load_or_create(ctx["artifacts_dir"], "test-change")
+    assert ledger["items"][0]["spec_file"] == str(spec)
 

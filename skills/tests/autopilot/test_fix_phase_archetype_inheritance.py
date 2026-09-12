@@ -11,6 +11,7 @@ null out the field set by the preceding REVIEW phase.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import autopilot
@@ -152,6 +153,44 @@ def test_convergence_loop_round_trip_does_not_overwrite_archetype(
     assert outcome == "max_iter"
     # The convergence loop must NEVER have overwritten phase_archetype.
     assert state.phase_archetype == "reviewer"
+
+
+def test_phase_review_invokes_real_fixer_not_history_only() -> None:
+    """_phase_review must pass a callback that actually applies edits."""
+    applied: list[list[dict[str, Any]]] = []
+
+    def real_fix(blocking: list[dict[str, Any]], _worktree: Path) -> None:
+        applied.append(list(blocking))
+
+    def fake_converge(**kwargs: Any) -> dict[str, Any]:
+        fixer = kwargs["fix_callback"]
+        fixer([{"id": 1, "file_path": "src/api.py"}], Path("."))
+        return {
+            "converged": True,
+            "findings_count": 0,
+            "blocking_findings": [],
+        }
+
+    state = autopilot.LoopState(
+        change_id="demo",
+        current_phase="PLAN_REVIEW",
+        phase_archetype="reviewer",
+    )
+    outcome = autopilot._phase_review(
+        state,
+        change_dir=Path_stub(),
+        worktree_path=Path_stub(),
+        converge_fn=fake_converge,
+        fix_mode="inline",
+        post_fix_validator_fn=None,
+        fix_callback=real_fix,
+    )
+    assert outcome == "converged"
+    assert applied == [[{"id": 1, "file_path": "src/api.py"}]]
+    assert any(
+        entry.get("phase") == "PLAN_FIX" and entry.get("sub_step")
+        for entry in state.phase_history
+    )
 
 
 # ---------------------------------------------------------------------------

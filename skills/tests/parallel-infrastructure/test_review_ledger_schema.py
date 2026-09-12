@@ -75,6 +75,7 @@ class TestReviewLedgerSchema:
                 items=[
                     _ledger_item(
                         file_path="src/api.py",
+                        spec_file="openspec/changes/demo/specs/api/spec.md",
                         line_start=10,
                         line_end=20,
                         vendor_hits=["codex", "grok"],
