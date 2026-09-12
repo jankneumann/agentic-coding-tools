@@ -311,8 +311,12 @@ class TestRangeFormRetention:
         for run_id in pre_existing:
             d = choices_root / run_id
             d.mkdir(parents=True)
-            (d / "choices.json").write_text("{}")
-            (d / "choices.md").write_text("stub")
+            # Distinct per-run sentinels: identical stubs would let a
+            # delete-and-recreate implementation satisfy the path-set
+            # assertions below while destroying the pair the scenario
+            # promises arrives "intact".
+            (d / "choices.json").write_text('{"sentinel": "%s"}' % run_id)
+            (d / "choices.md").write_text(f"sentinel {run_id}")
 
         before = _snapshot(repo_root)
 
@@ -355,6 +359,18 @@ class TestRangeFormRetention:
             f"unexpected writes: {created_or_modified - permitted_created}"
         )
         assert deleted == permitted_deleted, f"unexpected deletions: {deleted - permitted_deleted}"
+
+        # Scenario 14 says the archived pair arrives intact, and path-set
+        # equality does not say that: an implementation that deleted the
+        # active pair and wrote empty files at the archive paths would
+        # satisfy every assertion above. Read the bytes back.
+        archived_dir = choices_root / "archive" / oldest_run_id
+        assert (
+            archived_dir / "choices.json"
+        ).read_text() == '{"sentinel": "%s"}' % oldest_run_id
+        assert (
+            archived_dir / "choices.md"
+        ).read_text() == f"sentinel {oldest_run_id}"
 
     def test_retention_failure_does_not_fail_a_successful_run(self, fixture_repo, monkeypatch, caplog):
         def _raise(*args, **kwargs):

@@ -157,3 +157,40 @@ class TestApplyRetention:
 
     def test_list_active_runs_missing_base_returns_empty(self, tmp_path: Path):
         assert list_active_runs(tmp_path / "does-not-exist") == []
+
+
+class TestOrderingIsNumericNotLexical:
+    """impl-round-1 (codex): `list_active_runs` sorted by `p.name`, so once a
+    collision suffix reached two digits `<base>-10` sorted before `<base>-2`
+    and retention archived the wrong run as "oldest". Scenario 14 promises the
+    *oldest* run is the one archived, so the tree staying bounded is not
+    enough."""
+
+    def _make(self, base_dir, names):
+        for n in names:
+            (base_dir / n).mkdir(parents=True)
+
+    def test_two_digit_suffixes_order_after_single_digit(self, tmp_path):
+        base = "2026-09-12-030000-abc1234"
+        self._make(tmp_path, [base, f"{base}-2", f"{base}-10"])
+        assert [p.name for p in list_active_runs(tmp_path)] == [
+            base,
+            f"{base}-2",
+            f"{base}-10",
+        ]
+
+    def test_retention_archives_the_genuinely_oldest(self, tmp_path):
+        base = "2026-09-12-030000-abc1234"
+        self._make(tmp_path, [base, f"{base}-2", f"{base}-10"])
+        # retain=1, not 2: at retain=2 both orderings archive only the
+        # unsuffixed base, so the assertion would pass against the lexical
+        # sort too and prove nothing. At retain=1 they disagree — lexical
+        # archives {base, -10} and leaves the older -2 behind.
+        apply_retention(tmp_path, retain=1)
+        archived = {p.name for p in (tmp_path / "archive").iterdir()}
+        assert archived == {base, f"{base}-2"}, f"archived the wrong runs: {archived}"
+        assert {p.name for p in list_active_runs(tmp_path)} == {f"{base}-10"}
+
+    def test_distinct_bases_still_order_chronologically(self, tmp_path):
+        self._make(tmp_path, ["2026-09-11-235959-aaaaaaa", "2026-09-12-000001-bbbbbbb"])
+        assert [p.name for p in list_active_runs(tmp_path)][0].startswith("2026-09-11")

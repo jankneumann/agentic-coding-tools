@@ -128,7 +128,17 @@ def list_active_runs(base_dir: Path) -> list[Path]:
         except ValueError:
             continue
         out.append(entry)
-    out.sort(key=lambda p: p.name)
+    # Order by (base name, suffix ordinal) rather than lexically: a plain
+    # `p.name` sort puts `<base>-10` before `<base>-2`, so once collisions
+    # reach two digits retention would archive the wrong run as "oldest".
+    # The unsuffixed base sorts first, which is correct — it was written
+    # before any of its siblings.
+    def _order(path: Path) -> tuple[str, int]:
+        suffix = run_id_suffix(path.name)
+        base = path.name[: -(len(suffix) + 1)] if suffix else path.name
+        return (base, int(suffix) if suffix else 1)
+
+    out.sort(key=_order)
     return out
 
 

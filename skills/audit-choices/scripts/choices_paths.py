@@ -80,19 +80,44 @@ def _run_id_taken(choices_root: Path, run_id: str) -> bool:
     ).exists()
 
 
-def _free_run_id(choices_root: Path, base_run_id: str) -> str:
-    """Return `base_run_id`, or a `-2`, `-3`, ... suffixed sibling when the
-    base is already taken (D8). `build_run_id` resolves to the second, so
-    two audits started in the same UTC second at the same HEAD would
-    otherwise share a directory and have their snapshots merged."""
-    if not _run_id_taken(choices_root, base_run_id):
-        return base_run_id
-    n = 2
-    while True:
-        candidate = f"{base_run_id}-{n}"
+#: Bound on the collision retry. Reaching it means something is creating
+#: these directories faster than we can claim one, which is a broken
+#: environment rather than contention — fail loudly instead of spinning.
+_MAX_COLLISION_ATTEMPTS = 1000
+
+
+def _reserve_run_id(choices_root: Path, base_run_id: str) -> str:
+    """Reserve and return `base_run_id`, or a `-2`, `-3`, ... suffixed
+    sibling when the base is already taken (D8). `build_run_id` resolves to
+    the second, so two audits started in the same UTC second at the same
+    HEAD would otherwise share a directory and have their snapshots merged.
+
+    The reservation is the `mkdir` itself, with `exist_ok=False`. Testing
+    `.exists()` and returning the name would be check-then-write: two
+    concurrent audits in the same second could both observe the base as
+    free and both proceed, because the real directory creation happens
+    later inside `write_ledger_pair` with `exist_ok=True`. `mkdir` is
+    atomic against a concurrent creator, so losing the race raises
+    `FileExistsError` here and the loop advances instead of two runs
+    sharing one directory.
+
+    The archive is checked too: retention frees the active path while the
+    archived copy persists, so a later audit computing that same base would
+    otherwise collide with the archived directory on the next pass.
+    """
+    candidate = base_run_id
+    for n in range(1, _MAX_COLLISION_ATTEMPTS + 1):
         if not _run_id_taken(choices_root, candidate):
-            return candidate
-        n += 1
+            try:
+                (choices_root / candidate).mkdir(parents=True, exist_ok=False)
+                return candidate
+            except FileExistsError:
+                pass  # lost the race; fall through and advance
+        candidate = f"{base_run_id}-{n + 1}"
+    raise RuntimeError(
+        f"could not reserve a run directory for {base_run_id!r} after "
+        f"{_MAX_COLLISION_ATTEMPTS} attempts under {choices_root}"
+    )
 
 
 def route_output_dir(
@@ -111,5 +136,5 @@ def route_output_dir(
         return repo_root / "openspec" / "changes" / change_id
     choices_root = choices_root_for(repo_root)
     base_run_id = build_run_id(now, git_sha)
-    run_id = _free_run_id(choices_root, base_run_id)
+    run_id = _reserve_run_id(choices_root, base_run_id)
     return choices_root / run_id

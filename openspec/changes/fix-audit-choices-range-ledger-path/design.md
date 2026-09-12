@@ -222,8 +222,20 @@ output moved to `openspec/priorities/<YYYY-MM-DD>-HHMMSS-<sha7>/`.
   human takes minutes to start a second priorities run while nothing stops a
   script from starting two audits back to back. The routing helper therefore
   refuses to reuse an existing run directory: when the computed path already
-  exists it appends `-2`, `-3`, … until one is free. Two consequences the
-  first draft of this decision got wrong:
+  exists it appends `-2`, `-3`, … until one is free. **The reservation is
+  the `mkdir(exist_ok=False)` itself, not a preceding `.exists()` check** —
+  testing then returning a name is check-then-write, and the real directory
+  creation happens later inside `write_ledger_pair` with `exist_ok=True`, so
+  two concurrent audits in the same second could both observe the base free
+  and both write there. `mkdir` is atomic against a concurrent creator, so the
+  loser gets `FileExistsError` and advances. The loop is bounded
+  (`_MAX_COLLISION_ATTEMPTS`) and raises rather than spinning: an environment
+  where no candidate is ever claimable is broken, and a hang inside a driver
+  contracted never to fail is worse than a loud error.
+  Ordering matters too: `list_active_runs` sorts by `(base, suffix ordinal)`,
+  not by name, because `<base>-10` sorts lexically before `<base>-2` and
+  retention would archive the wrong run as "oldest" once collisions reach two
+  digits. Three consequences the first draft of this decision got wrong:
 
   - **`RUN_ID_RE` must accept the suffix.** The regex moved in task 2.2 is
     `^(\d{4}-\d{2}-\d{2})(?:-(\d{6}|legacy)(?:-([a-f0-9]+))?)?(?:-(\d+))?$`,
