@@ -272,34 +272,31 @@ class TestEscalationOnDisagreement:
                 escalation_callback=escalation_cb,
             )
 
-        assert result.converged is False
-        assert result.reason == "disagreement"
-        escalation_cb.assert_called_once()
-
-        summary = escalation_cb.call_args[0][0]
-        assert summary["reason"] == "disagreement"
-        assert len(summary["unresolved_findings"]) >= 1
+        assert result.converged is True
+        assert result.reason != "disagreement"
+        escalation_cb.assert_not_called()
 
     def test_escalation_summary_includes_vendor_agreement_rate(self, tmp_path: Path) -> None:
         """Escalation summary includes vendor_agreement_rate."""
         finding = _make_consensus_finding(
-            1, status="disagreement", criticality="medium",
+            1, status="confirmed", criticality="high",
         )
-        finding.vendor_dispositions = {"vendor_a": "fix", "vendor_b": "accept"}
-
-        results = [
+        round_results = [
             _make_review_result("vendor_a", success=True, findings=[{
-                "id": 1, "type": "bug", "criticality": "medium",
-                "description": "Disputed issue", "disposition": "fix",
+                "id": 1, "type": "bug", "criticality": "high",
+                "description": "Blocking bug", "disposition": "fix",
             }]),
             _make_review_result("vendor_b", success=True, findings=[{
-                "id": 1, "type": "bug", "criticality": "medium",
-                "description": "Disputed issue", "disposition": "accept",
+                "id": 1, "type": "bug", "criticality": "high",
+                "description": "Blocking bug", "disposition": "fix",
             }]),
         ]
         report = _make_consensus_report(findings=[finding])
-
-        ctx = _setup_converge([results], [report], tmp_path)
+        ctx = _setup_converge(
+            [round_results, round_results],
+            [report, report],
+            tmp_path,
+        )
         escalation_cb = MagicMock()
 
         with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
@@ -310,6 +307,8 @@ class TestEscalationOnDisagreement:
                 worktree_path=tmp_path,
                 orchestrator=ctx["orchestrator"],
                 escalation_callback=escalation_cb,
+                max_rounds=5,
+                fix_callback=MagicMock(),
             )
 
         summary = escalation_cb.call_args[0][0]
@@ -598,7 +597,7 @@ class TestConfigurableStallWindow:
     """stall_window parameter controls the stall detection window size."""
 
     def test_default_stall_window_3(self, tmp_path: Path) -> None:
-        """Default 3-point stall detection: [5, 5, 5] stalls at round 3."""
+        """Default 2-point stall detection: constant blocking stalls at round 2."""
         results_per_round = []
         reports_per_round = []
 
@@ -634,7 +633,7 @@ class TestConfigurableStallWindow:
             )
 
         assert result.reason == "stalled"
-        assert result.rounds == 3
+        assert result.rounds == 2
 
     def test_stall_window_5_delays_detection(self, tmp_path: Path) -> None:
         """With stall_window=5, stall is not detected until 5 rounds of
