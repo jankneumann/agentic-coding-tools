@@ -225,23 +225,24 @@
       "disposition": "block",
       "phase": "ESCALATE",
       "recorded_at": "2026-09-12T03:31:47.830888+00:00"
+    },
+    {
+      "gate": "escalate_resume",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator authorized a targeted post-cap fix and one independent review constrained exclusively to the two confirmed round-3 blockers; no new work or findings.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "ESCALATE",
+      "recorded_at": "2026-09-12T13:05:20.069857+00:00",
+      "note": "Operator authorized a targeted post-cap fix and one independent review constrained exclusively to the two confirmed round-3 blockers; no new work or findings."
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "add-supervisor-candidate-work-digest",
-    "gate": "escalate_resume",
-    "phase": "ESCALATE",
-    "requested_at": "2026-09-12T03:31:47.831253+00:00",
-    "prompt": "Has this escalation been resolved? Resume the loop?",
-    "context": {
-      "escalation_reason": "IMPL_REVIEW reached max_iter with two confirmed deterministic blockers",
-      "previous_phase": "IMPL_REVIEW"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
