@@ -49,10 +49,16 @@ review found that requirement still forbade writing outside
      `HEAD`), `priorities_paths.py paths <known-id> --base <base>` (assert the
      exact `name=value` lines), and `retention.py --base <base> --retain 1`
      against a base holding two runs (assert `active=1 archived=1` and the
-     archive move). These are the only calls `SKILL.md` makes, and no existing
-     test makes them; before the migration they pass trivially, after it they
-     are the only thing that exercises the D2 import bootstrap the way the
-     skill's bash does.
+     archive move). `SKILL.md` itself invokes only `priorities_paths.py
+     run-id` and `retention.py` — it builds the dated paths inline in bash
+     (`mkdir`/`cp` against `openspec/priorities/${RUN_ID}`) and never calls the
+     `paths` subcommand. Cover `paths` anyway, because the migration changes
+     how every entry point in that file bootstraps its import of `shared`, and
+     an entry point no caller uses today is still an entry point the move can
+     break. What matters is that no existing test runs any of them as a
+     subprocess: before the migration they pass trivially, after it they are
+     the only thing exercising the D2 import bootstrap the way the skill's bash
+     does.
   3. **Existing tests untouched.** `test_priorities_paths.py`,
      `test_retention.py` and `test_smoke_e2e.py` are not edited by this change
      — the work package's `preexisting_tests_unchanged` step enforces it.
@@ -134,7 +140,12 @@ review found that requirement still forbade writing outside
   **Files**: `skills/tests/audit-choices/test_output_routing.py`
   **Size**: S
   Test the routing helper directly: a `range:`-prefixed recorded id returns a
-  dated run directory under `openspec/choices/`; any other id returns
+  dated run directory under `openspec/choices/`; **when that directory already
+  exists the helper returns a suffixed sibling** (`<run-id>-2`, then `-3`)
+  rather than reusing it, and the suffixed name still satisfies
+  `parse_run_id` so retention keeps counting it (D8 — `build_run_id` resolves
+  to the second, so two audits in the same UTC second at the same `HEAD` would
+  otherwise share a directory and have their snapshots merged); any other id returns
   `openspec/changes/<id>/`; a change id that merely contains `..` or a colon
   but does not start with `range:` routes to the changes tree (D5 — the test is
   on the prefix of the recorded id, not on the shape of the argument). Pin D7:

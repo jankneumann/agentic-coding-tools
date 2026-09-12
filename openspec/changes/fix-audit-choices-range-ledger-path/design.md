@@ -202,8 +202,19 @@ output moved to `openspec/priorities/<YYYY-MM-DD>-HHMMSS-<sha7>/`.
 - **D8: Range ledgers are per-run snapshots, and retention can never fail a
   successful run.** `write_ledger` merges into an existing `choices.json` by
   `stable_id`, which is how the change-id form satisfies the canonical
-  "Re-audit is idempotent" scenario. A range run always targets a fresh dated
-  directory, so that merge never fires: the scenario still holds — ids are
+  "Re-audit is idempotent" scenario. A range run normally targets a fresh
+  dated directory, so that merge normally does not fire. **It is not
+  "never".** `build_run_id` resolves to the second, so two standalone audits
+  begun in the same UTC second at the same `HEAD` compute the same run id,
+  land in the same directory, and `write_ledger` merges the second snapshot
+  into the first — two distinct audits silently combined.
+  `prioritize-proposals` has the same property and has shipped with it, but a
+  human takes minutes to start a second priorities run while nothing stops a
+  script from starting two audits back to back. The routing helper therefore
+  refuses to reuse an existing run directory: when the computed path already
+  exists it appends `-2`, `-3`, … until one is free, and the suffixed name
+  still parses as a run id so retention keeps counting it. With that guard the
+  merge genuinely never fires for the range form, and the scenario still holds — ids are
   content-derived, so the same decision gets the same `stable_id` in every
   snapshot, and no file ever gains a duplicate — but "update in place" is a
   change-id-form behaviour, and `latest.*` is a copy of the newest snapshot,

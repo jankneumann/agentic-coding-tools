@@ -13,5 +13,5 @@ No contract sub-types apply. Each was evaluated:
 
 The one interface that does change is the on-disk **location** of a standalone
 range audit's output. That is specified in `specs/skill-workflow/spec.md`
-(scenarios 12 through 14) and in `design.md` D1, rather than as a machine-
+(scenarios 12 through 15, where 15 is the standalone form's closed write set, including the `latest.*` copies and retention's archive move) and in `design.md` D1, rather than as a machine-
 readable contract, because it is a path convention rather than a payload shape.

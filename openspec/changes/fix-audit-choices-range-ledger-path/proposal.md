@@ -157,8 +157,13 @@ which the work package checks with `git diff`.
 
 ## Impact
 
-- Affected specs: `skill-workflow` (one MODIFIED requirement — the standalone
-  range scenario gains a location clause it currently lacks)
+- Affected specs: `skill-workflow`, **two** MODIFIED requirements.
+  `Choices audit workflow integration` gains the location and retention
+  scenarios; `Independent read-only choices audit` has its closed write set
+  widened to cover the range form. Round-1 review found that second
+  requirement still forbade writing outside `openspec/changes/<change-id>/`,
+  which is exactly what this change does — modifying only the first would have
+  shipped a spec contradicting its own implementation.
 - Affected skills: `audit-choices` (driver, SKILL.md contract wording),
   `prioritize-proposals` (migrated onto the shared helper; output, CLI entry
   points, SKILL.md and existing tests unchanged)

@@ -1,0 +1,135 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: proposal.md Impact still says skill-workflow has \"one MODIFIED requirement\" (the standalone range location clause), but tasks.md and specs/skill-workflow/spec.md now modify two requirements \u2014 Choices audit workflow integration and Independent read-only choices audit (scenarios 12\u201315). An implementer or gate that trusts the proposal summary can miss the closed write-set rewrite that round-1 review required.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Update proposal.md Impact (and any handoff text that still says one requirement) to match the delta: two MODIFIED requirements, scenarios 12\u201315.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/proposal.md",
+      "line_range": {
+        "start": 158,
+        "end": 165
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: design.md D4 and tasks.md 1.1 claim the characterization subprocesses exercise \"the only calls SKILL.md makes\" and list priorities_paths.py run-id, priorities_paths.py paths, and retention.py. skills/prioritize-proposals/SKILL.md only invokes priorities_paths.py run-id and retention.py; dated paths are built in bash as openspec/priorities/${RUN_ID} (mkdir/cp), and the paths subcommand is never referenced. The guard overstates the skill's runtime surface and treats an unused CLI as load-bearing for proving the migration.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Rewrite D4/task 1.1 to name the two CLIs SKILL.md actually calls (run-id, retention). Keep the paths subprocess only if desired as optional extra coverage of build_paths/re-exports, labeled as such\u2014not as a SKILL.md entry point.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/tasks.md",
+      "line_range": {
+        "start": 43,
+        "end": 55
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: D4's three-part guard is now sufficient for the import-bootstrap failure mode it was strengthened to catch (function pins, CLI subprocesses from a runtime-shaped prioritize-proposals/scripts beside shared/, git diff on the three pre-existing importer modules, plus the TZ=America/New_York UTC pin). Residual breakage that can still pass it: (1) SKILL.md bash-only report authoring/cp latest is not executed end-to-end (only the Python CLIs bash calls)\u2014acceptable because those bash steps are unchanged and SKILL.md is diff-guarded; (2) testing the unused paths CLI (finding 2) does not add skill-path coverage; (3) semantic changes that preserve CLI stdout shapes and re-export names (e.g. exception message text) are out of scope of a characterization pin.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Accept as residual risk; optionally drop or relabel the paths subprocess per finding 2. No further D4 strengthening required for the bootstrap risk.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "line_range": {
+        "start": 109,
+        "end": 132
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "FYI: D8's claim that a range run \"always targets a fresh dated directory, so that merge never fires\" is false under same-UTC-second collisions: build_run_id is YYYY-MM-DD-HHMMSS-<sha7>, so two range audits with the same resolved_now and resolved_git_sha reuse one directory and write_ledger.merge_entries runs. This matches the shipped prioritize-proposals run-id format (skills/prioritize-proposals/scripts/priorities_paths.py) and is unlikely in normal use; task 4.3 avoids it by using a later now. The per-run snapshot model remains the right design\u2014only the absolute \"always/never\" wording overclaims.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "resolution": "Accept (same collision window as openspec/priorities/). Optionally soften D8 to \"normally a fresh dated directory; merge only if run-id collides\" rather than changing the run-id format.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "line_range": {
+        "start": 202,
+        "end": 212
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "D7 and D8 are right on the merits and should not be overturned. D7 must keep the directory on resolved_now/resolved_git_sha (header production identity): iterate-on-implementation passes --run-id iterate-on-implementation-$(date -u +%Y-%m-%dT%H:%M:%SZ) with colons (skills/iterate-on-implementation/SKILL.md), which would reintroduce unsafe path characters of the same class as range:<base>..<head>; audited head stays in audited_range. D8's per-run snapshots are the coherent model once each successful distinct run-id gets its own directory, and isolating retention failure so it cannot flip AuditRunResult.ok=False after a successful write matches run_audit.py's never-raises contract.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Keep D7 and D8; no change beyond the optional D8 wording caveat in finding 4.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "line_range": {
+        "start": 175,
+        "end": 220
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "FYI: D6's three permitted range-run effects (run-dir choices.{json,md}, latest.* via shutil.copyfile, retention archive move) are complete and checkable against the planned driver. collect_evidence.py only reads; write_ledger's parent mkdir is part of the pair write; archive/ creation is part of the move; no fourth filesystem writer is specified. Task 5.1's under-limit exact-set snapshot and task 5.2's over-limit snapshot (plus the required retention-warning assertion) make the closed set falsifiable.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "resolution": "No action; keep the three-effect contract.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "line_range": {
+        "start": 153,
+        "end": 173
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: contracts/README.md still says the on-disk location is specified by scenarios 12 through 14 only. After Independent read-only was widened, scenario 15 (standalone closed write set including latest.* and archive moves) is part of that interface and is listed in tasks.md's scenario key.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Update contracts/README.md to cite scenarios 12\u201315 (or \"12 through 15\").",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/contracts/README.md",
+      "line_range": {
+        "start": 14,
+        "end": 17
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Verified the plan's factual claims against the tree (except findings 1\u20132): run_audit.py:145 derives openspec/changes/<change_id>; collect_evidence.py:276 is the matching read-only derivation; priorities_paths.py exports build_run_id/RUN_ID_RE/parse_run_id/build_paths/PrioritiesPaths; retention.py archives via shutil.move with argparse default retain=30 and list_active_runs calling parse_run_id; install-manifest.json shared_libraries includes shared and install.sh SHARED_LIBS installs it without requiring cross_skill_dependencies for Python from shared imports; dependency_direction.py permits skills/shared/; skills/tests/prioritize-proposals/ covers the three importer modules named and subprocesses only artifact_header.py today (not priorities_paths/retention CLIs). Scope holds: tasks do not alter schema, ledger format, entry pipeline, six-field header, or exit-0. Task DAG is a sound chain (1.1\u21922.1\u21922.2\u2192{3.1\u22254.1\u21924.2\u2192{4.3\u22255.1\u21925.3\u22255.2}}) with no concurrent file-overlap conflicts.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No action.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/proposal.md",
+      "line_range": {
+        "start": 8,
+        "end": 22
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}
