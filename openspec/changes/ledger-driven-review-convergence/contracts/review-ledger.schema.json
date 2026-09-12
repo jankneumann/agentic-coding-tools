@@ -45,7 +45,11 @@
           },
           "description": { "type": "string" },
           "resolution": { "type": "string" },
-          "parked_reason": { "type": "string" }
+          "parked_reason": { "type": "string" },
+          "consensus_status": {
+            "type": "string",
+            "enum": ["confirmed", "unconfirmed", "disagreement"]
+          }
         }
       }
     }
