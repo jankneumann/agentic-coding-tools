@@ -2,10 +2,12 @@
   "schema_version": 5,
   "change_id": "fix-audit-choices-range-ledger-path",
   "current_phase": "IMPL_REVIEW",
-  "iteration": 0,
+  "iteration": 1,
   "total_iterations": 3,
   "max_phase_iterations": 3,
-  "findings_trend": [],
+  "findings_trend": [
+    7
+  ],
   "blocking_findings": [],
   "vendor_availability": {
     "antigravity": true,
@@ -70,6 +72,12 @@
       "outcome": "complete",
       "at": "2026-09-12T13:37:01.492218+00:00",
       "note": "1 finding fixed: parse_run_id variable arity -> fixed 3-tuple + run_id_suffix accessor. All D1-D8 verified held. Harness isolation bug hit a 5th time; landed via push-to-origin. Gates 366 passed."
+    },
+    {
+      "phase": "IMPL_FIX",
+      "outcome": "fixed",
+      "at": "2026-09-12T14:05:22.571331+00:00",
+      "note": "Round 1: 2 high (TOCTOU reservation, lexical sort) + 1 nit (content integrity) + 1 self-found (unbounded retry). An existing test had pinned the TOCTOU as expected behavior. Applied inline by the orchestrator, not a vendor dispatch. 373 passed."
     }
   ],
   "last_handoff_id": "impl-iterate-bd5046f1",

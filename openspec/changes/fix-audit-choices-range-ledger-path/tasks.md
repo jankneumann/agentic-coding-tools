@@ -88,7 +88,13 @@ review found that requirement still forbade writing outside
   raises; a sha shorter than 7 characters raises. Cover `parse_run_id` (and
   through it `RUN_ID_RE`): ids this module produces round-trip to
   `(date, hms, sha)`; the legacy `<date>-legacy` form `prioritize-proposals`
-  already has on disk returns `(date, "", "legacy")`; **a collision-suffixed
+  already has on disk returns `(date, "", "legacy")`; `list_active_runs`
+  orders by `(base, suffix ordinal)` rather than by name — `<base>-10` sorts
+  lexically before `<base>-2`, so a name sort makes retention archive the
+  wrong run as "oldest" once collisions reach two digits, and scenario 14
+  promises the oldest, not merely a bounded tree. Test it at a retain count
+  where the two orderings disagree: at `retain=2` over `{base, -2, -10}` both
+  archive the same run and the test proves nothing. **A collision-suffixed
   id (`2026-09-12-030000-abc1234-2`) parses and returns its suffix** — the
   un-extended regex rejects it, which would make `list_active_runs` skip
   exactly the directories D8's guard creates and let the tree grow unbounded
@@ -160,8 +166,13 @@ review found that requirement still forbade writing outside
   **Size**: S
   Test the routing helper directly: a `range:`-prefixed recorded id returns a
   dated run directory under `openspec/choices/`; **when that directory already
-  exists the helper returns a suffixed sibling** (`<run-id>-2`, then `-3`)
-  rather than reusing it, and the suffixed name still satisfies
+  exists the helper reserves a suffixed sibling** (`<run-id>-2`, then `-3`)
+  rather than reusing it. **The reservation is the `mkdir(exist_ok=False)`
+  itself** — a `.exists()` check that returns a name is check-then-write, and
+  the real creation happens later in `write_ledger_pair` with `exist_ok=True`,
+  so two concurrent audits in the same second both see the base free and both
+  write there (impl-round-1 found exactly this). The retry loop is bounded and
+  raises rather than spinning. The suffixed name still satisfies
   `parse_run_id` so retention keeps counting it; **the helper rejects a name
   that exists under `<root>/archive/` as well as one that exists as an active
   run**, because retention frees the active path while the archived copy
