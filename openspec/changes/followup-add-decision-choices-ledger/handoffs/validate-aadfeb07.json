@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-11T00:00:00Z",
+  "payload": {
+    "agent_name": "validate-aadfeb07 (VALIDATE, non-isolated)",
+    "session_id": null,
+    "summary": "Ran /validate-feature followup-add-decision-choices-ledger against the merged worktree (a481fb89). All four required quality gates pass at the expected counts (126 audit-choices, 124 ci_coverage, both linters clean). The change has no deployable surface (classify_deployable_surface confirms deployable=False; deploy/smoke/gen-eval/E2E correctly N/A, no containers started). tasks.md is fully checked off and each task maps to real shipped code. Design decisions F1-F8 were checked against shipped SKILL.md/script content and match, with one cosmetic nit (design.md's own F8 wording still carries pre-round-4-fix phrasing even though proposal.md was corrected). Result is FAIL: scenario skill-workflow.11's branch-selection logic in cleanup-feature/SKILL.md Step 5.5 has no executable test at all (content-pin only -- both empty-case wording strings are asserted present but never proven to fire under the right condition), and validate-feature's zero-needs-user branch has the same gap. Scenario 11 is specifically about the two render forms being distinguishable, which is exactly the property a string-presence test cannot prove. I traced both untested branches by hand and found no actual defect, but per the phase's honesty requirement, nominal coverage on the scenario whose entire content is a distinguishability property is a real, reportable gap.",
+    "completed_work": [
+      "Ran all four required gates: uv run pytest tests/audit-choices -q (126 passed), bash install.sh --check (passed), validate-feature/scripts/linters/dependency_direction.py --skills-root . (passed), uv run pytest tests/ci_coverage -q (124 passed)",
+      "Confirmed classify_deployable_surface(change_dir=..., changed_files=<62 files>) returns deployable=False, source='derived' -- deploy/smoke/gen-eval/E2E are N/A, not skipped; no podman/containers started",
+      "Ran make context-refresh PYTHON=skills/.venv/bin/python and confirmed the ~30-change repo-wide pending-merge failure is pre-existing and includes spec:skill-workflow as expected (this delta merges at archive time)",
+      "Ran uv run pytest tests/roadmap-runtime tests/project-context-refresh -q and confirmed the collection ImportErrors (LearningEntry/Checkpoint/Effort from models) are pre-existing and untouched by this diff's file list",
+      "Read design.md (F1-F8), specs/skill-workflow/spec.md (scenarios .8-.12), and tasks.md (3.0-3.7 + both checkpoints) in full",
+      "Read the shipped implementation: skills/audit-choices/scripts/needs_user.py, skills/tests/audit-choices/{test_needs_user.py,test_end_to_end.py,test_workflow_hooks.py}, the Step 11.5 hook in iterate-on-implementation/SKILL.md, the Choices row in validate-feature/SKILL.md Steps 11/12 and After Validation, the Step 5.5 hook in cleanup-feature/SKILL.md, and the audit-choices/SKILL.md Arguments section",
+      "Cross-checked every task in tasks.md against what actually shipped (all [x], all verified present)",
+      "Cross-checked all 8 design decisions (F1-F8) against shipped SKILL.md/script content; found one cosmetic wording nit in design.md F8 (already corrected in proposal.md, the authoritative scope statement)",
+      "Reviewed all 4 rounds of plan review (reviews/round-1..4) and all 4 rounds of implementation review (reviews/impl-round-1..4) to confirm my findings were not already known/dismissed -- they were not; those rounds fixed different, now-resolved bugs (bash-fence slash-command execution, unguarded git commands, CHOICES_LINES unbound variable, $OPENSPEC_PATH/$PROJECT_ROOT worktree-resolution)",
+      "Per-scenario spec-compliance assessment (real vs nominal) for skill-workflow.8 through .12, written into validation-report.md",
+      "Verified diff scope is tight: only openspec/changes/followup-add-decision-choices-ledger/**, the three consuming SKILL.md files, audit-choices/{SKILL.md,scripts/needs_user.py}, decision_index.py, install-manifest.json, the three new/audit-choices test files, and docs/guides/workflow.md + docs/decisions/README.md",
+      "Wrote openspec/changes/followup-add-decision-choices-ledger/validation-report.md with the full per-scenario breakdown and a scoped recommended fix",
+      "Committed the validation report and pushed the branch"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Returned outcome=failed on a nominal-coverage finding rather than a behavioral defect",
+        "rationale": "The phase instructions are explicit: a gate that could not run is not a gate that passed, and nominal spec coverage must be reported as failed even when the underlying behavior looks correct on manual inspection. I traced cleanup-feature's Step 5.5 branch logic and validate-feature's zero-needs-user branch by hand and found no actual bug, but neither is proven by an executable test the way the sibling branches (absent-ledger in validate-feature, and all of Step 11.5) are -- scenario skill-workflow.11 is specifically the scenario whose entire content is a distinguishability property, which is exactly what a string-presence test cannot prove.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Did not attempt to fix the test gap myself",
+        "rationale": "This phase's role is to produce evidence and a pass/fail verdict, not to implement fixes -- the orchestrator dispatches a fix agent on a failed outcome. I scoped the recommended fix precisely (two new executable tests, mirroring the existing pattern in test_no_ledger_path_survives_set_u / test_worktree_shaped_env_still_finds_the_ledger) so the next agent does not have to rediscover the gap.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Dispatch a fix agent to add: (1) an executable test extracting cleanup-feature/SKILL.md Step 5.5's bash block and running it against three fixtures (no ledger, ledger with no needs-user entries, ledger with an open needs-user entry), asserting the three distinct outputs; (2) an executable test for validate-feature Step 11's CHOICES_COUNT -eq 0 path (ledger present, zero needs-user) proving the ✓ Choices: 0 needs-user row actually renders",
+      "Optionally tidy design.md's F8 wording to match the proposal.md fix from round-4 plan review (cosmetic, not blocking)",
+      "Re-run /validate-feature after the fix lands"
+    ],
+    "relevant_files": [
+      "openspec/changes/followup-add-decision-choices-ledger/validation-report.md",
+      "skills/tests/audit-choices/test_workflow_hooks.py",
+      "skills/cleanup-feature/SKILL.md",
+      "skills/validate-feature/SKILL.md",
+      "skills/iterate-on-implementation/SKILL.md",
+      "skills/audit-choices/scripts/needs_user.py",
+      "skills/tests/audit-choices/test_needs_user.py",
+      "skills/tests/audit-choices/test_end_to_end.py",
+      "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "openspec/changes/followup-add-decision-choices-ledger/specs/skill-workflow/spec.md",
+      "openspec/changes/followup-add-decision-choices-ledger/tasks.md"
+    ]
+  },
+  "notes": {}
+}
