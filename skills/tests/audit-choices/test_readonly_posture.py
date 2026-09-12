@@ -412,3 +412,76 @@ class TestRangeFormRetention:
             r for r in caplog.records if "retention" in r.getMessage().lower()
         ]
         assert len(retention_warnings) == 1
+
+
+class TestFailedRangeRunLeavesNoOrphanDirectory:
+    """impl-round-2 (codex): reserving the run directory by creating it means
+    a later failure can leave an empty directory behind — a fourth effect
+    outside D6's closed write set, which `list_active_runs` then counts as a
+    run that produced no ledger."""
+
+    def test_write_failure_removes_the_reserved_directory(self, fixture_repo, monkeypatch):
+        repo_root = fixture_repo["repo_root"]
+        choices_root = repo_root / "openspec" / "choices"
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError("simulated write failure")
+
+        monkeypatch.setattr(run_audit.choices_ledger, "write_ledger_pair", _boom)
+
+        result = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id=f"range:{fixture_repo['base_sha']}..{fixture_repo['head_sha']}",
+            base_sha=fixture_repo["base_sha"],
+            head_sha=fixture_repo["head_sha"],
+            candidates=[_good_candidate(fixture_repo["head_sha"])],
+            run_id="run-orphan-001",
+            now=datetime(2026, 8, 22, tzinfo=timezone.utc),
+            git_sha=fixture_repo["head_sha"],
+        )
+        assert result.ok is False, "the driver still reports the failure"
+
+        leftovers = sorted(p.name for p in choices_root.iterdir()) if choices_root.exists() else []
+        assert leftovers == [], f"reserved directory left behind after a failed run: {leftovers}"
+
+
+class TestChangeIdHeaderTimingMatchesMain:
+    """impl-round-2 (codex): the range routing needs `now`/`git_sha`, and
+    hoisting their resolution above `collect_evidence` changed *when* the
+    change-id form captures them too. `main` resolves them immediately before
+    building the header, and the change-id form is contracted byte-for-byte
+    unchanged, so a slow evidence pass or a moving HEAD must not shift
+    `generated_at`."""
+
+    def test_generated_at_is_captured_after_evidence_collection(self, fixture_repo, monkeypatch):
+        repo_root = fixture_repo["repo_root"]
+        real_collect = run_audit.collect_evidence.collect_evidence
+        observed: list[datetime] = []
+
+        def slow_collect(*args, **kwargs):
+            observed.append(datetime.now(timezone.utc))
+            return real_collect(*args, **kwargs)
+
+        monkeypatch.setattr(run_audit.collect_evidence, "collect_evidence", slow_collect)
+
+        result = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id="my-change",
+            base_sha=fixture_repo["base_sha"],
+            head_sha=fixture_repo["head_sha"],
+            candidates=[_good_candidate(fixture_repo["head_sha"])],
+            run_id="run-timing-001",
+        )
+        assert result.ok is True
+        assert observed, "evidence collection did not run"
+
+        doc = json.loads(result.json_path.read_text())
+        generated_at = datetime.strptime(
+            doc["header"]["generated_at"], "%Y-%m-%dT%H:%M:%SZ"
+        ).replace(tzinfo=timezone.utc)
+        # Resolved after evidence collection, as on main. If it were hoisted
+        # above, generated_at would predate the collection timestamp.
+        assert generated_at >= observed[0].replace(microsecond=0), (
+            "generated_at was captured before evidence collection; the "
+            "change-id form's header timing changed"
+        )

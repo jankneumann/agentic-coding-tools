@@ -232,6 +232,16 @@ output moved to `openspec/priorities/<YYYY-MM-DD>-HHMMSS-<sha7>/`.
   (`_MAX_COLLISION_ATTEMPTS`) and raises rather than spinning: an environment
   where no candidate is ever claimable is broken, and a hang inside a driver
   contracted never to fail is worse than a loud error.
+  Because the reservation is a filesystem effect, it is made **as late as
+  possible** — after evidence collection, provenance filtering and schema
+  validation, immediately before the header. Two reasons, both found in
+  impl-round-2: an earlier reservation leaves an empty run directory behind
+  when a later step fails, which is a fourth effect outside D6's set and one
+  `list_active_runs` counts as a run that produced no ledger; and hoisting the
+  `now`/`git_sha` resolution that routing needs would change *when* the
+  change-id form captures them, which the proposal contracts as byte-for-byte
+  unchanged. A pair write that still fails after reserving removes the empty
+  directory, and only when it is genuinely empty.
   Ordering matters too: `list_active_runs` sorts by `(base, suffix ordinal)`,
   not by name, because `<base>-10` sorts lexically before `<base>-2` and
   retention would archive the wrong run as "oldest" once collisions reach two

@@ -149,18 +149,6 @@ def _run_audit_inner(
     # D7: resolved before routing, since a range run's output directory is
     # built from these same two values (D1/D5) rather than from the raw
     # change_id.
-    resolved_now = now or datetime.now(timezone.utc)
-    resolved_git_sha = git_sha or _head_sha(repo_root)
-
-    # D5: a `range:`-prefixed recorded id routes to a dated run directory
-    # under openspec/choices/ (D1); everything else keeps writing to
-    # openspec/changes/<change-id>/, byte-for-byte as before.
-    # collect_evidence.py derives its own openspec/changes/<change_id> path
-    # for reading only (D5) and is deliberately left alone.
-    change_dir = choices_paths.route_output_dir(
-        repo_root=repo_root, change_id=change_id, now=resolved_now, git_sha=resolved_git_sha
-    )
-
     bundle = collect_evidence.collect_evidence(
         repo_root, change_id=change_id, base_sha=base_sha, head_sha=head_sha
     )
@@ -178,16 +166,51 @@ def _run_audit_inner(
     valid_entries, invalid_entries = choices_ledger.split_schema_valid(resolved)
     dropped_all = dropped_provenance + invalid_entries
 
+    # Resolved here, not before `collect_evidence` above: on `main` these two
+    # are captured immediately before the header is built, and the change-id
+    # form is contracted byte-for-byte unchanged. Hoisting them earlier makes
+    # a slow evidence pass or a moving HEAD produce a different
+    # `generated_at`/`git_sha` than it would have.
+    resolved_now = now or datetime.now(timezone.utc)
+    resolved_git_sha = git_sha or _head_sha(repo_root)
+
+    # D5: a `range:`-prefixed recorded id routes to a dated run directory
+    # under openspec/choices/ (D1); everything else keeps writing to
+    # openspec/changes/<change-id>/, byte-for-byte as before.
+    # collect_evidence.py derives its own openspec/changes/<change_id> path
+    # for reading only (D5) and is deliberately left alone.
+    #
+    # For the range form this call RESERVES the directory by creating it
+    # (D8), so it is made as late as possible: everything that can fail —
+    # evidence collection, provenance filtering, schema validation — has
+    # already run. What can still fail is the pair write itself, so an empty
+    # reserved directory is cleaned up below rather than left behind for
+    # `list_active_runs` to count as a run that produced no ledger.
+    change_dir = choices_paths.route_output_dir(
+        repo_root=repo_root, change_id=change_id, now=resolved_now, git_sha=resolved_git_sha
+    )
+
     header = choices_ledger.make_header(now=resolved_now, git_sha=resolved_git_sha, run_id=run_id)
 
-    json_path, md_path = choices_ledger.write_ledger_pair(
-        change_dir,
-        header=header,
-        change_id=change_id,
-        audited_range={"base_sha": base_sha, "head_sha": head_sha},
-        entries=valid_entries,
-        auditor=auditor,
-    )
+    try:
+        json_path, md_path = choices_ledger.write_ledger_pair(
+            change_dir,
+            header=header,
+            change_id=change_id,
+            audited_range={"base_sha": base_sha, "head_sha": head_sha},
+            entries=valid_entries,
+            auditor=auditor,
+        )
+    except Exception:
+        # D6: a reserved-but-empty run directory is a fourth effect outside
+        # the closed write set, and `list_active_runs` would count it. Only
+        # remove it when it is genuinely empty — never delete a written pair.
+        if choices_paths.is_range_change_id(change_id):
+            try:
+                change_dir.rmdir()
+            except OSError:
+                pass
+        raise
 
     # D6: a range run's only other effects are the latest.* copies at
     # openspec/choices/ (this block) and retention's archive move, which

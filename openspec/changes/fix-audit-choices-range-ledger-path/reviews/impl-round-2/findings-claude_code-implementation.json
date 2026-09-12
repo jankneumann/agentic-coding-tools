@@ -1,0 +1,83 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "file_path": "skills/audit-choices/scripts/choices_paths.py",
+      "line_range": {
+        "start": 104,
+        "end": 121
+      },
+      "evidence_class": "deterministic",
+      "description": "D8's reservation makes `route_output_dir` a mutating call, and it is invoked at the very top of `_run_audit_inner` (run_audit.py:159) \u2014 before `collect_evidence.collect_evidence()`, before `_resolve_entry`, before `split_schema_valid`, and before `write_ledger_pair`. Any failure downstream (a bad base sha making `collect_evidence`'s `git` call exit non-zero, a schema validation error in `write_ledger`, an unreadable schema file) is swallowed by `run_audit`'s never-raises wrapper and returned as `ok=False`, but the directory `_reserve_run_id` created with `mkdir(parents=True, exist_ok=False)` is left behind, empty. This is a fourth effect of a range run, and it is one D6's enumeration does not name. It is also unobservable to both closed-write-set tests: `_snapshot` in test_readonly_posture.py:72 skips every `path.is_dir()`, so an empty directory never appears in `changed_or_new`. The consequence is not cosmetic. `list_active_runs` counts directories, not ledgers, so every failed range run permanently consumes one of the `DEFAULT_RETAIN` slots. After N failures the active tree holds 30 minus N real audits and N empty husks, and `apply_retention` archives genuine ledger pairs to satisfy a bound that empty directories are filling \u2014 which is the opposite of what scenario 14 (`Standalone audit output is bounded`) promises. Nothing is destroyed, because retention archives rather than deletes, so this is a degradation of the bound's meaning rather than data loss.",
+      "resolution": "Either reserve later \u2014 compute the base run-id early for D7 but defer `_reserve_run_id` until immediately before `write_ledger_pair`, so a run that never produces a ledger never claims a slot \u2014 or wrap `_run_audit_inner`'s body so that a failure after reservation removes the reserved directory when it is still empty (`Path.rmdir()` inside its own try/except, so cleanup can never turn `ok=False` into a raise). Additionally, make `_snapshot` in test_readonly_posture.py record directories as well as files (e.g. a sentinel entry per directory), and add a case that forces a range run to fail after routing and asserts no directory survives under `openspec/choices/`; without that the effect stays invisible to the posture suite."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "skills/tests/audit-choices/test_skill_md.py",
+      "line_range": {
+        "start": 68,
+        "end": 82
+      },
+      "evidence_class": "deterministic",
+      "description": "Task 5.1 added these cases specifically because the pre-existing content test asserted only that `read-only` and `MUST NOT modify` appear, which stayed true whether or not the range destination was ever named \u2014 the point was to make D6's three-effect enumeration literal and checkable. The assertions as written do not achieve that, for two reasons. First, they are self-subsuming: `\"openspec/choices/archive/\"` contains `\"openspec/choices/\"` as a substring, so the pair at lines 72-73 and the pair at lines 80-81 each collapse to a single check for the archive path. A SKILL.md that named only retention's archive move and dropped both the run directory's pair and the `latest.*` copies would satisfy every assertion here, even though that is precisely two-thirds of the enumeration D6 exists to pin. Second, `_paragraph_containing` delimits on a blank line, and the Red Flags section is a markdown bullet list whose bullets are consecutive lines with no blank line between them \u2014 so `bullet` at line 79 is in fact the entire six-bullet list, and a mention in any unrelated red flag satisfies the check. The Output-section case at line 84 has the same substring-containment redundancy.",
+      "resolution": "Assert on the three effects distinguishably rather than on two nested substrings: check for `latest.json`/`latest.md` and for `choices.json` alongside `openspec/choices/archive/`, so dropping any one of the three fails. For the Red Flags case, slice the single bullet (split the section on `\\n- ` and select the element containing the anchor text) instead of relying on blank-line paragraph delimiting, which markdown bullet lists do not provide."
+    },
+    {
+      "id": 3,
+      "type": "style",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "skills/shared/artifact_paths.py",
+      "line_range": {
+        "start": 113,
+        "end": 114
+      },
+      "evidence_class": "deterministic",
+      "description": "`list_active_runs`' docstring states the runs are returned \"sorted chronologically (lexical sort \u2014 valid because run-ids start with `YYYY-MM-DD`)\". That is the behavior the round-1 implementation review found broken and that this branch deliberately replaced: eighteen lines below, the inline comment at line 131 and the `_order` key explain that a plain `p.name` sort puts `<base>-10` before `<base>-2` and would make retention archive the wrong run as oldest. The module now sorts by `(base, suffix ordinal)`. The same stale claim survives verbatim in the migrated `skills/prioritize-proposals/scripts/retention.py` module docstring at line 5 (\"sorts lexically (which is chronological because run-ids start with YYYY-MM-DD)\"), which now documents a function it no longer defines. A docstring that asserts the exact defect a reviewer caught is the kind of thing a later reader trusts over the code, and `test_two_digit_suffixes_order_after_single_digit` is the only place the real contract is written down.",
+      "resolution": "Reword the `list_active_runs` docstring to state the real ordering \u2014 by run-id base, then by collision-suffix ordinal, with the unsuffixed base first \u2014 and delete or rewrite the lexical-sort sentence in retention.py's module docstring, which describes behavior that now lives in `shared.artifact_paths`."
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "nit",
+      "disposition": "accept",
+      "file_path": "skills/prioritize-proposals/scripts/retention.py",
+      "line_range": {
+        "start": 20,
+        "end": 33
+      },
+      "evidence_class": "deterministic",
+      "description": "D3 requires that no definition of a moved name survive in `skills/prioritize-proposals/scripts/`, only re-exports, and that requirement is met \u2014 a grep for `def build_run_id`, `def parse_run_id`, `def apply_retention`, `def list_active_runs`, `RUN_ID_RE`, `ARCHIVE_DIRNAME` and `class RetentionResult` across both skill trees returns nothing, and the `__all__` blocks in priorities_paths.py and retention.py re-export all seven. One name is handled differently from all of them: `SKIP_FILENAMES = frozenset({\"latest.md\", \"latest.json\"})` existed as a module-level public constant in retention.py on `main` and is simply deleted, neither moved to the shared module nor re-exported. It is genuinely unused in the source tree (the only remaining hits are the stale runtime mirrors under `.claude/skills/` and `.agents/skills/`, both untracked), so nothing breaks today, and its removal is invisible to the D4 characterization guard because that guard pins on-disk output rather than the module's exported surface. It is nevertheless a public-surface deletion inside a refactor whose stated contract was that `prioritize-proposals` keeps writing exactly what it writes today and that every moved name stays importable from where it is today.",
+      "resolution": "No behavioral fix needed. If the intent was dead-code removal, say so in the commit or in retention.py's docstring so a later reader does not read the deletion as an oversight in the re-export list; otherwise restore the constant alongside the other re-exports."
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "fyi",
+      "disposition": "accept",
+      "file_path": "skills/tests/prioritize-proposals/test_output_characterization.py",
+      "evidence_class": "judgment",
+      "description": "D4's guard holds on its own terms. The three named frozen modules and prioritize-proposals/SKILL.md are byte-unchanged against `main` (`git diff --name-only main...HEAD` over those four paths is empty), the characterization test was committed at e5889133 before the shared module at 971944ea and the migration at 1867c3dd, and tracing its assertions against the frozen suites confirms nothing in them couples to a changed detail: `test_priorities_paths.py` catches bare `ValueError` rather than matching the message (which did change, from \"not a priorities run-id directory\" to \"not a valid run-id directory\"), its rejection case uses `\"not-a-priorities-run\"` which the widened `RUN_ID_RE` still refuses, and every directory name in `test_retention.py` parses with `run_id_suffix` returning `None`, so `_order` yields `(p.name, 1)` and sorts identically to the old `key=lambda p: p.name`. Two things could still change and pass. First, the regex widening is a real behavior change to `prioritize-proposals`: a directory named `<run-id>-2` under `openspec/priorities/` used to be skipped by `list_active_runs` and is now counted as an active run and eligible for archiving. The characterization test has no assertion on that, by construction \u2014 it could not, since the name was invalid when the test was written. Design D8 accepts this explicitly (\"`prioritize-proposals` never produces a suffix; accepting one costs it nothing\"), so this is a documented widening rather than a regression, but it is not what \"the migration changed nothing observable\" literally claims. Second, D4 asked the guard to pin `latest.*` contents; it pins only the `latest_md`/`latest_json` paths, because the copy itself is a `cp` in prioritize-proposals/SKILL.md's bash and nothing in Python reaches it. Contents are unchanged by construction, since SKILL.md is frozen, but no test asserts it.",
+      "resolution": "Optionally add one negative-turned-positive case recording that a `<run-id>-N` directory under a priorities base is now counted by `list_active_runs`, so the widening is written down as intended behavior rather than inferred from D8 prose. No change required for the `latest.*` gap while SKILL.md remains frozen."
+    }
+  ]
+}
