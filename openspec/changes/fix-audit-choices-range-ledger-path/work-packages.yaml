@@ -118,6 +118,17 @@ packages:
             artifacts:
               - "skills/tests/ci_coverage"
             result_keys: ["ci_coverage"]
+        - name: "Context refresh (documentation surface)"
+          kind: command
+          command: "make context-refresh PYTHON=skills/.venv/bin/python"
+          evidence:
+            artifacts:
+              - "docs/guides/workflow.md"
+            result_keys: ["context_refresh"]
+          evidence:
+            artifacts:
+              - "skills/tests/ci_coverage"
+            result_keys: ["ci_coverage"]
     outputs:
       result_keys: ["suites_pass", "preexisting_tests_unchanged", "install_check", "dependency_direction", "ci_coverage"]
     metadata:

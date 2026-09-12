@@ -179,7 +179,17 @@ output moved to `openspec/priorities/<YYYY-MM-DD>-HHMMSS-<sha7>/`.
   `make_header` stores that field as a formatted string
   (`%Y-%m-%dT%H:%M:%SZ`) while `build_run_id` requires a UTC-aware datetime and
   raises on anything else. The directory therefore encodes the same `now` and
-  repository `HEAD` the ledger's six-field header records — so a ledger's location is derivable from its own contents,
+  repository `HEAD` the ledger's six-field header records.
+
+  **The header derives the base run id, not necessarily the directory name.**
+  D8's collision guard can place a run at a `-2` / `-3` sibling of that base,
+  and the suffix is not recorded anywhere in the header — the schema is out of
+  scope for this change, so there is nowhere to put it. A ledger's location is
+  therefore *discoverable* from its own contents rather than computable from
+  them: derive the base with `build_run_id`, then glob `<base>*` under the
+  standalone-audit root and match on the ledger's `audited_range`. That is a
+  weaker property than the first draft of this decision claimed, and it is the
+  true one — so a ledger's location is derivable from its own contents,
   and the run-id means the same thing it means for `prioritize-proposals`: when
   and at what `HEAD` the artifact was produced. The audited head is not the
   input: it is already recorded in `audited_range`, and D1 puts run identity in
@@ -212,9 +222,27 @@ output moved to `openspec/priorities/<YYYY-MM-DD>-HHMMSS-<sha7>/`.
   human takes minutes to start a second priorities run while nothing stops a
   script from starting two audits back to back. The routing helper therefore
   refuses to reuse an existing run directory: when the computed path already
-  exists it appends `-2`, `-3`, … until one is free, and the suffixed name
-  still parses as a run id so retention keeps counting it. With that guard the
-  merge genuinely never fires for the range form, and the scenario still holds — ids are
+  exists it appends `-2`, `-3`, … until one is free. Two consequences the
+  first draft of this decision got wrong:
+
+  - **`RUN_ID_RE` must accept the suffix.** The regex moved in task 2.2 is
+    `^(\d{4}-\d{2}-\d{2})(?:-(\d{6}|legacy)(?:-([a-f0-9]+))?)?$`, which
+    rejects `2026-09-12-030000-abc1234-2`. `list_active_runs` filters
+    directories through `parse_run_id`, so an unextended regex makes retention
+    silently stop seeing exactly the directories the guard creates — the tree
+    would grow without bound and the bounding scenario would still pass. The
+    shared regex gains an optional trailing `-<n>` group and `parse_run_id`
+    returns it. `prioritize-proposals` never produces a suffix; accepting one
+    costs it nothing.
+  - **The guard checks the archive too.** Retention moves old runs to
+    `<root>/archive/<run-id>/`, so an active path can free up while the
+    archived name persists. A later audit computing that same base would take
+    the now-free active path and, on the next retention pass, collide with the
+    archived directory. The helper tests both locations before accepting a
+    name.
+
+  With those two corrections the merge genuinely never fires for the range
+  form, and the scenario still holds — ids are
   content-derived, so the same decision gets the same `stable_id` in every
   snapshot, and no file ever gains a duplicate — but "update in place" is a
   change-id-form behaviour, and `latest.*` is a copy of the newest snapshot,

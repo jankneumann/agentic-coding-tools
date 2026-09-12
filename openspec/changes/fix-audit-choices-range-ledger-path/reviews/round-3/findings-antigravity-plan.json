@@ -1,0 +1,23 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "description": "Task 2.2 extracts RUN_ID_RE and parse_run_id into skills/shared/artifact_paths.py without updating the regex pattern to match collision suffixes (e.g. -2, -3). Design D8 and Task 4.1 specify that when directory collisions occur, a suffix is appended and assert that the suffixed name still satisfies parse_run_id so retention keeps counting it. Without updating RUN_ID_RE to match optional collision suffixes, parse_run_id will raise a ValueError on suffixed directories, causing list_active_runs() to silently skip them during retention scans.",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/tasks.md",
+      "line_range": {
+        "start": 97,
+        "end": 147
+      },
+      "resolution": "Update Task 2.1 and Task 2.2 to modify RUN_ID_RE and parse_run_id in skills/shared/artifact_paths.py to support an optional trailing collision count suffix (e.g. (?:-(\\d+))?), ensuring suffixed directories satisfy parse_run_id and are correctly counted and managed by retention scans.",
+      "evidence_class": "deterministic"
+    }
+  ]
+}

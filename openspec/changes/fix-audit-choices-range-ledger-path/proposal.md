@@ -42,8 +42,10 @@ than a new one.
   byte-for-byte as today. A `range:` invocation writes to
   `openspec/choices/<YYYY-MM-DD>-HHMMSS-<sha7>/choices.{json,md}`, where the
   directory name is built from the same `generated_at` and `git_sha` the
-  ledger's header records, so a ledger's location is derivable from its own
-  contents; `latest.{json,md}` at `openspec/choices/` are byte-identical
+  ledger's header records, so a ledger's location is discoverable from its own
+  contents — derive that base name and glob for it, since a same-second
+  collision at the same `HEAD` places the run at a `-2` sibling whose suffix
+  the header does not carry (D7/D8); `latest.{json,md}` at `openspec/choices/` are byte-identical
   copies of the newest run's pair. Each range run is a snapshot: the
   merge-by-`stable_id` that a change-id re-audit performs on its single
   `choices.json` does not apply across run directories.

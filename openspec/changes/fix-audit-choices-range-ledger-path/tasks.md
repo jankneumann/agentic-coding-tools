@@ -88,7 +88,11 @@ review found that requirement still forbade writing outside
   raises; a sha shorter than 7 characters raises. Cover `parse_run_id` (and
   through it `RUN_ID_RE`): ids this module produces round-trip to
   `(date, hms, sha)`; the legacy `<date>-legacy` form `prioritize-proposals`
-  already has on disk returns `(date, "", "legacy")`; a bare `<date>` returns
+  already has on disk returns `(date, "", "legacy")`; **a collision-suffixed
+  id (`2026-09-12-030000-abc1234-2`) parses and returns its suffix** — the
+  un-extended regex rejects it, which would make `list_active_runs` skip
+  exactly the directories D8's guard creates and let the tree grow unbounded
+  while the bounding scenario still passed; a bare `<date>` returns
   `(date, "", "")`; anything else raises `ValueError`. Cover
   `apply_retention`: archive-not-delete, `retain < 1` raises, a directory
   already within the limit is untouched, `list_active_runs` skips `archive/`
@@ -99,7 +103,10 @@ review found that requirement still forbade writing outside
   **Dependencies**: 2.1
   **Files**: `skills/shared/artifact_paths.py`
   **Size**: S
-  Move `build_run_id`, `RUN_ID_RE`, `parse_run_id`, and `apply_retention`
+  Extend `RUN_ID_RE` with an optional trailing `-<n>` group and have
+  `parse_run_id` return it (D8); `prioritize-proposals` never emits a suffix,
+  so accepting one costs it nothing and keeps one format shared. Then move
+  `build_run_id`, `RUN_ID_RE`, `parse_run_id`, and `apply_retention`
   (with `list_active_runs`, `RetentionResult`, `ARCHIVE_DIRNAME`) from
   `skills/prioritize-proposals/scripts/`, and add `DEFAULT_RETAIN = 30` (D3).
   `list_active_runs` calls the module's own `parse_run_id`. Pure functions and
@@ -143,7 +150,11 @@ review found that requirement still forbade writing outside
   dated run directory under `openspec/choices/`; **when that directory already
   exists the helper returns a suffixed sibling** (`<run-id>-2`, then `-3`)
   rather than reusing it, and the suffixed name still satisfies
-  `parse_run_id` so retention keeps counting it (D8 — `build_run_id` resolves
+  `parse_run_id` so retention keeps counting it; **the helper rejects a name
+  that exists under `<root>/archive/` as well as one that exists as an active
+  run**, because retention frees the active path while the archived copy
+  persists and a later audit would otherwise collide with it on the next
+  retention pass (D8 — `build_run_id` resolves
   to the second, so two audits in the same UTC second at the same `HEAD` would
   otherwise share a directory and have their snapshots merged); any other id returns
   `openspec/changes/<id>/`; a change id that merely contains `..` or a colon
