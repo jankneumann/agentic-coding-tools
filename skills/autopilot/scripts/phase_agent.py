@@ -499,15 +499,22 @@ _PHASE_TASKS: dict[str, str | None] = {
         "outcome 'complete' when refinements settle, 'failed' otherwise."
     ),
     "PLAN_REVIEW": (
-        "Run /parallel-review-plan for state.change_id (multi-vendor plan\n"
-        "review). Aggregate findings into a structured PhaseRecord. Return\n"
-        "outcome 'converged' if no blocking findings, 'not_converged'\n"
-        "otherwise, 'max_iter' once max_phase_iterations is exhausted."
+        "Run converge() from skills/autopilot/scripts/convergence_loop.py\n"
+        "as the whole PLAN_REVIEW phase for state.change_id. Do NOT run\n"
+        "/parallel-review-plan as a one-shot cold review. Pass a real\n"
+        "PLAN_FIX applicator as fix_callback (inline edits of cited\n"
+        "file_paths only) and record PLAN_FIX as a phase_history sub-step\n"
+        "around that operation. Return 'converged' if no blocking ledger\n"
+        "items remain, 'max_iter' if the inner loop stalled or exhausted\n"
+        "rounds. Do not return 'not_converged' to bounce the outer machine\n"
+        "into PLAN_FIX."
     ),
     "PLAN_FIX": (
-        "Apply review findings from the previous PLAN_REVIEW handoff via\n"
-        "/iterate-on-plan in fix mode. Return outcome 'fixed' on success,\n"
-        "'stuck' if findings cannot be resolved within the budget."
+        "PLAN_FIX is the inner fix_callback of converge(), not an outer\n"
+        "cold-review bounce. Apply blocking ledger items by editing only\n"
+        "their cited file_paths (proposal.md, design.md, specs,\n"
+        "work-packages.yaml). Return outcome 'fixed' on success, 'stuck'\n"
+        "if findings cannot be resolved within the budget."
     ),
     "IMPLEMENT": (
         "Implement the next slice of work per tasks.md. Commit per task.\n"
@@ -527,15 +534,20 @@ _PHASE_TASKS: dict[str, str | None] = {
         "Return outcome 'complete' when refinements settle, 'failed' otherwise."
     ),
     "IMPL_REVIEW": (
-        "Run multi-vendor review against the implementation. Aggregate\n"
-        "findings into a structured PhaseRecord. Return outcome 'converged'\n"
-        "if no blocking findings, 'not_converged' if blocking findings need\n"
-        "another round, or 'max_iter' if the iteration cap is exhausted."
+        "Run converge() from skills/autopilot/scripts/convergence_loop.py\n"
+        "as the whole IMPL_REVIEW phase for state.change_id (fix_mode=\n"
+        "targeted). Do NOT dispatch a one-shot cold implementation review.\n"
+        "Pass a real IMPL_FIX applicator as fix_callback (lead vendor from\n"
+        "package_authors, scoped to cited file_paths) and record IMPL_FIX\n"
+        "as a phase_history sub-step. Return 'converged' if no blocking\n"
+        "ledger items remain, 'max_iter' if the inner loop stalled or\n"
+        "exhausted rounds."
     ),
     "IMPL_FIX": (
-        "Apply review findings from the previous IMPL_REVIEW handoff via\n"
-        "/iterate-on-implementation in fix mode. Return outcome 'fixed'\n"
-        "on success, 'stuck' if findings cannot be resolved within budget."
+        "IMPL_FIX is the inner fix_callback of converge(), not an outer\n"
+        "cold-review bounce. Apply blocking ledger items via the lead\n"
+        "vendor, scoped to cited file_paths. Return outcome 'fixed' on\n"
+        "success, 'stuck' if findings cannot be resolved within budget."
     ),
     "VALIDATE": (
         "Run validation phases (spec, evidence, deploy, smoke, security,\n"
@@ -543,14 +555,19 @@ _PHASE_TASKS: dict[str, str | None] = {
         "Return outcome 'passed' on PASS, 'failed' on FAIL."
     ),
     "VAL_REVIEW": (
-        "Review validation findings from the previous VALIDATE handoff.\n"
-        "Identify blocking failures vs. acceptable warnings. Return outcome\n"
-        "'converged' if validation passes critique, 'not_converged' otherwise."
+        "Run converge() from skills/autopilot/scripts/convergence_loop.py\n"
+        "as the whole VAL_REVIEW phase for state.change_id (review_type=\n"
+        "implementation, fix_mode=targeted). Do NOT dispatch a one-shot\n"
+        "cold validation review. Pass a real VAL_FIX applicator as\n"
+        "fix_callback and record VAL_FIX as a phase_history sub-step.\n"
+        "Return 'converged' if validation passes critique, 'max_iter'\n"
+        "otherwise."
     ),
     "VAL_FIX": (
-        "Apply validation findings via /iterate-on-implementation focused\n"
-        "on the specific failures (test fixes, security findings, etc.).\n"
-        "Return outcome 'fixed' on success, 'stuck' otherwise."
+        "VAL_FIX is the inner fix_callback of converge(), not an outer\n"
+        "cold-review bounce. Apply validation findings focused on the\n"
+        "specific failures (test fixes, security findings, etc.). Return\n"
+        "outcome 'fixed' on success, 'stuck' otherwise."
     ),
     "SUBMIT_PR": None,  # D13: state-only — no sub-agent dispatch
 }

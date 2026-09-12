@@ -400,7 +400,10 @@ Outcome is `"converged"` if no blocking ledger items remain, `"max_iter"`
 if the inner loop stalled or exhausted rounds. `"not_converged"` remains
 in the transition table only for resume of in-flight PLAN_FIX loop-state.
 
-Dispatch protocol (3 steps):
+Dispatch protocol (3 steps) — the dispatched agent **executes `converge()`
+as the whole review phase**. Do not instruct it to run `/parallel-review-plan`
+as a one-shot cold review; that re-introduces the outer PLAN_FIX bounce
+this phase exists to remove.
 
 1. Build kwargs:
    ```bash
@@ -409,8 +412,10 @@ Dispatch protocol (3 steps):
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
-   the agent's last message for `(outcome, handoff_id)`.
+   isolation=<dispatch.isolation>)`. The prompt already tells the agent
+   to run `converge()` with a real PLAN_FIX `fix_callback`. Treat
+   `prompt` as opaque. Parse the agent's last message for
+   `(outcome, handoff_id)` — outcome is `"converged"` or `"max_iter"`.
 
 3. Apply the outcome:
    ```bash
@@ -600,7 +605,8 @@ inside `converge()`, not an outer bounce that re-dispatches a cold review.
 Outcome is `"converged"` if no blocking ledger items remain, `"max_iter"`
 otherwise.
 
-Dispatch protocol (3 steps):
+Dispatch protocol (3 steps) — same one-engine contract as PLAN_REVIEW:
+the dispatched agent executes `converge()` as the whole review phase.
 
 1. Build kwargs:
    ```bash
@@ -609,8 +615,10 @@ Dispatch protocol (3 steps):
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
-   the agent's last message for `(outcome, handoff_id)`.
+   isolation=<dispatch.isolation>)`. The prompt already tells the agent
+   to run `converge()` with a real IMPL_FIX `fix_callback`. Treat
+   `prompt` as opaque. Parse the agent's last message for
+   `(outcome, handoff_id)` — outcome is `"converged"` or `"max_iter"`.
 
 3. Apply the outcome:
    ```bash
@@ -671,7 +679,8 @@ Only runs if enabled by complexity gate or `--val-review` flag. Reviews
 validation evidence — outcome is `"converged"` if validation passes
 critique, `"not_converged"` otherwise.
 
-Dispatch protocol (3 steps):
+Dispatch protocol (3 steps) — the dispatched agent executes `converge()`
+as the whole VAL_REVIEW phase.
 
 1. Build kwargs:
    ```bash
@@ -680,8 +689,10 @@ Dispatch protocol (3 steps):
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
-   the agent's last message for `(outcome, handoff_id)`.
+   isolation=<dispatch.isolation>)`. The prompt already tells the agent
+   to run `converge()` with a real VAL_FIX `fix_callback`. Treat
+   `prompt` as opaque. Parse the agent's last message for
+   `(outcome, handoff_id)`.
 
 3. Apply the outcome:
    ```bash

@@ -468,6 +468,7 @@ def test_plan_review_fix_loop(tmp_path: Path) -> None:
 
     converge_mock = MagicMock(side_effect=_converge)
     assess_mock = MagicMock(return_value={"force_required": False, "val_review_enabled": False})
+    fixer = MagicMock()
 
     result = run_loop(
         "fix-loop-1",
@@ -476,6 +477,7 @@ def test_plan_review_fix_loop(tmp_path: Path) -> None:
         state_path=tmp_path / "state.json",
         assess_complexity_fn=assess_mock,
         converge_fn=converge_mock,
+        fix_callback=fixer,
     )
 
     assert result.current_phase == "DONE"
@@ -488,6 +490,7 @@ def test_plan_review_fix_loop(tmp_path: Path) -> None:
     assert sub_steps
     assert all(e.get("phase") != "PLAN_FIX" or e.get("sub_step") for e in result.phase_history if e.get("phase") == "PLAN_FIX")
     assert len(result.findings_trend) >= 1
+    fixer.assert_called()
 
 
 # ---------------------------------------------------------------------------

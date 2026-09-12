@@ -61,6 +61,7 @@ from review_ledger import (  # noqa: E402
     merge_findings,
     park_item,
     parked_items,
+    reject_out_of_scope_fix,
     save as save_ledger,
     scoped_fix_payload,
     mark_addressed,
@@ -299,10 +300,10 @@ def _enrich_consensus_findings(
             cf["file_path"] = path
 
 
-def _last_fix_diff(worktree_path: Path) -> str:
+def _git(worktree_path: Path, *args: str) -> str:
     try:
         proc = subprocess.run(
-            ["git", "diff", "HEAD"],
+            ["git", *args],
             cwd=worktree_path,
             capture_output=True,
             text=True,
@@ -312,6 +313,72 @@ def _last_fix_diff(worktree_path: Path) -> str:
     except (OSError, subprocess.SubprocessError):
         return ""
     return proc.stdout or ""
+
+
+def _snapshot_rev(worktree_path: Path) -> str:
+    """HEAD revision before a fix callback runs."""
+    return _git(worktree_path, "rev-parse", "HEAD").strip()
+
+
+def _last_fix_diff(
+    worktree_path: Path,
+    pre_fix_rev: str | None = None,
+) -> str:
+    """Diff of commits plus dirty tree since ``pre_fix_rev``.
+
+    ``git diff HEAD`` is empty when the callback committed its edits, so
+    round N+1 would hunt an empty-diff marker. ``git diff <pre_fix_rev>``
+    compares the working tree to the snapshot, which includes both the
+    new HEAD and leftover dirty files. Dirty-only is the fallback when
+    no snapshot is available.
+    """
+    if pre_fix_rev:
+        diff = _git(worktree_path, "diff", pre_fix_rev)
+        if diff:
+            return diff
+    return _git(worktree_path, "diff", "HEAD")
+
+
+def _untracked_paths(worktree_path: Path) -> set[str]:
+    return {
+        line.strip()
+        for line in _git(
+            worktree_path, "ls-files", "--others", "--exclude-standard",
+        ).splitlines()
+        if line.strip()
+    }
+
+
+def _changed_paths(
+    worktree_path: Path,
+    pre_fix_rev: str | None = None,
+    pre_untracked: set[str] | None = None,
+) -> list[str]:
+    """Repo-relative paths changed by the fix callback (commits + dirty).
+
+    Pre-existing untracked files (ledger, checkpoints) are subtracted so
+    the scope check only sees the callback's edits.
+    """
+    names: set[str] = set()
+    if pre_fix_rev:
+        for line in _git(
+            worktree_path, "diff", "--name-only", pre_fix_rev,
+        ).splitlines():
+            if line.strip():
+                names.add(line.strip())
+    else:
+        for cmd in (
+            ("diff", "--name-only", "HEAD"),
+            ("diff", "--name-only", "--cached"),
+        ):
+            for line in _git(worktree_path, *cmd).splitlines():
+                if line.strip():
+                    names.add(line.strip())
+    untracked = _untracked_paths(worktree_path)
+    if pre_untracked is not None:
+        untracked -= pre_untracked
+    names |= untracked
+    return sorted(names)
 
 
 def _compute_vendor_agreement_rate(
@@ -628,7 +695,10 @@ def converge(
                 "Parking %d disagreement findings in round %d",
                 len(disagreement_findings), round_num,
             )
-            parked = merge_findings(ledger, disagreement_findings, round_num)
+            parked = merge_findings(
+                ledger, disagreement_findings, round_num,
+                artifacts_dir=artifacts_dir,
+            )
             for item in parked:
                 park_item(ledger, item)
                 dispositions: dict[str, str] = {}
@@ -654,7 +724,10 @@ def converge(
                     "disagreements — continuing"
                 )
 
-        merge_findings(ledger, agreed_findings, round_num)
+        merge_findings(
+            ledger, agreed_findings, round_num,
+            artifacts_dir=artifacts_dir,
+        )
         save_ledger(ledger, artifacts_dir)
 
         # 2g. Blocking set is the ledger after compact+merge (D3).
@@ -733,15 +806,38 @@ def converge(
             return stall_result
 
         # 2k. Dispatch scoped fixes for current blocking items only (D7).
-        payloads = [scoped_fix_payload(item) for item in blocking]
-        mark_addressed(ledger, [int(item["id"]) for item in blocking])
+        payloads = [
+            scoped_fix_payload(item, artifacts_dir=artifacts_dir)
+            for item in blocking
+        ]
+        by_id = {
+            int(p["id"]): p for p in payloads if p.get("id") is not None
+        }
+        for item in ledger.get("items", []):
+            payload = by_id.get(int(item.get("id") or 0))
+            if payload and payload.get("spec_file"):
+                item["spec_file"] = payload["spec_file"]
         save_ledger(ledger, artifacts_dir)
         if fix_callback is not None:
             logger.info(
                 "Dispatching fixes for %d blocking findings", len(payloads),
             )
+            pre_rev = _snapshot_rev(worktree_path)
+            pre_untracked = _untracked_paths(worktree_path)
             fix_callback(payloads, worktree_path)
-            last_fix_diff = _last_fix_diff(worktree_path)
+            changed = _changed_paths(worktree_path, pre_rev, pre_untracked)
+            allowed: list[str] = []
+            seen_allowed: set[str] = set()
+            for payload in payloads:
+                for path in payload.get("allowed_paths") or []:
+                    if path not in seen_allowed:
+                        seen_allowed.add(path)
+                        allowed.append(path)
+            if changed:
+                reject_out_of_scope_fix(changed, allowed)
+            last_fix_diff = _last_fix_diff(worktree_path, pre_rev)
+            mark_addressed(ledger, [int(item["id"]) for item in blocking])
+            save_ledger(ledger, artifacts_dir)
 
             # 2l. Post-fix validation (optional)
             if post_fix_validator is not None:

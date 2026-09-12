@@ -48,6 +48,11 @@ try:
 except ImportError:
     select_strategies = None  # type: ignore[assignment]
 
+try:
+    from phase_fixer import apply_phase_fixes  # type: ignore[import-untyped]
+except ImportError:
+    apply_phase_fixes = None  # type: ignore[assignment]
+
 # The trust-posture gate contract (ri-04) and the interviewer that executes it
 # (ri-05) live under skills/shared/. They are imported eagerly and unguarded:
 # a gate the loop cannot evaluate must be a loud import error, never a silently
@@ -864,6 +869,7 @@ def run_loop(
     assess_complexity_fn: Callable[..., Any] | None = None,
     gatekeeper_fn: Callable[[LoopState], str] | None = None,
     post_fix_validator_fn: Callable[[Path], list[str]] | None = None,
+    fix_callback: Callable[[list[dict[str, Any]], Path], None] | None = None,
     status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
     gate_evaluator: GateEvaluator | None = None,
     cli_review_enabled: bool = True,
@@ -906,6 +912,11 @@ def run_loop(
         Passed through to convergence loop as ``post_fix_validator``.
         Called after fixes are applied during review phases to catch
         regressions (e.g. test failures on changed files).
+    fix_callback:
+        Real PLAN_FIX / IMPL_FIX / VAL_FIX applicator passed into
+        ``converge()``. When omitted, ``apply_phase_fixes`` dispatches a
+        scoped vendor/conductor fix. History recording wraps the
+        operation; it is not a substitute for applying edits.
     status_fn:
         Called on phase transitions and escalations to report status.
         Signature: ``(state, event_type, message, urgent) -> None``.
@@ -1000,6 +1011,7 @@ def run_loop(
                 assess_complexity_fn=_assess,
                 gatekeeper_fn=gatekeeper_fn,
                 post_fix_validator_fn=post_fix_validator_fn,
+                fix_callback=fix_callback,
                 gates=gates,
             )
         except Exception as exc:
@@ -1101,6 +1113,7 @@ def _run_phase(
     post_fix_validator_fn: Callable[[Path], list[str]] | None,
     gatekeeper_fn: Callable[[LoopState], str] | None = None,
     gates: _GateSession | None = None,
+    fix_callback: Callable[[list[dict[str, Any]], Path], None] | None = None,
 ) -> str | None:
     """Run a single phase and return the outcome string, or None to pause."""
     phase = state.current_phase
@@ -1124,6 +1137,7 @@ def _run_phase(
             _phase_review(
                 state, change_dir, worktree_path, converge_fn,
                 fix_mode="inline", post_fix_validator_fn=post_fix_validator_fn,
+                fix_callback=fix_callback,
             ),
         )
 
@@ -1142,6 +1156,7 @@ def _run_phase(
         return _phase_review(
             state, change_dir, worktree_path, converge_fn,
             fix_mode="targeted", post_fix_validator_fn=post_fix_validator_fn,
+            fix_callback=fix_callback,
         )
 
     if phase == "IMPL_FIX":
@@ -1156,6 +1171,7 @@ def _run_phase(
         return _phase_review(
             state, change_dir, worktree_path, converge_fn,
             fix_mode="targeted", post_fix_validator_fn=post_fix_validator_fn,
+            fix_callback=fix_callback,
         )
 
     if phase == "VAL_FIX":
@@ -1464,6 +1480,48 @@ _PHASE_TO_REVIEW_TYPE: dict[str, str] = {
 }
 
 
+def _make_phase_fix_callback(
+    state: LoopState,
+    *,
+    fix_phase: str | None,
+    fix_mode: str,
+    change_dir: Path,
+    user_callback: Callable[[list[dict[str, Any]], Path], None] | None,
+) -> Callable[[list[dict[str, Any]], Path], None]:
+    """Wrap PLAN_FIX / IMPL_FIX / VAL_FIX around a real applicator.
+
+    History recording is a sub-step around the actual operation, not a
+    substitute for applying edits.
+    """
+
+    def _fix(blocking_items: list[dict[str, Any]], worktree: Path) -> None:
+        if fix_phase:
+            state.phase_history.append({
+                "phase": fix_phase,
+                "outcome": "fix_callback",
+                "at": _now_iso(),
+                "sub_step": True,
+                "blocking_count": len(blocking_items),
+            })
+        if user_callback is not None:
+            user_callback(blocking_items, worktree)
+            return
+        if apply_phase_fixes is None:
+            raise RuntimeError(
+                "phase_fixer.apply_phase_fixes is unavailable and no "
+                "fix_callback was provided"
+            )
+        apply_phase_fixes(
+            blocking_items,
+            worktree,
+            fix_mode=fix_mode,
+            change_dir=change_dir,
+            package_authors=state.package_authors,
+        )
+
+    return _fix
+
+
 def _phase_review(
     state: LoopState,
     change_dir: Path,
@@ -1471,6 +1529,7 @@ def _phase_review(
     converge_fn: Callable[..., Any] | None,
     fix_mode: str,
     post_fix_validator_fn: Callable[[Path], list[str]] | None = None,
+    fix_callback: Callable[[list[dict[str, Any]], Path], None] | None = None,
 ) -> str:
     """Run a convergence review loop for the current review phase."""
     state.iteration += 1
@@ -1488,26 +1547,19 @@ def _phase_review(
             "VAL_REVIEW": "VAL_FIX",
         }.get(state.current_phase)
 
-        def _record_fix_substep(
-            blocking_items: list[dict[str, Any]],
-            _worktree: Path,
-        ) -> None:
-            if fix_phase:
-                state.phase_history.append({
-                    "phase": fix_phase,
-                    "outcome": "fix_callback",
-                    "at": _now_iso(),
-                    "sub_step": True,
-                    "blocking_count": len(blocking_items),
-                })
-
         converge_kwargs: dict[str, Any] = {
             "change_id": state.change_id,
             "review_type": review_type,
             "artifacts_dir": change_dir,
             "worktree_path": worktree_path,
             "fix_mode": fix_mode,
-            "fix_callback": _record_fix_substep,
+            "fix_callback": _make_phase_fix_callback(
+                state,
+                fix_phase=fix_phase,
+                fix_mode=fix_mode,
+                change_dir=change_dir,
+                user_callback=fix_callback,
+            ),
         }
         if post_fix_validator_fn is not None:
             converge_kwargs["post_fix_validator"] = post_fix_validator_fn

@@ -22,6 +22,7 @@ from review_ledger import (  # noqa: E402
     blocking_items,
     check_fix_scope,
     compact,
+    derive_spec_file,
     fingerprint,
     is_blocking_item,
     load_or_create,
@@ -29,6 +30,7 @@ from review_ledger import (  # noqa: E402
     parked_path,
     reject_out_of_scope_fix,
     save,
+    scoped_fix_payload,
 )
 
 CONTRACTS = change_dir(REPO_ROOT, "ledger-driven-review-convergence") / "contracts"
@@ -230,6 +232,61 @@ def test_spec_gap_includes_spec_file() -> None:
     paths = allowed_paths(item)
     assert "src/api.py" in paths
     assert "openspec/changes/demo/specs/api/spec.md" in paths
+
+
+def test_derive_spec_file_from_capability(tmp_path: Path) -> None:
+    artifacts = tmp_path / "change"
+    spec = artifacts / "specs" / "api" / "spec.md"
+    spec.parent.mkdir(parents=True)
+    spec.write_text("# API\n")
+    derived = derive_spec_file(
+        {"type": "spec_gap", "file_path": "src/api.py", "capability": "api"},
+        artifacts,
+    )
+    assert derived == str(spec)
+
+
+def test_derive_spec_file_from_specs_prefix() -> None:
+    derived = derive_spec_file({
+        "type": "spec_gap",
+        "file_path": "openspec/changes/demo/specs/api/notes.md",
+    })
+    assert derived == "openspec/changes/demo/specs/api/spec.md"
+
+
+def test_merge_persists_derived_spec_file(tmp_path: Path) -> None:
+    artifacts = tmp_path / "change"
+    spec = artifacts / "specs" / "api" / "spec.md"
+    spec.parent.mkdir(parents=True)
+    spec.write_text("# API\nsrc/api.py\n")
+    artifacts.mkdir(exist_ok=True)
+    ledger = load_or_create(artifacts, "demo")
+    merge_findings(
+        ledger,
+        [_cf(agreed_type="spec_gap", type="spec_gap", capability="api")],
+        round_num=1,
+        artifacts_dir=artifacts,
+    )
+    assert ledger["items"][0]["spec_file"] == str(spec)
+    save(ledger, artifacts)
+    Draft202012Validator(LEDGER_SCHEMA).validate(
+        json.loads((artifacts / ".review-ledger" / "ledger.json").read_text())
+    )
+
+
+def test_scoped_payload_derives_spec_file_without_explicit_field(
+    tmp_path: Path,
+) -> None:
+    artifacts = tmp_path / "change"
+    spec = artifacts / "specs" / "api" / "spec.md"
+    spec.parent.mkdir(parents=True)
+    spec.write_text("# API\n")
+    payload = scoped_fix_payload(
+        {"file_path": "src/api.py", "type": "spec_gap", "capability": "api"},
+        artifacts_dir=artifacts,
+    )
+    assert str(spec) in payload["allowed_paths"]
+    assert payload["spec_file"] == str(spec)
 
 
 def test_out_of_scope_fix_is_rejected() -> None:

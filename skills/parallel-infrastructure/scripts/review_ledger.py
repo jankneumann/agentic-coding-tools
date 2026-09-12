@@ -52,6 +52,7 @@ _LEDGER_ITEM_KEYS = (
     "criticality",
     "evidence_class",
     "file_path",
+    "spec_file",
     "line_start",
     "line_end",
     "fingerprint",
@@ -184,12 +185,72 @@ def _finding_fields(cf: dict[str, Any]) -> dict[str, Any]:
         "criticality": cf.get("criticality") or cf.get("agreed_criticality") or "low",
         "evidence_class": cf.get("evidence_class") or DETERMINISTIC,
         "file_path": cf.get("file_path"),
+        "spec_file": cf.get("spec_file"),
+        "capability": cf.get("capability"),
         "line_start": cf.get("line_start"),
         "line_end": cf.get("line_end"),
         "description": cf.get("description") or "",
         "consensus_status": cf.get("status") or cf.get("consensus_status") or "unconfirmed",
         "vendor_hits": list(cf.get("vendor_hits") or []),
     }
+
+
+def derive_spec_file(
+    item: dict[str, Any],
+    artifacts_dir: Path | None = None,
+) -> str | None:
+    """Return the spec path a ``spec_gap`` finding should be allowed to edit.
+
+    Persistence belongs on the ledger item (``spec_file``). Derivation is
+    heuristic: an explicit field, a cited ``spec.md``, a ``specs/<cap>/``
+    prefix, a ``capability`` under the change's specs dir, or a unique
+    spec that mentions the cited implementation file.
+    """
+    existing = item.get("spec_file")
+    if existing:
+        return str(existing)
+    finding_type = str(item.get("type") or item.get("agreed_type") or "")
+    if finding_type != "spec_gap":
+        return None
+
+    file_path = str(item.get("file_path") or "")
+    if file_path.endswith("spec.md"):
+        return file_path
+
+    if file_path:
+        parts = Path(file_path).parts
+        if "specs" in parts:
+            idx = parts.index("specs")
+            if idx + 1 < len(parts):
+                return str(Path(*parts[: idx + 2]) / "spec.md")
+
+    capability = item.get("capability")
+    if artifacts_dir is None:
+        return None
+    specs_root = Path(artifacts_dir) / "specs"
+    if capability:
+        candidate = specs_root / str(capability) / "spec.md"
+        return str(candidate)
+    if not specs_root.is_dir():
+        return None
+    found = sorted(specs_root.glob("*/spec.md"))
+    if file_path:
+        name = Path(file_path).name
+        matches = []
+        for spec in found:
+            try:
+                text = spec.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            if file_path in text or name in text:
+                matches.append(str(spec))
+        if len(matches) == 1:
+            return matches[0]
+        if matches:
+            return matches[0]
+    if len(found) == 1:
+        return str(found[0])
+    return None
 
 
 def _match_existing(
@@ -219,6 +280,7 @@ def merge_findings(
     ledger: dict[str, Any],
     consensus_findings: list[dict[str, Any]],
     round_num: int,
+    artifacts_dir: Path | None = None,
 ) -> list[dict[str, Any]]:
     """Merge consensus findings into the ledger. Returns the merged items.
 
@@ -251,6 +313,11 @@ def merge_findings(
                 existing["line_start"] = fields["line_start"]
             if fields["line_end"] is not None:
                 existing["line_end"] = fields["line_end"]
+            spec_file = fields.get("spec_file") or derive_spec_file(
+                {**existing, **fields}, artifacts_dir
+            )
+            if spec_file:
+                existing["spec_file"] = spec_file
             hits = list(existing.get("vendor_hits") or [])
             for vendor in fields["vendor_hits"]:
                 if vendor not in hits:
@@ -279,6 +346,9 @@ def merge_findings(
             item["line_start"] = fields["line_start"]
         if fields["line_end"] is not None:
             item["line_end"] = fields["line_end"]
+        spec_file = fields.get("spec_file") or derive_spec_file(item, artifacts_dir)
+        if spec_file:
+            item["spec_file"] = spec_file
         ledger.setdefault("items", []).append(item)
         merged.append(item)
     return merged
@@ -438,7 +508,10 @@ def parked_items(ledger: dict[str, Any]) -> list[dict[str, Any]]:
     return [item for item in ledger.get("items", []) if item.get("status") == "parked"]
 
 
-def allowed_paths(item: dict[str, Any]) -> list[str]:
+def allowed_paths(
+    item: dict[str, Any],
+    artifacts_dir: Path | None = None,
+) -> list[str]:
     """Cited write paths for a scoped fix (D7)."""
     paths: list[str] = []
     file_path = item.get("file_path")
@@ -446,14 +519,22 @@ def allowed_paths(item: dict[str, Any]) -> list[str]:
         paths.append(str(file_path))
     finding_type = item.get("type") or item.get("agreed_type") or ""
     spec_file = item.get("spec_file")
+    if finding_type == "spec_gap" and not spec_file:
+        spec_file = derive_spec_file(item, artifacts_dir)
     if finding_type == "spec_gap" and spec_file and spec_file not in paths:
         paths.append(str(spec_file))
     return paths
 
 
-def scoped_fix_payload(item: dict[str, Any]) -> dict[str, Any]:
+def scoped_fix_payload(
+    item: dict[str, Any],
+    artifacts_dir: Path | None = None,
+) -> dict[str, Any]:
     payload = dict(item)
-    payload["allowed_paths"] = allowed_paths(item)
+    spec_file = payload.get("spec_file") or derive_spec_file(payload, artifacts_dir)
+    if spec_file:
+        payload["spec_file"] = spec_file
+    payload["allowed_paths"] = allowed_paths(payload, artifacts_dir)
     if "agreed_criticality" not in payload and payload.get("criticality"):
         payload["agreed_criticality"] = payload["criticality"]
     if "agreed_type" not in payload and payload.get("type"):
