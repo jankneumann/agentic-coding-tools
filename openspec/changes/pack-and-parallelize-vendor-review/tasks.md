@@ -42,7 +42,7 @@
   **Dependencies**: 2.2
   **Files**: `skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py`
 
-- [ ] 3.2 Implement concurrent `dispatch_and_wait` including async submit
+- [x] 3.2 Implement concurrent `dispatch_and_wait` including async submit
   **Dependencies**: 3.1
   **Files**: `skills/parallel-infrastructure/scripts/review_dispatcher.py`
 
