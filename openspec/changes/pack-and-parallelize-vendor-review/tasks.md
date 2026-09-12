@@ -54,7 +54,7 @@
 
 ## 4. Structured output probe
 
-- [ ] 4.1 Record empirical probe results for Codex, Claude, pi, Antigravity structured-output flags
+- [x] 4.1 Record empirical probe results for Codex, Claude, pi, Antigravity structured-output flags
   **Spec scenarios**: skill-workflow Verify-Then-Wire Structured Output
   **Contracts**: `contracts/vendor-structured-output.md`
   **Design decisions**: D3
