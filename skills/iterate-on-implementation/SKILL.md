@@ -555,14 +555,13 @@ If all vendor review findings are below the remediation threshold, proceed to th
 
 Dispatch the `audit-choices` skill against this iteration and commit the resulting ledger pair when it changed. Every branch below is wrapped in a warn-and-continue guard: nothing in this step may `exit 1`, `set -e`-abort, or return a failing outcome to autopilot. A successful commit or restore prints nothing extra; every other branch prints exactly one `audit-choices: skipped (<reason>) — continuing to summary` line. The step always falls through to Step 12.
 
-First, compute the shared paths and a `SKIP_REASON` placeholder — this is ordinary shell, safe to run unconditionally:
+First, mint the run id you will pass to the dispatch. Note the value it
+prints — you supply it again below, because **shell state does not survive
+between bash invocations**: every fence in this step runs in its own process,
+so nothing assigned here is visible to the block at the end.
 
 ```bash
-CHANGE_DIR="openspec/changes/$CHANGE_ID"
-JSON_PATH="$CHANGE_DIR/choices.json"
-MD_PATH="$CHANGE_DIR/choices.md"
-RUN_ID="iterate-on-implementation-$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-SKIP_REASON=""
+echo "iterate-on-implementation-$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
 
 **Dispatch the audit yourself, as the executing agent — not inside a bash fence.**
@@ -585,8 +584,8 @@ directly rather than delegating them to bash:
    causes (the skill missing vs. the harness lacking dispatch), and each
    gets its own reason so the single warning line names what is actually
    true.
-3. Otherwise, dispatch `/audit-choices "$CHANGE_ID" --run-id "$RUN_ID"` and
-   capture its full output.
+3. Otherwise, dispatch `/audit-choices <change-id> --run-id <the run id
+   printed above>` and capture its full output.
    - If the dispatch errors, times out, or returns no parseable candidate
      array, set `SKIP_REASON="audit dispatch failed"`.
    - Else if the captured output contains the line `audit-choices: WARNING`
@@ -598,9 +597,22 @@ directly rather than delegating them to bash:
 **Then run this bash block exactly once**, regardless of how the dispatch
 above ended. It performs no dispatch of its own — only the presence checks,
 the staleness/comparison logic, staging, commit, and restore, none of which
-can silently 127 the way a slash command run from a shell would:
+can silently 127 the way a slash command run from a shell would.
+
+It is deliberately self-contained: it recomputes its own paths rather than
+inheriting them, because the fence above ran in a different process and left
+nothing behind. Substitute the reason you arrived at into the leading
+`SKIP_REASON=` assignment — the empty string when the dispatch succeeded, one
+of the four reasons above otherwise. Getting this wrong is not a silent
+failure: an unsubstituted or misspelled reason still routes through the same
+warn-and-continue path and prints itself in the skip line.
 
 ```bash
+SKIP_REASON=""   # <- substitute the reason from the numbered steps above, or leave empty on success
+CHANGE_DIR="openspec/changes/$CHANGE_ID"
+JSON_PATH="$CHANGE_DIR/choices.json"
+MD_PATH="$CHANGE_DIR/choices.md"
+
 audit_choices_step() {
   if [ -n "$SKIP_REASON" ]; then
     # The agent-performed dispatch above already failed, was unavailable, or
