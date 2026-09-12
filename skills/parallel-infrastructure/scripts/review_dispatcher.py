@@ -29,10 +29,12 @@ import shutil
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -1811,11 +1813,15 @@ class ReviewOrchestrator:
         cwd: Path,
         timeout_seconds: int | None = None,
         exclude_vendor: str | None = None,
+        packet_path: Path | str | None = None,
     ) -> list[ReviewResult]:
-        """Dispatch reviews to available vendors and collect results.
+        """Dispatch reviews to available vendors concurrently and collect results.
 
-        Uses three-tier selection: CLI → SDK → skip.
-        Currently dispatches sequentially.
+        Uses three-tier selection: CLI → SDK → skip. A thread pool sized to
+        the available vendors overlaps subprocesses. Async CLI vendors are
+        all submitted first, then polled. Review cwd is the shared worktree
+        (read-only). ``packet_path`` is accepted for callers that pack the
+        prompt; the packet body is already in ``prompt``.
         """
         try:
             from api_key_resolver import ApiKeyResolver
@@ -1857,14 +1863,31 @@ class ReviewOrchestrator:
             )
 
         api_key_resolver = ApiKeyResolver()
-        results: list[ReviewResult] = []
+        cwd = Path(cwd)
+        if packet_path is not None:
+            logger.info("Review packet path: %s", packet_path)
 
         from review_findings_schema import timeout_for_vendor
+
+        def _safe_vendor_call(vendor: str, fn: Callable[[], ReviewResult]) -> ReviewResult:
+            try:
+                return fn()
+            except Exception as exc:  # noqa: BLE001 — surface as a vendor failure
+                logger.exception("Vendor %s dispatch raised", vendor)
+                return ReviewResult(
+                    vendor=vendor,
+                    success=False,
+                    error=str(exc),
+                    error_class=ErrorClass.UNKNOWN,
+                )
+
+        async_jobs: list[dict[str, Any]] = []
+        sync_jobs: list[tuple[int, str, int, Callable[[], ReviewResult]]] = []
+        next_index = 0
 
         for reviewer in available:
             vendor_timeout = timeout_for_vendor(reviewer.vendor, timeout_seconds)
             if reviewer.dispatch_tier == "cli":
-                # CLI dispatch
                 adapter = self.adapters[reviewer.agent_id]
                 if not adapter.can_dispatch(dispatch_mode):
                     logger.info(
@@ -1874,37 +1897,40 @@ class ReviewOrchestrator:
                     continue
 
                 mode_config = adapter.cli_config.dispatch_modes[dispatch_mode]
+                idx = next_index
+                next_index += 1
 
                 if mode_config.async_dispatch:
                     logger.info(
                         "Async CLI dispatching %s review to %s",
                         review_type, reviewer.agent_id,
                     )
-                    submit_result = adapter.dispatch_async(
-                        mode=dispatch_mode, prompt=prompt, cwd=cwd,
-                    )
-                    if submit_result.success and submit_result.task_id and mode_config.poll:
-                        poll_result = adapter.poll_for_result(
-                            submit_result.task_id, mode_config.poll, cwd=cwd,
-                        )
-                        results.append(poll_result)
-                    else:
-                        results.append(submit_result)
+                    async_jobs.append({
+                        "index": idx,
+                        "vendor": reviewer.vendor,
+                        "adapter": adapter,
+                        "mode_config": mode_config,
+                        "timeout": vendor_timeout,
+                    })
                 else:
                     logger.info(
                         "Sync CLI dispatching %s review to %s",
                         review_type, reviewer.agent_id,
                     )
-                    result = adapter.dispatch(
-                        mode=dispatch_mode,
-                        prompt=prompt,
-                        cwd=cwd,
-                        timeout_seconds=vendor_timeout,
-                    )
-                    results.append(result)
+                    sync_jobs.append((
+                        idx,
+                        reviewer.vendor,
+                        vendor_timeout,
+                        partial(
+                            adapter.dispatch,
+                            dispatch_mode,
+                            prompt,
+                            cwd,
+                            vendor_timeout,
+                        ),
+                    ))
 
             elif reviewer.dispatch_tier == "sdk":
-                # SDK dispatch
                 sdk_adapter = self.sdk_adapters[reviewer.agent_id]
                 api_key = api_key_resolver.resolve(
                     sdk_adapter.openbao_role_id,
@@ -1915,24 +1941,94 @@ class ReviewOrchestrator:
                     review_type, reviewer.agent_id,
                     "resolved" if api_key else "missing",
                 )
+                idx = next_index
+                next_index += 1
                 if not api_key:
-                    results.append(ReviewResult(
-                        vendor=reviewer.vendor,
-                        success=False,
-                        error="No API key available for SDK dispatch",
+                    sync_jobs.append((
+                        idx,
+                        reviewer.vendor,
+                        vendor_timeout,
+                        lambda v=reviewer.vendor: ReviewResult(
+                            vendor=v,
+                            success=False,
+                            error="No API key available for SDK dispatch",
+                        ),
                     ))
                     continue
 
-                result = sdk_adapter.dispatch(
-                    mode=dispatch_mode,
-                    prompt=prompt,
-                    cwd=cwd,
-                    timeout_seconds=vendor_timeout,
-                    api_key=api_key,
-                )
-                results.append(result)
+                sync_jobs.append((
+                    idx,
+                    reviewer.vendor,
+                    vendor_timeout,
+                    partial(
+                        sdk_adapter.dispatch,
+                        dispatch_mode,
+                        prompt,
+                        cwd,
+                        vendor_timeout,
+                        api_key,
+                    ),
+                ))
 
-        return results
+        job_count = len(async_jobs) + len(sync_jobs)
+        if job_count == 0:
+            return []
+
+        collected: dict[int, ReviewResult] = {}
+
+        with ThreadPoolExecutor(max_workers=job_count) as pool:
+            submit_futs = {
+                pool.submit(
+                    _safe_vendor_call,
+                    job["vendor"],
+                    partial(
+                        job["adapter"].dispatch_async,
+                        dispatch_mode,
+                        prompt,
+                        cwd,
+                    ),
+                ): job
+                for job in async_jobs
+            }
+            sync_futs = {
+                pool.submit(_safe_vendor_call, vendor, thunk): idx
+                for idx, vendor, _timeout, thunk in sync_jobs
+            }
+
+            submitted: list[tuple[dict[str, Any], ReviewResult]] = []
+            for fut in as_completed(submit_futs):
+                job = submit_futs[fut]
+                submitted.append((job, fut.result()))
+
+            poll_futs: dict[Any, dict[str, Any]] = {}
+            for job, submit_result in submitted:
+                mode_config = job["mode_config"]
+                if (
+                    submit_result.success
+                    and submit_result.task_id
+                    and mode_config.poll
+                ):
+                    poll_futs[pool.submit(
+                        _safe_vendor_call,
+                        job["vendor"],
+                        partial(
+                            job["adapter"].poll_for_result,
+                            submit_result.task_id,
+                            mode_config.poll,
+                            cwd,
+                        ),
+                    )] = job
+                else:
+                    collected[job["index"]] = submit_result
+
+            for fut in as_completed({**sync_futs, **poll_futs}):
+                result = fut.result()
+                if fut in sync_futs:
+                    collected[sync_futs[fut]] = result
+                else:
+                    collected[poll_futs[fut]["index"]] = result
+
+        return [collected[i] for i in sorted(collected)]
 
     def write_manifest(
         self,
