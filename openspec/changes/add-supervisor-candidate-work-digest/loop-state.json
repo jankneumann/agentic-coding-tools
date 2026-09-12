@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "add-supervisor-candidate-work-digest",
-  "current_phase": "IMPL_REVIEW",
+  "current_phase": "VALIDATE",
   "iteration": 0,
-  "total_iterations": 17,
+  "total_iterations": 18,
   "max_phase_iterations": 4,
   "findings_trend": [],
   "blocking_findings": [],
@@ -25,7 +25,8 @@
     "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-2-1.json",
     "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-2-1.json",
     "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-3-1.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-post-cap-1.json"
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-post-cap-1.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-4-1.json"
   ],
   "phase_history": [
     {
@@ -95,15 +96,20 @@
       "phase": "IMPL_REVIEW"
     },
     {
-      "phase": "IMPL_FIX",
-      "outcome": "operator_authorized_post_cap_fixed",
       "at": "2026-09-12T13:11:34+00:00",
-      "note": "Fixed only the two confirmed round-3 blockers; operator authorized exactly one independent review constrained to those fixes."
+      "note": "Fixed only the two confirmed round-3 blockers; operator authorized exactly one independent review constrained to those fixes.",
+      "outcome": "operator_authorized_post_cap_fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-12T13:26:40.944375+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
     }
   ],
-  "last_handoff_id": "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-post-cap-1.json",
+  "last_handoff_id": "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-4-1.json",
   "started_at": "2026-09-10T22:40:09.976184+00:00",
-  "phase_started_at": "2026-09-12T13:12:26.981652+00:00",
+  "phase_started_at": "2026-09-12T13:26:40.992351+00:00",
   "previous_phase": "IMPL_REVIEW",
   "escalation_reason": "IMPL_REVIEW reached max_iter with two confirmed deterministic blockers",
   "val_review_enabled": false,
@@ -219,35 +225,35 @@
       "timeout_seconds": null
     },
     {
-      "gate": "escalate_resume",
-      "outcome": "blocked",
-      "resolution": "posture_block",
-      "authorizing_disposition": "block",
-      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "block",
+      "gate": "escalate_resume",
+      "notified": null,
+      "outcome": "blocked",
       "phase": "ESCALATE",
-      "recorded_at": "2026-09-12T03:31:47.830888+00:00"
+      "posture_present": false,
+      "reason": "gate 'escalate_resume' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-12T03:31:47.830888+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
     },
     {
-      "gate": "escalate_resume",
-      "outcome": "proceed",
-      "resolution": "console_approved",
-      "authorizing_disposition": "block",
-      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator authorized a targeted post-cap fix and one independent review constrained exclusively to the two confirmed round-3 blockers; no new work or findings.",
       "approval_id": null,
+      "authorizing_disposition": "block",
       "default_action": null,
-      "posture_present": false,
-      "notified": null,
-      "timeout_seconds": null,
       "disposition": "block",
+      "gate": "escalate_resume",
+      "note": "Operator authorized a targeted post-cap fix and one independent review constrained exclusively to the two confirmed round-3 blockers; no new work or findings.",
+      "notified": null,
+      "outcome": "proceed",
       "phase": "ESCALATE",
+      "posture_present": false,
+      "reason": "gate 'escalate_resume' approved by the operator \u2014 Operator authorized a targeted post-cap fix and one independent review constrained exclusively to the two confirmed round-3 blockers; no new work or findings.",
       "recorded_at": "2026-09-12T13:05:20.069857+00:00",
-      "note": "Operator authorized a targeted post-cap fix and one independent review constrained exclusively to the two confirmed round-3 blockers; no new work or findings."
+      "resolution": "console_approved",
+      "timeout_seconds": null
     }
   ],
   "pending_gate": null,
