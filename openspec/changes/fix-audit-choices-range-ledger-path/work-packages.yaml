@@ -25,16 +25,18 @@ defaults:
 
 packages:
   - package_id: wp-main
-    title: "Extract the run-id helper, migrate prioritize-proposals, route the range form"
+    title: "Extract the run-id helper, move prioritize-proposals onto it, route the range form"
     task_type: implementation
     description: >-
       Single sequential package. The task graph is a near-chain — the shared
       helper must exist before either producer can use it, and the
-      characterization test that guards the prioritize-proposals migration must
-      be written before anything moves — so splitting it would create packages
-      that spend most of their time blocked on each other. The one genuine
-      parallel edge (3.1 and 4.1 both depend only on 2.2) is two S-sized tasks
-      inside one skill area, which is not worth a second worktree.
+      characterization test that guards the prioritize-proposals move onto the
+      shared helper must be written before anything changes — so splitting it
+      would create packages that spend most of their time blocked on each
+      other. The one genuine parallel edge (3.1 and 4.1 both depend only on
+      2.2) is two S-sized tasks inside one skill area, which is not worth a
+      second worktree. No database, schema, or data format is involved; the
+      only thing that moves is Python code between modules.
     role: implementation
     priority: 1
     depends_on: []
@@ -45,6 +47,7 @@ packages:
       files:
         - "skills/shared/artifact_paths.py"
         - "skills/audit-choices/scripts/run_audit.py"
+        - "skills/audit-choices/scripts/choices_paths.py"
         - "skills/prioritize-proposals/scripts/priorities_paths.py"
         - "skills/prioritize-proposals/scripts/retention.py"
       keys:
@@ -84,6 +87,16 @@ packages:
               - "skills/tests/shared/test_artifact_paths.py"
               - "skills/tests/prioritize-proposals/test_output_characterization.py"
             result_keys: ["suites_pass"]
+        - name: "prioritize-proposals pre-existing tests and SKILL.md unchanged (D4 part 3)"
+          kind: command
+          command: "git diff --quiet \"$(git merge-base HEAD main)\" -- skills/tests/prioritize-proposals/test_priorities_paths.py skills/tests/prioritize-proposals/test_retention.py skills/tests/prioritize-proposals/test_smoke_e2e.py skills/prioritize-proposals/SKILL.md"
+          evidence:
+            artifacts:
+              - "skills/tests/prioritize-proposals/test_priorities_paths.py"
+              - "skills/tests/prioritize-proposals/test_retention.py"
+              - "skills/tests/prioritize-proposals/test_smoke_e2e.py"
+              - "skills/prioritize-proposals/SKILL.md"
+            result_keys: ["preexisting_tests_unchanged"]
         - name: "Skill install portability"
           kind: command
           command: "cd skills && bash install.sh --check"
@@ -106,7 +119,7 @@ packages:
               - "skills/tests/ci_coverage"
             result_keys: ["ci_coverage"]
     outputs:
-      result_keys: ["suites_pass", "install_check", "dependency_direction", "ci_coverage"]
+      result_keys: ["suites_pass", "preexisting_tests_unchanged", "install_check", "dependency_direction", "ci_coverage"]
     metadata:
-      loc_estimate: 260
+      loc_estimate: 320
       package_kind: config

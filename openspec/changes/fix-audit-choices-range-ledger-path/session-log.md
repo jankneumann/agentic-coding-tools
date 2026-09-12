@@ -35,3 +35,45 @@
 ### Context
 Planned the fix for a standalone range audit writing to openspec/changes/range:<base>..<head>/. The operator chose to extract the run-id format to skills/shared/ rather than copy it, so the change also migrates prioritize-proposals onto the shared helper under a characterization test that forbids any change to its on-disk output.
 
+---
+
+## Phase: Plan Iteration 1 (2026-09-12)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **D4 guard extended to CLI subprocesses and untouched pre-existing tests** — prioritize-proposals/SKILL.md only calls priorities_paths.py run-id/paths and retention.py; no existing test runs them as subprocesses. The import bootstrap the move adds can only fail on that path, so a function-level characterization test would stay green through the exact breakage it exists to catch. The three existing test modules are additionally required to be unchanged, enforced by git diff --quiet in the work package, so the re-exports are proven by tests that predate the change.
+2. **D7: run directory named from the header's generated_at and git_sha** — The directory is build_run_id(generated_at, git_sha), the two values already in the ledger header, so location is derivable from contents and the run-id means what it means for prioritize-proposals. The caller-supplied header run_id stays separate; forcing it into the path would put an uncontrolled string back into a directory name. Taken without a user in the loop and flagged for plan approval.
+3. **D6 names three effects of a range run, including retention's archive move** — Naming only the pair and latest.* would have the skill violate its own Red Flags bullet by design on the thirty-first standalone audit, because apply_retention moves whole run directories. The contract stays a literal, checkable set with the move included.
+4. **D8: range ledgers are per-run snapshots; retention cannot fail a successful run** — write_ledger's merge-by-stable_id never fires for a fresh dated directory, so the idempotency scenario holds by construction rather than by merging. Retention runs last inside its own try/except so a failed shutil.move cannot report ok=False for a ledger that was persisted.
+5. **parse_run_id moves with RUN_ID_RE; DEFAULT_RETAIN = 30 lives in the shared module** — list_active_runs calls parse_run_id and test_priorities_paths imports it, so leaving it behind would break both the move and the existing tests. The retain count existed twice; one constant resolves the Plan phase's open question by keeping 30.
+
+### Alternatives Considered
+- Name the run directory from the audited head_sha: rejected because Two audits of the same range at different HEADs would differ only by timestamp while claiming the same sha, and the value is one lookup away in audited_range.
+- Route collect_evidence's change_dir derivation through the D5 helper as well: rejected because It only reads, never creates, and a range audit has no change artifacts; routing it would make the collector look for change artifacts inside a dated run directory.
+- Add new spec scenarios for retention failure and two-run idempotency: rejected because The spec delta is deliberately path-agnostic; both behaviours are pinned at task level (5.2, 4.3) without widening the spec.
+
+### Trade-offs
+- Accepted Two run identities on one ledger (caller's header run_id and the D7 directory run-id) over Making them equal as prioritize-proposals does because They answer different questions and the directory id is derivable from the header.
+- Accepted A larger characterization test (subprocess cases, tmp runtime layout) over A function-level pin only because The function-level pin cannot observe the one failure mode the move introduces.
+
+### Open Questions
+- [ ] D7 (run directory from header generated_at + git_sha, header run_id left as the caller's) was decided without a user in the loop; plan approval should confirm or overturn it in one place.
+
+### Completed Work
+- F1 feasibility/high: skills/shared/ import bootstrap specified in D2 and tasks 2.2, 3.1, 4.2
+- F2 consistency/high: parse_run_id moved; priorities_paths/retention re-export all moved names
+- F3 testability/high: D4 guard extended (CLI subprocesses from runtime layout; pre-existing tests unchanged; work-package git diff step)
+- F4 consistency/high: D6 names retention's archive move as a permitted effect; tasks 5.1/5.2 assert exact diffs
+- F5 assumptions/medium: D7 records run-directory identity as an explicit decision
+- F6 completeness/medium: D8 records snapshot semantics; task 4.3 two-run case; task 5.3 rewords verification step
+- F7 completeness/medium: D8 retention-failure semantics; task 5.2 monkeypatch case
+- F8 consistency/medium: collect_evidence's read-only derivation acknowledged in D5 and the proposal
+- F9 completeness/medium: latest.* as shutil.copyfile copies; SKILL.md 'only writer' sentence and Output section in task 5.1
+- F10 clarity/low: DEFAULT_RETAIN = 30 in the shared module (D3)
+- F11 scope/low: work-package description reworded to stop the has_db_migration false positive
+- F12 parallelizability/low: task 5.3 depends on 5.1 (shared SKILL.md)
+
+### Context
+Reviewed the plan against the code it touches and found twelve issues, four high. The prioritize-proposals guard (D4) was necessary but insufficient: it pinned Python functions while the skill's only runtime interface is its CLI, and the one risk the move introduces — the skills/shared/ import bootstrap — only fails when a module runs as a script from an installed copy. The guard now also runs the CLI entry points as subprocesses from a runtime-shaped layout and holds the three pre-existing test modules byte-unchanged via a git diff verification step. Also fixed: parse_run_id omitted from the move, retention's archive moves contradicting the read-only contract, an unspecified import bootstrap, and unstated snapshot/retention-failure semantics; two new decisions (D7 run-directory identity, D8 snapshots and retention failure) record what was previously implicit.
+

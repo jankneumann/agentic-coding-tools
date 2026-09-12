@@ -16,7 +16,10 @@ So a standalone range audit creates
 `openspec/changes/range:abc1234..def5678/`. That is not a change. It has no
 `proposal.md`, it is not valid OpenSpec, and it sits in the tree every sweep
 over `openspec/changes/` reads. The colon and the double dot are also the only
-place in this repository where a commit range is encoded into a path at all.
+place in this repository where a commit range is encoded into a path that gets
+created. (`collect_evidence.py:276` derives the same path, but only to read
+change artifacts from it; it creates nothing and degrades to empty excerpts
+when the directory is absent, so it is not part of the defect — design D5.)
 
 The defect is known and was deliberately deferred. Two rounds of plan review on
 `add-decision-choices-ledger`'s follow-up found it and both times ruled it out
@@ -37,16 +40,26 @@ than a new one.
 - `run_audit.py` stops deriving its output directory from the raw `change_id`.
   A change-id invocation keeps writing to `openspec/changes/<change-id>/`,
   byte-for-byte as today. A `range:` invocation writes to
-  `openspec/choices/<YYYY-MM-DD>-HHMMSS-<sha7>/choices.{json,md}`, with
-  `latest.{json,md}` rewritten at `openspec/choices/` for cheap most-recent
-  access.
-- A retention helper archives rather than deletes, mirroring
-  `prioritize-proposals/scripts/retention.py`: oldest runs move to
-  `openspec/choices/archive/<run-id>/` once the active count exceeds the
-  retention limit.
-- The read-only contract in `skills/audit-choices/SKILL.md` names both
-  permitted destinations explicitly, as does the matching Red Flags line, and
-  `test_readonly_posture.py` proves a range run writes only to the new
+  `openspec/choices/<YYYY-MM-DD>-HHMMSS-<sha7>/choices.{json,md}`, where the
+  directory name is built from the same `generated_at` and `git_sha` the
+  ledger's header records, so a ledger's location is derivable from its own
+  contents; `latest.{json,md}` at `openspec/choices/` are byte-identical
+  copies of the newest run's pair. Each range run is a snapshot: the
+  merge-by-`stable_id` that a change-id re-audit performs on its single
+  `choices.json` does not apply across run directories.
+- `skills/shared/artifact_paths.py` takes `build_run_id`, `RUN_ID_RE`,
+  `parse_run_id`, `list_active_runs`, `apply_retention`, `RetentionResult` and
+  a single `DEFAULT_RETAIN` of 30 from `prioritize-proposals`, which re-exports
+  them; its CLI entry points, its `SKILL.md`, and its three existing test
+  modules do not change.
+- Retention archives rather than deletes, using the shared `apply_retention`:
+  oldest runs move to `openspec/choices/archive/<run-id>/` once the active
+  count exceeds the limit. It runs after the pair is written and a failure in
+  it can never turn a successful write into a failed run.
+- The read-only contract in `skills/audit-choices/SKILL.md` names every
+  effect of a range run explicitly — the run directory's pair, the `latest.*`
+  copies, and retention's archive move — as does the matching Red Flags line,
+  and `test_readonly_posture.py` proves a range run writes only to the new
   location.
 - `docs/guides/workflow.md` documents where a standalone audit puts its output.
 
@@ -134,14 +147,21 @@ Because `prioritize-proposals` is a working skill being refactored to fix a bug
 in a different one, its migration is guarded: a characterization test pins its
 current on-disk output **before** the migration, and must still pass after.
 The migration is not allowed to change a single byte of what that skill
-writes.
+writes. The guard has to reach further than the Python functions, because the
+one thing the migration genuinely adds — an import of `skills/shared/` from a
+module that is run as a script from an installed copy — only fails on that
+path. So the same test also invokes the CLI entry points `SKILL.md` actually
+calls, as subprocesses, from a runtime-shaped copy of the scripts, and the
+three test modules that already exist for the skill must pass byte-unchanged,
+which the work package checks with `git diff`.
 
 ## Impact
 
 - Affected specs: `skill-workflow` (one MODIFIED requirement — the standalone
   range scenario gains a location clause it currently lacks)
 - Affected skills: `audit-choices` (driver, SKILL.md contract wording),
-  `prioritize-proposals` (migrated onto the shared helper, output unchanged)
+  `prioritize-proposals` (migrated onto the shared helper; output, CLI entry
+  points, SKILL.md and existing tests unchanged)
 - New shared library module: `skills/shared/artifact_paths.py`
 - Affected docs: `docs/guides/workflow.md`
 - New tracked tree: `openspec/choices/`
