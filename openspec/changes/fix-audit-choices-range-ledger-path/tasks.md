@@ -105,10 +105,16 @@ review found that requirement still forbade writing outside
   **Size**: S
   Extend `RUN_ID_RE` with an optional trailing `-<n>` group and have
   `parse_run_id` return it (D8); `prioritize-proposals` never emits a suffix,
-  so accepting one costs it nothing and keeps one format shared. Then move
-  `build_run_id`, `RUN_ID_RE`, `parse_run_id`, and `apply_retention`
-  (with `list_active_runs`, `RetentionResult`, `ARCHIVE_DIRNAME`) from
+  so accepting one costs it nothing and keeps one format shared.
+  **This task is additive: copy, do not move.** Create the shared module with
+  `build_run_id`, `RUN_ID_RE`, `parse_run_id`, and `apply_retention` (with
+  `list_active_runs`, `RetentionResult`, `ARCHIVE_DIRNAME`) copied from
   `skills/prioritize-proposals/scripts/`, and add `DEFAULT_RETAIN = 30` (D3).
+  The old definitions are removed in 3.1, the task that declares those two
+  files. Deleting them here would edit files this task does not own and would
+  leave the tree red at this checkpoint: `test_priorities_paths.py` and
+  `test_retention.py` import those names from the old module paths, and D4
+  part 3 freezes both files.
   `list_active_runs` calls the module's own `parse_run_id`. Pure functions and
   filesystem moves only — no knowledge of report or ledger filenames, per D2.
   No `sys.path` manipulation inside the shared module itself: it is imported
@@ -124,6 +130,12 @@ review found that requirement still forbade writing outside
   **Dependencies**: 2.2
   **Files**: `skills/prioritize-proposals/scripts/priorities_paths.py`, `skills/prioritize-proposals/scripts/retention.py`
   **Size**: S
+  This is where 2.2's copy becomes a move: after this task **no definition**
+  of `build_run_id`, `RUN_ID_RE`, `parse_run_id`, `apply_retention`,
+  `list_active_runs`, `RetentionResult` or `ARCHIVE_DIRNAME` survives in
+  `skills/prioritize-proposals/scripts/` — only re-exports. Grep each name
+  before the checkpoint; a surviving definition is exactly the duplication D3
+  exists to remove, and nothing else in the plan detects it.
   Both modules gain the D2 bootstrap
   (`sys.path.insert(0, str(Path(__file__).resolve().parents[2]))`) ahead of
   `from shared.artifact_paths import ...`. `priorities_paths.py` keeps
@@ -189,11 +201,27 @@ review found that requirement still forbade writing outside
   **Dependencies**: 4.2
   **Files**: `skills/tests/audit-choices/test_end_to_end.py`
   **Size**: S
-  `TestStandaloneRangeInvocation` currently asserts the recorded `change_id`
-  and exit code. Add: the pair lands under `openspec/choices/<run-id>/` where
+  `TestStandaloneRangeInvocation` asserts the recorded `change_id`, the exit
+  code, **and the ledger's location** — `test_end_to_end.py:450` reads
+  `repo_root/"openspec"/"changes"/range_change_id/"choices.json"`, the exact
+  path this change abolishes. That assertion is **replaced**, not
+  supplemented; leaving it in place means the task cannot pass.
+  Mind the entry point. The existing case drives `run_audit._cli()`, which
+  passes neither `now` nor `git_sha`, so the driver resolves both internally
+  and the test cannot know the run id it produced. Assertions that depend on
+  those values call `run_audit.run_audit()` directly with explicit `now` and
+  `git_sha` (the pattern `test_readonly_posture.py` already uses), or
+  reconstruct the expected id by parsing the written header. Keep at least one
+  case on `_cli()` for the exit-code contract. The same applies to the
+  two-run clause below: through `_cli()` the caller cannot choose `now` and
+  back-to-back runs land in the same UTC second, which exercises the collision
+  guard rather than the distinct-snapshot case it means to test.
+  Add: the pair lands under `openspec/choices/<run-id>/` where
   `<run-id>` is `build_run_id` of the driver's `resolved_now` and
   `resolved_git_sha` — the same values `make_header` received, never the
-  header's formatted `generated_at` string (D7); `latest.json` and `latest.md` are byte-equal to the run's pair (D6); no
+  header's formatted `generated_at` string (D7). Locate it by globbing
+  `<run-id>*` rather than by exact name: a collision places the run at a
+  `-2` sibling whose suffix no header field records (D7/D8); `latest.json` and `latest.md` are byte-equal to the run's pair (D6); no
   directory whose name contains `range:` or `..` exists anywhere under
   `openspec/changes/`; `audited_range` carries both full 40-character shas; a
   second range run over the same range at a later `now` produces a second
@@ -211,7 +239,7 @@ review found that requirement still forbade writing outside
   form), skill-workflow.12
   **Design decisions**: D6
   **Dependencies**: 4.2
-  **Files**: `skills/audit-choices/SKILL.md`, `skills/tests/audit-choices/test_readonly_posture.py`
+  **Files**: `skills/audit-choices/SKILL.md`, `skills/tests/audit-choices/test_readonly_posture.py`, `skills/tests/audit-choices/test_skill_md.py`
   **Size**: S
   The Read-Only Contract paragraph and the matching Red Flags bullet both name
   `openspec/changes/<change-id>/choices.json` and `choices.md` today. Both gain
@@ -225,6 +253,18 @@ review found that requirement still forbade writing outside
   `test_writes_confined_to_ledger_pair` proving that, with fewer than
   `DEFAULT_RETAIN` runs present, such a run's working-tree diff is exactly the
   run directory's pair plus `latest.*` — nothing deleted, nothing moved.
+  **Pin the wording too.** D6's argument for enumerating three effects rather
+  than loosening to a rule is that the enumeration stays literal and
+  checkable, but the only existing content test
+  (`test_skill_md.py::test_skill_states_read_only_contract`) asserts just that
+  `read-only` and `MUST NOT modify` appear — both already true today, and both
+  still true if the range destination is never mentioned. The doc half of D6
+  could regress or be skipped with every gate green. Add a case asserting that
+  the Read-Only Contract paragraph and the Red Flags bullet each name
+  `openspec/choices/` and `openspec/choices/archive/`, and that the Output
+  section lists the range destination. Assert against those specific
+  paragraphs, not whole-file substring presence, so a mention elsewhere in the
+  file cannot satisfy it.
 
 - [ ] 5.2 Apply retention to the standalone audit directory
   **Spec scenarios**: skill-workflow.14
@@ -238,7 +278,21 @@ review found that requirement still forbade writing outside
   `ok=True` with `json_path`/`md_path` set (D8). Tests: with
   `DEFAULT_RETAIN + 1` runs present, the oldest moves to
   `openspec/choices/archive/<run-id>/` with its pair intact and the working-tree
-  diff is exactly the new pair, `latest.*`, and that one move (D6);
+  diff is exactly the new pair, `latest.*`, and that one move (D6).
+  **This case needs a deletion-aware variant of the snapshot helper.**
+  `test_readonly_posture.py` asserts closure in two parts: a created-or-modified
+  set equality, and separately `set(before.keys()) <= set(after.keys())` —
+  nothing deleted. A retention archive move is a `shutil.move`, so it removes
+  the oldest run's two files from their original keys and that second assertion
+  fails. Do not relax it globally: dropping it would quietly remove the
+  no-deletion guarantee from the change-id form too, and omitting the
+  over-limit case from the snapshot test would leave the archive move an
+  undeclared write, which is the reason D6 enumerates it. Add a variant whose
+  permitted deleted set is exactly the archived run's two files and whose
+  permitted created set is the new pair plus `latest.*` plus those two files
+  under `openspec/choices/archive/<run-id>/`. The change-id case keeps the
+  strict assertion unchanged — the two cases must not share one relaxed
+  predicate.
   monkeypatch `apply_retention` to raise and assert `ok is True`, both paths
   set, the pair on disk, **and that exactly one warning naming retention was
   emitted** (caplog or captured stderr). Without that last assertion an
