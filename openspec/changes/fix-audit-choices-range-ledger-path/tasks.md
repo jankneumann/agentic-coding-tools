@@ -266,7 +266,7 @@ review found that requirement still forbade writing outside
   paragraphs, not whole-file substring presence, so a mention elsewhere in the
   file cannot satisfy it.
 
-- [ ] 5.2 Apply retention to the standalone audit directory
+- [x] 5.2 Apply retention to the standalone audit directory
   **Spec scenarios**: skill-workflow.14
   **Design decisions**: D3, D6, D8
   **Dependencies**: 2.2, 4.2

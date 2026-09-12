@@ -35,10 +35,12 @@ from typing import Any
 _THIS_DIR = Path(__file__).resolve().parent
 if str(_THIS_DIR) not in sys.path:
     sys.path.insert(0, str(_THIS_DIR))
+sys.path.insert(0, str(_THIS_DIR.parents[1]))  # .../skills, for shared.artifact_paths
 
 import choices_ledger  # noqa: E402
 import choices_paths  # noqa: E402
 import collect_evidence  # noqa: E402
+from shared.artifact_paths import DEFAULT_RETAIN, apply_retention  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +197,19 @@ def _run_audit_inner(
         paths = choices_paths.build_choices_paths(choices_root, change_dir.name)
         shutil.copyfile(json_path, paths.latest_json)
         shutil.copyfile(md_path, paths.latest_md)
+
+        # D8: retention runs last and can never turn this successful write
+        # into a failure — a housekeeping failure is not a write failure.
+        try:
+            apply_retention(choices_root, retain=DEFAULT_RETAIN)
+        except Exception as exc:  # noqa: BLE001 - D8: retention never fails a successful run
+            logger.warning(
+                "audit-choices: retention failed for the standalone-audit "
+                "directory %s; the standalone-audit tree may exceed its "
+                "retention bound until this is resolved: %s",
+                choices_root,
+                exc,
+            )
 
     return AuditRunResult(
         ok=True,
