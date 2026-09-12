@@ -8,13 +8,10 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator, validate
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-CHANGE = (
-    REPO_ROOT
-    / "openspec"
-    / "changes"
-    / "harden-review-dispatch-parse-and-timeouts"
-)
+from openspec_paths import change_dir, repo_root_from
+
+REPO_ROOT = repo_root_from(__file__, 3)
+CHANGE = change_dir(REPO_ROOT, "harden-review-dispatch-parse-and-timeouts")
 CONTRACTS = CHANGE / "contracts"
 SCRIPTS = REPO_ROOT / "skills" / "parallel-infrastructure" / "scripts"
 if str(SCRIPTS) not in sys.path:

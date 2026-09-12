@@ -172,7 +172,7 @@ def test_dispatch_missing_required_field_fails(mock_run: MagicMock, tmp_path: Pa
     import subprocess as _sp
 
     drifted = _finding()
-    del drifted["severity"]  # required field missing
+    del drifted["description"]  # required field with no coercion fill
     mock_run.return_value = _sp.CompletedProcess(
         args=[], returncode=0, stdout=json.dumps({"findings": [drifted]}), stderr="",
     )
