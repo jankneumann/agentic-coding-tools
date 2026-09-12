@@ -1039,16 +1039,17 @@ Use these symbols:
 - ⚠ — Phase passed with warnings
 - ○ — Phase skipped
 
-**Choices row.** Compute it by testing for the ledger's presence first — the reader below is silent for both "no ledger" and "a ledger with nothing open" by design, so the row's own `○`/`✓`/`⚠` choice is what tells those two cases apart, never the reader's (lack of) output:
+**Choices row.** Compute it by testing for the ledger's presence first — the reader below is silent for both "no ledger" and "a ledger with nothing open" by design, so the row's own `○`/`✓`/`⚠` choice is what tells those two cases apart, never the reader's (lack of) output. Root both the presence check and the reader at the checkout under validation — `$OPENSPEC_PATH`/`$PROJECT_ROOT` may still name the **main** repository here (worktree.py detect's convention), not this feature worktree, so this uses the same `git rev-parse --show-toplevel` convention as `CHANGE_DIR` in Step 2:
 
 ```bash
-CHOICES_JSON="$OPENSPEC_PATH/changes/$CHANGE_ID/choices.json"
+VALIDATION_ROOT="$(git rev-parse --show-toplevel)"
+CHOICES_JSON="$VALIDATION_ROOT/openspec/changes/$CHANGE_ID/choices.json"
 CHOICES_LINES=""
 if [ ! -f "$CHOICES_JSON" ]; then
   CHOICES_ROW="○ Choices: no ledger"
 else
   CHOICES_LINES=$(python3 "<skill-base-dir>/../audit-choices/scripts/needs_user.py" \
-    --change-id "$CHANGE_ID" --repo-root "$PROJECT_ROOT")
+    --change-id "$CHANGE_ID" --repo-root "$VALIDATION_ROOT")
   CHOICES_COUNT=$(printf '%s\n' "$CHOICES_LINES" | grep -c . || true)
   if [ "$CHOICES_COUNT" -gt 0 ]; then
     CHOICES_ROW="⚠ Choices: $CHOICES_COUNT needs-user entries (choices.md)"
