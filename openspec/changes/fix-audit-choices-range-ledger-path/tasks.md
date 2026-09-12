@@ -152,7 +152,7 @@ review found that requirement still forbade writing outside
 
 ## Phase 4 — Route the range form
 
-- [ ] 4.1 Write tests for the destination routing
+- [x] 4.1 Write tests for the destination routing
   **Spec scenarios**: skill-workflow.12, skill-workflow.13
   **Design decisions**: D1, D5, D7
   **Dependencies**: 2.2
