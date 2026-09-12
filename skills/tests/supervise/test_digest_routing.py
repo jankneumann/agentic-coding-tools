@@ -115,6 +115,7 @@ def test_status_index_distinguishes_completed_blocked_pending_and_archived(repo:
     index = build_status_index(repo)
 
     assert index.resolve("add-complete").completed is True
+    assert index.resolve("change:add-complete").completed is True
     assert index.resolve("target:ri-01").completed is True
     assert index.resolve("add-blocked").status == "blocked"
     assert index.resolve("add-pending").completed is False
@@ -190,29 +191,26 @@ def test_stub_to_request_requires_nonempty_acceptance(repo: Path, acceptance: li
     _roadmap(repo, "target", [])
     store_candidates(repo, [_stub()], record=None, as_of="2026-09-11T01:00:00Z")
     with pytest.raises(ValueError, match="acceptance outcome"):
-        stub_to_request(
-            repo, "change:add-routed-work", roadmap_id="target", acceptance=acceptance
-        )
+        stub_to_request(repo, "change:add-routed-work", roadmap_id="target", acceptance=acceptance)
 
 
 def test_stub_to_request_refuses_unresolved_dependency(repo: Path) -> None:
     _roadmap(repo, "target", [])
     store_candidates(
-        repo, [_stub(dependencies=["add-does-not-exist"])], record=None, as_of="2026-09-11T01:00:00Z"
+        repo,
+        [_stub(dependencies=["add-does-not-exist"])],
+        record=None,
+        as_of="2026-09-11T01:00:00Z",
     )
     with pytest.raises(ValueError, match="add-does-not-exist"):
-        stub_to_request(
-            repo, "change:add-routed-work", roadmap_id="target", acceptance=["done"]
-        )
+        stub_to_request(repo, "change:add-routed-work", roadmap_id="target", acceptance=["done"])
 
 
 def test_stub_to_request_refuses_change_id_collision(repo: Path) -> None:
     _roadmap(repo, "target", [_item("ri-01", status="approved", change_id="add-routed-work")])
     store_candidates(repo, [_stub()], record=None, as_of="2026-09-11T01:00:00Z")
     with pytest.raises(ValueError, match="collision"):
-        stub_to_request(
-            repo, "change:add-routed-work", roadmap_id="target", acceptance=["done"]
-        )
+        stub_to_request(repo, "change:add-routed-work", roadmap_id="target", acceptance=["done"])
 
 
 def test_stub_request_runs_real_refiner_preview_apply_and_stale_sha_refusal(repo: Path) -> None:
@@ -246,3 +244,15 @@ def test_stub_request_runs_real_refiner_preview_apply_and_stale_sha_refusal(repo
             expected_base_sha256=preview.base_sha256,
             strict_validator=lambda _root: [],
         )
+
+
+def test_stub_to_request_refuses_candidate_output_while_recovery_is_pending(
+    repo: Path,
+) -> None:
+    _roadmap(repo, "target", [])
+    store_candidates(repo, [_stub()], record=None, as_of="2026-09-11T01:00:00Z")
+    journal = repo / "openspec/supervise/.digest-transaction.json"
+    journal.write_text('{"schema_version": 1, "operations": []}\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="pending digest transaction recovery"):
+        stub_to_request(repo, "change:add-routed-work", roadmap_id="target", acceptance=["done"])

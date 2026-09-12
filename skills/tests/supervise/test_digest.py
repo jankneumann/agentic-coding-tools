@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -19,8 +20,12 @@ if str(SCRIPTS) not in sys.path:
 from cycle_state import compute_fingerprint  # noqa: E402
 from digest import (  # noqa: E402
     CandidateCapacityError,
+    MAX_JOURNAL_BYTES,
+    MAX_JOURNAL_OPERATIONS,
+    decide,
     decode_stub_key,
     encode_stub_key,
+    prepare_batch,
     publish_transaction,
     rank_candidates,
     recover_transaction,
@@ -206,7 +211,7 @@ def test_maintained_baseline_survives_later_capacity_failure(repo: Path) -> None
     assert len(names) == 19
 
 
-def test_dry_run_reports_lifecycle_and_pending_journal_without_writes(repo: Path) -> None:
+def test_dry_run_refuses_pending_recovery_without_writes(repo: Path) -> None:
     store_candidates(repo, [_stub(0)], record=_record([]), as_of=NOW)
     candidate = repo / "openspec/supervise/candidates/change--add-candidate-0.json"
     journal = repo / "openspec/supervise/.digest-transaction.json"
@@ -220,12 +225,11 @@ def test_dry_run_reports_lifecycle_and_pending_journal_without_writes(repo: Path
         "reason": "No longer relevant",
     }
 
-    result = store_candidates(
-        repo, [], record=_record([terminal]), as_of=NOW, dry_run=True, prune_only=True
-    )
+    with pytest.raises(ValueError, match="pending digest transaction recovery"):
+        store_candidates(
+            repo, [], record=_record([terminal]), as_of=NOW, dry_run=True, prune_only=True
+        )
 
-    assert result["pending_recovery"] is True
-    assert result["lifecycle_changed"] is True
     assert candidate.read_bytes() == before
     assert journal.exists()
 
@@ -334,9 +338,7 @@ def test_rank_rejects_manifest_score_mismatches_without_writes(
     "scored_at",
     [None, "2026-09-11T00:59:59Z", "2026-09-11T01:00:01Z", "2026-09-11T01:00:00"],
 )
-def test_rank_rejects_any_nonexact_or_naive_scoring_time(
-    repo: Path, scored_at: str | None
-) -> None:
+def test_rank_rejects_any_nonexact_or_naive_scoring_time(repo: Path, scored_at: str | None) -> None:
     manifest = _manifest([_stub(0)])
     scores = _scores(manifest)
     if scored_at is None:
@@ -354,7 +356,9 @@ def test_rank_uses_formula_policy_buckets_and_stable_key_tie_break(repo: Path) -
         {"prior_decision": "deferred", "deferred_until": "2026-12-01"}
     )
     manifest["candidates"][1]["signals"]["dependency_ready"] = False
-    scores = _scores(manifest, values={"relevance": 5, "value": 4, "readiness": 3, "scope_fit": 2, "risk": 5})
+    scores = _scores(
+        manifest, values={"relevance": 5, "value": 4, "readiness": 3, "scope_fit": 2, "risk": 5}
+    )
     scores["scores"] = list(reversed(scores["scores"]))
     record = _record(
         [
@@ -456,7 +460,7 @@ def test_recovery_rolls_forward_deletes_and_replacements_with_digest_last(
         {"op": "delete", "target": doomed.relative_to(repo).as_posix()},
         {
             "op": "replace",
-            "target": "openspec/supervise/rubric-cache/a.rubric.json",
+            "target": "openspec/supervise/rubric-cache/change--add-old.rubric.json",
             "bytes": "cache\n",
         },
         {
@@ -469,6 +473,191 @@ def test_recovery_rolls_forward_deletes_and_replacements_with_digest_last(
 
     assert recover_transaction(repo) is True
     assert not doomed.exists()
-    assert (repo / "openspec/supervise/rubric-cache/a.rubric.json").read_text() == "cache\n"
+    assert (
+        repo / "openspec/supervise/rubric-cache/change--add-old.rubric.json"
+    ).read_text() == "cache\n"
     assert (repo / "openspec/supervise/digest.json").read_text() == "digest\n"
     assert not (repo / "openspec/supervise/.digest-transaction.json").exists()
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        {"op": "replace", "target": "README.md", "bytes": "owned\n"},
+        {"op": "delete", "target": "README.md"},
+        {
+            "op": "replace",
+            "target": "openspec/supervise/candidates/not-canonical.json",
+            "bytes": "{}\n",
+        },
+        {"op": "delete", "target": "openspec/supervise/digest.json"},
+    ],
+)
+def test_transaction_refuses_targets_outside_owned_artifacts_and_wrong_operations(
+    repo: Path, operation: dict
+) -> None:
+    readme = repo / "README.md"
+    before = readme.read_bytes()
+
+    with pytest.raises(ValueError, match="unauthorized digest transaction target"):
+        publish_transaction(repo, [operation])
+
+    assert readme.read_bytes() == before
+    assert not (repo / "openspec/supervise/.digest-transaction.json").exists()
+
+
+def test_recovery_refuses_a_tampered_journal_target_before_mutating_any_file(
+    repo: Path,
+) -> None:
+    journal = repo / "openspec/supervise/.digest-transaction.json"
+    cache = repo / "openspec/supervise/rubric-cache/change--add-safe.rubric.json"
+    journal.parent.mkdir(parents=True)
+    cache_content = "safe cache\n"
+    tampered_content = "tampered\n"
+    journal.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "operations": [
+                    {
+                        "op": "replace",
+                        "target": cache.relative_to(repo).as_posix(),
+                        "bytes": cache_content,
+                        "sha256": hashlib.sha256(cache_content.encode()).hexdigest(),
+                    },
+                    {
+                        "op": "replace",
+                        "target": "skills/tampered.py",
+                        "bytes": tampered_content,
+                        "sha256": hashlib.sha256(tampered_content.encode()).hexdigest(),
+                    },
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    before = (repo / "README.md").read_bytes()
+
+    with pytest.raises(ValueError, match="unauthorized digest transaction target"):
+        recover_transaction(repo)
+
+    assert (repo / "README.md").read_bytes() == before
+    assert not cache.exists()
+    assert journal.exists()
+
+
+def test_dry_run_fresh_overlay_is_available_to_batch_without_persistence(
+    repo: Path,
+) -> None:
+    fresh = _stub(0)
+    result = store_candidates(repo, [fresh], record=_record([]), as_of=NOW, dry_run=True)
+
+    manifest = prepare_batch(
+        repo,
+        fingerprint="a" * 64,
+        as_of=NOW,
+        record=_record([]),
+        fresh_stubs=[fresh],
+    )
+
+    assert result["fresh_keys"] == ["change:add-candidate-0"]
+    assert manifest["requested_keys"] == ["change:add-candidate-0"]
+    assert not (repo / "openspec/supervise/candidates").exists()
+
+
+def test_store_refreshes_changed_same_key_and_invalidates_its_cache(repo: Path) -> None:
+    original = _stub(0)
+    store_candidates(repo, [original], record=_record([]), as_of=NOW)
+    key = "change:add-candidate-0"
+    cache = repo / f"openspec/supervise/rubric-cache/{encode_stub_key(key)}.rubric.json"
+    cache.parent.mkdir(parents=True)
+    cache.write_text("{}\n", encoding="utf-8")
+    refreshed = {**original, "title": "Refreshed candidate"}
+
+    result = store_candidates(repo, [refreshed], record=_record([]), as_of=NOW)
+
+    stored = json.loads(
+        (repo / "openspec/supervise/candidates/change--add-candidate-0.json").read_text()
+    )
+    assert stored["title"] == "Refreshed candidate"
+    assert result["fresh_keys"] == [key]
+    assert not cache.exists()
+
+
+@pytest.mark.parametrize("mutation", ["fingerprint", "stub_key"])
+def test_lifecycle_rebuild_rejects_cache_with_wrong_identity(repo: Path, mutation: str) -> None:
+    stubs = [_stub(0), _stub(1)]
+    store_candidates(repo, stubs, record=_record([]), as_of=NOW)
+    manifest = _manifest(stubs)
+    rank_candidates(repo, manifest, _scores(manifest), record=_record([]), fresh_keys=[])
+    mirror = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+    approved = decide(
+        repo,
+        "change:add-candidate-0",
+        decision="approved",
+        record=mirror,
+        as_of=NOW,
+        route="plan-roadmap",
+    )
+    cache = repo / "openspec/supervise/rubric-cache/change--add-candidate-1.rubric.json"
+    payload = json.loads(cache.read_text())
+    if mutation == "fingerprint":
+        payload["fingerprint"] = "b" * 64
+    else:
+        payload["scores"][0]["stub_key"] = "change:add-candidate-9"
+    cache.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="lifecycle cache"):
+        store_candidates(repo, [], record=approved, as_of=NOW, prune_only=True)
+
+
+def test_terminal_decisions_remain_in_durable_history_after_pruning(repo: Path) -> None:
+    stubs = [_stub(0), _stub(1)]
+    store_candidates(repo, stubs, record=_record([]), as_of=NOW)
+    manifest = _manifest(stubs)
+    rank_candidates(repo, manifest, _scores(manifest), record=_record([]), fresh_keys=[])
+    mirror = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+    approved = decide(
+        repo,
+        "change:add-candidate-0",
+        decision="approved",
+        record=mirror,
+        as_of=NOW,
+        route="plan-roadmap",
+    )
+
+    store_candidates(repo, [], record=approved, as_of=NOW, prune_only=True)
+
+    persisted = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+    by_key = {entry["stub_key"]: entry for entry in persisted["back_edge"]["digested_stubs"]}
+    assert by_key["change:add-candidate-0"]["decision"] == "approved"
+    assert by_key["change:add-candidate-1"]["decision"] == "pending"
+
+
+def test_transaction_journal_operation_count_is_bounded(repo: Path) -> None:
+    operations = [
+        {
+            "op": "delete",
+            "target": (
+                f"openspec/supervise/rubric-cache/change--add-candidate-{index}.rubric.json"
+            ),
+        }
+        for index in range(MAX_JOURNAL_OPERATIONS + 1)
+    ]
+
+    with pytest.raises(ValueError, match="too many digest transaction operations"):
+        publish_transaction(repo, operations)
+
+    assert not (repo / "openspec/supervise/.digest-transaction.json").exists()
+
+
+def test_recovery_refuses_an_oversized_journal_before_parsing(repo: Path) -> None:
+    journal = repo / "openspec/supervise/.digest-transaction.json"
+    journal.parent.mkdir(parents=True)
+    journal.write_bytes(b" " * (MAX_JOURNAL_BYTES + 1))
+
+    with pytest.raises(ValueError, match="journal exceeds size limit"):
+        recover_transaction(repo)
+
+    assert journal.exists()

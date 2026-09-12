@@ -129,8 +129,9 @@ GREEN). Capability short name: `sv` = `supervise`.
       is not read*
       **Dependencies**: 0.2
 
-- [x] 2.2 GREEN: write `templates/rubric-prompt.md` with `{{batch}}`, `{{ready_set}}`, and
-      `{{fingerprint}}` slots; document the single-manifest dispatch, exact timestamp
+- [x] 2.2 GREEN: write `templates/rubric-prompt.md` with `{{batch}}` and
+      `{{fingerprint}}` slots; carry the bounded ready set inside the batch manifest;
+      document the single-manifest dispatch, exact timestamp
       echo, 120-second timeout and one retry, and analyst fallback (omit model override if
       analyst resolution is unavailable) — **S**
       **Design decisions**: D2, D8

@@ -70,7 +70,7 @@ def test_cycle_runs_lifecycle_maintenance_before_unchanged_exit_and_sense() -> N
 
 def test_cycle_stores_retained_plus_fresh_and_dispatches_one_bounded_analyst() -> None:
     cycle = _cycle_section()
-    pipeline = cycle[cycle.index("### 3. Dedupe"):]
+    pipeline = cycle[cycle.index("### 3. Dedupe") :]
 
     ordered = ["dedupe", "digest.py store", "prepare-batch --as-of", "rank --manifest"]
     positions = [pipeline.index(token) for token in ordered]
@@ -83,6 +83,8 @@ def test_cycle_stores_retained_plus_fresh_and_dispatches_one_bounded_analyst() -
     assert "one retry" in cycle
     assert "omit the explicit model" in cycle
     assert "prior valid digest" in cycle
+    assert "--fresh-key" in cycle
+    assert "--stubs" in cycle
 
 
 def test_cycle_composes_candidate_sections_without_erasing_operational_lines() -> None:

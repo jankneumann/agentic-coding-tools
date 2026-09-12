@@ -31,9 +31,12 @@ CANDIDATE_DIR = Path("openspec/supervise/candidates")
 CACHE_DIR = Path("openspec/supervise/rubric-cache")
 DIGEST_PATH = Path("openspec/supervise/digest.json")
 JOURNAL_PATH = Path("openspec/supervise/.digest-transaction.json")
+MIRROR_PATH = Path("openspec/supervise/supervisor-record.json")
 MAX_CANDIDATES = 20
 MAX_MANIFEST_BYTES = 64 * 1024
 MAX_EVIDENCE_BYTES = 2 * 1024
+MAX_JOURNAL_BYTES = 1024 * 1024
+MAX_JOURNAL_OPERATIONS = 2 * MAX_CANDIDATES + 2
 
 _CHANGE_KEY = re.compile(
     r"^change:(?P<value>(?:add|update|remove|refactor)-[a-z0-9]+(?:-[a-z0-9]+)*)$"
@@ -47,8 +50,7 @@ class CandidateCapacityError(ValueError):
     def __init__(self, unpersisted_keys: Sequence[str]) -> None:
         self.unpersisted_keys = sorted(unpersisted_keys)
         super().__init__(
-            "candidate capacity exceeded; unpersisted="
-            + ",".join(self.unpersisted_keys)
+            "candidate capacity exceeded; unpersisted=" + ",".join(self.unpersisted_keys)
         )
 
 
@@ -123,9 +125,7 @@ def _schema(repo_root: Path, name: str) -> dict[str, Any]:
 
 
 def _validate(repo_root: Path, name: str, value: Any) -> None:
-    Draft202012Validator(
-        _schema(repo_root, name), format_checker=FormatChecker()
-    ).validate(value)
+    Draft202012Validator(_schema(repo_root, name), format_checker=FormatChecker()).validate(value)
 
 
 def _fsync_directory(path: Path) -> None:
@@ -255,7 +255,9 @@ def store_candidates(
     del force
     root = Path(repo_root).resolve()
     pending_recovery = (root / JOURNAL_PATH).is_file()
-    if pending_recovery and not dry_run:
+    if pending_recovery:
+        if dry_run:
+            raise ValueError("pending digest transaction recovery")
         recover_transaction(root)
     stored = _stored_candidates(root)
     maintenance = _maintenance(stored, record, as_of=as_of)
@@ -272,24 +274,48 @@ def store_candidates(
             _validate(root, "candidate-work.schema.json", stub)
             key = stub_key(stub)
             encode_stub_key(key)
+            prior_fresh = fresh_by_key.get(key)
+            if prior_fresh is not None and _canonical_bytes(prior_fresh) != _canonical_bytes(stub):
+                raise ValueError(f"conflicting fresh candidates for {key}")
             fresh_by_key[key] = stub
 
     retained_keys = sorted(stored)
     new_keys = sorted(key for key in fresh_by_key if key not in stored)
+    updated_keys = sorted(
+        key
+        for key in fresh_by_key
+        if key in stored and _canonical_bytes(fresh_by_key[key]) != _canonical_bytes(stored[key][1])
+    )
     if len(retained_keys) + len(new_keys) > MAX_CANDIDATES:
         raise CandidateCapacityError(new_keys)
 
     written: list[dict[str, str]] = []
     if not dry_run:
-        for key in new_keys:
+        operations: list[dict[str, Any]] = []
+        for key in [*new_keys, *updated_keys]:
             path = _candidate_path(root, key)
-            _atomic_write(path, _canonical_bytes(fresh_by_key[key]))
+            operations.append(
+                {
+                    "op": "replace",
+                    "target": path.relative_to(root).as_posix(),
+                    "bytes": _canonical_bytes(fresh_by_key[key]).decode("utf-8"),
+                }
+            )
+            if key in updated_keys:
+                operations.append(
+                    {
+                        "op": "delete",
+                        "target": _cache_path(root, key).relative_to(root).as_posix(),
+                    }
+                )
             written.append({"stub_key": key, "path": path.relative_to(root).as_posix()})
+        if operations:
+            publish_transaction(root, operations)
 
     return {
         "stored": written,
         "retained_keys": retained_keys,
-        "fresh_keys": new_keys,
+        "fresh_keys": sorted([*new_keys, *updated_keys]),
         "pruned_keys": list(maintenance.pruned),
         "woken_keys": list(maintenance.woken),
         "lifecycle_changed": bool(maintenance.pruned or maintenance.woken),
@@ -314,6 +340,31 @@ def _safe_target(repo_root: Path, relative: str) -> Path:
     return target
 
 
+def _authorize_transaction_target(operation: str, relative: str) -> None:
+    """Restrict recovery to artifacts owned by the candidate-digest runtime."""
+    candidate = Path(relative)
+    allowed = False
+    if candidate == DIGEST_PATH or candidate == MIRROR_PATH:
+        allowed = operation == "replace"
+    elif candidate.parent == CANDIDATE_DIR and candidate.suffix == ".json":
+        try:
+            decode_stub_key(candidate.stem)
+        except ValueError:
+            pass
+        else:
+            allowed = operation in {"replace", "delete"}
+    elif candidate.parent == CACHE_DIR and candidate.name.endswith(".rubric.json"):
+        encoded_key = candidate.name.removesuffix(".rubric.json")
+        try:
+            decode_stub_key(encoded_key)
+        except ValueError:
+            pass
+        else:
+            allowed = operation in {"replace", "delete"}
+    if not allowed:
+        raise ValueError(f"unauthorized digest transaction target: {operation} {relative}")
+
+
 def publish_transaction(
     repo_root: Path,
     operations: Sequence[dict[str, Any]],
@@ -322,6 +373,8 @@ def publish_transaction(
 ) -> None:
     """Durably journal replacements/deletes and optionally roll them forward."""
     root = Path(repo_root).resolve()
+    if len(operations) > MAX_JOURNAL_OPERATIONS:
+        raise ValueError("too many digest transaction operations")
     normalized: list[dict[str, Any]] = []
     seen: set[str] = set()
     for raw in operations:
@@ -330,6 +383,7 @@ def publish_transaction(
         if op not in {"replace", "delete"} or not isinstance(target, str):
             raise ValueError("invalid digest transaction operation")
         _safe_target(root, target)
+        _authorize_transaction_target(op, target)
         if target in seen:
             raise ValueError(f"duplicate transaction target: {target}")
         seen.add(target)
@@ -343,8 +397,11 @@ def publish_transaction(
         normalized.append(item)
     normalized.sort(key=lambda item: (item["target"] == DIGEST_PATH.as_posix(), item["target"]))
     journal = {"schema_version": 1, "operations": normalized}
+    journal_bytes = _canonical_bytes(journal)
+    if len(journal_bytes) > MAX_JOURNAL_BYTES:
+        raise ValueError("digest transaction journal exceeds size limit")
     path = root / JOURNAL_PATH
-    _atomic_write(path, _canonical_bytes(journal))
+    _atomic_write(path, journal_bytes)
     if apply:
         recover_transaction(root)
 
@@ -355,38 +412,60 @@ def recover_transaction(repo_root: Path) -> bool:
     path = root / JOURNAL_PATH
     if not path.is_file():
         return False
+    if path.stat().st_size > MAX_JOURNAL_BYTES:
+        raise ValueError("digest transaction journal exceeds size limit")
     try:
         journal = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise ValueError(f"invalid digest transaction journal: {exc}") from exc
+    if journal.get("schema_version") != 1:
+        raise ValueError("invalid digest transaction schema version")
     operations = journal.get("operations")
     if not isinstance(operations, list):
         raise ValueError("invalid digest transaction operations")
+    if len(operations) > MAX_JOURNAL_OPERATIONS:
+        raise ValueError("too many digest transaction operations")
+    validated: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in operations:
+        if not isinstance(item, dict):
+            raise ValueError("invalid digest transaction operation")
+        op = item.get("op")
+        target_value = item.get("target")
+        if op not in {"replace", "delete"} or not isinstance(target_value, str):
+            raise ValueError("invalid digest transaction operation")
+        _safe_target(root, target_value)
+        _authorize_transaction_target(op, target_value)
+        if target_value in seen:
+            raise ValueError(f"duplicate transaction target: {target_value}")
+        seen.add(target_value)
+        if op == "replace":
+            content = item.get("bytes")
+            checksum = item.get("sha256")
+            if not isinstance(content, str) or not isinstance(checksum, str):
+                raise ValueError(f"invalid replacement operation: {target_value}")
+            if hashlib.sha256(content.encode("utf-8")).hexdigest() != checksum:
+                raise ValueError(f"replacement checksum mismatch: {target_value}")
+        validated.append(item)
     ordered = sorted(
-        operations,
+        validated,
         key=lambda item: (
             item.get("target") == DIGEST_PATH.as_posix(),
             str(item.get("target")),
         ),
     )
     for item in ordered:
-        op = item.get("op")
-        target_value = item.get("target")
-        if op not in {"replace", "delete"} or not isinstance(target_value, str):
-            raise ValueError("invalid digest transaction operation")
+        op = item["op"]
+        target_value = item["target"]
         target = _safe_target(root, target_value)
         target.parent.mkdir(parents=True, exist_ok=True)
         if op == "delete":
             target.unlink(missing_ok=True)
             _fsync_directory(target.parent)
             continue
-        content = item.get("bytes")
-        checksum = item.get("sha256")
-        if not isinstance(content, str) or not isinstance(checksum, str):
-            raise ValueError(f"invalid replacement operation: {target_value}")
+        content = item["bytes"]
+        checksum = item["sha256"]
         encoded = content.encode("utf-8")
-        if hashlib.sha256(encoded).hexdigest() != checksum:
-            raise ValueError(f"replacement checksum mismatch: {target_value}")
         if not target.is_file() or hashlib.sha256(target.read_bytes()).hexdigest() != checksum:
             _atomic_write(target, encoded)
         _fsync_directory(target.parent)
@@ -443,6 +522,18 @@ def _validate_score_join(
     return {row["stub_key"]: row for row in score_rows}
 
 
+def _merge_terminal_history(
+    record: dict[str, Any] | None, entries: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    active_keys = {entry["stub_key"] for entry in entries}
+    terminal = [
+        dict(entry)
+        for key, entry in sorted(_decision_index(record).items())
+        if key not in active_keys and entry.get("decision") in {"approved", "rejected"}
+    ]
+    return [*entries, *terminal]
+
+
 def _mirror_document(
     repo_root: Path,
     record: dict[str, Any] | None,
@@ -452,6 +543,7 @@ def _mirror_document(
     fingerprint: str,
 ) -> dict[str, Any]:
     current = _parse_time(as_of)
+    entries = _merge_terminal_history(record, entries)
     source = dict(record or {})
     back_edge = dict(source.get("back_edge") or {})
     back_edge.update(
@@ -537,7 +629,10 @@ def rank_candidates(
         if decision == "rejected":
             continue
         score_row = by_score[key]
-        factors = {factor: score_row[factor]["score"] for factor in ("relevance", "value", "readiness", "scope_fit", "risk")}
+        factors = {
+            factor: score_row[factor]["score"]
+            for factor in ("relevance", "value", "readiness", "scope_fit", "risk")
+        }
         justifications = {factor: score_row[factor]["justification"] for factor in factors}
         staleness = signals.get("staleness_days")
         penalty = min(staleness // 30, 5) if isinstance(staleness, int) else 0
@@ -554,7 +649,9 @@ def rank_candidates(
         output_signals = {
             "dependency_ready": bool(signals.get("dependency_ready")),
             "staleness_days": staleness if isinstance(staleness, int) else None,
-            "prior_decision": decision if decision in {"approved", "deferred", "rejected"} else None,
+            "prior_decision": decision
+            if decision in {"approved", "deferred", "rejected"}
+            else None,
             "deferred_until": signals.get("deferred_until"),
         }
         ranked.append(
@@ -593,7 +690,9 @@ def rank_candidates(
         "state_updated_at": manifest["as_of"],
         "weights": dict(_WEIGHTS),
         "sections": {
-            "needs_decision": [item["stub_key"] for item in ranked if item["stub_key"] not in fresh],
+            "needs_decision": [
+                item["stub_key"] for item in ranked if item["stub_key"] not in fresh
+            ],
             "new_this_cycle": [item["stub_key"] for item in ranked if item["stub_key"] in fresh],
             "degraded": sorted(degraded),
         },
@@ -625,11 +724,7 @@ def rank_candidates(
     )
     operations: list[dict[str, Any]] = []
     for key in sorted(by_score):
-        singleton = {
-            field: value
-            for field, value in scores.items()
-            if field != "scores"
-        }
+        singleton = {field: value for field, value in scores.items() if field != "scores"}
         singleton["scores"] = [by_score[key]]
         _validate(root, "supervise-rubric-score.schema.json", singleton)
         operations.append(
@@ -656,7 +751,6 @@ def rank_candidates(
     if not dry_run:
         publish_transaction(root, operations)
     return digest
-
 
 
 def _git_output(repo_root: Path, args: Sequence[str]) -> subprocess.CompletedProcess[str]:
@@ -694,7 +788,8 @@ def _artifact_evidence(
     modified = _git_output(repo_root, ["diff", "--quiet", "HEAD", "--", source])
     if modified.returncode != 0:
         return None, None, [f"evidence_modified:{source}"]
-    raw = candidate.read_bytes()[: MAX_EVIDENCE_BYTES + 1]
+    with candidate.open("rb") as handle:
+        raw = handle.read(MAX_EVIDENCE_BYTES + 1)
     if b"\x00" in raw:
         return None, None, [f"evidence_binary:{source}"]
     try:
@@ -717,8 +812,12 @@ def _artifact_evidence(
     return framed, staleness, []
 
 
+def _manifest_bytes(value: dict[str, Any]) -> bytes:
+    return (json.dumps(value, sort_keys=True) + "\n").encode("utf-8")
+
+
 def _manifest_size(value: dict[str, Any]) -> int:
-    return len(json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    return len(_manifest_bytes(value))
 
 
 def prepare_batch(
@@ -727,6 +826,8 @@ def prepare_batch(
     fingerprint: str,
     as_of: str,
     record: dict[str, Any] | None,
+    fresh_stubs: Iterable[dict[str, Any]] = (),
+    ready_set: Any = None,
 ) -> dict[str, Any]:
     """Build one deterministic, bounded, read-only rubric prompt manifest."""
     root = Path(repo_root).resolve()
@@ -734,6 +835,11 @@ def prepare_batch(
         raise ValueError("pending digest transaction recovery")
     current = _parse_time(as_of)
     stored = _stored_candidates(root)
+    for stub in fresh_stubs:
+        _validate(root, "candidate-work.schema.json", stub)
+        key = stub_key(stub)
+        encode_stub_key(key)
+        stored[key] = (_candidate_path(root, key), stub)
     if len(stored) > MAX_CANDIDATES:
         raise CandidateCapacityError(sorted(stored)[MAX_CANDIDATES:])
     decisions = _decision_index(record)
@@ -771,6 +877,7 @@ def prepare_batch(
         "as_of": as_of,
         "requested_keys": [candidate["stub_key"] for candidate in candidates],
         "candidates": candidates,
+        "ready_set": ready_set if ready_set is not None else [],
     }
     if _manifest_size(manifest) > MAX_MANIFEST_BYTES:
         if len(candidates) == 1:
@@ -785,7 +892,6 @@ def prepare_batch(
                 raise OversizedManifestError(f"oversized:{candidate['stub_key']}")
         raise OversizedManifestError("oversized:batch")
     return manifest
-
 
 
 @dataclass(frozen=True)
@@ -808,8 +914,12 @@ class StatusIndex:
     by_change: dict[str, DependencyStatus]
 
     def resolve(self, dependency: str) -> DependencyStatus:
-        return self.by_reference.get(dependency) or self.by_change.get(dependency) or DependencyStatus(
-            dependency, "unresolved"
+        change_key = _CHANGE_KEY.fullmatch(dependency)
+        normalized = change_key.group("value") if change_key else dependency
+        return (
+            self.by_reference.get(dependency)
+            or self.by_change.get(normalized)
+            or DependencyStatus(dependency, "unresolved")
         )
 
 
@@ -842,7 +952,9 @@ def build_status_index(repo_root: Path) -> StatusIndex:
                 status = item.get("status")
                 if not isinstance(item_id, str) or not isinstance(status, str):
                     raise ValueError(f"malformed roadmap item: {path}")
-                change_id = item.get("change_id") if isinstance(item.get("change_id"), str) else None
+                change_id = (
+                    item.get("change_id") if isinstance(item.get("change_id"), str) else None
+                )
                 ref = f"{roadmap_id}:{item_id}"
                 resolved = DependencyStatus(ref, status, roadmap_id, item_id, change_id)
                 by_reference[ref] = resolved
@@ -883,7 +995,11 @@ def _roadmap_payload(repo_root: Path, roadmap_id: str) -> tuple[Path, dict[str, 
         payload = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as exc:
         raise ValueError(f"cannot load roadmap {roadmap_id}: {exc}") from exc
-    if not isinstance(payload, dict) or payload.get("roadmap_id") != roadmap_id or not isinstance(payload.get("items"), list):
+    if (
+        not isinstance(payload, dict)
+        or payload.get("roadmap_id") != roadmap_id
+        or not isinstance(payload.get("items"), list)
+    ):
         raise ValueError(f"malformed roadmap: {roadmap_id}")
     return path, payload
 
@@ -898,6 +1014,8 @@ def stub_to_request(
 ) -> dict[str, Any]:
     """Render one pure refiner add request; never write a roadmap."""
     root = Path(repo_root).resolve()
+    if (root / JOURNAL_PATH).is_file():
+        raise ValueError("pending digest transaction recovery")
     encode_stub_key(key)
     outcomes = [value.strip() for value in acceptance if isinstance(value, str) and value.strip()]
     if len(outcomes) != len(acceptance) or not outcomes:
@@ -945,8 +1063,7 @@ def stub_to_request(
         "item_id": next_id,
         "title": stub["title"],
         "description": (
-            f"{stub['description']}\n\nProvenance: "
-            f"{provenance['source_artifact']} ({finding_ids})"
+            f"{stub['description']}\n\nProvenance: {provenance['source_artifact']} ({finding_ids})"
         ),
         "rationale": stub["rationale"],
         "effort": stub["effort"],
@@ -966,7 +1083,6 @@ def stub_to_request(
         "source": f"candidate-digest:{key}",
         "operations": [operation],
     }
-
 
 
 def decide(
@@ -1029,7 +1145,6 @@ def decide(
     return write_mirror(root, source, now=as_of)
 
 
-
 def _load_prior_digest(repo_root: Path) -> dict[str, Any] | None:
     path = repo_root / DIGEST_PATH
     if not path.is_file():
@@ -1059,8 +1174,14 @@ def _lifecycle_rebuild(
     for key in maintenance.pruned:
         operations.extend(
             [
-                {"op": "delete", "target": _candidate_path(repo_root, key).relative_to(repo_root).as_posix()},
-                {"op": "delete", "target": _cache_path(repo_root, key).relative_to(repo_root).as_posix()},
+                {
+                    "op": "delete",
+                    "target": _candidate_path(repo_root, key).relative_to(repo_root).as_posix(),
+                },
+                {
+                    "op": "delete",
+                    "target": _cache_path(repo_root, key).relative_to(repo_root).as_posix(),
+                },
             ]
         )
     rebuilt: dict[str, Any] | None = None
@@ -1074,8 +1195,13 @@ def _lifecycle_rebuild(
             except (OSError, ValueError) as exc:
                 raise ValueError(f"lifecycle rebuild requires cache for {key}: {exc}") from exc
             _validate(repo_root, "supervise-rubric-score.schema.json", cache)
-            if cache.get("scored_at") != generated_at or len(cache["scores"]) != 1:
-                raise ValueError(f"lifecycle cache scoring time/key mismatch for {key}")
+            if (
+                cache.get("fingerprint") != prior_digest["fingerprint"]
+                or cache.get("scored_at") != generated_at
+                or len(cache["scores"]) != 1
+                or cache["scores"][0].get("stub_key") != key
+            ):
+                raise ValueError(f"lifecycle cache identity mismatch for {key}")
         for prior_item in prior_digest["ranked"]:
             key = prior_item["stub_key"]
             if key not in remaining:
@@ -1139,7 +1265,9 @@ def _lifecycle_rebuild(
         record,
         entries,
         as_of=as_of,
-        fingerprint=(prior_digest or {}).get("fingerprint", (record or {}).get("back_edge", {}).get("last_fingerprint")),
+        fingerprint=(prior_digest or {}).get(
+            "fingerprint", (record or {}).get("back_edge", {}).get("last_fingerprint")
+        ),
     )
     operations.append(
         {
@@ -1189,6 +1317,8 @@ def _parser() -> argparse.ArgumentParser:
     prepare = commands.add_parser("prepare-batch")
     prepare.add_argument("--fingerprint", required=True)
     prepare.add_argument("--record")
+    prepare.add_argument("--stubs")
+    prepare.add_argument("--ready-set")
     prepare.add_argument("--as-of", required=True)
     rank = commands.add_parser("rank")
     rank.add_argument("--manifest", required=True)
@@ -1205,7 +1335,9 @@ def _parser() -> argparse.ArgumentParser:
     route_parser.add_argument("--after")
     decision_parser = commands.add_parser("decide")
     decision_parser.add_argument("stub_key")
-    decision_parser.add_argument("--decision", choices=["pending", "approved", "deferred", "rejected"], required=True)
+    decision_parser.add_argument(
+        "--decision", choices=["pending", "approved", "deferred", "rejected"], required=True
+    )
     decision_parser.add_argument("--record", required=True)
     decision_parser.add_argument("--as-of", required=True)
     decision_parser.add_argument("--roadmap-ref")
@@ -1232,7 +1364,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         print(json.dumps(result, sort_keys=True))
     elif args.command == "prepare-batch":
-        print(json.dumps(prepare_batch(root, fingerprint=args.fingerprint, as_of=args.as_of, record=_read_json(args.record)), sort_keys=True))
+        raw = _read_json(args.stubs, default=[])
+        stubs = raw.get("fresh", []) if isinstance(raw, dict) else raw
+        print(
+            json.dumps(
+                prepare_batch(
+                    root,
+                    fingerprint=args.fingerprint,
+                    as_of=args.as_of,
+                    record=_read_json(args.record),
+                    fresh_stubs=stubs,
+                    ready_set=_read_json(args.ready_set, default=[]),
+                ),
+                sort_keys=True,
+            )
+        )
     elif args.command == "rank":
         result = rank_candidates(
             root,

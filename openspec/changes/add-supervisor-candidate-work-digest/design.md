@@ -202,11 +202,12 @@ otherwise reuses validated bytes unless candidate composition changed.
 
 The host uses the analyst archetype for the single rubric batch and omits an explicit
 model when resolution is unavailable. `digest.py prepare-batch` is the public, read-only
-boundary: it accepts the store/record/ready-set inputs plus the host-owned `--as-of`,
+boundary: it accepts the persisted store plus optional validated dry-run stubs,
+record, and ready-set inputs plus the host-owned `--as-of`,
 loads and sanitizes evidence, sorts by `stub_key`, and emits one JSON manifest to stdout
-containing the fingerprint, `as_of`, requested keys, mechanical inputs, and prompt-ready
-payload. The store is capped at 20 stubs, and the complete canonical serialized prompt
-manifest—including stub payloads, mechanical inputs, delimiters, and evidence—is capped
+containing the fingerprint, `as_of`, requested keys, bounded ready set, mechanical inputs,
+and prompt-ready payload. The ready set is embedded inside that manifest rather than injected
+as a second unbounded template payload. The store is capped at 20 stubs, and the exact serialized stdout prompt manifest—including stub payloads, mechanical inputs, delimiters, and evidence—is capped
 at 64 KiB; provenance excerpts are capped at 2 KiB each. If one stub alone would exceed
 the 64-KiB manifest bound, `prepare-batch` fails before dispatch, preserves the store and
 prior digest, and emits `oversized:<stub_key>` for host degradation and later correction.
@@ -224,7 +225,8 @@ and exact `scored_at == manifest.as_of`, then builds every cache/digest/mirror r
 in memory. Publication uses `openspec/supervise/.digest-transaction.json`. Its ordered operations
 encode either `{op: replace, target, bytes, sha256}` or `{op: delete, target}`. A scored
 transaction includes cache, mirror, and digest replacements; a lifecycle transaction also
-includes every terminal stub/cache deletion plus the rebuilt mirror and digest. The journal
+includes every terminal stub/cache deletion plus the rebuilt mirror and digest. Recovery accepts only canonical candidate/cache paths plus the digest and supervisor mirror,
+validates the complete bounded journal before mutation, and refuses all other targets. The journal
 is atomically written and fsynced before any target mutation. Recovery idempotently applies
 sorted non-digest deletes/replacements, verifies replaced bytes by checksum, fsyncs every
 affected parent directory, then replaces and fsyncs `digest.json` last as the commit marker.

@@ -39,10 +39,17 @@ files and deterministic test evidence are now recorded.
 | RP-4 | wp-rubric-prompt | security | nit | fix | Extended the untrusted boundary to the ready set and pinned it with a regression test (`31ee545e`). |
 | RP-5 | wp-rubric-prompt | security | optional | fix | Moved trusted dispatch instructions before all untrusted payloads and forbade duplicate trailing trusted sections (`31ee545e`). |
 
+| ITER-1 | wp-digest-module | security | critical | fix | Restricted and preflight-validates bounded journal recovery targets before mutation. |
+| ITER-2 | wp-digest-module | correctness | high | fix | Added dry-run fresh overlays and host fresh-key threading. |
+| ITER-3 | wp-digest-module | correctness | high | fix | Preserved terminal decision history and enforced cache identity during lifecycle rebuilds. |
+| ITER-4 | wp-rubric-prompt | security | high | fix | Bound exact stdout bytes and embedded ready-set context in the single manifest. |
+| ITER-5 | wp-digest-module | correctness | high | fix | Normalized canonical change dependencies and refused candidate output during pending recovery. |
+| ITER-6 | wp-digest-module | performance | medium | fix | Bounded provenance reads and transactionally refreshed same-key candidates with cache invalidation. |
+
 ## Coverage Summary
 
 - **Requirements traced**: 2/2
 - **Tests mapped**: 2/2 requirements have at least one planned test
 - **Evidence collected**: 2/2 requirements have passing deterministic evidence
-- **Gaps identified**: none
+- **Gaps identified**: none; implementation iteration addressed ten independent audit findings
 - **Deferred items**: cross-vendor quorum was unavailable for two documentation-sized package reviews after Grok/Claude timeouts and Pi schema-invalid output; valid findings were remediated and the degradation is retained in review manifests

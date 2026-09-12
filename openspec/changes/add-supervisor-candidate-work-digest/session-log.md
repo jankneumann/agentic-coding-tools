@@ -269,3 +269,33 @@ Revision 5 passes strict OpenSpec, package scope/overlap, and dependency-DAG val
 
 ### Context
 Implemented the approved candidate-work digest across stable schemas, crash-recoverable runtime state, bounded analyst prompting, supervisor workflow composition, and approval routing. All deterministic implementation, package, traceability, and spec/evidence gates pass; two documentation-sized review packages retain explicit degraded-quorum evidence after external adapter failures.
+
+---
+
+## Phase: Implementation Iteration 1 (2026-09-12)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Fail closed on journal authority** — Recovery now accepts only typed supervisor-owned targets and validates the complete bounded journal before any mutation.
+2. **Keep one bounded analyst payload** — Dry-run stubs and ready-set context now travel inside the exact stdout-bounded manifest instead of disappearing or bypassing the 64-KiB limit.
+3. **Preserve terminal decision history** — Approved and rejected records remain durable after their active candidate/cache artifacts are pruned.
+
+### Alternatives Considered
+- Trust the journal because only digest.py writes it: rejected because Tracked or interrupted state is still an input boundary; recovery must not grant arbitrary repository write authority.
+- Inject ready-set data as a separate prompt block: rejected because A second payload would escape the exact 64-KiB manifest accounting.
+
+### Trade-offs
+- Accepted A 1-MiB and 42-operation journal ceiling over Unbounded terminal-history transactions because The ceiling covers the maximum active batch transaction while bounding recovery resource use.
+
+### Completed Work
+- Restricted, bounded, and fully preflighted transaction recovery
+- Added dry-run fresh-stub overlays and safe fresh-key propagation
+- Preserved terminal decisions and validated lifecycle cache identity
+- Bounded exact stdout payload including ready-set context
+- Normalized canonical change dependencies and pending-recovery refusal
+- Bounded evidence reads and refreshed same-key candidates transactionally
+- Added ten-finding implementation artifact and updated traceability
+
+### Context
+Independent review identified ten medium-or-higher defects in candidate digest recovery, dry-run composition, lifecycle durability, prompt bounds, dependency resolution, and evidence I/O. All ten were fixed with RED/GREEN regression coverage; the focused, default, static, package, and strict OpenSpec gates pass.

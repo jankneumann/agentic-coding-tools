@@ -16,7 +16,12 @@ SCHEMAS = REPO_ROOT / "openspec" / "schemas"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from digest import OversizedManifestError, prepare_batch, store_candidates  # noqa: E402
+from digest import (
+    MAX_MANIFEST_BYTES,
+    OversizedManifestError,
+    prepare_batch,
+    store_candidates,
+)  # noqa: E402
 
 AS_OF = "2026-09-20T00:00:00Z"
 
@@ -144,7 +149,11 @@ def test_future_git_timestamp_degrades_to_clock_skew(repo: Path) -> None:
         ["git", "-C", str(repo), "commit", "-m", "future evidence"],
         check=True,
         capture_output=True,
-        env={**__import__("os").environ, "GIT_AUTHOR_DATE": "2027-01-01T00:00:00Z", "GIT_COMMITTER_DATE": "2027-01-01T00:00:00Z"},
+        env={
+            **__import__("os").environ,
+            "GIT_AUTHOR_DATE": "2027-01-01T00:00:00Z",
+            "GIT_COMMITTER_DATE": "2027-01-01T00:00:00Z",
+        },
     )
     store_candidates(repo, [_stub("future.md")], record=None, as_of=AS_OF)
 
@@ -176,3 +185,55 @@ def test_prepare_batch_output_is_deterministic_and_at_most_64_kib(repo: Path) ->
 
     assert second == first
     assert len(encoded) <= 64 * 1024
+
+
+def test_manifest_bound_rejects_stdout_serialization_over_64_kib(repo: Path) -> None:
+    stub = _stub("missing.md", description="x")
+    store_candidates(repo, [stub], record=None, as_of=AS_OF)
+    base = prepare_batch(repo, fingerprint="a" * 64, as_of=AS_OF, record=None)
+    compact_size = len(json.dumps(base, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    stub["description"] += "x" * (MAX_MANIFEST_BYTES - compact_size)
+    candidate = repo / "openspec/supervise/candidates/change--add-evidence-boundary.json"
+    candidate.write_text(json.dumps(stub), encoding="utf-8")
+
+    with pytest.raises(OversizedManifestError, match="oversized:"):
+        prepare_batch(repo, fingerprint="a" * 64, as_of=AS_OF, record=None)
+
+
+def test_evidence_reader_never_loads_the_complete_artifact(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifact = repo / "reports/large.md"
+    artifact.parent.mkdir()
+    artifact.write_text("x" * 100_000, encoding="utf-8")
+    _git(repo, "add", "reports/large.md")
+    _git(repo, "commit", "-m", "large evidence")
+    store_candidates(repo, [_stub("reports/large.md")], record=None, as_of=AS_OF)
+    original = Path.read_bytes
+
+    def reject_full_read(path: Path) -> bytes:
+        if path == artifact:
+            raise AssertionError("full evidence read is not bounded")
+        return original(path)
+
+    monkeypatch.setattr(Path, "read_bytes", reject_full_read)
+
+    manifest = prepare_batch(repo, fingerprint="a" * 64, as_of=AS_OF, record=None)
+
+    assert manifest["candidates"][0]["evidence"] is not None
+
+
+def test_ready_set_is_inside_the_bounded_manifest(repo: Path) -> None:
+    store_candidates(repo, [_stub("missing.md")], record=None, as_of=AS_OF)
+    ready = [{"roadmap_id": "target", "items": ["ri-01"]}]
+
+    manifest = prepare_batch(
+        repo,
+        fingerprint="a" * 64,
+        as_of=AS_OF,
+        record=None,
+        ready_set=ready,
+    )
+
+    assert manifest["ready_set"] == ready
+    assert len((json.dumps(manifest, sort_keys=True) + "\n").encode()) <= MAX_MANIFEST_BYTES
