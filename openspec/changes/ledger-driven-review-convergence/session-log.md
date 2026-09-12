@@ -34,3 +34,48 @@
 ### Context
 Planned phase 2: a gate-time finding ledger with compact, delta review, tighter blocking, parked disagreement, scoped fixes, and one convergence engine instead of nested PLAN_REVIEW/PLAN_FIX cold re-reviews.
 
+---
+
+## Phase: Implementation (2026-09-12)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Heuristic compact and fingerprint+match_score merge** `architectural: skill-workflow` — Follows D1/D2: no extra LLM call; identity is hash(axis, path, description) with match_score as the paraphrase path, gated on file_path or >=4 tokens to avoid collapsing generic test findings.
+2. **Disagreement parks instead of aborting** `architectural: skill-workflow` — D4: agreed blocking work continues; parked leftovers surface on ConvergenceResult.escalate_findings.
+3. **PLAN_FIX is a sub-step, not an outer bounce** `architectural: skill-workflow` — D6: _phase_review passes a recording fix_callback into converge() and maps leftover non-convergence to max_iter. TRANSITIONS still maps not_converged→PLAN_FIX for resume of in-flight loop-state.
+4. **Default stall window of 2** `architectural: skill-workflow` — Post-compact blocking must strictly decrease; compact removes invented-finding noise that forced a window of 3.
+
+### Alternatives Considered
+- Keep reason=disagreement abort and only raise the blocking threshold: rejected because Does not stop re-raising the same issue or nested PLAN_REVIEW cold re-reviews.
+- Model compact on every round: rejected because Cost and latency; ambient-review-ledger can replace the heuristic later without a schema change.
+
+### Trade-offs
+- Accepted Resume-compatible TRANSITIONS table with dead not_converged edge over Deleting PLAN_FIX as a phase name because In-flight PLAN_FIX loop-state can still resume; new runs never emit not_converged from _phase_review.
+- Accepted Conservative compact when the cited parent dir was never on disk over Retiring every missing file_path because Test fixtures and findings that cite a path the repo never had must not auto-retire.
+
+### Open Questions
+- [ ] Whether parked leftovers at SUBMIT_PR should hard-block merge or only surface.
+- [ ] Per-package context checkpoint reported undeclared for wp-ledger/wp-loop (ri-08 gate); follow-up if surface mapping needs a plan amendment.
+
+### Completed Work
+- review-ledger.schema.json + parked-disagreements.schema.json tests
+- review_ledger.py load/merge/compact/blocking/scoped-fix
+- converge() ledger compact, delta prompts, parked disagreement, D3 blocking, stall window 2
+- autopilot one-engine PLAN_REVIEW with PLAN_FIX/IMPL_FIX phase_history sub-steps
+- seeded spiral fixture
+
+### Next Steps
+- validate-feature spec+evidence phases
+- Confirm parked leftovers at SUBMIT_PR remain advisory
+
+### Relevant Files
+- `skills/parallel-infrastructure/scripts/review_ledger.py` — Gate-time ledger library
+- `skills/autopilot/scripts/convergence_loop.py` — Ledger-driven converge()
+- `skills/autopilot/scripts/autopilot.py` — One-engine PLAN_REVIEW
+- `skills/autopilot/SKILL.md` — One-engine docs
+- `skills/tests/autopilot/test_convergence_spiral_fixture.py` — Spiral fixture
+
+### Context
+Implemented the gate-time review ledger, heuristic compact, delta prompts, D3 blocking, parked disagreement, scoped fix payloads, and collapsed the PLAN_REVIEW outer bounce so PLAN_FIX/IMPL_FIX are phase_history sub-steps inside converge().
+
