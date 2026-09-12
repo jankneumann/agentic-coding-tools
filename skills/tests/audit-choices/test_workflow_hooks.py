@@ -130,6 +130,18 @@ class TestIterateOnImplementationStep11_5:
         assert "audit-choices: skipped (" in section
         assert "continuing to summary" in section
 
+    def test_unavailable_cases_have_distinct_skip_reasons(self):
+        """Finding 3 (impl-round-2): F6 names two different "unavailable"
+        causes — the skill directory (or its runtime mirror) being absent,
+        and the harness exposing no sub-agent dispatch tool. A single
+        `SKIP_REASON="audit-choices not installed"` covering both means the
+        required single warning (scenario skill-workflow.8: "log a single
+        warning naming the reason") is false for the second cause. Each
+        cause must set its own, distinct reason string."""
+        section = _section(ITERATE_SKILL, "11.5")
+        assert 'SKIP_REASON="audit-choices not installed"' in section
+        assert 'SKIP_REASON="no sub-agent dispatch tool"' in section
+
     def test_dispatch_is_not_a_bash_command(self):
         """Finding 1 (impl-round-1): `/audit-choices` is an agent slash
         command, not a shell executable. A shell that tries to run it fails
