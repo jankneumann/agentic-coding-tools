@@ -274,3 +274,28 @@ def test_cli_entrypoint_exit_code(tmp_path, argv_format, capsys, monkeypatch):
     monkeypatch.setattr(sys, "argv", argv)
     exit_code = needs_user._cli()
     assert exit_code == 0
+
+
+class TestCliIsTotal:
+    """F3: the reader never raises and never exits non-zero. The skill's
+    red-flag list names a non-zero exit from anything in `scripts/` as a
+    defect, and argparse exits 2 on a usage error unless that is caught."""
+
+    def test_bad_format_value_still_exits_zero(self, capsys):
+        assert needs_user.main(["--change-id", "x", "--format", "xml"]) == 0
+        assert "WARNING" in capsys.readouterr().err
+
+    def test_missing_required_argument_still_exits_zero(self, capsys):
+        assert needs_user.main([]) == 0
+        assert "WARNING" in capsys.readouterr().err
+
+    def test_unknown_flag_still_exits_zero(self, capsys):
+        assert needs_user.main(["--change-id", "x", "--nope"]) == 0
+        assert "WARNING" in capsys.readouterr().err
+
+    def test_help_still_propagates(self):
+        """`--help` exits 0 through SystemExit; that is argparse working as
+        intended and must not be swallowed into a silent empty result."""
+        with pytest.raises(SystemExit) as exc:
+            needs_user.main(["--help"])
+        assert exc.value.code in (0, None)

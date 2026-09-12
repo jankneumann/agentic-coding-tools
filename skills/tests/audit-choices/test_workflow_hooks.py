@@ -96,6 +96,26 @@ def _assert_reader_invoked_skill_relative(fence: str, *, label: str) -> None:
         )
 
 
+
+def _commit_failure_branch(work: str) -> str:
+    """The `git commit ... || { ... }` statement from Step 11.5's work fence,
+    verbatim.
+
+    Extracted rather than restated so the test exercises the shipped text; a
+    rewrite that drops the unstage-and-discard cleanup fails here."""
+    start = work.index("git commit -q -m")
+    brace = work.index("{", start)
+    depth, i = 0, brace
+    while i < len(work):
+        if work[i] == "{":
+            depth += 1
+        elif work[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return work[start:i + 1]
+        i += 1
+    raise AssertionError("commit-failure branch not found in Step 11.5 work fence")
+
 def _choices_row_snippet(fence: str) -> str:
     """The Choices-row snippet from validate-feature Step 11, anchored on
     whichever variable actually starts it — `VALIDATION_ROOT=` (finding 1,
@@ -334,6 +354,59 @@ class TestIterateOnImplementationStep11_5:
             fence,
             re.DOTALL,
         ), "checkout and rm -f must be if/else branches, not sequential commands"
+
+    def test_commit_failure_leaves_no_staged_ledger(self, tmp_path):
+        """A commit can fail after `git add` succeeded — a rejecting
+        commit-msg hook, a signing failure. The step must not print its
+        benign skip line while leaving the pair staged, or a later workflow
+        step carries the skipped audit's output into someone else's commit.
+        Executes the real `new|changed` branch against a repo whose
+        commit-msg hook always rejects."""
+        section = _section(ITERATE_SKILL, "11.5")
+        work = next(f for f in _FENCE.findall(section) if "audit_choices_step()" in f)
+        assert "git reset" in _commit_failure_branch(work), (
+            "the commit-failure branch must unstage the ledger pair; "
+            "without it `git add` output survives a failed commit"
+        )
+
+        repo = tmp_path / "repo"
+        change_dir = repo / "openspec" / "changes" / "my-change"
+        change_dir.mkdir(parents=True)
+        subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+        (repo / "seed").write_text("seed\n")
+        subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-qm", "seed"], cwd=repo, check=True)
+
+        hooks = repo / ".git" / "hooks"
+        hooks.mkdir(parents=True, exist_ok=True)
+        hook = hooks / "commit-msg"
+        hook.write_text("#!/bin/sh\nexit 1\n")
+        hook.chmod(0o755)
+
+        (change_dir / "choices.json").write_text('{"entries": []}')
+        (change_dir / "choices.md").write_text("# Choices\n")
+
+        script = (
+            'CHANGE_ID="my-change"\n'
+            'JSON_PATH="openspec/changes/$CHANGE_ID/choices.json"\n'
+            'MD_PATH="openspec/changes/$CHANGE_ID/choices.md"\n'
+            'SKIP_REASON=""\n'
+            'git add "$JSON_PATH" "$MD_PATH"\n'
+            + _commit_failure_branch(work)
+            + '\necho "reason=$SKIP_REASON"\n'
+        )
+        out = subprocess.run(
+            ["bash", "-c", script], cwd=repo, capture_output=True, text=True
+        )
+        assert "reason=git commit failed" in out.stdout, out.stdout + out.stderr
+
+        staged = subprocess.run(
+            ["git", "diff", "--cached", "--name-only"],
+            cwd=repo, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        assert staged == "", f"ledger left staged after a failed commit: {staged!r}"
 
     def test_orphan_cleanup_behavior(self, tmp_path):
         """Executable proof for F6: run the *actual* orphan-cleanup snippet

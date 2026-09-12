@@ -744,8 +744,25 @@ PYEOF
       git add "openspec/changes/$CHANGE_ID/choices.json" \
               "openspec/changes/$CHANGE_ID/choices.md" \
         || { SKIP_REASON="git add failed"; return; }
+      # A commit can fail after `git add` succeeded — a rejecting
+      # commit-msg hook, a signing failure. Setting SKIP_REASON and
+      # returning would print the benign skip line while leaving the pair
+      # staged (`A` on a first audit, `M` on a re-audit), so a later step
+      # could carry the skipped audit's output into someone else's commit.
+      # Unstage, then discard per path the same way the orphan branch does.
       git commit -q -m "chore(choices): audit ledger for $CHANGE_ID" \
-        || { SKIP_REASON="git commit failed"; return; }
+        || {
+             git reset -q HEAD -- "$JSON_PATH" "$MD_PATH" 2>/dev/null || true
+             for f in "$JSON_PATH" "$MD_PATH"; do
+               if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+                 git checkout -- "$f" 2>/dev/null || true
+               else
+                 rm -f "$f"
+               fi
+             done
+             SKIP_REASON="git commit failed"
+             return
+           }
       ;;
     unchanged)
       # Entries and schema_version are unchanged: restore the committed pair
