@@ -25,7 +25,7 @@ review found that requirement still forbade writing outside
 
 ## Phase 1 — Guard the skill being refactored
 
-- [ ] 1.1 Pin `prioritize-proposals`' current on-disk output with a characterization test
+- [x] 1.1 Pin `prioritize-proposals`' current on-disk output with a characterization test
   **Design decisions**: D4
   **Dependencies**: none
   **Files**: `skills/tests/prioritize-proposals/test_output_characterization.py`
@@ -71,7 +71,7 @@ review found that requirement still forbade writing outside
   function-level pins call `build_run_id` with an explicit UTC datetime so they
   would not see it either.
 
-- [ ] Checkpoint: run `cd skills && uv run pytest tests/prioritize-proposals -q`, confirm green against unmodified code (the subprocess cases pass here because the copied scripts do not yet import `shared`)
+- [x] Checkpoint: run `cd skills && uv run pytest tests/prioritize-proposals -q`, confirm green against unmodified code (the subprocess cases pass here because the copied scripts do not yet import `shared`)
 
 ## Phase 2 — Extract the shared helper
 
