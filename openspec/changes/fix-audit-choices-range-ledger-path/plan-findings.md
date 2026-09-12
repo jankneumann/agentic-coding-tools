@@ -51,3 +51,20 @@ as written (finding 3).
 - Scenario coverage: 12 (success + the "no `range:` directory" negative), 13 (negative for the change-id form), 14 (bounded; archive-not-delete). Retention-failure and two-run idempotency paths are covered at task level (5.2, 4.3) rather than as new spec scenarios, since the spec is deliberately path-agnostic.
 - Task traceability: every task cites a scenario or a design decision; 1.1, 2.x and 3.1 trace to D2–D4 (the guarded refactor has no spec scenario of its own by design — it must not change observable behaviour).
 - Design rationale: D1, D2, D5, D7 record a rejected alternative; D3, D4, D6, D8 record the failure they prevent.
+
+## Iteration 2
+
+<!-- Date: 2026-09-11 — convergence pass -->
+
+Re-read proposal, design, tasks, the spec delta and work-packages after the iteration-1 edits,
+checking each cross-reference (D-numbers cited by tasks, files named in tasks versus the package's
+`write_allow` and `locks`, scenario ordinals, the two checkpoints' commands against the package's
+verification steps). No finding at or above the medium threshold. Termination: threshold met.
+
+| # | Type | Criticality | Description | Resolution |
+|---|------|-------------|-------------|------------|
+| — | — | — | No findings at or above `medium`. | Loop converged after one refining iteration. |
+
+Residual, below threshold and deliberately left: the header `run_id` and the D7 directory run-id are
+two identities on one ledger (recorded as an accepted trade-off), and D7 itself awaits a human at plan
+approval.
