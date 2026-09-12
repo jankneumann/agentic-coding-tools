@@ -1,12 +1,141 @@
 {
-  "blocking_findings": [],
+  "schema_version": 5,
   "change_id": "add-supervisor-candidate-work-digest",
-  "cli_review_enabled": true,
   "current_phase": "SUBMIT_PR",
-  "error": null,
-  "escalation_reason": "IMPL_REVIEW reached max_iter with two confirmed deterministic blockers",
+  "iteration": 0,
+  "total_iterations": 19,
+  "max_phase_iterations": 4,
   "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "gatekeeper:add-supervisor-candidate-work-digest:20260910T2240Z",
+    "d7524bcf-1481-43e4-8076-09eca4ebf7d2",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/plan-review-1.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/plan-review-2.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/plan-review-3.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-1.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-iteration-1-1.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-1-1.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-1-1.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-2-1.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-2-1.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-3-1.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-post-cap-1.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-4-1.json",
+    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/validation-1.json"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-09-10T22:41:37.744254+00:00",
+      "outcome": "proceed",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-09-11T00:32:27.251760+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-09-11T00:56:24.010294+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-11T01:24:58.715443+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-11T01:59:31.093219+00:00",
+      "outcome": "max_iter",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-11T02:35:55.629382+00:00",
+      "note": "Operator authorized implementation after revision 5 resolved the two max-iteration blockers and strict/package/DAG validation passed.",
+      "outcome": "operator_override_after_manual_fix",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-12T00:52:27.576409+00:00",
+      "outcome": "complete",
+      "phase": "IMPLEMENT"
+    },
+    {
+      "at": "2026-09-12T01:26:00.021618+00:00",
+      "outcome": "complete",
+      "phase": "IMPL_ITERATE"
+    },
+    {
+      "at": "2026-09-12T01:54:55.279799+00:00",
+      "outcome": "not_converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-12T02:17:03+00:00",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-12T02:51:08.338440+00:00",
+      "outcome": "not_converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-12T03:02:00+00:00",
+      "outcome": "fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-12T03:31:22.543712+00:00",
+      "outcome": "max_iter",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-12T13:11:34+00:00",
+      "note": "Fixed only the two confirmed round-3 blockers; operator authorized exactly one independent review constrained to those fixes.",
+      "outcome": "operator_authorized_post_cap_fixed",
+      "phase": "IMPL_FIX"
+    },
+    {
+      "at": "2026-09-12T13:26:40.944375+00:00",
+      "outcome": "converged",
+      "phase": "IMPL_REVIEW"
+    },
+    {
+      "at": "2026-09-12T19:52:52.782384+00:00",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    }
+  ],
+  "last_handoff_id": "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/validation-1.json",
+  "started_at": "2026-09-10T22:40:09.976184+00:00",
+  "phase_started_at": "2026-09-12T19:53:31.691642+00:00",
+  "previous_phase": "IMPL_REVIEW",
+  "escalation_reason": "IMPL_REVIEW reached max_iter with two confirmed deterministic blockers",
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "runner",
   "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 4,
+    "total_loc_estimate": 730
+  },
+  "gate_verdict": "proceed",
   "gate_decisions": [
     {
       "approval_id": null,
@@ -131,137 +260,38 @@
       "recorded_at": "2026-09-12T13:05:20.069857+00:00",
       "resolution": "console_approved",
       "timeout_seconds": null
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-12T19:54:30.652480+00:00"
     }
   ],
-  "gate_signals": {
-    "external_dep_count": 0,
-    "has_broad_write_scope": false,
-    "has_db_migration": false,
-    "has_proposal": true,
-    "has_security_signal": false,
-    "has_specs": true,
-    "has_tasks": true,
-    "has_work_packages": true,
-    "package_count": 4,
-    "total_loc_estimate": 730
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "add-supervisor-candidate-work-digest",
+    "gate": "pr_creation",
+    "phase": "SUBMIT_PR",
+    "requested_at": "2026-09-12T19:54:30.653097+00:00",
+    "prompt": "Create the pull request for this change?",
+    "context": {
+      "branch": "openspec/add-supervisor-candidate-work-digest",
+      "change_id": "add-supervisor-candidate-work-digest"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": false
+    }
   },
-  "gate_verdict": "proceed",
-  "goal_gate": null,
-  "handoff_ids": [
-    "gatekeeper:add-supervisor-candidate-work-digest:20260910T2240Z",
-    "d7524bcf-1481-43e4-8076-09eca4ebf7d2",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/plan-review-1.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/plan-review-2.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/plan-review-3.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-1.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-iteration-1-1.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-1-1.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-1-1.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-2-1.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-2-1.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-3-1.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-fix-post-cap-1.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-review-4-1.json",
-    "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/validation-1.json"
-  ],
-  "implementation_strategy": {},
-  "iteration": 0,
-  "last_handoff_id": "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/validation-1.json",
-  "max_phase_iterations": 4,
-  "memory_ids": [],
-  "package_authors": {},
-  "packages_status": {},
-  "pending_gate": null,
-  "phase_archetype": "runner",
-  "phase_history": [
-    {
-      "at": "2026-09-10T22:41:37.744254+00:00",
-      "outcome": "proceed",
-      "phase": "GATEKEEPER"
-    },
-    {
-      "at": "2026-09-11T00:32:27.251760+00:00",
-      "outcome": "complete",
-      "phase": "PLAN_ITERATE"
-    },
-    {
-      "at": "2026-09-11T00:56:24.010294+00:00",
-      "outcome": "not_converged",
-      "phase": "PLAN_REVIEW"
-    },
-    {
-      "at": "2026-09-11T01:24:58.715443+00:00",
-      "outcome": "not_converged",
-      "phase": "PLAN_REVIEW"
-    },
-    {
-      "at": "2026-09-11T01:59:31.093219+00:00",
-      "outcome": "max_iter",
-      "phase": "PLAN_REVIEW"
-    },
-    {
-      "at": "2026-09-11T02:35:55.629382+00:00",
-      "note": "Operator authorized implementation after revision 5 resolved the two max-iteration blockers and strict/package/DAG validation passed.",
-      "outcome": "operator_override_after_manual_fix",
-      "phase": "PLAN_REVIEW"
-    },
-    {
-      "at": "2026-09-12T00:52:27.576409+00:00",
-      "outcome": "complete",
-      "phase": "IMPLEMENT"
-    },
-    {
-      "at": "2026-09-12T01:26:00.021618+00:00",
-      "outcome": "complete",
-      "phase": "IMPL_ITERATE"
-    },
-    {
-      "at": "2026-09-12T01:54:55.279799+00:00",
-      "outcome": "not_converged",
-      "phase": "IMPL_REVIEW"
-    },
-    {
-      "at": "2026-09-12T02:17:03+00:00",
-      "outcome": "fixed",
-      "phase": "IMPL_FIX"
-    },
-    {
-      "at": "2026-09-12T02:51:08.338440+00:00",
-      "outcome": "not_converged",
-      "phase": "IMPL_REVIEW"
-    },
-    {
-      "at": "2026-09-12T03:02:00+00:00",
-      "outcome": "fixed",
-      "phase": "IMPL_FIX"
-    },
-    {
-      "at": "2026-09-12T03:31:22.543712+00:00",
-      "outcome": "max_iter",
-      "phase": "IMPL_REVIEW"
-    },
-    {
-      "at": "2026-09-12T13:11:34+00:00",
-      "note": "Fixed only the two confirmed round-3 blockers; operator authorized exactly one independent review constrained to those fixes.",
-      "outcome": "operator_authorized_post_cap_fixed",
-      "phase": "IMPL_FIX"
-    },
-    {
-      "at": "2026-09-12T13:26:40.944375+00:00",
-      "outcome": "converged",
-      "phase": "IMPL_REVIEW"
-    },
-    {
-      "at": "2026-09-12T19:52:52.782384+00:00",
-      "outcome": "passed",
-      "phase": "VALIDATE"
-    }
-  ],
-  "phase_started_at": "2026-09-12T19:53:31.691642+00:00",
-  "previous_phase": "IMPL_REVIEW",
-  "schema_version": 5,
-  "started_at": "2026-09-10T22:40:09.976184+00:00",
-  "total_iterations": 19,
-  "val_review_enabled": false,
-  "vendor_availability": {}
+  "goal_gate": null
 }
