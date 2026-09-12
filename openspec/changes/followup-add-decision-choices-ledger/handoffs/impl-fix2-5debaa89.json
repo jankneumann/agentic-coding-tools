@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-11T00:00:00Z",
+  "payload": {
+    "agent_name": "impl-fix2-5debaa89 (IMPL_FIX round 2, non-isolated)",
+    "session_id": null,
+    "summary": "Fixed all 3 findings from openspec/changes/followup-add-decision-choices-ledger/reviews/impl-round-2/ against skills/validate-feature/SKILL.md Step 11 and skills/iterate-on-implementation/SKILL.md Step 11.5, each with an executable or content-pin test verified to fail before the fix (by temporarily reverting the production edit with `git checkout --` and rerunning, then reapplying via a saved patch) and pass after. All three findings were confirmed real on inspection; none were rejected. One commit per finding (finding 2's masking-test additions landed as their own commit after finding 1's fix, since finding 2 is explicitly about strengthening the test that should have caught finding 1). All four required gates pass. Branch pushed to origin/openspec/followup-add-decision-choices-ledger--fix2.",
+    "completed_work": [
+      "Finding 1 (HIGH): validate-feature/SKILL.md Step 11's Choices fence resolved CHOICES_JSON via $OPENSPEC_PATH and the reader's --repo-root via $PROJECT_ROOT, both of which worktree.py detect's cmd_detect points at the *main* checkout whenever IN_WORKTREE=true -- not the feature worktree where iterate-on-implementation Step 11.5 actually commits the ledger. Rewrote the fence to compute VALIDATION_ROOT=\"$(git rev-parse --show-toplevel)\" and root both the presence check and --repo-root there, matching the existing CHANGE_DIR convention at Step 2 (line ~150). No other use of $OPENSPEC_PATH/$PROJECT_ROOT in the file was touched.",
+      "Finding 2 (MEDIUM): the existing test_no_ledger_path_survives_set_u injected OPENSPEC_PATH=\"openspec\" (the non-worktree shape), which could never surface finding 1's worktree failure mode, and ran against a bare tmp_path with no git repo -- incompatible with the fixed snippet's git rev-parse call, so it needed updating regardless. Updated it to run inside a real (empty) git repo and dropped the now-irrelevant OPENSPEC_PATH/PROJECT_ROOT env vars. Added a shared _choices_row_snippet() extraction helper (anchors on VALIDATION_ROOT= post-fix, falls back to CHOICES_JSON= pre-fix, so a regression test demonstrates the real bug rather than merely failing to find a marker). Added test_choices_fence_does_not_resolve_via_main_checkout_vars (static: asserts $OPENSPEC_PATH/$PROJECT_ROOT/$MAIN_REPO never appear in the presence-check-through-reader-invocation span) and test_worktree_shaped_env_still_finds_the_ledger (executable: sets worktree-shaped OPENSPEC_PATH/PROJECT_ROOT/MAIN_REPO pointing at a separate 'main' checkout with no ledger, puts a real choices.json with one needs-user entry only under the current worktree's own openspec/ tree, and asserts the real extracted snippet still renders the ⚠ needs-user row with the entry's stable_id -- not the '○ Choices: no ledger' fallback).",
+      "Finding 3 (HIGH): iterate-on-implementation/SKILL.md Step 11.5 mapped both F6 'unavailable' causes -- skills/audit-choices/ (or its runtime mirror) absent, and the harness exposing no sub-agent dispatch tool -- to the single SKIP_REASON=\"audit-choices not installed\", so the scenario skill-workflow.8 requirement ('log a single warning naming the reason') was false for the second cause. Split the numbered instruction into two branches: SKIP_REASON=\"audit-choices not installed\" when the skill directory is absent, SKIP_REASON=\"no sub-agent dispatch tool\" when dispatch is unavailable, renumbering the subsequent dispatch step to 3. Added test_unavailable_cases_have_distinct_skip_reasons pinning both exact strings in the Step 11.5 section.",
+      "Verified every fix independently: saved each SKILL.md edit as a patch via `git diff > <path>`, reverted with `git checkout -- <file>` (never `git stash`, per instructions), reran the new/updated tests to confirm a real, on-topic failure (not just a missing-marker AssertionError), then reapplied the patch with `git apply` and reran to confirm green.",
+      "Ran all four required gates at the end: cd skills && uv run pytest tests/audit-choices -q (119 passed), bash install.sh --check (passed), uv run python validate-feature/scripts/linters/dependency_direction.py --skills-root . (passed), uv run pytest tests/ci_coverage -q (124 passed). Did not touch `make context-refresh` (pre-existing, out of scope per instructions).",
+      "Committed one commit per finding: 4ff35770 (finding 1: SKILL.md fix + minimal test-file adjustment to keep test_no_ledger_path_survives_set_u passing under the new snippet shape), b9e3fb13 (finding 2: the two new masking-prevention tests plus the shared helper), 90490776 (finding 3: SKILL.md split + content-pin test). Pushed openspec/followup-add-decision-choices-ledger--fix2 on top of 4131d9dc."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Root the Choices fence at `$(git rev-parse --show-toplevel)`, not a new worktree.py flag or a passed-in variable",
+        "rationale": "The file already has the correct convention one screen up (CHANGE_DIR at Step 2, line ~150), and Step 11 runs in a context where cwd is always the checkout under validation -- either the original feature worktree, or (under --ephemeral) VALIDATION_PATH after Step 2.25's `cd`. Reusing `git rev-parse --show-toplevel` inline needed no new state and stayed inside the finding's explicit instruction not to touch any other use of $OPENSPEC_PATH/$PROJECT_ROOT in the file.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Split finding 1 and finding 2 into separate commits by temporarily removing finding 2's new tests, committing finding 1, then re-adding them",
+        "rationale": "The task instructions require 'commit per finding' and finding 2 is explicitly about a test that masked finding 1 -- keeping them as one commit would blur which finding each hunk addresses in the log. Used a manual edit-remove-commit-reedit sequence rather than `git add -p` (not scriptable non-interactively) to get a clean split.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Verify pre-fix failure via `git diff > patch; git checkout -- <file>; ...; git apply patch` instead of `git stash`",
+        "rationale": "Instructions explicitly forbid bare `git stash`/`git stash pop` in this worktree because the stash stack is shared across worktrees and sessions. The tracked file was clean before each edit (no other uncommitted changes to lose), so `git checkout --` was safe, and the saved patch let the fix be reapplied byte-for-byte via `git apply`.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Anchor the new executable test's snippet extraction on VALIDATION_ROOT= with a fallback to CHOICES_JSON=",
+        "rationale": "A naive `fence.find('VALIDATION_ROOT=\"')` returns -1 against the pre-fix content and the resulting test failure ('could not locate the snippet') doesn't demonstrate the actual bug. The _choices_row_snippet() helper tries both anchors so the same test code produces a meaningful, on-topic assertion failure (falls back to '○ Choices: no ledger' / references $OPENSPEC_PATH) when run against unfixed code, and a clean pass against the fix.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Hand off to the next autopilot phase (vendor review round 3, or validate-feature) per the orchestrator's normal sequence",
+      "If Step 11 of validate-feature is touched again, re-run test_worktree_shaped_env_still_finds_the_ledger and test_no_ledger_path_survives_set_u specifically -- they execute the real extracted bash snippet against a real git repo rather than pattern-matching prose",
+      "If Step 11.5 of iterate-on-implementation is touched again, re-run test_unavailable_cases_have_distinct_skip_reasons to confirm the two SKIP_REASON strings for the F6 unavailable cases stay distinct"
+    ],
+    "relevant_files": [
+      "skills/validate-feature/SKILL.md",
+      "skills/iterate-on-implementation/SKILL.md",
+      "skills/tests/audit-choices/test_workflow_hooks.py",
+      "skills/worktree/scripts/worktree.py",
+      "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "openspec/changes/followup-add-decision-choices-ledger/reviews/impl-round-2/"
+    ]
+  },
+  "notes": {}
+}
