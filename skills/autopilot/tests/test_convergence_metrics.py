@@ -428,11 +428,12 @@ class TestMetricsOnNonConvergence:
                 memory_callback=memory_cb,
             )
 
-        assert result.reason == "disagreement"
+        assert result.reason != "disagreement"
+        assert result.converged is True
         metrics = _extract_final_metrics_call(memory_cb)
         assert metrics is not None
-        assert metrics["convergence_status"] == "escalated"
-        assert metrics["escalation_count"] >= 1
+        assert metrics["convergence_status"] == "converged"
+        assert metrics["escalation_count"] == 0
 
 
 class TestMetricsCapabilityGapSchema:

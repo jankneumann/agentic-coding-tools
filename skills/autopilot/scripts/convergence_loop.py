@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -51,6 +52,19 @@ from review_dispatcher import (  # noqa: E402
     ReviewOrchestrator,
     ReviewResult,
 )
+from review_ledger import (  # noqa: E402
+    append_parked_disagreement,
+    blocking_items as ledger_blocking_items,
+    compact as compact_ledger,
+    is_blocking_item,
+    load_or_create as load_or_create_ledger,
+    merge_findings,
+    park_item,
+    parked_items,
+    save as save_ledger,
+    scoped_fix_payload,
+    mark_addressed,
+)
 
 # Module-level aliases so tests can monkeypatch the checkpoint helpers via
 # ``convergence_loop.cf_write_vendor_findings``. The bare imports also make
@@ -67,8 +81,8 @@ logger = logging.getLogger(__name__)
 # Default criticality levels that count as blocking
 _BLOCKING_CRITICALITIES = {"medium", "high", "critical"}
 
-# Default stall detection window (number of data points to compare)
-_DEFAULT_STALL_WINDOW = 3
+# Default stall detection window (post-compact blocking must strictly decrease)
+_DEFAULT_STALL_WINDOW = 2
 
 
 # ---------------------------------------------------------------------------
@@ -100,11 +114,17 @@ class ConvergenceResult:
 # Review prompt builder
 # ---------------------------------------------------------------------------
 
-def build_review_prompt(artifacts_dir: Path, round_num: int) -> str:
+def build_review_prompt(
+    artifacts_dir: Path,
+    round_num: int,
+    ledger: dict[str, Any] | None = None,
+    last_fix_diff: str | None = None,
+) -> str:
     """Build a review instruction from the artifacts directory.
 
-    Reads key artifacts (proposal, design docs, code) and produces a
-    prompt instructing the reviewer what to focus on.
+    Round 1 is a full review plus "do not re-emit ledger items". Round N>1
+    is compact+delta: open ledger items, last-fix diff, and a ban on
+    re-opening retired or parked items (design D5).
     """
     parts: list[str] = [
         f"## Review Round {round_num}",
@@ -129,6 +149,32 @@ def build_review_prompt(artifacts_dir: Path, round_num: int) -> str:
         parts.append("")
 
     from review_findings_schema import prompt_contract_block
+
+    items = list((ledger or {}).get("items") or [])
+    open_items = [i for i in items if i.get("status") == "open"]
+    if open_items:
+        parts.append("### Open ledger items")
+        for item in open_items:
+            parts.append(
+                f"- [{item.get('id')}] {item.get('description', '')}"
+            )
+        parts.append("")
+        parts.append(
+            "Do not emit findings for issues already in the ledger "
+            "except to re-verify the open items listed above."
+        )
+        parts.append("")
+
+    if round_num > 1:
+        diff_text = last_fix_diff if last_fix_diff else "(empty-diff)"
+        parts.append("### Last-fix diff")
+        parts.append(diff_text[:8000])
+        parts.append("")
+        parts.append(
+            "Hunt only in the attached last-fix diff. Re-verify open "
+            "ledger items. Do not re-open retired or parked items."
+        )
+        parts.append("")
 
     parts.extend([
         "### Instructions",
@@ -177,34 +223,95 @@ def _is_blocking(
     relax_unconfirmed: bool = False,
     blocking_criticalities: set[str] | None = None,
 ) -> bool:
-    """Determine if a consensus finding is blocking.
+    """Determine if a consensus finding or ledger item is blocking.
 
-    Blocking = medium+ criticality AND (confirmed or unconfirmed).
-    In the final round, unconfirmed findings are relaxed (not blocking).
-
-    Args:
-        cf: Consensus finding dict.
-        relax_unconfirmed: If True, unconfirmed findings are not blocking.
-        blocking_criticalities: Custom set of criticalities that count as
-            blocking. Defaults to ``_BLOCKING_CRITICALITIES``.
+    Design D3: open + (deterministic OR confirmed high/critical).
+    Unconfirmed medium judgment never blocks. ``relax_unconfirmed`` is
+    retained for call-site compatibility and ignored.
     """
-    effective_criticalities = (
-        blocking_criticalities if blocking_criticalities is not None
-        else _BLOCKING_CRITICALITIES
-    )
-    criticality = cf.get("agreed_criticality", "low")
-    status = cf.get("status", "unconfirmed")
+    del relax_unconfirmed  # D3 removed the last-round special case
+    item = dict(cf)
+    if "criticality" not in item and "agreed_criticality" in item:
+        item["criticality"] = item["agreed_criticality"]
+    if blocking_criticalities is None:
+        # Preserve the historical default set for deterministic items so
+        # low-severity deterministic nits still do not block unless the
+        # caller opts in via blocking_criticalities.
+        if (item.get("evidence_class") or "deterministic") == "deterministic":
+            crit = item.get("criticality") or item.get("agreed_criticality") or "low"
+            if crit not in _BLOCKING_CRITICALITIES:
+                return False
+    return is_blocking_item(item, blocking_criticalities=blocking_criticalities)
 
-    if criticality not in effective_criticalities:
-        return False
 
-    if status == "confirmed":
-        return True
+def _vendor_hits(cf: dict[str, Any]) -> list[str]:
+    hits: list[str] = []
+    primary = cf.get("primary_vendor")
+    if primary:
+        hits.append(str(primary))
+    for matched in cf.get("matched_findings") or []:
+        vendor = matched.get("vendor") if isinstance(matched, dict) else None
+        if vendor and vendor not in hits:
+            hits.append(str(vendor))
+    for extra in cf.get("vendor_hits") or []:
+        if extra not in hits:
+            hits.append(str(extra))
+    return hits
 
-    if status == "unconfirmed" and not relax_unconfirmed:
-        return True
 
-    return False
+def _file_path_from_vendors(
+    cf: dict[str, Any],
+    vendor_results: list[VendorResult],
+) -> str | None:
+    if cf.get("file_path"):
+        return str(cf["file_path"])
+    primary = cf.get("primary_vendor")
+    fid = cf.get("primary_finding_id")
+    for vr in vendor_results:
+        if primary and vr.vendor != primary:
+            continue
+        for finding in vr.findings:
+            if fid is not None and finding.id == fid and finding.file_path:
+                return finding.file_path
+    return None
+
+
+def _enrich_consensus_findings(
+    consensus_dict: dict[str, Any],
+    report: Any,
+    vendor_results: list[VendorResult],
+) -> None:
+    """Stamp evidence_class, axis, file_path, vendor_hits for the ledger."""
+    objs = {}
+    findings_attr = getattr(report, "consensus_findings", None)
+    if findings_attr:
+        for obj in findings_attr:
+            objs[getattr(obj, "id", None)] = obj
+    for cf in consensus_dict.get("consensus_findings", []):
+        obj = objs.get(cf.get("id"))
+        if obj is not None:
+            cf.setdefault("evidence_class", getattr(obj, "evidence_class", None))
+            cf.setdefault("agreed_axis", getattr(obj, "agreed_axis", None))
+            cf.setdefault("axis", getattr(obj, "agreed_axis", None))
+        cf["vendor_hits"] = _vendor_hits(cf)
+        path = _file_path_from_vendors(cf, vendor_results)
+        if path:
+            cf["file_path"] = path
+
+
+def _last_fix_diff(worktree_path: Path) -> str:
+    try:
+        proc = subprocess.run(
+            ["git", "diff", "HEAD"],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return proc.stdout or ""
 
 
 def _compute_vendor_agreement_rate(
@@ -343,14 +450,13 @@ def converge(
             Errors are logged and attached to the result but do not alter
             convergence logic — the next review round will surface them.
         escalation_callback: Called with a structured escalation summary when
-            the loop exits without converging (reason is "max_rounds",
-            "disagreement", or "stalled"). The summary includes unresolved
-            findings, iteration history, and vendor agreement rate.
+            the loop exits without converging (reason is "max_rounds" or
+            "stalled"). Disagreement is parked, not a loop abort.
         blocking_criticalities: Set of criticality levels that count as
             blocking. Defaults to ``{"medium", "high", "critical"}``.
         stall_window: Number of data points for stall detection.
             Stall is detected when ``trend[-1] >= trend[-stall_window]``.
-            Defaults to 3.
+            Defaults to 2 (post-compact blocking must strictly decrease).
 
     Returns:
         ConvergenceResult with convergence status and details.
@@ -370,6 +476,8 @@ def converge(
     blocking: list[dict[str, Any]] = []
     all_validation_errors: list[str] = []
     latest_checkpoint_dir: Path | None = None
+    last_fix_diff = ""
+    ledger = load_or_create_ledger(artifacts_dir, change_id)
 
     # 2. Loop through rounds
     for round_num in range(1, max_rounds + 1):
@@ -377,8 +485,17 @@ def converge(
             "Convergence round %d/%d for %s", round_num, max_rounds, change_id,
         )
 
+        if round_num > 1:
+            compact_ledger(ledger, worktree_path)
+            save_ledger(ledger, artifacts_dir)
+
         # 2a. Dispatch reviews
-        prompt = build_review_prompt(artifacts_dir, round_num)
+        prompt = build_review_prompt(
+            artifacts_dir,
+            round_num,
+            ledger=ledger,
+            last_fix_diff=last_fix_diff,
+        )
         results = orchestrator.dispatch_and_wait(
             review_type=review_type,
             dispatch_mode="review",
@@ -485,6 +602,7 @@ def converge(
                 vendor_results=vendor_results,
             )
             consensus_dict = synthesizer.to_dict(report)
+            _enrich_consensus_findings(consensus_dict, report, vendor_results)
         except Exception as exc:
             cf_safe_log_error(
                 "convergence.synthesis_failed_with_checkpoint",
@@ -497,64 +615,57 @@ def converge(
             )
             raise
 
-        # 2f. Check for disagreement findings → escalate
+        # 2f. Park disagreements; do not abort the loop (D4).
+        all_findings = list(consensus_dict.get("consensus_findings", []))
         disagreement_findings = [
-            cf for cf in consensus_dict.get("consensus_findings", [])
-            if cf.get("status") == "disagreement"
+            cf for cf in all_findings if cf.get("status") == "disagreement"
+        ]
+        agreed_findings = [
+            cf for cf in all_findings if cf.get("status") != "disagreement"
         ]
         if disagreement_findings:
             logger.info(
-                "Disagreement found in round %d, escalating %d findings",
-                round_num, len(disagreement_findings),
+                "Parking %d disagreement findings in round %d",
+                len(disagreement_findings), round_num,
             )
+            parked = merge_findings(ledger, disagreement_findings, round_num)
+            for item in parked:
+                park_item(ledger, item)
+                dispositions: dict[str, str] = {}
+                for cf in disagreement_findings:
+                    if cf.get("description") == item.get("description"):
+                        dispositions = dict(cf.get("vendor_dispositions") or {})
+                        break
+                if not dispositions and disagreement_findings:
+                    dispositions = dict(
+                        disagreement_findings[0].get("vendor_dispositions") or {}
+                    )
+                append_parked_disagreement(
+                    artifacts_dir,
+                    change_id,
+                    ledger_id=int(item["id"]),
+                    round_num=round_num,
+                    vendor_dispositions=dispositions,
+                    description=str(item.get("description") or ""),
+                )
             if memory_callback:
                 memory_callback(
-                    f"Round {round_num}: disagreement on "
-                    f"{len(disagreement_findings)} findings — escalating"
+                    f"Round {round_num}: parked {len(disagreement_findings)} "
+                    "disagreements — continuing"
                 )
-            disagreement_result = ConvergenceResult(
-                converged=False,
-                rounds=round_num,
-                reason="disagreement",
-                consensus=consensus_dict,
-                escalate_findings=disagreement_findings,
-                validation_errors=all_validation_errors or None,
-                checkpoint_dir=latest_checkpoint_dir,
-            )
-            if escalation_callback is not None:
-                escalation_callback(_build_escalation_summary(
-                    reason="disagreement",
-                    rounds_completed=round_num,
-                    unresolved_findings=disagreement_findings,
-                    trend=trend,
-                    consensus_dict=consensus_dict,
-                ))
-            if memory_callback:
-                memory_callback(json.dumps(_build_convergence_metrics(
-                    rounds_completed=round_num,
-                    findings_per_round=trend,
-                    convergence_status="escalated",
-                    total_time_seconds=time.monotonic() - start_time,
-                    consensus_dict=consensus_dict,
-                    escalation_count=1,
-                )))
-            return disagreement_result
 
-        # 2g. Filter blocking findings (medium+ confirmed/unconfirmed)
-        is_final_round = round_num == max_rounds
+        merge_findings(ledger, agreed_findings, round_num)
+        save_ledger(ledger, artifacts_dir)
 
-        # 2h. Relax unconfirmed in final round
-        blocking = [
-            cf for cf in consensus_dict.get("consensus_findings", [])
-            if _is_blocking(
-                cf,
-                relax_unconfirmed=is_final_round,
-                blocking_criticalities=blocking_criticalities,
-            )
-        ]
+        # 2g. Blocking set is the ledger after compact+merge (D3).
+        blocking = ledger_blocking_items(
+            ledger, blocking_criticalities=blocking_criticalities,
+        )
 
-        # Track trend
+        # Track post-compact blocking trend
         trend.append(len(blocking))
+
+        leftovers = parked_items(ledger)
 
         # Write episodic memory
         if memory_callback:
@@ -565,7 +676,7 @@ def converge(
                 f"{summary.get('unconfirmed_count', 0)} unconfirmed"
             )
 
-        # 2i. If no blocking → converged!
+        # 2i. If no blocking → converged (parked leftovers are advisory).
         if not blocking:
             logger.info("Converged in round %d", round_num)
             if memory_callback:
@@ -582,11 +693,12 @@ def converge(
                 rounds=round_num,
                 reason=None,
                 consensus=consensus_dict,
+                escalate_findings=leftovers or None,
                 validation_errors=all_validation_errors or None,
                 checkpoint_dir=latest_checkpoint_dir,
             )
 
-        # 2j. N-point stall detection (configurable window, default 3)
+        # 2j. Stall when post-compact blocking is not strictly decreasing.
         if len(trend) >= stall_window and trend[-1] >= trend[-stall_window]:
             logger.warning(
                 "Stall detected: trend %s (window=%d)",
@@ -620,12 +732,16 @@ def converge(
                 )))
             return stall_result
 
-        # 2k. Dispatch fixes
+        # 2k. Dispatch scoped fixes for current blocking items only (D7).
+        payloads = [scoped_fix_payload(item) for item in blocking]
+        mark_addressed(ledger, [int(item["id"]) for item in blocking])
+        save_ledger(ledger, artifacts_dir)
         if fix_callback is not None:
             logger.info(
-                "Dispatching fixes for %d blocking findings", len(blocking),
+                "Dispatching fixes for %d blocking findings", len(payloads),
             )
-            fix_callback(blocking, worktree_path)
+            fix_callback(payloads, worktree_path)
+            last_fix_diff = _last_fix_diff(worktree_path)
 
             # 2l. Post-fix validation (optional)
             if post_fix_validator is not None:

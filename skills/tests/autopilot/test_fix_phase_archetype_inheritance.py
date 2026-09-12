@@ -148,8 +148,8 @@ def test_convergence_loop_round_trip_does_not_overwrite_archetype(
         post_fix_validator_fn=None,
     )
 
-    # _phase_review increments iteration and returns 'not_converged' on non-conv.
-    assert outcome == "not_converged"
+    # Inner converge already applied fixes; leftover non-convergence is max_iter.
+    assert outcome == "max_iter"
     # The convergence loop must NEVER have overwritten phase_archetype.
     assert state.phase_archetype == "reviewer"
 

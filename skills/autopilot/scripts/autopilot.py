@@ -1482,12 +1482,32 @@ def _phase_review(
 
     if converge_fn is not None:
         review_type = _PHASE_TO_REVIEW_TYPE.get(state.current_phase, "plan")
+        fix_phase = {
+            "PLAN_REVIEW": "PLAN_FIX",
+            "IMPL_REVIEW": "IMPL_FIX",
+            "VAL_REVIEW": "VAL_FIX",
+        }.get(state.current_phase)
+
+        def _record_fix_substep(
+            blocking_items: list[dict[str, Any]],
+            _worktree: Path,
+        ) -> None:
+            if fix_phase:
+                state.phase_history.append({
+                    "phase": fix_phase,
+                    "outcome": "fix_callback",
+                    "at": _now_iso(),
+                    "sub_step": True,
+                    "blocking_count": len(blocking_items),
+                })
+
         converge_kwargs: dict[str, Any] = {
             "change_id": state.change_id,
             "review_type": review_type,
             "artifacts_dir": change_dir,
             "worktree_path": worktree_path,
             "fix_mode": fix_mode,
+            "fix_callback": _record_fix_substep,
         }
         if post_fix_validator_fn is not None:
             converge_kwargs["post_fix_validator"] = post_fix_validator_fn
@@ -1513,7 +1533,9 @@ def _phase_review(
         if converged:
             state.iteration = 0
             return "converged"
-        return "not_converged"
+        # Inner converge() already ran fix_callback. Remaining
+        # non-convergence is max_iter/stalled, not an outer PLAN_FIX bounce.
+        return "max_iter"
 
     # No converge function — assume converged
     state.iteration = 0
