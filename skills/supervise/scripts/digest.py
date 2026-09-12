@@ -23,7 +23,7 @@ from typing import Any, Iterable, Sequence
 
 import yaml
 
-from jsonschema import Draft202012Validator, FormatChecker
+from jsonschema import Draft202012Validator, FormatChecker, ValidationError
 
 from cycle_state import _durable_sections, stub_key, write_mirror
 
@@ -287,6 +287,15 @@ def store_candidates(
             if prior_fresh is not None and _canonical_bytes(prior_fresh) != _canonical_bytes(stub):
                 raise ValueError(f"conflicting fresh candidates for {key}")
             fresh_by_key[key] = stub
+    terminal_readmissions = sorted(
+        key
+        for key in fresh_by_key
+        if maintenance.decisions.get(key, {}).get("decision") in {"approved", "rejected"}
+    )
+    if terminal_readmissions:
+        raise ValueError(
+            "terminal decision already exists for " + ",".join(terminal_readmissions)
+        )
 
     retained_keys = sorted(stored)
     new_keys = sorted(key for key in fresh_by_key if key not in stored)
@@ -327,7 +336,7 @@ def store_candidates(
         "fresh_keys": sorted([*new_keys, *updated_keys]),
         "pruned_keys": list(maintenance.pruned),
         "woken_keys": list(maintenance.woken),
-        "lifecycle_changed": bool(maintenance.pruned or maintenance.woken),
+        "lifecycle_changed": bool(maintenance.pruned or maintenance.woken or rebuilt_digest),
         "pending_recovery": pending_recovery,
         "dry_run": dry_run,
         "rebuilt_digest": rebuilt_digest,
@@ -586,30 +595,48 @@ def _validate_manifest_current_store(
             raise ValueError(f"manifest candidate does not match current store for {key}")
 
 
-def _valid_prior_digest_for_reuse(repo_root: Path, manifest: dict[str, Any]) -> dict[str, Any] | None:
+def _prior_digest_reuse_probe(
+    repo_root: Path, manifest: dict[str, Any]
+) -> tuple[dict[str, Any] | None, str | None]:
     prior = _load_prior_digest(repo_root)
-    if prior is None or prior.get("fingerprint") != manifest.get("fingerprint"):
-        return None
+    if prior is None:
+        return None, "prior digest unavailable"
+    if prior.get("fingerprint") != manifest.get("fingerprint"):
+        return None, "prior digest fingerprint mismatch"
     requested = set(manifest.get("requested_keys") or [])
     prior_keys = {item["stub_key"] for item in prior.get("ranked", [])}
     if prior_keys != requested:
-        return None
+        return None, "prior digest key composition mismatch"
     generated_at = prior["generated_at"]
     for key in sorted(requested):
         path = _cache_path(repo_root, key)
         try:
             cache = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError) as exc:
-            raise ValueError(f"missing valid cache for {key}: {exc}") from exc
-        _validate(repo_root, "supervise-rubric-score.schema.json", cache)
+            _validate(repo_root, "supervise-rubric-score.schema.json", cache)
+        except (OSError, ValueError, ValidationError):
+            return None, f"missing valid cache for {key}"
         if (
             cache.get("fingerprint") != manifest.get("fingerprint")
             or cache.get("scored_at") != generated_at
             or len(cache["scores"]) != 1
             or cache["scores"][0].get("stub_key") != key
         ):
-            raise ValueError(f"cache identity mismatch for {key}")
+            return None, f"cache identity mismatch for {key}"
+    return prior, None
+
+
+def _valid_prior_digest_for_reuse(repo_root: Path, manifest: dict[str, Any]) -> dict[str, Any] | None:
+    prior, _ = _prior_digest_reuse_probe(repo_root, manifest)
     return prior
+
+
+def _reuse_unavailable(reason: str | None, requested: Sequence[str]) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "reuse_available": False,
+        "reason": reason or "reuse unavailable",
+        "requested_keys": sorted(requested),
+    }
 
 
 def _publish_empty_digest(
@@ -677,37 +704,12 @@ def rank_candidates(
     _validate_manifest_current_store(root, manifest, by_candidate, dry_run=dry_run)
 
     if scores is None:
-        reused = _valid_prior_digest_for_reuse(root, manifest)
+        reused, reuse_reason = _prior_digest_reuse_probe(root, manifest)
         if reused is not None:
             return reused
         if not requested:
             return _publish_empty_digest(root, manifest, record, dry_run=dry_run)
-        cached_rows: list[dict[str, Any]] = []
-        scorer: dict[str, Any] | None = None
-        for key in sorted(requested):
-            path = _cache_path(root, key)
-            try:
-                cached = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, ValueError) as exc:
-                raise ValueError(f"missing valid cache for {key}: {exc}") from exc
-            _validate(root, "supervise-rubric-score.schema.json", cached)
-            if cached.get("fingerprint") != manifest.get("fingerprint"):
-                raise ValueError(f"cache fingerprint mismatch for {key}")
-            if cached.get("scored_at") != manifest.get("as_of"):
-                raise ValueError(f"cache scored_at mismatch for {key}")
-            if len(cached["scores"]) != 1 or cached["scores"][0].get("stub_key") != key:
-                raise ValueError(f"cache key mismatch for {key}")
-            cached_rows.append(cached["scores"][0])
-            if isinstance(cached.get("scorer"), dict):
-                scorer = cached["scorer"]
-        scores = {
-            "schema_version": 1,
-            "fingerprint": manifest.get("fingerprint"),
-            "scored_at": manifest.get("as_of"),
-            "scores": cached_rows,
-        }
-        if scorer is not None:
-            scores["scorer"] = scorer
+        return _reuse_unavailable(reuse_reason, requested)
     by_score = _validate_score_join(root, manifest, scores)
 
     manifest_stored = {
@@ -1259,6 +1261,37 @@ def _load_prior_digest(repo_root: Path) -> dict[str, Any] | None:
     return value
 
 
+def _decision_drift_keys(
+    prior_digest: dict[str, Any] | None,
+    remaining: set[str],
+    maintenance: _Maintenance,
+) -> tuple[str, ...]:
+    if prior_digest is None:
+        return ()
+    drifted: list[str] = []
+    prior_by_key = {
+        item["stub_key"]: item
+        for item in prior_digest.get("ranked", [])
+        if isinstance(item, dict) and isinstance(item.get("stub_key"), str)
+    }
+    for key in sorted(remaining):
+        prior = prior_by_key.get(key)
+        if prior is None:
+            continue
+        source = maintenance.decisions.get(key) or {}
+        decision = source.get("decision", "pending")
+        if decision not in {"pending", "deferred"}:
+            continue
+        prior_until = None
+        signals = prior.get("signals")
+        if isinstance(signals, dict):
+            prior_until = signals.get("deferred_until")
+        expected_until = source.get("until") if decision == "deferred" else None
+        if prior.get("decision") != decision or prior_until != expected_until:
+            drifted.append(key)
+    return tuple(drifted)
+
+
 def _lifecycle_rebuild(
     repo_root: Path,
     stored: dict[str, tuple[Path, dict[str, Any]]],
@@ -1268,10 +1301,11 @@ def _lifecycle_rebuild(
     as_of: str,
     dry_run: bool,
 ) -> dict[str, Any] | None:
-    if not (maintenance.pruned or maintenance.woken):
-        return None
     remaining = {key for key in stored if key not in maintenance.pruned}
     prior_digest = _load_prior_digest(repo_root)
+    drifted = _decision_drift_keys(prior_digest, remaining, maintenance)
+    if not (maintenance.pruned or maintenance.woken or drifted):
+        return None
     operations: list[dict[str, Any]] = []
     for key in maintenance.pruned:
         operations.extend(

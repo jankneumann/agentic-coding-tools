@@ -385,7 +385,9 @@ def _clean_digested_stub(value: Any) -> dict[str, Any] | None:
             roadmap_ref = None
         if route == "plan-roadmap":
             roadmap_ref = None
-        if route == "refine-roadmap" and roadmap_ref is None:
+        if route == "refine-roadmap" and (
+            roadmap_ref is None or _ROADMAP_REF_RE.fullmatch(roadmap_ref) is None
+        ):
             return None
         cleaned["route"] = route
         cleaned["roadmap_ref"] = roadmap_ref

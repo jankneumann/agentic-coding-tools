@@ -557,6 +557,19 @@ class TestWorkflowContract:
 
         assert "Under `--dry-run`, write neither the mirror nor a supervisor handoff." in closing
 
+    def test_force_branch_probes_reuse_before_dispatch_for_nonempty_batches(self) -> None:
+        text = _SKILL_MD.read_text(encoding="utf-8")
+        rank = self._section(text, "### 4. Rank", "### 5. Digest, then stop")
+
+        assert rank.index("When `--force` is set and `requested_keys` is non-empty") < rank.index(
+            "Dispatch exactly one host sub-agent"
+        )
+        assert "call `rank` without `--scores`" in rank
+        assert "Only when that probe reports `reuse_available: false`" in rank
+        assert rank.index("Only when that probe reports `reuse_available: false`") < rank.index(
+            "Dispatch exactly one host sub-agent"
+        )
+
 
 # --------------------------------------------------------------------------- #
 # CLI surface
@@ -587,6 +600,36 @@ class TestCli:
 # D1/D7 (ri-04): _GATES tracks shared.trust_posture.Gate; decision_id survives
 # the pendingGate allowlist cleaner through a write_mirror round trip.
 # --------------------------------------------------------------------------- #
+class TestDigestedStubSanitization:
+    def test_invalid_legacy_refine_roadmap_ref_is_dropped_before_mirror_validation(
+        self, repo: Path
+    ) -> None:
+        record = {
+            "schema_version": 1,
+            "written_at": "2026-09-01T00:00:00Z",
+            "pending_gates": [],
+            "standing_decisions": [],
+            "back_edge": {
+                "last_digest_at": "2026-09-01T00:00:00Z",
+                "last_fingerprint": "a" * 64,
+                "digested_stubs": [
+                    {
+                        "stub_key": "change:add-candidate-0",
+                        "rank": 1,
+                        "decision": "approved",
+                        "decided_at": "2026-09-01T00:00:00Z",
+                        "route": "refine-roadmap",
+                        "roadmap_ref": "not a roadmap ref",
+                    }
+                ],
+            },
+        }
+
+        mirror = cycle_state.write_mirror(repo, record, now="2026-09-01T00:00:00Z")
+
+        assert mirror["back_edge"]["digested_stubs"] == []
+
+
 class TestPendingGateDecisionIdRoundTrip:
     def test_roadmap_approval_gate_is_accepted_by_the_gate_set(self) -> None:
         """D1: _GATES must track shared.trust_posture.Gate, not a hand-copied

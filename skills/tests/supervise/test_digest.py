@@ -530,6 +530,160 @@ def test_force_same_fingerprint_reuses_prior_digest_and_cache_without_new_scorin
     assert (repo / "openspec/supervise/digest.json").read_bytes() == first_bytes
 
 
+def test_future_deferral_drift_rebuilds_digest_without_new_scoring(repo: Path) -> None:
+    stubs = [_stub(0), _stub(1)]
+    store_candidates(repo, stubs, record=_record([]), as_of=NOW)
+    first_manifest = _manifest(stubs)
+    first_digest = rank_candidates(
+        repo, first_manifest, _scores(first_manifest), record=_record([]), fresh_keys=[]
+    )
+    mirror = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+
+    deferred = decide(
+        repo,
+        "change:add-candidate-1",
+        decision="deferred",
+        record=mirror,
+        as_of="2026-09-12T02:00:00Z",
+        until="2026-12-01",
+    )
+    result = store_candidates(
+        repo,
+        [],
+        record=deferred,
+        as_of="2026-09-13T00:00:00Z",
+        prune_only=True,
+    )
+
+    assert result["lifecycle_changed"] is True
+    assert result["rebuilt_digest"]["generated_at"] == first_digest["generated_at"]
+    assert result["rebuilt_digest"]["state_updated_at"] == "2026-09-13T00:00:00Z"
+    assert [item["stub_key"] for item in result["rebuilt_digest"]["ranked"]] == [
+        "change:add-candidate-0",
+        "change:add-candidate-1",
+    ]
+    deferred_item = result["rebuilt_digest"]["ranked"][1]
+    assert deferred_item["decision"] == "deferred"
+    assert deferred_item["signals"]["deferred_until"] == "2026-12-01"
+    persisted = json.loads((repo / "openspec/supervise/digest.json").read_text())
+    assert persisted == result["rebuilt_digest"]
+    persisted_mirror = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+    by_key = {entry["stub_key"]: entry for entry in persisted_mirror["back_edge"]["digested_stubs"]}
+    assert by_key["change:add-candidate-1"]["decision"] == "deferred"
+    assert by_key["change:add-candidate-1"]["until"] == "2026-12-01"
+
+
+def test_force_future_deferral_drift_rebuilds_digest_before_reuse(repo: Path) -> None:
+    stub = _stub(0)
+    store_candidates(repo, [stub], record=_record([]), as_of=NOW)
+    manifest = _manifest([stub])
+    rank_candidates(repo, manifest, _scores(manifest), record=_record([]), fresh_keys=[])
+    mirror = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+    deferred = decide(
+        repo,
+        "change:add-candidate-0",
+        decision="deferred",
+        record=mirror,
+        as_of="2026-09-12T02:00:00Z",
+        until="2026-12-01",
+    )
+
+    result = store_candidates(
+        repo,
+        [],
+        record=deferred,
+        as_of="2026-09-13T00:00:00Z",
+        prune_only=True,
+        force=True,
+    )
+
+    assert result["lifecycle_changed"] is True
+    assert result["rebuilt_digest"]["ranked"][0]["decision"] == "deferred"
+    assert result["rebuilt_digest"]["ranked"][0]["signals"]["deferred_until"] == "2026-12-01"
+
+
+def test_same_fingerprint_reuse_with_missing_cache_reports_unavailable(
+    repo: Path,
+) -> None:
+    stubs = [_stub(0), _stub(1)]
+    store_candidates(repo, stubs, record=_record([]), as_of=NOW)
+    first_manifest = _manifest(stubs)
+    rank_candidates(repo, first_manifest, _scores(first_manifest), record=_record([]), fresh_keys=[])
+    missing = repo / "openspec/supervise/rubric-cache/change--add-candidate-1.rubric.json"
+    missing.unlink()
+    later_manifest = prepare_batch(
+        repo,
+        fingerprint=first_manifest["fingerprint"],
+        as_of="2026-09-12T03:04:05Z",
+        record=json.loads((repo / "openspec/supervise/supervisor-record.json").read_text()),
+    )
+
+    result = rank_candidates(repo, later_manifest, None, record=_record([]), fresh_keys=[])
+
+    assert result == {
+        "schema_version": 1,
+        "reuse_available": False,
+        "reason": "missing valid cache for change:add-candidate-1",
+        "requested_keys": ["change:add-candidate-0", "change:add-candidate-1"],
+    }
+    assert json.loads((repo / "openspec/supervise/digest.json").read_text())["generated_at"] == (
+        first_manifest["as_of"]
+    )
+
+
+def test_same_fingerprint_reuse_with_invalid_cache_reports_unavailable(
+    repo: Path,
+) -> None:
+    stub = _stub(0)
+    store_candidates(repo, [stub], record=_record([]), as_of=NOW)
+    first_manifest = _manifest([stub])
+    rank_candidates(repo, first_manifest, _scores(first_manifest), record=_record([]), fresh_keys=[])
+    cache = repo / "openspec/supervise/rubric-cache/change--add-candidate-0.rubric.json"
+    payload = json.loads(cache.read_text())
+    payload["fingerprint"] = "b" * 64
+    cache.write_text(json.dumps(payload), encoding="utf-8")
+    later_manifest = prepare_batch(
+        repo,
+        fingerprint=first_manifest["fingerprint"],
+        as_of="2026-09-12T03:04:05Z",
+        record=json.loads((repo / "openspec/supervise/supervisor-record.json").read_text()),
+    )
+
+    result = rank_candidates(repo, later_manifest, None, record=_record([]), fresh_keys=[])
+
+    assert result["reuse_available"] is False
+    assert result["reason"] == "cache identity mismatch for change:add-candidate-0"
+    assert result["requested_keys"] == ["change:add-candidate-0"]
+
+
+def test_terminal_same_key_readmission_is_rejected_and_history_is_preserved(
+    repo: Path,
+) -> None:
+    stub = _stub(0)
+    store_candidates(repo, [stub], record=_record([]), as_of=NOW)
+    manifest = _manifest([stub])
+    rank_candidates(repo, manifest, _scores(manifest), record=_record([]), fresh_keys=[])
+    mirror = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+    rejected = decide(
+        repo,
+        "change:add-candidate-0",
+        decision="rejected",
+        record=mirror,
+        as_of="2026-09-12T00:00:00Z",
+        reason="Not worth doing",
+    )
+    store_candidates(repo, [], record=rejected, as_of=NOW, prune_only=True)
+
+    with pytest.raises(ValueError, match="terminal decision already exists for change:add-candidate-0"):
+        store_candidates(repo, [stub], record=rejected, as_of=NOW)
+
+    persisted = json.loads((repo / "openspec/supervise/supervisor-record.json").read_text())
+    by_key = {entry["stub_key"]: entry for entry in persisted["back_edge"]["digested_stubs"]}
+    assert by_key["change:add-candidate-0"]["decision"] == "rejected"
+    assert by_key["change:add-candidate-0"]["reason"] == "Not worth doing"
+    assert not (repo / "openspec/supervise/candidates/change--add-candidate-0.json").exists()
+
+
 def test_rank_rejects_stale_manifest_when_store_candidate_bytes_changed(repo: Path) -> None:
     original = _stub(0)
     store_candidates(repo, [original], record=_record([]), as_of=NOW)
