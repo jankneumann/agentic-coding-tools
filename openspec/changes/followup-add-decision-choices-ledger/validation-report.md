@@ -69,6 +69,41 @@ Scenario `skill-workflow.11`'s distinguishability property is now proven by
 execution against real fixtures at both gates, for all branch combinations,
 not by string-presence alone.
 
+## Spec Compliance
+
+- **Status**: pass
+
+All five scenarios in the change's `skill-workflow` delta (`skill-workflow.8`
+through `.12`) have real, executable coverage of every branch they turn on;
+the per-scenario assessment below records the test behind each one. Task
+checkbox drift: 0 unchecked items in `tasks.md`. `openspec validate
+followup-add-decision-choices-ledger --strict` passes. Four quality gates
+pass at expected counts: 133 `tests/audit-choices`, 124 `tests/ci_coverage`,
+`install.sh --check`, and the dependency-direction linter.
+
+## Smoke Tests
+
+- **Status**: not applicable
+
+No deployable surface. `classify_deployable_surface` returns
+`deployable=False`: the change adds one read-only Python script and edits
+skill-instruction Markdown, documentation and tests. No containers were
+started, which is the correct outcome and not a skipped check.
+
+## Security
+
+- **Status**: not applicable
+
+No running service to scan. The one script added opens no file for writing
+and is pinned as read-only by
+`skills/tests/audit-choices/test_readonly_posture.py`.
+
+## E2E Tests
+
+- **Status**: not applicable
+
+No frontend or live service surface.
+
 ## Change Shape
 
 No deployable surface. `git diff --name-only main...HEAD` touches only
