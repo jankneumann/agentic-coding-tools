@@ -1,0 +1,23 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "When Step 11.5's `new|changed` branch runs `git add` successfully and then `git commit` fails (hook, signing, etc.), the handler only sets `SKIP_REASON=\"git commit failed\"` and returns. The ledger pair stays staged (`A` for a first audit, `M` for a re-audit) while the step prints `audit-choices: skipped (git commit failed) \u2014 continuing to summary`. That contradicts the step's own decline-to-commit cleanup used on the early SKIP_REASON and partial-pair paths, which restore or `rm -f` per path so the worktree is left clean. Reproduced: with a failing `commit-msg` hook, status remains `A  openspec/changes/.../choices.json` / `choices.md` after the skip; `git checkout --` alone does not clear an index-only `A` add. A later unrelated `git commit` can therefore land the ledger after the step claimed it skipped. `test_git_commit_failure_sets_skip_reason_not_silent` only covers the byte-identical-to-HEAD \"nothing to commit\" shape (clean index), so it stays green while this staged-orphan failure mode is unpinned.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "On `git commit` failure, unstage the two ledger paths (`git reset HEAD -- \"$JSON_PATH\" \"$MD_PATH\"`) and then run the same per-path tracked/`git checkout --` vs untracked/`rm -f` discard used elsewhere before returning. Extend the executable commit-failure test to stage real content changes under a failing hook and assert `git status --porcelain` is empty afterward while still expecting `SKIP_REASON=git commit failed`.",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": {
+        "start": 747,
+        "end": 748
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}
