@@ -98,7 +98,7 @@ review found that requirement still forbade writing outside
   already within the limit is untouched, `list_active_runs` skips `archive/`
   and non-run names, and `DEFAULT_RETAIN == 30`.
 
-- [ ] 2.2 Create `skills/shared/artifact_paths.py`
+- [x] 2.2 Create `skills/shared/artifact_paths.py`
   **Design decisions**: D2, D3
   **Dependencies**: 2.1
   **Files**: `skills/shared/artifact_paths.py`
