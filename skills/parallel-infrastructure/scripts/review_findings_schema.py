@@ -177,3 +177,190 @@ def validate_findings_document(
     """
     schema = schema if schema is not None else load_schema()
     return _validate(document, schema)
+
+
+# ---------------------------------------------------------------------------
+# Prompt contract + coercion + timeout budget (harden-review-dispatch)
+# ---------------------------------------------------------------------------
+
+COERCION_FILENAME = "finding-coercion.json"
+TIMEOUT_BUDGET_FILENAME = "dispatch-timeout-budget.json"
+
+JUDGMENT = "judgment"
+DETERMINISTIC = "deterministic"
+
+
+def _find_sidecar_json(filename: str, start: Path | None = None) -> Path | None:
+    """Locate a runtime JSON sidecar (coercion table or timeout budget)."""
+    here = (start or Path(__file__)).resolve()
+    candidates = [
+        here.parent / filename,
+        *(base / "openspec" / "schemas" / filename for base in [here, *here.parents]),
+        *(
+            base
+            / "openspec"
+            / "changes"
+            / "harden-review-dispatch-parse-and-timeouts"
+            / "contracts"
+            / filename
+            for base in [here, *here.parents]
+        ),
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+@lru_cache(maxsize=4)
+def load_coercion_table() -> dict[str, Any]:
+    path = _find_sidecar_json(COERCION_FILENAME)
+    if path is None:
+        raise SchemaNotFoundError(
+            f"could not locate {COERCION_FILENAME} next to "
+            f"{Path(__file__).name} or in openspec/schemas"
+        )
+    return json.loads(path.read_text())
+
+
+@lru_cache(maxsize=4)
+def load_timeout_budget() -> dict[str, Any]:
+    path = _find_sidecar_json(TIMEOUT_BUDGET_FILENAME)
+    if path is None:
+        return {
+            "schema_version": 1,
+            "default_seconds": 300,
+            "empty_findings_min_seconds": 15,
+            "vendors": {},
+        }
+    return json.loads(path.read_text())
+
+
+def timeout_for_vendor(vendor: str, override: int | None = None) -> int:
+    """Return the subprocess timeout for *vendor*.
+
+    An explicit *override* (CLI ``--timeout``) wins. Otherwise the versioned
+    budget table is used, then ``default_seconds``.
+    """
+    if override is not None:
+        return int(override)
+    budget = load_timeout_budget()
+    vendors = budget.get("vendors") or {}
+    row = vendors.get(vendor) or {}
+    return int(row.get("timeout_seconds") or budget.get("default_seconds") or 300)
+
+
+def empty_findings_min_seconds() -> int:
+    return int(load_timeout_budget().get("empty_findings_min_seconds") or 15)
+
+
+def prompt_contract() -> tuple[tuple[str, ...], dict[str, tuple[str, ...]]]:
+    """Return ``(required_fields, enums)`` for one finding, from the schema.
+
+    This is the only field list review prompts may use. Hand-copied lists
+    drift from the canonical file (2026-08-24 defect).
+    """
+    item = finding_item_schema()
+    required = tuple(item.get("required") or ())
+    enums = {
+        name: tuple(spec["enum"])
+        for name, spec in (item.get("properties") or {}).items()
+        if isinstance(spec, dict) and spec.get("enum")
+    }
+    return required, enums
+
+
+def prompt_contract_block() -> str:
+    """Prose block listing required fields and enum vocabularies for a prompt."""
+    required, enums = prompt_contract()
+    required_list = ", ".join(required)
+    lines = [
+        f"REQUIRED on every finding — output is REJECTED if any is missing: {required_list}",
+        "These fields use DIFFERENT vocabularies. Do not reuse one value for another:",
+    ]
+    if "criticality" in enums:
+        lines.append(
+            "  criticality: " + "|".join(enums["criticality"]) + " — how much it matters"
+        )
+    if "severity" in enums:
+        lines.append(
+            "  severity: " + "|".join(enums["severity"])
+            + " — review-gate grading (NOT the same scale as criticality)"
+        )
+    if "axis" in enums:
+        lines.append("  axis: " + "|".join(enums["axis"]))
+    if "type" in enums:
+        lines.append("  type: " + "|".join(enums["type"]))
+    if "disposition" in enums:
+        lines.append("  disposition: " + "|".join(enums["disposition"]))
+    lines.append("Use exactly one value from each listed set; do not invent values.")
+    lines.append("Output ONLY a JSON object with a top-level `findings` array.")
+    return "\n".join(lines)
+
+
+def coerce_findings_payload(
+    payload: dict[str, Any],
+    table: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], list[str]]:
+    """Apply the alias table to *payload* before schema validation.
+
+    Does not invent findings. Unknown enums are left unchanged so validation
+    still fails closed. Returns ``(payload, coercion_notes)``.
+    """
+    table = table if table is not None else load_coercion_table()
+    type_aliases: dict[str, str] = table.get("type_aliases") or {}
+    axis_aliases: dict[str, str] = table.get("axis_aliases") or {}
+    sev_from_crit: dict[str, str] = table.get("severity_from_criticality") or {}
+    crit_from_sev: dict[str, str] = table.get("criticality_from_severity") or {}
+
+    notes: list[str] = []
+    findings = payload.get("findings")
+    if not isinstance(findings, list):
+        return payload, notes
+
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        raw_type = finding.get("type")
+        if isinstance(raw_type, str) and raw_type in type_aliases:
+            finding["type"] = type_aliases[raw_type]
+            notes.append(f"type:{raw_type}->{finding['type']}")
+        if not finding.get("axis") and isinstance(raw_type, str) and raw_type in axis_aliases:
+            finding["axis"] = axis_aliases[raw_type]
+            notes.append(f"axis:{raw_type}->{finding['axis']}")
+        elif isinstance(finding.get("axis"), str) and finding["axis"] in axis_aliases:
+            old = finding["axis"]
+            finding["axis"] = axis_aliases[old]
+            notes.append(f"axis:{old}->{finding['axis']}")
+        if not finding.get("severity") and isinstance(finding.get("criticality"), str):
+            mapped = sev_from_crit.get(finding["criticality"])
+            if mapped:
+                finding["severity"] = mapped
+                notes.append(f"severity:from-criticality:{finding['criticality']}")
+        if not finding.get("criticality") and isinstance(finding.get("severity"), str):
+            mapped = crit_from_sev.get(finding["severity"])
+            if mapped:
+                finding["criticality"] = mapped
+                notes.append(f"criticality:from-severity:{finding['severity']}")
+    return payload, notes
+
+
+def stamp_judgment_ingest(
+    payload: dict[str, Any],
+    *,
+    caller_declared_deterministic: bool = False,
+) -> dict[str, Any]:
+    """Stamp model-review findings as judgment unless the caller declared otherwise.
+
+    A payload cannot promote itself to deterministic.
+    """
+    if caller_declared_deterministic:
+        return payload
+    findings = payload.get("findings")
+    if not isinstance(findings, list):
+        return payload
+    for finding in findings:
+        if isinstance(finding, dict):
+            finding["evidence_class"] = JUDGMENT
+    return payload
+

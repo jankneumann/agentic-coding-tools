@@ -58,6 +58,7 @@ from review_dispatcher import (  # noqa: E402
 from checkpoint_findings import (  # noqa: E402
     _safe_log_error as cf_safe_log_error,
     write_manifest as cf_write_manifest,
+    write_raw_output as cf_write_raw_output,
     write_vendor_findings as cf_write_vendor_findings,
 )
 
@@ -127,11 +128,12 @@ def build_review_prompt(artifacts_dir: Path, round_num: int) -> str:
         parts.append(design.read_text()[:4000])
         parts.append("")
 
+    from review_findings_schema import prompt_contract_block
+
     parts.extend([
         "### Instructions",
         "Return findings as JSON with a top-level `findings` array.",
-        "Each finding must have: id, type, criticality, description, "
-        "disposition (fix/accept/escalate/regenerate), and optionally file_path and line_range.",
+        prompt_contract_block(),
         "",
         f"This is round {round_num}. Focus on remaining issues.",
     ])
@@ -382,6 +384,7 @@ def converge(
             dispatch_mode="review",
             prompt=prompt,
             cwd=worktree_path,
+            timeout_seconds=None,
         )
 
         # 2aa. Durably checkpoint vendor findings BEFORE synthesis. This is
@@ -403,6 +406,14 @@ def converge(
                     "error": r.error,
                     "error_class": r.error_class.value if r.error_class else None,
                 })
+                cf_write_raw_output(
+                    checkpoint_dir,
+                    vendor=r.vendor,
+                    review_type=review_type,
+                    stdout=r.raw_stdout,
+                    stderr=r.raw_stderr,
+                    coercions=list(r.coercions or []),
+                )
                 if r.success and r.findings:
                     findings_array = r.findings.get("findings", [])
                     cf_write_vendor_findings(

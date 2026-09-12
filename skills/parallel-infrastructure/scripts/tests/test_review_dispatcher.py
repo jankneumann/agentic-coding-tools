@@ -955,3 +955,112 @@ class TestThreeTierSelection:
             reviewers = orch.discover_reviewers(exclude_vendor="claude_code")
         assert len(reviewers) == 1
         assert reviewers[0].vendor == "codex"
+
+
+class TestDispatchRobustness:
+    """Coerce, repair, judgment ingest, fast-empty, sidecars."""
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_bug_type_is_coerced_to_valid_findings(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        payload = {
+            "findings": [
+                {
+                    "id": 1,
+                    "type": "bug",
+                    "criticality": "high",
+                    "description": "Critical: off by one",
+                    "disposition": "fix",
+                    "axis": "correctness",
+                    "severity": "critical",
+                }
+            ]
+        }
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=json.dumps(payload), stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert result.findings["findings"][0]["type"] == "correctness"
+        assert result.coercions
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_schema_repair_retry_succeeds(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_run.side_effect = [
+            subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="not json", stderr="",
+            ),
+            subprocess.CompletedProcess(
+                args=[], returncode=0, stdout=VALID_FINDINGS_JSON, stderr="",
+            ),
+        ]
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert mock_run.call_count == 2
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_schema_repair_is_not_unbounded(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="not json", stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is False
+        assert mock_run.call_count == 2
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_cli_findings_are_stamped_judgment(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=VALID_FINDINGS_JSON, stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert result.findings["findings"][0]["evidence_class"] == "judgment"
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_payload_cannot_self_promote_to_deterministic(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        payload = json.loads(VALID_FINDINGS_JSON)
+        payload["findings"][0]["evidence_class"] = "deterministic"
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=json.dumps(payload), stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.findings is not None
+        assert result.findings["findings"][0]["evidence_class"] == "judgment"
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_fast_empty_findings_are_unsuccessful(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout='{"findings": []}', stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is False
+        assert result.error == "empty_findings_too_fast"
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_raw_stdout_is_kept_on_success(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=VALID_FINDINGS_JSON, stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.raw_stdout == VALID_FINDINGS_JSON
+
+    def test_timeout_for_claude_exceeds_historical_300s(self) -> None:
+        from review_findings_schema import timeout_for_vendor
+
+        assert timeout_for_vendor("claude_code") >= 720
+        assert timeout_for_vendor("claude_code", override=120) == 120

@@ -315,6 +315,9 @@ class ReviewResult:
     # OpenRouter/OpenAI-compatible generation id for spend reconciliation
     # (OpenSpec add-adaptive-model-router, D7/D10). None for CLI/SDK adapters.
     generation_id: str | None = None
+    raw_stdout: str | None = None
+    raw_stderr: str | None = None
+    coercions: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -420,6 +423,7 @@ class CliVendorAdapter:
         cwd: Path,
         timeout_seconds: int = 300,
         archetype_model: str | None = None,
+        repair_attempted: bool = False,
     ) -> ReviewResult:
         """Dispatch a review with model fallback on capacity errors.
 
@@ -474,53 +478,37 @@ class CliVendorAdapter:
                 elapsed = time.monotonic() - start
 
                 if result.returncode == 0:
-                    # Try to parse JSON from stdout, then validate against the
-                    # canonical review-findings schema so a drifted finding
-                    # fails here instead of silently reaching consensus.
-                    findings = self._parse_findings(result.stdout)
-                    if findings is not None:
-                        findings, schema_error = _validate_findings_or_error(findings)
-                        return ReviewResult(
-                            vendor=self.vendor,
-                            success=findings is not None,
-                            findings=findings,
-                            model_used=model_name,
-                            models_attempted=models_attempted,
-                            elapsed_seconds=elapsed,
-                            error=schema_error,
-                        )
-                    # Exit 0 but no findings. Some CLIs (pi, issue #383) exit 0
-                    # when the provider refused the request, with the error body
-                    # on stdout — classify the raw output before treating this
-                    # as a format failure, and always carry an excerpt so the
-                    # raw output is never silently discarded.
-                    raw = "\n".join(
-                        part for part in (result.stdout.strip(), result.stderr.strip()) if part
+                    ingested = self._ingest_stdout(
+                        result.stdout,
+                        result.stderr,
+                        elapsed=elapsed,
+                        model_name=model_name,
+                        models_attempted=models_attempted,
                     )
-                    excerpt = raw[:500]
-                    zero_exit_class = classify_error(raw)
-                    if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE):
-                        last_error = excerpt
-                        last_error_class = zero_exit_class
-                    elif zero_exit_class == ErrorClass.CAPACITY:
-                        logger.info(
-                            "%s model %s reported capacity exhaustion on stdout, "
-                            "trying fallback",
-                            self.vendor, model_name,
-                        )
-                        last_error = excerpt
-                        last_error_class = zero_exit_class
+                    if ingested.success or ingested.error_class in (
+                        ErrorClass.AUTH, ErrorClass.UNAVAILABLE,
+                    ):
+                        return ingested
+                    if ingested.error_class == ErrorClass.CAPACITY:
+                        last_error = ingested.error or ""
+                        last_error_class = ErrorClass.CAPACITY
                         continue
-                    else:
-                        return ReviewResult(
-                            vendor=self.vendor,
-                            success=False,
-                            model_used=model_name,
-                            models_attempted=models_attempted,
-                            elapsed_seconds=elapsed,
-                            error=f"Invalid JSON output: {excerpt}" if excerpt
-                            else "Invalid JSON output (empty stdout)",
+                    if not repair_attempted:
+                        repair_prompt = (
+                            f"{prompt}\n\nPREVIOUS OUTPUT FAILED VALIDATION:\n"
+                            f"{ingested.error or 'not valid JSON'}\n"
+                            "Emit ONLY a JSON object with a top-level `findings` "
+                            "array. No prose.\n"
                         )
+                        return self.dispatch(
+                            mode,
+                            repair_prompt,
+                            cwd,
+                            timeout_seconds=timeout_seconds,
+                            archetype_model=archetype_model,
+                            repair_attempted=True,
+                        )
+                    return ingested
                 else:
                     # Non-zero exit — classify error
                     last_error = result.stderr
@@ -562,8 +550,9 @@ class CliVendorAdapter:
                 # Non-capacity, non-auth error — don't retry
                 break
 
-            except subprocess.TimeoutExpired:
+            except subprocess.TimeoutExpired as exc:
                 elapsed = time.monotonic() - start
+                timed_out_stdout = exc.output if isinstance(exc.output, str) else None
                 return ReviewResult(
                     vendor=self.vendor,
                     success=False,
@@ -571,6 +560,7 @@ class CliVendorAdapter:
                     elapsed_seconds=elapsed,
                     error=f"Timeout after {timeout_seconds}s",
                     error_class=ErrorClass.TRANSIENT,
+                    raw_stdout=timed_out_stdout,
                 )
 
         # All models exhausted or non-retryable error
@@ -581,6 +571,108 @@ class CliVendorAdapter:
             elapsed_seconds=time.monotonic() - dispatch_start,
             error=last_error[:500] if last_error else "Unknown error",
             error_class=last_error_class,
+        )
+
+    def _ingest_stdout(
+        self,
+        stdout: str,
+        stderr: str,
+        *,
+        elapsed: float,
+        model_name: str,
+        models_attempted: list[str],
+    ) -> ReviewResult:
+        """Parse, coerce, validate, and stamp one vendor stdout blob."""
+        from review_findings_schema import (
+            coerce_findings_payload,
+            empty_findings_min_seconds,
+            stamp_judgment_ingest,
+        )
+
+        raw = "\n".join(part for part in (stdout.strip(), stderr.strip()) if part)
+        excerpt = raw[:500]
+        findings = self._parse_findings(stdout)
+        coercions: list[str] = []
+        if findings is not None:
+            findings, coercions = coerce_findings_payload(findings)
+            findings, schema_error = _validate_findings_or_error(findings)
+            if findings is not None:
+                findings = stamp_judgment_ingest(findings)
+                arr = findings.get("findings") or []
+                if arr == [] and elapsed < empty_findings_min_seconds():
+                    return ReviewResult(
+                        vendor=self.vendor,
+                        success=False,
+                        model_used=model_name,
+                        models_attempted=models_attempted,
+                        elapsed_seconds=elapsed,
+                        error="empty_findings_too_fast",
+                        raw_stdout=stdout,
+                        raw_stderr=stderr or None,
+                        coercions=coercions,
+                    )
+                return ReviewResult(
+                    vendor=self.vendor,
+                    success=True,
+                    findings=findings,
+                    model_used=model_name,
+                    models_attempted=models_attempted,
+                    elapsed_seconds=elapsed,
+                    raw_stdout=stdout,
+                    raw_stderr=stderr or None,
+                    coercions=coercions,
+                )
+            zero_exit_class = classify_error(raw)
+            if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE, ErrorClass.CAPACITY):
+                return ReviewResult(
+                    vendor=self.vendor,
+                    success=False,
+                    model_used=model_name,
+                    models_attempted=models_attempted,
+                    elapsed_seconds=elapsed,
+                    error=excerpt or schema_error,
+                    error_class=zero_exit_class,
+                    raw_stdout=stdout,
+                    raw_stderr=stderr or None,
+                    coercions=coercions,
+                )
+            return ReviewResult(
+                vendor=self.vendor,
+                success=False,
+                model_used=model_name,
+                models_attempted=models_attempted,
+                elapsed_seconds=elapsed,
+                error=schema_error or f"Invalid JSON output: {excerpt}",
+                raw_stdout=stdout,
+                raw_stderr=stderr or None,
+                coercions=coercions,
+            )
+
+        zero_exit_class = classify_error(raw)
+        if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE, ErrorClass.CAPACITY):
+            return ReviewResult(
+                vendor=self.vendor,
+                success=False,
+                model_used=model_name,
+                models_attempted=models_attempted,
+                elapsed_seconds=elapsed,
+                error=excerpt,
+                error_class=zero_exit_class,
+                raw_stdout=stdout,
+                raw_stderr=stderr or None,
+            )
+        return ReviewResult(
+            vendor=self.vendor,
+            success=False,
+            model_used=model_name,
+            models_attempted=models_attempted,
+            elapsed_seconds=elapsed,
+            error=(
+                f"Invalid JSON output: {excerpt}" if excerpt
+                else "Invalid JSON output (empty stdout)"
+            ),
+            raw_stdout=stdout,
+            raw_stderr=stderr or None,
         )
 
     @staticmethod
@@ -1717,7 +1809,7 @@ class ReviewOrchestrator:
         dispatch_mode: str,
         prompt: str,
         cwd: Path,
-        timeout_seconds: int = 300,
+        timeout_seconds: int | None = None,
         exclude_vendor: str | None = None,
     ) -> list[ReviewResult]:
         """Dispatch reviews to available vendors and collect results.
@@ -1767,7 +1859,10 @@ class ReviewOrchestrator:
         api_key_resolver = ApiKeyResolver()
         results: list[ReviewResult] = []
 
+        from review_findings_schema import timeout_for_vendor
+
         for reviewer in available:
+            vendor_timeout = timeout_for_vendor(reviewer.vendor, timeout_seconds)
             if reviewer.dispatch_tier == "cli":
                 # CLI dispatch
                 adapter = self.adapters[reviewer.agent_id]
@@ -1804,7 +1899,7 @@ class ReviewOrchestrator:
                         mode=dispatch_mode,
                         prompt=prompt,
                         cwd=cwd,
-                        timeout_seconds=timeout_seconds,
+                        timeout_seconds=vendor_timeout,
                     )
                     results.append(result)
 
@@ -1832,7 +1927,7 @@ class ReviewOrchestrator:
                     mode=dispatch_mode,
                     prompt=prompt,
                     cwd=cwd,
-                    timeout_seconds=timeout_seconds,
+                    timeout_seconds=vendor_timeout,
                     api_key=api_key,
                 )
                 results.append(result)
@@ -2027,8 +2122,8 @@ def main() -> int:
         "--exclude-vendor", help="Exclude this vendor type from dispatch",
     )
     parser.add_argument(
-        "--timeout", type=int, default=300,
-        help="Per-vendor timeout in seconds",
+        "--timeout", type=int, default=None,
+        help="Override per-vendor timeout budget for every vendor (seconds)",
     )
     parser.add_argument(
         "--agents-yaml", help="Path to agents.yaml (default: auto-detect)",
@@ -2136,13 +2231,24 @@ def main() -> int:
     # files preserve the existing wrapper-object shape and path layout; the
     # manifest gains the superset fields needed by the in-process converge()
     # caller while preserving everything legacy callers parse.
-    from checkpoint_findings import write_vendor_findings as _cf_write_vendor_findings
+    from checkpoint_findings import (
+        write_raw_output as _cf_write_raw_output,
+        write_vendor_findings as _cf_write_vendor_findings,
+    )
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     vendors_index: list[dict[str, Any]] = []
     for result in results:
+        _cf_write_raw_output(
+            output_dir,
+            vendor=result.vendor,
+            review_type=args.review_type,
+            stdout=result.raw_stdout,
+            stderr=result.raw_stderr,
+            coercions=list(result.coercions or []),
+        )
         if result.success and result.findings:
             findings_array = result.findings.get("findings", [])
             _cf_write_vendor_findings(

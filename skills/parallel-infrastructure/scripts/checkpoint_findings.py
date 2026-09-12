@@ -23,6 +23,7 @@ input never reaches the filesystem.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -215,6 +216,45 @@ def write_vendor_findings(
     fpath = safe_dir / f"findings-{vendor}-{review_type}.json"
     _atomic_write_json(fpath, payload)
     return fpath
+
+
+def write_raw_output(
+    out_dir: Path,
+    *,
+    vendor: str,
+    review_type: str,
+    stdout: str | None,
+    stderr: str | None = None,
+    coercions: list[str] | None = None,
+    repair_attempted: bool = False,
+) -> Path:
+    """Persist full vendor stdout/stderr next to findings. Never truncates."""
+    safe_dir = _validate_path_safety(out_dir, vendor, review_type)
+    safe_dir.mkdir(parents=True, exist_ok=True)
+    body = stdout or ""
+    stdout_path = safe_dir / f"raw-{vendor}-{review_type}.txt"
+    stdout_path.write_text(body, encoding="utf-8")
+    stderr_rel = None
+    if stderr:
+        stderr_path = safe_dir / f"raw-{vendor}-{review_type}.stderr.txt"
+        stderr_path.write_text(stderr, encoding="utf-8")
+        stderr_rel = stderr_path.name
+    meta = {
+        "schema_version": 1,
+        "vendor": vendor,
+        "review_type": review_type,
+        "stdout_path": stdout_path.name,
+        "byte_length": len(body.encode("utf-8")),
+        "truncated": False,
+        "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        "repair_attempted": repair_attempted,
+        "coercions": list(coercions or []),
+    }
+    if stderr_rel:
+        meta["stderr_path"] = stderr_rel
+    meta_path = safe_dir / f"raw-{vendor}-{review_type}.meta.json"
+    _atomic_write_json(meta_path, meta)
+    return meta_path
 
 
 def read_vendor_findings(out_dir: Path) -> dict[str, list[dict[str, Any]]]:

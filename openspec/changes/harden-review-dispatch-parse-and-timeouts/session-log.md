@@ -35,3 +35,36 @@
 ### Context
 Planned phase 1 of multi-vendor review robustness: schema-derived prompts, coerce-then-validate, one repair retry, per-vendor timeouts through converge(), judgment ingest, raw stdout sidecars, and fast-empty rejection.
 
+---
+
+## Phase: Implementation (2026-09-12)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Runtime JSON sidecars next to the helper** `architectural: skill-workflow` — Load coercion and timeout tables from files beside review_findings_schema.py so they survive change archival.
+2. **Repair is a second dispatch with the same timeout** `architectural: skill-workflow` — Exactly one constrained rewrite; AUTH/UNAVAILABLE/CAPACITY skip repair.
+
+### Alternatives Considered
+- Loosen the findings schema: rejected because ri-14 fail-closed validation must stay.
+
+### Trade-offs
+- Accepted CLI --timeout default None (table) over Keeping argparse default 300 because A default 300 would override the per-vendor budget on every CLI invocation.
+
+### Completed Work
+- prompt_contract and coerce_findings_payload
+- CliVendorAdapter ingest, repair, judgment, fast-empty
+- write_raw_output sidecars
+- converge() timeout_seconds=None and schema-derived prompt
+
+### Next Steps
+- validate-feature spec,evidence then PR review
+- Then implement ledger-driven-review-convergence
+
+### Relevant Files
+- `skills/parallel-infrastructure/scripts/review_dispatcher.py` — ingest/repair/timeout
+- `skills/parallel-infrastructure/scripts/review_findings_schema.py` — prompt_contract and coercion
+
+### Context
+Implemented phase 1 review-dispatch robustness: schema-derived prompts, coerce-then-validate, one repair retry, per-vendor timeout budget through converge(), judgment ingest, raw stdout sidecars, and fast-empty rejection. Local-parallel in the feature worktree because this harness has no coordinator lock MCP.
+

@@ -18,9 +18,31 @@
 
 ## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
 
+### Phase: Implementation
+
+**Runtime JSON sidecars next to the helper** — Load coercion and timeout tables from files beside review_findings_schema.py so they survive change archival.
+
+- Status: `active`
+- Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
+
 ### Phase: Plan
 
 **One repair retry** — A second constrained rewrite with validator errors; no unbounded re-review.
+
+- Status: `active`
+- Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — harden-review-dispatch-parse-and-timeouts
+
+### Phase: Implementation
+
+**Repair is a second dispatch with the same timeout** — Exactly one constrained rewrite; AUTH/UNAVAILABLE/CAPACITY skip repair.
 
 - Status: `active`
 - Source: [openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md](/openspec/changes/harden-review-dispatch-parse-and-timeouts/session-log.md) (D2)
