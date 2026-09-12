@@ -13,7 +13,7 @@
   **Dependencies**: 1.1
   **Files**: `openspec/changes/pack-and-parallelize-vendor-review/contracts/**`
 
-- [ ] Checkpoint: run contract tests, review diff, verify scope
+- [x] Checkpoint: run contract tests, review diff, verify scope
 
 ## 2. Packet builder
 
@@ -32,7 +32,7 @@
   **Dependencies**: 2.2
   **Files**: `skills/autopilot/scripts/convergence_loop.py`
 
-- [ ] Checkpoint: run packet tests, review diff, verify scope
+- [x] Checkpoint: run packet tests, review diff, verify scope
 
 ## 3. Concurrent dispatch
 
@@ -50,7 +50,7 @@
   **Dependencies**: 3.2
   **Files**: `skills/parallel-infrastructure/scripts/review_dispatcher.py`
 
-- [ ] Checkpoint: run dispatcher concurrency tests, review diff, verify scope
+- [x] Checkpoint: run dispatcher concurrency tests, review diff, verify scope
 
 ## 4. Structured output probe
 
@@ -65,16 +65,16 @@
   **Dependencies**: 4.1
   **Files**: `agent-coordinator/agents.yaml`
 
-- [ ] Checkpoint: confirm Grok schema injection still passes existing tests, review diff, verify scope
+- [x] Checkpoint: confirm Grok schema injection still passes existing tests, review diff, verify scope
 
 ## 5. Integration
 
-- [ ] 5.1 Add a packet-plus-concurrency fixture for ledger-optional builds
+- [x] 5.1 Add a packet-plus-concurrency fixture for ledger-optional builds
   **Spec scenarios**: skill-workflow Review Packet As Default Input (missing ledger); Parallel Review Dispatch
   **Design decisions**: D1, D2
   **Dependencies**: 3.3, 2.3
   **Files**: `skills/tests/parallel-infrastructure/test_review_packet_dispatch.py`
 
-- [ ] 5.2 Validate the change with `openspec validate --strict` then the parallel-infrastructure unit suite
+- [x] 5.2 Validate the change with `openspec validate --strict` then the parallel-infrastructure unit suite
   **Dependencies**: 5.1, 4.2
   **Files**: none
