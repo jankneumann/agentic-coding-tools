@@ -1,0 +1,143 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: lifecycle rebuild treats only prior-ranked survivors as digest composition. After score(A) \u2192 store unscored(B) \u2192 reject/prune(A), `_lifecycle_rebuild` publishes an empty `digest.json` while B remains on disk and in the mirror. A crash (or stop) before Rank, then an ordinary unchanged next cycle, reports `lifecycle_changed: false` because `_decision_drift_keys` ignores store keys absent from `prior.ranked`, so the early exit re-presents the empty digest forever and B is never scored or shown. Independently reproduced: stored=`change:add-candidate-1`, digest ranked=[], next prune-only `lifecycle_changed=False`.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "resolution": "During maintenance/preflight, treat `remaining_store_keys - prior_digest.ranked_keys` as composition drift: set `lifecycle_changed` (bypass unchanged early exit) until those keys are scored, and add a regression for prune \u2192 interrupt \u2192 unchanged next cycle that asserts the unscored survivor is requested for scoring rather than orphaned.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1264,
+        "end": 1308
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: `decide(..., route='refine-roadmap', roadmap_ref=...)` only requires a non-None `roadmap_ref` and never applies `^[a-z0-9-]+:ri-[0-9]{2,}$`. The value is written through `write_mirror` \u2192 `_clean_digested_stub`, which drops invalid refine-roadmap entries, so the CLI exits 0 while silently deleting the pending digested stub (and the intended approval) from durable state. Independently reproduced with `--roadmap-ref 'Bad:ri-01'` and `'NOT VALID'`: exit 0, `digested_stubs=[]`. Legacy sanitization correctly drops bad refs; the fresh decide write path must fail closed instead of reusing drop-on-clean.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Validate refine-roadmap `roadmap_ref` with the same `_ROADMAP_REF_RE` (or equivalent) inside `decide` before mutating the record; raise and write nothing on mismatch. Extend `test_decide_rejects_invalid_conditional_metadata_without_write` with a malformed non-empty ref case.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1212,
+        "end": 1249
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: `store_candidates` accepts CLI/`--force` then discards it with `del force`, so callers and `test_force_future_deferral_drift_rebuilds_digest_before_reuse` appear to exercise a force store path that cannot change behavior. Force reuse correctly lives in Rank/`rank_candidates(scores=None)`, making the store flag misleading API surface.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Remove the unused store `--force` flag (and the test argument), or document/implement a real store-level force semantic if one is intended.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 248,
+        "end": 265
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "FYI: `proposal.md` still documents rubric caches at `openspec/supervise/candidates/<encoded-stub-key>.rubric.json`, while the runtime, fingerprint excludes, SKILL output table, and tests all use `openspec/supervise/rubric-cache/`. Normative design/spec/SKILL agree with the code; only the proposal prose is stale.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "resolution": "Update the proposal cache path to `openspec/supervise/rubric-cache/` when touching docs, or leave as historical Gate-1 prose.",
+      "package_id": "whole-branch",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/proposal.md",
+      "line_range": {
+        "start": 55,
+        "end": 58
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: journal publication/recovery still constrains targets to canonical digest/mirror/candidate/cache paths, bounds journal bytes and operation count, verifies replacement checksums before/during roll-forward, and keeps digest-last ordering \u2014 the round-1 trust-boundary hardening remains intact after the round-2 lifecycle edits.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Retain the authorization, bound, checksum, and interruption-boundary regressions.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 361,
+        "end": 492
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: the host-assisted boundary holds \u2014 model judgment stays in `SKILL.md` + `templates/rubric-prompt.md`, while `digest.py` only validates, ranks, journals, and emits pure `stub-to-request` YAML with no roadmap writes or network/LLM imports.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Keep the AST host-assisted invariant coverage and refiner preview/apply integration tests.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1,
+        "end": 6
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: round-2 lifecycle/reuse fixes verify cleanly in code and tests \u2014 record-versus-digest future-deferral drift rebuilds without rescoring; forced non-empty same-fingerprint reuse probes via `rank` without `--scores` before analyst dispatch; missing/invalid caches return `reuse_available: false` instead of raising; terminal same-key re-admission is rejected while history is preserved; legacy invalid `roadmap_ref` is dropped in `_clean_digested_stub`; and installed `.agents`/`.claude` supervise mirrors are byte-identical to `skills/supervise/**`.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Retain the round-2 regressions in `test_digest.py`, `test_cycle_state.py`, and the Rank force-probe workflow contract assertions.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 598,
+        "end": 712
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: reuse fallback and recovery paths expose actionable machine-readable reasons (`reuse_available`/`reason`, `recovered pending digest transaction; rehydrate and retry`) that the SKILL host procedure branches on, so missing caches and interrupted journals degrade to analyst retry or rehydrate rather than opaque failure.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "Keep probe-reason and recovery-rehydrate wording pinned in workflow contract tests.",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/SKILL.md",
+      "line_range": {
+        "start": 278,
+        "end": 284
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}
