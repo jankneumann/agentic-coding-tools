@@ -177,7 +177,7 @@ review found that requirement still forbade writing outside
   `iterate-on-implementation-2026-09-12T00:00:00Z` or the audited `head_sha`
   has no effect on it.
 
-- [ ] 4.2 Route the range form in `run_audit.py`
+- [x] 4.2 Route the range form in `run_audit.py`
   **Spec scenarios**: skill-workflow.12, skill-workflow.13
   **Design decisions**: D1, D5, D6, D7
   **Dependencies**: 4.1

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -36,6 +37,7 @@ if str(_THIS_DIR) not in sys.path:
     sys.path.insert(0, str(_THIS_DIR))
 
 import choices_ledger  # noqa: E402
+import choices_paths  # noqa: E402
 import collect_evidence  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -142,7 +144,20 @@ def _run_audit_inner(
     now: datetime | None,
     git_sha: str | None,
 ) -> AuditRunResult:
-    change_dir = repo_root / "openspec" / "changes" / change_id
+    # D7: resolved before routing, since a range run's output directory is
+    # built from these same two values (D1/D5) rather than from the raw
+    # change_id.
+    resolved_now = now or datetime.now(timezone.utc)
+    resolved_git_sha = git_sha or _head_sha(repo_root)
+
+    # D5: a `range:`-prefixed recorded id routes to a dated run directory
+    # under openspec/choices/ (D1); everything else keeps writing to
+    # openspec/changes/<change-id>/, byte-for-byte as before.
+    # collect_evidence.py derives its own openspec/changes/<change_id> path
+    # for reading only (D5) and is deliberately left alone.
+    change_dir = choices_paths.route_output_dir(
+        repo_root=repo_root, change_id=change_id, now=resolved_now, git_sha=resolved_git_sha
+    )
 
     bundle = collect_evidence.collect_evidence(
         repo_root, change_id=change_id, base_sha=base_sha, head_sha=head_sha
@@ -161,8 +176,6 @@ def _run_audit_inner(
     valid_entries, invalid_entries = choices_ledger.split_schema_valid(resolved)
     dropped_all = dropped_provenance + invalid_entries
 
-    resolved_now = now or datetime.now(timezone.utc)
-    resolved_git_sha = git_sha or _head_sha(repo_root)
     header = choices_ledger.make_header(now=resolved_now, git_sha=resolved_git_sha, run_id=run_id)
 
     json_path, md_path = choices_ledger.write_ledger_pair(
@@ -173,6 +186,15 @@ def _run_audit_inner(
         entries=valid_entries,
         auditor=auditor,
     )
+
+    # D6: a range run's only other effects are the latest.* copies at
+    # openspec/choices/ (this block) and retention's archive move, which
+    # runs after and can never turn this successful write into a failure.
+    if choices_paths.is_range_change_id(change_id):
+        choices_root = choices_paths.choices_root_for(repo_root)
+        paths = choices_paths.build_choices_paths(choices_root, change_dir.name)
+        shutil.copyfile(json_path, paths.latest_json)
+        shutil.copyfile(md_path, paths.latest_md)
 
     return AuditRunResult(
         ok=True,
