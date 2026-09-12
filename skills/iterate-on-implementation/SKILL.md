@@ -576,11 +576,16 @@ this step behind a benign-looking log line. Perform these numbered actions
 directly rather than delegating them to bash:
 
 1. If `skills/audit-choices/` (or its installed runtime-mirror equivalent
-   under `.claude/skills/` / `.agents/skills/`) is not present, or this
-   harness exposes no sub-agent dispatch tool, set
+   under `.claude/skills/` / `.agents/skills/`) is not present, set
    `SKIP_REASON="audit-choices not installed"` and do not attempt dispatch —
    go straight to the bash block below.
-2. Otherwise, dispatch `/audit-choices "$CHANGE_ID" --run-id "$RUN_ID"` and
+2. Otherwise, if this harness exposes no sub-agent dispatch tool, set
+   `SKIP_REASON="no sub-agent dispatch tool"` and do not attempt dispatch —
+   go straight to the bash block below. These are two distinct "unavailable"
+   causes (the skill missing vs. the harness lacking dispatch), and each
+   gets its own reason so the single warning line names what is actually
+   true.
+3. Otherwise, dispatch `/audit-choices "$CHANGE_ID" --run-id "$RUN_ID"` and
    capture its full output.
    - If the dispatch errors, times out, or returns no parseable candidate
      array, set `SKIP_REASON="audit dispatch failed"`.
