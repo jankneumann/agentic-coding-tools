@@ -291,6 +291,37 @@
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-09-12T21:43:57.993998+00:00",
       "note": "Operator approved PR creation."
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-12T21:44:48.754191+00:00"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' approved by the operator \u2014 Operator's existing yes applies to the identical re-opened PR-creation prompt.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-12T21:45:04.635627+00:00",
+      "note": "Operator's existing yes applies to the identical re-opened PR-creation prompt."
     }
   ],
   "pending_gate": null,
