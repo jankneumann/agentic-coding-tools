@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import threading
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -14,6 +17,7 @@ from review_dispatcher import (
     CliVendorAdapter,
     ErrorClass,
     ModeConfig,
+    PollConfig,
     ReviewOrchestrator,
     ReviewResult,
     SdkConfig,
@@ -1064,3 +1068,170 @@ class TestDispatchRobustness:
 
         assert timeout_for_vendor("claude_code") >= 720
         assert timeout_for_vendor("claude_code", override=120) == 120
+
+
+# ---------------------------------------------------------------------------
+# Concurrent dispatch (OpenSpec pack-and-parallelize-vendor-review D2/D4)
+# ---------------------------------------------------------------------------
+
+_STUB_SLEEP_SECONDS = 2.0
+_CONCURRENT_WALL_LIMIT_SECONDS = 3.0
+
+
+def _write_sleep_stub(path: Path, stamp_path: Path, sleep_seconds: float) -> None:
+    """Write an executable fake vendor CLI that sleeps, then prints findings."""
+    path.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json, os, time\n"
+        "from pathlib import Path\n"
+        f"stamp = Path({str(stamp_path)!r})\n"
+        "stamp.write_text(json.dumps({\n"
+        '    "start": time.time(),\n'
+        '    "cwd": os.getcwd(),\n'
+        '    "pid": os.getpid(),\n'
+        "}))\n"
+        f"time.sleep({sleep_seconds!r})\n"
+        "data = json.loads(stamp.read_text())\n"
+        'data["end"] = time.time()\n'
+        "stamp.write_text(json.dumps(data))\n"
+        f"print({VALID_FINDINGS_JSON!r})\n"
+    )
+    path.chmod(0o755)
+
+
+def _intervals_overlap(a: dict[str, float], b: dict[str, float]) -> bool:
+    return a["start"] < b["end"] and b["start"] < a["end"]
+
+
+class TestConcurrentDispatch:
+    """D4: two 2s stubs finish in <3s with overlapping subprocess lifetimes."""
+
+    def test_concurrent_stub_vendors_overlap_under_three_seconds(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        stamp_a = tmp_path / "codex-stamp.json"
+        stamp_b = tmp_path / "grok-stamp.json"
+        _write_sleep_stub(bin_dir / "review-stub-codex", stamp_a, _STUB_SLEEP_SECONDS)
+        _write_sleep_stub(bin_dir / "review-stub-grok", stamp_b, _STUB_SLEEP_SECONDS)
+        monkeypatch.setenv(
+            "PATH", f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+        )
+
+        adapters = {
+            "codex-local": _adapter(
+                "codex-local", "codex", command="review-stub-codex",
+            ),
+            "grok-local": _adapter(
+                "grok-local", "grok", command="review-stub-grok",
+            ),
+        }
+        orch = ReviewOrchestrator(adapters)
+        started = time.monotonic()
+        results = orch.dispatch_and_wait(
+            review_type="plan",
+            dispatch_mode="review",
+            prompt="Review this packet",
+            cwd=tmp_path,
+            timeout_seconds=15,
+        )
+        elapsed = time.monotonic() - started
+
+        assert elapsed < _CONCURRENT_WALL_LIMIT_SECONDS, (
+            f"concurrent dispatch took {elapsed:.2f}s; sequential 2s stubs "
+            "would take >=4s, overlap must finish in <3s"
+        )
+        assert elapsed < 4.0  # sequential dispatch is a bug (spec scenario)
+        assert len(results) == 2
+        assert all(r.success for r in results)
+
+        a = json.loads(stamp_a.read_text())
+        b = json.loads(stamp_b.read_text())
+        assert _intervals_overlap(a, b), (
+            f"subprocess lifetimes did not overlap: codex={a} grok={b}"
+        )
+        assert a["cwd"] == str(tmp_path)
+        assert b["cwd"] == str(tmp_path)
+
+    def test_concurrent_async_submit_all_then_poll(self, tmp_path: Path) -> None:
+        """Async vendors: every submit finishes before any poll starts."""
+        submit_ends: list[float] = []
+        poll_starts: list[float] = []
+        lock = threading.Lock()
+
+        def _async_cli(agent_id: str, vendor: str) -> CliVendorAdapter:
+            return CliVendorAdapter(
+                agent_id=agent_id,
+                vendor=vendor,
+                cli_config=CliConfig(
+                    command=f"cloud-{vendor}",
+                    dispatch_modes={
+                        "review": ModeConfig(
+                            args=["cloud", "exec"],
+                            async_dispatch=True,
+                            poll=PollConfig(
+                                command_template=["status", "{task_id}"],
+                                task_id_pattern=r"task[_\s:]+(\w+)",
+                                success_pattern="completed",
+                                interval_seconds=1,
+                                timeout_seconds=10,
+                            ),
+                        ),
+                    },
+                    model_flag="-m",
+                ),
+            )
+
+        adapters = {
+            "codex-remote": _async_cli("codex-remote", "codex"),
+            "grok-remote": _async_cli("grok-remote", "grok"),
+        }
+
+        def fake_submit(self: CliVendorAdapter, mode: str, prompt: str, cwd: Path) -> ReviewResult:
+            delay = 0.05 if self.vendor == "codex" else 0.35
+            time.sleep(delay)
+            with lock:
+                submit_ends.append(time.monotonic())
+            return ReviewResult(
+                vendor=self.vendor,
+                success=True,
+                async_dispatch=True,
+                task_id=f"task-{self.vendor}",
+            )
+
+        def fake_poll(
+            self: CliVendorAdapter,
+            task_id: str,
+            poll_config: PollConfig,
+            cwd: Path | None = None,
+        ) -> ReviewResult:
+            with lock:
+                poll_starts.append(time.monotonic())
+            return ReviewResult(
+                vendor=self.vendor,
+                success=True,
+                findings=json.loads(VALID_FINDINGS_JSON),
+                task_id=task_id,
+            )
+
+        orch = ReviewOrchestrator(adapters)
+        with patch("shutil.which", return_value="/usr/bin/mock"), patch.object(
+            CliVendorAdapter, "dispatch_async", fake_submit,
+        ), patch.object(CliVendorAdapter, "poll_for_result", fake_poll):
+            results = orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="Review this packet",
+                cwd=tmp_path,
+                timeout_seconds=15,
+            )
+
+        assert len(results) == 2
+        assert all(r.success for r in results)
+        assert len(submit_ends) == 2
+        assert len(poll_starts) == 2
+        assert max(submit_ends) <= min(poll_starts), (
+            "async poll started before every vendor was submitted "
+            f"(submit_ends={submit_ends}, poll_starts={poll_starts})"
+        )
