@@ -18,9 +18,31 @@
 
 ## 2026-09-12 — ledger-driven-review-convergence
 
+### Phase: Implementation
+
+**Heuristic compact and fingerprint+match_score merge** — Follows D1/D2: no extra LLM call; identity is hash(axis, path, description) with match_score as the paraphrase path, gated on file_path or >=4 tokens to avoid collapsing generic test findings.
+
+- Status: `active`
+- Source: [openspec/changes/ledger-driven-review-convergence/session-log.md](/openspec/changes/ledger-driven-review-convergence/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — ledger-driven-review-convergence
+
 ### Phase: Plan
 
 **Heuristic compact in v1** — No extra LLM call; retire on missing file or missing tokens; model compact can replace later.
+
+- Status: `active`
+- Source: [openspec/changes/ledger-driven-review-convergence/session-log.md](/openspec/changes/ledger-driven-review-convergence/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — ledger-driven-review-convergence
+
+### Phase: Implementation
+
+**Disagreement parks instead of aborting** — D4: agreed blocking work continues; parked leftovers surface on ConvergenceResult.escalate_findings.
 
 - Status: `active`
 - Source: [openspec/changes/ledger-driven-review-convergence/session-log.md](/openspec/changes/ledger-driven-review-convergence/session-log.md) (D2)
@@ -40,9 +62,31 @@
 
 ## 2026-09-12 — ledger-driven-review-convergence
 
+### Phase: Implementation
+
+**PLAN_FIX is a sub-step, not an outer bounce** — D6: _phase_review passes a recording fix_callback into converge() and maps leftover non-convergence to max_iter. TRANSITIONS still maps not_converged→PLAN_FIX for resume of in-flight loop-state.
+
+- Status: `active`
+- Source: [openspec/changes/ledger-driven-review-convergence/session-log.md](/openspec/changes/ledger-driven-review-convergence/session-log.md) (D3)
+
+---
+
+## 2026-09-12 — ledger-driven-review-convergence
+
 ### Phase: Plan
 
 **PLAN_FIX is fix_callback inside converge()** — The outer bounce was a second engine over the same artifacts.
+
+- Status: `active`
+- Source: [openspec/changes/ledger-driven-review-convergence/session-log.md](/openspec/changes/ledger-driven-review-convergence/session-log.md) (D4)
+
+---
+
+## 2026-09-12 — ledger-driven-review-convergence
+
+### Phase: Implementation
+
+**Default stall window of 2** — Post-compact blocking must strictly decrease; compact removes invented-finding noise that forced a window of 3.
 
 - Status: `active`
 - Source: [openspec/changes/ledger-driven-review-convergence/session-log.md](/openspec/changes/ledger-driven-review-convergence/session-log.md) (D4)
