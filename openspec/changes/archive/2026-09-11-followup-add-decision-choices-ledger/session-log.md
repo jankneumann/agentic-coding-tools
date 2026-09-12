@@ -70,3 +70,27 @@ Addressed 16 findings (6 high, 7 medium, 3 low) against the verbatim Phase 3 car
 ### Context
 Re-analysis of the iteration-1 output found one medium finding: task 3.3's Step 5.5 placement was ambiguous because cleanup-feature has two 5c headings and a 5d block before Step 6. Anchored the hook immediately before the Step 6 Archive heading in tasks.md and design F1. Remaining findings are low; loop terminates at threshold with openspec validate --strict green.
 
+---
+
+## Phase: Cleanup (2026-09-12)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Rebase-merge rather than squash** — The 45 commits are conventional and encode the review history: each fix commit names the finding it closes and which reviewer raised it. Squashing would collapse four plan-review and four implementation-review rounds into one opaque commit, losing the record of why the audit dispatch is agent-level rather than shell.
+2. **No open-task migration needed** — tasks.md has zero unchecked items. Validation independently confirmed each checked task maps to real shipped code rather than trusting the checkboxes.
+3. **Pre-merge gate required explicit changed-file input** — gate_logic.py fails closed when given no --changed-file paths: it marks the surface deployable and demands smoke, security and E2E, which are not applicable here. Fed the real 65 changed paths it derives deployable=false and requires only Spec Compliance, which passes. Failing closed is correct; the invocation has to supply the input.
+
+### Completed Work
+- pre-merge-gate
+- merge
+- archive
+- decision-index
+- branch-cleanup
+
+### Next Steps
+- fix-audit-choices-range-ledger-path (recommended follow-up: the standalone range form writes its ledger under openspec/changes/range:<base>..<head>/)
+
+### Context
+Merged PR #530 into main by rebase, preserving the 45-commit history so the review trail stays readable in git blame. No open tasks to migrate: all ten tasks and both checkpoints were checked and verified against shipped code during validation. Archived the change and regenerated the decision index in the same commit.
+

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T02:08:33.091232+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Merged PR #530 into main by rebase, preserving the 45-commit history so the review trail stays readable in git blame. No open tasks to migrate: all ten tasks and both checkpoints were checked and verified against shipped code during validation. Archived the change and regenerated the decision index in the same commit.",
+    "completed_work": [
+      "pre-merge-gate",
+      "merge",
+      "archive",
+      "decision-index",
+      "branch-cleanup"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Rebase-merge rather than squash",
+        "rationale": "The 45 commits are conventional and encode the review history: each fix commit names the finding it closes and which reviewer raised it. Squashing would collapse four plan-review and four implementation-review rounds into one opaque commit, losing the record of why the audit dispatch is agent-level rather than shell.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "No open-task migration needed",
+        "rationale": "tasks.md has zero unchecked items. Validation independently confirmed each checked task maps to real shipped code rather than trusting the checkboxes.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Pre-merge gate required explicit changed-file input",
+        "rationale": "gate_logic.py fails closed when given no --changed-file paths: it marks the surface deployable and demands smoke, security and E2E, which are not applicable here. Fed the real 65 changed paths it derives deployable=false and requires only Spec Compliance, which passes. Failing closed is correct; the invocation has to supply the input.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "fix-audit-choices-range-ledger-path (recommended follow-up: the standalone range form writes its ledger under openspec/changes/range:<base>..<head>/)"
+    ],
+    "relevant_files": []
+  }
+}
