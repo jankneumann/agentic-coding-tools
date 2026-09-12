@@ -46,6 +46,10 @@ output moved to `openspec/priorities/<YYYY-MM-DD>-HHMMSS-<sha7>/`.
   Mirrors the one shipped instance of this artifact class, including
   `latest.{json,md}` rewritten at `openspec/choices/` for most-recent access.
   The run directory is tracked, like `openspec/priorities/`.
+  `openspec/choices/` is created by the first standalone audit and is simply
+  absent from a clean checkout until then — that absence is not drift, and no
+  `.gitkeep` is added. `apply_retention` already tolerates a missing base
+  directory (`list_active_runs` returns `[]`), so nothing has to seed it.
   - *Alternative rejected*: the codeviz roadmap's
     `<dir>/<YYYY-MM-DD>/<run-id>.json`. It is the written rule, but it has
     never shipped, it disagrees with the working implementation, and it names a
@@ -169,9 +173,13 @@ output moved to `openspec/priorities/<YYYY-MM-DD>-HHMMSS-<sha7>/`.
     the change-id one, for the same literal-set reason.
 
 - **D7: The run directory is named from the header the ledger already
-  carries.** The dated directory is `build_run_id(generated_at, git_sha)` —
-  the same `now` and repository `HEAD` the driver writes into the ledger's
-  six-field header — so a ledger's location is derivable from its own contents,
+  carries.** The dated directory is built from the same two values the
+  driver hands `make_header`: its `resolved_now` datetime and
+  `resolved_git_sha`. Pass those, **not** `header["generated_at"]` —
+  `make_header` stores that field as a formatted string
+  (`%Y-%m-%dT%H:%M:%SZ`) while `build_run_id` requires a UTC-aware datetime and
+  raises on anything else. The directory therefore encodes the same `now` and
+  repository `HEAD` the ledger's six-field header records — so a ledger's location is derivable from its own contents,
   and the run-id means the same thing it means for `prioritize-proposals`: when
   and at what `HEAD` the artifact was produced. The audited head is not the
   input: it is already recorded in `audited_range`, and D1 puts run identity in

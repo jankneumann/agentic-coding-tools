@@ -52,6 +52,14 @@ stay covered by the tests that already pin them.
      `test_retention.py` and `test_smoke_e2e.py` are not edited by this change
      — the work package's `preexisting_tests_unchanged` step enforces it.
 
+  The subprocess run-id case must pin the timezone, not just the shape:
+  invoke the CLI with `TZ` set to a non-UTC zone (`TZ=America/New_York`) and
+  assert the emitted run-id matches the UTC wall clock, not local time. A shape
+  assertion against live `now` still matches `YYYY-MM-DD-HHMMSS-<sha7>` if the
+  CLI dropped `timezone.utc` for a naive `datetime.now()`, and the
+  function-level pins call `build_run_id` with an explicit UTC datetime so they
+  would not see it either.
+
 - [ ] Checkpoint: run `cd skills && uv run pytest tests/prioritize-proposals -q`, confirm green against unmodified code (the subprocess cases pass here because the copied scripts do not yet import `shared`)
 
 ## Phase 2 — Extract the shared helper
@@ -156,8 +164,9 @@ stay covered by the tests that already pin them.
   **Size**: S
   `TestStandaloneRangeInvocation` currently asserts the recorded `change_id`
   and exit code. Add: the pair lands under `openspec/choices/<run-id>/` where
-  `<run-id>` is `build_run_id` of the header's `generated_at` and `git_sha`
-  (D7); `latest.json` and `latest.md` are byte-equal to the run's pair (D6); no
+  `<run-id>` is `build_run_id` of the driver's `resolved_now` and
+  `resolved_git_sha` — the same values `make_header` received, never the
+  header's formatted `generated_at` string (D7); `latest.json` and `latest.md` are byte-equal to the run's pair (D6); no
   directory whose name contains `range:` or `..` exists anywhere under
   `openspec/changes/`; `audited_range` carries both full 40-character shas; a
   second range run over the same range at a later `now` produces a second
@@ -203,7 +212,11 @@ stay covered by the tests that already pin them.
   `openspec/choices/archive/<run-id>/` with its pair intact and the working-tree
   diff is exactly the new pair, `latest.*`, and that one move (D6);
   monkeypatch `apply_retention` to raise and assert `ok is True`, both paths
-  set, and the pair on disk.
+  set, the pair on disk, **and that exactly one warning naming retention was
+  emitted** (caplog or captured stderr). Without that last assertion an
+  implementation that swallows the failure silently passes, and the operator
+  loses the only signal that the standalone-audit tree has stopped being
+  bounded.
 
 - [ ] 5.3 Document where a standalone audit writes
   **Design decisions**: D1, D8
@@ -216,6 +229,13 @@ stay covered by the tests that already pin them.
   verification step 5 ("re-run the audit over an unchanged range and confirm
   `choices.json`'s entry count and every `stable_id` are unchanged") so that
   for the range form it compares the two run directories' ledgers (D8).
+  Two more places in `SKILL.md` still present in-place merge as the universal
+  re-audit story and become false for the range form: the Common
+  Rationalizations row saying a re-run must "update that slot in place, not
+  duplicate it" via `merge_entries()`, and Step 5's "Persist idempotently"
+  prose. Scope both to the change-id form and state the range form's per-run
+  snapshot model beside them (D8) — the merge is not removed, it just never
+  fires against a fresh dated directory.
   Depends on 5.1 because both edit `SKILL.md`.
 
 - [ ] Checkpoint: run the four skill gates (`cd skills && bash install.sh --check`; `uv run python validate-feature/scripts/linters/dependency_direction.py --skills-root .`; `make context-refresh PYTHON=skills/.venv/bin/python`; `uv run pytest tests/ci_coverage -q`), resync runtime copies (`bash skills/install.sh --mode rsync --deps none --python-tools none`), review diff, verify scope

@@ -70,6 +70,9 @@ own contents rather than from the path it was written to.
   `openspec/changes/`, leaving no directory named after the commit range
 - AND `audited_range` SHALL carry both full shas, so the audited range is
   recoverable without reading the path
+- AND `latest.json` and `latest.md` at the standalone-audit root SHALL be
+  updated to copies of that run's pair, so the most recent standalone audit is
+  reachable without knowing its run id
 - AND the driver SHALL exit with status 0
 
 #### Scenario: A change-id audit is unaffected by the range-form destination
@@ -82,8 +85,51 @@ own contents rather than from the path it was written to.
 
 #### Scenario: Standalone audit output is bounded
 
-- WHEN the number of standalone audit runs held in the run-scoped directory
-  exceeds the configured retention count
-- THEN the oldest runs SHALL be moved to an archive subdirectory rather than
-  deleted
+- WHEN the number of run directories under the standalone-audit root exceeds
+  the configured retention count
+- THEN the oldest of those run directories SHALL be moved to an archive
+  subdirectory of that root rather than deleted
 - AND no run's ledger pair SHALL be destroyed by retention
+- AND a retention failure SHALL NOT change the outcome of a run whose ledger
+  pair was written: the run SHALL still report success with both paths set
+
+### Requirement: Independent read-only choices audit
+
+The choices ledger SHALL be produced by an auditor pass that is independent of
+the implementing agent: a separately dispatched sub-agent whose input is the
+change's git history (`git log` / `git diff` over the change branch) and its
+planning artifacts (`proposal.md`, `design.md`, spec deltas, `session-log.md`,
+`impl-findings.md` when present). The auditor MUST NOT write to
+`session-log.md`, `docs/decisions/`, or any source file, and MUST exit with
+status 0 regardless of the verdicts recorded.
+
+The set of files the auditor may create or modify depends on which form it was
+invoked in, and is closed in both. For a change-id audit it is
+`openspec/changes/<change-id>/choices.json` and `choices.md`. For a standalone
+commit-range audit it is that run's ledger pair under the standalone-audit
+root, the `latest.json` and `latest.md` copies at that root, and the archive
+move retention performs. Nothing else, in either form.
+
+#### Scenario: Auditor writes only the ledger pair
+
+- WHEN the audit-choices skill runs against a change
+- THEN the only files created or modified SHALL be
+  `openspec/changes/<change-id>/choices.json` and
+  `openspec/changes/<change-id>/choices.md`
+- AND a snapshot comparison of the rest of the working tree SHALL show no
+  changes
+
+#### Scenario: A standalone audit writes only its run directory and the latest pointers
+
+- WHEN the audit-choices skill runs in its standalone commit-range form
+- THEN the only files created or modified SHALL be that run's `choices.json`
+  and `choices.md`, the `latest.json` and `latest.md` copies at the
+  standalone-audit root, and any archive move retention performs
+- AND a snapshot comparison of the rest of the working tree SHALL show no
+  changes, including no file under `openspec/changes/`
+
+#### Scenario: Adverse verdicts never block
+
+- WHEN the audit records entries with verdict `unsound` or `needs-user`
+- THEN the audit process SHALL still exit with status 0
+- AND no workflow step SHALL be halted by the audit itself
