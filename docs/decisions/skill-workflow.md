@@ -82,6 +82,28 @@
 
 ---
 
+## 2026-09-12 — fix-audit-choices-range-ledger-path
+
+### Phase: Plan
+
+**Destination mirrors openspec/priorities/** — prioritize-proposals is the only other producer of this artifact class and already answered this question, explicitly rejecting openspec/changes/ as 'the wrong home for a meta-report'. Reusing its dated run-directory layout avoids inventing a second shape for one artifact class.
+
+- Status: `active`
+- Source: [openspec/changes/fix-audit-choices-range-ledger-path/session-log.md](/openspec/changes/fix-audit-choices-range-ledger-path/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — fix-audit-choices-range-ledger-path
+
+### Phase: Plan
+
+**The shared module holds the run-id format, not the filenames** — The two producers write different filenames (report.* vs choices.*). Extracting those too would give the shared helper knowledge of both callers, which is the coupling the extraction exists to avoid. skills/shared/ is a declared shared_library, so no cross_skill_dependencies entry is needed.
+
+- Status: `active`
+- Source: [openspec/changes/fix-audit-choices-range-ledger-path/session-log.md](/openspec/changes/fix-audit-choices-range-ledger-path/session-log.md) (D2)
+
+---
+
 ## 2026-09-11 — 2026-09-10-rescope-merge-pull-requests-to-plan-execute
 
 ### Phase: Plan

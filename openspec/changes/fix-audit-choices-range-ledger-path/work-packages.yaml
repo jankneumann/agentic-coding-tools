@@ -1,0 +1,112 @@
+schema_version: 1
+
+feature:
+  id: fix-audit-choices-range-ledger-path
+  title: "Route standalone range audits out of the changes tree"
+  plan_revision: 1
+  created_by: claude_code
+  created_at: "2026-09-12T00:00:00Z"
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/fix-audit-choices-range-ledger-path/contracts/README.md"
+    files:
+      - "openspec/changes/fix-audit-choices-range-ledger-path/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-main
+    title: "Extract the run-id helper, migrate prioritize-proposals, route the range form"
+    task_type: implementation
+    description: >-
+      Single sequential package. The task graph is a near-chain — the shared
+      helper must exist before either producer can use it, and the
+      characterization test that guards the prioritize-proposals migration must
+      be written before anything moves — so splitting it would create packages
+      that spend most of their time blocked on each other. The one genuine
+      parallel edge (3.1 and 4.1 both depend only on 2.2) is two S-sized tasks
+      inside one skill area, which is not worth a second worktree.
+    role: implementation
+    priority: 1
+    depends_on: []
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/shared/artifact_paths.py"
+        - "skills/audit-choices/scripts/run_audit.py"
+        - "skills/prioritize-proposals/scripts/priorities_paths.py"
+        - "skills/prioritize-proposals/scripts/retention.py"
+      keys:
+        - "feature:fix-audit-choices-range-ledger-path:refactor"
+      ttl_minutes: 120
+      reason: "Shared run-id helper extraction touches two producer skills"
+    scope:
+      write_allow:
+        - "skills/shared/**"
+        - "skills/audit-choices/**"
+        - "skills/prioritize-proposals/**"
+        - "skills/tests/shared/**"
+        - "skills/tests/audit-choices/**"
+        - "skills/tests/prioritize-proposals/**"
+        - "docs/guides/workflow.md"
+        - "openspec/changes/fix-audit-choices-range-ledger-path/**"
+      read_allow:
+        - "**"
+      deny:
+        - "openspec/specs/**"
+        - "agent-coordinator/**"
+    context_impact:
+      surfaces:
+        - "documentation"
+    worktree:
+      name: wp-main
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "audit-choices, shared and prioritize-proposals suites"
+          kind: command
+          command: "cd skills && uv run pytest tests/audit-choices tests/shared tests/prioritize-proposals -q"
+          evidence:
+            artifacts:
+              - "skills/tests/audit-choices/test_output_routing.py"
+              - "skills/tests/shared/test_artifact_paths.py"
+              - "skills/tests/prioritize-proposals/test_output_characterization.py"
+            result_keys: ["suites_pass"]
+        - name: "Skill install portability"
+          kind: command
+          command: "cd skills && bash install.sh --check"
+          evidence:
+            artifacts:
+              - "skills/install-manifest.json"
+            result_keys: ["install_check"]
+        - name: "Dependency direction"
+          kind: command
+          command: "cd skills && uv run python validate-feature/scripts/linters/dependency_direction.py --skills-root ."
+          evidence:
+            artifacts:
+              - "skills/shared/artifact_paths.py"
+            result_keys: ["dependency_direction"]
+        - name: "CI coverage guard"
+          kind: command
+          command: "cd skills && uv run pytest tests/ci_coverage -q"
+          evidence:
+            artifacts:
+              - "skills/tests/ci_coverage"
+            result_keys: ["ci_coverage"]
+    outputs:
+      result_keys: ["suites_pass", "install_check", "dependency_direction", "ci_coverage"]
+    metadata:
+      loc_estimate: 260
+      package_kind: config

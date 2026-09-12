@@ -8,8 +8,6 @@ A Decision is *architectural* when it shapes how a capability behaves across mul
 
 Routine engineering choices that do not outlive the change that introduced them SHOULD remain untagged — they clutter the index without adding archaeological value.
 
-**Related: the choices ledger.** `choices.json`/`choices.md` (produced by the `audit-choices` skill, one pair per change under `openspec/changes/<change-id>/`) are this index's independently audited, per-change complement: implementation-time decisions an auditor found in the diff, not decisions the implementer chose to tag as architectural. The two stores cross-reference each other via `<change-id>#D<n>` and never write to one another — the ledger is read-only end to end and this index is regenerated only from session-log `Decisions` bullets.
-
 ## How to read a capability timeline
 
 Each `<capability>.md` file is reverse-chronological (newest first). Every entry carries a status (`active` or `superseded`), a back-reference to the originating session-log phase entry, and — when a later decision explicitly reverses an earlier one via `` `supersedes:` `` — bidirectional `Supersedes` / `Superseded by` links.
