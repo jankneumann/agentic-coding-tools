@@ -14,9 +14,14 @@ refer to this change's `design.md`.
 | skill-workflow.12 | Standalone invocation against a commit range |
 | skill-workflow.13 | A change-id audit is unaffected by the range-form destination |
 | skill-workflow.14 | Standalone audit output is bounded |
+| skill-workflow.15 | A standalone audit writes only its run directory and the latest pointers |
 
-Scenarios 8–11 in the modified requirement are unchanged by this change and
-stay covered by the tests that already pin them.
+This change modifies **two** canonical requirements. `Choices audit workflow
+integration` gains 13 and 14 and modifies 12; its scenarios 8–11 are unchanged
+and stay covered by the tests that already pin them. `Independent read-only
+choices audit` is modified to widen its closed write set and gains 15 — round-1
+review found that requirement still forbade writing outside
+`openspec/changes/<change-id>/`, which this change's whole purpose contradicts.
 
 ## Phase 1 — Guard the skill being refactored
 
@@ -180,7 +185,8 @@ stay covered by the tests that already pin them.
 ## Phase 5 — Contract, retention wiring, and docs
 
 - [ ] 5.1 Widen the read-only contract to name both destinations
-  **Spec scenarios**: skill-workflow.12
+  **Spec scenarios**: skill-workflow.15 (the closed write set for the range
+  form), skill-workflow.12
   **Design decisions**: D6
   **Dependencies**: 4.2
   **Files**: `skills/audit-choices/SKILL.md`, `skills/tests/audit-choices/test_readonly_posture.py`
