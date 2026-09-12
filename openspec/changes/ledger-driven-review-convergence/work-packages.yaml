@@ -1,0 +1,229 @@
+schema_version: 1
+
+feature:
+  id: ledger-driven-review-convergence
+  title: "Ledger-driven review convergence"
+  plan_revision: 1
+  created_by: grok
+  created_at: "2026-09-11T00:00:00Z"
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/ledger-driven-review-convergence/contracts/README.md"
+    files:
+      - "openspec/changes/ledger-driven-review-convergence/contracts/README.md"
+      - "openspec/changes/ledger-driven-review-convergence/contracts/review-ledger.schema.json"
+      - "openspec/changes/ledger-driven-review-convergence/contracts/parked-disagreements.schema.json"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Review ledger contracts"
+    task_type: contracts
+    description: "JSON Schemas for the gate-time finding ledger and parked-disagreement file."
+    role: contracts
+    priority: 1
+    depends_on: []
+    timeout_minutes: 30
+    retry_budget: 1
+    min_trust_level: 1
+    locks:
+      files:
+        - "openspec/changes/ledger-driven-review-convergence/contracts/review-ledger.schema.json"
+        - "openspec/changes/ledger-driven-review-convergence/contracts/parked-disagreements.schema.json"
+      keys:
+        - "contract:openspec/changes/ledger-driven-review-convergence/contracts/review-ledger.schema.json"
+        - "contract:openspec/changes/ledger-driven-review-convergence/contracts/parked-disagreements.schema.json"
+      ttl_minutes: 60
+      reason: "Freeze ledger format for ambient-review-ledger reuse"
+    scope:
+      write_allow:
+        - "openspec/changes/ledger-driven-review-convergence/contracts/**"
+      read_allow:
+        - "openspec/changes/ledger-driven-review-convergence/**"
+        - "openspec/schemas/review-findings.schema.json"
+      deny: []
+    context_impact:
+      surfaces: []
+      rationale:
+        capabilities:
+          reason: "Schemas only; spec delta is owned by wp-loop."
+          approved_by: "plan-feature"
+        documentation:
+          reason: "No user-facing docs in this package."
+          approved_by: "plan-feature"
+    worktree:
+      name: wp-contracts
+      mode: isolated
+    verification:
+      tier_required: C
+      steps:
+        - name: "JSON Schema syntax validation"
+          kind: command
+          command: "skills/.venv/bin/python -c 'import json; from pathlib import Path; from jsonschema import Draft202012Validator as V; d=Path(\"openspec/changes/ledger-driven-review-convergence/contracts\"); [V.check_schema(json.loads(p.read_text())) for p in d.glob(\"*.schema.json\")]'"
+          evidence:
+            artifacts: []
+            result_keys: ["schemas_parse"]
+    outputs:
+      result_keys: ["schemas_parse"]
+    metadata:
+      loc_estimate: 100
+      package_kind: data_model
+
+  - package_id: wp-ledger
+    title: "Review ledger library"
+    task_type: implement
+    description: "review_ledger.py: load, merge by fingerprint or match_score, compact heuristic, blocking set."
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_ledger.py"
+      keys:
+        - "feature:ledger-driven-review-convergence:implement"
+      ttl_minutes: 120
+      reason: "Ledger library"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_ledger.py"
+        - "skills/tests/parallel-infrastructure/test_review_ledger.py"
+        - "skills/tests/parallel-infrastructure/test_review_ledger_schema.py"
+      read_allow:
+        - "skills/parallel-infrastructure/**"
+        - "openspec/changes/ledger-driven-review-convergence/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "capabilities"
+    worktree:
+      name: wp-ledger
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Ledger unit tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/parallel-infrastructure/test_review_ledger.py skills/tests/parallel-infrastructure/test_review_ledger_schema.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["ledger_tests"]
+    outputs:
+      result_keys: ["ledger_tests"]
+    metadata:
+      loc_estimate: 350
+      package_kind: data_model
+
+  - package_id: wp-loop
+    title: "Convergence loop ledger wiring"
+    task_type: implement
+    description: "Wire compact, delta prompts, blocking set, parked disagreement, scoped fixes into converge() and collapse the autopilot outer bounce."
+    role: implementer
+    priority: 3
+    depends_on: ["wp-ledger"]
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files:
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/autopilot/scripts/autopilot.py"
+      keys:
+        - "feature:ledger-driven-review-convergence:loop"
+      ttl_minutes: 120
+      reason: "Convergence loop"
+    scope:
+      write_allow:
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/autopilot/scripts/autopilot.py"
+        - "skills/autopilot/SKILL.md"
+        - "skills/tests/autopilot/**"
+        - "skills/autopilot/scripts/tests/**"
+      read_allow:
+        - "skills/**"
+        - "openspec/changes/ledger-driven-review-convergence/**"
+      deny: []
+    context_impact:
+      surfaces:
+        - "capabilities"
+        - "documentation"
+    worktree:
+      name: wp-loop
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "Converge and autopilot tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/test_convergence_loop.py skills/autopilot/scripts/tests/test_autopilot.py -q"
+          evidence:
+            artifacts: []
+            result_keys: ["loop_tests"]
+    outputs:
+      result_keys: ["loop_tests"]
+    metadata:
+      loc_estimate: 400
+      package_kind: integration
+
+  - package_id: wp-integration
+    title: "Spiral fixture and validate change"
+    task_type: integrate
+    description: "Seeded spiral fixture plus openspec validate and unit suites."
+    role: integrator
+    priority: 4
+    depends_on: ["wp-loop"]
+    timeout_minutes: 45
+    retry_budget: 1
+    min_trust_level: 2
+    locks:
+      files: []
+      keys:
+        - "feature:ledger-driven-review-convergence:integration"
+      ttl_minutes: 60
+      reason: "Integration fixture"
+    scope:
+      write_allow:
+        - "skills/tests/autopilot/test_convergence_spiral_fixture.py"
+        - "openspec/changes/ledger-driven-review-convergence/tasks.md"
+      read_allow:
+        - "skills/**"
+        - "openspec/**"
+      deny: []
+    context_impact:
+      surfaces: []
+      rationale:
+        capabilities:
+          reason: "Tests only."
+          approved_by: "plan-feature"
+        documentation:
+          reason: "No docs in this package."
+          approved_by: "plan-feature"
+    worktree:
+      name: wp-integration
+      mode: isolated
+    verification:
+      tier_required: B
+      steps:
+        - name: "OpenSpec strict validate"
+          kind: command
+          command: "openspec validate ledger-driven-review-convergence --strict"
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_valid"]
+    outputs:
+      result_keys: ["openspec_valid"]
+    metadata:
+      loc_estimate: 120
+      package_kind: integration

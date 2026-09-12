@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-09-12 — ledger-driven-review-convergence
+
+### Phase: Plan
+
+**Gate-time ledger only** — Slice of ambient-review-ledger without the git-hook sensor.
+
+- Status: `active`
+- Source: [openspec/changes/ledger-driven-review-convergence/session-log.md](/openspec/changes/ledger-driven-review-convergence/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — ledger-driven-review-convergence
+
+### Phase: Plan
+
+**Heuristic compact in v1** — No extra LLM call; retire on missing file or missing tokens; model compact can replace later.
+
+- Status: `active`
+- Source: [openspec/changes/ledger-driven-review-convergence/session-log.md](/openspec/changes/ledger-driven-review-convergence/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — ledger-driven-review-convergence
+
+### Phase: Plan
+
+**Disagreement parks rather than aborting** — Agreed blocking work should continue; parked items surface at SUBMIT_PR.
+
+- Status: `active`
+- Source: [openspec/changes/ledger-driven-review-convergence/session-log.md](/openspec/changes/ledger-driven-review-convergence/session-log.md) (D3)
+
+---
+
+## 2026-09-12 — ledger-driven-review-convergence
+
+### Phase: Plan
+
+**PLAN_FIX is fix_callback inside converge()** — The outer bounce was a second engine over the same artifacts.
+
+- Status: `active`
+- Source: [openspec/changes/ledger-driven-review-convergence/session-log.md](/openspec/changes/ledger-driven-review-convergence/session-log.md) (D4)
+
+---
+
 ## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
 
 ### Phase: Plan
