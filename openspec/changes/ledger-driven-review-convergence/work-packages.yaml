@@ -53,7 +53,8 @@ packages:
         - "openspec/schemas/review-findings.schema.json"
       deny: []
     context_impact:
-      surfaces: []
+      surfaces:
+        - "apis"
       rationale:
         capabilities:
           reason: "Schemas only; spec delta is owned by wp-loop."
@@ -108,6 +109,7 @@ packages:
     context_impact:
       surfaces:
         - "capabilities"
+        - "semantic_code"
     worktree:
       name: wp-ledger
       mode: isolated
@@ -159,6 +161,7 @@ packages:
       surfaces:
         - "capabilities"
         - "documentation"
+        - "semantic_code"
     worktree:
       name: wp-loop
       mode: isolated
@@ -202,7 +205,8 @@ packages:
         - "openspec/**"
       deny: []
     context_impact:
-      surfaces: []
+      surfaces:
+        - "semantic_code"
       rationale:
         capabilities:
           reason: "Tests only."
