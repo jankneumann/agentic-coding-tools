@@ -17,6 +17,8 @@ import re
 import subprocess
 from pathlib import Path
 
+import pytest
+
 SKILLS_ROOT = Path(__file__).resolve().parents[2]
 ITERATE_SKILL = SKILLS_ROOT / "iterate-on-implementation" / "SKILL.md"
 VALIDATE_SKILL = SKILLS_ROOT / "validate-feature" / "SKILL.md"
@@ -847,6 +849,69 @@ class TestValidateFeatureChoicesRow:
                 f"{snippet!r}"
             )
 
+    @pytest.mark.parametrize(
+        "ledger, expected_row",
+        [
+            (None, "○ Choices: no ledger"),
+            ({"entries": []}, "✓ Choices: 0 needs-user"),
+            (
+                {
+                    "entries": [
+                        {
+                            "stable_id": "abc123def456",
+                            "confidence": "low",
+                            "verdict": "needs-user",
+                            "choice": "Chose a per-request retry budget of 3",
+                        }
+                    ]
+                },
+                "⚠ Choices: 1 needs-user entries (choices.md)",
+            ),
+            (
+                {
+                    "entries": [
+                        {
+                            "stable_id": "def456abc123",
+                            "confidence": "high",
+                            "verdict": "sound",
+                            "choice": "Chose exponential backoff",
+                        }
+                    ]
+                },
+                "✓ Choices: 0 needs-user",
+            ),
+        ],
+        ids=["absent", "empty-entries", "one-needs-user", "entries-none-open"],
+    )
+    def test_choices_row_branch_selection(self, tmp_path, ledger, expected_row):
+        """Executable proof for skill-workflow.11 at the validation gate.
+
+        The absent-ledger and open-entry branches already had executable
+        proofs; the zero-needs-user branch had only a string-presence pin,
+        which cannot tell `○` from `✓`. The last case is the one that
+        distinguishes 'no ledger' from 'a ledger with nothing open' — a
+        ledger that exists and holds entries, none of them open."""
+        section = _section(VALIDATE_SKILL, "11. Validation Report")
+        snippet = _choices_row_snippet(_fences(section)).replace(
+            "<skill-base-dir>", str(VALIDATE_SKILL.parent)
+        )
+
+        repo = tmp_path / "repo"
+        change_dir = repo / "openspec" / "changes" / "my-change"
+        change_dir.mkdir(parents=True)
+        subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+        if ledger is not None:
+            (change_dir / "choices.json").write_text(json.dumps(ledger))
+
+        out = subprocess.run(
+            ["bash", "-c", 'CHANGE_ID="my-change"\n' + snippet + '\necho "row=$CHOICES_ROW"\n'],
+            cwd=repo, capture_output=True, text=True,
+        )
+        assert out.returncode == 0, out.stderr
+        assert f"row={expected_row}" in out.stdout, (
+            f"expected row {expected_row!r}, got: {out.stdout!r}"
+        )
+
     def test_worktree_shaped_env_still_finds_the_ledger(self, tmp_path):
         """Executable proof for finding 1 (impl-round-2): with
         `$OPENSPEC_PATH` and `$PROJECT_ROOT` set worktree-style, pointing at
@@ -923,6 +988,58 @@ class TestCleanupFeatureStep5_5:
         section = _section(CLEANUP_SKILL, "5.5")
         assert "no choices ledger" in section
         assert "no open choices" in section
+
+    @pytest.mark.parametrize(
+        "ledger, expected, forbidden",
+        [
+            (None, "no choices ledger", "no open choices"),
+            ({"entries": []}, "no open choices", "no choices ledger"),
+            (
+                {
+                    "entries": [
+                        {
+                            "stable_id": "abc123def456",
+                            "confidence": "low",
+                            "verdict": "needs-user",
+                            "choice": "Chose a per-request retry budget of 3",
+                        }
+                    ]
+                },
+                "abc123def456",
+                "no open choices",
+            ),
+        ],
+        ids=["absent-ledger", "empty-ledger", "open-entry"],
+    )
+    def test_step_5_5_branch_selection(self, tmp_path, ledger, expected, forbidden):
+        """Executable proof for skill-workflow.11 at the cleanup gate.
+
+        The scenario's whole content is that the two empty cases must not
+        render identically. `test_both_empty_case_wordings_present` only
+        proves both strings appear somewhere in the section — it passes
+        just as happily if the branches are swapped, or if one string is
+        unreachable. Run the real fence against all three shapes instead."""
+        section = _section(CLEANUP_SKILL, "5.5")
+        fence = next(f for f in _FENCE.findall(section) if "CHOICES_JSON=" in f)
+        snippet = fence.replace("<skill-base-dir>", str(CLEANUP_SKILL.parent))
+
+        repo = tmp_path / "repo"
+        change_dir = repo / "openspec" / "changes" / "my-change"
+        change_dir.mkdir(parents=True)
+        if ledger is not None:
+            (change_dir / "choices.json").write_text(json.dumps(ledger))
+
+        out = subprocess.run(
+            ["bash", "-c", 'CHANGE_ID="my-change"\n' + snippet],
+            cwd=repo, capture_output=True, text=True,
+        )
+        assert out.returncode == 0, out.stderr
+        assert expected in out.stdout, (
+            f"expected {expected!r} in cleanup Step 5.5 output, got {out.stdout!r}"
+        )
+        assert forbidden not in out.stdout, (
+            f"{forbidden!r} leaked into the {expected!r} case: {out.stdout!r}"
+        )
 
     def test_step_5a_early_exit_points_to_5_5_not_6(self):
         section = _section(CLEANUP_SKILL, "5a. Detect open tasks")
