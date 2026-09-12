@@ -299,3 +299,26 @@ Implemented the approved candidate-work digest across stable schemas, crash-reco
 
 ### Context
 Independent review identified ten medium-or-higher defects in candidate digest recovery, dry-run composition, lifecycle durability, prompt bounds, dependency resolution, and evidence I/O. All ten were fixed with RED/GREEN regression coverage; the focused, default, static, package, and strict OpenSpec gates pass.
+
+---
+
+## Phase: Validation (2026-09-12)
+
+**Agent**: codex | **Session**: N/A
+
+### Completed Work
+- spec
+- evidence
+- architecture
+- tests
+
+### Next Steps
+- Proceed to the Autopilot PR submission gate
+
+### Relevant Files
+- `openspec/changes/add-supervisor-candidate-work-digest/validation-report.md` — Final validation verdict and phase evidence
+- `openspec/changes/add-supervisor-candidate-work-digest/architecture-impact.md` — Architecture diff and advisory findings
+- `openspec/changes/add-supervisor-candidate-work-digest/change-context.md` — Current requirement traceability evidence
+
+### Context
+Validated the non-deployable ri-13 supervisor digest change at 99d97e08. All required local spec, package, architecture, test, lint, mirror, and OpenSpec gates passed; remote GitHub CI status remained unverified because the environment disallowed that external metadata query.

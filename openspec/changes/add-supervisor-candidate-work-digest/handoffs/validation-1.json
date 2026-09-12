@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T19:50:05.209521+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Validated the non-deployable ri-13 supervisor digest change at 99d97e08. All required local spec, package, architecture, test, lint, mirror, and OpenSpec gates passed; remote GitHub CI status remained unverified because the environment disallowed that external metadata query.",
+    "completed_work": [
+      "spec",
+      "evidence",
+      "architecture",
+      "tests"
+    ],
+    "in_progress": [],
+    "decisions": [],
+    "next_steps": [
+      "Proceed to the Autopilot PR submission gate"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/validation-report.md",
+        "description": "Final validation verdict and phase evidence"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/architecture-impact.md",
+        "description": "Architecture diff and advisory findings"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/change-context.md",
+        "description": "Current requirement traceability evidence"
+      }
+    ]
+  }
+}
