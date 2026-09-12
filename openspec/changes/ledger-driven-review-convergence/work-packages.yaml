@@ -56,9 +56,6 @@ packages:
       surfaces:
         - "apis"
       rationale:
-        capabilities:
-          reason: "Schemas only; spec delta is owned by wp-loop."
-          approved_by: "plan-feature"
         documentation:
           reason: "No user-facing docs in this package."
           approved_by: "plan-feature"
@@ -208,9 +205,6 @@ packages:
       surfaces:
         - "semantic_code"
       rationale:
-        capabilities:
-          reason: "Tests only."
-          approved_by: "plan-feature"
         documentation:
           reason: "No docs in this package."
           approved_by: "plan-feature"
