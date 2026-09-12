@@ -322,3 +322,32 @@ Independent review identified ten medium-or-higher defects in candidate digest r
 
 ### Context
 Validated the non-deployable ri-13 supervisor digest change at 99d97e08. All required local spec, package, architecture, test, lint, mirror, and OpenSpec gates passed; remote GitHub CI status remained unverified because the environment disallowed that external metadata query.
+
+---
+
+## Phase: Submit PR (2026-09-12)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Reuse existing pull request** — PR #528 already targeted the exact feature branch, so updating its evidence avoided a duplicate.
+2. **Keep structural size findings advisory** — No new cycle, high-impact module, or scoped flow defect was found; expanding completed ri-13 scope was not warranted.
+
+### Completed Work
+- plan-review:3-rounds
+- implementation:5-packages
+- implementation-review:4-rounds
+- validation:passed
+- pr:528-updated
+
+### Next Steps
+- Obtain operator merge authorization
+- If authorized, use cleanup-feature as the separate merge executor
+
+### Relevant Files
+- `openspec/changes/add-supervisor-candidate-work-digest/loop-state.json` — Full Autopilot convergence history
+- `openspec/changes/add-supervisor-candidate-work-digest/validation-report.md` — Passing validation evidence
+- `openspec/changes/add-supervisor-candidate-work-digest/architecture-impact.md` — Architecture assessment
+
+### Context
+ri-13 completed seven convergence rounds: three plan reviews and four implementation reviews. Five work packages delivered contracts, an isolated digest runtime, an isolated rubric prompt, shared workflow integration, and integration verification. Codex authored the primary implementation and targeted fixes; Claude, Antigravity, and Grok supplied independent review signals; the final Codex/Claude/Grok quorum accepted both operator-scoped post-cap fixes with zero blockers. Validation passed 3,802 repository skills tests and 352 focused supervise tests. Existing PR #528 was reused and updated rather than creating a duplicate. Best-effort review-artifact opening resolved the curated file set but could not launch because the `code` CLI is unavailable in this environment.
