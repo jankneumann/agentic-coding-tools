@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T13:34:17.839903+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude-code",
+    "session_id": null,
+    "summary": "Reviewed the implementation against design.md D1-D8; confirmed the D1/D5/D6/D8 routing, retention, and read-only-contract wiring, the D4 characterization guard (three frozen files byte-unchanged from the merge base), and the D3 no-surviving-definitions constraint all hold. Refactored parse_run_id in skills/shared/artifact_paths.py from a variable-arity (3-or-4-tuple) return into a fixed 3-tuple plus a new run_id_suffix() accessor for the D8 collision suffix, since the only production caller (list_active_runs) discarded the parsed result entirely and the frozen prioritize-proposals tests only ever unpack three values.",
+    "completed_work": [
+      "Verified D1/D5/D6/D8 routing, retention, and read-only-contract wiring in run_audit.py and choices_paths.py match design.md",
+      "Verified D4's three frozen test files and prioritize-proposals/SKILL.md are byte-unchanged from the merge-base with main",
+      "Verified D3: no re-exported name is redefined in skills/prioritize-proposals/scripts/",
+      "Refactored parse_run_id to a fixed 3-tuple and added run_id_suffix() in skills/shared/artifact_paths.py",
+      "Updated skills/tests/shared/test_artifact_paths.py and skills/tests/audit-choices/test_output_routing.py for the new accessor",
+      "Updated design.md's D8 paragraph to describe the accessor instead of a variable-arity return",
+      "Confirmed all four quality gates green: 366 passed / 1 skipped across audit-choices, shared, prioritize-proposals, and ci_coverage tests; both linters clean"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Split parse_run_id into a fixed-arity parser plus run_id_suffix()",
+        "rationale": "A function whose return arity depends on its input is easy to misuse. list_active_runs only used parse_run_id as a validity check and discarded the tuple, so nothing production-facing depended on the 4-tuple shape. A separate run_id_suffix(name) -> str | None reads the D8 collision suffix without changing parse_run_id's contract for ordinary and legacy ids, which keeps the frozen prioritize-proposals tests' 3-value unpacking (date, hms, sha = parse_run_id(...)) valid unchanged.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

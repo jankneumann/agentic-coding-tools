@@ -18,7 +18,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(REPO_ROOT / "skills"))
 
 import choices_paths  # noqa: E402
-from shared.artifact_paths import build_run_id, parse_run_id  # noqa: E402
+from shared.artifact_paths import build_run_id, parse_run_id, run_id_suffix  # noqa: E402
 
 NOW = datetime(2026, 9, 12, 3, 0, 0, tzinfo=timezone.utc)
 GIT_SHA = "abc1234" + "0" * 33  # 40 chars, short form starts abc1234
@@ -123,10 +123,10 @@ class TestCollisionGuard:
         )
         # Must not raise -- an un-extended RUN_ID_RE would reject this and
         # make list_active_runs skip exactly the directories this guard
-        # creates, letting the tree grow unbounded.
-        parsed = parse_run_id(out.name)
-        assert parsed[:3] == parse_run_id(base_run_id)
-        assert parsed[3] == "2"
+        # creates, letting the tree grow unbounded. parse_run_id's 3-tuple
+        # is unaffected by the suffix; run_id_suffix reads it separately.
+        assert parse_run_id(out.name) == parse_run_id(base_run_id)
+        assert run_id_suffix(out.name) == "2"
 
     def test_rejects_a_name_that_exists_only_under_archive(self, tmp_path: Path):
         # Retention frees the active path while the archived copy persists;

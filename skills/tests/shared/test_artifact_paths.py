@@ -25,6 +25,7 @@ from shared.artifact_paths import (  # noqa: E402
     build_run_id,
     list_active_runs,
     parse_run_id,
+    run_id_suffix,
 )
 
 
@@ -54,14 +55,30 @@ class TestParseRunId:
     def test_handles_legacy_suffix(self):
         assert parse_run_id("2026-05-04-legacy") == ("2026-05-04", "", "legacy")
 
-    def test_collision_suffixed_id_parses_and_returns_its_suffix(self):
+    def test_collision_suffixed_id_still_parses_to_the_same_3_tuple(self):
         # The un-extended regex rejects this, which would make
         # list_active_runs skip exactly the directories D8's collision
         # guard creates and let the standalone-audit tree grow unbounded
-        # while the bounding scenario still passed.
-        result = parse_run_id("2026-09-12-030000-abc1234-2")
-        assert result[:3] == ("2026-09-12", "030000", "abc1234")
-        assert result[3] == "2"
+        # while the bounding scenario still passed. parse_run_id's return
+        # shape does not depend on whether a suffix is present -- it is
+        # always the 3-tuple; run_id_suffix reads the suffix separately.
+        assert parse_run_id("2026-09-12-030000-abc1234-2") == (
+            "2026-09-12",
+            "030000",
+            "abc1234",
+        )
+
+    def test_run_id_suffix_extracts_the_collision_suffix(self):
+        assert run_id_suffix("2026-09-12-030000-abc1234-2") == "2"
+        assert run_id_suffix("2026-09-12-030000-abc1234-10") == "10"
+
+    def test_run_id_suffix_is_none_without_a_collision(self):
+        assert run_id_suffix("2026-09-12-030000-abc1234") is None
+        assert run_id_suffix("2026-05-04-legacy") is None
+
+    def test_run_id_suffix_rejects_non_dated_name(self):
+        with pytest.raises(ValueError):
+            run_id_suffix("not-a-run-id")
 
     def test_bare_date_returns_empty_middle_and_sha(self):
         assert parse_run_id("2026-06-10") == ("2026-06-10", "", "")

@@ -226,14 +226,20 @@ output moved to `openspec/priorities/<YYYY-MM-DD>-HHMMSS-<sha7>/`.
   first draft of this decision got wrong:
 
   - **`RUN_ID_RE` must accept the suffix.** The regex moved in task 2.2 is
-    `^(\d{4}-\d{2}-\d{2})(?:-(\d{6}|legacy)(?:-([a-f0-9]+))?)?$`, which
-    rejects `2026-09-12-030000-abc1234-2`. `list_active_runs` filters
+    `^(\d{4}-\d{2}-\d{2})(?:-(\d{6}|legacy)(?:-([a-f0-9]+))?)?(?:-(\d+))?$`,
+    which now matches `2026-09-12-030000-abc1234-2`. `list_active_runs` filters
     directories through `parse_run_id`, so an unextended regex makes retention
     silently stop seeing exactly the directories the guard creates — the tree
     would grow without bound and the bounding scenario would still pass. The
-    shared regex gains an optional trailing `-<n>` group and `parse_run_id`
-    returns it. `prioritize-proposals` never produces a suffix; accepting one
-    costs it nothing.
+    shared regex gains an optional trailing `-<n>` group; `parse_run_id`
+    validates a suffixed name against it but always returns the same
+    3-tuple `(date, hms, sha)` regardless of whether a suffix is present —
+    a function whose return arity depends on its input is worse than one
+    that doesn't, and the only production caller (`list_active_runs`)
+    discards the result as a pure validity check. A separate accessor,
+    `run_id_suffix(name)`, reads the suffix (`"2"`, `"3"`, ... or `None`)
+    for callers that need it. `prioritize-proposals` never produces a
+    suffix; accepting one costs it nothing.
   - **The guard checks the archive too.** Retention moves old runs to
     `<root>/archive/<run-id>/`, so an active path can free up while the
     archived name persists. A later audit computing that same base would take

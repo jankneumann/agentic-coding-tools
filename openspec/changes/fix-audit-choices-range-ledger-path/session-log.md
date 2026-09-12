@@ -77,3 +77,30 @@ Planned the fix for a standalone range audit writing to openspec/changes/range:<
 ### Context
 Reviewed the plan against the code it touches and found twelve issues, four high. The prioritize-proposals guard (D4) was necessary but insufficient: it pinned Python functions while the skill's only runtime interface is its CLI, and the one risk the move introduces — the skills/shared/ import bootstrap — only fails when a module runs as a script from an installed copy. The guard now also runs the CLI entry points as subprocesses from a runtime-shaped layout and holds the three pre-existing test modules byte-unchanged via a git diff verification step. Also fixed: parse_run_id omitted from the move, retention's archive moves contradicting the read-only contract, an unspecified import bootstrap, and unstated snapshot/retention-failure semantics; two new decisions (D7 run-directory identity, D8 snapshots and retention failure) record what was previously implicit.
 
+---
+
+## Phase: Implementation Iteration 1 (2026-09-12)
+
+**Agent**: claude-code | **Session**: N/A
+
+### Decisions
+1. **Split parse_run_id into a fixed-arity parser plus run_id_suffix()** — A function whose return arity depends on its input is easy to misuse. list_active_runs only used parse_run_id as a validity check and discarded the tuple, so nothing production-facing depended on the 4-tuple shape. A separate run_id_suffix(name) -> str | None reads the D8 collision suffix without changing parse_run_id's contract for ordinary and legacy ids, which keeps the frozen prioritize-proposals tests' 3-value unpacking (date, hms, sha = parse_run_id(...)) valid unchanged.
+
+### Alternatives Considered
+- Keep the variable-arity return and just document it better: rejected because Documentation doesn't fix the ergonomic hazard: any future caller that does `a, b, c = parse_run_id(x)` would raise on a suffixed id despite RUN_ID_RE accepting it, which is exactly the kind of shape-dependent surprise a reviewer would flag.
+
+### Trade-offs
+- Accepted Two small functions (parse_run_id, run_id_suffix) instead of one over One function whose return shape varies by input because The extra function is a few lines and zero new callers had to change (list_active_runs never touched the return value); the shape-stability win applies to every future caller.
+
+### Completed Work
+- Verified D1/D5/D6/D8 routing, retention, and read-only-contract wiring in run_audit.py and choices_paths.py match design.md
+- Verified D4's three frozen test files and prioritize-proposals/SKILL.md are byte-unchanged from the merge-base with main
+- Verified D3: no re-exported name is redefined in skills/prioritize-proposals/scripts/
+- Refactored parse_run_id to a fixed 3-tuple and added run_id_suffix() in skills/shared/artifact_paths.py
+- Updated skills/tests/shared/test_artifact_paths.py and skills/tests/audit-choices/test_output_routing.py for the new accessor
+- Updated design.md's D8 paragraph to describe the accessor instead of a variable-arity return
+- Confirmed all four quality gates green: 366 passed / 1 skipped across audit-choices, shared, prioritize-proposals, and ci_coverage tests; both linters clean
+
+### Context
+Reviewed the implementation against design.md D1-D8; confirmed the D1/D5/D6/D8 routing, retention, and read-only-contract wiring, the D4 characterization guard (three frozen files byte-unchanged from the merge base), and the D3 no-surviving-definitions constraint all hold. Refactored parse_run_id in skills/shared/artifact_paths.py from a variable-arity (3-or-4-tuple) return into a fixed 3-tuple plus a new run_id_suffix() accessor for the D8 collision suffix, since the only production caller (list_active_runs) discarded the parsed result entirely and the frozen prioritize-proposals tests only ever unpack three values.
+

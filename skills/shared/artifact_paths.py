@@ -21,9 +21,11 @@ skill directory (`SHARED_LIBS`) — the same relationship `worktree.py` has
 with `shared.environment_profile`.
 
 Design decisions: D2 (shared run-id format, not filenames), D3 (retention
-moves here too), D8 (collision-suffix support in `RUN_ID_RE` /
-`parse_run_id`, so `list_active_runs` keeps counting a `-2`/`-3` sibling
-instead of silently letting the tree grow unbounded).
+moves here too), D8 (collision-suffix support in `RUN_ID_RE`, so
+`list_active_runs` keeps counting a `-2`/`-3` sibling instead of silently
+letting the tree grow unbounded; `parse_run_id` validates a suffixed name
+but always returns a fixed 3-tuple, and `run_id_suffix` reads the suffix
+separately).
 """
 
 from __future__ import annotations
@@ -61,14 +63,24 @@ def build_run_id(now: datetime, head_sha: str) -> str:
     return f"{now:%Y-%m-%d-%H%M%S}-{head_sha[:7]}"
 
 
-def parse_run_id(name: str) -> tuple[str, str, str] | tuple[str, str, str, str]:
-    """Split a run-directory name into its components.
+def parse_run_id(name: str) -> tuple[str, str, str]:
+    """Split a run-directory name into its `(date, hms, sha)` components.
 
     Returns `(date, hms, sha)` for the ordinary form, `(date, "", "legacy")`
-    for a legacy `<date>-legacy` entry, `(date, "", "")` for a bare
-    `<date>`, and a 4-tuple `(date, hms, sha, suffix)` when the name carries
-    a D8 collision suffix. Raises `ValueError` for anything that doesn't
-    start with `YYYY-MM-DD` in the shape this module produces.
+    for a legacy `<date>-legacy` entry, and `(date, "", "")` for a bare
+    `<date>`. Raises `ValueError` for anything that doesn't start with
+    `YYYY-MM-DD` in the shape this module produces.
+
+    The return shape is always a 3-tuple, regardless of whether `name`
+    carries a D8 collision suffix (`-2`, `-3`, ...) — `RUN_ID_RE` accepts
+    the suffix so a suffixed directory still validates and round-trips
+    through this function, but the suffix itself is not part of the
+    component breakdown. Use `run_id_suffix()` to read it. This keeps the
+    function's return arity independent of its input, which matters
+    because `list_active_runs` — the only production caller — calls this
+    purely as a validity check and discards the result entirely; every
+    caller that actually destructures the tuple (`prioritize-proposals`'
+    frozen tests included) unpacks exactly three values.
     """
     m = RUN_ID_RE.match(name)
     if not m:
@@ -76,11 +88,19 @@ def parse_run_id(name: str) -> tuple[str, str, str] | tuple[str, str, str, str]:
     date = m.group(1)
     middle = m.group(2) or ""
     sha = m.group(3) or ""
-    suffix = m.group(4)
-    base = (date, "", "legacy") if middle == "legacy" else (date, middle, sha)
-    if suffix is not None:
-        return (*base, suffix)
-    return base
+    if middle == "legacy":
+        return (date, "", "legacy")
+    return (date, middle, sha)
+
+
+def run_id_suffix(name: str) -> str | None:
+    """Return the D8 collision suffix (e.g. `"2"`) if `name` carries one,
+    else `None`. Raises `ValueError` under the same condition as
+    `parse_run_id` — anything that isn't a valid run-id directory name."""
+    m = RUN_ID_RE.match(name)
+    if not m:
+        raise ValueError(f"not a valid run-id directory: {name!r}")
+    return m.group(4)
 
 
 @dataclass(frozen=True)
