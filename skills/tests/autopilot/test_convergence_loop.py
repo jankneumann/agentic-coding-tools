@@ -412,6 +412,51 @@ def test_out_of_scope_fix_rejected() -> None:
         reject_out_of_scope_fix(["src/frontend/app.tsx"], ["src/api.py"])
 
 
+def test_converge_writes_packet_and_passes_body_as_prompt(tmp_path: Path) -> None:
+    artifacts = tmp_path / "artifacts"
+    artifacts.mkdir()
+    spec_dir = artifacts / "specs" / "skill-workflow"
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "spec.md").write_text("# Spec\n\nWidget must assemble.\n")
+    results = [
+        _make_review_result("vendor_a", findings=[]),
+        _make_review_result("vendor_b", findings=[]),
+    ]
+    report = _make_consensus_report(findings=[])
+    mock_orchestrator = MagicMock()
+    mock_orchestrator.dispatch_and_wait.return_value = results
+    mock_synthesizer = MagicMock()
+    mock_synthesizer.synthesize.return_value = report
+    real_synth = __import__(
+        "consensus_synthesizer", fromlist=["ConsensusSynthesizer"]
+    ).ConsensusSynthesizer()
+    mock_synthesizer.to_dict.return_value = real_synth.to_dict(report)
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=mock_synthesizer):
+        result = converge(
+            change_id="test-change",
+            review_type="implementation",
+            artifacts_dir=artifacts,
+            worktree_path=tmp_path,
+            orchestrator=mock_orchestrator,
+        )
+    assert result.converged is True
+    packet = artifacts / ".review-cache" / "round-1" / "review-packet.md"
+    sidecar = artifacts / ".review-cache" / "round-1" / "review-packet.meta.json"
+    assert packet.exists()
+    assert sidecar.exists()
+    body = packet.read_text(encoding="utf-8")
+    call_kwargs = mock_orchestrator.dispatch_and_wait.call_args.kwargs
+    assert call_kwargs["prompt"] == body
+    lowered = body.lower()
+    assert "complete" in lowered
+    assert "do not explore" in lowered or "not to explore" in lowered
+    assert "empty-diff" in lowered or "diff --git" in body or "@@" in body
+    assert call_kwargs.get("packet_path") == packet
+    meta = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert meta["tools_overflow"] is False
+    assert meta["budget_chars"] == 320000
+
+
 def test_missing_ledger_still_runs(tmp_path: Path) -> None:
     artifacts = tmp_path / "artifacts"
     artifacts.mkdir()

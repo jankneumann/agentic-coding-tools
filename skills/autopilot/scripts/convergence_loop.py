@@ -21,6 +21,7 @@ Usage:
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import subprocess
@@ -66,6 +67,7 @@ from review_ledger import (  # noqa: E402
     scoped_fix_payload,
     mark_addressed,
 )
+from review_packet import build_review_packet  # noqa: E402
 
 # Module-level aliases so tests can monkeypatch the checkpoint helpers via
 # ``convergence_loop.cf_write_vendor_findings``. The bare imports also make
@@ -298,6 +300,19 @@ def _enrich_consensus_findings(
         path = _file_path_from_vendors(cf, vendor_results)
         if path:
             cf["file_path"] = path
+
+
+def _accepts_kwarg(func: Callable[..., Any], name: str) -> bool:
+    """True when *func* takes *name* or a ``**kwargs`` catch-all."""
+    try:
+        sig = inspect.signature(func)
+    except (TypeError, ValueError):
+        return False
+    if name in sig.parameters:
+        return True
+    return any(
+        p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+    )
 
 
 def _git(worktree_path: Path, *args: str) -> str:
@@ -556,27 +571,34 @@ def converge(
             compact_ledger(ledger, worktree_path)
             save_ledger(ledger, artifacts_dir)
 
-        # 2a. Dispatch reviews
-        prompt = build_review_prompt(
-            artifacts_dir,
-            round_num,
+        # 2a. Pack the review input, then dispatch.
+        checkpoint_dir = artifacts_dir / ".review-cache" / f"round-{round_num}"
+        packet_path, _packet_meta = build_review_packet(
+            change_id=change_id,
+            round_num=round_num,
+            artifacts_dir=artifacts_dir,
+            worktree_path=worktree_path,
+            output_dir=checkpoint_dir,
+            last_fix_diff=last_fix_diff if round_num > 1 else None,
             ledger=ledger,
-            last_fix_diff=last_fix_diff,
         )
-        results = orchestrator.dispatch_and_wait(
-            review_type=review_type,
-            dispatch_mode="review",
-            prompt=prompt,
-            cwd=worktree_path,
-            timeout_seconds=None,
-        )
+        prompt = packet_path.read_text(encoding="utf-8")
+        dispatch_kwargs: dict[str, Any] = {
+            "review_type": review_type,
+            "dispatch_mode": "review",
+            "prompt": prompt,
+            "cwd": worktree_path,
+            "timeout_seconds": None,
+        }
+        if _accepts_kwarg(orchestrator.dispatch_and_wait, "packet_path"):
+            dispatch_kwargs["packet_path"] = packet_path
+        results = orchestrator.dispatch_and_wait(**dispatch_kwargs)
 
         # 2aa. Durably checkpoint vendor findings BEFORE synthesis. This is
         # the load-bearing write of the proposal: if synthesizer.synthesize()
         # below raises, the data is already on disk and recoverable. The
         # narrow try/except around the writes only logs and re-raises; it
         # does not swallow.
-        checkpoint_dir = artifacts_dir / ".review-cache" / f"round-{round_num}"
         try:
             vendors_index: list[dict[str, Any]] = []
             dispatches: list[dict[str, Any]] = []

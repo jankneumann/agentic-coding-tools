@@ -28,7 +28,7 @@
   **Dependencies**: 2.1
   **Files**: `skills/parallel-infrastructure/scripts/review_packet.py`
 
-- [ ] 2.3 Pass the packet path from `converge()` into dispatch
+- [x] 2.3 Pass the packet path from `converge()` into dispatch
   **Dependencies**: 2.2
   **Files**: `skills/autopilot/scripts/convergence_loop.py`
 
