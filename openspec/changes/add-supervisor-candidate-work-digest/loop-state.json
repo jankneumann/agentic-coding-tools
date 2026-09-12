@@ -275,23 +275,24 @@
       "disposition": "block",
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-09-12T19:54:30.652480+00:00"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' approved by the operator \u2014 Operator approved PR creation.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-12T21:43:57.993998+00:00",
+      "note": "Operator approved PR creation."
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "add-supervisor-candidate-work-digest",
-    "gate": "pr_creation",
-    "phase": "SUBMIT_PR",
-    "requested_at": "2026-09-12T19:54:30.653097+00:00",
-    "prompt": "Create the pull request for this change?",
-    "context": {
-      "branch": "openspec/add-supervisor-candidate-work-digest",
-      "change_id": "add-supervisor-candidate-work-digest"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
