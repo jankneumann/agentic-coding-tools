@@ -46,7 +46,7 @@
   **Dependencies**: 3.1
   **Files**: `skills/parallel-infrastructure/scripts/review_dispatcher.py`
 
-- [ ] 3.3 Add detached snapshot fallback for concurrent git-access errors
+- [x] 3.3 Add detached snapshot fallback for concurrent git-access errors
   **Dependencies**: 3.2
   **Files**: `skills/parallel-infrastructure/scripts/review_dispatcher.py`
 

@@ -23,6 +23,8 @@ from review_dispatcher import (
     SdkConfig,
     SdkVendorAdapter,
     classify_error,
+    create_review_snapshot,
+    review_snapshot_path,
 )
 
 # ---------------------------------------------------------------------------
@@ -1235,3 +1237,135 @@ class TestConcurrentDispatch:
             "async poll started before every vendor was submitted "
             f"(submit_ends={submit_ends}, poll_starts={poll_starts})"
         )
+
+
+class TestConcurrentGitSnapshotFallback:
+    """D2: shared cwd is the default; snapshot is the git-lock escape hatch."""
+
+    def test_concurrent_git_access_error_retries_on_snapshot_path(
+        self, tmp_path: Path,
+    ) -> None:
+        adapter = _adapter("codex-local", "codex")
+        snapshot = (
+            tmp_path / ".git-worktrees" / ".review-snapshots" / "round-1" / "codex"
+        )
+        cwds: list[Path] = []
+
+        def fake_dispatch(
+            mode: str,
+            prompt: str,
+            cwd: Path,
+            timeout_seconds: int = 300,
+            **_kwargs: object,
+        ) -> ReviewResult:
+            cwds.append(Path(cwd))
+            if len(cwds) == 1:
+                return ReviewResult(
+                    vendor="codex",
+                    success=False,
+                    error=(
+                        "fatal: Unable to create '.git/index.lock': File exists. "
+                        "Another git process seems to be running in this repository"
+                    ),
+                )
+            return ReviewResult(
+                vendor="codex",
+                success=True,
+                findings=json.loads(VALID_FINDINGS_JSON),
+            )
+
+        packet = tmp_path / "round-1" / "review-packet.md"
+        packet.parent.mkdir()
+        packet.write_text("# packet\n")
+        orch = ReviewOrchestrator({"codex-local": adapter})
+
+        with (
+            patch("shutil.which", return_value="/usr/bin/codex"),
+            patch.object(adapter, "dispatch", side_effect=fake_dispatch),
+            patch(
+                "review_dispatcher.create_review_snapshot",
+                return_value=snapshot,
+            ) as mock_create,
+            patch("review_dispatcher.destroy_review_snapshot") as mock_destroy,
+        ):
+            results = orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="Review this packet",
+                cwd=tmp_path,
+                timeout_seconds=15,
+                packet_path=packet,
+            )
+
+        assert len(results) == 1
+        assert results[0].success is True
+        assert cwds[0] == tmp_path
+        assert cwds[1] == snapshot
+        mock_create.assert_called_once()
+        assert mock_create.call_args.args[1] == "round-1"
+        assert mock_create.call_args.args[2] == "codex"
+        mock_destroy.assert_called_once()
+        mock_destroy.assert_called_with(snapshot, tmp_path)
+
+    def test_non_git_error_does_not_create_snapshot(self, tmp_path: Path) -> None:
+        adapter = _adapter("codex-local", "codex")
+        cwds: list[Path] = []
+
+        def fake_dispatch(
+            mode: str,
+            prompt: str,
+            cwd: Path,
+            timeout_seconds: int = 300,
+            **_kwargs: object,
+        ) -> ReviewResult:
+            cwds.append(Path(cwd))
+            return ReviewResult(
+                vendor="codex",
+                success=False,
+                error="401 UNAUTHENTICATED token expired",
+                error_class=ErrorClass.AUTH,
+            )
+
+        orch = ReviewOrchestrator({"codex-local": adapter})
+        with (
+            patch("shutil.which", return_value="/usr/bin/codex"),
+            patch.object(adapter, "dispatch", side_effect=fake_dispatch),
+            patch("review_dispatcher.create_review_snapshot") as mock_create,
+        ):
+            results = orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="review",
+                cwd=tmp_path,
+                timeout_seconds=15,
+            )
+
+        assert len(results) == 1
+        assert results[0].success is False
+        assert cwds == [tmp_path]
+        mock_create.assert_not_called()
+
+    def test_review_snapshot_path_layout(self, tmp_path: Path) -> None:
+        with patch("review_dispatcher._main_repo_from_cwd", return_value=tmp_path):
+            dest = review_snapshot_path(tmp_path, "round-1", "codex")
+        assert dest == (
+            tmp_path / ".git-worktrees" / ".review-snapshots" / "round-1" / "codex"
+        )
+
+    def test_create_review_snapshot_uses_detached_worktree(
+        self, tmp_path: Path,
+    ) -> None:
+        dest = tmp_path / ".git-worktrees" / ".review-snapshots" / "round-1" / "codex"
+        with (
+            patch("review_dispatcher._main_repo_from_cwd", return_value=tmp_path),
+            patch("review_dispatcher.subprocess.run") as mock_run,
+        ):
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr="",
+            )
+            result = create_review_snapshot(tmp_path, "round-1", "codex")
+        assert result == dest
+        cmd = mock_run.call_args.args[0]
+        assert cmd[:4] == ["git", "worktree", "add", "--detach"]
+        assert str(dest) in cmd
+        assert "HEAD" in cmd

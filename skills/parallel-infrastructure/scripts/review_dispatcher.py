@@ -1496,6 +1496,153 @@ def select_validator_vendor(
 
 
 # ---------------------------------------------------------------------------
+# Detached snapshot fallback for concurrent git-index errors (D2)
+# ---------------------------------------------------------------------------
+
+# Substring markers — same style as classify_error, not a result-path regex.
+_GIT_INDEX_ERROR_MARKERS = (
+    "index.lock",
+    "unable to access index",
+    "another git process",
+)
+
+
+def _is_concurrent_git_error(result: ReviewResult) -> bool:
+    """True when a vendor CLI failed because of concurrent git index access."""
+    blob = "\n".join(
+        part for part in (result.error, result.raw_stderr, result.raw_stdout) if part
+    ).lower()
+    return any(marker in blob for marker in _GIT_INDEX_ERROR_MARKERS)
+
+
+def _safe_path_component(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("._-")
+    return cleaned or "unknown"
+
+
+def _round_id_from_packet(packet_path: Path | None) -> str:
+    if packet_path is None:
+        return "default"
+    name = Path(packet_path).parent.name
+    return _safe_path_component(name) if name else "default"
+
+
+def _main_repo_from_cwd(cwd: Path) -> Path:
+    """Resolve the main repository root even when *cwd* is a linked worktree."""
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return Path(cwd)
+    if proc.returncode != 0 or not proc.stdout.strip():
+        return Path(cwd)
+    git_common = proc.stdout.strip()
+    if git_common == ".git":
+        try:
+            top = subprocess.run(
+                ["git", "rev-parse", "--show-toplevel"],
+                cwd=str(cwd),
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return Path(cwd)
+        if top.returncode == 0 and top.stdout.strip():
+            return Path(top.stdout.strip())
+        return Path(cwd)
+    common_path = Path(git_common)
+    if not common_path.is_absolute():
+        common_path = (Path(cwd) / common_path).resolve()
+    if common_path.name == ".git":
+        return common_path.parent
+    return common_path
+
+
+def review_snapshot_path(cwd: Path, round_id: str, vendor: str) -> Path:
+    """``.git-worktrees/.review-snapshots/<round>/<vendor>/`` under the main repo."""
+    root = _main_repo_from_cwd(cwd) / ".git-worktrees" / ".review-snapshots"
+    return root / _safe_path_component(round_id) / _safe_path_component(vendor)
+
+
+def create_review_snapshot(cwd: Path, round_id: str, vendor: str) -> Path:
+    """Add a detached throwaway worktree for one vendor retry, then return it."""
+    dest = review_snapshot_path(cwd, round_id, vendor)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        destroy_review_snapshot(dest, cwd)
+    subprocess.run(
+        ["git", "worktree", "add", "--detach", str(dest), "HEAD"],
+        cwd=str(cwd),
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    return dest
+
+
+def destroy_review_snapshot(snapshot: Path, git_cwd: Path) -> None:
+    """Remove a review snapshot worktree after collect. Best-effort."""
+    try:
+        subprocess.run(
+            ["git", "worktree", "remove", "--force", str(snapshot)],
+            cwd=str(git_cwd),
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        logger.warning("Failed to remove review snapshot %s: %s", snapshot, exc)
+    if Path(snapshot).exists():
+        shutil.rmtree(snapshot, ignore_errors=True)
+    try:
+        subprocess.run(
+            ["git", "worktree", "prune"],
+            cwd=str(git_cwd),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+def _dispatch_with_snapshot_fallback(
+    *,
+    vendor: str,
+    cwd: Path,
+    round_id: str,
+    run: Callable[[Path], ReviewResult],
+) -> ReviewResult:
+    """Run *run(cwd)*; on concurrent git-index failure, retry on a snapshot."""
+    result = run(cwd)
+    if result.success or not _is_concurrent_git_error(result):
+        return result
+    logger.warning(
+        "Concurrent git access error for %s; retrying on detached snapshot",
+        vendor,
+    )
+    snapshot: Path | None = None
+    try:
+        snapshot = create_review_snapshot(cwd, round_id, vendor)
+        return run(snapshot)
+    except Exception as exc:  # noqa: BLE001 — keep the original vendor error
+        logger.warning("Snapshot fallback failed for %s: %s", vendor, exc)
+        return result
+    finally:
+        if snapshot is not None:
+            destroy_review_snapshot(snapshot, cwd)
+
+
+# ---------------------------------------------------------------------------
 # Review orchestrator
 # ---------------------------------------------------------------------------
 
@@ -1864,8 +2011,10 @@ class ReviewOrchestrator:
 
         api_key_resolver = ApiKeyResolver()
         cwd = Path(cwd)
-        if packet_path is not None:
-            logger.info("Review packet path: %s", packet_path)
+        packet = Path(packet_path) if packet_path is not None else None
+        if packet is not None:
+            logger.info("Review packet path: %s", packet)
+        round_id = _round_id_from_packet(packet)
 
         from review_findings_schema import timeout_for_vendor
 
@@ -1922,11 +2071,16 @@ class ReviewOrchestrator:
                         reviewer.vendor,
                         vendor_timeout,
                         partial(
-                            adapter.dispatch,
-                            dispatch_mode,
-                            prompt,
-                            cwd,
-                            vendor_timeout,
+                            _dispatch_with_snapshot_fallback,
+                            vendor=reviewer.vendor,
+                            cwd=cwd,
+                            round_id=round_id,
+                            run=lambda run_cwd, a=adapter, t=vendor_timeout: a.dispatch(
+                                dispatch_mode,
+                                prompt,
+                                run_cwd,
+                                t,
+                            ),
                         ),
                     ))
 
@@ -1982,10 +2136,15 @@ class ReviewOrchestrator:
                     _safe_vendor_call,
                     job["vendor"],
                     partial(
-                        job["adapter"].dispatch_async,
-                        dispatch_mode,
-                        prompt,
-                        cwd,
+                        _dispatch_with_snapshot_fallback,
+                        vendor=job["vendor"],
+                        cwd=cwd,
+                        round_id=round_id,
+                        run=lambda run_cwd, a=job["adapter"]: a.dispatch_async(
+                            dispatch_mode,
+                            prompt,
+                            run_cwd,
+                        ),
                     ),
                 ): job
                 for job in async_jobs
@@ -2008,14 +2167,27 @@ class ReviewOrchestrator:
                     and submit_result.task_id
                     and mode_config.poll
                 ):
+                    adapter = job["adapter"]
+                    task_id = submit_result.task_id
+                    poll_config = mode_config.poll
+
+                    def _poll_run(
+                        run_cwd: Path,
+                        a: CliVendorAdapter = adapter,
+                        tid: str = task_id,
+                        pc: PollConfig = poll_config,
+                    ) -> ReviewResult:
+                        return a.poll_for_result(tid, pc, cwd=run_cwd)
+
                     poll_futs[pool.submit(
                         _safe_vendor_call,
                         job["vendor"],
                         partial(
-                            job["adapter"].poll_for_result,
-                            submit_result.task_id,
-                            mode_config.poll,
-                            cwd,
+                            _dispatch_with_snapshot_fallback,
+                            vendor=job["vendor"],
+                            cwd=cwd,
+                            round_id=round_id,
+                            run=_poll_run,
                         ),
                     )] = job
                 else:
