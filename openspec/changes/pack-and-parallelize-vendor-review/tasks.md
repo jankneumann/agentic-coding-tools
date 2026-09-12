@@ -9,7 +9,7 @@
   **Dependencies**: None
   **Files**: `skills/tests/parallel-infrastructure/test_review_packet_schema.py`
 
-- [ ] 1.2 Add review-packet contract artifacts
+- [x] 1.2 Add review-packet contract artifacts
   **Dependencies**: 1.1
   **Files**: `openspec/changes/pack-and-parallelize-vendor-review/contracts/**`
 
