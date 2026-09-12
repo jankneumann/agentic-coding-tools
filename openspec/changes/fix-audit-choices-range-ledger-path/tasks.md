@@ -125,7 +125,7 @@ review found that requirement still forbade writing outside
 
 ## Phase 3 — Migrate the existing producer
 
-- [ ] 3.1 Migrate `prioritize-proposals` onto the shared helper
+- [x] 3.1 Migrate `prioritize-proposals` onto the shared helper
   **Design decisions**: D2, D3, D4
   **Dependencies**: 2.2
   **Files**: `skills/prioritize-proposals/scripts/priorities_paths.py`, `skills/prioritize-proposals/scripts/retention.py`
@@ -148,7 +148,7 @@ review found that requirement still forbade writing outside
   `test_priorities_paths.py`, `test_retention.py` and `test_smoke_e2e.py` are
   not touched either — if one of them fails, the migration is wrong.
 
-- [ ] Checkpoint: run `cd skills && uv run pytest tests/prioritize-proposals tests/shared -q`; task 1.1's characterization test must still pass unchanged, or the migration changed behavior and must be corrected rather than the test adjusted. Then `git diff --quiet "$(git merge-base HEAD main)" -- skills/tests/prioritize-proposals/test_priorities_paths.py skills/tests/prioritize-proposals/test_retention.py skills/tests/prioritize-proposals/test_smoke_e2e.py skills/prioritize-proposals/SKILL.md` must exit 0
+- [x] Checkpoint: run `cd skills && uv run pytest tests/prioritize-proposals tests/shared -q`; task 1.1's characterization test must still pass unchanged, or the migration changed behavior and must be corrected rather than the test adjusted. Then `git diff --quiet "$(git merge-base HEAD main)" -- skills/tests/prioritize-proposals/test_priorities_paths.py skills/tests/prioritize-proposals/test_retention.py skills/tests/prioritize-proposals/test_smoke_e2e.py skills/prioritize-proposals/SKILL.md` must exit 0
 
 ## Phase 4 — Route the range form
 

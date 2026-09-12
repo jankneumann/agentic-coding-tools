@@ -4,17 +4,37 @@ Pure functions only — no I/O, no subprocess. The bash entrypoint in SKILL.md
 is responsible for capturing `datetime.now(UTC)` and `git rev-parse HEAD` and
 passing them in. Keeping these pure makes the test suite fast and deterministic.
 
-Design decisions: D1 (directory layout), D2 (run-id format), D3 (flat-file latest).
+`build_run_id`, `RUN_ID_RE`, and `parse_run_id` are defined in
+`skills/shared/artifact_paths.py` and re-exported here unchanged (design
+D2) — this module keeps only what is genuinely its own: the
+`PrioritiesPaths` dataclass and `build_paths`, which name this skill's own
+`report.{md,json}` filenames.
+
+Design decisions: D1 (directory layout), D2 (shared run-id format), D3
+(flat-file latest).
 """
 
 from __future__ import annotations
 
-import re
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-RUN_ID_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})(?:-(\d{6}|legacy)(?:-([a-f0-9]+))?)?$")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from shared.artifact_paths import (  # noqa: E402
+    RUN_ID_RE,
+    build_run_id,
+    parse_run_id,
+)
+
+__all__ = [
+    "RUN_ID_RE",
+    "PrioritiesPaths",
+    "build_run_id",
+    "build_paths",
+    "parse_run_id",
+]
 
 
 @dataclass(frozen=True)
@@ -30,19 +50,6 @@ class PrioritiesPaths:
     archive_destination: Path
 
 
-def build_run_id(now: datetime, head_sha: str) -> str:
-    """Return `YYYY-MM-DD-HHMMSS-<short-sha>` for the given UTC time and HEAD.
-
-    `now` MUST carry a timezone-aware UTC value; naive datetimes are rejected
-    so callers can't accidentally produce timezone-dependent run-ids.
-    """
-    if now.tzinfo is None or now.utcoffset() != timezone.utc.utcoffset(None):
-        raise ValueError("now must be a UTC-aware datetime")
-    if len(head_sha) < 7:
-        raise ValueError(f"head_sha must be at least 7 characters, got {head_sha!r}")
-    return f"{now:%Y-%m-%d-%H%M%S}-{head_sha[:7]}"
-
-
 def build_paths(base: Path, run_id: str) -> PrioritiesPaths:
     """Compute all paths for a run given the priorities base directory and run-id."""
     dated_dir = base / run_id
@@ -56,23 +63,6 @@ def build_paths(base: Path, run_id: str) -> PrioritiesPaths:
         archive_dir=archive_dir,
         archive_destination=archive_dir / run_id,
     )
-
-
-def parse_run_id(name: str) -> tuple[str, str, str]:
-    """Split a run-directory name into (date, hms, sha). Handles `-legacy` suffix.
-
-    Returns `(date, "", "legacy")` for a legacy entry like `2026-05-04-legacy`.
-    Raises ValueError for anything that doesn't start with YYYY-MM-DD.
-    """
-    m = RUN_ID_RE.match(name)
-    if not m:
-        raise ValueError(f"not a priorities run-id directory: {name!r}")
-    date = m.group(1)
-    middle = m.group(2) or ""
-    sha = m.group(3) or ""
-    if middle == "legacy":
-        return date, "", "legacy"
-    return date, middle, sha
 
 
 def _cli() -> int:

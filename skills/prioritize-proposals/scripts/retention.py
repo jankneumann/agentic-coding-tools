@@ -6,63 +6,35 @@ sorts lexically (which is chronological because run-ids start with YYYY-MM-DD),
 and moves the oldest entries past the Nth most recent into `archive/`. Archived
 entries are never deleted by this module.
 
-Design decision: D5 (retention policy).
+`apply_retention`, `list_active_runs`, `RetentionResult`, and `ARCHIVE_DIRNAME`
+are defined in `skills/shared/artifact_paths.py` and re-exported here
+unchanged (design D2, D3) — the retention concern is not specific to this
+skill's report filenames.
+
+Design decision: D3 (shared retention module, one DEFAULT_RETAIN).
 """
 
 from __future__ import annotations
 
-import shutil
-from dataclasses import dataclass
+import sys
 from pathlib import Path
 
-import priorities_paths
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from shared.artifact_paths import (  # noqa: E402
+    ARCHIVE_DIRNAME,
+    DEFAULT_RETAIN,
+    RetentionResult,
+    apply_retention,
+    list_active_runs,
+)
 
-ARCHIVE_DIRNAME = "archive"
-SKIP_FILENAMES = frozenset({"latest.md", "latest.json"})
-
-
-@dataclass(frozen=True)
-class RetentionResult:
-    active_count: int
-    archived_count: int
-
-
-def list_active_runs(priorities_dir: Path) -> list[Path]:
-    """Return active dated-run directories, sorted chronologically (lexical sort)."""
-    if not priorities_dir.exists():
-        return []
-    out: list[Path] = []
-    for entry in priorities_dir.iterdir():
-        if not entry.is_dir():
-            continue
-        if entry.name == ARCHIVE_DIRNAME:
-            continue
-        try:
-            priorities_paths.parse_run_id(entry.name)
-        except ValueError:
-            continue
-        out.append(entry)
-    out.sort(key=lambda p: p.name)
-    return out
-
-
-def apply_retention(priorities_dir: Path, retain: int) -> RetentionResult:
-    """Move oldest active runs to `archive/` until `retain` remain.
-
-    Returns the resulting active and archived counts (this run's archive moves only).
-    """
-    if retain < 1:
-        raise ValueError(f"retain must be >= 1, got {retain}")
-    active = list_active_runs(priorities_dir)
-    if len(active) <= retain:
-        return RetentionResult(active_count=len(active), archived_count=0)
-    archive_dir = priorities_dir / ARCHIVE_DIRNAME
-    archive_dir.mkdir(exist_ok=True)
-    to_archive = active[: len(active) - retain]
-    for src in to_archive:
-        dst = archive_dir / src.name
-        shutil.move(str(src), str(dst))
-    return RetentionResult(active_count=retain, archived_count=len(to_archive))
+__all__ = [
+    "ARCHIVE_DIRNAME",
+    "DEFAULT_RETAIN",
+    "RetentionResult",
+    "apply_retention",
+    "list_active_runs",
+]
 
 
 def _cli() -> int:
@@ -70,7 +42,7 @@ def _cli() -> int:
 
     p = argparse.ArgumentParser()
     p.add_argument("--base", default="openspec/priorities")
-    p.add_argument("--retain", type=int, default=30)
+    p.add_argument("--retain", type=int, default=DEFAULT_RETAIN)
     args = p.parse_args()
     result = apply_retention(Path(args.base), retain=args.retain)
     print(f"active={result.active_count} archived={result.archived_count}")
