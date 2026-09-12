@@ -711,6 +711,82 @@ class TestValidateFeatureChoicesRow:
         assert "unbound variable" not in result.stderr
         assert "row=○ Choices: no ledger" in result.stdout
 
+    def test_choices_fence_does_not_resolve_via_main_checkout_vars(self):
+        """Finding 1 (impl-round-2): `worktree.py detect`'s `cmd_detect`
+        prints `OPENSPEC_PATH=$main_git/openspec` (and `MAIN_REPO=$main_git`)
+        whenever `IN_WORKTREE=true`, and Step 1 sets
+        `PROJECT_ROOT="${MAIN_REPO:-...}"` — all three can name the shared
+        *main* checkout, not the feature worktree under validation. The
+        ledger is committed only to the worktree-relative
+        `openspec/changes/$CHANGE_ID/` (iterate-on-implementation Step
+        11.5), so the presence check and the reader's `--repo-root` must
+        never resolve through `$OPENSPEC_PATH`, `$PROJECT_ROOT`, or
+        `$MAIN_REPO`."""
+        section = _section(VALIDATE_SKILL, "11. Validation Report")
+        fence = _fences(section)
+        full_snippet = _choices_row_snippet(fence)
+        snippet = full_snippet[: full_snippet.index("\nfi") + len("\nfi")]
+        for forbidden in ("$OPENSPEC_PATH", "$PROJECT_ROOT", "$MAIN_REPO"):
+            assert forbidden not in snippet, (
+                f"Choices fence must not resolve the ledger through {forbidden}: "
+                f"{snippet!r}"
+            )
+
+    def test_worktree_shaped_env_still_finds_the_ledger(self, tmp_path):
+        """Executable proof for finding 1 (impl-round-2): with
+        `$OPENSPEC_PATH` and `$PROJECT_ROOT` set worktree-style, pointing at
+        a *different* checkout (the main repo, per `worktree.py detect`'s
+        convention), and the ledger committed only under the current
+        worktree's own `openspec/` tree, the Choices row must still find it
+        and render the `⚠` needs-user form — not silently fall back to
+        `○ Choices: no ledger`, which is what
+        `test_no_ledger_path_survives_set_u` alone could not catch."""
+        section = _section(VALIDATE_SKILL, "11. Validation Report")
+        fence = _fences(section)
+        snippet = _choices_row_snippet(fence).replace(
+            "<skill-base-dir>", str(VALIDATE_SKILL.parent)
+        )
+        assert snippet.rstrip().endswith("fi")
+
+        main = tmp_path / "main"
+        (main / "openspec").mkdir(parents=True)  # main checkout: no ledger here
+
+        worktree = tmp_path / "worktree"
+        worktree.mkdir()
+        subprocess.run(["git", "init", "-q"], cwd=worktree, check=True)
+        change_dir = worktree / "openspec" / "changes" / "my-change"
+        change_dir.mkdir(parents=True)
+        ledger = {
+            "entries": [
+                {
+                    "stable_id": "abc123def456",
+                    "confidence": "low",
+                    "verdict": "needs-user",
+                    "choice": "Chose per-request retry budget of 3",
+                }
+            ]
+        }
+        (change_dir / "choices.json").write_text(json.dumps(ledger))
+
+        script = (
+            'CHANGE_ID="my-change"\n'
+            f'OPENSPEC_PATH="{main}/openspec"\n'
+            f'PROJECT_ROOT="{main}"\n'
+            f'MAIN_REPO="{main}"\n'
+            + snippet
+            + '\necho "row=$CHOICES_ROW"\n'
+            'echo "lines=$CHOICES_LINES"\n'
+        )
+        result = subprocess.run(
+            ["bash", "-c", script], cwd=worktree, capture_output=True, text=True
+        )
+        assert result.returncode == 0, result.stderr
+        assert "row=⚠ Choices: 1 needs-user entries (choices.md)" in result.stdout, (
+            f"expected the ledger under the worktree to be found despite "
+            f"main-checkout-shaped OPENSPEC_PATH/PROJECT_ROOT, got: {result.stdout!r}"
+        )
+        assert "abc123def456" in result.stdout
+
 
 # ─────────────────────────────────────────────────────────────────────────
 # cleanup-feature Step 5.5
