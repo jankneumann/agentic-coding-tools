@@ -36,7 +36,7 @@
 
 ## 3. Concurrent dispatch
 
-- [ ] 3.1 Write overlap tests with two 2-second stub processes
+- [x] 3.1 Write overlap tests with two 2-second stub processes
   **Spec scenarios**: skill-workflow Parallel Review Dispatch (parallel, sequential is a bug)
   **Design decisions**: D2, D4
   **Dependencies**: 2.2
