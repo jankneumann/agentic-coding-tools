@@ -2,7 +2,7 @@
 
 ## 1. Contracts
 
-- [ ] 1.1 Write tests for review-packet document validation
+- [x] 1.1 Write tests for review-packet document validation
   **Spec scenarios**: skill-workflow Review Packet As Default Input (diff+schema, missing ledger, overflow)
   **Contracts**: `contracts/review-packet.schema.json`
   **Design decisions**: D1
@@ -17,7 +17,7 @@
 
 ## 2. Packet builder
 
-- [ ] 2.1 Write tests for packet contents, checksum, overflow flag, ledger-optional build
+- [x] 2.1 Write tests for packet contents, checksum, overflow flag, ledger-optional build
   **Spec scenarios**: skill-workflow Review Packet As Default Input
   **Contracts**: `contracts/review-packet.schema.json`
   **Design decisions**: D1
