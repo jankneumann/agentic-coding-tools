@@ -115,6 +115,46 @@ class TestWritesConfinedToLedgerPair:
         # And nothing was deleted either.
         assert set(before.keys()) <= set(after.keys())
 
+    def test_range_form_writes_confined_to_run_directory_and_latest(self, fixture_repo):
+        """A standalone range audit's closed write set (D6): with fewer
+        than the retained run count present, its working-tree diff is
+        exactly the new run directory's pair plus latest.* — nothing
+        deleted, nothing moved."""
+        repo_root = fixture_repo["repo_root"]
+        base_sha = fixture_repo["base_sha"]
+        head_sha = fixture_repo["head_sha"]
+        range_change_id = f"range:{base_sha}..{head_sha}"
+        now = datetime(2026, 8, 21, tzinfo=timezone.utc)
+        before = _snapshot(repo_root)
+
+        result = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id=range_change_id,
+            base_sha=base_sha,
+            head_sha=head_sha,
+            candidates=[_good_candidate(head_sha)],
+            run_id="run-range-001",
+            now=now,
+            git_sha=head_sha,
+        )
+        assert result.ok is True
+
+        after = _snapshot(repo_root)
+        changed_or_new = {k for k in after if k not in before or after[k] != before[k]}
+
+        run_dir = result.json_path.parent
+        run_prefix = str(run_dir.relative_to(repo_root)) + "/"
+        allowed = {
+            run_prefix + "choices.json",
+            run_prefix + "choices.md",
+            "openspec/choices/latest.json",
+            "openspec/choices/latest.md",
+        }
+        assert changed_or_new == allowed, f"unexpected writes: {changed_or_new - allowed}"
+
+        # Nothing deleted or moved.
+        assert set(before.keys()) <= set(after.keys())
+
 
 class TestNeverBlocks:
     def test_exit_zero_on_adverse_verdicts(self, fixture_repo, capsys):

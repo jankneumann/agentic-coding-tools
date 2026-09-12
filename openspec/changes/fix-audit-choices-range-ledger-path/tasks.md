@@ -234,7 +234,7 @@ review found that requirement still forbade writing outside
 
 ## Phase 5 — Contract, retention wiring, and docs
 
-- [ ] 5.1 Widen the read-only contract to name both destinations
+- [x] 5.1 Widen the read-only contract to name both destinations
   **Spec scenarios**: skill-workflow.15 (the closed write set for the range
   form), skill-workflow.12
   **Design decisions**: D6
