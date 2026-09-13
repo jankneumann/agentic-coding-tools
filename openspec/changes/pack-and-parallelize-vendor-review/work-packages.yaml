@@ -53,6 +53,7 @@ packages:
     context_impact:
       surfaces:
         - "apis"
+        - "documentation"
     worktree:
       name: wp-contracts
       mode: isolated
@@ -246,6 +247,7 @@ packages:
     context_impact:
       surfaces:
         - "semantic_code"
+        - "documentation"
     worktree:
       name: wp-integration
       mode: isolated
