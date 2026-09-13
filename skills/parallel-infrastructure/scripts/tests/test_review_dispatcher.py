@@ -693,6 +693,30 @@ class TestAsyncDispatch:
         assert result.task_id == "abc123"
 
     @patch("review_dispatcher.subprocess.run")
+    def test_poll_accepts_clean_findings_when_remote_runtime_is_unknown(
+        self, mock_run: MagicMock,
+    ) -> None:
+        """Poll-loop elapsed time is not the remote review runtime."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout='Status: completed\n{"findings": []}', stderr="",
+        )
+        adapter = _async_adapter()
+        poll_cfg = PollConfig(
+            command_template=["codex", "cloud", "status", "{task_id}"],
+            task_id_pattern=r"task[_\s:]+(\w+)",
+            success_pattern="completed",
+            interval_seconds=1,
+            timeout_seconds=10,
+        )
+
+        result = adapter.poll_for_result("abc123", poll_cfg)
+
+        assert result.success is True
+        assert result.findings == {"findings": []}
+        assert result.task_id == "abc123"
+
+    @patch("review_dispatcher.subprocess.run")
     @patch("review_dispatcher.time.sleep")
     def test_poll_failure(
         self, mock_sleep: MagicMock, mock_run: MagicMock,
@@ -830,6 +854,7 @@ class TestSdkDispatch:
 
         assert result.success is False
         assert result.error == "non_substantive_placeholder"
+        assert result.raw_stdout == json.dumps(payload)
 
     @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
     def test_dispatch_model_fallback(self, mock_call: MagicMock, tmp_path: Path) -> None:
@@ -1098,7 +1123,15 @@ class TestDispatchRobustness:
         assert result.success is False
         assert result.error == "empty_findings_too_fast"
 
-    def test_nonempty_placeholder_is_unsuccessful(self) -> None:
+    @pytest.mark.parametrize("description", [
+        "Placeholder while review runs",
+        "Placeholder while review is in progress",
+        "Placeholder pending review",
+        "Placeholder until analysis finishes",
+    ])
+    def test_nonempty_placeholder_is_unsuccessful(
+        self, description: str,
+    ) -> None:
         payload = json.dumps({
             "review_type": "plan",
             "target": "test-feature",
@@ -1107,7 +1140,7 @@ class TestDispatchRobustness:
                 "id": 1,
                 "type": "correctness",
                 "criticality": "medium",
-                "description": "Placeholder while review runs",
+                "description": description,
                 "disposition": "fix",
                 "axis": "correctness",
                 "severity": "critical",

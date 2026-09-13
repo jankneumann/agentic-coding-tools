@@ -116,10 +116,12 @@ def _validate_findings_or_error(
 _PLACEHOLDER_ONLY_PATTERNS = (
     re.compile(
         r"^placeholder(?:"
-        r"\s+while\s+(?:the\s+)?(?:review|analysis)\s+(?:runs|is\s+running)"
-        r"|\s+pending(?:\s+(?:plan|implementation|artifact)"
-        r"(?:\s+artifact)?\s+review)?"
-        r"|\s+until\s+(?:the\s+)?(?:review|analysis)\s+(?:runs|completes?)"
+        r"\s+while\s+(?:the\s+)?(?:review|analysis)\s+"
+        r"(?:runs|is\s+(?:running|in[ -]progress))"
+        r"|\s+pending(?:\s+(?:(?:plan|implementation|artifact)"
+        r"(?:\s+artifact)?\s+)?review)?"
+        r"|\s+until\s+(?:the\s+)?(?:review|analysis)\s+"
+        r"(?:runs|completes?|finishes)"
         r")?[.!]?$",
         re.IGNORECASE,
     ),
@@ -638,6 +640,7 @@ class CliVendorAdapter:
         elapsed: float,
         model_name: str,
         models_attempted: list[str],
+        enforce_empty_findings_grace: bool = True,
     ) -> ReviewResult:
         """Parse, coerce, validate, and stamp one vendor stdout blob."""
         from review_findings_schema import (
@@ -668,7 +671,11 @@ class CliVendorAdapter:
                         coercions=coercions,
                     )
                 arr = findings.get("findings") or []
-                if arr == [] and elapsed < empty_findings_min_seconds():
+                if (
+                    enforce_empty_findings_grace
+                    and arr == []
+                    and elapsed < empty_findings_min_seconds()
+                ):
                     return ReviewResult(
                         vendor=self.vendor,
                         success=False,
@@ -1077,6 +1084,7 @@ class CliVendorAdapter:
                     elapsed=time.monotonic() - start,
                     model_name="(async)",
                     models_attempted=[],
+                    enforce_empty_findings_grace=False,
                 )
                 ingested.task_id = task_id
                 return ingested
@@ -1170,6 +1178,7 @@ class SdkVendorAdapter:
                     api_key=api_key,
                     timeout=timeout_seconds,
                 )
+                raw_stdout = json.dumps(findings)
                 parse_error = None if findings else "Invalid JSON in SDK response"
                 findings, schema_error = _validate_findings_or_error(findings)
                 if (
@@ -1183,6 +1192,7 @@ class SdkVendorAdapter:
                         models_attempted=models_attempted,
                         elapsed_seconds=time.monotonic() - dispatch_start,
                         error="non_substantive_placeholder",
+                        raw_stdout=raw_stdout,
                     )
                 return ReviewResult(
                     vendor=self.vendor,
@@ -1192,6 +1202,7 @@ class SdkVendorAdapter:
                     models_attempted=models_attempted,
                     elapsed_seconds=time.monotonic() - dispatch_start,
                     error=schema_error or parse_error,
+                    raw_stdout=raw_stdout,
                 )
             except _SdkCapacityError:
                 logger.info(
