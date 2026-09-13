@@ -132,4 +132,5 @@ packages:
       result_keys: [convergence_tests_pass]
       artifacts:
         - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
         - "skills/parallel-infrastructure/scripts/review_ledger.py"

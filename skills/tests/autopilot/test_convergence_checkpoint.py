@@ -15,6 +15,7 @@ Spec scenarios: skill-workflow.R2.S1..S4, skill-workflow.R4.S1..S4.
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -55,6 +56,7 @@ def _review_result(vendor: str, findings: list[dict[str, Any]]) -> ReviewResult:
             "target": "test-feature",
             "findings": findings,
         },
+        raw_stdout=json.dumps({"findings": findings}),
     )
 
 
@@ -217,6 +219,10 @@ def test_completed_vendor_is_recoverable_when_panel_is_interrupted(
     assert manifest["quorum_requested"] == 2
     assert manifest["quorum_received"] == 1
     assert set(read_vendor_findings(checkpoint_dir)) == {"codex"}
+    raw_path = checkpoint_dir / "raw-codex-plan.txt"
+    assert raw_path.read_text(encoding="utf-8") == json.dumps({
+        "findings": [_vendor_finding(1)],
+    })
 
 
 def test_synthesis_failure_emits_log_entry(

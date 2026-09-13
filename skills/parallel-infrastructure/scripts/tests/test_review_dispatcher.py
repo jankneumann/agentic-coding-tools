@@ -666,6 +666,33 @@ class TestAsyncDispatch:
         assert result.task_id == "abc123"
 
     @patch("review_dispatcher.subprocess.run")
+    def test_poll_placeholder_is_unsuccessful(
+        self, mock_run: MagicMock,
+    ) -> None:
+        payload = json.loads(VALID_FINDINGS_JSON)
+        payload["findings"][0]["description"] = "Placeholder while review runs"
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=f"Status: completed\n{json.dumps(payload)}",
+            stderr="",
+        )
+        adapter = _async_adapter()
+        poll_cfg = PollConfig(
+            command_template=["codex", "cloud", "status", "{task_id}"],
+            task_id_pattern=r"task[_\s:]+(\w+)",
+            success_pattern="completed",
+            interval_seconds=1,
+            timeout_seconds=10,
+        )
+
+        result = adapter.poll_for_result("abc123", poll_cfg)
+
+        assert result.success is False
+        assert result.error == "non_substantive_placeholder"
+        assert result.task_id == "abc123"
+
+    @patch("review_dispatcher.subprocess.run")
     @patch("review_dispatcher.time.sleep")
     def test_poll_failure(
         self, mock_sleep: MagicMock, mock_run: MagicMock,
@@ -787,6 +814,22 @@ class TestSdkDispatch:
         assert result.success is True
         assert result.findings is not None
         assert result.model_used == "claude-sonnet-4-6"
+
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_dispatch_placeholder_is_unsuccessful(
+        self, mock_call: MagicMock, tmp_path: Path,
+    ) -> None:
+        payload = json.loads(VALID_FINDINGS_JSON)
+        payload["findings"][0]["description"] = "Placeholder pending plan artifact review."
+        mock_call.return_value = payload
+        adapter = _sdk_adapter()
+
+        result = adapter.dispatch(
+            "review", "prompt", cwd=tmp_path, api_key="sk-test",
+        )
+
+        assert result.success is False
+        assert result.error == "non_substantive_placeholder"
 
     @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
     def test_dispatch_model_fallback(self, mock_call: MagicMock, tmp_path: Path) -> None:
@@ -1121,6 +1164,38 @@ class TestDispatchRobustness:
         assert result.findings is not None
         assert result.findings["findings"][0]["description"] == "test"
 
+    def test_real_finding_starting_with_review_pending_succeeds(self) -> None:
+        payload = json.loads(VALID_FINDINGS_JSON)
+        payload["findings"][0]["description"] = (
+            "Review pending state is never cleared when the dispatcher times out"
+        )
+
+        result = _adapter()._ingest_stdout(
+            json.dumps(payload),
+            "",
+            elapsed=16.0,
+            model_name="test-model",
+            models_attempted=["test-model"],
+        )
+
+        assert result.success is True
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_placeholder_does_not_trigger_schema_repair(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        payload = json.loads(VALID_FINDINGS_JSON)
+        payload["findings"][0]["description"] = "Placeholder while review runs"
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=json.dumps(payload), stderr="",
+        )
+
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+
+        assert result.success is False
+        assert result.error == "non_substantive_placeholder"
+        assert mock_run.call_count == 1
+
     @patch("review_dispatcher.subprocess.run")
     def test_raw_stdout_is_kept_on_success(
         self, mock_run: MagicMock, tmp_path: Path,
@@ -1308,30 +1383,28 @@ class TestConcurrentDispatch:
         self, tmp_path: Path,
     ) -> None:
         callback_results: list[tuple[str, int]] = []
-        fast_completed = threading.Event()
-        fast = _adapter("codex-local", "codex")
-        slow = _adapter("grok-local", "grok")
+        second_completed = threading.Event()
+        first = _adapter("codex-local", "codex")
+        second = _adapter("grok-local", "grok")
 
-        def fast_dispatch(*_args: object, **_kwargs: object) -> ReviewResult:
-            time.sleep(0.02)
+        def first_dispatch(*_args: object, **_kwargs: object) -> ReviewResult:
+            assert second_completed.wait(timeout=1.0)
             return ReviewResult(vendor="codex", success=True)
 
-        def slow_dispatch(*_args: object, **_kwargs: object) -> ReviewResult:
-            assert fast_completed.wait(timeout=1.0), (
-                "terminal callback was not emitted while another vendor remained active"
-            )
+        def second_dispatch(*_args: object, **_kwargs: object) -> ReviewResult:
+            time.sleep(0.02)
             return ReviewResult(vendor="grok", success=True)
 
         def on_result(result: ReviewResult, expected_count: int) -> None:
             callback_results.append((result.vendor, expected_count))
-            if result.vendor == "codex":
-                fast_completed.set()
+            if result.vendor == "grok":
+                second_completed.set()
 
-        orch = ReviewOrchestrator({"codex-local": fast, "grok-local": slow})
+        orch = ReviewOrchestrator({"codex-local": first, "grok-local": second})
         with (
             patch("shutil.which", return_value="/usr/bin/mock"),
-            patch.object(fast, "dispatch", side_effect=fast_dispatch),
-            patch.object(slow, "dispatch", side_effect=slow_dispatch),
+            patch.object(first, "dispatch", side_effect=first_dispatch),
+            patch.object(second, "dispatch", side_effect=second_dispatch),
         ):
             results = orch.dispatch_and_wait(
                 review_type="plan",
@@ -1341,8 +1414,74 @@ class TestConcurrentDispatch:
                 result_callback=on_result,
             )
 
-        assert callback_results == [("codex", 2), ("grok", 2)]
+        assert callback_results == [("grok", 2), ("codex", 2)]
         assert [result.vendor for result in results] == ["codex", "grok"]
+
+    def test_async_poll_starts_before_slow_sync_finishes(
+        self, tmp_path: Path,
+    ) -> None:
+        poll_started = threading.Event()
+        sync = _adapter("codex-local", "codex")
+        async_adapter = CliVendorAdapter(
+            agent_id="grok-remote",
+            vendor="grok",
+            cli_config=CliConfig(
+                command="cloud-grok",
+                dispatch_modes={
+                    "review": ModeConfig(
+                        args=["cloud", "exec"],
+                        async_dispatch=True,
+                        poll=PollConfig(
+                            command_template=["status", "{task_id}"],
+                            task_id_pattern=r"task[_\s:]+(\w+)",
+                            success_pattern="completed",
+                            interval_seconds=1,
+                            timeout_seconds=10,
+                        ),
+                    ),
+                },
+                model_flag="-m",
+            ),
+        )
+
+        def slow_sync(*_args: object, **_kwargs: object) -> ReviewResult:
+            if not poll_started.wait(timeout=0.5):
+                return ReviewResult(vendor="codex", success=False, error="poll delayed")
+            return ReviewResult(vendor="codex", success=True)
+
+        def poll_result(*_args: object, **_kwargs: object) -> ReviewResult:
+            poll_started.set()
+            return ReviewResult(vendor="grok", success=True)
+
+        orch = ReviewOrchestrator({
+            "codex-local": sync,
+            "grok-remote": async_adapter,
+        })
+        with (
+            patch("shutil.which", return_value="/usr/bin/mock"),
+            patch.object(sync, "dispatch", side_effect=slow_sync),
+            patch.object(
+                async_adapter,
+                "dispatch_async",
+                return_value=ReviewResult(
+                    vendor="grok",
+                    success=True,
+                    async_dispatch=True,
+                    task_id="task-grok",
+                ),
+            ),
+            patch.object(
+                async_adapter, "poll_for_result", side_effect=poll_result,
+            ),
+        ):
+            results = orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="Review this packet",
+                cwd=tmp_path,
+            )
+
+        assert all(result.success for result in results)
 
     def test_result_callback_waits_for_async_poll(self, tmp_path: Path) -> None:
         adapter = CliVendorAdapter(
