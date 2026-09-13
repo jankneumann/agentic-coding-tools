@@ -198,7 +198,6 @@ class TestRunIdReservationIsAtomic:
         after `_run_id_taken` says it is free. A check-then-write guard
         returns it anyway; an atomic one advances."""
         real_taken = choices_paths._run_id_taken
-        root = choices_paths.choices_root_for(tmp_path)
 
         won = []
 

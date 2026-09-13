@@ -71,7 +71,10 @@ packages:
         - "agent-coordinator/**"
     context_impact:
       surfaces:
-        - "documentation"
+        - "documentation"      # docs/guides/workflow.md, SKILL.md prose
+        - "apis"               # contracts/README.md
+        - "capabilities"       # specs/skill-workflow/spec.md
+        - "semantic_code"      # the shared helper and both producers' scripts
     worktree:
       name: wp-main
       mode: isolated

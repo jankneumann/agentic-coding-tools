@@ -244,9 +244,31 @@ returned clean in both, but four-vendor coverage was not achieved in either.
   - **The other 55 are unrelated**, all "would be created" or "has a pending
     merge" for other active changes' specs.
 
-  So the gate is red, one of its 56 entries belongs to this change, and that
-  entry is the normal pre-archive state. "Unrelated" was imprecise; "not
-  caused by this change's code" is accurate.
+  **That analysis was still wrong, and CI caught it.** It used
+  `context-refresh-check`, which reports repository-wide freshness. The gate
+  CI actually runs is `make context-drift-gate CONTEXT_GATE_EVENT=pull_request`,
+  which scopes findings to what a branch *introduces* relative to `main` — and
+  it passes on `main` while failing on this branch, with one **blocking**
+  finding attributed here by name:
+
+  > `[BLOCKING] context.impact — owner validate-packages — introduced,
+  > attributed to openspec/fix-audit-choices-range-ledger-path`
+
+  `wp-main` declared `context_impact.surfaces: [documentation]` while the
+  change also touches `apis` (contracts/README.md), `capabilities` (the spec
+  delta) and `semantic_code` (the shared helper and both producers' scripts).
+  Fixed by declaring all four; `validate_context_impact.py --base main` now
+  reports valid and the drift gate exits 0.
+
+  The `openspec.projection` entries — the spec files that "would be created"
+  or have "a pending merge" — are **informational**, owned by
+  cleanup-feature/archive, and are the normal pre-archive state. That part of
+  the earlier analysis holds.
+
+  The lesson worth recording: "the repo-wide check is red for unrelated
+  reasons" was true and irrelevant. The question the gate asks is narrower —
+  what does *this branch* introduce — and answering the easier question is how
+  a real blocking finding stayed hidden through two validation-review rounds.
 - Low findings from implementation review round 3, left unfixed by
   decision. Validation review found the first version of this list both
   incomplete and wrong about two entries; corrected here.
