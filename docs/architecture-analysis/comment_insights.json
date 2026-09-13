@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-09-12T03:03:32+00:00",
+  "generated_at": "2026-09-13T03:50:07+00:00",
   "summary": {
-    "total_comments": 2608,
-    "total_with_markers": 20,
+    "total_comments": 2622,
+    "total_with_markers": 21,
     "marker_totals": {
       "NOTE": 4,
       "BUG": 4,
-      "WARNING": 4,
+      "WARNING": 5,
       "WARN": 4,
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1913,
-    "documented_nodes": 279,
-    "documentation_coverage": 0.146
+    "total_graph_nodes": 1887,
+    "documented_nodes": 280,
+    "documentation_coverage": 0.148
   },
   "marker_hotspots": [
     {
@@ -118,6 +118,13 @@
       "markers": {
         "NOTE": 1
       }
+    },
+    {
+      "file": "work_queue.py",
+      "total_markers": 1,
+      "markers": {
+        "WARNING": 1
+      }
     }
   ],
   "node_marker_map": {
@@ -144,6 +151,12 @@
       "comment_count": 1,
       "markers": [
         "WARN"
+      ]
+    },
+    "py:work_queue.WorkQueueService.complete": {
+      "comment_count": 11,
+      "markers": [
+        "WARNING"
       ]
     }
   },
@@ -254,7 +267,7 @@
     },
     {
       "file": "db_postgres.py",
-      "total_comments": 26,
+      "total_comments": 28,
       "with_markers": 0,
       "languages": [
         "python"
@@ -1030,8 +1043,8 @@
     },
     {
       "file": "work_queue.py",
-      "total_comments": 45,
-      "with_markers": 0,
+      "total_comments": 57,
+      "with_markers": 1,
       "languages": [
         "python"
       ]
