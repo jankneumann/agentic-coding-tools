@@ -1828,14 +1828,27 @@ The `ReviewDispatcher` SHALL dispatch reviews to at least one vendor different f
 
 ### Requirement: Parallel Review Dispatch
 
-The `ReviewDispatcher` SHALL execute vendor reviews in parallel (concurrent subprocess invocation).
+The `ReviewDispatcher` SHALL execute vendor reviews in parallel (concurrent
+subprocess invocation). Wall-clock time for a round SHALL be dominated by
+the slowest vendor, not the sum of vendors. Async submit+poll vendors SHALL
+be submitted concurrently, then polled. Review cwd SHALL be read-only; if a
+vendor CLI fails because of concurrent git access, the dispatcher SHALL
+retry that vendor on a detached snapshot worktree.
 
 #### Scenario: Parallel dispatch to multiple vendors
 
-- GIVEN Codex and grok are both available
-- WHEN the dispatcher dispatches reviews
-- THEN both vendor subprocesses are started concurrently
-- AND results are collected as each completes
+- **GIVEN** Codex and grok are both available
+- **WHEN** the dispatcher dispatches reviews
+- **THEN** both vendor subprocesses are started concurrently
+- **AND** results are collected as each completes
+- **AND** a test with two 2-second stub processes SHALL finish in under 3
+  seconds
+
+#### Scenario: Sequential dispatch is a bug
+
+- **GIVEN** two stub vendors that each sleep 2 seconds
+- **WHEN** `dispatch_and_wait` runs
+- **THEN** elapsed time SHALL be less than 4 seconds
 
 ### Requirement: Config-Driven Generic Adapter
 
@@ -6158,6 +6171,7 @@ The skill workflow SHALL treat a supervised background Autopilot agent as an iso
 - **WHEN** a fake host-event capture adapter drives two background child sessions whose transcripts contain unique sentinels and whose public results are schema-valid
 - **THEN** the adapter-captured parent-session event stream contains only requests, task handles, lease events, and the two structured outcomes, with no transcript sentinel
 - **AND** checkpoint, learning, handoff, and supervisor-record outputs contain no transcript sentinel
+
 ### Requirement: Outbox-Ordered Optional Queue Projection
 
 The autopilot state machine SHALL provide an optional queue-projection callback that runs only after the authoritative `loop-state.json` write succeeds. Projection failure SHALL leave the new loop-state durable and SHALL be repairable by invoking reconciliation from the loaded loop-state on resume. With no callback, the state machine SHALL perform no coordinator import, probe, or request.
@@ -6185,6 +6199,7 @@ The autopilot state machine SHALL provide an optional queue-projection callback 
 - **WHEN** the state machine starts, transitions, or resumes
 - **THEN** it SHALL make zero coordinator queue calls
 - **AND** existing execution behavior SHALL remain unchanged
+
 ### Requirement: Roadmap Approval Gate
 
 The trust-posture contract SHALL define a ninth gate, `roadmap_approval`, that fires when the supervise `cycle` verb asks the operator to authorize a roadmap's DAG of items. `shared.trust_posture.Gate` SHALL enumerate it, `TRUST_POSTURE.template.md` SHALL ship it as `block`, and every schema that embeds the gate enum — `openspec/schemas/trust-posture.schema.json`, `gate-decision.schema.json`, `gate-request.schema.json`, `supervisor-record.schema.json`, and `supervisor-record-mirror.schema.json` — SHALL accept it. An absent `TRUST_POSTURE.md` or an omitted entry SHALL resolve `roadmap_approval` to `block`. `shared.approval_gate` SHALL expose public `console_decision(gate, posture, approved, note)` and `build_gate_decision_record(decision, *, phase, extra)` helpers and an `ApprovalGate.check_filed(gate, approval_id, *, notified)` method that interprets a previously filed coordinator approval with the same status mapping `evaluate` uses (`approved` → proceed, `denied` → rejected, `expired` → the default action, `pending` → no decision), resolving the gate's disposition from the live posture and taking `notified` from the caller's prior record rather than assuming delivery, so an undelivered notification can never be upgraded from a fail-closed block to a `proceed` default; `skills/autopilot/scripts/runner.py` and `autopilot.py` SHALL delegate to the shared helpers so console decisions and ledger records share one shape. The prose-free gate test SHALL cover `skills/supervise/SKILL.md` as well as `skills/autopilot/SKILL.md`.
@@ -6221,6 +6236,7 @@ The trust-posture contract SHALL define a ninth gate, `roadmap_approval`, that f
 - **AND** when the coordinator reports `expired` and the caller passes `notified=False` — the state a `default_action: proceed` gate reaches today because `BridgeCoordinatorClient.push_notification` always returns `False` — it SHALL return `None` and leave the fail-closed block standing
 - **AND** the caller SHALL supply `notified` from the gate-decision record's own persisted `notified` field, never a literal or a default, so the block-standing arm above is the one every production `roadmap_approval` timeout reaches
 - **AND** when the coordinator is unreachable it SHALL return a `BLOCKED` / `coordinator_unreachable` decision rather than raise
+
 ### Requirement: Canonical durable state-artifact inventory
 
 The repository SHALL provide one canonical guide that documents the five durable orchestration artifact classes: per-change loop state, roadmap checkpoint state, roadmap learning entries, phase records, and handoff documents. For each class, the guide SHALL state its path, holder/scope, canonical writer, authority, consumers, and missing or stale behavior.
@@ -6276,3 +6292,53 @@ The canonical `autopilot`, `autopilot-roadmap`, `session-log`, `supervise`, `imp
 
 - **WHEN** the canonical changed skills are installed into `.agents` and `.claude`
 - **THEN** each changed mirror SHALL be byte-identical to its canonical `skills/` source
+
+### Requirement: Review Packet As Default Input
+
+The dispatcher and `converge()` SHALL build a review packet before dispatch
+containing: the schema-derived prompt contract, a unified or last-fix diff,
+traced spec excerpts, and open ledger items when a ledger exists. The packet
+SHALL be written to the round directory with a checksum. When the packet is
+under the contracted size budget, the prompt SHALL tell the reviewer the
+packet is complete and not to explore the repo for missing artifacts.
+
+#### Scenario: Packet includes diff and schema contract
+
+- **WHEN** a review round is dispatched
+- **THEN** the round directory SHALL contain a packet file whose body includes
+  a diff hunk header or an explicit empty-diff marker
+- **AND** includes the required finding fields from the canonical schema
+
+#### Scenario: Missing ledger still builds a packet
+
+- **WHEN** `.review-ledger/` is absent
+- **THEN** the packet SHALL still be built from diff, specs, and schema
+  contract
+- **AND** dispatch SHALL proceed
+
+#### Scenario: Over-budget packet sets tools overflow
+
+- **WHEN** the packet body exceeds the contracted size budget
+- **THEN** the packet metadata SHALL set `tools_overflow` true
+- **AND** the prompt SHALL allow Read/Grep to recover truncated context
+
+### Requirement: Verify-Then-Wire Structured Output
+
+A vendor's review-mode CLI SHALL gain structured-output / JSON-schema flags
+only after an empirical probe recorded in this change's contracts marks that
+vendor `verified`. Unprobed or absent flags SHALL leave the vendor on the
+phase-1 prompt path. The dispatcher SHALL NOT guess flags.
+
+#### Scenario: Grok remains schema-injected
+
+- **WHEN** a grok review is dispatched
+- **THEN** the command SHALL include `--json-schema` with the canonical
+  schema sentinel or its injected value
+
+#### Scenario: Unprobed vendor is not given Grok's flags
+
+- **WHEN** a vendor whose structured-output row is `unprobed` or `absent`
+  is dispatched
+- **THEN** the command SHALL NOT include Grok's `--json-schema` sentinel
+  unless that vendor's own probe recorded `verified`
+

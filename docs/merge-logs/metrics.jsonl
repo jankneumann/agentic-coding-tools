@@ -37,3 +37,5 @@
 {"event_type": "merge", "pr_number": 529, "backend": "direct", "success": true, "timestamp": "2026-09-12T01:38:47.607137+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 4.448}
 {"event_type": "merge", "pr_number": 531, "backend": "direct", "success": true, "timestamp": "2026-09-12T03:02:16.878225+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 4.619}
 {"event_type": "merge", "pr_number": 528, "backend": "direct", "success": true, "timestamp": "2026-09-13T04:13:27.014004+00:00", "origin": "openspec", "strategy": "merge", "duration_seconds": 4.376}
+{"event_type": "merge", "pr_number": 532, "backend": "direct", "success": true, "timestamp": "2026-09-13T03:11:54.574094+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 4.475}
+{"event_type": "merge", "pr_number": 533, "backend": "direct", "success": true, "timestamp": "2026-09-13T03:17:37.279432+00:00", "origin": "openspec", "strategy": "rebase", "duration_seconds": 5.145}

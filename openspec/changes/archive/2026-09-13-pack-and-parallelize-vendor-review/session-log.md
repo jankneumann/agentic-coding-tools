@@ -74,3 +74,35 @@ Planned phase 3: packed review packets as default input, concurrent vendor dispa
 ### Context
 Implemented packed review packets, concurrent dispatch_and_wait, and verify-then-wire structured-output flags. Two 2s stub vendors overlap at ~2.0s. Claude and Antigravity gained --json-schema; Codex --output-schema was verified but not wired (file path vs inline sentinel).
 
+---
+
+## Phase: Cleanup (2026-09-13)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Post-merge archive without deferred commit** `architectural: skill-workflow` — Operator requested cleanup directly; land archive+index on main as one commit rather than waiting on Step 11.6.
+2. **No open-task migration** `architectural: skill-workflow` — tasks.md is fully checked; nothing to migrate.
+
+### Alternatives Considered
+- --defer-commit for main-context convergence: rejected because Operator asked for cleanup of this work, not a full merge-pass convergence.
+
+### Trade-offs
+- Accepted Archive commit on main despite pinned unrelated worktrees over Waiting for active-agent guard to clear because Pins are unrelated and stale; same posture as earlier #531 cleanup.
+
+### Completed Work
+- post-merge-verify
+- architecture-refresh
+- archive
+- branch-cleanup
+
+### Next Steps
+- optional main-context convergence if operator wants Step 11.6
+
+### Relevant Files
+- `openspec/changes/archive/` — Archived change destination
+- `openspec/specs/skill-workflow/spec.md` — Merged packet/parallel/verify-then-wire requirements
+
+### Context
+Post-merge cleanup for PR #533. PR already rebase-merged. All tasks checked; no open-task migration. Archiving the change, merging skill-workflow spec deltas, regenerating docs/decisions/, and tearing down local worktrees for this change and the #532 follow-up.
+
