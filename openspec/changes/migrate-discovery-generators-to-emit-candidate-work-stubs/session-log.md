@@ -81,7 +81,7 @@ Closed the material semantic gaps in the ri-12 plan. The refined contracts now d
 - Run an independent vendor confirmation review of plan revision 3 before implementation.
 
 ### Relevant Files
-- `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/reviews/consensus-plan.json` — round-1 five-vendor consensus
+- [original round-1 consensus](https://github.[REDACTED:high-entropy].json) — round-1 five-vendor consensus
 - `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md` — remediated executable contracts
 - `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml` — revision-3 DAG, scopes, and gates
 
@@ -112,8 +112,8 @@ Five-vendor consensus met quorum and identified seven blocking findings. All mat
 - Run another independent confirmation review against plan revision 4 before implementation.
 
 ### Relevant Files
-- `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/reviews/round-2/consensus-plan.json` — round-2 no-quorum consensus
-- `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/reviews/round-2/review-manifest.json` — interrupted dispatch record
+- [original round-2 consensus](https://github.[REDACTED:high-entropy].json) — round-2 no-quorum consensus
+- [original round-2 manifest](https://github.[REDACTED:high-entropy].json) — interrupted dispatch record
 - `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md` — revision-4 exact mappings
 
 ### Context
@@ -144,4 +144,33 @@ Confirmation review found two deterministic plan nits and remediated them in rev
 
 ### Context
 Recovered ri-12 on current main and resolved substantive multi-vendor findings. Revision 5 now has membership-independent IDs, semantic priority and effort mappings, exact dependency behavior, focused scenario traceability, and complete mirror gates.
+
+---
+
+## Phase: Plan Iteration 3 (2026-09-13)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Represent all dependency outcomes explicitly** — Local item IDs, external item refs, and satisfied-archive rationale preserve meaning across new and existing roadmaps.
+2. **Rely on refine-roadmap transactional guards** — Fresh preview, duplicate change-ID checks, max+1 default priority, and base-hash CAS already implement the required collision and staleness behavior.
+3. **Keep explore priority below critical** — The current explore artifact has no deterministic critical/immediate source field.
+
+### Alternatives Considered
+- Reject every non-local dependency during intake: rejected because That makes non-empty dependencies impossible in new-roadmap mode and contradicts ranking readiness.
+- Add refine-roadmap implementation scope: rejected because The required guards already exist and are covered by canonical tests; ri-12 only needs to consume and verify them.
+
+### Trade-offs
+- Accepted Explicit satisfied-archive rationale without a live edge over Keeping an unresolvable execution edge because Completed work should remain auditable without blocking execution.
+
+### Open Questions
+- [ ] Should derived IDs hash a minimal immutable producer identity tuple (recommended), require every producer to supply an explicit stable ID, or retain whole-provenance hashing despite drift?
+
+### Completed Work
+- Resolved the confirmed dependency contract contradiction.
+- Added normative scenarios for score bands, effort, prefixes, generator fallback, blocked propagation, duplicate IDs, and stale preview refusal.
+- Reconciled design, contract, tasks, and existing refine-roadmap behavior.
+
+### Context
+Resolved all confirmed revision-5 review findings and made dependency conversion, ranking, collision checks, and scenario ownership executable. The plan remains intentionally paused for adjudication of the immutable source-identity basis used by derived IDs.
 

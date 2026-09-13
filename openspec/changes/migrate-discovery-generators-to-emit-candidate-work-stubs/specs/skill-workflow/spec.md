@@ -35,7 +35,20 @@ while preserving their existing rich artifacts.
 - **WHEN** supported generators project entries into a mixed candidate batch
 - **THEN** each adapter SHALL map source evidence onto the shared five-band priority scale
 - **AND** source-local rank SHALL NOT be treated as an unbounded cross-generator priority
-- **AND** explore-feature SHALL map its weighted score through documented fixed bands rather than mapping shortlist position
+- **AND** explore-feature SHALL apply its documented 1.0..3.3 weighted-score formula and fixed bands rather than mapping shortlist position
+- **AND** explore-feature SHALL NOT emit priority 1 because its source contract has no critical or immediate field
+
+#### Scenario: Producer prefixes are normalized
+
+- **WHEN** bug-scrub or improve-harness receives a `fix-` or unprefixed suggested ID
+- **THEN** the adapter SHALL normalize it to the canonical `update-` prefix
+- **AND** an already canonical add/update/remove/refactor prefix SHALL remain unchanged
+
+#### Scenario: Improve-harness effort is independent of urgency
+
+- **WHEN** improve-harness projects gaps with equal `max_severity` but different affected-skill counts
+- **THEN** priority SHALL remain equal while effort SHALL follow the documented affected-skill bands
+- **AND** missing affected-skill evidence SHALL map to M with an `effort-estimate-default` tag
 
 #### Scenario: Candidate batch validation fails
 
@@ -51,7 +64,7 @@ while preserving their existing rich artifacts.
 
 #### Scenario: Candidate text is rendered safely
 
-- **WHEN** a report renders candidate title, rationale, tags, or provenance
+- **WHEN** candidate ranking renders title, rationale, tags, or provenance
 - **THEN** source text SHALL be escaped as inert Markdown or terminal text
 - **AND** provenance URIs SHALL NOT be dereferenced, fetched, or executed
 
@@ -73,6 +86,7 @@ rank candidate stubs from all supported generators with deterministic tie-breake
 - **THEN** the prioritization output SHALL include every stub exactly once
 - **AND** each entry SHALL retain its generator and provenance
 - **AND** repeated ranking of identical input SHALL produce the same order
+- **AND** a missing optional provenance generator SHALL use the empty-string tie-break key
 
 #### Scenario: Mixed batch contains a malformed stub
 
@@ -86,6 +100,8 @@ rank candidate stubs from all supported generators with deterministic tie-breake
 - **THEN** the dependency SHALL precede its dependent
 - **AND** deterministic tie-breakers SHALL produce a stable order
 - **AND** candidate entries SHALL remain distinct from proposal entries
+- **AND** an active-incomplete or unknown external dependency SHALL mark its candidate and all transitive in-batch dependents blocked
+- **AND** ready components SHALL precede blocked components without violating dependency order
 
 #### Scenario: Mixed batch has a cycle or duplicate change ID
 
