@@ -183,23 +183,24 @@
       "disposition": "block",
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-09-13T14:50:13.086904+00:00"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' approved by the operator \u2014 Operator approved PR creation via autopilot console after the evidence summary.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-13T16:03:13.619288+00:00",
+      "note": "Operator approved PR creation via autopilot console after the evidence summary."
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "fix-audit-choices-range-ledger-path",
-    "gate": "pr_creation",
-    "phase": "SUBMIT_PR",
-    "requested_at": "2026-09-13T14:50:13.087445+00:00",
-    "prompt": "Create the pull request for this change?",
-    "context": {
-      "branch": "openspec/fix-audit-choices-range-ledger-path",
-      "change_id": "fix-audit-choices-range-ledger-path"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
-    }
-  },
+  "pending_gate": null,
   "goal_gate": null
 }
