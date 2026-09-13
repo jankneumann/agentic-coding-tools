@@ -772,6 +772,13 @@
                 "null"
               ],
               "format": "date-time"
+            },
+            "resume_hint": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 512
             }
           }
         },
