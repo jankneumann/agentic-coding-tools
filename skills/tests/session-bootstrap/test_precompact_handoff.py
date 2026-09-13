@@ -32,9 +32,23 @@ def hook_module(monkeypatch: pytest.MonkeyPatch) -> Any:
     return module
 
 
-def _write_handoff(cwd: Path, *, summary: str, next_steps: list[str]) -> Path:
+def _session_payload(tmp_path: Path, cwd: Path, *mentions: str) -> dict:
+    """A PreCompact payload for a session that worked in ``cwd`` and
+    mentioned each change id in ``mentions``."""
+    transcript = tmp_path / "session.jsonl"
+    row = {"cwd": str(cwd),
+           "message": {"role": "user", "content": " ".join(mentions)}}
+    transcript.write_text(json.dumps(row) + "\n")
+    return {"session_id": "sess-1", "transcript_path": str(transcript),
+            "cwd": str(cwd), "hook_event_name": "PreCompact"}
+
+
+def _write_handoff(
+    cwd: Path, *, summary: str, next_steps: list[str],
+    change_id: str = "test-change",
+) -> Path:
     """Write a local-fallback envelope handoff and return its path."""
-    handoff_dir = cwd / "openspec" / "changes" / "test-change" / "handoffs"
+    handoff_dir = cwd / "openspec" / "changes" / change_id / "handoffs"
     handoff_dir.mkdir(parents=True, exist_ok=True)
     target = handoff_dir / "implementation-1.json"
     target.write_text(json.dumps({
@@ -59,10 +73,38 @@ def test_latest_phase_record_returns_payload(
     hook_module: Any, tmp_path: Path,
 ) -> None:
     _write_handoff(tmp_path, summary="Phase done.", next_steps=["go"])
-    record = hook_module._latest_phase_record(cwd=tmp_path)
+    payload = _session_payload(tmp_path, tmp_path, "test-change")
+    record = hook_module._latest_phase_record(payload, cwd=tmp_path)
     assert record is not None
     assert record["summary"] == "Phase done."
     assert record["next_steps"] == ["go"]
+
+
+def test_latest_phase_record_ignores_other_sessions_newer_handoff(
+    hook_module: Any, tmp_path: Path,
+) -> None:
+    """Regression: the snapshot used to embed whichever handoff was newest
+    across every worktree, including another session's."""
+    import os
+    import time
+
+    mine = _write_handoff(tmp_path, summary="Mine.", next_steps=["a"])
+    old = time.time() - 120
+    os.utime(mine, (old, old))
+    _write_handoff(tmp_path, summary="Theirs.", next_steps=["b"],
+                   change_id="their-change")  # newer by mtime
+    payload = _session_payload(tmp_path, tmp_path, "test-change")
+    record = hook_module._latest_phase_record(payload, cwd=tmp_path)
+    assert record is not None
+    assert record["summary"] == "Mine."
+
+
+def test_latest_phase_record_none_without_session_ownership(
+    hook_module: Any, tmp_path: Path,
+) -> None:
+    _write_handoff(tmp_path, summary="Theirs.", next_steps=["b"])
+    payload = _session_payload(tmp_path, tmp_path, "unrelated-change")
+    assert hook_module._latest_phase_record(payload, cwd=tmp_path) is None
 
 
 def test_latest_phase_record_none_when_missing(
@@ -77,8 +119,8 @@ def test_build_summary_with_record(hook_module: Any) -> None:
         "summary": "Implemented foo.",
         "next_steps": ["Step A", "Step B", "Step C", "Step D"],
     }
-    summary = hook_module._build_summary(record)
-    assert "Pre-compact snapshot" in summary
+    summary = hook_module._build_summary(record, "sess-9")
+    assert "Pre-compact snapshot (session=sess-9)" in summary
     assert "Implemented foo." in summary
     assert "Step A" in summary
     assert "Step B" in summary
@@ -125,7 +167,7 @@ def test_write_handoff_forwards_structured_fields(
 
     monkeypatch.setattr(hook_module, "_post", fake_post)
 
-    hook_module._write_handoff({})
+    hook_module._write_handoff(_session_payload(tmp_path, tmp_path, "test-change"))
 
     assert captured["path"] == "/handoffs/write"
     body = captured["payload"]
@@ -164,11 +206,13 @@ def test_clear_flag_is_idempotent(
     hook_module: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("AGENT_ID", "x")
+    monkeypatch.delenv("SESSION_ID", raising=False)
+    monkeypatch.delenv("AGENT_ID", raising=False)
+    payload = {"session_id": "x"}
     flag = tmp_path / ".claude" / "compact-pending-x.flag"
     flag.parent.mkdir(parents=True, exist_ok=True)
     flag.touch()
-    hook_module._clear_flag()
+    hook_module._clear_flag(payload)
     assert not flag.exists()
     # Running again with no flag is a no-op (no exception).
-    hook_module._clear_flag()
+    hook_module._clear_flag(payload)

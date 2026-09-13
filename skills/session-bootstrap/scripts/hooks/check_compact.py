@@ -10,7 +10,8 @@ Fires after every assistant turn (Stop lifecycle). Two trigger paths:
      rest of the session while keeping per-turn latency and cost in check.
   2. **Phase boundary** — a PhaseRecord handoff JSON was just written under
      openspec/changes/<id>/handoffs/ in the last PHASE_BOUNDARY_WINDOW_SEC
-     seconds. This is the "natural decomposition point" path.
+     seconds, applied by the orchestrator, and owned by THIS session (see
+     session_scope.py). This is the "natural decomposition point" path.
 
 When either trips, the hook emits ``{"decision": "block", "reason": "..."}``
 to stdout. Claude Code interprets this as "do not yield to the user; re-prompt
@@ -25,12 +26,14 @@ Token estimation strategy (see phase_token_meter.py for prior art, decision D9):
   * **Proxy fallback** — sum char-lengths of transcript message content,
     divide by 4. Tolerable ±20% drift per D9.
 
-A per-agent flag file (``~/.claude/compact-pending-<agent-id>.flag``) prevents
-re-blocking on the next Stop after a /compact request has been issued. The
-PreCompact hook (precompact_handoff.py) clears this flag.
+A per-session flag file (``~/.claude/compact-pending-<session-key>.flag``)
+prevents re-blocking on the next Stop after a /compact request has been issued.
+The PreCompact hook (precompact_handoff.py) derives the same key from its own
+payload and clears the flag.
 
 Hook input (stdin JSON, per Claude Code spec):
-    {"session_id": "...", "transcript_path": "...", "hook_event_name": "Stop"}
+    {"session_id": "...", "transcript_path": "...", "cwd": "...",
+     "hook_event_name": "Stop"}
 """
 
 from __future__ import annotations
@@ -38,11 +41,13 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import session_scope  # noqa: E402
 
 PREFIX = "[check_compact]"
 DEFAULT_THRESHOLD_PCT = 40
@@ -50,14 +55,6 @@ DEFAULT_CONTEXT_LIMIT = 1_000_000
 PHASE_BOUNDARY_WINDOW_SEC = 300
 CHAR_PER_TOKEN = 4
 SDK_CACHE_TTL_SEC = 30
-
-
-def _agent_id() -> str:
-    return os.environ.get("AGENT_ID", "unknown")
-
-
-def _flag_path() -> Path:
-    return Path.home() / ".claude" / f"compact-pending-{_agent_id()}.flag"
 
 
 def _read_hook_input() -> dict:
@@ -232,30 +229,8 @@ def _measure_tokens(transcript_path: Path) -> int:
     return _proxy_estimate(messages)
 
 
-def _all_worktree_roots(cwd: Path | None = None) -> list[Path]:
-    """Return every checkout known to the current git repository (main +
-    linked worktrees). Falls back to [cwd] when not in a git repo or git
-    is missing.
-
-    Why: a single Claude/Codex session may operate across multiple worktrees
-    (e.g. parallel work-package agents in .git-worktrees/<change-id>/<pkg>/).
-    Phase-boundary detection should be session-scoped, not cwd-scoped, so
-    we glob handoffs from every checkout the repo knows about.
-    """
-    cwd = cwd or Path.cwd()
-    try:
-        result = subprocess.run(
-            ["git", "worktree", "list", "--porcelain"],
-            capture_output=True, text=True, timeout=2, check=True,
-            cwd=str(cwd),
-        )
-    except (subprocess.SubprocessError, FileNotFoundError, OSError):
-        return [cwd]
-    roots: list[Path] = []
-    for line in result.stdout.splitlines():
-        if line.startswith("worktree "):
-            roots.append(Path(line.split(" ", 1)[1]))
-    return roots or [cwd]
+def _all_worktree_roots() -> list[Path]:
+    return session_scope.all_worktree_roots()
 
 
 def _applied_handoff_id(change_dir: Path) -> str | None:
@@ -282,11 +257,11 @@ def _applied_handoff_id(change_dir: Path) -> str | None:
     return last_handoff
 
 
-def _recent_phase_boundary() -> str | None:
+def _recent_phase_boundary(payload: dict) -> str | None:
     """Return the phase name (e.g. 'implementation') if a handoff JSON was
-    written in the last PHASE_BOUNDARY_WINDOW_SEC seconds in ANY worktree
-    of the current repo AND that handoff has been recorded as the change's
-    most-recently-applied phase outcome. PhaseRecord write_both() persists to
+    written in the last PHASE_BOUNDARY_WINDOW_SEC seconds, has been recorded
+    as its change's most-recently-applied phase outcome, AND belongs to the
+    session described by ``payload``. PhaseRecord write_both() persists to
     openspec/changes/<id>/handoffs/<phase>-<N>.json in the local-fallback
     path.
 
@@ -294,13 +269,20 @@ def _recent_phase_boundary() -> str | None:
     touches (git checkout, IDE indexing), and sibling-worktree handoffs all
     produce fresh mtimes without a real phase transition. We gate on the
     change's ``loop-state.json.last_handoff_id`` so only handoffs the
-    orchestrator has actually consumed count as boundaries."""
+    orchestrator has actually consumed count as boundaries.
+
+    An applied handoff is still not OUR boundary when another session wrote
+    it: every concurrent session shares the repository's worktree list. The
+    session-ownership check (session_scope.SessionScope.owns_handoff) runs
+    last, so the transcript is only read when an applied candidate exists."""
     cutoff = time.time() - PHASE_BOUNDARY_WINDOW_SEC
     newest_phase: str | None = None
     newest_mtime = 0.0
     seen: set[Path] = set()
-    for root in _all_worktree_roots():
-        for p in root.glob("openspec/changes/*/handoffs/*.json"):
+    roots = _all_worktree_roots()
+    scope: session_scope.SessionScope | None = None
+    for root in roots:
+        for p in root.glob(session_scope.HANDOFF_GLOB):
             try:
                 resolved = p.resolve()
             except OSError:
@@ -325,6 +307,10 @@ def _recent_phase_boundary() -> str | None:
             last_handoff = _applied_handoff_id(change_dir)
             if last_handoff is None or not last_handoff.endswith(p.name):
                 continue
+            if scope is None:
+                scope = session_scope.load_session_scope(payload)
+            if not scope.owns_handoff(p, roots):
+                continue  # another session's applied handoff
             newest_mtime = mtime
             newest_phase = p.stem.rsplit("-", 1)[0]
     return newest_phase
@@ -336,14 +322,14 @@ def _block(reason: str) -> None:
 
 
 def main() -> int:
-    flag = _flag_path()
+    payload = _read_hook_input()
+    flag = session_scope.flag_path(payload)
     if flag.exists():
         return 0  # /compact already requested; PreCompact will clear the flag
 
-    payload = _read_hook_input()
     transcript = Path(payload.get("transcript_path", ""))
 
-    boundary = _recent_phase_boundary()
+    boundary = _recent_phase_boundary(payload)
     if boundary:
         flag.parent.mkdir(parents=True, exist_ok=True)
         flag.touch()
@@ -363,7 +349,7 @@ def main() -> int:
         flag.touch()
         _block(
             f"Context window at ~{pct}% of {limit:,} tokens "
-            f"(threshold {threshold}%, agent={_agent_id()}). "
+            f"(threshold {threshold}%, session={session_scope.session_key(payload)}). "
             f"Run /compact now. Phase handoffs are persisted, so context "
             f"will be rehydrated by SessionStart after compaction."
         )
