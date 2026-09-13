@@ -714,6 +714,34 @@ class TestAsyncDispatch:
 
         assert result.success is True
         assert result.findings == {"findings": []}
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_poll_rejects_clean_findings_when_submission_runtime_is_fast(
+        self, mock_run: MagicMock,
+    ) -> None:
+        """Production polling retains the fast-empty quorum guard."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0,
+            stdout='Status: completed\n{"findings": []}', stderr="",
+        )
+        adapter = _async_adapter()
+        poll_cfg = PollConfig(
+            command_template=["codex", "cloud", "status", "{task_id}"],
+            task_id_pattern=r"task[_\s:]+(\w+)",
+            success_pattern="completed",
+            interval_seconds=1,
+            timeout_seconds=10,
+        )
+
+        result = adapter.poll_for_result(
+            "abc123",
+            poll_cfg,
+            review_started_at=time.monotonic(),
+        )
+
+        assert result.success is False
+        assert result.error == "empty_findings_too_fast"
+        assert result.task_id == "abc123"
         assert result.task_id == "abc123"
 
     @patch("review_dispatcher.subprocess.run")
@@ -838,6 +866,19 @@ class TestSdkDispatch:
         assert result.success is True
         assert result.findings is not None
         assert result.model_used == "claude-sonnet-4-6"
+
+    @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
+    def test_dispatch_parse_failure_does_not_invent_raw_null(
+        self, mock_call: MagicMock, tmp_path: Path,
+    ) -> None:
+        mock_call.return_value = None
+        adapter = _sdk_adapter()
+
+        result = adapter.dispatch(
+            "review", "prompt", cwd=tmp_path, api_key="sk-test",
+        )
+
+        assert result.raw_stdout is None
 
     @patch("review_dispatcher.SdkVendorAdapter._call_sdk")
     def test_dispatch_placeholder_is_unsuccessful(
@@ -1330,8 +1371,8 @@ class TestConcurrentDispatch:
         assert a["cwd"] == str(tmp_path)
         assert b["cwd"] == str(tmp_path)
 
-    def test_concurrent_async_submit_all_then_poll(self, tmp_path: Path) -> None:
-        """Async vendors: every submit finishes before any poll starts."""
+    def test_async_poll_starts_without_waiting_for_slow_submit(self, tmp_path: Path) -> None:
+        """A completed submission starts polling while peers still submit."""
         submit_ends: list[float] = []
         poll_starts: list[float] = []
         lock = threading.Lock()
@@ -1381,7 +1422,10 @@ class TestConcurrentDispatch:
             task_id: str,
             poll_config: PollConfig,
             cwd: Path | None = None,
+            *,
+            review_started_at: float | None = None,
         ) -> ReviewResult:
+            assert review_started_at is not None
             with lock:
                 poll_starts.append(time.monotonic())
             return ReviewResult(
@@ -1407,8 +1451,8 @@ class TestConcurrentDispatch:
         assert all(r.success for r in results)
         assert len(submit_ends) == 2
         assert len(poll_starts) == 2
-        assert max(submit_ends) <= min(poll_starts), (
-            "async poll started before every vendor was submitted "
+        assert min(poll_starts) < max(submit_ends), (
+            "fast async vendor waited for every peer submission "
             f"(submit_ends={submit_ends}, poll_starts={poll_starts})"
         )
 

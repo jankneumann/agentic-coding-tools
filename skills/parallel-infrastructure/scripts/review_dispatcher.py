@@ -1023,6 +1023,8 @@ class CliVendorAdapter:
         task_id: str,
         poll_config: PollConfig,
         cwd: Path | None = None,
+        *,
+        review_started_at: float | None = None,
     ) -> ReviewResult:
         """Poll an async task until completion or timeout.
 
@@ -1030,6 +1032,8 @@ class CliVendorAdapter:
             task_id: Task identifier extracted from async dispatch output.
             poll_config: Polling configuration from the mode config.
             cwd: Working directory for poll commands (optional).
+            review_started_at: Local monotonic timestamp from before submission,
+                when the caller owns the submission lifecycle.
 
         Returns:
             ReviewResult with findings if successful, error otherwise.
@@ -1043,6 +1047,7 @@ class CliVendorAdapter:
         failure_re = re.compile(poll_config.failure_pattern, re.IGNORECASE)
 
         start = time.monotonic()
+        elapsed_start = review_started_at if review_started_at is not None else start
         deadline = start + poll_config.timeout_seconds
         attempts = 0
 
@@ -1071,7 +1076,7 @@ class CliVendorAdapter:
                 return ReviewResult(
                     vendor=self.vendor,
                     success=False,
-                    elapsed_seconds=time.monotonic() - start,
+                    elapsed_seconds=time.monotonic() - elapsed_start,
                     error=f"Async task failed: {combined[:300]}",
                     error_class=ErrorClass.UNKNOWN,
                     task_id=task_id,
@@ -1081,10 +1086,10 @@ class CliVendorAdapter:
                 ingested = self._ingest_stdout(
                     result.stdout,
                     result.stderr,
-                    elapsed=time.monotonic() - start,
+                    elapsed=time.monotonic() - elapsed_start,
                     model_name="(async)",
                     models_attempted=[],
-                    enforce_empty_findings_grace=False,
+                    enforce_empty_findings_grace=review_started_at is not None,
                 )
                 ingested.task_id = task_id
                 return ingested
@@ -1096,7 +1101,7 @@ class CliVendorAdapter:
         return ReviewResult(
             vendor=self.vendor,
             success=False,
-            elapsed_seconds=time.monotonic() - start,
+            elapsed_seconds=time.monotonic() - elapsed_start,
             error=f"Polling timed out after {poll_config.timeout_seconds}s ({attempts} attempts)",
             error_class=ErrorClass.TRANSIENT,
             task_id=task_id,
@@ -1178,12 +1183,12 @@ class SdkVendorAdapter:
                     api_key=api_key,
                     timeout=timeout_seconds,
                 )
-                raw_stdout = json.dumps(findings)
+                raw_stdout = json.dumps(findings) if findings is not None else None
                 parse_error = None if findings else "Invalid JSON in SDK response"
                 findings, schema_error = _validate_findings_or_error(findings)
                 if (
                     findings is not None
-                    and _is_placeholder_only_response(findings, json.dumps(findings))
+                    and _is_placeholder_only_response(findings, raw_stdout or "")
                 ):
                     return ReviewResult(
                         vendor=self.vendor,
@@ -2220,6 +2225,9 @@ class ReviewOrchestrator:
                 result_callback(result, job_count)
             collected[index] = result
 
+        for job in async_jobs:
+            job["review_started_at"] = time.monotonic()
+
         with ThreadPoolExecutor(max_workers=job_count) as pool:
             submit_futs = {
                 pool.submit(
@@ -2243,8 +2251,45 @@ class ReviewOrchestrator:
                 pool.submit(_safe_vendor_call, vendor, thunk): idx
                 for idx, vendor, _timeout, thunk in sync_jobs
             }
+            poll_futs: dict[Any, dict[str, Any]] = {}
 
-            submitted: list[tuple[dict[str, Any], ReviewResult]] = []
+            def _start_poll(
+                job: dict[str, Any], submit_result: ReviewResult,
+            ) -> None:
+                mode_config = job["mode_config"]
+                adapter = job["adapter"]
+                task_id = submit_result.task_id
+                poll_config = mode_config.poll
+                review_started_at = job["review_started_at"]
+                assert task_id is not None
+                assert poll_config is not None
+
+                def _poll_run(
+                    run_cwd: Path,
+                    a: CliVendorAdapter = adapter,
+                    tid: str = task_id,
+                    pc: PollConfig = poll_config,
+                    started: float = review_started_at,
+                ) -> ReviewResult:
+                    return a.poll_for_result(
+                        tid,
+                        pc,
+                        cwd=run_cwd,
+                        review_started_at=started,
+                    )
+
+                poll_futs[pool.submit(
+                    _safe_vendor_call,
+                    job["vendor"],
+                    partial(
+                        _dispatch_with_snapshot_fallback,
+                        vendor=job["vendor"],
+                        cwd=cwd,
+                        round_id=round_id,
+                        run=_poll_run,
+                    ),
+                )] = job
+
             pending_submits = set(submit_futs)
             pending_sync = set(sync_futs)
             while pending_submits:
@@ -2266,38 +2311,9 @@ class ReviewOrchestrator:
                         and submit_result.task_id
                         and mode_config.poll
                     ):
-                        submitted.append((job, submit_result))
+                        _start_poll(job, submit_result)
                     else:
                         _collect(job["index"], submit_result)
-
-            poll_futs: dict[Any, dict[str, Any]] = {}
-            for job, submit_result in submitted:
-                mode_config = job["mode_config"]
-                adapter = job["adapter"]
-                task_id = submit_result.task_id
-                poll_config = mode_config.poll
-                assert task_id is not None
-                assert poll_config is not None
-
-                def _poll_run(
-                    run_cwd: Path,
-                    a: CliVendorAdapter = adapter,
-                    tid: str = task_id,
-                    pc: PollConfig = poll_config,
-                ) -> ReviewResult:
-                    return a.poll_for_result(tid, pc, cwd=run_cwd)
-
-                poll_futs[pool.submit(
-                    _safe_vendor_call,
-                    job["vendor"],
-                    partial(
-                        _dispatch_with_snapshot_fallback,
-                        vendor=job["vendor"],
-                        cwd=cwd,
-                        round_id=round_id,
-                        run=_poll_run,
-                    ),
-                )] = job
 
             for fut in as_completed(pending_sync | set(poll_futs)):
                 result = fut.result()
