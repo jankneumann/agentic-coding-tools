@@ -34,51 +34,32 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-# Default mapping mirrors agent-coordinator/archetypes.yaml::phase_mapping.
-# When --archetypes-yaml is provided we override from the YAML; otherwise
-# this serves as the audit baseline and is documented in design.md.
-_DEFAULT_PHASE_MODEL: dict[str, str] = {
-    "INIT":         "haiku",
-    "PLAN":         "opus",
-    "PLAN_ITERATE": "opus",
-    "PLAN_REVIEW":  "opus",
-    "PLAN_FIX":     "opus",
-    "IMPLEMENT":    "sonnet",
-    "IMPL_ITERATE": "sonnet",
-    "IMPL_REVIEW":  "opus",
-    "IMPL_FIX":     "sonnet",
-    "VALIDATE":     "sonnet",
-    "VAL_REVIEW":   "opus",
-    "VAL_FIX":      "sonnet",
-    "SUBMIT_PR":    "haiku",
-}
-
-# Archetype → default model for the aggregate check.
-_DEFAULT_ARCHETYPE_MODEL: dict[str, str] = {
-    "architect":   "opus",
-    "reviewer":    "opus",
-    "implementer": "sonnet",
-    "analyst":     "sonnet",
-    "runner":      "haiku",
-}
+def _default_archetypes_yaml() -> Path:
+    return (
+        Path(__file__).resolve().parents[3]
+        / "agent-coordinator"
+        / "archetypes.yaml"
+    )
 
 
-def load_phase_mapping_from_yaml(yaml_path: Path) -> dict[str, str]:
-    """Parse archetypes.yaml and return phase → model mapping.
+def load_phase_mapping_from_yaml(yaml_path: Path | None = None) -> dict[str, str]:
+    """Parse archetypes.yaml and return phase → logical tier mapping.
 
-    Falls back to defaults on parse error.
+    The authored source is ``archetypes.yaml``; there is no parallel opus/sonnet
+    default table. Returns ``{}`` if the YAML cannot be read.
     """
+    path = yaml_path or _default_archetypes_yaml()
     try:
         import yaml  # type: ignore[import-untyped]
     except ImportError:
-        logger.warning("pyyaml not installed; using built-in defaults")
-        return dict(_DEFAULT_PHASE_MODEL)
+        logger.warning("pyyaml not installed; cannot load %s", path)
+        return {}
 
     try:
-        data = yaml.safe_load(yaml_path.read_text())
+        data = yaml.safe_load(path.read_text())
     except (OSError, yaml.YAMLError) as exc:
-        logger.warning("Failed to parse %s (%s); using defaults", yaml_path, exc)
-        return dict(_DEFAULT_PHASE_MODEL)
+        logger.warning("Failed to parse %s (%s)", path, exc)
+        return {}
 
     archetypes = data.get("archetypes", {}) if isinstance(data, dict) else {}
     phase_mapping = data.get("phase_mapping", {}) if isinstance(data, dict) else {}
@@ -92,7 +73,30 @@ def load_phase_mapping_from_yaml(yaml_path: Path) -> dict[str, str]:
             model = archetypes[archetype].get("model")
             if isinstance(model, str):
                 out[phase] = model
-    return out or dict(_DEFAULT_PHASE_MODEL)
+    return out
+
+
+def load_archetype_tiers_from_yaml(yaml_path: Path | None = None) -> dict[str, str]:
+    """Return archetype → tier from archetypes.yaml."""
+    path = yaml_path or _default_archetypes_yaml()
+    try:
+        import yaml  # type: ignore[import-untyped]
+
+        data = yaml.safe_load(path.read_text()) or {}
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to load archetype tiers from %s: %s", path, exc)
+        return {}
+    archetypes = data.get("archetypes") or {}
+    out: dict[str, str] = {}
+    for name, spec in archetypes.items():
+        if isinstance(spec, dict) and isinstance(spec.get("model"), str):
+            out[str(name)] = spec["model"]
+    return out
+
+
+# Derived from YAML at import — not a second authored source.
+_DEFAULT_PHASE_MODEL: dict[str, str] = load_phase_mapping_from_yaml()
+_DEFAULT_ARCHETYPE_MODEL: dict[str, str] = load_archetype_tiers_from_yaml()
 
 
 def parse_audit_log(audit_log: Path) -> list[dict[str, Any]]:

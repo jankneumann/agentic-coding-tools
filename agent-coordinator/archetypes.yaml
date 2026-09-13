@@ -23,7 +23,10 @@ local_host_class:
 model_aliases:
   claude_code:
     frontier: fable
-    premium: opus
+    # Reviewer (premium): Fable 5.1 at medium effort — bounded multi-vendor review.
+    premium:
+      model: fable
+      thinking: medium
     standard: sonnet
     economy: haiku
   codex:
@@ -32,16 +35,17 @@ model_aliases:
       thinking: xhigh
     premium:
       model: gpt-5.6-sol
-      thinking: medium
+      thinking: high
     standard: gpt-5.6-terra
     economy: gpt-5.6-luna
   # Roster per contracts/roster.md; tier slugs from Phase 1 empirical findings
   # (design.md § Empirical CLI findings, E1/E5/E8), operator-signed at
-  # checkpoint 1.4 (2026-07-23). Kept in sync with DEFAULT_PROVIDER_MODEL_MAP.
+  # checkpoint 1.4 (2026-07-23). This block is the sole authored tier→model map.
   antigravity:
     # agy `models` catalog (E1); one model across three effort suffixes.
     # frontier omitted → falls back to premium (operator, 2026-07-23).
-    premium: gemini-3.6-flash-high
+    # Premium refreshed to Gemini 3.8 Flash for bounded review (2026-09-13).
+    premium: gemini-3.8-flash-high
     standard: gemini-3.6-flash-medium
     economy: gemini-3.6-flash-low
   grok:
@@ -57,9 +61,9 @@ model_aliases:
       thinking: low
   pi:
     # OpenRouter <publisher>/<model> slugs; standard fixed by ri-01; frontier
-    # is Kimi 3 (E8); premium/economy stay in the qwen3-coder family.
+    # is Kimi 3 (E8). Premium is Nemotron 3 Ultra for bounded review (2026-09-13).
     frontier: moonshotai/kimi-k3
-    premium: qwen/qwen3-coder-plus
+    premium: nvidia/nemotron-3-ultra-550b-a55b
     standard: qwen/qwen3-coder
     economy: qwen/qwen3-coder-flash
   # Always-on local host (see local_host_class above). Entries use the extended
@@ -68,7 +72,7 @@ model_aliases:
   # sign-off date and must be re-signed when the roster rotates. `frontier` and
   # `premium` are deliberately omitted — they degrade to the best defined tier
   # (`standard`), and the archetype trust boundary keeps premium-critical
-  # phases off `local` entirely. Kept in sync with DEFAULT_PROVIDER_MODEL_MAP.
+  # phases off `local` entirely.
   local:
     standard:
       model: gpt-oss-120b

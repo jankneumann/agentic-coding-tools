@@ -1,0 +1,121 @@
+schema_version: 1
+
+feature:
+  id: consolidate-model-tier-sources
+  title: "Consolidate model tier sources — YAML sole author, review derives premium"
+  plan_revision: 1
+  created_by: grok-build
+  created_at: "2026-09-13T00:00:00Z"
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/consolidate-model-tier-sources/contracts/README.md"
+    files:
+      - "openspec/changes/consolidate-model-tier-sources/contracts/README.md"
+
+defaults:
+  priority: 5
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-main
+    title: "WP1–WP4 sequential — sole YAML tier map, phase signals, review+thinking_flags, schema catch-up"
+    task_type: implementation
+    description: |
+      Single sequential package covering WP1 (YAML sole tier map; DEFAULT
+      emergency fallback), WP2 (phase signals from YAML), WP3 (review derives
+      premium + thinking_flags; agents.yaml review hardcodes removed), and WP4
+      (provider-model-map schema/docs catch-up). No parallel packages — shared
+      hub files (agents_config.py, agents.yaml, review_dispatcher.py).
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/agents.yaml"
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "openspec/schemas/provider-model-map.schema.json"
+      keys:
+        - "feature:consolidate-model-tier-sources:main"
+      ttl_minutes: 120
+      reason: "Sequential sole-source consolidation across coordinator + review dispatch"
+    scope:
+      write_allow:
+        - "agent-coordinator/src/agents_config.py"
+        - "agent-coordinator/archetypes.yaml"
+        - "agent-coordinator/agents.yaml"
+        - "agent-coordinator/tests/**"
+        - "skills/parallel-infrastructure/scripts/**"
+        - "skills/parallel-infrastructure/scripts/tests/**"
+        - "skills/tests/parallel-infrastructure/**"
+        - "skills/tests/vendor-neutral-autopilot/**"
+        - "openspec/schemas/provider-model-map.schema.json"
+        - "openspec/changes/consolidate-model-tier-sources/**"
+      read_allow:
+        - "**"
+      deny: []
+    context_impact:
+      surfaces:
+        - capabilities
+        - documentation
+        - semantic_code
+      rationale:
+        apis:
+          reason: "No new HTTP/API surface; behavioral contract is YAML + existing provider-model-map schema."
+          approved_by: plan
+        architecture:
+          reason: "No architecture-diagram change; consolidation of existing config authorship only."
+          approved_by: plan
+    worktree:
+      name: consolidate-model-tier-sources-wp-main
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Coordinator archetype/config tests"
+          kind: command
+          command: "agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/test_agents_config.py agent-coordinator/tests/test_archetypes_yaml.py agent-coordinator/tests/test_phase_archetype_resolution.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["coordinator_tests_passed"]
+        - name: "Review dispatcher + contract tests"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py skills/tests/parallel-infrastructure skills/tests/vendor-neutral-autopilot/test_contracts.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["skills_tests_passed"]
+        - name: "OpenSpec strict validation"
+          kind: command
+          command: "openspec validate consolidate-model-tier-sources --strict"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_valid"]
+    metadata:
+      loc_estimate: 400
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys:
+        - coordinator_tests_passed
+        - skills_tests_passed
+        - openspec_valid
+      artifacts:
+        - "openspec/changes/consolidate-model-tier-sources/"
