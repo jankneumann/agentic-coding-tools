@@ -3,9 +3,9 @@
 Both the CLI dispatcher (review_dispatcher.py) and the in-process
 convergence loop (skills/autopilot/scripts/convergence_loop.py) write
 per-vendor finding files and a manifest through this module so the on-disk
-format is identical regardless of caller. After dispatch returns, every
-vendor's findings are durably persisted; a synthesis crash leaves the data
-intact for manual or postmortem analysis.
+format is identical regardless of caller. In-process convergence persists
+each terminal vendor result as it arrives; a dispatch interruption or later
+synthesis crash leaves completed data intact for recovery and analysis.
 
 Schema reference (in this proposal's contracts/ dir):
 - ``finding.schema.json`` — per-vendor file shape (wrapper object + findings[])
@@ -130,6 +130,34 @@ def _atomic_write_json(path: Path, payload: Any) -> None:
         os.close(fd)
 
 
+def _atomic_write_text(path: Path, body: str) -> None:
+    """Atomically replace a UTF-8 text file and fsync its directory entry."""
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as file:
+            file.write(body)
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(tmp, path)
+    except OSError:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
+    try:
+        fd = os.open(path.parent, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        try:
+            os.fsync(fd)
+        except OSError:
+            pass
+    finally:
+        os.close(fd)
+
+
 # ---------------------------------------------------------------------------
 # Path safety
 # ---------------------------------------------------------------------------
@@ -233,11 +261,11 @@ def write_raw_output(
     safe_dir.mkdir(parents=True, exist_ok=True)
     body = stdout or ""
     stdout_path = safe_dir / f"raw-{vendor}-{review_type}.txt"
-    stdout_path.write_text(body, encoding="utf-8")
+    _atomic_write_text(stdout_path, body)
     stderr_rel = None
     if stderr:
         stderr_path = safe_dir / f"raw-{vendor}-{review_type}.stderr.txt"
-        stderr_path.write_text(stderr, encoding="utf-8")
+        _atomic_write_text(stderr_path, stderr)
         stderr_rel = stderr_path.name
     meta = {
         "schema_version": 1,

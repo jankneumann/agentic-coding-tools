@@ -456,6 +456,28 @@ def blocking_items(
     ]
 
 
+def adjudication_items(ledger: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return unresolved high-impact judgment that cannot auto-converge."""
+    out: list[dict[str, Any]] = []
+    for item in ledger.get("items", []):
+        if item.get("status") in {"addressed", "retired", "parked", "disagreement"}:
+            continue
+        evidence = item.get("evidence_class") or DETERMINISTIC
+        consensus_status = (
+            item.get("consensus_status") or item.get("status") or "unconfirmed"
+        )
+        criticality = (
+            item.get("criticality") or item.get("agreed_criticality") or "low"
+        )
+        if (
+            evidence == "judgment"
+            and consensus_status == "unconfirmed"
+            and criticality in {"high", "critical"}
+        ):
+            out.append(item)
+    return out
+
+
 def mark_addressed(ledger: dict[str, Any], item_ids: list[int]) -> None:
     id_set = set(item_ids)
     for item in ledger.get("items", []):

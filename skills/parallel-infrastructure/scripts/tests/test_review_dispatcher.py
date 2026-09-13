@@ -1055,6 +1055,72 @@ class TestDispatchRobustness:
         assert result.success is False
         assert result.error == "empty_findings_too_fast"
 
+    def test_nonempty_placeholder_is_unsuccessful(self) -> None:
+        payload = json.dumps({
+            "review_type": "plan",
+            "target": "test-feature",
+            "reviewer_vendor": "grok",
+            "findings": [{
+                "id": 1,
+                "type": "correctness",
+                "criticality": "medium",
+                "description": "Placeholder while review runs",
+                "disposition": "fix",
+                "axis": "correctness",
+                "severity": "critical",
+            }],
+        })
+
+        result = _adapter(vendor="grok")._ingest_stdout(
+            payload,
+            "",
+            elapsed=16.0,
+            model_name="grok-4.5",
+            models_attempted=["grok-4.5"],
+        )
+
+        assert result.success is False
+        assert result.findings is None
+        assert result.error == "non_substantive_placeholder"
+        assert result.raw_stdout == payload
+
+    def test_placeholder_wrapper_is_unsuccessful_after_grace_period(self) -> None:
+        envelope = json.dumps({
+            "text": "Placeholder while review runs",
+            "structuredOutput": {"findings": []},
+        })
+
+        result = _adapter(vendor="grok")._ingest_stdout(
+            envelope,
+            "",
+            elapsed=16.0,
+            model_name="grok-4.5",
+            models_attempted=["grok-4.5"],
+        )
+
+        assert result.success is False
+        assert result.findings is None
+        assert result.error == "non_substantive_placeholder"
+        assert result.raw_stdout == envelope
+
+    def test_substantive_finding_with_placeholder_context_succeeds(self) -> None:
+        envelope = json.dumps({
+            "text": "Placeholder marker appeared in the source fixture.",
+            "structuredOutput": json.loads(VALID_FINDINGS_JSON),
+        })
+
+        result = _adapter(vendor="grok")._ingest_stdout(
+            envelope,
+            "",
+            elapsed=16.0,
+            model_name="grok-4.5",
+            models_attempted=["grok-4.5"],
+        )
+
+        assert result.success is True
+        assert result.findings is not None
+        assert result.findings["findings"][0]["description"] == "test"
+
     @patch("review_dispatcher.subprocess.run")
     def test_raw_stdout_is_kept_on_success(
         self, mock_run: MagicMock, tmp_path: Path,
@@ -1237,6 +1303,93 @@ class TestConcurrentDispatch:
             "async poll started before every vendor was submitted "
             f"(submit_ends={submit_ends}, poll_starts={poll_starts})"
         )
+
+    def test_result_callback_fires_in_completion_order(
+        self, tmp_path: Path,
+    ) -> None:
+        callback_results: list[tuple[str, int]] = []
+        fast_completed = threading.Event()
+        fast = _adapter("codex-local", "codex")
+        slow = _adapter("grok-local", "grok")
+
+        def fast_dispatch(*_args: object, **_kwargs: object) -> ReviewResult:
+            time.sleep(0.02)
+            return ReviewResult(vendor="codex", success=True)
+
+        def slow_dispatch(*_args: object, **_kwargs: object) -> ReviewResult:
+            assert fast_completed.wait(timeout=1.0), (
+                "terminal callback was not emitted while another vendor remained active"
+            )
+            return ReviewResult(vendor="grok", success=True)
+
+        def on_result(result: ReviewResult, expected_count: int) -> None:
+            callback_results.append((result.vendor, expected_count))
+            if result.vendor == "codex":
+                fast_completed.set()
+
+        orch = ReviewOrchestrator({"codex-local": fast, "grok-local": slow})
+        with (
+            patch("shutil.which", return_value="/usr/bin/mock"),
+            patch.object(fast, "dispatch", side_effect=fast_dispatch),
+            patch.object(slow, "dispatch", side_effect=slow_dispatch),
+        ):
+            results = orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="Review this packet",
+                cwd=tmp_path,
+                result_callback=on_result,
+            )
+
+        assert callback_results == [("codex", 2), ("grok", 2)]
+        assert [result.vendor for result in results] == ["codex", "grok"]
+
+    def test_result_callback_waits_for_async_poll(self, tmp_path: Path) -> None:
+        adapter = CliVendorAdapter(
+            agent_id="grok-remote",
+            vendor="grok",
+            cli_config=CliConfig(
+                command="cloud-grok",
+                dispatch_modes={
+                    "review": ModeConfig(
+                        args=["cloud", "exec"],
+                        async_dispatch=True,
+                        poll=PollConfig(
+                            command_template=["status", "{task_id}"],
+                            task_id_pattern=r"task[_\s:]+(\w+)",
+                            success_pattern="completed",
+                            interval_seconds=1,
+                            timeout_seconds=10,
+                        ),
+                    ),
+                },
+                model_flag="-m",
+            ),
+        )
+        callbacks: list[ReviewResult] = []
+        submission = ReviewResult(
+            vendor="grok", success=True, async_dispatch=True, task_id="task-grok",
+        )
+        terminal = ReviewResult(
+            vendor="grok", success=True, findings=json.loads(VALID_FINDINGS_JSON),
+        )
+        orch = ReviewOrchestrator({"grok-remote": adapter})
+
+        with (
+            patch("shutil.which", return_value="/usr/bin/mock"),
+            patch.object(adapter, "dispatch_async", return_value=submission),
+            patch.object(adapter, "poll_for_result", return_value=terminal),
+        ):
+            results = orch.dispatch_and_wait(
+                review_type="plan",
+                dispatch_mode="review",
+                prompt="Review this packet",
+                cwd=tmp_path,
+                result_callback=lambda result, _count: callbacks.append(result),
+            )
+
+        assert callbacks == [terminal]
+        assert results == [terminal]
 
 
 class TestConcurrentGitSnapshotFallback:
