@@ -47,30 +47,32 @@ The coordinator is the authoritative source of phase mappings. Skills are
 pure clients of the resolution endpoint via the `coordination_bridge`
 helper.
 
-## The 13-Phase Default Mapping
+## The Default Phase Mapping
 
-Defined in `agent-coordinator/archetypes.yaml` under `phase_mapping`:
+Defined in `agent-coordinator/archetypes.yaml` under `phase_mapping`.
+Concrete Claude-family models below are **resolved** from `model_aliases`
+at load time — edit the YAML, not this table.
 
-| Phase | Archetype | Default model | Signals consulted |
+| Phase | Archetype | Tier (→ Claude model) | Signals consulted |
 |---|---|---|---|
-| `INIT` | `runner` | haiku | (none) |
-| `PLAN` | `architect` | opus | `capabilities_touched` |
-| `PLAN_ITERATE` | `architect` | opus | `capabilities_touched`, `iteration_count` |
-| `PLAN_REVIEW` | `reviewer` | opus | `proposal_loc`, `capabilities_touched` |
-| `PLAN_FIX` | `architect` | opus | `findings_severity`, `findings_count` |
-| `IMPLEMENT` | `implementer` | sonnet (→ opus on escalation) | `loc_estimate`, `write_allow`, `dependencies`, `complexity` |
-| `IMPL_ITERATE` | `implementer` | sonnet | `iteration_count`, `write_allow` |
-| `IMPL_REVIEW` | `reviewer` | opus | `files_changed`, `lines_changed` |
-| `IMPL_FIX` | `implementer` | sonnet | `findings_severity`, `findings_count` |
-| `VALIDATE` | `analyst` | sonnet | `test_count`, `suite_duration` |
-| `VAL_REVIEW` | `reviewer` | opus | `findings_severity` |
-| `VAL_FIX` | `implementer` | sonnet | `findings_severity` |
-| `SUBMIT_PR` | `runner` | haiku | (none) |
+| `PLAN` | `architect` | `frontier → fable` | `capabilities_touched` |
+| `PLAN_ITERATE` | `architect` | `frontier → fable` | `capabilities_touched`, `iteration_count` |
+| `PLAN_REVIEW` | `reviewer` | `premium → fable` | `proposal_loc`, `capabilities_touched` |
+| `PLAN_FIX` | `architect` | `frontier → fable` | `findings_severity`, `findings_count` |
+| `IMPLEMENT` | `implementer` | `standard → sonnet` | `loc_estimate`, `write_allow`, `dependencies`, `complexity` |
+| `IMPL_ITERATE` | `implementer` | `standard → sonnet` | `iteration_count`, `write_allow` |
+| `IMPL_REVIEW` | `reviewer` | `premium → fable` | `files_changed`, `lines_changed` |
+| `IMPL_FIX` | `implementer` | `standard → sonnet` | `findings_severity`, `findings_count` |
+| `VALIDATE` | `validator` | `standard → sonnet` | `test_count`, `suite_duration` |
+| `VAL_REVIEW` | `reviewer` | `premium → fable` | `findings_severity` |
+| `VAL_FIX` | `implementer` | `standard → sonnet` | `findings_severity` |
+| `INIT` | `runner` | `economy → haiku` | (none) |
+| `GATEKEEPER` | `gatekeeper` | `premium → fable` | `gate_signals` |
+| `SUBMIT_PR` | `runner` | `economy → haiku` | (none) |
 
-**Tuning the mapping**: Edit `agent-coordinator/archetypes.yaml` and
-restart the coordinator. No code changes required. The schema is validated
-on load (`schema_version: 2`); a `phase_mapping` entry referencing an
-undefined archetype raises `ValueError` at coordinator startup.
+**Tuning**: Edit `agent-coordinator/archetypes.yaml` and restart the
+coordinator. No code changes required.
+
 
 ## The `local` Provider
 

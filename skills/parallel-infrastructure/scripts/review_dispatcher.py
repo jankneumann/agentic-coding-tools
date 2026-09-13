@@ -42,6 +42,98 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Tier→model resolution from archetypes.yaml (sole authored roster).
+# ---------------------------------------------------------------------------
+
+def _archetype_roster() -> Any:
+    """Import skills.shared.archetype_roster, tolerating path layouts."""
+    try:
+        from skills.shared import archetype_roster  # type: ignore[import-untyped]
+
+        return archetype_roster
+    except ImportError:
+        shared = Path(__file__).resolve().parents[2] / "shared"
+        if str(shared) not in sys.path:
+            sys.path.insert(0, str(shared.parent))
+        try:
+            from skills.shared import archetype_roster  # type: ignore[import-untyped]
+
+            return archetype_roster
+        except ImportError:
+            # Last resort: load the module by file path.
+            import importlib.util
+
+            path = Path(__file__).resolve().parents[2] / "shared" / "archetype_roster.py"
+            spec = importlib.util.spec_from_file_location("archetype_roster", path)
+            if not spec or not spec.loader:
+                raise
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)  # type: ignore[union-attr]
+            return mod
+
+
+def _resolve_review_model_spec(vendor: str) -> tuple[str | None, str | None]:
+    """Resolve reviewer premium ``(model, thinking)`` for *vendor*."""
+    try:
+        roster = _archetype_roster()
+        return roster.resolve_tier_for_provider(vendor, "premium")
+    except Exception as exc:  # noqa: BLE001 — degrade to agents.yaml pins
+        logger.warning("Could not resolve premium tier for %s: %s", vendor, exc)
+        return None, None
+
+
+def _derived_tier_fallbacks(vendor: str) -> list[str]:
+    """Capacity fallbacks from standard then economy tiers."""
+    try:
+        roster = _archetype_roster()
+        out: list[str] = []
+        for tier in ("standard", "economy"):
+            model, _ = roster.resolve_tier_for_provider(vendor, tier)
+            if model and model not in out:
+                out.append(model)
+        return out
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _thinking_cli_flags(vendor: str, thinking: str | None) -> list[str]:
+    try:
+        return list(_archetype_roster().thinking_cli_flags(vendor, thinking))
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _strip_thinking_flags(vendor: str, cmd: list[str]) -> list[str]:
+    """Remove effort/reasoning flags so tier thinking can be re-injected cleanly."""
+    out: list[str] = []
+    skip_next = False
+    i = 0
+    while i < len(cmd):
+        if skip_next:
+            skip_next = False
+            i += 1
+            continue
+        tok = cmd[i]
+        if vendor in {"claude_code", "claude"} and tok == "--effort":
+            skip_next = True
+            i += 1
+            continue
+        if vendor == "grok" and tok in {"--reasoning-effort", "--effort"}:
+            skip_next = True
+            i += 1
+            continue
+        if vendor == "codex" and tok == "-c" and i + 1 < len(cmd) and str(
+            cmd[i + 1]
+        ).startswith("model_reasoning_effort="):
+            skip_next = True
+            i += 1
+            continue
+        out.append(tok)
+        i += 1
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Canonical review-findings schema access (single source of truth). Imported
 # lazily so the dispatcher still imports in environments that vendor only this
 # file, and located by file path when the scripts dir is not on sys.path.
@@ -398,6 +490,7 @@ class CliVendorAdapter:
         mode: str,
         prompt: str,
         model: str | None = None,
+        thinking: str | None = None,
     ) -> list[str]:
         """Build subprocess command from config.
 
@@ -406,9 +499,18 @@ class CliVendorAdapter:
         When ``cli_config.prompt_via_flag`` is set, the prompt is attached as
         the value of that flag (e.g. ``--prompt <prompt>``) and is neither a
         trailing positional nor sent via stdin.
+
+        ``thinking`` is translated to vendor CLI flags from the authored
+        tier map (archetypes.yaml), not from hard-coded agents.yaml args.
         """
         mode_config = self.cli_config.dispatch_modes[mode]
         cmd = [self.cli_config.command, *self._resolve_args(mode_config.args)]
+        # Drop any stale effort flags left in agents.yaml; tier thinking wins.
+        cmd = _strip_thinking_flags(self.vendor, cmd)
+        thinking_flags = _thinking_cli_flags(self.vendor, thinking)
+        if thinking_flags:
+            # Insert after the binary so mode flags still lead.
+            cmd[1:1] = thinking_flags
         effective_model = model or self.cli_config.model
         if effective_model:
             cmd.extend([self.cli_config.model_flag, effective_model])
@@ -425,6 +527,7 @@ class CliVendorAdapter:
         cwd: Path,
         timeout_seconds: int = 300,
         archetype_model: str | None = None,
+        thinking: str | None = None,
         repair_attempted: bool = False,
     ) -> ReviewResult:
         """Dispatch a review with model fallback on capacity errors.
@@ -436,10 +539,19 @@ class CliVendorAdapter:
             archetype_model: Optional model override from archetype resolution.
                 When provided, overrides the agent's default primary model
                 but reuses the existing fallback chain (design decision D4).
+            thinking: Optional thinking/effort level from the tier map; when
+                omitted, resolved from archetypes.yaml premium for this vendor.
         """
-        primary = archetype_model or self.cli_config.model
+        resolved_model, resolved_thinking = _resolve_review_model_spec(self.vendor)
+        primary = archetype_model or self.cli_config.model or resolved_model
+        effective_thinking = thinking if thinking is not None else resolved_thinking
         models_to_try: list[str | None] = [primary]
-        models_to_try.extend(self.cli_config.model_fallbacks)
+        # Prefer authored standard/economy tiers as capacity fallbacks when
+        # agents.yaml does not declare an explicit chain.
+        fallbacks = list(self.cli_config.model_fallbacks)
+        if not fallbacks:
+            fallbacks = _derived_tier_fallbacks(self.vendor)
+        models_to_try.extend(fallbacks)
 
         models_attempted: list[str] = []
         last_error = ""
@@ -451,7 +563,9 @@ class CliVendorAdapter:
             models_attempted.append(model_name)
 
             try:
-                cmd = self.build_command(mode, prompt, model)
+                cmd = self.build_command(
+                    mode, prompt, model, thinking=effective_thinking
+                )
             except SchemaInjectionError as exc:
                 # Fail this vendor, not the whole panel: the other vendors'
                 # dispatches are independent and a partial panel beats none.
@@ -828,9 +942,14 @@ class CliVendorAdapter:
                 error="Mode is not configured for async dispatch",
             )
 
-        # Model fallback: try primary, then each fallback on capacity errors
-        models_to_try: list[str | None] = [self.cli_config.model]
-        models_to_try.extend(self.cli_config.model_fallbacks)
+        # Model fallback: prefer archetype premium, then agents.yaml, then tiers.
+        resolved_model, resolved_thinking = _resolve_review_model_spec(self.vendor)
+        primary = self.cli_config.model or resolved_model
+        models_to_try: list[str | None] = [primary]
+        fallbacks = list(self.cli_config.model_fallbacks) or _derived_tier_fallbacks(
+            self.vendor
+        )
+        models_to_try.extend(fallbacks)
 
         models_attempted: list[str] = []
 
@@ -839,7 +958,9 @@ class CliVendorAdapter:
             models_attempted.append(model_name)
 
             try:
-                cmd = self.build_command(mode, prompt, model)
+                cmd = self.build_command(
+                    mode, prompt, model, thinking=resolved_thinking
+                )
             except SchemaInjectionError as exc:
                 # Same posture as the sync path: fail this vendor loudly rather
                 # than submitting a schema-less async task whose result would

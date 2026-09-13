@@ -82,26 +82,50 @@ _WORKTREE_PHASES: set[str] = {
 # Crash-recovery cap (D8).
 _MAX_ATTEMPTS = 3
 
-# Per-phase signal keys to lift from state_dict for the coordinator's
-# resolve_archetype_for_phase endpoint (design D12). Mirrors the `signals`
-# field in agent-coordinator/archetypes.yaml -> phase_mapping. Keep this
-# list synchronized with that YAML when phase semantics change.
-_PHASE_SIGNAL_KEYS: dict[str, list[str]] = {
-    "INIT":         [],
-    "GATEKEEPER":   ["gate_signals"],
-    "PLAN":         ["capabilities_touched"],
-    "PLAN_ITERATE": ["capabilities_touched", "iteration_count"],
-    "PLAN_REVIEW":  ["proposal_loc", "capabilities_touched"],
-    "PLAN_FIX":     ["findings_severity", "findings_count"],
-    "IMPLEMENT":    ["loc_estimate", "write_allow", "dependencies", "complexity"],
-    "IMPL_ITERATE": ["iteration_count", "write_allow"],
-    "IMPL_REVIEW":  ["files_changed", "lines_changed"],
-    "IMPL_FIX":     ["findings_severity", "findings_count"],
-    "VALIDATE":     ["test_count", "suite_duration"],
-    "VAL_REVIEW":   ["findings_severity"],
-    "VAL_FIX":      ["findings_severity"],
-    "SUBMIT_PR":    [],
-}
+# Per-phase signal keys for resolve_archetype_for_phase (design D12).
+# Authored only in archetypes.yaml::phase_mapping; loaded below.
+def _load_phase_signal_keys() -> dict[str, list[str]]:
+    """Derive phase→signal keys from archetypes.yaml (sole authored map)."""
+    fallback = {
+        "INIT": [],
+        "GATEKEEPER": ["gate_signals"],
+        "PLAN": ["capabilities_touched"],
+        "PLAN_ITERATE": ["capabilities_touched", "iteration_count"],
+        "PLAN_REVIEW": ["proposal_loc", "capabilities_touched"],
+        "PLAN_FIX": ["findings_severity", "findings_count"],
+        "IMPLEMENT": [
+            "loc_estimate",
+            "write_allow",
+            "dependencies",
+            "complexity",
+        ],
+        "IMPL_ITERATE": ["iteration_count", "write_allow"],
+        "IMPL_REVIEW": ["files_changed", "lines_changed"],
+        "IMPL_FIX": ["findings_severity", "findings_count"],
+        "VALIDATE": ["test_count", "suite_duration"],
+        "VAL_REVIEW": ["findings_severity"],
+        "VAL_FIX": ["findings_severity"],
+        "SUBMIT_PR": [],
+    }
+    try:
+        import importlib.util
+        from pathlib import Path
+
+        shared = Path(__file__).resolve().parents[2] / "shared" / "archetype_roster.py"
+        spec = importlib.util.spec_from_file_location("archetype_roster", shared)
+        if not spec or not spec.loader:
+            return fallback
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)  # type: ignore[union-attr]
+        keys = mod.phase_signal_keys()
+        return keys if keys else fallback
+    except Exception:
+        return fallback
+
+
+# Loaded once at import from archetypes.yaml::phase_mapping.*.signals.
+# Do not hand-edit — change the YAML.
+_PHASE_SIGNAL_KEYS: dict[str, list[str]] = _load_phase_signal_keys()
 
 # Operator override env var (D8): "PHASE=model[,PHASE=model]*". Forces a
 # specific model for the named phase; sets options["model"] only — the
