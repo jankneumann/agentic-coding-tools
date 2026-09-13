@@ -57,6 +57,13 @@ broke the implementation and confirmed the pinning test actually fails
   `False` (routes every id, including `range:`-prefixed ones, to
   `openspec/changes/`). Result: 15 tests failed across the two files. Test
   is discriminating. Reverted; suite back to green (253 passed, 1 skipped).
+  **Qualification added after validation review:** that mutation proves the
+  *suite* discriminates, not that every case in it does. The CLI case,
+  `test_cli_exit_code_and_no_range_directory_under_changes`, asserted only
+  `exit_code == 0` and the absence of a `range:` directory — both of which
+  hold for a run that did nothing, since `_cli()` returns 0 whatever happens.
+  It now also asserts the run produced exactly one run directory containing
+  both halves of the pair. Before that change this one case was nominal.
 
 - **Scenario 13 (change-id audit unaffected by range-form destination) —
   real.** Pinned by
