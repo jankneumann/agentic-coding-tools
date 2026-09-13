@@ -66,3 +66,25 @@ The supervisor-roadmap failure investigation identified three review-pipeline gu
 
 ### Context
 Validated the non-deployable review-convergence guardrails through three authorized vendor-panel rounds. Required spec, package, test, traceability, and changed-surface lint gates passed; advisory modularity debt is issue #535.
+
+---
+
+## Phase: Cleanup (2026-09-13)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Use rebase merge** — Preserves the reviewed conventional commits and repository policy.
+2. **Mark staged rollout not applicable** — The validated surface is non-deployable shared skill infrastructure; there is no traffic gate, service, dashboard, or runtime canary.
+
+### Completed Work
+- merge
+- task-accounting
+- archive-preflight
+
+### Next Steps
+- Resume supervisor roadmap ri-12
+
+### Context
+PR #536 merged with the repository rebase strategy after all required GitHub checks passed. All tasks were complete; the non-deployable change requires no traffic rollout and is being archived with its spec delta.
+
