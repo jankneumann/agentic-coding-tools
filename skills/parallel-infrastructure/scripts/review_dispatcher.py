@@ -29,7 +29,7 @@ import shutil
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import partial
@@ -114,10 +114,18 @@ def _validate_findings_or_error(
 
 
 _PLACEHOLDER_ONLY_PATTERNS = (
-    re.compile(r"^placeholder(?:\s+(?:while|pending|until)\b.*)?[.!]?$", re.IGNORECASE),
+    re.compile(
+        r"^placeholder(?:"
+        r"\s+while\s+(?:the\s+)?(?:review|analysis)\s+(?:runs|is\s+running)"
+        r"|\s+pending(?:\s+(?:plan|implementation|artifact)"
+        r"(?:\s+artifact)?\s+review)?"
+        r"|\s+until\s+(?:the\s+)?(?:review|analysis)\s+(?:runs|completes?)"
+        r")?[.!]?$",
+        re.IGNORECASE,
+    ),
     re.compile(
         r"^(?:review|analysis)(?:\s+is)?\s+"
-        r"(?:pending|in[ -]progress|running)(?:\b.*)?[.!]?$",
+        r"(?:pending|in[ -]progress|running)[.!]?$",
         re.IGNORECASE,
     ),
 )
@@ -535,6 +543,8 @@ class CliVendorAdapter:
                     if ingested.success or ingested.error_class in (
                         ErrorClass.AUTH, ErrorClass.UNAVAILABLE,
                     ):
+                        return ingested
+                    if ingested.error == "non_substantive_placeholder":
                         return ingested
                     if ingested.error_class == ErrorClass.CAPACITY:
                         last_error = ingested.error or ""
@@ -1061,21 +1071,15 @@ class CliVendorAdapter:
                 )
 
             if success_re.search(combined):
-                # Task completed — try to extract findings from output, then
-                # validate against the canonical review-findings schema.
-                findings = self._parse_findings(result.stdout)
-                parse_error = (
-                    None if findings else "Task completed but no findings JSON in output"
+                ingested = self._ingest_stdout(
+                    result.stdout,
+                    result.stderr,
+                    elapsed=time.monotonic() - start,
+                    model_name="(async)",
+                    models_attempted=[],
                 )
-                findings, schema_error = _validate_findings_or_error(findings)
-                return ReviewResult(
-                    vendor=self.vendor,
-                    success=findings is not None,
-                    findings=findings,
-                    elapsed_seconds=time.monotonic() - start,
-                    error=schema_error or parse_error,
-                    task_id=task_id,
-                )
+                ingested.task_id = task_id
+                return ingested
 
             # Still running — wait and retry
             time.sleep(poll_config.interval_seconds)
@@ -1168,6 +1172,18 @@ class SdkVendorAdapter:
                 )
                 parse_error = None if findings else "Invalid JSON in SDK response"
                 findings, schema_error = _validate_findings_or_error(findings)
+                if (
+                    findings is not None
+                    and _is_placeholder_only_response(findings, json.dumps(findings))
+                ):
+                    return ReviewResult(
+                        vendor=self.vendor,
+                        success=False,
+                        model_used=model,
+                        models_attempted=models_attempted,
+                        elapsed_seconds=time.monotonic() - dispatch_start,
+                        error="non_substantive_placeholder",
+                    )
                 return ReviewResult(
                     vendor=self.vendor,
                     success=findings is not None,
@@ -2218,21 +2234,30 @@ class ReviewOrchestrator:
             }
 
             submitted: list[tuple[dict[str, Any], ReviewResult]] = []
-            for fut in as_completed({**submit_futs, **sync_futs}):
-                if fut in sync_futs:
-                    _collect(sync_futs[fut], fut.result())
-                    continue
-                job = submit_futs[fut]
-                submit_result = fut.result()
-                mode_config = job["mode_config"]
-                if (
-                    submit_result.success
-                    and submit_result.task_id
-                    and mode_config.poll
-                ):
-                    submitted.append((job, submit_result))
-                else:
-                    _collect(job["index"], submit_result)
+            pending_submits = set(submit_futs)
+            pending_sync = set(sync_futs)
+            while pending_submits:
+                done, _pending = wait(
+                    pending_submits | pending_sync,
+                    return_when=FIRST_COMPLETED,
+                )
+                for fut in done:
+                    if fut in pending_sync:
+                        pending_sync.remove(fut)
+                        _collect(sync_futs[fut], fut.result())
+                        continue
+                    pending_submits.remove(fut)
+                    job = submit_futs[fut]
+                    submit_result = fut.result()
+                    mode_config = job["mode_config"]
+                    if (
+                        submit_result.success
+                        and submit_result.task_id
+                        and mode_config.poll
+                    ):
+                        submitted.append((job, submit_result))
+                    else:
+                        _collect(job["index"], submit_result)
 
             poll_futs: dict[Any, dict[str, Any]] = {}
             for job, submit_result in submitted:
@@ -2263,9 +2288,12 @@ class ReviewOrchestrator:
                     ),
                 )] = job
 
-            for fut in as_completed(poll_futs):
+            for fut in as_completed(pending_sync | set(poll_futs)):
                 result = fut.result()
-                _collect(poll_futs[fut]["index"], result)
+                if fut in sync_futs:
+                    _collect(sync_futs[fut], result)
+                else:
+                    _collect(poll_futs[fut]["index"], result)
 
         return [collected[i] for i in sorted(collected)]
 

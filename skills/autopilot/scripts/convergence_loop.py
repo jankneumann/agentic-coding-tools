@@ -593,7 +593,8 @@ def converge(
             convergence logic — the next review round will surface them.
         escalation_callback: Called with a structured escalation summary when
             the loop exits without converging (reason is "max_rounds" or
-            "stalled"). Disagreement is parked, not a loop abort.
+            "stalled") or requires adjudication. Disagreement is parked, not
+            a loop abort.
         blocking_criticalities: Set of criticality levels that count as
             blocking. Defaults to ``{"medium", "high", "critical"}``.
         stall_window: Number of data points for stall detection.
