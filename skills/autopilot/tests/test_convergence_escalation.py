@@ -198,6 +198,7 @@ class TestEscalationOnMaxRounds:
                 orchestrator=ctx["orchestrator"],
                 max_rounds=2,
                 escalation_callback=escalation_cb,
+                fix_callback=MagicMock(),
             )
 
         assert result.converged is False
@@ -763,6 +764,7 @@ class TestBackwardCompatibility:
                 orchestrator=ctx["orchestrator"],
                 max_rounds=2,
                 # No escalation_callback
+                fix_callback=MagicMock(),
             )
 
         assert result.converged is False

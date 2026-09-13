@@ -345,6 +345,7 @@ class TestMetricsOnNonConvergence:
                 orchestrator=ctx["orchestrator"],
                 max_rounds=2,
                 memory_callback=memory_cb,
+                fix_callback=MagicMock(),
             )
 
         assert result.converged is False

@@ -335,6 +335,7 @@ class TestStallNotTriggeredWhenDecreasing:
                 worktree_path=tmp_path,
                 orchestrator=ctx["orchestrator"],
                 max_rounds=5,
+                fix_callback=MagicMock(),
             )
 
         assert result.converged is True
