@@ -53,13 +53,6 @@ packages:
     context_impact:
       surfaces:
         - "apis"
-      rationale:
-        capabilities:
-          reason: "Schemas only; spec delta is owned by wp-packet."
-          approved_by: "plan-feature"
-        documentation:
-          reason: "No user-facing docs in this package."
-          approved_by: "plan-feature"
     worktree:
       name: wp-contracts
       mode: isolated
@@ -208,10 +201,6 @@ packages:
       surfaces:
         - "documentation"
         - "apis"
-      rationale:
-        capabilities:
-          reason: "agents.yaml wiring only; spec delta already in wp-packet."
-          approved_by: "plan-feature"
     worktree:
       name: wp-structured
       mode: isolated
@@ -257,13 +246,6 @@ packages:
     context_impact:
       surfaces:
         - "semantic_code"
-      rationale:
-        capabilities:
-          reason: "Tests only."
-          approved_by: "plan-feature"
-        documentation:
-          reason: "No docs in this package."
-          approved_by: "plan-feature"
     worktree:
       name: wp-integration
       mode: isolated
