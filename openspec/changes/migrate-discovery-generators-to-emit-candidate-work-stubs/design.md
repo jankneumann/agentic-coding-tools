@@ -29,10 +29,10 @@ preserves the prior file; successful empty discovery writes an empty array.
 ### D3 — Producer mappings are deterministic and conservative
 
 - Bug-scrub maps one promoted finding to one stub. Finding ID and report path become
-  provenance; severity maps to the shared priority scale; effort uses an exhaustive
-  category/severity table; the slug uses a valid `update-` prefix.
+  provenance; severity maps to the shared priority scale; effort uses the exhaustive
+  category-only table below; the slug uses a valid `update-` prefix.
 - Improve-harness maps one ranked capability gap to one stub. Source entry IDs become
-  finding IDs, criticality maps to the shared priority scale, source rank is retained
+  finding IDs, `max_severity` maps to the shared priority scale, source rank is retained
   as a bounded tag, and the previous markdown proposal helper/flag remains as a
   compatibility wrapper for one migration window.
 - Explore-feature maps only untracked shortlist items. Existing/scaffolded entries
@@ -60,11 +60,12 @@ optional.
 array, ranks stubs with stable tie-breakers, and can render them alongside active
 proposals without pretending a stub is already scaffolded. Every adapter emits a
 shared five-band priority estimate: critical/immediate=1, high=2, medium/normal=3,
-low=4, and informational/backlog=5. Bug-scrub severity and improve-harness maximum
-severity map directly to those bands. Explore-feature maps its reproducible weighted
-score rather than shortlist position: score >=2.75 maps to 2, >=2.00 to 3, >=1.50 to
-4, and lower scores to 5; priority 1 remains reserved for explicit critical or
-immediate evidence. Source-local rank is retained only as provenance and never
+low=4, and informational/backlog=5. Bug-scrub severity and improve-harness `max_severity` map directly to those bands.
+Explore-feature reuses its documented formula `impact*0.4 + strategic_fit*0.25 +
+(4-effort)*0.2 + (4-risk)*0.15 + focus_match*0.1` with the existing numeric
+mappings, whose closed range is 1.0..3.3. Score >=2.75 maps to 2, >=2.00 to 3,
+>=1.50 to 4, and lower scores to 5. Explore-feature has no critical/immediate source
+field and therefore never emits priority 1. Source-local rank is retained only as provenance and never
 bypasses this common scale. Candidate readiness uses `depends_on`; size uses `effort`;
 provenance supports relevance checks. A mixed batch retains the originating generator
 in output.
@@ -79,9 +80,9 @@ A reusable helper validates one approved stub and maps it to one roadmap item:
 | `description` + provenance summary | `description` |
 | `rationale` | `rationale` |
 | `effort` | `effort` |
-| `priority` | new-roadmap item `priority`; retained in provenance for existing-roadmap intake |
+| `priority` | new-roadmap item `priority`; retained in request rationale for existing-roadmap intake |
 | `suggested_change_id` | `change_id` |
-| `depends_on` | resolved dependency item IDs |
+| `depends_on` | target item IDs, external roadmap item refs, or explicit satisfied-archive rationale |
 
 Measurable `acceptance_outcomes` are required from the approved request; they are
 not invented by the deterministic helper. Unresolved dependencies fail clearly.
@@ -134,13 +135,14 @@ dereference, fetch, or execute provenance URIs.
 ### Candidate ranking
 
 Candidate work is a separate report lane, never an input to the active-proposal score.
-Dependencies resolve by exact change ID within the batch, then roadmap items, then
-archives. In-batch dependencies create graph edges and do not by themselves mark a
+Dependencies resolve by exact change ID within the batch, then roadmap items, active
+OpenSpec changes, and archives. In-batch dependencies create graph edges and do not by themselves mark a
 candidate blocked. Completed external dependencies are satisfied. An active-incomplete
 or unknown external dependency marks its candidate and all transitive in-batch
 dependents blocked. Ranking uses Kahn topological traversal: among zero-indegree nodes,
-choose by `(blocked_tier, priority, effort XS..XL, generator,
-suggested_change_id)`, where ready is tier 0 and blocked is tier 1. This preserves every
+choose by `(blocked_tier, priority, effort XS..XL, generator_key,
+suggested_change_id)`, where ready is tier 0, blocked is tier 1, and
+`generator_key = provenance.generator or ""` for schema-valid hand-authored stubs. This preserves every
 dependency-before-dependent edge while keeping ready components before blocked
 components. Cycles and duplicate suggested IDs fail the lane before scoring.
 
@@ -154,15 +156,21 @@ provenance source and whose sole approved `ri-01` item carries the capability. E
 mode assigns the next free ri-NN and omits priority from the refine add operation so
 refine-roadmap assigns max+1 without collisions. Both modes preserve the candidate
 priority in the request rationale and assign exact change ID, actor, source, and
-rationale. Every dependency must resolve to exactly one item in the target roadmap;
-the mapped item ID is retained without dropping or rewriting it. Archives participate
-in collision detection but cannot satisfy this target-roadmap mapping. Unknown,
-ambiguous, cyclic dependencies and active/archive change-ID collisions fail before
-writes.
+rationale. Dependency change IDs resolve without ambiguity: a target-roadmap item
+becomes its local `ri-NN`; an item in another active roadmap becomes
+`external_depends_on: ["roadmap-id:ri-NN"]`; and a completed archived change is
+recorded as `Satisfied dependency: <change-id> (archived completed)` in the rationale
+with no live dependency edge. Each conversion is explicit in the preview, so no
+dependency is silently dropped or rewritten. Unknown or ambiguous dependencies and
+active/archive change-ID collisions fail before writes.
 
 New-roadmap mode feeds the existing validate/save/scaffold path with overwrite disabled.
-Existing-roadmap mode emits exactly one refine add operation; the host must run preview
-and apply with its base hash. The helper never writes an active roadmap. Measurable is an
+Existing-roadmap mode emits exactly one refine add operation against a freshly loaded
+workspace. Existing refine-roadmap behavior supplies omitted priority as max+1, rejects
+duplicate explicit `change_id` values already present in roadmap items, and assigns the
+next free item ID in that preview. Apply uses the preview base hash and refuses if the
+roadmap changed, so neither the ID nor priority can go stale. The helper never writes an
+active roadmap. Measurable is an
 operator approval judgment; code validates a non-empty list of nonblank outcomes. ri-13
 must call this helper after ri-12 rather than maintain a second mapping.
 
@@ -173,7 +181,7 @@ must call this helper after ri-12 rather than maintain a second mapping.
 - Invalid mixed batch: fail before ranking; include the offending batch index.
 - Duplicate suggested IDs or a dependency cycle: fail before ranking or persistence.
 - Missing acceptance outcomes: refuse candidate intake.
-- Dependency that cannot be resolved to the target roadmap: refuse and name it.
+- Dependency that cannot be resolved to one local item, one external roadmap item, or a completed archive: refuse and name it.
 - Existing-roadmap mutation without refine-roadmap preview/apply: unsupported.
 
 ## Test strategy

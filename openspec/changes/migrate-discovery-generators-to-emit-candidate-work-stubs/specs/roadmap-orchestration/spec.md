@@ -29,15 +29,21 @@ without hand-editing intermediate artifacts.
 - **THEN** plan-roadmap MUST refuse the request
 - **AND** no roadmap or change scaffold SHALL be written
 
+#### Scenario: Candidate dependencies retain explicit resolution
+
+- **WHEN** a stub dependency resolves to a target-roadmap item, a unique item in another active roadmap, or a completed archived change
+- **THEN** plan-roadmap SHALL map it respectively to the local item ID, the canonical external roadmap item reference, or an explicit satisfied-archive rationale entry
+- **AND** the preview SHALL show that conversion without silently dropping the source change ID
+
 #### Scenario: Candidate dependency cannot be resolved
 
-- **WHEN** a stub dependency cannot be mapped to exactly one item in the target roadmap
+- **WHEN** a stub dependency is unknown, ambiguous, or points to active work without a unique roadmap item
 - **THEN** plan-roadmap MUST fail with the unresolved dependency name
 - **AND** it MUST NOT silently drop or rewrite the dependency
 
 #### Scenario: Approved input is a batch or collides with existing work
 
-- **WHEN** intake receives an array, an active or archived change ID, or an ambiguous dependency
+- **WHEN** intake receives an array, a change ID already present in any roadmap item or active/archive change, or an ambiguous dependency
 - **THEN** plan-roadmap MUST refuse before roadmap or scaffold writes
 - **AND** the error SHALL identify the collision
 
@@ -46,3 +52,4 @@ without hand-editing intermediate artifacts.
 - **WHEN** one approved stub and nonblank outcomes target an existing roadmap
 - **THEN** the request SHALL contain exactly one add operation and the next free item ID
 - **AND** refine-roadmap preview SHALL accept it without direct mutation
+- **AND** apply SHALL refuse a stale preview base if the next item ID or priority changed

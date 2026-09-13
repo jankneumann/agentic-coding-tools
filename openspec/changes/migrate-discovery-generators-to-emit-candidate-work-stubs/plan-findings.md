@@ -67,3 +67,19 @@ Round 3 has zero blocking plan findings, but the required external quorum is onl
 | 7 | infrastructure | high | Three harnesses failed before launch because the copied review history made the packet exceed host argv limits. | Historical runtime artifacts remain on the original failed branch but were removed from this clean recovery branch; the next packet contains only canonical plan artifacts. |
 
 Plan revision 5 passes strict OpenSpec validation, package schema/DAG/scope/overlap validation, and mirror-payload validation.
+
+
+## Recovery Review Round 2 (2026-09-13)
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 1 | correctness | high | Whole-provenance hashing includes rank, report path, and growing source-entry sets, so derived IDs can drift. | **Adjudication required:** choose the immutable per-producer identity basis before the final review round. |
+| 2 | correctness | high | Ranking accepted completed external dependencies that intake could not represent, especially for a new roadmap. | Defined explicit local `depends_on`, cross-roadmap `external_depends_on`, and satisfied-archive rationale mappings. |
+| 3 | correctness | medium | Existing-roadmap replay, duplicate item change IDs, and stale next IDs were not tied to refine-roadmap guards. | Required fresh preview, existing duplicate-change guard, omitted-priority max+1 behavior, and stale-base refusal. |
+| 4 | testability | medium | Revision-5 priority, effort, prefix, blocked-propagation, and missing-generator rules lacked normative scenarios. | Added focused scenarios and task ownership for each behavior. |
+| 5 | correctness | medium | Explore score formula/range and priority-1 behavior were unstated. | Pinned the existing formula and 1.0..3.3 range; explore never emits priority 1. |
+| 6 | correctness | medium | Missing optional generator and active OpenSpec dependency resolution were undefined. | Added the empty-string generator tie key and active-change dependency stage. |
+| 7 | consistency | medium | Priority provenance/rationale and improve severity vocabulary diverged. | Standardized on request rationale and improve `max_severity`; bug effort is category-only. |
+| 8 | infrastructure | high | Antigravity had a flag mismatch, Codex repair remained schema-invalid, and Pi timed out; Claude and Grok supplied substantive 2/5 quorum. | Preserved every terminal result; harness failures did not count as reviews. |
+
+Plan revision 6 resolves every confirmed finding. Final convergence is intentionally paused at `adjudication_required` for the immutable source-identity decision.
