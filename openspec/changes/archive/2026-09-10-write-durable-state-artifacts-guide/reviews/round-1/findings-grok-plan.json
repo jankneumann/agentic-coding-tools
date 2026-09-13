@@ -1,0 +1,128 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Positive observation: The plan inventory matches ri-10's five acceptance classes exactly \u2014 per-change loop-state.json, roadmap checkpoint.json, learnings/<item>.md, phase records, and handoff documents \u2014 as required in roadmap.yaml acceptance_outcomes and restated in specs/skill-workflow/spec.md.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No action required.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 3,
+        "end": 11
+      }
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Positive observation: D2\u2013D3 and the seven-step rehydration algorithm keep authority question-scoped: supervisor/phase handoffs are locator or advisory context only; checkpoint.json and loop-state.json are verified before learnings, phase records, handoffs, or queue projections; missing canonical state degrades rather than being synthesized from advisory data.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action required.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 15,
+        "end": 45
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Positive observation: Exact paths, holders, writers, consumers, and missing/stale behavior are derivable from current runtime sources without inventing contracts \u2014 e.g. openspec/changes/<id>/loop-state.json via autopilot/scripts/runner.py; openspec/roadmaps/<id>/checkpoint.json and learnings/<item>.md via roadmap-runtime checkpoint.py/learning.py; session-log.md plus coordinator/local handoffs via session-log/scripts/phase_record.py; supervise cycle_state._active_changes already fail-loud on missing/malformed loop-state.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No action required.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 29
+      }
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Positive observation: The pinned structural suite at skills/tests/state-artifacts/test_state_artifacts_guide.py can RED on the parent commit (guide and test both absent at 1556d815^) and GREEN via field/order/link/mirror assertions without prose snapshots, matching the established docs structural pattern in skills/tests/docs/test_workflow_docs.py and design D4.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No action required.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "line_range": {
+        "start": 3,
+        "end": 17
+      }
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Positive observation: The single sequential documentation package is coherent \u2014 shared semantic drift boundary across guide, skill links, supervise ordering, tests, and mirrors; explicit write_allow with deny of agent-coordinator runtime; OpenSpec/work-package validation already pass; Non-Goals correctly omit schema/runtime/migration/ADR/security/deploy/browser work for a docs-only surface.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action required.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 26,
+        "end": 79
+      }
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Optional: skills/coordination-bridge/SKILL.md already restates the loop-state-authoritative / queue-is-projection ownership rule that design.md step 7 requires the guide to teach, but coordination-bridge is absent from the proposal Impact allowlist and work-packages write_allow/link set. A grep-style acceptance check for 'skills that previously restated artifact semantics' can miss this source, or the guide and bridge can drift again.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "optional",
+      "resolution": "Either add skills/coordination-bridge/SKILL.md (plus its .agents/.claude mirrors) to the link/mirror allowlist with a thin link to docs/guides/state-artifacts.md, or narrow the skill-workflow links requirement and design Impact text to explicitly carve bridge-local queue-projection prose while requiring the guide to cite that skill for projection details.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/proposal.md",
+      "line_range": {
+        "start": 55,
+        "end": 62
+      }
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: work-packages.yaml locks.files lists only five skill/docs paths but scope.write_allow also mutates skills/implement-feature/SKILL.md and skills/validate-feature/SKILL.md (and their mirrors). With a single package this is not a parallel-write hazard, yet the lock set understates the declared mutation surface for cross-change concurrency.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Add the implement-feature and validate-feature canonical SKILL.md paths to locks.files so the lock set matches write_allow for shared skill docs.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 38,
+        "end": 59
+      }
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "FYI: supervise Phase 1 currently reads openspec/supervise/cycle-ledger.json after handoff rehydrate; that ledger is outside ri-10's five classes. Aligning supervise to the guide order should retain the ledger read as supervise-local operational state so idempotency context is not dropped while authority stays on checkpoint.json/loop-state.json.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi",
+      "resolution": "No plan change required unless the guide's rehydration section wants an explicit 'out of ladder' note for cycle-ledger.json / supervisor-record.json; task 2.3 can keep the ledger read as phase-local procedure.",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 37,
+        "end": 45
+      }
+    }
+  ]
+}

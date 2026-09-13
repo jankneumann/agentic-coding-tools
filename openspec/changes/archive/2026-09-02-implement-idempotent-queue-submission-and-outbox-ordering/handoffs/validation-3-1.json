@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T02:57:32.282306+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Fresh canonical validation at 59fdb05f passed every required phase without overrides. Committed Security hashes and canonical gate were independently audited; fresh deploy, migration apply/retry, live PostgreSQL, smoke, E2E, contracts, traceability, package, and affected suites passed; architecture remains advisory and degraded.",
+    "completed_work": [
+      "security evidence hash/schema/gate audit",
+      "fresh isolated deploy and migration apply/retry",
+      "live PostgreSQL projection, smoke, and HTTP E2E",
+      "OpenAPI, OpenSpec, traceability, package, context, and affected test gates",
+      "exact stack, network, and volume teardown"
+    ],
+    "in_progress": [],
+    "decisions": [],
+    "next_steps": [
+      "Resume autopilot VAL_REVIEW"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+        "description": "Validation-3 evidence"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/change-context.md",
+        "description": "Requirement evidence"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/architecture-impact.md",
+        "description": "Advisory architecture evidence"
+      }
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-10T22:33:19.985536+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "external coordinator intentionally skipped",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Archived ri-16, projected three roadmap-orchestration spec requirements, completed the roadmap checkpoint, and repaired the resumed-generation journal invariant with regression coverage.",
+    "completed_work": [
+      "archive",
+      "spec-delta merge",
+      "decision-index refresh",
+      "roadmap checkpoint",
+      "learning entry",
+      "resume-journal regression fix",
+      "cleanup gate invocation fix"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Complete ri-16 through the supervised dispatch state machine",
+        "rationale": "The generation-2 success result is bound to the exact validated feature head and terminal loop-state evidence.",
+        "capability": "roadmap-orchestration",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "run strict OpenSpec and focused/full tests",
+      "commit and push the integration checkpoint",
+      "dispatch ri-13"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/supervise/scripts/execution.py",
+        "description": "clears stale journal on resume"
+      },
+      {
+        "path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+        "description": "legacy resumed-state compatibility"
+      },
+      {
+        "path": "openspec/roadmaps/roadmap-supervisor-orchestration/checkpoint.json",
+        "description": "ri-16 terminal execution record"
+      }
+    ]
+  }
+}

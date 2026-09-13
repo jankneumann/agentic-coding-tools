@@ -1,0 +1,11 @@
+{
+  "schema_version":1,"review_type":"implementation","target":"whole-branch",
+  "reviewers":[{"vendor":"codex","agent_id":"codex-primary","success":true,"findings_count":3,"elapsed_seconds":0.0,"error":null},{"vendor":"antigravity","agent_id":"antigravity-local","success":false,"findings_count":0,"elapsed_seconds":90.0,"error":"Interrupted at hard cap; no artifact produced."}],
+  "quorum_met":false,"quorum_requested":2,"quorum_received":1,
+  "consensus_findings":[
+    {"id":1,"status":"unconfirmed","primary_vendor":"codex","primary_finding_id":1,"matched_findings":[],"match_score":0.0,"agreed_type":"contract_mismatch","agreed_axis":"compatibility","agreed_criticality":"high","recommended_disposition":"fix","description":"Critical: request models accept undeclared fields contrary to additionalProperties=false."},
+    {"id":2,"status":"unconfirmed","primary_vendor":"codex","primary_finding_id":2,"matched_findings":[],"match_score":0.0,"agreed_type":"contract_mismatch","agreed_axis":"correctness","agreed_criticality":"high","recommended_disposition":"fix","description":"Critical: malformed dependency UUIDs can raise instead of returning 422 Problem."},
+    {"id":3,"status":"unconfirmed","primary_vendor":"codex","primary_finding_id":3,"matched_findings":[],"match_score":0.0,"agreed_type":"contract_mismatch","agreed_axis":"resilience","agreed_criticality":"high","recommended_disposition":"fix","description":"Critical: service denials can serialize as undeclared HTTP 200 failures."}
+  ],
+  "summary":{"total_unique_findings":3,"confirmed_count":0,"unconfirmed_count":3,"disagreement_count":0,"blocking_count":3}
+}

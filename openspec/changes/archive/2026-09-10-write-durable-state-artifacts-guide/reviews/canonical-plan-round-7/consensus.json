@@ -1,0 +1,371 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "write-durable-state-artifacts-guide",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 11,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "disagreement",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "escalate",
+      "description": "Task 3.2 and design.md D4 require resolving the change directory with `change_dir(ROOT, CHANGE_ID)` from `openspec_paths`, and the package's first verification step runs `skills/.venv/bin/python -m pytest skills/tests/state-artifacts skills/tests/openspec_paths -q`. Neither the module nor the test directory exists. `git ls-files | grep -i openspec_paths` returns nothing, a repository-wide content grep matches only this change's own plan documents (design.md:29, tasks.md:67, plan-findings.md:63, work-packages.yaml:111, and the round-7 review artifacts), the only `def change_dir` in the tree is an unrelated pytest fixture at skills/tests/autopilot/test_inline_fallback.py:34, and `ls skills/tests/` shows no `openspec_paths` entry. No task creates the module or the directory. pytest given a nonexistent path exits with a usage error rather than a test failure, so the declared Tier-B gate fails before running anything, and the implementer is told to import a symbol from a module that has no defined home.",
+      "vendor_dispositions": {
+        "claude_code": "fix",
+        "grok": "accept"
+      }
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Even if the `openspec_paths` helper from finding 1 is created, the package cannot write it. `scope.write_allow` (work-packages.yaml:59-83) permits only the three docs files, `skills/pyproject.toml`, the six canonical `SKILL.md` sources, `skills/tests/state-artifacts/**`, the twelve mirror files, and `openspec/changes/write-durable-state-artifacts-guide/**`. A shared helper at `skills/shared/openspec_paths.py` and a test directory at `skills/tests/openspec_paths/` both fall outside that allowlist, so task 3.2 as written cannot be completed without failing the scope check that the same task list mandates in 3.3. The package also declares `task_type: documentation` and `metadata.package_kind: config`, which a new shared Python module strains."
+    },
+    {
+      "id": 3,
+      "status": "disagreement",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 3
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "escalate",
+      "description": "Task 3.2 explicitly requires repairing the archive-unsafe literal change path in test_state_artifacts_guide.py (line 83) using change_dir(ROOT, CHANGE_ID) from openspec_paths, ensuring tests remain stable after change archival.",
+      "vendor_dispositions": {
+        "antigravity": "accept",
+        "claude_code": "fix",
+        "grok": "accept"
+      }
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Task 3.3 and work-packages.yaml verification steps include both the OpenSpec path-stability test suite (skills/tests/openspec_paths) and the repository-standard context-impact validator with --base main."
+    },
+    {
+      "id": 5,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The declared context_impact.surfaces in work-packages.yaml includes 'capabilities' alongside 'documentation', 'decisions', and 'semantic_code', accurately matching the change's impact on skill-workflow capability."
+    },
+    {
+      "id": 6,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 8
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The exact eight-stage shared rehydration algorithm (bootstrap locator, roadmap definition, roadmap execution state, change execution state, learning context, phase history, handoff context, rebuild projections) cleanly excludes the supervise-local cycle-ledger.json, which is classified separately as supervise-local operational state."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The recent-learning window in stage 5 of rehydration is specified as bounded and selected by roadmap runtime without freezing a numeric default into the normative documentation contract or claiming a nonexistent configuration surface."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Skill documentation references use portable repository-relative paths ('docs/guides/state-artifacts.md'), and work-packages.yaml includes 'bash skills/install.sh --check' to protect payload portability and mirror sync."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Packaging all tasks into one sequential work package (wp-state-artifacts-docs) is well-justified because the guide, six skill references, generated mirrors, and test module form a single semantic drift boundary."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The context-impact verification step passes `--base main` (work-packages.yaml:138) and plan-findings.md:64 justifies it as checking 'the full branch scope'. main is not this branch's base. `git merge-base main HEAD` is a956fea0 while `git merge-base origin/openspec/roadmap-roadmap-supervisor-orchestration HEAD` is 4f794962, and the two diffs differ sharply: 413 files against main versus 56 against the real roadmap base. The gate still resolves correctly today because `package_files()` in skills/validate-packages/scripts/context_impact.py:260 intersects the diff with `scope.write_allow` before inferring surfaces, and none of the extra 357 roadmap-sibling files that survive that filter imply a surface outside the declared set. The exposure is that roadmap siblings editing the same six `SKILL.md` files or `docs/decisions/skill-workflow.md` are attributed to this package, so the gate's result depends on work this change does not own."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "design.md:59 states that `install.sh --check` validates 'payload portability and the non-escaping repository-relative reference form', and plan-findings.md:67 repeats that `install.sh --check` is explicitly connected to portable reference-form validation. The check runs skills/shared/validate_install_manifest.py, whose reference logic is `_local_markdown_link_errors` (lines 80-107) and matches Markdown link syntax only. All six skills carry the reference as an inline code span, not a link: 'Shared holder, writer, authority, fallback, and rehydration semantics live in `docs/guides/state-artifacts.md`.' That form is never parsed, so the named guard cannot fail for it. The relationship is in fact inverted: the validator rejects a link whose target is not shipped (line 105-106), and `docs/` is outside the skills payload, so converting these to Markdown links would break `--check` rather than be validated by it."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "test_design_rehydration_matches_canonical_order (skills/tests/state-artifacts/test_state_artifacts_guide.py:82-95) asserts the eight-stage order inside this change's own design.md, and task 3.2 preserves that assertion across archival rather than retargeting it. A change's design.md is frozen once archived, so as a permanent CI test it can never detect drift; it only re-verifies a document that no longer changes. The surfaces where the order can actually drift are the guide, already covered by test_guide_pins_rehydration_order_and_conflict_rules, and the promoted capability spec at openspec/specs/skill-workflow/spec.md, which is where the delta at specs/skill-workflow/spec.md:21 lands on archive and which no test asserts against."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive: the declared context surfaces are complete and each is genuinely implied. work-packages.yaml:91-95 declares documentation, decisions, capabilities, and semantic_code. Checked against openspec/schemas/context-impact-rules.yaml: `capabilities` is implied by the `openspec/changes/*/specs/**` glob matching specs/skill-workflow/spec.md, `documentation` by `docs/**` and `**/*.md`, `decisions` by `docs/decisions/**` matching the regenerated skill-workflow index, and `semantic_code` by `**/*.py` matching the test module. `architecture` is correctly absent because no write_allow path matches `docs/architecture-analysis/**` or `skills/refresh-architecture/**`. The only surplus surface, `apis`, is implied solely by the declared contract file and carries both `reason` and `approved_by`, which is exactly what `_is_approved` (context_impact.py:141-148) requires to resolve the package to `rationalized` rather than `undeclared`."
+    },
+    {
+      "id": 14,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive: the recent-learning window is bounded without freezing a numeric default and without claiming a configuration surface that does not exist. spec.md:21 requires a bounded window while explicitly excluding its numeric bound from the documentation contract, design.md:45 attributes selection to roadmap runtime, and tasks.md:35 forbids freezing the default. That attribution is real: skills/roadmap-runtime/scripts/learning.py:137 exposes `recency_window: int = RECENCY_WINDOW` and skills/roadmap-runtime/scripts/context.py:55 threads `recency_window: int = 3` through context assembly. The round-6 removal of the inaccurate 'runtime-configured' wording recorded at plan-findings.md:65 left a claim that matches the code."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive: guide references are uniformly repository-relative across all six canonical sources. skills/autopilot/SKILL.md:17, skills/autopilot-roadmap/SKILL.md:16, skills/session-log/SKILL.md:15, skills/supervise/SKILL.md:17, skills/implement-feature/SKILL.md:22, and skills/validate-feature/SKILL.md:22 each carry the identical sentence citing `docs/guides/state-artifacts.md` with no `../` escape, matching the requirement at spec.md:46. The documentation index links it relatively at docs/guides/documentation.md:6. The conditional mirror assertion is also consistent rather than evasive: spec.md:54-57 scopes the byte-identity requirement to installed mirrors, and the test skip at test_state_artifacts_guide.py:103-104 matches that scoping for fresh checkouts where the ignored mirrors are absent."
+    },
+    {
+      "id": 16,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 11,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 7
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive: the single sequential documentation package remains justified and is not an unexamined default. The work spans one new guide, six shared SKILL.md files, twelve generated mirrors, the documentation index, the regenerated decision index, and one test module, all of which form a single semantic drift boundary as argued at design.md:52 and re-affirmed at plan-findings.md:58. Splitting it would put concurrent writers on the same six files. `locks.files` (work-packages.yaml:43-52) covers all ten canonical write targets including the two paths added after the round-1 lock-surface nit and the generated decision index added during scope reconciliation, `depends_on` is empty and consistent with a single package, and `scope.deny` blocks agent-coordinator source, database, and apps trees rather than relying on write_allow alone."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The plan now explicitly records the archive-stability repair as unchecked task 3.2, requires change_dir(ROOT, CHANGE_ID) from openspec_paths, and makes the path-stability guard part of task 3.3 and package verification."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The package uses the standard --base main context-impact gate, declares documentation, decisions, capabilities, and semantic_code, and rationalizes only the schema-required no-contract API stub."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The shared eight-stage contract now excludes the supervise-local cycle ledger, and the bounded learning window remains an implementation-owned runtime choice without a normative numeric default."
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Portable repository-relative reference wording is consistent across the plan, with install.sh --check explicitly retained as the payload and non-escaping reference-form gate."
+    },
+    {
+      "id": 21,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Guide references are repository-relative and install payload portability is gated. The delta requires the bare repository-relative `docs/guides/state-artifacts.md` reference in the six named skill sources; design D1 and the Risks mitigation tie `skills/install.sh --check` to payload portability and the non-escaping reference form; work-packages.yaml and task 3.3 both run that check."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 21,
+    "confirmed_count": 4,
+    "unconfirmed_count": 15,
+    "disagreement_count": 2,
+    "blocking_count": 2
+  }
+}

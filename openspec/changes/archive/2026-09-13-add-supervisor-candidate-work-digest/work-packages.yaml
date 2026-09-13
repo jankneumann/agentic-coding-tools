@@ -1,0 +1,250 @@
+schema_version: 1
+
+feature:
+  id: add-supervisor-candidate-work-digest
+  title: "Add supervisor candidate-work digest"
+  plan_revision: 5
+  created_by: plan-feature
+  deployable: false
+
+contracts:
+  revision: 5
+  openapi:
+    primary: "openspec/changes/add-supervisor-candidate-work-digest/contracts/README.md"
+    files:
+      - "openspec/changes/add-supervisor-candidate-work-digest/contracts/README.md"
+      - "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/rubric-score.schema.json"
+      - "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/digest.schema.json"
+      - "openspec/schemas/supervisor-record.schema.json"
+      - "openspec/schemas/supervisor-record-mirror.schema.json"
+
+defaults:
+  priority: 10
+  lock_ttl_minutes: 90
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-contracts
+    title: "Digest, rubric, and supervisor-record contracts"
+    task_type: contracts
+    description: "Phase 0 tasks 0.1-0.2: freeze stable runtime schemas and decision metadata."
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/rubric-score.schema.json"
+        - "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/digest.schema.json"
+        - "openspec/schemas/supervise-rubric-score.schema.json"
+        - "openspec/schemas/supervise-digest.schema.json"
+        - "openspec/schemas/supervisor-record.schema.json"
+        - "openspec/schemas/supervisor-record-mirror.schema.json"
+      keys: ["feature:add-supervisor-candidate-work-digest:contracts"]
+      ttl_minutes: 60
+      reason: "Freeze all runtime and persistence contracts"
+    scope:
+      write_allow:
+        - "openspec/changes/add-supervisor-candidate-work-digest/contracts/**"
+        - "openspec/schemas/supervise-rubric-score.schema.json"
+        - "openspec/schemas/supervise-digest.schema.json"
+        - "openspec/schemas/supervisor-record.schema.json"
+        - "openspec/schemas/supervisor-record-mirror.schema.json"
+        - "skills/tests/supervise/fixtures/digest/**"
+        - "skills/tests/supervise/test_digest_schemas.py"
+        - "skills/tests/supervise/test_supervisor_record_schema.py"
+      read_allow: ["**"]
+      deny: ["**/.venv/**"]
+    context_impact:
+      surfaces: ["capabilities", "apis", "documentation", "semantic_code"]
+    worktree: {name: contracts, mode: shared}
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Contract tests pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_digest_schemas.py skills/tests/supervise/test_supervisor_record_schema.py -q"
+          evidence: {artifacts: [], result_keys: ["contract_suite"]}
+    metadata: {loc_estimate: 100, complexity: low, package_kind: data_model}
+    outputs: {result_keys: ["contract_suite"]}
+
+  - package_id: wp-digest-module
+    title: "Digest runtime, state integration, and routing"
+    task_type: implementation
+    description: "Phase 1 tasks 1.1-1.10: store, prepare-batch, transactional rank, routing, decision merge, and fingerprint exclusions."
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    locks:
+      files:
+        - "skills/supervise/scripts/digest.py"
+        - "skills/supervise/scripts/cycle_state.py"
+      keys: ["feature:add-supervisor-candidate-work-digest:module"]
+      ttl_minutes: 150
+      reason: "Digest runtime and narrow cycle-state integration"
+    scope:
+      write_allow:
+        - "skills/supervise/scripts/digest.py"
+        - "skills/supervise/scripts/cycle_state.py"
+        - "skills/tests/supervise/test_digest.py"
+        - "skills/tests/supervise/test_digest_routing.py"
+        - "skills/tests/supervise/test_digest_evidence.py"
+        - "skills/tests/supervise/test_supervisor_record.py"
+      read_allow: ["**"]
+      deny:
+        - "**/.venv/**"
+        - "skills/supervise/SKILL.md"
+        - "skills/refine-roadmap/**"
+        - "openspec/roadmaps/**"
+    context_impact:
+      surfaces: ["semantic_code", "architecture"]
+    worktree: {name: digest-module, mode: isolated}
+    timeout_minutes: 180
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Digest and supervisor-record suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_digest.py skills/tests/supervise/test_digest_routing.py skills/tests/supervise/test_digest_evidence.py skills/tests/supervise/test_supervisor_record.py -q"
+          evidence: {artifacts: [], result_keys: ["digest_suite"]}
+        - name: "Host-assisted invariant passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_cycle_state.py -k HostAssistedInvariant -q"
+          evidence: {artifacts: [], result_keys: ["host_assisted"]}
+        - name: "Runtime is ruff-clean"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/supervise/scripts/digest.py skills/supervise/scripts/cycle_state.py"
+          evidence: {artifacts: [], result_keys: ["ruff_clean"]}
+    metadata: {loc_estimate: 700, complexity: medium, package_kind: algorithm}
+    outputs: {result_keys: ["digest_suite", "host_assisted", "ruff_clean"]}
+
+  - package_id: wp-rubric-prompt
+    title: "Bounded analyst rubric prompt"
+    task_type: implementation
+    description: "Phase 2 tasks 2.1-2.2: schema-bound prompt and untrusted-evidence framing."
+    role: implementer
+    priority: 2
+    depends_on: ["wp-contracts"]
+    locks:
+      files: ["skills/supervise/templates/rubric-prompt.md"]
+      keys: ["feature:add-supervisor-candidate-work-digest:prompt"]
+      ttl_minutes: 60
+      reason: "Rubric prompt contract"
+    scope:
+      write_allow:
+        - "skills/supervise/templates/rubric-prompt.md"
+        - "skills/tests/supervise/test_rubric_prompt.py"
+      read_allow: ["**"]
+      deny: ["**/.venv/**", "skills/supervise/scripts/**"]
+    context_impact:
+      surfaces: ["documentation", "architecture", "semantic_code"]
+    worktree: {name: rubric-prompt, mode: isolated}
+    timeout_minutes: 60
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: C
+      steps:
+        - name: "Prompt contract passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_rubric_prompt.py -q"
+          evidence: {artifacts: [], result_keys: ["prompt_suite"]}
+    metadata: {loc_estimate: 100, complexity: low, package_kind: config}
+    outputs: {result_keys: ["prompt_suite"]}
+
+  - package_id: wp-skill-docs
+    title: "Compose candidate digest into supervise workflow"
+    task_type: documentation
+    description: "Phase 3 tasks 3.1-3.4: CYCLE/INTAKE wiring, regressions, and mirror synchronization."
+    role: implementer
+    priority: 3
+    depends_on: ["wp-digest-module", "wp-rubric-prompt"]
+    locks:
+      files: ["skills/supervise/SKILL.md"]
+      keys: ["feature:add-supervisor-candidate-work-digest:docs"]
+      ttl_minutes: 60
+      reason: "Supervise workflow contract and mirrors"
+    scope:
+      write_allow:
+        - "skills/supervise/SKILL.md"
+        - "skills/tests/supervise/test_cycle_state.py"
+        - "skills/tests/supervise/test_workflow_contract.py"
+        - ".claude/skills/supervise/SKILL.md"
+        - ".agents/skills/supervise/SKILL.md"
+        - ".claude/skills/supervise/scripts/digest.py"
+        - ".agents/skills/supervise/scripts/digest.py"
+        - ".claude/skills/supervise/scripts/cycle_state.py"
+        - ".agents/skills/supervise/scripts/cycle_state.py"
+        - ".claude/skills/supervise/templates/rubric-prompt.md"
+        - ".agents/skills/supervise/templates/rubric-prompt.md"
+      read_allow: ["**"]
+      deny: ["**/.venv/**", "skills/**/scripts/**"]
+    context_impact:
+      surfaces: ["documentation", "semantic_code"]
+    worktree: {name: skill-docs, mode: shared}
+    timeout_minutes: 75
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Workflow contract passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/supervise/test_cycle_state.py skills/tests/supervise/test_workflow_contract.py -q"
+          evidence: {artifacts: [], result_keys: ["workflow_contract"]}
+        - name: "Mirrors are synchronized"
+          kind: command
+          command: "bash skills/install.sh --check"
+          evidence: {artifacts: [], result_keys: ["mirrors_synced"]}
+    metadata: {loc_estimate: 180, complexity: low, package_kind: config}
+    outputs: {result_keys: ["workflow_contract", "mirrors_synced"]}
+
+  - package_id: wp-integration
+    title: "Two-cycle and approval-transaction integration"
+    task_type: integration
+    description: "Phase 4 tasks 4.1-4.2: full suites, two-cycle cache/lifecycle proof, real refiner transaction, and workflow records."
+    role: integrator
+    priority: 4
+    depends_on: ["wp-skill-docs"]
+    locks:
+      files: []
+      keys: ["feature:add-supervisor-candidate-work-digest:integration"]
+      ttl_minutes: 90
+      reason: "Integration and verification"
+    scope:
+      write_allow:
+        - "openspec/changes/add-supervisor-candidate-work-digest/tasks.md"
+        - "openspec/changes/add-supervisor-candidate-work-digest/session-log.md"
+        - "openspec/changes/add-supervisor-candidate-work-digest/handoffs/**"
+      read_allow: ["**"]
+      deny: ["**/.venv/**"]
+    context_impact:
+      surfaces: ["capabilities", "documentation"]
+    worktree: {name: integration, mode: shared}
+    timeout_minutes: 120
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "All skills suites pass"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests -q"
+          evidence: {artifacts: [], result_keys: ["full_suite"]}
+        - name: "Work packages validate"
+          kind: command
+          command: "skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/add-supervisor-candidate-work-digest/work-packages.yaml --check-overlap"
+          evidence: {artifacts: [], result_keys: ["packages_valid"]}
+        - name: "OpenSpec strict validation passes"
+          kind: command
+          command: "openspec validate add-supervisor-candidate-work-digest --strict"
+          evidence: {artifacts: [], result_keys: ["openspec_valid"]}
+    metadata: {loc_estimate: 30, complexity: low, package_kind: integration}
+    outputs: {result_keys: ["full_suite", "packages_valid", "openspec_valid"]}

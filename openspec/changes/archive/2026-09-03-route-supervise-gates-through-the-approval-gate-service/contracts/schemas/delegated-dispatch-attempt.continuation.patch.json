@@ -1,0 +1,12 @@
+{
+  "properties": {
+    "continuation": {
+      "properties": {
+        "approval_ref": {
+          "pattern": "^gate-decision:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "description": "Must resolve to a checkpoint gate_decisions record with outcome proceed and a matching gate and dispatch_id."
+        }
+      }
+    }
+  }
+}

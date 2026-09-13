@@ -1,0 +1,87 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Decisions D1-D3 in design.md establish question-scoped authority across the five durable state artifact classes and cleanly decouple fresh session bootstrap locator logic from canonical state verification, preventing advisory handoffs or queue projections from overriding state truth.",
+      "resolution": "The plan design cleanly isolates authority semantics and establishes clear question-scoped boundaries across all five artifact classes.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 26
+      }
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The OpenSpec delta under specs/skill-workflow/spec.md defines unambiguous requirements and concrete scenarios for five-class state discovery, conflict resolution favouring canonical records, deterministic supervisor rehydration, degraded missing-state handling, portable skill doc links, and byte-identical runtime mirrors.",
+      "resolution": "Specification requirements are fully traceable and establish verifiable contracts for all state artifact behaviors.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 1,
+        "end": 51
+      }
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Work-package file locks and scope write allowlists under work-packages.yaml accurately capture all target skill documentation, guide paths, test files, runtime mirrors, and the generated decision index docs/decisions/skill-workflow.md, preventing out-of-bounds writes while justifying single sequential package execution.",
+      "resolution": "Work package scoping and lock declarations strictly bound file modifications and prevent context drift.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 39,
+        "end": 79
+      }
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "description": "The structural RED/GREEN testing contract defined in Phase 1 pins the contract test to skills/tests/state-artifacts/test_state_artifacts_guide.py, asserting five-class inventory, required table headers, rehydration sequence markers, link set portability, and mirror byte parity without fragile prose pinning.",
+      "resolution": "Test contract design ensures robust structural validation across skill docs and guides.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "line_range": {
+        "start": 5,
+        "end": 18
+      }
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The implementation scope reconciliation section in plan-findings.md correctly accounts for PhaseRecord.write_both() regenerating docs/decisions/skill-workflow.md after adding the portable guide link decision D1, ensuring derived indices are explicitly named in locks and scope allowlists.",
+      "resolution": "Derived artifact generation is fully reconciled with work-package lock and write allowlist boundaries.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/plan-findings.md",
+      "line_range": {
+        "start": 35,
+        "end": 38
+      }
+    }
+  ]
+}

@@ -1,0 +1,215 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: Implementation decision D1 and the regenerated docs/decisions/skill-workflow.md entry still claim 'a stable repository URL remains clickable', but all six skills and GUIDE_REFERENCE now use the bare repo-relative form `docs/guides/state-artifacts.md` (matching coordination-bridge/vision/session-log conventions). The rejection of escaping ../../docs markdown links remains valid; only the chosen-form clause is stale relative to the landed links and specs/skill-workflow/spec.md.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Rewrite the session-log Implementation decision sentence to describe the bare-path backtick reference that landed, then regenerate docs/decisions/skill-workflow.md via PhaseRecord.write_both()/make decisions.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/session-log.md",
+      "line_range": {
+        "start": 11,
+        "end": 11
+      }
+    },
+    {
+      "id": 2,
+      "type": "observability",
+      "criticality": "low",
+      "description": "FYI: work-packages.yaml context_impact.surfaces now includes decisions alongside documentation and semantic_code, but context-checkpoints/wp-state-artifacts-docs.json and change-context.md Implementation Evidence still report declared surfaces as only documentation and semantic_code. Task 3.2 remains unchecked, so this is stale validation evidence rather than a missing package declaration.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "fyi",
+      "resolution": "Accepted until the pending validation matrix refreshes the checkpoint; no plan amendment required because the package already declares decisions.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/change-context.md",
+      "line_range": {
+        "start": 29,
+        "end": 29
+      }
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Round-2 CI discovery blocker is resolved: skills/pyproject.toml testpaths includes tests/state-artifacts (line 129), the directory is in package locks/write_allow, default pytest --collect-only from skills/ collects all 15 state-artifacts tests, and skills/tests/ci_coverage/test_ci_test_coverage.py passes for tests/state-artifacts.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/pyproject.toml",
+      "line_range": {
+        "start": 129,
+        "end": 129
+      }
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Round-2 absent-mirror blocker is resolved: test_changed_skill_mirrors_are_byte_identical now pytest.skip when .agents or .claude mirrors are missing, with message 'runtime mirrors are installed artifacts, not tracked checkout inputs', instead of FileNotFoundError from read_bytes() on ignored untracked copies.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 81,
+        "end": 90
+      }
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Round-2 guide-reference convention blocker is resolved: GUIDE_REFERENCE is docs/guides/state-artifacts.md; all six canonical skills reference that exact bare path in backticks; no blob/main GitHub URL remains; specs/skill-workflow/spec.md scenario requires the same path string.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 17,
+        "end": 17
+      }
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Round-2 D5 contradiction is resolved: design.md D5 is retitled 'No new hand-authored ADR entry' and explicitly permits generated docs/decisions/skill-workflow.md as a derived projection; change-context D5 row matches; work-packages locks.files, write_allow, and context_impact include that file and the decisions surface.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 33,
+        "end": 35
+      }
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Round-2 writer-ordering gap is resolved: docs/guides/state-artifacts.md Writer ordering now states PhaseRecord.write_both() appends and sanitizes, attempts coordinator handoff with local fallback, and then regenerates the derived capability decision index \u2014 matching phase_record.py's documented 4-step pipeline (markdown \u2192 sanitize \u2192 coordinator \u2192 regenerate).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 38,
+        "end": 40
+      }
+    },
+    {
+      "id": 8,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "design.md Rehydration Algorithm, docs/guides/state-artifacts.md Canonical rehydration order, and skills/supervise/SKILL.md Rehydrate steps 1\u20138 share the exact titles Bootstrap locator, Roadmap definition, Roadmap execution state, Change execution state, Learning context, Phase history, Handoff context, Rebuild projections; guide+supervise tests pin ordered markers (supervise retains cycle-ledger as local detail inside step 2, consistent with round-1 disposition).",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 37,
+        "end": 46
+      }
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Package DAG/scope remain valid: single package wp-state-artifacts-docs with depends_on []; validate_work_packages.py reports VALID; every locks.files entry is in write_allow; deny blocks agent-coordinator/src/**, database/**, and apps/**; openspec validate --strict passes.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 26,
+        "end": 92
+      }
+    },
+    {
+      "id": 10,
+      "type": "observability",
+      "criticality": "low",
+      "description": "RED/GREEN validity holds: validation/red-state-artifacts.md records 9 failed/6 passed before the guide; focused suite now yields 15 passed; assertions remain structural (five class names, five table headers, eight ordered markers, GUIDE_REFERENCE, optional mirror byte-identity) per design.md D4.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/validation/red-state-artifacts.md",
+      "line_range": {
+        "start": 1,
+        "end": 8
+      }
+    },
+    {
+      "id": 11,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Fail-loud missing-state behavior is specified consistently: guide distinguishes first-run absence from claimed-progress inconsistency, supervise steps 3\u20134 stop automatic advancement when checkpoint/loop-state are missing under a resume claim, and inventory writers resolve to real runtime paths (save_state, checkpoint helpers, learning writer, write_both, supervisor MIRROR_PATH).",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 30,
+        "end": 36
+      }
+    },
+    {
+      "id": 12,
+      "type": "performance",
+      "criticality": "low",
+      "description": "Validation remains proportional to a documentation-only surface: design.md marks security/deploy/browser N/A; contracts/README.md declares no OpenAPI/DB/event contracts; verification tier B runs focused pytest skills/tests/state-artifacts plus openspec validate --strict and validate_work_packages.py; task 3.2's fuller matrix stays pending hygiene rather than inventing runtime gates.",
+      "disposition": "accept",
+      "axis": "performance",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 59,
+        "end": 66
+      }
+    },
+    {
+      "id": 13,
+      "type": "security",
+      "criticality": "low",
+      "description": "No new auth, input-validation, secret-handling, or network surface is introduced; proposal Non-Goals confine the change to documenting existing artifacts plus repository-local structural tests, and package deny keeps coordinator source and apps out of write scope.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "No action.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/proposal.md",
+      "line_range": {
+        "start": 18,
+        "end": 23
+      }
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/digest.schema.json",
+  "title": "SupervisorDigest",
+  "description": "openspec/supervise/digest.json — the ranked candidate-work digest produced by digest.py at the end of a CYCLE run.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "fingerprint", "generated_at", "state_updated_at", "weights", "sections", "ranked"],
+  "$defs": {
+    "rankedStub": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stub_key", "rank", "score", "decision", "suggested_change_id", "title", "effort", "factors", "justifications", "signals", "provenance"],
+      "properties": {
+        "stub_key": {"type": "string", "pattern": "^(change:(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*|prov:[0-9a-f]{32})$"},
+        "rank": {"type": "integer", "minimum": 1},
+        "score": {"type": "number"},
+        "decision": {"type": "string", "enum": ["pending", "approved", "deferred", "rejected"]},
+        "suggested_change_id": {"type": ["string", "null"], "pattern": "^(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*$"},
+        "title": {"type": "string"},
+        "effort": {"type": "string", "enum": ["XS", "S", "M", "L", "XL"]},
+        "factors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["relevance", "value", "readiness", "scope_fit", "risk"],
+          "properties": {
+            "relevance": {"type": "integer", "minimum": 1, "maximum": 5},
+            "value": {"type": "integer", "minimum": 1, "maximum": 5},
+            "readiness": {"type": "integer", "minimum": 1, "maximum": 5},
+            "scope_fit": {"type": "integer", "minimum": 1, "maximum": 5},
+            "risk": {"type": "integer", "minimum": 1, "maximum": 5}
+          }
+        },
+        "justifications": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["relevance", "value", "readiness", "scope_fit", "risk"],
+          "properties": {
+            "relevance": {"type": "string", "minLength": 1, "maxLength": 200}, "value": {"type": "string", "minLength": 1, "maxLength": 200},
+            "readiness": {"type": "string", "minLength": 1, "maxLength": 200}, "scope_fit": {"type": "string", "minLength": 1, "maxLength": 200},
+            "risk": {"type": "string", "minLength": 1, "maxLength": 200}
+          }
+        },
+        "signals": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dependency_ready", "staleness_days", "prior_decision"],
+          "properties": {
+            "dependency_ready": {"type": "boolean"},
+            "staleness_days": {"type": ["integer", "null"], "minimum": 0},
+            "prior_decision": {"type": ["string", "null"], "enum": ["deferred", "rejected", "approved", null]},
+            "deferred_until": {"type": ["string", "null"], "format": "date"}
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source_artifact", "finding_ids"],
+          "properties": {
+            "source_artifact": {"type": "string"},
+            "finding_ids": {"type": "array", "items": {"type": "string"}},
+            "generator": {"type": ["string", "null"]}
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {"const": 1},
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "generated_at": {"type": "string", "format": "date-time", "description": "Original host-owned as_of time from the validated scoring manifest."},
+    "state_updated_at": {"type": "string", "format": "date-time", "description": "Host-owned scoring or later lifecycle-maintenance time."},
+    "weights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relevance", "value", "readiness", "scope_fit", "risk", "staleness_penalty_per_30d", "staleness_penalty_cap", "risk_higher_is_safer", "decision_bucket_order", "dependency_bucket_order", "tie_breaker"],
+      "properties": {
+        "relevance": {"const": 3}, "value": {"const": 3}, "readiness": {"const": 2},
+        "scope_fit": {"const": 1}, "risk": {"const": 1}, "staleness_penalty_per_30d": {"const": 1},
+        "staleness_penalty_cap": {"const": 5}, "risk_higher_is_safer": {"const": true},
+        "decision_bucket_order": {"const": ["pending", "future_deferred"]},
+        "dependency_bucket_order": {"const": ["ready", "blocked"]},
+        "tie_breaker": {"const": "stub_key:asc"}
+      }
+    },
+    "sections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["needs_decision", "new_this_cycle", "degraded"],
+      "properties": {
+        "needs_decision": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "new_this_cycle": {"type": "array", "uniqueItems": true, "items": {"type": "string"}, "description": "fresh stub_keys in rank order"},
+        "degraded": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      }
+    },
+    "ranked": {"type": "array", "items": {"$ref": "#/$defs/rankedStub"}}
+  }
+}

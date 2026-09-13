@@ -1,0 +1,224 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "axis": "resilience",
+      "severity": "optional",
+      "evidence_class": "deterministic",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/change-context.md",
+      "line_range": {
+        "start": 11,
+        "end": 11
+      },
+      "description": "Optional: The traceability row `skill-workflow.state-artifacts-links` names `docs/guides/documentation.md` in Files Changed and cites `skills/tests/state-artifacts/test_state_artifacts_guide.py` as its test, but that test never reads `docs/guides/documentation.md`. A repository-wide grep for `docs/guides/documentation` across `*.py`, `*.sh` and `*.yml` returns no matches, so nothing anywhere enforces the index entry. The guide's only discovery path from the 'Foundational \u2014 read these before contributing' list is therefore unguarded, which is precisely the drift class this change exists to prevent: the guide would stay green while becoming unreachable to a new contributor.",
+      "resolution": "Add a one-line assertion to the focused suite that `docs/guides/documentation.md` contains `state-artifacts.md`, or correct the change-context row so it stops claiming test coverage the test does not provide.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "type": "style",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "optional",
+      "evidence_class": "deterministic",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/supervise/SKILL.md",
+      "line_range": {
+        "start": 139,
+        "end": 139
+      },
+      "description": "Optional: The rehydration rewrite kept the `try_handoff_read(limit=1, supervisor_only=true)` command but deleted the sentence explaining why the filter is mandatory ('a newer ordinary handoff must not mask the newest supervisor handoff'). A grep for `supervisor_only` and `mask` in the file now returns only the command itself, and the canonical guide never mentions the flag, so that rationale exists nowhere. This is phase-specific knowledge, not shared ownership semantics, so design.md's first risk ('over-centralizing removes necessary commands') applies: a future editor can drop the argument without any document objecting. The same edit also dropped the `written_at` selection rule and the note that the rehydrator freshly derives `active_changes`.",
+      "resolution": "Restore a one-clause justification for `supervisor_only=true` (and ideally the `written_at` selection note) inside the bootstrap-locator step; both are skill-local mechanics the guide deliberately does not own.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/autopilot/SKILL.md",
+      "line_range": {
+        "start": 15,
+        "end": 19
+      },
+      "description": "Nit: In all six skills the `## Durable state artifact authority` heading is inserted between the H1 and the skill's own one-line purpose statement, so that summary is now rendered as body text of the state-artifacts section. In autopilot the sentence 'Orchestrate the full plan-review-implement-validate-PR lifecycle...' sits at line 19, below the reference block at 15-17. Same shape at autopilot-roadmap:14, session-log:13, supervise:15, implement-feature:20 and validate-feature:20. No test breaks \u2014 `skill_invariants.py` asserts frontmatter and tail blocks, not section order \u2014 but an agent reading the document top-down now meets a cross-reference before it learns what the skill does.",
+      "resolution": "Move the reference block below the skill's summary paragraph, or demote it to a single italic line under the H1 rather than a peer H2 section.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 9,
+        "end": 15
+      },
+      "description": "Nit: The structural suite pins the guide's prose markers but never checks that anything the guide points at still exists. The inventory names `save_state()`, `runner.py` state commands, `roadmap-runtime` checkpoint helpers, the roadmap learning writer and `PhaseRecord.write_both()`; line 15 links the sibling guide `work-queue-truth-projection.md`. I verified all of these resolve today, but a rename or a moved sibling guide leaves the suite green and the canonical guide silently wrong. D4 rightly refuses full-prose snapshots, yet existence checks are not prose checks and would cost a few lines.",
+      "resolution": "Assert that the sibling guide file exists and that the writer symbols named in the table are still defined (a substring check against phase_record.py, autopilot.py, checkpoint.py and learning.py is enough).",
+      "disposition": "fix"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 7,
+        "end": 7
+      },
+      "description": "Nit: The module consumes `change_dir` from the shared helper but computes its root with a bare `Path(__file__).resolve().parents[3]`. The helper exports `repo_root_from` for exactly this, its docstring calls a bare `parents[N]` 'archive-fragile when the test moves', and the guard's own failure message at skills/tests/openspec_paths/test_change_path_stability.py:217 prescribes `change_dir(repo_root_from(__file__, N), '<change-id>')`. Task 3.2 asked the package to consume the existing helper; it consumed half of it.",
+      "resolution": "Import `repo_root_from` alongside `change_dir` and build ROOT with `repo_root_from(__file__, 3)`.",
+      "disposition": "fix"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 69,
+        "end": 82
+      },
+      "description": "Nit: `test_supervise_rehydration_matches_canonical_order` resolves eight unanchored generic phrases with `text.index`, which returns the first occurrence anywhere in a 460-line document rather than within the rehydration section. Today each marker occurs exactly once (verified by grep), so the test is sound. But phrases such as 'Learning context', 'Handoff context' and 'Rebuild projections' are ordinary English that the growing `execute` verb section could easily reuse; a single earlier occurrence would then make the assertion report on text that is not the rehydration list at all. The guide-side and design-side variants avoid this by using the numbered `1. `-prefixed form.",
+      "resolution": "Slice the text to the '### 1. Rehydrate' section before indexing, or match the bolded `**Bootstrap locator.**` spelling the section actually uses.",
+      "disposition": "fix"
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "fyi",
+      "evidence_class": "deterministic",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 106,
+        "end": 107
+      },
+      "description": "FYI: The mirror-parity test skips whenever either runtime copy is absent, which design.md's last risk deliberately accepts so fresh CI checkouts do not fail on gitignored artifacts. The consequence worth recording is that a genuinely broken `install.sh` is indistinguishable from a clean checkout at this assertion \u2014 both skip. The compensating control is the pre-push local gate plus `install.sh --check`, and I confirmed all twelve mirrors are byte-identical right now by checksum, so nothing is wrong today; the gap is that the signal is manual.",
+      "resolution": "No change required. If the skip ever needs tightening, gate it on a marker file that install.sh writes rather than on the mirrors themselves.",
+      "disposition": "accept"
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "evidence_class": "deterministic",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "line_range": {
+        "start": 69,
+        "end": 76
+      },
+      "description": "FYI: Task 3.3 ('Run the complete validation matrix') and both remaining checkpoints are still unchecked, and change-context.md records 'Gaps: complete validation matrix pending'. That matches loop-state.json, which reports `current_phase: IMPL_REVIEW`, so this is honest reporting rather than a checkbox drift \u2014 the pattern the ri-09 failure warned about is absent here. Recording it so the merge gate does not read the partial evidence in impl-findings.md as a completed matrix.",
+      "resolution": "Keep 3.3 open until install.sh --check, work-package validation, documentation-reference checks and the scope/diff checks are all run and their evidence preserved.",
+      "disposition": "accept"
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "evidence_class": "deterministic",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/roadmaps/roadmap-supervisor-orchestration/checkpoint.json",
+      "line_range": {
+        "start": 5,
+        "end": 7
+      },
+      "description": "FYI: Diffing the roadmap base against HEAD shows exactly one changed file that no work package declares in `scope.write_allow` \u2014 the roadmap checkpoint, flipped from `planning` to `implementing` for ri-10. This is the roadmap orchestrator's own write at a different altitude, not a package escape, and it is consistent with the authority model the new guide documents: the checkpoint belongs to roadmap-runtime, never to an implementer. A naive branch-diff scope check will nevertheless flag it. Separately, I confirmed the declared `--base main` context-impact command is safe on this stacked branch: `package_files()` filters by write_allow first, and the attributed file set is byte-identical for `--base main` and `--base 4f794962`.",
+      "resolution": "No change required. If branch-level scope checking is added later, exempt orchestrator-owned roadmap state explicitly rather than widening a package's write_allow.",
+      "disposition": "accept"
+    },
+    {
+      "id": 10,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 9,
+        "end": 13
+      },
+      "description": "none: Every factual claim in the five-row inventory checks out against the code. `autopilot.py:155` defines `save_state` and `runner.py:72` resolves `<change_dir>/loop-state.json`; `checkpoint.py:39` sets `workspace / 'checkpoint.json'`; `learning.py` writes `learnings/<item-id>.md` and maintains `learning-log.md` as the index; `phase_record.py:682` builds the local fallback as `<phase_slug>-<n>.json` under `openspec/changes/<change-id>/handoffs/`; `cycle_state.py:85` pins `openspec/supervise/supervisor-record.json`. The roadmap workspace on disk contains exactly the four artifacts the guide describes. The `write_both()` description \u2014 append, sanitize, coordinator with tracked fallback, then regenerate the derived decision index \u2014 matches the four-step docstring at phase_record.py:364 including the ordering rationale. Zero drift between the new normative document and the runtime it describes.",
+      "disposition": "accept"
+    },
+    {
+      "id": 11,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 3,
+        "end": 36
+      },
+      "description": "none: The guide resists the two failure modes that make state inventories harmful. It refuses to name a global source of truth, scoping authority to the question each artifact answers, and it names the work queue a derived projection rather than admitting a sixth authority class \u2014 preserving the ri-07 one-way edge instead of restating it. The bootstrap-versus-verification split is the load-bearing idea: a handoff may locate candidate work but stage 3 and stage 4 must verify it, which is exactly the ri-09 failure where a handoff recorded ESCALATE with no loop-state.json behind it. The first-run exception is stated separately from degradation so absence-before-progress is never confused with corruption, and the timestamp rule closes the obvious wrong heuristic explicitly.",
+      "disposition": "accept"
+    },
+    {
+      "id": 12,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/session-log/SKILL.md",
+      "line_range": {
+        "start": 13,
+        "end": 15
+      },
+      "description": "none: The guide reference is a bare backticked repository path rather than a Markdown link, and that choice is enforced by real tooling: `validate_install_manifest.py::_local_markdown_link_errors` rejects any Markdown link that escapes the installed payload or names an unshipped target, so a relative link out of `skills/<name>/` into `docs/guides/` would fail `install.sh --check` on every installed copy. The decision is recorded in the generated skill-workflow index rather than left implicit. I verified all twelve runtime mirrors under `.agents/skills/` and `.claude/skills/` are byte-identical to their canonical sources by checksum, so task 3.1 holds independently of the test that would have skipped.",
+      "disposition": "accept"
+    },
+    {
+      "id": 13,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 85,
+        "end": 98
+      },
+      "description": "none: Task 3.2 is the cleanest part of the package. Its entire delta against the pre-merge tip is four files: one word in the guide, one checkbox, the `tests/openspec_paths` testpaths entry, and a three-line test change that replaces a literal `openspec/changes/<id>/design.md` with `change_dir(ROOT, CHANGE_ID)`. It consumed the shared helper rather than copying path infrastructure into the package, which keeps the three-tree byte-identity assertion in `test_change_path_stability.py::test_shared_helper_copies_are_byte_identical` satisfied. The AST guard scans `skills/` and finds no pinned change directory in the new module, so the eight-stage design assertion survives archival \u2014 the exact defect that broke thirty assertions in the 2026-09-08 sweep. RED evidence of 9 failed / 6 passed reconciles with the fifteen tests the file held at that commit, and the sixteen-test GREEN count reconciles with the file today.",
+      "disposition": "accept"
+    }
+  ]
+}

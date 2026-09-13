@@ -1,0 +1,19 @@
+{
+  "back_edge": {
+    "digested_stubs": [],
+    "last_digest_at": null,
+    "last_fingerprint": null
+  },
+  "pending_gates": [],
+  "schema_version": 1,
+  "standing_decisions": [
+    {
+      "decided_at": "2026-09-10T11:50:20.985704+00:00",
+      "decision": "roadmap_approval:proceed",
+      "id": "1d8eb383-2f08-449b-a0d8-6dc9464ddd85",
+      "rationale": "direct autopilot-roadmap invocation: supervisor roadmap",
+      "scope": "roadmap-supervisor-orchestration"
+    }
+  ],
+  "written_at": "2026-09-10T11:50:20.973467Z"
+}

@@ -23,6 +23,7 @@ from models import (  # type: ignore[import-untyped]
     ItemStatus,
     Roadmap,
     load_checkpoint,
+    validate_delegated_dispatch_attempt,
     save_checkpoint,
 )
 
@@ -70,6 +71,17 @@ class CheckpointManager:
         checkpoint = Checkpoint.create(roadmap.roadmap_id, first_id)
         self.save(checkpoint)
         return checkpoint
+
+    def record_dispatch_attempt(self, checkpoint: Checkpoint, attempt: dict[str, Any]) -> None:
+        """Validate and durably append one prepared delegated attempt."""
+        validate_delegated_dispatch_attempt(attempt)
+        dispatch_id = attempt["dispatch_id"]
+        if any(
+            existing.get("dispatch_id") == dispatch_id for existing in checkpoint.dispatch_attempts
+        ):
+            raise ValueError(f"duplicate dispatch attempt: {dispatch_id}")
+        checkpoint.dispatch_attempts.append(json.loads(json.dumps(attempt)))
+        self.save(checkpoint)
 
     def advance_phase(self, checkpoint: Checkpoint, new_phase: CheckpointPhase) -> None:
         """Advance to next phase within the current item."""

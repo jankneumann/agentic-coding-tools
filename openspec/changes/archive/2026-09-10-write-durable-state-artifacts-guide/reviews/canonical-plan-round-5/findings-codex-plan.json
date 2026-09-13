@@ -1,0 +1,51 @@
+{
+  "review_type": "plan",
+  "target": "write-durable-state-artifacts-guide",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: The normative plan still says relevant skill documents SHALL link to the guide, but the accepted portability decision, implemented skill text, and structural test intentionally require a bare repository-relative reference to `docs/guides/state-artifacts.md`; a reference is not a clickable Markdown link.",
+      "resolution": "Replace link/links/linking terminology with reference/references/referencing in proposal.md, design.md, tasks.md, and the skill-workflow delta without changing the required path, source set, or runtime behavior.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "axis": "correctness",
+      "severity": "nit"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The plan consistently defines the same eight-step rehydration sequence across design D3, the skill-workflow scenarios, and the task coverage; keeping the order exact is the behavior being protected, not accidental overspecification.",
+      "resolution": "No action; retain the exact bootstrap-to-projection order and its structural drift checks.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The single sequential work package is proportionate and internally consistent: shared guide prose, six canonical skill references, generated mirrors, and one structural test suite form one semantic drift boundary with an explicit write allowlist and no runtime/API/database scope.",
+      "resolution": "No action; preserve the single-package decomposition and explicit scope boundaries.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The contracts stub and non-goals correctly preserve existing artifact schemas, runtime state machines, coordinator APIs, and persistence behavior while documenting their authority and replay order.",
+      "resolution": "No action; keep runtime and schema changes outside this documentation-only proposal.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/contracts/README.md",
+      "axis": "compatibility",
+      "severity": "none"
+    }
+  ]
+}

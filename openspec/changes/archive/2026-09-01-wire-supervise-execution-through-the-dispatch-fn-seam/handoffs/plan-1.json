@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-01T03:45:55.582448+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "planner",
+    "session_id": null,
+    "summary": "Planned roadmap item ri-03 as an outcome-only supervisor execution path over the existing synchronous dispatch_fn result seam. The approved design uses scope-safe prepared batches, isolated background Autopilot children, an acknowledgement/go lease protocol, and bounded structured outcomes.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use inherited roadmap approvals",
+        "rationale": "The operator's explicit autopilot-roadmap invocation approved discovery, direction, and the final per-item plan, so no duplicate item-level gate was required.",
+        "capability": "supervisor-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "Separate prepare from synchronous result application",
+        "rationale": "prepare_delegated_batch persists exact envelopes without invoking dispatch_fn; apply_delegated_batch invokes the existing synchronous callback once per collected generation result, keeping Autopilot as the sole phase-machine owner.",
+        "capability": "roadmap-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "Gate child entry on durable acknowledgement",
+        "rationale": "A generation-specific go barrier prevents Autopilot entry before handle persistence; pre-go claims are CAS-reclaimable, while unknown post-go liveness quarantines until positive reconciliation evidence exists.",
+        "capability": "supervised-dispatch",
+        "supersedes": null
+      },
+      {
+        "title": "Fail closed on scope and context ambiguity",
+        "rationale": "Only proven-disjoint all-package scopes may fan out, and both request and checkpoint context use the shared recursively bounded secret-rejecting contract.",
+        "capability": "supervised-dispatch",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement package wp-contracts first with failing fixtures for state, context, and isolation invariants.",
+      "Preserve the one-way neutral scheduler to orchestrator to host-adapter dependency direction.",
+      "Run the two-child host-event capture and recursive runtime-mirror gates before completion."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/proposal.md",
+        "description": "approved change scope and NFRs"
+      },
+      {
+        "path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/design.md",
+        "description": "two-stage dispatch and lease design"
+      },
+      {
+        "path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md",
+        "description": "TDD-ordered implementation plan"
+      },
+      {
+        "path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/work-packages.yaml",
+        "description": "validated package DAG and scopes"
+      },
+      {
+        "path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/contracts/README.md",
+        "description": "machine-readable dispatch contracts"
+      },
+      {
+        "path": "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/review-findings-plan.json",
+        "description": "converged independent plan review"
+      }
+    ]
+  }
+}

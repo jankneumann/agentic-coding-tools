@@ -1,0 +1,119 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "critical",
+      "description": "Critical: cycle_state.py compute_fingerprint() excludes only cycle-ledger.json and supervisor-record.json from _tree_listing(), causing writes under openspec/supervise/candidates/ or digest.json to mutate the fingerprint, break score caching, and prevent unchanged-tree early exits; wp-digest-module is currently denied access to cycle_state.py in work-packages.yaml.",
+      "resolution": "Update work-packages.yaml scope for wp-digest-module to allow editing cycle_state.py, and update _tree_listing() in cycle_state.py to exclude all of openspec/supervise/ or candidates/ and digest.json.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "package_id": "wp-digest-module",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 52,
+        "end": 56
+      }
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "critical",
+      "description": "Critical: digest.py rank and decide lack a CLI timestamp parameter (e.g. --now), preventing deterministic generated_at and decided_at timestamps required for byte-for-byte matching against digest-expected.json in Task 1.3 and satisfying the spec idempotency scenario.",
+      "resolution": "Specify an optional --now CLI flag on digest.py rank and decide to allow passing deterministic ISO timestamps during unit tests and fixture comparisons.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "package_id": "wp-digest-module",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/tasks.md",
+      "line_range": {
+        "start": 43,
+        "end": 48
+      }
+    },
+    {
+      "id": 3,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: rubric-score.schema.json sets minItems: 1 on scores array, which would reject an empty rubric score payload if an empty stub batch is validated.",
+      "resolution": "Change minItems from 1 to 0 in rubric-score.schema.json for scores array, or explicitly document that rubric sub-agent dispatch and scoring are skipped when fresh stubs count is zero.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/rubric-score.schema.json",
+      "line_range": {
+        "start": 47,
+        "end": 47
+      }
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: The contract documentation and schemas omit the explicit JSON schema definition for per-stub cached <stub_key>.rubric.json files.",
+      "resolution": "Document the JSON shape of per-stub <stub_key>.rubric.json files in contracts/README.md or add a definition in rubric-score.schema.json.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/contracts/README.md",
+      "line_range": {
+        "start": 8,
+        "end": 14
+      }
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Optional: templates/rubric-prompt.md relies on host-rendered {{batch}} slots containing provenance excerpts, which should be bounded to prevent excessive prompt lengths.",
+      "resolution": "Accept design D2 and task 2.2 prompt template structure.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "optional",
+      "package_id": "wp-rubric-prompt",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/tasks.md",
+      "line_range": {
+        "start": 96,
+        "end": 108
+      }
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The architecture cleanly separates model scoring from deterministic ranking, uses refine-roadmap preview/apply for transaction safety, and prevents supervisor scripts from directly mutating roadmap.yaml.",
+      "resolution": "Accept Approach 1 design and refine-roadmap approval routing.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "wp-digest-module",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/proposal.md",
+      "line_range": {
+        "start": 79,
+        "end": 96
+      }
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Work packages and task breakdowns follow strict TDD ordering, clear file locks, and valid DAG dependencies across all 5 phases.",
+      "resolution": "Accept work-packages.yaml and tasks.md execution structure.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "wp-integration",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/work-packages.yaml",
+      "line_range": {
+        "start": 27,
+        "end": 326
+      }
+    }
+  ]
+}

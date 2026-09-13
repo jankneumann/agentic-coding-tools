@@ -1,0 +1,51 @@
+{
+  "review_type": "plan",
+  "target": "write-durable-state-artifacts-guide",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The plan now explicitly records the archive-stability repair as unchecked task 3.2, requires change_dir(ROOT, CHANGE_ID) from openspec_paths, and makes the path-stability guard part of task 3.3 and package verification.",
+      "resolution": "No plan change; implement task 3.2 before completing validation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The package uses the standard --base main context-impact gate, declares documentation, decisions, capabilities, and semantic_code, and rationalizes only the schema-required no-contract API stub.",
+      "resolution": "No action; preserve the full base-relative drift gate.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The shared eight-stage contract now excludes the supervise-local cycle ledger, and the bounded learning window remains an implementation-owned runtime choice without a normative numeric default.",
+      "resolution": "No action; retain the shared-versus-local boundary.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Portable repository-relative reference wording is consistent across the plan, with install.sh --check explicitly retained as the payload and non-escaping reference-form gate.",
+      "resolution": "No action; complete the remaining implementation wording normalization in task 3.2.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "axis": "compatibility",
+      "severity": "none"
+    }
+  ]
+}

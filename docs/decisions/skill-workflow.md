@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-09-13 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Cleanup
+
+**Post-merge archive without deferred commit** — Operator requested cleanup directly; land archive+index on main as one commit rather than waiting on Step 11.6.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D1)
+
+---
+
+## 2026-09-13 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Cleanup
+
+**No open-task migration** — tasks.md is fully checked; nothing to migrate.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D2)
+
+---
+
 ## 2026-09-12 — 2026-09-11-harden-review-dispatch-parse-and-timeouts
 
 ### Phase: Plan
@@ -82,6 +104,182 @@
 
 ---
 
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Plan
+
+**Gate-time ledger only** — Slice of ambient-review-ledger without the git-hook sensor.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Implementation
+
+**Heuristic compact and fingerprint+match_score merge** — Follows D1/D2: no extra LLM call; identity is hash(axis, path, description) with match_score as the paraphrase path, gated on file_path or >=4 tokens to avoid collapsing generic test findings.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Cleanup
+
+**Rebase-merge PR 531 then archive on main** — OpenSpec agent PR; preserve plan/implement/CI-fix commits. Archive belongs on main because the code is already merged.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Plan
+
+**Heuristic compact in v1** — No extra LLM call; retire on missing file or missing tokens; model compact can replace later.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Implementation
+
+**Disagreement parks instead of aborting** — D4: agreed blocking work continues; parked leftovers surface on ConvergenceResult.escalate_findings.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Cleanup
+
+**No open-task migration** — tasks.md is fully checked; nothing to send to coordinator issues or a follow-up proposal.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Plan
+
+**Disagreement parks rather than aborting** — Agreed blocking work should continue; parked items surface at SUBMIT_PR.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D3)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Implementation
+
+**PLAN_FIX is a sub-step, not an outer bounce** — D6: _phase_review passes a recording fix_callback into converge() and maps leftover non-convergence to max_iter. TRANSITIONS still maps not_converged→PLAN_FIX for resume of in-flight loop-state.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D3)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Plan
+
+**PLAN_FIX is fix_callback inside converge()** — The outer bounce was a second engine over the same artifacts.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D4)
+
+---
+
+## 2026-09-12 — 2026-09-11-ledger-driven-review-convergence
+
+### Phase: Implementation
+
+**Default stall window of 2** — Post-compact blocking must strictly decrease; compact removes invented-finding noise that forced a window of 3.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md](/openspec/changes/archive/2026-09-11-ledger-driven-review-convergence/session-log.md) (D4)
+
+---
+
+## 2026-09-12 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Plan
+
+**Packet not repo-walk** — Timeouts are a symptom of tool-using exploration; pack diff, specs, schema, open ledger.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Implementation
+
+**Packet markdown is the dispatch prompt** — converge() builds review_packet.py output and passes the body as prompt; packet_path is optional kwargs.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D1)
+
+---
+
+## 2026-09-12 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Plan
+
+**Concurrent CLI dispatch** — The spec already SHALL parallel; sequential was a write-conflict guard that does not apply to read-only review.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Implementation
+
+**Thread pool concurrent dispatch with async submit-then-poll** — D2: wall clock is max(vendor). Async vendors must not submit+poll one-by-one.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D2)
+
+---
+
+## 2026-09-12 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Plan
+
+**Verify-then-wire structured output** — Do not guess CLI flags; only verified rows change agents.yaml.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D3)
+
+---
+
+## 2026-09-12 — 2026-09-13-pack-and-parallelize-vendor-review
+
+### Phase: Implementation
+
+**Wire only empirically verified schema flags** — Claude and agy accept --json-schema; Codex needs a file path the sentinel cannot supply; pi --mode json is NDJSON.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md](/openspec/changes/archive/2026-09-13-pack-and-parallelize-vendor-review/session-log.md) (D3)
+
+---
+
 ## 2026-09-12 — fix-audit-choices-range-ledger-path
 
 ### Phase: Plan
@@ -112,6 +310,50 @@
 
 - Status: `active`
 - Source: [openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md](/openspec/changes/archive/2026-09-10-rescope-merge-pull-requests-to-plan-execute/session-log.md) (D2)
+
+---
+
+## 2026-09-10 — 2026-09-10-write-durable-state-artifacts-guide
+
+### Phase: Implementation Continuation
+
+**Merge current main without rebasing the supervisor stack** — The ri-10 branch is seven commits atop the long-lived supervisor roadmap branch; a merge preserves that history and imports the approved openspec_paths helper and guard as exact main ancestors.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md](/openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md) (D1)
+
+---
+
+## 2026-09-10 — 2026-09-10-write-durable-state-artifacts-guide
+
+### Phase: Implementation Continuation
+
+**Use the shared archive-safe change resolver** — Resolving design.md through change_dir(ROOT, CHANGE_ID) preserves the eight-stage assertion after OpenSpec archival without copying path infrastructure into ri-10.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md](/openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md) (D2)
+
+---
+
+## 2026-09-08 — 2026-09-10-write-durable-state-artifacts-guide
+
+### Phase: Implementation
+
+**Use portable repository-relative guide references** — Installed skill payloads cannot use relative Markdown links that escape the skill directory, so canonical and mirrored skills use the established bare backticked repository path `docs/guides/state-artifacts.md`.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md](/openspec/changes/archive/2026-09-10-write-durable-state-artifacts-guide/session-log.md) (D1)
+
+---
+
+## 2026-09-01 — 2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering
+
+### Phase: Plan
+
+**Keep loop-state authoritative through an optional outbox seam** — Projection runs only after state persistence and resume reconciliation derives queue rows from loaded LoopState without feeding results back.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md](/openspec/changes/archive/2026-09-02-implement-idempotent-queue-submission-and-outbox-ordering/session-log.md) (D2)
 
 ---
 

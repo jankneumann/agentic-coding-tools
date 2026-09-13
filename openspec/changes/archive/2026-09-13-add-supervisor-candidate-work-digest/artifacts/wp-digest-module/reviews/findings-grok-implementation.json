@@ -1,0 +1,17 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Review starting: gathering OpenSpec package scope, schemas, and the exact commit range before scoring wp-digest-module.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

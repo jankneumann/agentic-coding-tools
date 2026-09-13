@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T01:45:24.699780+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Validation failed: fresh PostgreSQL deployment aborts migration 035 because LOCK TABLE is outside a transaction. Static contracts and affected unit suites passed, but required live smoke, security, and E2E checks could not run; context-impact metadata also failed.",
+    "completed_work": [
+      "strict OpenSpec",
+      "semantic OpenAPI",
+      "affected tests",
+      "traceability",
+      "package validation",
+      "architecture diagnostics",
+      "security capability detection"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Do not accept degraded live phases",
+        "rationale": "The deployable surface failed a real fresh-volume migration and no degraded-phase authorization exists.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Fix migration 035 transaction boundary",
+      "Correct work-package context-impact surfaces",
+      "Re-run live PostgreSQL, smoke, security, and E2E validation"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+        "description": "failed validation evidence"
+      },
+      {
+        "path": "agent-coordinator/database/migrations/035_work_queue_projection.sql",
+        "description": "critical deployment blocker"
+      }
+    ]
+  }
+}

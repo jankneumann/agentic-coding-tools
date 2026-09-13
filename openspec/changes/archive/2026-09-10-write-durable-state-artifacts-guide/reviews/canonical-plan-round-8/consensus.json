@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "write-durable-state-artifacts-guide",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 1
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.6837837837837838,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Task 3.2, design.md D4, work-packages.yaml description, and plan-findings.md Round 7 explicitly require synchronizing the feature branch with current main before task 3.2 so that existing helper skills/tests/_shared/openspec_paths.py (change_dir()) and guard skills/tests/openspec_paths/ are consumed without package-owned writes."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Task 3.2 and design.md D4 explicitly mandate fixing the archive-unsafe test path in test_state_artifacts_guide.py via change_dir(ROOT, CHANGE_ID) from openspec_paths to preserve test stability after archival."
+    },
+    {
+      "id": 3,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.6047619047619048,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Task 3.3 and work-packages.yaml verification step 1 explicitly execute the OpenSpec path-stability test guard (skills/tests/openspec_paths) alongside --base main context-impact validation."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The base-relative context-impact surfaces (documentation, decisions, capabilities, semantic_code) accurately match the affected files, and the single-package scope (wp-state-artifacts-docs) remains coherent with explicit write_allow and lock constraints."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The package does not create or own shared path infrastructure; read_allow already permits consuming it, while write_allow remains limited to the approved documentation and test surface."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Task 3.2 specifies change_dir(ROOT, CHANGE_ID) and task 3.3 plus package verification run both state-artifact and OpenSpec path-stability tests after branch synchronization."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Full --base main context-impact validation passes with capabilities, decisions, documentation, and semantic_code declared and only the schema-required API stub rationalized."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The package correctly consumes the shared helper and guard without owning them. design.md D4 forbids package-local copies; tasks.md 3.2 Coverage forbids creating or copying path infrastructure inside this package; plan-findings.md Round 7 states the existing write allowlist remains correct because the documentation package does not create, copy, or own those inputs. write_allow still covers only docs, the six skills, mirrors, skills/tests/state-artifacts/**, pyproject.toml, and the change directory\u2014not skills/tests/_shared/openspec_paths.py or skills/tests/openspec_paths/."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The archive-unsafe design.md lookup is explicitly owned by unchecked task 3.2, not left as a silent plan gap. Coverage requires resolving the design artifact with change_dir(ROOT, CHANGE_ID) and preserving the eight-stage assertion after archival; design.md D4 makes the same SHALL for any OpenSpec change-artifact lookup. Current implementation still pins openspec/changes/write-durable-state-artifacts-guide/design.md at test_state_artifacts_guide.py:83 with no openspec_paths import; that is pending 3.2 work, and the main-landed guard is exactly the suite that would fail that literal pin after sync."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Base-relative context-impact remains coherent with the declared surfaces. work-packages.yaml runs validate_context_impact.py with --base main and declares documentation, decisions, capabilities, and semantic_code, while rationalizing only the schema-required no-contract OpenAPI README stub. That matches proposal Impact (guide/index, generated docs/decisions/skill-workflow.md, modified capability skill-workflow, tests/pyproject) and the Round 6/7 plan-findings amendments that replaced the single-file --changed-file probe."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Single-package scope stays coherent with the sync-and-consume model. design.md Scope and Concurrency keeps one sequential documentation package with an explicit allowlist and forbids repository-wide write globs; work-packages.yaml declares only wp-state-artifacts-docs with depends_on: [] and the same documentation-only write surface. Round 7 clarification does not expand that surface to own openspec_paths; sync is a git prerequisite, not a package-owned write."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 11,
+    "confirmed_count": 2,
+    "unconfirmed_count": 9,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}

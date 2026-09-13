@@ -33,14 +33,22 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
-_RUNTIME = Path(__file__).resolve().parents[2] / "roadmap-runtime" / "scripts"
+_SKILLS_ROOT = Path(__file__).resolve().parents[2]
+_RUNTIME = _SKILLS_ROOT / "roadmap-runtime" / "scripts"
+if str(_SKILLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SKILLS_ROOT))
+if str(_RUNTIME) not in sys.path:
+    sys.path.insert(0, str(_RUNTIME))
+
+from shared.trust_posture import Disposition as _Disposition  # noqa: E402
+from shared.trust_posture import Gate as _Gate  # noqa: E402
 
 
 def _load_runtime_models():
@@ -67,8 +75,8 @@ def _load_runtime_models():
 _models = _load_runtime_models()
 ItemStatus = _models.ItemStatus
 Roadmap = _models.Roadmap
-completed_external_refs = _models.completed_external_refs
 load_all_roadmaps = _models.load_all_roadmaps
+from resolve_readiness import resolve_readiness as _resolve_readiness  # noqa: E402
 
 #: Tracked so a rehydrated session on another machine inherits what has already
 #: been surfaced. The supervisor is a rehydratable role, not a resident process.
@@ -78,17 +86,32 @@ LEDGER_PATH = "openspec/supervise/cycle-ledger.json"
 #: deliberately absent: they are a projection of loop state and are rebuilt.
 MIRROR_PATH = "openspec/supervise/supervisor-record.json"
 
+# Derived candidate-digest outputs are committed for auditability but must not
+# make the next supervise cycle look like a changed input tree.
+_FINGERPRINT_EXCLUDED_PREFIXES = (
+    "openspec/supervise/candidates/",
+    "openspec/supervise/rubric-cache/",
+)
+_FINGERPRINT_EXCLUDED_PATHS = {
+    LEDGER_PATH,
+    MIRROR_PATH,
+    "openspec/supervise/digest.json",
+    "openspec/supervise/.digest-transaction.json",
+}
+
 LEDGER_SCHEMA_VERSION = 1
 SUPERVISOR_RECORD_SCHEMA_VERSION = 1
 
-_GATES = frozenset({
-    "gatekeeper_escalation", "proposal_approval",
-    "plan_review_convergence_failure", "validation_failure",
-    "escalate_resume", "replan_required", "pr_creation", "merge",
-})
-_DISPOSITIONS = frozenset({"auto", "notify_with_timeout", "block"})
+# D1 (ri-04): tracks shared.trust_posture.Gate/Disposition rather than a
+# hand-copied literal, so a gate added to the enum (e.g. `roadmap_approval`)
+# is accepted here with no separate edit.
+_GATES = frozenset(g.value for g in _Gate)
+_DISPOSITIONS = frozenset(d.value for d in _Disposition)
 _GATE_SOURCES = frozenset({"autopilot", "supervise", "escalation"})
 _STUB_DECISIONS = frozenset({"approved", "deferred", "rejected", "pending"})
+_CANONICAL_STUB_KEY_RE = re.compile(
+    r"^(change:(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*|prov:[0-9a-f]{32})$"
+)
 _CHANGE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _ROADMAP_REF_RE = re.compile(r"^[a-z0-9-]+:ri-[0-9]{2,}$")
 
@@ -138,7 +161,8 @@ def _tree_listing(repo_root: Path) -> str:
         for line in completed.stdout.splitlines()
         # ls-tree format: "<mode> <type> <object>\t<path>"
         if "\t" in line
-        and line.split("\t", 1)[1] not in {LEDGER_PATH, MIRROR_PATH}
+        and line.split("\t", 1)[1] not in _FINGERPRINT_EXCLUDED_PATHS
+        and not line.split("\t", 1)[1].startswith(_FINGERPRINT_EXCLUDED_PREFIXES)
     ]
     worktree = subprocess.run(
         [
@@ -153,6 +177,10 @@ def _tree_listing(repo_root: Path) -> str:
             ".",
             f":(exclude){LEDGER_PATH}",
             f":(exclude){MIRROR_PATH}",
+            ":(exclude)openspec/supervise/candidates/**",
+            ":(exclude)openspec/supervise/rubric-cache/**",
+            ":(exclude)openspec/supervise/digest.json",
+            ":(exclude)openspec/supervise/.digest-transaction.json",
         ],
         capture_output=True,
         text=True,
@@ -257,6 +285,14 @@ def _clean_pending_gate(value: Any) -> dict[str, Any] | None:
             cleaned["approval_id"] = _clean_optional_text(approval_id)
     source = value.get("source", "supervise")
     cleaned["source"] = source if source in _GATE_SOURCES else "supervise"
+    # D7: the router's gate-decision record id this pending entry projects, so a
+    # rehydrated session can resolve `gate-decision:<decision_id>` back to its
+    # record. Without this passthrough the allowlist cleaner silently strips it
+    # on every write_mirror call.
+    decision_id = value.get("decision_id")
+    if decision_id is None or isinstance(decision_id, str):
+        if "decision_id" in value:
+            cleaned["decision_id"] = _clean_optional_text(decision_id)
     return cleaned
 
 
@@ -293,17 +329,41 @@ def _clean_standing_decision(value: Any, *, now: datetime) -> dict[str, Any] | N
     return cleaned
 
 
+def _canonicalize_legacy_stub_key(stub_key_value: Any) -> str | None:
+    cleaned = _clean_optional_text(stub_key_value)
+    if cleaned is None:
+        return None
+    if _CANONICAL_STUB_KEY_RE.fullmatch(cleaned):
+        return cleaned
+    if cleaned.startswith("change:"):
+        legacy = cleaned.removeprefix("change:")
+        candidate = f"change:add-{legacy}"
+        if _CANONICAL_STUB_KEY_RE.fullmatch(candidate):
+            return candidate
+    return None
+
+
+def _canonicalize_suggested_change_id(value: Any) -> str | None:
+    cleaned = _clean_optional_text(value)
+    if cleaned is None:
+        return None
+    if re.fullmatch(r"(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*", cleaned):
+        return cleaned
+    candidate = f"add-{cleaned}"
+    if re.fullmatch(r"(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*", candidate):
+        return candidate
+    return None
+
+
 def _clean_digested_stub(value: Any) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
-    stub_key_value = value.get("stub_key")
     rank = value.get("rank")
     decision = value.get("decision")
     decided_at = value.get("decided_at")
-    cleaned_stub_key = _clean_optional_text(stub_key_value)
+    cleaned_stub_key = _canonicalize_legacy_stub_key(value.get("stub_key"))
     if (
         cleaned_stub_key is None
-        or re.fullmatch(r"^(change|prov):.+$", cleaned_stub_key) is None
         or not isinstance(rank, int) or isinstance(rank, bool) or rank < 1
         or decision not in _STUB_DECISIONS
         or _parse_datetime(decided_at) is None
@@ -313,10 +373,37 @@ def _clean_digested_stub(value: Any) -> dict[str, Any] | None:
         "stub_key": cleaned_stub_key, "rank": rank,
         "decision": decision, "decided_at": decided_at,
     }
-    suggested = value.get("suggested_change_id")
-    if suggested is None or isinstance(suggested, str):
-        if "suggested_change_id" in value:
-            cleaned["suggested_change_id"] = _clean_optional_text(suggested)
+    if "suggested_change_id" in value:
+        suggested = _canonicalize_suggested_change_id(value.get("suggested_change_id"))
+        if suggested is not None:
+            cleaned["suggested_change_id"] = suggested
+    if decision == "approved":
+        route = _clean_optional_text(value.get("route"))
+        roadmap_ref = _clean_optional_text(value.get("roadmap_ref"))
+        if route not in {"refine-roadmap", "plan-roadmap"}:
+            route = "plan-roadmap"
+            roadmap_ref = None
+        if route == "plan-roadmap":
+            roadmap_ref = None
+        if route == "refine-roadmap" and (
+            roadmap_ref is None or _ROADMAP_REF_RE.fullmatch(roadmap_ref) is None
+        ):
+            return None
+        cleaned["route"] = route
+        cleaned["roadmap_ref"] = roadmap_ref
+    elif decision == "deferred":
+        until = _clean_optional_text(value.get("until"))
+        if until is not None:
+            try:
+                date.fromisoformat(until)
+            except ValueError:
+                return None
+            cleaned["until"] = until
+    elif decision == "rejected":
+        reason = _clean_optional_text(value.get("reason"))
+        if not reason:
+            return None
+        cleaned["reason"] = reason
     return cleaned
 
 
@@ -849,34 +936,16 @@ def is_unchanged(repo_root: Path, fingerprint: str | None = None) -> bool:
 # Ready set across roadmaps
 # --------------------------------------------------------------------------- #
 def ready_across_roadmaps(repo_root: Path) -> dict[str, list[dict[str, Any]]]:
-    """Ready items per roadmap, honoring in-roadmap deps and typed external edges.
-
-    Mirrors the orchestrator's admission rule (approved / in_progress with every
-    dependency completed) and adds ri-17's external resolution, so an item blocked
-    only by another roadmap's prerequisite disappears from the ready set until that
-    prerequisite completes — and reappears with no manual status edit.
-    """
+    """Group the canonical runtime resolver output for existing callers."""
     roadmaps = load_all_roadmaps(repo_root)
-    external_done = completed_external_refs(repo_root)
-    out: dict[str, list[dict[str, Any]]] = {}
-    for roadmap_id, roadmap in sorted(roadmaps.items()):
-        # Delegate to the shared admission rule rather than hand-rolling a copy.
-        # The first draft of this function WAS such a copy, and it had already
-        # drifted: it admitted items carrying a superseded_by edge, which both
-        # Roadmap.ready_items and the orchestrator exclude — the digest would
-        # have listed work another roadmap's item owns as "Ready now".
-        ready = roadmap.ready_items(external_done, include_in_progress=True)
-        ready.sort(key=lambda i: (i.priority, i.item_id))
-        out[roadmap_id] = [
-            {
-                "item_id": i.item_id,
-                "title": i.title,
-                "priority": i.priority,
-                "effort": i.effort.value,
-                "change_id": i.change_id,
-            }
-            for i in ready
-        ]
+    out: dict[str, list[dict[str, Any]]] = {
+        roadmap_id: [] for roadmap_id in sorted(roadmaps)
+    }
+    for item in _resolve_readiness(repo_root)["ready"]:
+        roadmap_id = item["roadmap_id"]
+        out.setdefault(roadmap_id, []).append(
+            {key: value for key, value in item.items() if key != "roadmap_id"}
+        )
     return out
 
 
@@ -1105,6 +1174,122 @@ def _cmd_rehydrate(args: argparse.Namespace) -> int:
     return 0
 
 
+# --------------------------------------------------------------------------- #
+# gate-check / gate-answer / gate-log (D5, D6) -- gate_router imported lazily
+# per-handler: cycle_state does heavy import-time work of its own
+# (_load_runtime_models) and gate_router imports cycle_state.write_mirror, so
+# a module-level import in either direction is a cycle.
+# --------------------------------------------------------------------------- #
+
+# Exit codes (D5): 3 mirrors runner.py's EXIT_NO_PENDING_GATE (proceed,
+# including a reused decision -- nothing to ask); 0 = parked on posture_block
+# (prints the pending entry; the SKILL renders it and stops); 4 = terminal
+# block (rejected / timeout_default_block / coordinator_unreachable) -- the
+# entry stays answerable via gate-answer, unlike runner.py's EXIT_GATE_PARKED
+# (4), which clears pending_gate and enters ESCALATE. That divergence is
+# deliberate: the supervisor has no ESCALATE state to fall into.
+GATE_EXIT_PROCEED = 3
+GATE_EXIT_PARKED = 0
+GATE_EXIT_TERMINAL_BLOCK = 4
+
+_TERMINAL_BLOCK_RESOLUTIONS = frozenset(
+    {"rejected", "console_rejected", "timeout_default_block", "coordinator_unreachable"}
+)
+
+
+def _roadmap_workspace(repo_root: Path, roadmap_id: str) -> Path:
+    return repo_root / "openspec" / "roadmaps" / roadmap_id
+
+
+def _gate_decision_exit_code(decision: Any) -> int:
+    if decision.proceed:
+        return GATE_EXIT_PROCEED
+    if decision.resolution.value == "posture_block":
+        return GATE_EXIT_PARKED
+    return GATE_EXIT_TERMINAL_BLOCK
+
+
+def _pending_entry_for(mirror_repo_root: Path, decision_id: str | None) -> dict[str, Any] | None:
+    """Read back the `pending_gates` entry `evaluate`/`answer` just projected
+    into the mirror (D7), by `decision_id` -- the entry shape is the router's
+    own, not duplicated here."""
+    if decision_id is None:
+        return None
+    mirror_path = mirror_repo_root / MIRROR_PATH
+    try:
+        mirror = json.loads(mirror_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    for entry in _extract_supervisor_record(mirror).get("pending_gates", []) if mirror else []:
+        if entry.get("decision_id") == decision_id:
+            return entry
+    return None
+
+
+def _cmd_gate_check(args: argparse.Namespace) -> int:
+    import gate_router  # lazy (see module preamble)
+    from shared.trust_posture import Gate
+
+    repo = Path(args.repo_root).resolve()
+    workspace = _roadmap_workspace(repo, args.roadmap)
+    roadmap = load_all_roadmaps(repo).get(args.roadmap)
+    item_count = len(roadmap.items) if roadmap is not None else None
+    context = {"item_count": item_count, "verb": "cycle"}
+    for pair in args.context or []:
+        key, _, value = pair.partition("=")
+        context[key] = value
+
+    try:
+        routed = gate_router.evaluate(Gate.ROADMAP_APPROVAL, context, workspace=workspace, repo_root=repo)
+    except gate_router.GateRefusalError as exc:
+        print(f"cycle_state: {exc}", file=sys.stderr)
+        return 2
+    exit_code = _gate_decision_exit_code(routed.decision)
+    if exit_code == GATE_EXIT_PROCEED:
+        payload = dict(routed.record)
+        payload["roadmap_approval_ref"] = f"gate-decision:{routed.record['decision_id']}"
+    else:
+        payload = _pending_entry_for(repo, routed.record.get("decision_id")) or dict(routed.record)
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return exit_code
+
+
+def _cmd_gate_answer(args: argparse.Namespace) -> int:
+    import gate_router  # lazy
+    from shared.trust_posture import Gate
+
+    repo = Path(args.repo_root).resolve()
+    workspace = _roadmap_workspace(repo, args.roadmap)
+    gate_enum = Gate(args.gate)
+    approved = args.decision == "approved"
+    context: dict[str, Any] = {"verb": "cycle"}
+    if args.dispatch_id:
+        context["dispatch_id"] = args.dispatch_id
+
+    try:
+        routed = gate_router.answer(
+            gate_enum, workspace=workspace, repo_root=repo, approved=approved, note=args.note, context=context
+        )
+    except gate_router.GateRefusalError as exc:
+        print(f"cycle_state: {exc}", file=sys.stderr)
+        return 2
+
+    payload = dict(routed.record)
+    if gate_enum is Gate.ROADMAP_APPROVAL and routed.decision.proceed:
+        payload["roadmap_approval_ref"] = f"gate-decision:{routed.record['decision_id']}"
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _cmd_gate_log(args: argparse.Namespace) -> int:
+    import gate_router  # lazy
+
+    repo = Path(args.repo_root).resolve()
+    workspace = _roadmap_workspace(repo, args.roadmap)
+    print(json.dumps(gate_router.gate_log(workspace, repo), indent=2, sort_keys=True))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Deterministic supervise-cycle state.")
     parser.add_argument("--repo-root", default=".")
@@ -1138,6 +1323,28 @@ def main(argv: list[str] | None = None) -> int:
     p_rehydrate.add_argument("--mirror", help=f"Mirror JSON (default: {MIRROR_PATH}).")
     p_rehydrate.add_argument("--now", help="Explicit RFC3339 clock input (tests/replay).")
 
+    p_gate_check = sub.add_parser(
+        "gate-check",
+        help="Evaluate roadmap_approval (D5). Exit 3 proceed, 0 parked (posture_block), 4 terminal block.",
+    )
+    p_gate_check.add_argument("--roadmap", required=True)
+    p_gate_check.add_argument(
+        "--context", action="append", metavar="KEY=VALUE",
+        help="Additional context key=value (repeatable).",
+    )
+
+    p_gate_answer = sub.add_parser(
+        "gate-answer", help="Record a console decision for a gate (originates roadmap_approval)."
+    )
+    p_gate_answer.add_argument("--roadmap", required=True)
+    p_gate_answer.add_argument("--gate", required=True)
+    p_gate_answer.add_argument("--decision", required=True, choices=["approved", "rejected"])
+    p_gate_answer.add_argument("--note")
+    p_gate_answer.add_argument("--dispatch-id", dest="dispatch_id")
+
+    p_gate_log = sub.add_parser("gate-log", help="Print the sidecar + child gate_decisions for a roadmap (D6).")
+    p_gate_log.add_argument("--roadmap", required=True)
+
     args = parser.parse_args(argv)
     return {
         "fingerprint": _cmd_fingerprint,
@@ -1150,6 +1357,9 @@ def main(argv: list[str] | None = None) -> int:
         "supervisor-record": _cmd_supervisor_record,
         "mirror": _cmd_mirror,
         "rehydrate": _cmd_rehydrate,
+        "gate-check": _cmd_gate_check,
+        "gate-answer": _cmd_gate_answer,
+        "gate-log": _cmd_gate_log,
     }[args.command](args)
 
 

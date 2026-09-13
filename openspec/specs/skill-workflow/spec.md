@@ -1828,14 +1828,27 @@ The `ReviewDispatcher` SHALL dispatch reviews to at least one vendor different f
 
 ### Requirement: Parallel Review Dispatch
 
-The `ReviewDispatcher` SHALL execute vendor reviews in parallel (concurrent subprocess invocation).
+The `ReviewDispatcher` SHALL execute vendor reviews in parallel (concurrent
+subprocess invocation). Wall-clock time for a round SHALL be dominated by
+the slowest vendor, not the sum of vendors. Async submit+poll vendors SHALL
+be submitted concurrently, then polled. Review cwd SHALL be read-only; if a
+vendor CLI fails because of concurrent git access, the dispatcher SHALL
+retry that vendor on a detached snapshot worktree.
 
 #### Scenario: Parallel dispatch to multiple vendors
 
-- GIVEN Codex and grok are both available
-- WHEN the dispatcher dispatches reviews
-- THEN both vendor subprocesses are started concurrently
-- AND results are collected as each completes
+- **GIVEN** Codex and grok are both available
+- **WHEN** the dispatcher dispatches reviews
+- **THEN** both vendor subprocesses are started concurrently
+- **AND** results are collected as each completes
+- **AND** a test with two 2-second stub processes SHALL finish in under 3
+  seconds
+
+#### Scenario: Sequential dispatch is a bug
+
+- **GIVEN** two stub vendors that each sleep 2 seconds
+- **WHEN** `dispatch_and_wait` runs
+- **THEN** elapsed time SHALL be less than 4 seconds
 
 ### Requirement: Config-Driven Generic Adapter
 
@@ -1908,14 +1921,18 @@ A finding reported by only one vendor SHALL be classified as `unconfirmed` in th
 
 ### Requirement: Disagreement Classification
 
-When vendors disagree on disposition (e.g., `fix` vs `accept`), the finding SHALL be classified as `disagreement` and escalated.
+When vendors disagree on disposition (e.g., `fix` vs `accept`), the finding
+SHALL be classified as `disagreement` in the consensus report and **parked**
+on the ledger. Parking SHALL NOT abort the convergence loop.
 
 #### Scenario: Vendors disagree on disposition
 
-- GIVEN Codex says disposition=`fix` and grok says disposition=`accept` for matched findings
-- WHEN consensus is computed
-- THEN the finding status is `disagreement`
-- AND the recommended disposition is `escalate`
+- **GIVEN** Codex says disposition=`fix` and grok says disposition=`accept`
+  for matched findings
+- **WHEN** consensus is computed
+- **THEN** the finding status is `disagreement`
+- **AND** the recommended disposition is `escalate`
+- **AND** the ledger item status is `parked`
 
 ### Requirement: Consensus Report Schema Conformance
 
@@ -1949,13 +1966,25 @@ The integration gate SHALL use consensus findings: `confirmed` findings with dis
 
 ### Requirement: Disagreement Findings Escalate
 
-`Disagreement` findings SHALL trigger escalation (BLOCKED_ESCALATE).
+`Disagreement` findings SHALL be parked for human review. At SUBMIT_PR, if
+parked items remain, the merge-authorization path MAY surface them as
+`BLOCKED_ESCALATE`. Mid-loop `converge()` SHALL NOT stop solely because a
+disagreement exists.
+
+#### Scenario: Disagreement finding is parked not a loop abort
+
+- **GIVEN** a consensus report with a disagreement finding and no blocking
+  items
+- **WHEN** the convergence exit condition is checked
+- **THEN** the loop SHALL return converged with parked leftovers
+- **AND** `parked-disagreements.json` SHALL contain the finding
 
 #### Scenario: Disagreement finding escalates
 
-- GIVEN a consensus report with a disagreement finding
-- WHEN the integration gate checks
-- THEN the gate returns BLOCKED_ESCALATE
+- **GIVEN** a consensus report with a disagreement finding
+- **WHEN** the integration gate checks at SUBMIT_PR
+- **THEN** the gate MAY return BLOCKED_ESCALATE for parked leftovers
+- **AND** mid-loop `converge()` SHALL NOT abort solely because a disagreement exists
 
 ### Requirement: Quorum Reporting
 
@@ -2181,7 +2210,22 @@ The system SHALL provide an `/autopilot` skill that orchestrates the full plan-r
 
 ### Requirement: State Machine Phases
 
-The state machine SHALL support phases: INIT, PLAN, PLAN_REVIEW, PLAN_FIX, IMPLEMENT, IMPL_REVIEW, IMPL_FIX, VALIDATE, VAL_REVIEW (optional), VAL_FIX, SUBMIT_PR, DONE, ESCALATE. The state machine SHALL persist its state to `loop-state.json` after every state transition, enabling resumability.
+The state machine SHALL support phases: INIT, PLAN, PLAN_REVIEW, PLAN_FIX,
+IMPLEMENT, IMPL_REVIEW, IMPL_FIX, VALIDATE, VAL_REVIEW (optional), VAL_FIX,
+SUBMIT_PR, DONE, ESCALATE. PLAN_FIX and IMPL_FIX SHALL be recorded as
+fix-steps of the surrounding review phase (observability in `phase_history`)
+and SHALL NOT re-enter PLAN_REVIEW or IMPL_REVIEW as a cold multi-vendor
+review of the whole artifact. The state machine SHALL persist its state to
+`loop-state.json` after every state transition, enabling resumability.
+
+#### Scenario: Plan review with fixes stays in one engine
+
+- **GIVEN** a feature where plan review finds blocking issues
+- **WHEN** the loop processes plan review
+- **THEN** `converge()` SHALL apply fixes via `fix_callback` and re-review
+  as compact+delta inside the same PLAN_REVIEW phase
+- **AND** the outer machine SHALL NOT bounce PLAN_REVIEW → PLAN_FIX →
+  PLAN_REVIEW as a second engine
 
 #### Scenario: Normal phase progression (simple feature)
 
@@ -2193,13 +2237,8 @@ The state machine SHALL support phases: INIT, PLAN, PLAN_REVIEW, PLAN_FIX, IMPLE
 
 - **GIVEN** a feature where plan review finds medium-severity issues
 - **WHEN** the loop processes plan review
-- **THEN** phases SHALL progress: PLAN_REVIEW -> PLAN_FIX -> PLAN_REVIEW (re-review)
-
-#### Scenario: Resume after interruption
-
-- **GIVEN** the loop was interrupted during IMPL_REVIEW phase at iteration 2
-- **WHEN** the loop is re-invoked with the same change-id
-- **THEN** the system SHALL load state from `loop-state.json` and resume from IMPL_REVIEW iteration 2
+- **THEN** `converge()` SHALL apply fixes via `fix_callback` inside PLAN_REVIEW
+- **AND** the outer machine SHALL NOT bounce PLAN_REVIEW -> PLAN_FIX -> PLAN_REVIEW as a second engine
 
 #### Scenario: Complex feature with VAL_REVIEW
 
@@ -2207,9 +2246,25 @@ The state machine SHALL support phases: INIT, PLAN, PLAN_REVIEW, PLAN_FIX, IMPLE
 - **WHEN** validation passes
 - **THEN** phases SHALL include VAL_REVIEW before SUBMIT_PR
 
+#### Scenario: Resume after interruption
+
+- **GIVEN** the loop was interrupted during IMPL_REVIEW phase at iteration 2
+- **WHEN** the loop is re-invoked with the same change-id
+- **THEN** the system SHALL load state from `loop-state.json` and resume from
+  IMPL_REVIEW iteration 2
+
 ### Requirement: Review Convergence Loop
 
-The convergence loop SHALL dispatch reviews to all available vendors via `ReviewOrchestrator.dispatch_and_wait()`, synthesize findings via `ConsensusSynthesizer.synthesize()`, and exit when no confirmed or unconfirmed findings at medium or higher severity remain AND quorum is met. The loop SHALL enforce a maximum iteration cap (default 3 rounds per phase).
+The convergence loop SHALL dispatch reviews to all available vendors via
+`ReviewOrchestrator.dispatch_and_wait()`, merge results into the gate-time
+ledger, compact before round N>1, synthesize findings via
+`ConsensusSynthesizer.synthesize()`, and exit when no blocking ledger items
+remain AND quorum is met. Blocking means `deterministic` open items, or
+`confirmed` open items with criticality `high` or `critical`. Unconfirmed
+medium items SHALL NOT block. The loop SHALL enforce a maximum iteration
+cap (default 3 rounds per phase). PLAN_FIX and IMPL_FIX SHALL run as the
+loop's `fix_callback`, not as an outer state machine that re-dispatches a
+cold review.
 
 #### Scenario: Multi-vendor review dispatch
 
@@ -2219,10 +2274,18 @@ The convergence loop SHALL dispatch reviews to all available vendors via `Review
 
 #### Scenario: Convergence achieved with quorum
 
-- **GIVEN** consensus shows 3 low-severity findings and 0 medium+ findings
+- **GIVEN** compact leaves 0 blocking ledger items
 - **AND** at least 2 vendors returned valid results
 - **WHEN** the exit condition is checked
-- **THEN** convergence SHALL be declared and the loop SHALL advance to the next phase
+- **THEN** convergence SHALL be declared and the loop SHALL advance to the
+  next phase
+
+#### Scenario: Unconfirmed medium does not block
+
+- **GIVEN** a single-vendor medium-severity judgment finding
+- **WHEN** the exit condition is checked
+- **THEN** the finding SHALL NOT block convergence
+- **AND** `fix_callback` SHALL NOT receive it
 
 #### Scenario: Convergence blocked by insufficient quorum
 
@@ -2233,29 +2296,44 @@ The convergence loop SHALL dispatch reviews to all available vendors via `Review
 
 #### Scenario: Max iterations reached
 
-- **GIVEN** the plan review has run 3 rounds without convergence
-- **WHEN** the 3rd round completes with remaining medium+ findings
+- **GIVEN** the plan review has run 3 rounds without zero blocking items
+- **WHEN** the 3rd round completes with remaining blocking items
 - **THEN** the system SHALL transition to ESCALATE state
 
 ### Requirement: Finding Trend Tracking and Stall Detection
 
-The convergence loop SHALL track finding counts per round and escalate if findings are not decreasing over a 3-round sliding window (i.e., count at round N >= count at round N-2). Unconfirmed findings (single-vendor, medium+) SHALL block in rounds 1 through N-1 but SHALL NOT block in the final round. Findings with `disagreement` status SHALL always trigger escalation.
+The convergence loop SHALL track **post-compact blocking** counts per round
+and escalate if the count is not strictly decreasing versus the previous
+round. Unconfirmed medium findings SHALL NOT block in any round.
+Disagreement SHALL park rather than stall or abort.
+
+#### Scenario: Decreasing blocking continues
+
+- **GIVEN** round 1 has 4 blocking items and round 2 has 2
+- **WHEN** trend analysis runs after round 2
+- **THEN** the system SHALL NOT escalate
+
+#### Scenario: Non-decreasing blocking stalls
+
+- **GIVEN** round 1 has 3 blocking items and round 2 has 3
+- **WHEN** trend analysis runs after round 2
+- **THEN** the system SHALL escalate with reason `stalled`
 
 #### Scenario: Decreasing trend continues (no stall)
 
-- **GIVEN** round 1 has 10 blocking findings, round 2 has 5, and round 3 has 6
+- **GIVEN** round 1 has 10 blocking findings, round 2 has 5, and round 3 has 3
 - **WHEN** trend analysis runs after round 3
-- **THEN** the system SHALL NOT escalate because round 3 count (6) < round 1 count (10)
+- **THEN** the system SHALL NOT escalate because post-compact blocking is strictly decreasing
 
 #### Scenario: Flat trend triggers stall
 
 - **GIVEN** round 1 has 5 blocking findings, round 2 has 5, and round 3 has 5
 - **WHEN** trend analysis runs after round 3
-- **THEN** the system SHALL escalate because round 3 count (5) >= round 1 count (5)
+- **THEN** the system SHALL escalate because post-compact blocking is not strictly decreasing
 
 #### Scenario: Unconfirmed finding in final round
 
-- **GIVEN** a single-vendor medium-severity finding in round 3 (final round)
+- **GIVEN** a single-vendor medium-severity judgment finding in round 3 (final round)
 - **WHEN** the exit condition is checked
 - **THEN** the finding SHALL NOT block convergence
 
@@ -2263,26 +2341,40 @@ The convergence loop SHALL track finding counts per round and escalate if findin
 
 - **GIVEN** claude recommends "fix" and codex recommends "accept" for the same finding
 - **WHEN** consensus synthesis classifies this as "disagreement"
-- **THEN** the system SHALL transition to ESCALATE state
+- **THEN** the finding SHALL be parked rather than aborting the loop
 
 ### Requirement: Fix Dispatch
 
 Fix dispatch SHALL differ by phase:
-- **PLAN_FIX**: The conductor SHALL apply fixes **inline** (directly editing plan artifacts) since it already has full context. No CLI subprocess dispatch.
-- **IMPL_FIX**: Fixes SHALL be dispatched to the **recorded lead vendor** for the package (stored in `LoopState.package_authors`), scoped to the package's `write_allow` paths. Post-fix verification SHALL reject edits outside declared scope.
-- **VAL_FIX**: Fixes SHALL be applied inline for configuration/test changes, or targeted to the relevant package's author for code changes.
+
+- **PLAN_FIX**: The conductor SHALL apply fixes **inline** (directly editing
+  plan artifacts) since it already has full context. No CLI subprocess
+  dispatch. Allowed paths SHALL be the blocking items' `file_path`s.
+- **IMPL_FIX**: Fixes SHALL be dispatched to the **recorded lead vendor**
+  for the package (stored in `LoopState.package_authors`), scoped to the
+  intersection of the package's `write_allow` paths and the finding
+  `file_path`s. Post-fix verification SHALL reject edits outside that
+  intersection.
+- **VAL_FIX**: Fixes SHALL be applied inline for configuration/test changes,
+  or targeted to the relevant package's author for code changes.
+
+The fix prompt SHALL forbid adding architecture and expanding scope.
 
 #### Scenario: Plan fix applied inline
 
-- **GIVEN** plan review found 2 medium-severity confirmed findings in design.md
+- **GIVEN** plan review found 2 confirmed-high findings in design.md
 - **WHEN** fix dispatch runs
-- **THEN** the conductor SHALL edit design.md directly and re-validate with `openspec validate`
+- **THEN** the conductor SHALL edit design.md directly and re-validate with
+  `openspec validate`
 
 #### Scenario: Implementation fix targeted to lead vendor
 
-- **GIVEN** implementation review found a medium-severity finding in wp-api authored by codex
+- **GIVEN** implementation review found a blocking finding in wp-api
+  authored by codex
 - **WHEN** fix dispatch runs
-- **THEN** the system SHALL dispatch the fix to codex in alternative mode, scoped to wp-api's write_allow paths
+- **THEN** the system SHALL dispatch the fix to codex in alternative mode,
+  scoped to the intersection of wp-api's write_allow and the finding
+  `file_path`
 
 #### Scenario: Fix scope enforcement
 
@@ -4997,7 +5089,7 @@ The binding removes one cause of drift; other causes remain, including a hand-ed
 
 ### Requirement: Autopilot Gate Call Sites
 
-The autopilot loop in `skills/autopilot/scripts/autopilot.py` SHALL evaluate every member of `skills/shared/trust_posture.Gate` through `ApprovalGate.evaluate()` at exactly one code call site each, via an injected `GateEvaluator` seam whose default is `approval_gate.build_default_gate()`. The call sites SHALL be: `gatekeeper_escalation` on the GATEKEEPER `escalate` verdict; `proposal_approval` on the PLAN → PLAN_ITERATE edge; `plan_review_convergence_failure` on PLAN_REVIEW `max_iter` and PLAN_FIX `stuck`; `validation_failure` on VALIDATE `failed` and VAL_FIX `stuck`; `escalate_resume` on the ESCALATE → `_previous_phase` edge; `pr_creation` in SUBMIT_PR before the PR is created; `merge` on the SUBMIT_PR → DONE edge. (`replan_required` is evaluated by `autopilot-roadmap`; see the `roadmap-orchestration` capability.) A `merge` decision of `proceed` SHALL record merge authorization only; the loop SHALL NOT perform a merge.
+The autopilot loop in `skills/autopilot/scripts/autopilot.py` SHALL evaluate every member of `skills/shared/trust_posture.Gate` through `ApprovalGate.evaluate()` at exactly one code call site each, via an injected `GateEvaluator` seam whose default is `approval_gate.build_default_gate()`. The call sites SHALL be: `gatekeeper_escalation` on the GATEKEEPER `escalate` verdict; `proposal_approval` on the PLAN → PLAN_ITERATE edge; `plan_review_convergence_failure` on PLAN_REVIEW `max_iter` and PLAN_FIX `stuck`; `validation_failure` on VALIDATE `failed` and VAL_FIX `stuck`; `escalate_resume` on the ESCALATE → `_previous_phase` edge; `pr_creation` in SUBMIT_PR before the PR is created; `merge` on the SUBMIT_PR → DONE edge. (`replan_required` is evaluated by `autopilot-roadmap`, and `roadmap_approval` by the supervise skill's gate router; see the `roadmap-orchestration` and `supervise` capabilities.) A `merge` decision of `proceed` SHALL record merge authorization only; the loop SHALL NOT perform a merge.
 
 Every `ApprovalDecision` returned by a call site SHALL be appended to `LoopState.gate_decisions` as `ApprovalDecision.to_audit_record()` before the loop acts on it. The orchestrator SHALL remain the only actor that mutates `LoopState.current_phase`.
 
@@ -5009,7 +5101,7 @@ Every `ApprovalDecision` returned by a call site SHALL be appended to `LoopState
 - **AND** `current_phase` SHALL remain `PLAN` until a decision is recorded
 
 #### Scenario: Auto posture reaches SUBMIT_PR without interaction
-- **GIVEN** a `TRUST_POSTURE.md` whose eight gates are all `auto`
+- **GIVEN** a `TRUST_POSTURE.md` whose gates are all `auto` (the count is deliberately unstated here — this scenario is about the seven gates autopilot itself evaluates, not the total in `Gate`, which grows independently of this requirement)
 - **WHEN** `run_loop()` executes a change whose phases all succeed
 - **THEN** the run SHALL reach `SUBMIT_PR` with zero `gate_pending` outcomes
 - **AND** `LoopState.gate_decisions` SHALL contain one record per evaluated gate, each with `resolution=auto`
@@ -5961,4 +6053,292 @@ surfaced; they MUST NOT introduce a new blocking gate for the audit.
 - AND the ledger it persists SHALL record `change_id` as
   `range:<base-sha>..<head-sha>`
 - AND the driver SHALL exit with status 0
+
+### Requirement: Gate-Time Review Ledger
+
+The convergence loop SHALL persist findings to
+`openspec/changes/<change-id>/.review-ledger/ledger.json` with statuses
+`open`, `addressed`, `retired`, and `parked`. Each item SHALL have a stable
+id that survives rounds. New consensus findings SHALL merge into an existing
+id when the synthesizer match score meets the threshold or the fingerprint
+matches.
+
+#### Scenario: Same defect keeps its id
+
+- **WHEN** round 2 synthesizes a finding that matches a round-1 ledger item
+- **THEN** the ledger SHALL keep the same `id`
+- **AND** SHALL update `last_seen_round` to 2
+
+#### Scenario: Ledger created on first round
+
+- **WHEN** `converge()` runs and `.review-ledger/` does not exist
+- **THEN** the directory and `ledger.json` SHALL be created
+- **AND** the loop SHALL NOT fail solely because the ledger was absent
+
+### Requirement: Compact Before New Hunt
+
+Before dispatching round N>1, the loop SHALL compact the ledger against
+current `HEAD`: retire items whose file is gone or whose description tokens
+no longer appear in the file (or line window); return `addressed` items to
+`open` if tokens remain.
+
+#### Scenario: Fixed finding is retired
+
+- **GIVEN** an open finding whose description tokens no longer appear in
+  `file_path`
+- **WHEN** compact runs
+- **THEN** the item status SHALL be `retired`
+
+#### Scenario: Claimed fix that did not take reopens
+
+- **GIVEN** an `addressed` finding whose tokens still appear in `file_path`
+- **WHEN** compact runs
+- **THEN** the item status SHALL be `open`
+
+### Requirement: Delta Review After Round One
+
+Round N>1 review prompts SHALL include open ledger items and the last-fix
+diff, and SHALL forbid re-opening `retired` or `parked` items. Round N>1
+SHALL NOT be a cold review of the whole artifact.
+
+#### Scenario: Round 2 prompt carries the ledger
+
+- **WHEN** `build_review_prompt` is called for round 2
+- **THEN** the prompt SHALL contain the open ledger item descriptions
+- **AND** SHALL contain the last-fix diff or an explicit empty-diff marker
+- **AND** SHALL instruct the reviewer not to re-open retired or parked items
+
+### Requirement: Parked Disagreement Does Not Abort
+
+When consensus classifies a finding as `disagreement`, the loop SHALL set
+that ledger item to `parked`, append it to
+`openspec/changes/<change-id>/reviews/parked-disagreements.json`, and
+continue with remaining blocking items. The loop SHALL NOT return
+`reason="disagreement"`.
+
+#### Scenario: Disagreement plus agreed blocking continues
+
+- **GIVEN** one disagreement finding and one confirmed high deterministic
+  finding
+- **WHEN** the round's consensus is processed
+- **THEN** `fix_callback` SHALL be invoked with the confirmed finding
+- **AND** the disagreement SHALL be written to `parked-disagreements.json`
+- **AND** `converge()` SHALL NOT return `reason="disagreement"`
+
+#### Scenario: Only disagreement remaining is convergence with leftovers
+
+- **GIVEN** the only remaining consensus findings are disagreements
+- **WHEN** the exit condition is checked
+- **THEN** the loop SHALL return `converged=True`
+- **AND** `escalate_findings` SHALL contain the parked items
+
+### Requirement: Scoped Fix Cluster
+
+`fix_callback` SHALL receive only current blocking ledger items. Allowed
+write paths SHALL be each item's `file_path` (plus the spec file when
+`type` is `spec_gap`). The fix prompt SHALL forbid new architecture and
+out-of-scope edits. Post-fix Layer A validation SHALL run before the next
+vendor panel.
+
+#### Scenario: Fix is scoped to cited files
+
+- **GIVEN** a blocking finding with `file_path=src/api.py`
+- **WHEN** `fix_callback` is invoked
+- **THEN** the allowed-path list SHALL contain `src/api.py`
+- **AND** SHALL NOT contain unrelated package paths
+
+#### Scenario: Out of scope fix is rejected
+
+- **GIVEN** a fix dispatch scoped to `src/api.py`
+- **WHEN** the fix modifies `src/frontend/app.tsx`
+- **THEN** the system SHALL reject the fix as a scope violation
+
+### Requirement: Supervised Background Dispatch Boundary
+
+The skill workflow SHALL treat a supervised background Autopilot agent as an isolated write-capable worker whose public result is the supervised-dispatch result contract rather than its conversation transcript.
+
+#### Scenario: Background agent completes normally
+- **WHEN** a supervised Autopilot agent finishes in its verified managed worktree
+- **THEN** the host returns a schema-valid outcome and handoff identifier through `dispatch_fn`
+- **AND** the parent supervisor does not copy the child transcript into its session or durable state
+
+#### Scenario: Background agent fails without a handoff
+- **WHEN** a supervised Autopilot agent exits unsuccessfully and produces no valid handoff
+- **THEN** the host returns a correlated failed outcome with a bounded reason
+- **AND** the roadmap failure policy handles the failure without treating transcript text as executable context
+
+#### Scenario: Inspect the parent session after two child runs
+- **WHEN** a fake host-event capture adapter drives two background child sessions whose transcripts contain unique sentinels and whose public results are schema-valid
+- **THEN** the adapter-captured parent-session event stream contains only requests, task handles, lease events, and the two structured outcomes, with no transcript sentinel
+- **AND** checkpoint, learning, handoff, and supervisor-record outputs contain no transcript sentinel
+
+### Requirement: Outbox-Ordered Optional Queue Projection
+
+The autopilot state machine SHALL provide an optional queue-projection callback that runs only after the authoritative `loop-state.json` write succeeds. Projection failure SHALL leave the new loop-state durable and SHALL be repairable by invoking reconciliation from the loaded loop-state on resume. With no callback, the state machine SHALL perform no coordinator import, probe, or request.
+
+#### Scenario: State persists before projection
+
+- **GIVEN** a phase transition produces a new loop-state
+- **AND** a coordinated caller injected a projection callback
+- **WHEN** the transition is persisted
+- **THEN** the loop-state write SHALL complete before the callback begins
+- **AND** a callback failure SHALL NOT revert the persisted state
+
+#### Scenario: Crash window repairs on resume
+
+- **GIVEN** a process terminates after loop-state persistence but before queue submission
+- **WHEN** autopilot resumes with a coordinated reconciliation callback
+- **THEN** it SHALL load the authoritative loop-state first
+- **AND** it SHALL request reconciliation for the loaded `(change_id, phase, transition_sequence=total_iterations)` before phase execution
+- **AND** it SHALL set `transition_sequence` from `LoopState.total_iterations`, not `LoopState.iteration`
+- **AND** it SHALL NOT derive any loop-state field from the queue response
+
+#### Scenario: Fallback tiers remain coordinator-free
+
+- **GIVEN** local-parallel or sequential execution supplies no projection callback
+- **WHEN** the state machine starts, transitions, or resumes
+- **THEN** it SHALL make zero coordinator queue calls
+- **AND** existing execution behavior SHALL remain unchanged
+
+### Requirement: Roadmap Approval Gate
+
+The trust-posture contract SHALL define a ninth gate, `roadmap_approval`, that fires when the supervise `cycle` verb asks the operator to authorize a roadmap's DAG of items. `shared.trust_posture.Gate` SHALL enumerate it, `TRUST_POSTURE.template.md` SHALL ship it as `block`, and every schema that embeds the gate enum — `openspec/schemas/trust-posture.schema.json`, `gate-decision.schema.json`, `gate-request.schema.json`, `supervisor-record.schema.json`, and `supervisor-record-mirror.schema.json` — SHALL accept it. An absent `TRUST_POSTURE.md` or an omitted entry SHALL resolve `roadmap_approval` to `block`. `shared.approval_gate` SHALL expose public `console_decision(gate, posture, approved, note)` and `build_gate_decision_record(decision, *, phase, extra)` helpers and an `ApprovalGate.check_filed(gate, approval_id, *, notified)` method that interprets a previously filed coordinator approval with the same status mapping `evaluate` uses (`approved` → proceed, `denied` → rejected, `expired` → the default action, `pending` → no decision), resolving the gate's disposition from the live posture and taking `notified` from the caller's prior record rather than assuming delivery, so an undelivered notification can never be upgraded from a fail-closed block to a `proceed` default; `skills/autopilot/scripts/runner.py` and `autopilot.py` SHALL delegate to the shared helpers so console decisions and ledger records share one shape. The prose-free gate test SHALL cover `skills/supervise/SKILL.md` as well as `skills/autopilot/SKILL.md`.
+
+#### Scenario: Nine gates enumerated and representable
+- **WHEN** `test_trust_posture.py` enumerates `Gate` and validates a contract that sets every gate
+- **THEN** there SHALL be exactly nine members including `roadmap_approval`
+- **AND** the template SHALL validate and resolve every gate to `block`
+- **AND** `test_gate_schemas.py::test_gate_enum_matches_trust_posture` SHALL find the same nine values in `gate-request.schema.json` and `gate-decision.schema.json`, and the supervisor-record and mirror schemas SHALL accept a `pending_gates[]` entry with `gate: roadmap_approval`
+
+#### Scenario: Absent posture keeps roadmap approval human
+- **GIVEN** no `TRUST_POSTURE.md`
+- **WHEN** `ApprovalGate.evaluate(Gate.ROADMAP_APPROVAL, …)` runs
+- **THEN** the decision SHALL be `BLOCKED` with resolution `posture_block` and `posture_present: false`
+
+#### Scenario: Autopilot call-site invariant is unchanged
+- **WHEN** `test_gate_call_sites.py` runs
+- **THEN** each of autopilot's seven gates still has exactly one `gates.evaluate(Gate.X` call site
+- **AND** `roadmap_approval`, like `replan_required`, has no call site in `autopilot.py`
+- **AND** `roadmap_approval` SHALL have exactly one call site in `skills/supervise/scripts/gate_router.py`, as `replan_required` has exactly one in the roadmap orchestrator, so excluding it from autopilot's set does not exempt it from the one-call-site invariant
+
+#### Scenario: Grep finds no prose-only gate in the supervise skill
+- **WHEN** the prose-free gate test scans `skills/supervise/SKILL.md` for the phrases `Then **stop**`, `Accept only durable roadmap-altitude approval`, and `Only a parked `pending_gate` or `policy_pause` may resume with a durable `approval_ref``
+- **THEN** none SHALL be present outside a `gate-check` / `gate-answer` / `gate-log` protocol block
+- **AND** every backticked or `Gate.`-qualified occurrence of a gate name in that file SHALL be inside such a block, the backtick rule being what keeps the ordinary English word `merge` in unrelated prose from reading as a gate reference
+- **AND** the gates supervise is expected to name — `roadmap_approval`, `escalate_resume`, and a parked child's gate — SHALL each have such a block, and the check SHALL be keyed by `trust_posture.Gate` so a renamed member fails rather than silently disappears
+
+#### Scenario: Late coordinator answer is interpreted by the gate service
+- **GIVEN** an `ApprovalGate` whose coordinator reports a previously filed approval as `approved`
+- **WHEN** `check_filed(Gate.ROADMAP_APPROVAL, approval_id, notified=True)` is called
+- **THEN** it SHALL return a decision with outcome `proceed`, resolution `approved`, and that `approval_id`, and SHALL record it to the audit sink
+- **AND** when the coordinator reports `pending` it SHALL return `None` and record nothing, regardless of `notified`
+- **AND** when the coordinator reports `expired` and the caller passes `notified=True`, it SHALL apply the live posture's `default_action`
+- **AND** when the coordinator reports `expired` and the caller passes `notified=False` — the state a `default_action: proceed` gate reaches today because `BridgeCoordinatorClient.push_notification` always returns `False` — it SHALL return `None` and leave the fail-closed block standing
+- **AND** the caller SHALL supply `notified` from the gate-decision record's own persisted `notified` field, never a literal or a default, so the block-standing arm above is the one every production `roadmap_approval` timeout reaches
+- **AND** when the coordinator is unreachable it SHALL return a `BLOCKED` / `coordinator_unreachable` decision rather than raise
+
+### Requirement: Canonical durable state-artifact inventory
+
+The repository SHALL provide one canonical guide that documents the five durable orchestration artifact classes: per-change loop state, roadmap checkpoint state, roadmap learning entries, phase records, and handoff documents. For each class, the guide SHALL state its path, holder/scope, canonical writer, authority, consumers, and missing or stale behavior.
+
+#### Scenario: All durable classes are discoverable
+
+- **WHEN** a contributor opens the durable state-artifacts guide
+- **THEN** all five artifact classes SHALL be named with their exact repository or coordinator path
+- **AND** every class SHALL identify its holder, writer, authority, consumers, and missing/stale behavior
+
+#### Scenario: Advisory state conflicts with authoritative state
+
+- **WHEN** a handoff, phase record, learning entry, or queue projection conflicts with a valid loop-state or roadmap checkpoint record for the same scope
+- **THEN** the authoritative record SHALL win
+- **AND** the conflict SHALL be reported rather than silently merged
+
+### Requirement: Deterministic fresh-session rehydration
+
+The guide SHALL distinguish bootstrap discovery from canonical verification and SHALL define this ordered rehydration sequence for a fresh supervisor session: bootstrap locator, roadmap definition, roadmap execution state, change execution state, learning context, phase history, handoff context, and projection rebuild. The learning-context stage SHALL use a bounded recent-learning window without making its numeric bound part of this documentation contract.
+
+#### Scenario: Fresh supervisor session resumes active work
+
+- **WHEN** a fresh supervisor session receives a supervisor handoff or tracked mirror
+- **THEN** it SHALL use that artifact only to locate candidate active roadmaps and changes
+- **AND** it SHALL verify roadmap checkpoints before per-change loop state
+- **AND** it SHALL load learnings, phase records, and bounded handoff context only after authoritative state
+- **AND** it SHALL rebuild coordinator and queue projections only after advisory context has been reconciled with authoritative state
+
+#### Scenario: Never-started roadmap has no checkpoint
+
+- **WHEN** a roadmap definition exists but no locator or advisory record claims prior execution progress
+- **AND** its canonical checkpoint does not yet exist
+- **THEN** rehydration SHALL treat the roadmap as never started rather than degraded
+- **AND** it SHALL NOT synthesize a checkpoint from the roadmap definition or advisory context
+
+#### Scenario: Canonical state is missing
+
+- **WHEN** a bootstrap handoff names an active roadmap or change whose canonical checkpoint or loop-state artifact is missing
+- **THEN** rehydration SHALL report a degraded or inconsistent state
+- **AND** it SHALL NOT reconstruct authoritative phase state from the handoff, learning log, phase record, or queue
+
+### Requirement: Workflow skill documentation references the canonical guide
+
+The canonical `autopilot`, `autopilot-roadmap`, `session-log`, `supervise`, `implement-feature`, and `validate-feature` skill sources SHALL carry the repository-relative `docs/guides/state-artifacts.md` reference for shared ownership and replay semantics while retaining their phase-specific commands and gate rules.
+
+#### Scenario: Relevant skill documentation is audited
+
+- **WHEN** the focused state-artifact documentation test inspects the relevant canonical skill sources
+- **THEN** each of the six named sources SHALL reference `docs/guides/state-artifacts.md`
+- **AND** the supervise rehydration section SHALL follow the guide's ordered canonical verification sequence
+
+#### Scenario: Runtime skill mirrors are installed
+
+- **WHEN** the canonical changed skills are installed into `.agents` and `.claude`
+- **THEN** each changed mirror SHALL be byte-identical to its canonical `skills/` source
+
+### Requirement: Review Packet As Default Input
+
+The dispatcher and `converge()` SHALL build a review packet before dispatch
+containing: the schema-derived prompt contract, a unified or last-fix diff,
+traced spec excerpts, and open ledger items when a ledger exists. The packet
+SHALL be written to the round directory with a checksum. When the packet is
+under the contracted size budget, the prompt SHALL tell the reviewer the
+packet is complete and not to explore the repo for missing artifacts.
+
+#### Scenario: Packet includes diff and schema contract
+
+- **WHEN** a review round is dispatched
+- **THEN** the round directory SHALL contain a packet file whose body includes
+  a diff hunk header or an explicit empty-diff marker
+- **AND** includes the required finding fields from the canonical schema
+
+#### Scenario: Missing ledger still builds a packet
+
+- **WHEN** `.review-ledger/` is absent
+- **THEN** the packet SHALL still be built from diff, specs, and schema
+  contract
+- **AND** dispatch SHALL proceed
+
+#### Scenario: Over-budget packet sets tools overflow
+
+- **WHEN** the packet body exceeds the contracted size budget
+- **THEN** the packet metadata SHALL set `tools_overflow` true
+- **AND** the prompt SHALL allow Read/Grep to recover truncated context
+
+### Requirement: Verify-Then-Wire Structured Output
+
+A vendor's review-mode CLI SHALL gain structured-output / JSON-schema flags
+only after an empirical probe recorded in this change's contracts marks that
+vendor `verified`. Unprobed or absent flags SHALL leave the vendor on the
+phase-1 prompt path. The dispatcher SHALL NOT guess flags.
+
+#### Scenario: Grok remains schema-injected
+
+- **WHEN** a grok review is dispatched
+- **THEN** the command SHALL include `--json-schema` with the canonical
+  schema sentinel or its injected value
+
+#### Scenario: Unprobed vendor is not given Grok's flags
+
+- **WHEN** a vendor whose structured-output row is `unprobed` or `absent`
+  is dispatched
+- **THEN** the command SHALL NOT include Grok's `--json-schema` sentinel
+  unless that vendor's own probe recorded `verified`
 

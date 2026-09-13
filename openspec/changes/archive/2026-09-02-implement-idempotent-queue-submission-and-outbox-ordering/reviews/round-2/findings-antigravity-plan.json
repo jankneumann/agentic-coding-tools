@@ -1,0 +1,97 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The monotonic sequence high-water mark table (work_queue_projection_heads) combined with change-scoped advisory locking completely eliminates the stale submit race condition across different sequence numbers during concurrent submit/reconcile operations.",
+      "resolution": "Preserve the high-water check and advisory lock ordering during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/design.md",
+      "line_range": {
+        "start": 31,
+        "end": 44
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "low",
+      "description": "Reconciliation endpoint authorization is explicitly mapped to the existing submit_work policy action with mode=reconcile context, preserving existing Cedar policy boundaries while enforcing strict RFC 7807 401/403 problem responses on denial.",
+      "resolution": "Maintain submit_work policy mapping and RFC 7807 failure envelopes during API implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/specs/agent-coordinator/spec.md",
+      "line_range": {
+        "start": 89,
+        "end": 94
+      },
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Verification commands for wp-coordinator-queue explicitly include dedicated direct MCP projection test modules (test_mcp_work_projection.py) alongside API, CLI, and PostgreSQL integration suites to guarantee transport parity.",
+      "resolution": "Ensure test_mcp_work_projection.py is implemented and executed as part of package and integration verification gates.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/work-packages.yaml",
+      "line_range": {
+        "start": 119,
+        "end": 129
+      },
+      "axis": "observability",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Migration 035 implements deterministic preflight validation under SHARE ROW EXCLUSIVE table locks, aborting with documented SQLSTATE errors for legacy malformed or duplicate rows to ensure clean rollback and safe retries.",
+      "resolution": "Keep preflight SQLSTATE checks and transactional rollback intact during migration file creation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/design.md",
+      "line_range": {
+        "start": 72,
+        "end": 75
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The autopilot state machine enforces a persist-first ordering seam where loop-state persistence precedes queue projection, and resume reconciliation reconstructs queue state strictly from loaded loop-state without mutating authoritative state.",
+      "resolution": "Retain the one-way authority invariant and post-persistence projection callback structure in autopilot scripts.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 15,
+        "end": 23
+      },
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The work-package DAG and write scope boundaries cleanly segregate contracts, coordinator persistence, bridge outbox seams, and integration validation without overlapping write permissions or circular dependencies.",
+      "resolution": "Maintain work package isolation and scope write_allow lists during task execution.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/work-packages.yaml",
+      "line_range": {
+        "start": 26,
+        "end": 204
+      },
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

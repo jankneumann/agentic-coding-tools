@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "whole-branch",
+  "reviewers": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 5,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: `decide` accepts any non-null `roadmap_ref` for a `refine-roadmap` approval, including values that violate the durable schema's `^[a-z0-9-]+:ri-[0-9]{2,}$` contract. It then passes the malformed entry to `write_mirror`; `_clean_digested_stub` drops the entire entry, so the CLI exits successfully while silently erasing the operator's approval and candidate from durable state. An isolated call with `roadmap_ref=\"not a roadmap ref\"` returned a schema-valid mirror whose `digested_stubs` array was empty."
+    },
+    {
+      "id": 2,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 7,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: lifecycle rebuild can orphan an unscored survivor across an interruption. After scoring A, storing unscored B, and terminally pruning A, `_lifecycle_rebuild` publishes an empty digest because it rebuilds only the intersection with the prior ranked keys, while B remains in the candidate store and mirror. If the cycle stops before Rank, the next unchanged preflight reports `lifecycle_changed: false` because `_decision_drift_keys` ignores remaining store keys absent from the prior digest; the host may therefore re-present the empty digest indefinitely without ever scoring B. An isolated two-preflight reproduction left B stored and requestable by `prepare_batch`, but returned an empty rebuilt digest followed by `lifecycle_changed: false`."
+    },
+    {
+      "id": 3,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: record-versus-digest decision drift now triggers a cache-only lifecycle rebuild before the unchanged or forced reuse paths, preserving the original scoring time while updating the durable decision, ordering, and state timestamp."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: the non-empty force path now probes validated prior digest/cache identity and returns an explicit non-persisting `reuse_available: false` result for missing or mismatched caches, allowing the host to fall through to analyst scoring instead of aborting the cycle."
+    },
+    {
+      "id": 5,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 5
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: transaction publication and recovery preflight every target and checksum, enforce bounded operation and byte counts, and order the validated digest commit marker last; the provenance reader independently rejects URIs, traversal, symlinks, untracked or modified paths, binary data, and future commit timestamps."
+    },
+    {
+      "id": 6,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: legacy durable records now canonicalize supported old stub/change identifiers and reject malformed historical refine-roadmap references before final mirror validation, while the canonical and installed supervise skill copies pass byte-identity checks."
+    },
+    {
+      "id": 7,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 6
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: the implementation preserves the host-assisted boundary: deterministic runtime code validates, ranks, journals, and emits pure roadmap-refiner requests, while model judgment remains in the bounded skill dispatch and no roadmap writer or network client enters `digest.py`."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: the host workflow procedure explicitly integrates the non-empty force-reuse probe branch using rank without --scores before analyst dispatch, falling back gracefully to scoring when reuse is unavailable."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: candidate store admission strictly rejects re-admission of stubs with terminal approved or rejected decisions, preventing capacity loss and invisible work duplication while preserving durable history in the mirror."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: `store_candidates` accepts CLI/`--force` then discards it with `del force`, so callers and `test_force_future_deferral_drift_rebuilds_digest_before_reuse` appear to exercise a force store path that cannot change behavior. Force reuse correctly lives in Rank/`rank_candidates(scores=None)`, making the store flag misleading API surface."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: `proposal.md` still documents rubric caches at `openspec/supervise/candidates/<encoded-stub-key>.rubric.json`, while the runtime, fingerprint excludes, SKILL output table, and tests all use `openspec/supervise/rubric-cache/`. Normative design/spec/SKILL agree with the code; only the proposal prose is stale."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: round-2 lifecycle/reuse fixes verify cleanly in code and tests \u2014 record-versus-digest future-deferral drift rebuilds without rescoring; forced non-empty same-fingerprint reuse probes via `rank` without `--scores` before analyst dispatch; missing/invalid caches return `reuse_available: false` instead of raising; terminal same-key re-admission is rejected while history is preserved; legacy invalid `roadmap_ref` is dropped in `_clean_digested_stub`; and installed `.agents`/`.claude` supervise mirrors are byte-identical to `skills/supervise/**`."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: reuse fallback and recovery paths expose actionable machine-readable reasons (`reuse_available`/`reason`, `recovered pending digest transaction; rehydrate and retry`) that the SKILL host procedure branches on, so missing caches and interrupted journals degrade to analyst retry or rehydrate rather than opaque failure."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 13,
+    "confirmed_count": 6,
+    "unconfirmed_count": 7,
+    "disagreement_count": 0,
+    "blocking_count": 2,
+    "advisory_count": 0
+  }
+}

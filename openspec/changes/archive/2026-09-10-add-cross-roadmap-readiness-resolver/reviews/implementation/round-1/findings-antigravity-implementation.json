@@ -1,0 +1,143 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The admission rule _get_ready_items is defined exactly once in roadmap-runtime/scripts/readiness.py and imported by both required consumers (autopilot-roadmap orchestrator.py and resolve_readiness.py). Enforced by AST test in test_readiness.py.",
+      "resolution": "Accept single-definition architecture and AST enforcement.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/readiness.py",
+      "line_range": {
+        "start": 13,
+        "end": 40
+      },
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Valid checkpoints authoritatively govern terminal state over roadmap status fields. Soft status lag emits roadmap_checkpoint_divergence with stale=true without withholding workspace items or completion refs. Hard-invalid checkpoints fail closed with exit code 2 and withhold affected ready items and external completion refs.",
+      "resolution": "Accept checkpoint authority model, divergence diagnostic reporting, and fail-closed error handling.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "line_range": {
+        "start": 192,
+        "end": 265
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Workspaces lacking a checkpoint file default to roadmap definition status as the valid never-started baseline and report checkpoint_absent with stale=false.",
+      "resolution": "Accept missing-checkpoint baseline handling.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "line_range": {
+        "start": 346,
+        "end": 350
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Typed external dependencies (external_depends_on) require effective completion in referenced workspaces before unblocking. Supersession, failed items, and local dependency checks match spec rules, and final flat ready entries are globally sorted by (priority, roadmap_id, item_id).",
+      "resolution": "Accept dependency evaluation rules and global ranking.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "line_range": {
+        "start": 356,
+        "end": 386
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "criticality": "low",
+      "description": "SHA-256 source_fingerprint is derived from a canonical sorted projection of roadmaps and checkpoints, ignoring timestamps, mtimes, learnings, handoffs, and queue state. Unchanged inputs produce byte-identical JSON stdout with a trailing newline.",
+      "resolution": "Accept content-derived fingerprint determinism and advisory artifact isolation.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "line_range": {
+        "start": 157,
+        "end": 176
+      },
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Supervisor ready_across_roadmaps groups canonical resolver output by roadmap_id, maintaining backward compatibility for existing callers. Models are loaded via explicit path and unique module names to avoid sys.modules collisions regardless of test collection order.",
+      "resolution": "Accept supervisor compatibility wrapper and collision-proof module loading.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 54,
+        "end": 878
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Unit and integration tests in test_readiness.py thoroughly validate all spec scenarios including single definition AST assertions, soft divergence, hard invalid fail-closed behavior, external edge unblocking, fingerprint stability, key sorting independence, and schema validation. The full 586-test suite passes cleanly.",
+      "resolution": "Accept test suite coverage and verification results.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/tests/roadmap-runtime/test_readiness.py",
+      "line_range": {
+        "start": 120,
+        "end": 364
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "security",
+      "criticality": "low",
+      "description": "The readiness resolver CLI is completely read-only, performs no file writes or network calls, resolves paths relative to repo_root safely, and introduces no contract drift or out-of-scope mutations.",
+      "resolution": "Accept read-only security boundary and path safety.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "line_range": {
+        "start": 338,
+        "end": 418
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    }
+  ]
+}

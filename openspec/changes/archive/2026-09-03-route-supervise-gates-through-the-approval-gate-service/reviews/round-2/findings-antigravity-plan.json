@@ -1,0 +1,103 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: ExecutionAdapter.prepare gains a required roadmap_approval_ref argument in task 2.6, breaking skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py at line 351. However, wp-router's write_allow scope in work-packages.yaml omits skills/tests/autopilot-roadmap/**, causing wp-router's mandatory verification command (cd skills && uv run pytest tests/roadmap-runtime tests/autopilot-roadmap -q) to fail inside the package's isolated worktree.",
+      "resolution": "Add skills/tests/autopilot-roadmap/test_supervised_dispatch_e2e.py to tasks 2.5 and 2.6 and include skills/tests/autopilot-roadmap/** in wp-router's write_allow scope in work-packages.yaml.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/work-packages.yaml"
+    },
+    {
+      "id": 2,
+      "axis": "correctness",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: tasks.md is missing task 2.0 (which was supposed to update cycle_state._clean_pending_gate to carry decision_id and import Gate/Disposition enums before gate_router.py in task 2.2), while old task 2.8 remains placed after task 2.2. When gate_router.py in task 2.2 projects a pending_gates entry carrying decision_id and gate: roadmap_approval through cycle_state.write_mirror, cycle_state._clean_pending_gate will strip decision_id and reject roadmap_approval because _GATES is not yet updated.",
+      "resolution": "Add Task 2.0 at the start of section 2 in tasks.md to update cycle_state.py (_clean_pending_gate and trust_posture imports) ahead of task 2.2, remove task 2.8, and update task 2.9's dependency to reference 2.0/2.7.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/tasks.md"
+    },
+    {
+      "id": 3,
+      "axis": "security",
+      "severity": "critical",
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: ApprovalGate.check_filed delegates to _interpret_status, which invokes _apply_default when a coordinator status returns expired. In approval_gate.py, _apply_default relies on notified to fail closed to BLOCK when notification delivery was false. The plan (design D4, tasks 1.4/1.5, spec) specifies check_filed(gate, approval_id) with only two parameters, causing _interpret_status to default to notified=True. This allows re-checking an expired approval via check_filed to auto-proceed under default_action: proceed even when notification delivery was undelivered (notified=False).",
+      "resolution": "Specify that ApprovalGate.check_filed accepts *, notified: bool = False (defaulting to False to guarantee fail-closed behavior when notification status is unverified) and update design D4, tasks 1.4/1.5, and contract specs.",
+      "disposition": "fix",
+      "package_id": "wp-contracts",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md"
+    },
+    {
+      "id": 4,
+      "axis": "resilience",
+      "severity": "critical",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Critical: gate_router.evaluate appends gate decisions via CheckpointManager.record_gate_decision, which calls CheckpointManager.load(). If cycle_state.py gate-check runs immediately after intake before roadmap execution has created a checkpoint, CheckpointManager.load() will raise FileNotFoundError. Neither design D2 nor task 2.2 specifies bootstrapping a checkpoint when checkpoint.json is missing.",
+      "resolution": "Update design D2 and task 2.2 to specify that gate_router.evaluate checks mgr.exists() and bootstraps a minimal Checkpoint via Checkpoint.create (or loads an in-memory fallback) when checkpoint.json is missing.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md"
+    },
+    {
+      "id": 5,
+      "axis": "observability",
+      "severity": "critical",
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Critical: design D6, task 2.7, and supervise/spec.md state that gate-log --roadmap <id> reads openspec/changes/<change_id>/loop-state.json for changes named in the roadmap. Under Background Worktree Isolation, active or parked child Autopilot runs execute in distinct worktrees where loop-state.json is written until merged. Reading only repo_root/openspec/changes/<change_id>/loop-state.json misses decisions made during active/parked child attempts.",
+      "resolution": "Update design D6, task 2.7, and supervise/spec.md to specify that gate-log resolves child loop-state.json through the attempt's worktree_path (or worktree registry entry) when absent from the primary tree.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md"
+    },
+    {
+      "id": 6,
+      "axis": "correctness",
+      "severity": "nit",
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Nit: design D5, proposal.md, and supervise/spec.md define roadmap_fingerprint as the sha256 of sorted (item_id, change_id, sorted(depends_on)) tuples, omitting external_depends_on and item status (such as superseded or skipped). If a replan modifies cross-roadmap dependencies or item statuses without changing local depends_on, roadmap_fingerprint will remain unchanged and bypass gate re-evaluation.",
+      "resolution": "Update design D5, proposal.md, task 2.2, and supervise/spec.md to include sorted(external_depends_on) and normalized item status in roadmap_fingerprint.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md"
+    },
+    {
+      "id": 7,
+      "axis": "architecture",
+      "severity": "nit",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Nit: gate_router.py imports cycle_state.write_mirror while cycle_state.py subcommands (gate-check, gate-answer, gate-log) import gate_router functions. Top-level imports in both files will trigger a circular import error on module loading.",
+      "resolution": "Specify in tasks 2.2 and 2.9 that imports between gate_router.py and cycle_state.py must be lazy (deferred inside functions).",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/tasks.md"
+    },
+    {
+      "id": 8,
+      "axis": "architecture",
+      "severity": "none",
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The consolidation of build_gate_decision_record and console_decision into shared.approval_gate (wp-contracts) provides a clean single source of truth for gate decision records across autopilot and supervise while preserving full backward compatibility.",
+      "resolution": "Accept as designed.",
+      "disposition": "accept",
+      "package_id": "wp-contracts",
+      "file_path": "skills/shared/approval_gate.py"
+    }
+  ]
+}

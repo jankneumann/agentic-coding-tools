@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T14:05:00.000000+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "local fallback requested for canonical validation evidence",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude",
+    "session_id": "canonical-validation-6",
+    "summary": "Canonical validation FAILED at exact pushed commit d07699d0. Fresh live-PostgreSQL evidence reproduces a real regression: TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused raises AttributeError because DirectPostgresClient.query() does not JSON-decode jsonb columns, so Task.result comes back as a string instead of a dict. Independently confirmed both locally and in GitHub's required test-integration job. Every other phase (deploy, smoke, security, spec/evidence, unit/type/lint suites, 15/16 CI checks) passes cleanly.",
+    "completed_work": [
+      "Passed strict OpenSpec, task-drift, change-scoped traceability (68 operations cite 36 requirements), work-package schema/DAG/lock-key, and context-impact gates for all four packages",
+      "Deployed a fresh rootless Podman/PostgreSQL 18.3 stack and raw-initialized all 39 migrations plus 999_record_schema_migrations.sh; ledger 39/39 with no missing/unexpected/checksum-mismatched entries; two consecutive ensure_schema() calls both returned []",
+      "Independently reproduced the CI test-integration failure against the live database: TestCompleteTaskTerminalCancellation::test_late_complete_after_reconcile_cancel_is_refused fails with AttributeError: 'str' object has no attribute 'get'; test_complete_still_succeeds_for_active_claimed_task passes",
+      "Diagnosed root cause: DirectPostgresClient.query() in agent-coordinator/src/db_postgres.py never decodes jsonb columns (unlike DirectPostgresClient.rpc(), which already does), so Task.result/input_data/agent_requirements come back as raw JSON strings under this backend",
+      "Passed 11/11 reusable HTTP smoke checks against a live coordinator API, plus a direct proxied-transport exercise of http_proxy.proxy_submit_work()/proxy_reconcile_work_projection() confirming the dda2834f identity-injection fix holds end-to-end (no 422)",
+      "Confirmed retained ZAP evidence stays valid: no dependency manifest changed since the retained scan, SHA-256 hashes reproduce exactly, gate.json still PASS with triggered_count=0; preventive diff found no new dynamic-execution/TLS-bypass/secret/unparameterized-SQL pattern",
+      "Ran coordinator full non-live suite (2439 passed, 11 skipped), mypy src/ (77 files clean), ruff check . (clean); skills infrastructure testpaths session (2974 passed, 13 skipped) and isolated per-directory suites matching CI's loop",
+      "Polled PR #457 CI at exact head d07699d0 to completion: 15/16 checks pass, dependency-update-remediation skips by design, test-integration fails with the identical AttributeError",
+      "Tore down the Podman stack and background API process cleanly; confirmed zero remaining containers, volumes, networks, or listeners"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Fail closed on a live-database regression exposed by validation-fix-5's own new test",
+        "rationale": "The migration-036 guardrail itself demonstrably works (the refusal WARNING fires correctly); only the read-back path used to assert on it is broken. This is real and reproducible in both a local live-Postgres run and GitHub's required test-integration job at the exact PR head, so it is reported as a phase FAIL rather than waived.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Reuse retained ZAP evidence without a rescan",
+        "rationale": "No dependency manifest changed between the retained-scan commit and this head; reproduced SHA-256 hashes and gate.json PASS match exactly.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "VAL_FIX: in agent-coordinator/src/db_postgres.py::DirectPostgresClient.query(), decode jsonb column values the same way rpc() already does, or register an asyncpg jsonb/json type codec on the pool in _get_pool(). Add a regression test asserting get_task().result is a dict, not a str, under DirectPostgresClient.",
+      "After the fix, rerun TestCompleteTaskTerminalCancellation against a live database and reconfirm PR #457's test-integration job before requesting the next VALIDATE."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+        "description": "Canonical Validation 6 evidence, including full root-cause analysis"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/architecture-impact.md",
+        "description": "Canonical Validation 6 Audit subsection"
+      },
+      {
+        "path": "agent-coordinator/src/db_postgres.py",
+        "description": "Root cause: DirectPostgresClient.query() does not decode jsonb columns"
+      },
+      {
+        "path": "agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py",
+        "description": "TestCompleteTaskTerminalCancellation, the test that reproduces the failure"
+      }
+    ]
+  }
+}

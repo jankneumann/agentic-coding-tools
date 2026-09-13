@@ -1,0 +1,39 @@
+agents:
+  antigravity-local:
+    type: antigravity
+    transport: mcp
+    cli:
+      command: agy
+      dispatch_modes:
+        review:
+          args: ["--mode", "plan", "--dangerously-skip-permissions"]
+      model_flag: "--model"
+      model: "gemini-3.6-flash-medium"
+      model_fallbacks: ["gemini-3.6-flash-low"]
+      prompt_via_flag: "--prompt"
+
+  grok-local:
+    type: grok
+    transport: mcp
+    cli:
+      command: grok
+      dispatch_modes:
+        review:
+          args: ["--prompt-file", "/dev/stdin", "--output-format", "json", "--always-approve", "--json-schema", "@review-findings-schema"]
+      model_flag: "-m"
+      model: "grok-4.5"
+      model_fallbacks: []
+      prompt_via_stdin: true
+
+  pi-local:
+    type: pi
+    transport: mcp
+    cli:
+      command: pi
+      dispatch_modes:
+        review:
+          args: ["-p", "--provider", "openrouter", "--mode", "json", "--approve"]
+      model_flag: "--model"
+      model: "qwen/qwen3-coder"
+      model_fallbacks: ["qwen/qwen3-coder-flash"]
+      api_key_env: OPENROUTER_API_KEY

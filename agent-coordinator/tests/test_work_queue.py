@@ -13,13 +13,11 @@ class TestWorkQueueService:
     """Tests for WorkQueueService."""
 
     @pytest.mark.asyncio
-    async def test_claim_task_success(
-        self, mock_supabase, db_client, task_claimed_response
-    ):
+    async def test_claim_task_success(self, mock_supabase, db_client, task_claimed_response):
         """Test successful task claim."""
-        mock_supabase.post(
-            "https://test.supabase.co/rest/v1/rpc/claim_task"
-        ).mock(return_value=Response(200, json=task_claimed_response))
+        mock_supabase.post("https://test.supabase.co/rest/v1/rpc/claim_task").mock(
+            return_value=Response(200, json=task_claimed_response)
+        )
 
         service = WorkQueueService(db_client)
         result = await service.claim()
@@ -31,13 +29,11 @@ class TestWorkQueueService:
         assert result.priority == 3
 
     @pytest.mark.asyncio
-    async def test_claim_task_with_types(
-        self, mock_supabase, db_client, task_claimed_response
-    ):
+    async def test_claim_task_with_types(self, mock_supabase, db_client, task_claimed_response):
         """Test claiming a task with specific types."""
-        mock_supabase.post(
-            "https://test.supabase.co/rest/v1/rpc/claim_task"
-        ).mock(return_value=Response(200, json=task_claimed_response))
+        mock_supabase.post("https://test.supabase.co/rest/v1/rpc/claim_task").mock(
+            return_value=Response(200, json=task_claimed_response)
+        )
 
         service = WorkQueueService(db_client)
         result = await service.claim(task_types=["refactor", "test"])
@@ -45,13 +41,11 @@ class TestWorkQueueService:
         assert result.success is True
 
     @pytest.mark.asyncio
-    async def test_claim_no_tasks_available(
-        self, mock_supabase, db_client, no_tasks_response
-    ):
+    async def test_claim_no_tasks_available(self, mock_supabase, db_client, no_tasks_response):
         """Test claiming when no tasks are available."""
-        mock_supabase.post(
-            "https://test.supabase.co/rest/v1/rpc/claim_task"
-        ).mock(return_value=Response(200, json=no_tasks_response))
+        mock_supabase.post("https://test.supabase.co/rest/v1/rpc/claim_task").mock(
+            return_value=Response(200, json=no_tasks_response)
+        )
 
         service = WorkQueueService(db_client)
         result = await service.claim()
@@ -61,13 +55,11 @@ class TestWorkQueueService:
         assert result.task_id is None
 
     @pytest.mark.asyncio
-    async def test_complete_task_success(
-        self, mock_supabase, db_client, task_completed_response
-    ):
+    async def test_complete_task_success(self, mock_supabase, db_client, task_completed_response):
         """Test successful task completion."""
-        mock_supabase.post(
-            "https://test.supabase.co/rest/v1/rpc/complete_task"
-        ).mock(return_value=Response(200, json=task_completed_response))
+        mock_supabase.post("https://test.supabase.co/rest/v1/rpc/complete_task").mock(
+            return_value=Response(200, json=task_completed_response)
+        )
 
         service = WorkQueueService(db_client)
         task_id = UUID(task_completed_response["task_id"])
@@ -89,9 +81,9 @@ class TestWorkQueueService:
             "status": "failed",
             "task_id": str(UUID(int=1)),
         }
-        mock_supabase.post(
-            "https://test.supabase.co/rest/v1/rpc/complete_task"
-        ).mock(return_value=Response(200, json=response))
+        mock_supabase.post("https://test.supabase.co/rest/v1/rpc/complete_task").mock(
+            return_value=Response(200, json=response)
+        )
 
         service = WorkQueueService(db_client)
 
@@ -105,13 +97,11 @@ class TestWorkQueueService:
         assert result.status == "failed"
 
     @pytest.mark.asyncio
-    async def test_submit_task_success(
-        self, mock_supabase, db_client, task_submitted_response
-    ):
+    async def test_submit_task_success(self, mock_supabase, db_client, task_submitted_response):
         """Test successful task submission."""
-        mock_supabase.post(
-            "https://test.supabase.co/rest/v1/rpc/submit_task"
-        ).mock(return_value=Response(200, json=task_submitted_response))
+        mock_supabase.post("https://test.supabase.co/rest/v1/rpc/submit_task").mock(
+            return_value=Response(200, json=task_submitted_response)
+        )
 
         service = WorkQueueService(db_client)
         result = await service.submit(
@@ -129,9 +119,9 @@ class TestWorkQueueService:
         self, mock_supabase, db_client, task_submitted_response
     ):
         """Test submitting a task with dependencies."""
-        mock_supabase.post(
-            "https://test.supabase.co/rest/v1/rpc/submit_task"
-        ).mock(return_value=Response(200, json=task_submitted_response))
+        mock_supabase.post("https://test.supabase.co/rest/v1/rpc/submit_task").mock(
+            return_value=Response(200, json=task_submitted_response)
+        )
 
         service = WorkQueueService(db_client)
         dep_id = UUID(int=99)
@@ -146,13 +136,11 @@ class TestWorkQueueService:
         assert result.success is True
 
     @pytest.mark.asyncio
-    async def test_get_pending_tasks(
-        self, mock_supabase, db_client, pending_tasks_response
-    ):
+    async def test_get_pending_tasks(self, mock_supabase, db_client, pending_tasks_response):
         """Test getting pending tasks."""
-        mock_supabase.get(
-            url__startswith="https://test.supabase.co/rest/v1/work_queue"
-        ).mock(return_value=Response(200, json=pending_tasks_response))
+        mock_supabase.get(url__startswith="https://test.supabase.co/rest/v1/work_queue").mock(
+            return_value=Response(200, json=pending_tasks_response)
+        )
 
         service = WorkQueueService(db_client)
         tasks = await service.get_pending()
@@ -164,15 +152,13 @@ class TestWorkQueueService:
         assert tasks[1].priority == 5
 
     @pytest.mark.asyncio
-    async def test_get_pending_with_types(
-        self, mock_supabase, db_client, pending_tasks_response
-    ):
+    async def test_get_pending_with_types(self, mock_supabase, db_client, pending_tasks_response):
         """Test getting pending tasks filtered by type."""
         # Return only test tasks
         filtered = [pending_tasks_response[0]]
-        mock_supabase.get(
-            url__startswith="https://test.supabase.co/rest/v1/work_queue"
-        ).mock(return_value=Response(200, json=filtered))
+        mock_supabase.get(url__startswith="https://test.supabase.co/rest/v1/work_queue").mock(
+            return_value=Response(200, json=filtered)
+        )
 
         service = WorkQueueService(db_client)
         tasks = await service.get_pending(task_types=["test"])
@@ -181,14 +167,12 @@ class TestWorkQueueService:
         assert tasks[0].task_type == "test"
 
     @pytest.mark.asyncio
-    async def test_get_task_by_id(
-        self, mock_supabase, db_client, pending_tasks_response
-    ):
+    async def test_get_task_by_id(self, mock_supabase, db_client, pending_tasks_response):
         """Test getting a specific task by ID."""
         task_data = pending_tasks_response[0]
-        mock_supabase.get(
-            url__startswith="https://test.supabase.co/rest/v1/work_queue"
-        ).mock(return_value=Response(200, json=[task_data]))
+        mock_supabase.get(url__startswith="https://test.supabase.co/rest/v1/work_queue").mock(
+            return_value=Response(200, json=[task_data])
+        )
 
         service = WorkQueueService(db_client)
         task_id = UUID(task_data["id"])
@@ -201,9 +185,9 @@ class TestWorkQueueService:
     @pytest.mark.asyncio
     async def test_get_task_not_found(self, mock_supabase, db_client):
         """Test getting a task that doesn't exist."""
-        mock_supabase.get(
-            url__startswith="https://test.supabase.co/rest/v1/work_queue"
-        ).mock(return_value=Response(200, json=[]))
+        mock_supabase.get(url__startswith="https://test.supabase.co/rest/v1/work_queue").mock(
+            return_value=Response(200, json=[])
+        )
 
         service = WorkQueueService(db_client)
         task = await service.get_task(UUID(int=999))
@@ -263,7 +247,7 @@ class TestWorkQueueService:
 
         class DenyPolicyEngine:
             async def check_operation(self, **_kwargs):
-                return PolicyDecision.deny("operation_not_permitted")
+                return PolicyDecision.deny("write_denied: trust_level=1 < 2")
 
         class FailDB:
             async def rpc(self, *_args, **_kwargs):
@@ -282,6 +266,94 @@ class TestWorkQueueService:
 
         assert result.success is False
         assert result.task_id is None
+        assert result.reason == "write_denied: trust_level=1 < 2"
+        assert result.failure_category == "policy"
+
+    @pytest.mark.asyncio
+    async def test_submit_blocked_by_guardrails_preserves_reason(self, monkeypatch):
+        from src.guardrails import GuardrailResult
+
+        class AllowPolicyEngine:
+            async def check_operation(self, **_kwargs):
+                return PolicyDecision.allow()
+
+        class DenyGuardrails:
+            async def check_operation(self, **_kwargs):
+                return GuardrailResult(safe=False)
+
+        class FailDB:
+            async def rpc(self, *_args, **_kwargs):
+                raise AssertionError("DB RPC should not be called when denied")
+
+        async def resolve_trust(*_args, **_kwargs):
+            return "default"
+
+        monkeypatch.setattr(
+            "src.policy_engine.get_policy_engine",
+            lambda: AllowPolicyEngine(),
+        )
+        monkeypatch.setattr(
+            "src.guardrails.get_guardrails_service",
+            lambda: DenyGuardrails(),
+        )
+        service = WorkQueueService(FailDB())
+        monkeypatch.setattr(service, "_resolve_trust_level", resolve_trust)
+
+        result = await service.submit(task_type="test", description="blocked")
+
+        assert result.success is False
+        assert result.created is False
+        assert result.reason == "guardrail_denied"
+
+    @pytest.mark.asyncio
+    async def test_reconcile_blocked_by_guardrails_before_mutating_rpc(self, monkeypatch):
+        """Reconciliation must not be a way around submit()'s guardrail screen.
+
+        ``reconcile_projection`` cancels active rows for the projection key and
+        inserts a canonical task, so content ordinary ``submit()`` would reject must
+        be rejected here too — and before the mutating RPC, not after it.
+        """
+        from src.guardrails import GuardrailResult
+
+        class AllowPolicyEngine:
+            async def check_operation(self, **_kwargs):
+                return PolicyDecision.allow()
+
+        class DenyGuardrails:
+            async def check_operation(self, **_kwargs):
+                return GuardrailResult(safe=False)
+
+        class FailDB:
+            async def rpc(self, *_args, **_kwargs):
+                raise AssertionError("DB RPC should not be called when denied")
+
+        async def resolve_trust(*_args, **_kwargs):
+            return "default"
+
+        monkeypatch.setattr(
+            "src.policy_engine.get_policy_engine",
+            lambda: AllowPolicyEngine(),
+        )
+        monkeypatch.setattr(
+            "src.guardrails.get_guardrails_service",
+            lambda: DenyGuardrails(),
+        )
+        service = WorkQueueService(FailDB())
+        monkeypatch.setattr(service, "_resolve_trust_level", resolve_trust)
+
+        result = await service.reconcile_projection(
+            projection_key={
+                "change_id": "guarded-change",
+                "phase": "IMPLEMENT",
+                "transition_sequence": 3,
+            },
+            task_type="test",
+            description="blocked",
+        )
+
+        assert result.success is False
+        assert result.created is False
+        assert result.reason == "guardrail_denied"
 
 
 class TestTaskDataClasses:
@@ -369,9 +441,9 @@ class TestWorkQueueAtomicity:
                 return Response(200, json=first_response)
             return Response(200, json=second_response)
 
-        mock_supabase.post(
-            "https://test.supabase.co/rest/v1/rpc/claim_task"
-        ).mock(side_effect=response_callback)
+        mock_supabase.post("https://test.supabase.co/rest/v1/rpc/claim_task").mock(
+            side_effect=response_callback
+        )
 
         service = WorkQueueService(db_client)
 
@@ -392,9 +464,9 @@ class TestWorkQueueAtomicity:
             "success": False,
             "reason": "task_not_found_or_not_claimed_by_agent",
         }
-        mock_supabase.post(
-            "https://test.supabase.co/rest/v1/rpc/complete_task"
-        ).mock(return_value=Response(200, json=response))
+        mock_supabase.post("https://test.supabase.co/rest/v1/rpc/complete_task").mock(
+            return_value=Response(200, json=response)
+        )
 
         service = WorkQueueService(db_client)
 
@@ -405,6 +477,41 @@ class TestWorkQueueAtomicity:
 
         assert result.success is False
         assert "not_claimed_by_agent" in result.reason
+
+    @pytest.mark.asyncio
+    async def test_complete_refused_after_cancellation_surfaces_status_and_warns(
+        self, mock_supabase, db_client, caplog
+    ):
+        """A completion refused because the task is already terminal (e.g.
+
+        cancelled by projection reconciliation) must surface a clear reason
+        and status on the result, and log a warning rather than passing
+        silently — migration 036 makes complete_task return
+        'task_not_active' with the row's current status for this case.
+        """
+        task_id = UUID(int=2)
+        response = {
+            "success": False,
+            "reason": "task_not_active",
+            "status": "cancelled",
+            "task_id": str(task_id),
+        }
+        mock_supabase.post("https://test.supabase.co/rest/v1/rpc/complete_task").mock(
+            return_value=Response(200, json=response)
+        )
+
+        service = WorkQueueService(db_client)
+
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="src.work_queue"):
+            result = await service.complete(task_id=task_id, success=True)
+
+        assert result.success is False
+        assert result.reason == "task_not_active"
+        assert result.status == "cancelled"
+        assert "no longer active" in caplog.text
+        assert "cancelled" in caplog.text
 
 
 class TestWorkQueueTrustResolution:
@@ -432,18 +539,14 @@ class TestWorkQueueTrustResolution:
         )
 
     @pytest.mark.asyncio
-    async def test_registry_agent_with_disabled_profile_fails_loud(
-        self, monkeypatch, db_client
-    ):
+    async def test_registry_agent_with_disabled_profile_fails_loud(self, monkeypatch, db_client):
         """A disabled profile row must not degrade to the default trust level."""
         from unittest.mock import AsyncMock
 
         from src.profiles import AgentProfile, ProfileResult
         from src.trust_resolution import TrustResolutionError
 
-        monkeypatch.setattr(
-            "src.agents_config.get_agent_config", lambda _agent_id: self._entry()
-        )
+        monkeypatch.setattr("src.agents_config.get_agent_config", lambda _agent_id: self._entry())
         service = AsyncMock()
         service.get_profile.return_value = ProfileResult(
             success=True,
@@ -460,31 +563,23 @@ class TestWorkQueueTrustResolution:
         monkeypatch.setattr("src.audit._audit_service", AsyncMock())
 
         with pytest.raises(TrustResolutionError):
-            await WorkQueueService(db_client)._resolve_trust_level(
-                "grok-local", "grok"
-            )
+            await WorkQueueService(db_client)._resolve_trust_level("grok-local", "grok")
 
     @pytest.mark.asyncio
-    async def test_lookup_failure_for_registry_agent_fails_loud(
-        self, monkeypatch, db_client
-    ):
+    async def test_lookup_failure_for_registry_agent_fails_loud(self, monkeypatch, db_client):
         """The old copy swallowed every exception and returned trust 2."""
         from unittest.mock import AsyncMock
 
         from src.trust_resolution import TrustResolutionError
 
-        monkeypatch.setattr(
-            "src.agents_config.get_agent_config", lambda _agent_id: self._entry()
-        )
+        monkeypatch.setattr("src.agents_config.get_agent_config", lambda _agent_id: self._entry())
         service = AsyncMock()
         service.get_profile.side_effect = RuntimeError("db down")
         monkeypatch.setattr("src.profiles._profiles_service", service)
         monkeypatch.setattr("src.audit._audit_service", AsyncMock())
 
         with pytest.raises(TrustResolutionError):
-            await WorkQueueService(db_client)._resolve_trust_level(
-                "grok-local", "grok"
-            )
+            await WorkQueueService(db_client)._resolve_trust_level("grok-local", "grok")
 
     @pytest.mark.asyncio
     async def test_decommissioned_agent_does_not_inherit_sibling_trust(
@@ -499,9 +594,7 @@ class TestWorkQueueTrustResolution:
         monkeypatch.setenv("PROFILES_DEFAULT_TRUST", "2")
         reset_config()
 
-        monkeypatch.setattr(
-            "src.agents_config.get_agent_config", lambda _agent_id: None
-        )
+        monkeypatch.setattr("src.agents_config.get_agent_config", lambda _agent_id: None)
         service = AsyncMock()
         service.get_profile.return_value = ProfileResult(
             success=True,
@@ -516,8 +609,161 @@ class TestWorkQueueTrustResolution:
         )
         monkeypatch.setattr("src.profiles._profiles_service", service)
 
-        trust = await WorkQueueService(db_client)._resolve_trust_level(
-            "codex-remote", "codex"
-        )
+        trust = await WorkQueueService(db_client)._resolve_trust_level("codex-remote", "codex")
         assert trust == 2
         reset_config()
+
+
+def test_projection_migration_declares_full_head_and_atomic_paths():
+    from pathlib import Path
+
+    sql = (
+        Path(__file__).resolve().parents[1]
+        / "database/migrations/035_work_queue_projection.sql"
+    ).read_text()
+    for token in (
+        "DROP FUNCTION IF EXISTS coordinator_notify(TEXT,TEXT,TEXT,TEXT,TEXT);",
+        "CREATE TABLE IF NOT EXISTS work_queue_projection_heads",
+        "CREATE UNIQUE INDEX IF NOT EXISTS work_queue_projection_key_uidx",
+        "phase TEXT NOT NULL",
+        "pg_advisory_xact_lock(hashtextextended",
+        "projection_generation_mismatch",
+        "reconciliation_required",
+        "cancelled_by_projection_reconcile",
+        "ON CONFLICT ((input_data ->>",
+        "BEGIN;",
+        "COMMIT;",
+        "OR (CASE WHEN",
+        "ELSE FALSE END)",
+    ):
+        assert token in sql
+
+
+@pytest.mark.asyncio
+async def test_projection_submit_returns_canonical_deduplicated_result(mock_supabase, db_client):
+    task_id = UUID(int=7)
+    mock_supabase.post("https://test.supabase.co/rest/v1/rpc/submit_task").mock(
+        return_value=Response(
+            200,
+            json={
+                "success": True,
+                "task_id": str(task_id),
+                "created": False,
+                "status": "pending",
+            },
+        )
+    )
+    result = await WorkQueueService(db_client).submit(
+        task_type="implement",
+        description="project current phase",
+        projection_key={
+            "change_id": "projection-change",
+            "phase": "IMPLEMENT",
+            "transition_sequence": 4,
+        },
+    )
+    assert result.task_id == task_id
+    assert result.created is False
+    assert result.deduplicated is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "projection_key",
+    [
+        {"change_id": "Bad_ID", "phase": "IMPLEMENT", "transition_sequence": 1},
+        {"change_id": "ok", "phase": "NOT_A_PHASE", "transition_sequence": 1},
+        {"change_id": "ok", "phase": "IMPLEMENT", "transition_sequence": True},
+        {"change_id": "ok", "phase": "IMPLEMENT", "transition_sequence": 2**31},
+    ],
+)
+async def test_projection_submit_rejects_invalid_complete_key(db_client, projection_key):
+    result = await WorkQueueService(db_client).submit(
+        task_type="implement", description="invalid", projection_key=projection_key
+    )
+    assert result.success is False
+    assert result.reason == "invalid_projection_key"
+
+
+@pytest.mark.asyncio
+async def test_projection_submit_rejects_reserved_embedded_keys(db_client):
+    result = await WorkQueueService(db_client).submit(
+        task_type="implement",
+        description="ambiguous",
+        input_data={"change_id": "caller-owned"},
+        projection_key={
+            "change_id": "projection-change",
+            "phase": "IMPLEMENT",
+            "transition_sequence": 1,
+        },
+    )
+    assert result.success is False
+    assert result.reason == "reserved_projection_key"
+
+
+@pytest.mark.asyncio
+async def test_unkeyed_submit_rejects_reserved_projection_identity(db_client):
+    result = await WorkQueueService(db_client).submit(
+        task_type="legacy",
+        description="ambiguous",
+        input_data={"change_id": "caller-owned"},
+    )
+    assert result.success is False
+    assert result.reason == "reserved_projection_key"
+
+
+@pytest.mark.asyncio
+async def test_reconcile_returns_sorted_cancelled_ids(mock_supabase, db_client):
+    current = UUID(int=8)
+    cancelled = [UUID(int=3), UUID(int=2)]
+    mock_supabase.post("https://test.supabase.co/rest/v1/rpc/reconcile_work_projection").mock(
+        return_value=Response(
+            200,
+            json={
+                "success": True,
+                "task_id": str(current),
+                "created": True,
+                "status": "pending",
+                "cancelled_task_ids": [str(v) for v in cancelled],
+            },
+        )
+    )
+    result = await WorkQueueService(db_client).reconcile_projection(
+        projection_key={
+            "change_id": "projection-change",
+            "phase": "IMPLEMENT",
+            "transition_sequence": 5,
+        },
+        task_type="implement",
+        description="resume",
+    )
+    assert result.success is True
+    assert result.cancelled_task_ids == sorted(cancelled, key=str)
+
+
+@pytest.mark.asyncio
+async def test_reconcile_enforces_submit_work_policy_with_mode(monkeypatch):
+    class DenyPolicyEngine:
+        async def check_operation(self, **kwargs):
+            assert kwargs["operation"] == "submit_work"
+            assert kwargs["context"]["mode"] == "reconcile"
+            return PolicyDecision.deny("operation_not_permitted")
+
+    class FailDB:
+        async def rpc(self, *_args, **_kwargs):
+            raise AssertionError("DB RPC should not be called when denied")
+
+    monkeypatch.setattr("src.policy_engine.get_policy_engine", lambda: DenyPolicyEngine())
+    result = await WorkQueueService(FailDB()).reconcile_projection(
+        projection_key={
+            "change_id": "projection-change",
+            "phase": "IMPLEMENT",
+            "transition_sequence": 5,
+        },
+        task_type="implement",
+        description="resume",
+    )
+
+    assert result.success is False
+    assert result.reason == "operation_not_permitted"
+    assert result.failure_category == "policy"

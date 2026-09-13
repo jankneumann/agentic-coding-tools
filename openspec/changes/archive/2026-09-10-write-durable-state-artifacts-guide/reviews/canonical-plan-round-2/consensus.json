@@ -1,0 +1,396 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "write-durable-state-artifacts-guide",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 6,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 12,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 11,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "The new test directory is invisible to CI and cannot be registered under the declared scope. `skills/tests/state-artifacts` appears in neither `skills/pyproject.toml` `testpaths` (lines 58-147, which enumerate directories explicitly and end with a NOTE that 'most dirs under skills/tests/ are deliberately absent') nor the `Run in-skill test suites (isolated processes)` loop in `.github/workflows/ci.yml` (lines 89-139, which names `tests/session-log`, `tests/supervise`, `tests/roadmap-runtime`, etc. one by one). `skills/tests/ci_coverage/test_ci_test_coverage.py` exists precisely to fail when a directory containing `test_*.py` is reached by neither mechanism -- its `_test_dirs()` rglobs `test_*.py` under `skills/` and `_EXEMPT` (lines ~52-63) lists only bug-scrub, fix-scrub, validate-feature smoke_tests and refresh-architecture insights. So this branch has two consequences: the ci_coverage guard turns red, and the drift guard this change exists to create never executes in CI. Neither `skills/pyproject.toml` nor `.github/workflows/ci.yml` is in `packages[0].scope.write_allow` (work-packages.yaml lines 56-79), so the fix is outside the declared package scope as planned. tasks.md 3.2 ('Run focused and affected skill tests ... scope checks') does not name CI registration."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "`test_changed_skill_mirrors_are_byte_identical` (skills/tests/state-artifacts/test_state_artifacts_guide.py:81-85) asserts on files that do not exist outside a developer machine. `git ls-files .agents/skills .claude/skills` returns nothing -- the runtime mirrors are untracked, which change-context.md:12 itself acknowledges ('ignored runtime copies'), and CLAUDE.md states they are overwritten by install.sh. The only CI step that touches the payload is `bash install.sh --check` (.github/workflows/ci.yml:65), and install.sh:40 documents `--check` as 'Validate the complete install payload and exit **without syncing**'. On a fresh checkout the test therefore raises `FileNotFoundError` from `.read_bytes()` rather than failing a documented assertion or skipping -- an error mode the RED evidence never exercised because the mirrors pre-existed locally. This makes the mirror half of D4's 'structural drift guard' unenforceable anywhere but the author's machine, while `install.sh --check` already covers payload validity in CI."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "The 'portable skill link' decision diverges from the repository's existing convention and hardcodes a URL that is currently dead. All six skills use the absolute form `https://github.com/jankneumann/agentic-coding-tools/blob/main/docs/guides/state-artifacts.md` (e.g. skills/session-log/SKILL.md:15, skills/autopilot/SKILL.md:17, skills/supervise/SKILL.md:17), and skills/tests/state-artifacts/test_state_artifacts_guide.py:16 pins that exact string as `GUIDE_LINK`. But the established pattern for the same problem in installed payloads is a bare repo-relative path in backticks: skills/coordination-bridge/SKILL.md:81 says `docs/guides/work-queue-truth-projection.md`, skills/vision/SKILL.md:116 says `docs/guides/worktree-management.md`, and skills/session-log/SKILL.md:155 -- 140 lines below the new block in the same file -- says `docs/guides/memory-conventions.md`. That form is equally payload-safe (it is a reference, not a relative link that escapes the skill dir), so the justification recorded in docs/decisions/skill-workflow.md ('Installed skill payloads cannot use relative links that escape the skill directory') argues against a relative *link* but not against the convention actually in use. Concretely: `git cat-file -e main:docs/guides/state-artifacts.md` is ABSENT_ON_MAIN, so every one of the six links 404s until this branch merges; the `blob/main` pin always shows main's copy to a reader on a branch; and a repo rename or fork silently breaks both the six links and the test that pins them."
+    },
+    {
+      "id": 4,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 8
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "description": "The D5 trace is now false in two plan artifacts. change-context.md:22 records 'D5 - No new ADR | **No decision-file changes** | Scope review and context checkpoint', and design.md:33-35 states 'generating a new capability-timeline entry would duplicate settled authority decisions'. The branch does generate one: `git diff docs/decisions/skill-workflow.md` adds an 11-line `## 2026-09-08 -- write-durable-state-artifacts-guide` entry (Phase: Implementation, 'Use portable canonical guide links'). plan-findings.md:37 reconciles the *scope* consequence correctly -- the file is a `make decisions` output regenerated by `PhaseRecord.write_both()` step four (skills/session-log/scripts/phase_record.py:364-371) and was added to `locks.files` and `scope.write_allow` -- but neither design.md D5 nor the change-context D5 row was updated to match. A reader auditing D5 against the diff sees a direct contradiction inside the same branch."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Decisions D1-D3 in design.md define normative inventory in docs/guides/state-artifacts.md, establish question-scoped authority for the five durable artifact classes (loop-state.json, checkpoint.json, learning entries, session-log.md phase records, handoffs/mirrors), and separate fresh session bootstrap locators from canonical file verification."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The OpenSpec delta under specs/skill-workflow/spec.md specifies unambiguous requirements and scenarios for five-class state discovery, conflict resolution favoring canonical records over advisory handoffs or queue projections, fail-loud missing-state degradation, portable skill links, and byte-identical runtime mirrors."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The single sequential work package wp-state-artifacts-docs in work-packages.yaml correctly bounds file locks and write allowlists across docs/guides/state-artifacts.md, six canonical SKILL.md sources, test files under skills/tests/state-artifacts/, .agents and .claude mirrors, and the generated decision index docs/decisions/skill-workflow.md."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The structural RED/GREEN test suite in skills/tests/state-artifacts/test_state_artifacts_guide.py validates five-class inventory headers, 8-step rehydration order markers in docs/guides/state-artifacts.md and skills/supervise/SKILL.md, portable link URLs across all six skill files, and byte identity for .agents and .claude runtime mirrors."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The plan iteration findings in plan-findings.md explicitly document the disposition of Round 1 vendor reviews, justify the single sequential package DAG, and reconcile PhaseRecord.write_both() regenerating docs/decisions/skill-workflow.md upon recording decision D1."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The supervised rehydration section in skills/supervise/SKILL.md aligns with the 8-step rehydration sequence defined in docs/guides/state-artifacts.md, separating the supervisor handoff/mirror bootstrap locator from canonical roadmap checkpoint and change loop-state verification."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The guide's 'Writer ordering' section restates `write_both()` as a three-step sequence: 'appends and sanitizes the tracked phase record before attempting the coordinator handoff, with a tracked local fallback when transport is unavailable' (docs/guides/state-artifacts.md:40). The runtime is four steps -- skills/session-log/scripts/phase_record.py:364-371 documents 'Best-effort 4-step persistence: markdown -> sanitize -> coordinator -> regenerate the decision index', and the docstring is emphatic that step four 'runs last, and unconditionally' because 'a session-log entry is the only thing that invalidates that index'. The guide's own inventory row already lists 'decision-index generation' among phase-record consumers (line 12), so the omission is only in the ordering paragraph -- but this is exactly the drift class the guide's closing rule forbids ('If runtime behavior and this guide disagree, stop and fix the guide or implementation together', line 44), and the repo has an archived change (2026-08-28-bind-decision-index-to-session-log-writes) whose recorded decision was that five documents describing write_both() as three steps had to be corrected in the same PR."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Two evidence counts in change-context.md disagree with the test module. Line 12 records 'Byte-identity parametrization: 12 passed', but `test_changed_skill_mirrors_are_byte_identical` is parametrized over `SKILL_NAMES` (six entries, test file lines 8-15) and yields six test IDs, each making two `assert ... == canonical` comparisons -- twelve comparisons, six tests. Every other row in the same table records 'Focused GREEN: 15 passed', and 1 + 1 + 6 + 1 + 6 = 15 is the module's full collected count, so 12 cannot be a test count without contradicting 15. Separately, validation/red-state-artifacts.md:4 records '9 failed, 6 passed' -- arithmetically exact for a missing guide (2 guide tests + 6 link tests + 1 supervise-order test fail; the 6 mirror tests pass) -- which makes explicit that the mirror assertion had no RED phase at all and passed identically before and after the change."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Five-class coverage verified exact against the runtime writers, not just against the spec text. Each row of the docs/guides/state-artifacts.md inventory (lines 9-13) resolves to a real writer at a real path: per-change loop state -> `save_state()` at skills/autopilot/scripts/autopilot.py:155 with the path built at skills/autopilot/scripts/phase_agent.py:815 (`_change_dir(change_id) / 'loop-state.json'`); roadmap checkpoint -> skills/roadmap-runtime/scripts/checkpoint.py:39 (`workspace / 'checkpoint.json'`); learning entries -> skills/roadmap-runtime/scripts/learning.py:31 ('Write a learning entry to learnings/<item-id>.md') with learning.py:81 confirming `learning-log.md` is the index, exactly as the guide's 'held beside the roadmap; learning-log.md is its index' phrasing claims; phase records -> `PhaseRecord.write_both()` at skills/session-log/scripts/phase_record.py:355; handoffs -> the local fallback at phase_record.py:674 ('Write the fallback envelope to openspec/changes/<id>/handoffs/<phase>-<N>.json') and the supervisor mirror at skills/supervise/scripts/cycle_state.py:85 (`MIRROR_PATH = 'openspec/supervise/supervisor-record.json'`). The queue-as-projection exclusion (guide line 15) is consistent with skills/coordination-bridge/SKILL.md:81 pointing at the same work-queue-truth-projection.md, which exists at docs/guides/work-queue-truth-projection.md. No path in the guide is invented."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Bootstrap-versus-verification ordering is genuinely separated and mechanically pinned. The guide's eight steps (docs/guides/state-artifacts.md:21-28) are mirrored 1:1 by skills/supervise/SKILL.md:139-153, with matching marker names, and supervise step 1 constrains the locator explicitly -- 'This selects the newer valid handoff or mirror only as a locator' -- which is the exact risk design.md:55 named ('Bootstrap language elevates handoffs to authority'). Supervise step 7 closes it from the other side: 'canonical state wins even when the handoff is newer'. The test guards order rather than prose: `test_guide_pins_rehydration_order_and_conflict_rules` (test file lines 40-57) and `test_supervise_rehydration_matches_canonical_order` (lines 66-78) both assert `positions == sorted(positions)` over `text.index(marker)`, so a reordering fails while a wording edit does not -- honouring D4's stated rejection of exact-file snapshots. Note supervise step 2 additionally reads `openspec/supervise/cycle-ledger.json`, correctly kept out of the five-class ladder per the plan-findings.md:33 disposition."
+    },
+    {
+      "id": 15,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Fail-loud missing-state behavior is specified with the first-run case correctly carved out, and matches runtime. The guide distinguishes valid absence from inconsistency per class -- 'Absence is valid before the run starts' (loop state, line 9), 'Absence is valid for a never-started roadmap' (checkpoint, line 10) -- then requires 'Claimed prior progress without the corresponding canonical artifact is a fail-loud inconsistency. Park automatic advancement and name the missing path' (line 33). Supervise carries the same distinction operationally at SKILL.md:147 ('Absence is valid only for a never-started roadmap; a resume claim without it is degraded and stops automatic advancement') and SKILL.md:149 ('Never reconstruct a missing or invalid loop state from the supervisor record'). This is the ri-09 failure the proposal cites (proposal.md:7 -- a handoff recording ESCALATE with no loop-state.json), and skills/autopilot/scripts/autopilot.py:675 already emits the corresponding runtime warning naming `openspec/changes/%s/handoffs/` and 'loop-state may be inconsistent', so guide and runtime agree rather than the guide asserting behavior that does not exist."
+    },
+    {
+      "id": 16,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 6
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The package DAG is degenerate by construction and the scope declaration is internally consistent. work-packages.yaml declares a single package `wp-state-artifacts-docs` with `depends_on: []` (line 38), so no cycle, no cross-package file overlap, and no scheduler ordering question exists -- and design.md:49 states the reason (multiple agents editing shared skill files would create avoidable conflicts), which is the correct call given all six SKILL.md files carry the identical inserted block. Every one of the nine entries in `locks.files` (lines 40-49) also appears in `scope.write_allow` (lines 56-79), so nothing is locked but unwritable or writable but unlocked. `write_allow` enumerates exact file paths rather than repository-wide globs, honouring the design.md:49 prohibition, with globs used only where a directory is genuinely the unit (`skills/tests/state-artifacts/**`, `openspec/changes/write-durable-state-artifacts-guide/**`). `deny` (lines 82-85) blocks `agent-coordinator/src/**`, `agent-coordinator/database/**` and `apps/**`, consistent with the proposal's Non-Goals of no runtime or persistence change."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Generated decision-index scope is handled at exactly the right granularity. plan-findings.md:37 reconciles the regeneration by naming the single derived file `docs/decisions/skill-workflow.md` in both `locks.files` and `scope.write_allow`, rather than opening `docs/decisions/**` -- 'an exact generated-output amendment, not a broad scope expansion'. The generated content matches the generator's own conventions: the file header declares 'Generated by `make decisions` -- do not edit manually', the new entry's `Source:` link uses the root-absolute `/openspec/changes/.../session-log.md` form identical to all 20+ pre-existing entries, and skills/project-context-refresh/SKILL.md:26 confirms `decisions.timeline` is produced by `explore-feature/archive_index.py` into `docs/decisions/`. The tagging is also within the policy at skills/session-log/SKILL.md:161-175, since the portable-link choice is a `skill-workflow` convention later changes will inherit. Only the stale D5 prose (finding 4) is out of step; the scope mechanics are correct."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Validation is proportional to a documentation-only surface, with one honest gap already flagged. design.md:58-65 scopes validation to structural tests, strict OpenSpec, work-package/DAG/overlap/scope checks, mirror byte comparison, link checks and the context-drift gate, and records security/deploy/browser phases as not applicable because no executable behavior changes -- defensible given the diff touches only Markdown plus one test module, and `deny` blocks the coordinator source tree. The work-packages verification steps (lines 98-116) are two commands producing two result_keys that match `outputs.result_keys` exactly. The change is not over-claimed either: tasks.md 3.2 and the Phase 3 checkpoint remain unchecked, and change-context.md:36 states 'Gaps: complete validation matrix pending' rather than asserting a completed matrix. The context-checkpoint degradation is likewise attributed honestly at change-context.md:29 to pre-existing repository-wide pending projections and an unconfigured semantic index rather than to this change."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: specs/skill-workflow/spec.md names the exact five classes (per-change loop state, roadmap checkpoint state, roadmap learning entries, phase records, handoff documents), and docs/guides/state-artifacts.md's inventory table uses matching bold class labels with all five required columns (Path / holder, Canonical writer, Authority, Consumers, Missing or stale behavior). Writers match runtime: Autopilot save_state()/runner.py for loop-state.json, roadmap-runtime checkpoint/learning writers, and PhaseRecord.write_both() for session-log.md plus coordinator/local handoffs."
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: design.md D2\u2013D3 keep authority question-scoped and separate bootstrap from verification. The landed guide's eight-step order uses step 1 only as a locator (supervisor handoff/mirror), verifies roadmap.yaml then checkpoint.json then loop-state.json in steps 2\u20134, and defers learnings/phase records/handoff context to steps 5\u20137 before rebuilding projections in step 8 \u2014 matching skills/supervise/SKILL.md markers and the Fresh supervisor session / Advisory state conflicts scenarios."
+    },
+    {
+      "id": 21,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: Portable skill links are enforced. All six linked skills use https://github.com/jankneumann/agentic-coding-tools/blob/main/docs/guides/state-artifacts.md; test_state_artifacts_guide.py pins that exact GUIDE_LINK. session-log.md Implementation D1 and the regenerated docs/decisions/skill-workflow.md entry record that relative ../../docs links were rejected because skills/shared/validate_install_manifest.py::_local_markdown_link_errors flags 'Markdown link escapes installed payload' (covered by skills/tests/install_sh/test_install_manifest.py)."
+    },
+    {
+      "id": 22,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: RED/GREEN validity is file-evidenced. validation/red-state-artifacts.md records 9 failed / 6 passed before the guide existed (guide+order+six link failures; six pre-existing mirror identities passed). After landing, skills/.venv/bin/python -m pytest skills/tests/state-artifacts -q yields 15 passed. Assertions are structural (class names, table headers, ordered markers, GUIDE_LINK, byte-identical mirrors) per design.md D4 \u2014 not full-prose snapshots."
+    },
+    {
+      "id": 23,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: design.md 'Rehydration Algorithm' still lists seven steps that combine checkpoint.json and roadmap.yaml into one 'Roadmap truth' bullet (and handoff consistency cites steps 2\u20133), while docs/guides/state-artifacts.md, skills/supervise/SKILL.md, and test_state_artifacts_guide.py all pin an eight-step sequence that loads roadmap.yaml before checkpoint.json (markers '2. Roadmap definition' then '3. Roadmap execution state'). Semantics still satisfy the spec's checkpoint-before-loop-state rule, but the plan design artifact is stale relative to the contract the tests enforce."
+    },
+    {
+      "id": 24,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: Validation is proportional to a documentation-only surface. design.md marks security/deploy/browser N/A; contracts/README.md states no OpenAPI/DB/event contracts; work-packages verification tier B runs focused pytest skills/tests/state-artifacts plus openspec validate --strict and validate_work_packages.py. Task 3.2's fuller matrix (mirrors, context-drift, link/scope/diff checks) remains appropriate post-implementation hygiene rather than over-scoped runtime gates."
+    },
+    {
+      "id": 25,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Positive observation: Runtime skill mirrors are in scope and currently byte-identical for all six changed skills (autopilot, autopilot-roadmap, session-log, supervise, implement-feature, validate-feature) across skills/, .agents/skills/, and .claude/skills/. Spec scenario 'Runtime skill mirrors are installed' and the parametrized test_changed_skill_mirrors_are_byte_identical enforce that contract; task 3.1 is checked complete."
+    },
+    {
+      "id": 26,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: No new auth, input-validation, or secret-handling surface is introduced. proposal Non-Goals and contracts/README.md confine the change to documenting existing artifacts plus repository-local structural tests; work-packages deny agent-coordinator/src/** and apps/**. Security review remains correctly out of band for this docs package."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 26,
+    "confirmed_count": 3,
+    "unconfirmed_count": 23,
+    "disagreement_count": 0,
+    "blocking_count": 1
+  }
+}

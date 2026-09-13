@@ -415,6 +415,112 @@ def test_submit_work_delegates_to_service(
     assert response.json()["success"] is True
 
 
+def test_projection_submit_exposes_additive_result(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import SubmitResult
+
+    task_uuid = UUID("12345678-1234-1234-1234-123456789abc")
+    mock_service = AsyncMock()
+    mock_service.submit.return_value = SubmitResult(
+        success=True, task_id=task_uuid, created=False, deduplicated=True, status="pending"
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={
+            "task_type": "implement",
+            "task_description": "project",
+            "projection_key": {
+                "change_id": "projection-change",
+                "phase": "IMPLEMENT",
+                "transition_sequence": 3,
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "task_id": str(task_uuid),
+        "created": False,
+        "deduplicated": True,
+        "status": "pending",
+        "cancelled_task_ids": [],
+    }
+
+
+def test_reconcile_authorizes_submit_work_mode_and_returns_cancellations(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import ReconcileResult
+
+    authorize = AsyncMock()
+    task_uuid = UUID(int=9)
+    mock_service = AsyncMock()
+    mock_service.reconcile_projection.return_value = ReconcileResult(
+        success=True,
+        task_id=task_uuid,
+        created=True,
+        deduplicated=False,
+        status="pending",
+        cancelled_task_ids=[UUID(int=2)],
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", authorize)
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+    response = client.post(
+        "/work/reconcile",
+        headers=_auth_headers(),
+        json={
+            "task_type": "implement",
+            "task_description": "resume",
+            "projection_key": {
+                "change_id": "projection-change",
+                "phase": "IMPLEMENT",
+                "transition_sequence": 4,
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["cancelled_task_ids"] == [str(UUID(int=2))]
+    assert authorize.await_args.kwargs["operation"] == "submit_work"
+    assert authorize.await_args.kwargs["context"]["mode"] == "reconcile"
+
+
+def test_stale_projection_returns_409_problem(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.work_queue import SubmitResult
+
+    mock_service = AsyncMock()
+    mock_service.submit.return_value = SubmitResult(success=False, reason="stale_projection")
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={
+            "task_type": "implement",
+            "task_description": "stale",
+            "projection_key": {
+                "change_id": "projection-change",
+                "phase": "IMPLEMENT",
+                "transition_sequence": 1,
+            },
+        },
+    )
+    assert response.status_code == 409
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["type"].endswith(":stale_projection")
+
+
 # =============================================================================
 # Policy denial test
 # =============================================================================
@@ -893,3 +999,162 @@ async def test_lifespan_fails_boot_when_registry_sync_fails(
     with pytest.raises(ProfileSyncError, match="projection unavailable"):
         with TestClient(create_coordination_api()):
             pass
+
+
+def test_projection_validation_returns_422_problem(client: TestClient) -> None:
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={
+            "task_type": "implement",
+            "task_description": "invalid",
+            "projection_key": {
+                "change_id": "projection-change",
+                "phase": "IMPLEMENT",
+                "transition_sequence": True,
+            },
+        },
+    )
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == 422
+
+
+@pytest.mark.parametrize(
+    ("path", "extra_path"),
+    [
+        ("/work/submit", "top_level"),
+        ("/work/submit", "projection_key"),
+        ("/work/reconcile", "top_level"),
+        ("/work/reconcile", "projection_key"),
+    ],
+)
+def test_projection_requests_reject_undeclared_fields_as_422_problem(
+    client: TestClient,
+    path: str,
+    extra_path: str,
+) -> None:
+    payload: dict[str, Any] = {
+        "task_type": "implement",
+        "task_description": "invalid extra field",
+        "projection_key": {
+            "change_id": "projection-change",
+            "phase": "IMPLEMENT",
+            "transition_sequence": 2,
+        },
+    }
+    if extra_path == "top_level":
+        payload["undeclared"] = True
+    else:
+        payload["projection_key"]["undeclared"] = True
+
+    response = client.post(path, headers=_auth_headers(), json=payload)
+
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == 422
+
+
+def test_projection_submit_rejects_malformed_dependency_as_422_problem(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={
+            "task_type": "implement",
+            "task_description": "invalid dependency",
+            "depends_on": ["not-a-uuid"],
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == 422
+
+
+@pytest.mark.parametrize(
+    ("reason", "expected_status"),
+    [
+        ("operation_not_permitted", 403),
+        ("guardrail_denied", 422),
+    ],
+)
+def test_projection_submit_maps_service_denial_to_problem(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    reason: str,
+    expected_status: int,
+) -> None:
+    from src.work_queue import SubmitResult
+
+    mock_service = AsyncMock()
+    mock_service.submit.return_value = SubmitResult(
+        success=False,
+        created=False,
+        reason=reason,
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={"task_type": "implement", "task_description": "denied by service"},
+    )
+
+    assert response.status_code == expected_status
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == expected_status
+    assert response.json()["detail"] == reason
+
+
+def test_projection_submit_maps_prefixed_policy_denial_to_403_problem(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.work_queue import SubmitResult
+
+    reason = "write_denied: trust_level=1 < 2"
+    mock_service = AsyncMock()
+    mock_service.submit.return_value = SubmitResult(
+        success=False,
+        created=False,
+        reason=reason,
+        failure_category="policy",
+    )
+    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+
+    response = client.post(
+        "/work/submit",
+        headers=_auth_headers(),
+        json={"task_type": "implement", "task_description": "denied by policy"},
+    )
+
+    assert response.status_code == 403
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == 403
+    assert response.json()["detail"] == reason
+
+
+def test_projection_authentication_returns_401_problem(client: TestClient) -> None:
+    response = client.post(
+        "/work/reconcile",
+        json={
+            "task_type": "implement",
+            "task_description": "resume",
+            "projection_key": {
+                "change_id": "projection-change",
+                "phase": "IMPLEMENT",
+                "transition_sequence": 2,
+            },
+        },
+    )
+    assert response.status_code == 401
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["status"] == 401

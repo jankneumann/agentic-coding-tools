@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T01:23:16.974307+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Independent review identified ten medium-or-higher defects in candidate digest recovery, dry-run composition, lifecycle durability, prompt bounds, dependency resolution, and evidence I/O. All ten were fixed with RED/GREEN regression coverage; the focused, default, static, package, and strict OpenSpec gates pass.",
+    "completed_work": [
+      "Restricted, bounded, and fully preflighted transaction recovery",
+      "Added dry-run fresh-stub overlays and safe fresh-key propagation",
+      "Preserved terminal decisions and validated lifecycle cache identity",
+      "Bounded exact stdout payload including ready-set context",
+      "Normalized canonical change dependencies and pending-recovery refusal",
+      "Bounded evidence reads and refreshed same-key candidates transactionally",
+      "Added ten-finding implementation artifact and updated traceability"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Fail closed on journal authority",
+        "rationale": "Recovery now accepts only typed supervisor-owned targets and validates the complete bounded journal before any mutation.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Keep one bounded analyst payload",
+        "rationale": "Dry-run stubs and ready-set context now travel inside the exact stdout-bounded manifest instead of disappearing or bypassing the 64-KiB limit.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Preserve terminal decision history",
+        "rationale": "Approved and rejected records remain durable after their active candidate/cache artifacts are pruned.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "review_type": "plan",
+  "target": "add-cross-roadmap-readiness-resolver",
+  "reviewer_vendor": "claude",
+  "findings": [
+    {
+      "severity": "none",
+      "code": "plan-complete-and-clear",
+      "message": "The plan comprehensively addresses all requirements for a cross-roadmap readiness resolver with deterministic, checkpoint-aware resolution.",
+      "file": "openspec/changes/add-cross-roadmap-readiness-resolver/proposal.md"
+    },
+    {
+      "severity": "none",
+      "code": "one-definition-import-invariant",
+      "message": "Plan correctly specifies exactly one '_get_ready_items' definition in roadmap-runtime that both autopilot-roadmap and the new resolver will import without module-name collisions. Current implementation shows this is achievable through proper sys.path management.",
+      "file": "openspec/changes/add-cross-roadmap-readiness-resolver/proposal.md"
+    },
+    {
+      "severity": "none",
+      "code": "checkpoint-terminal-authority",
+      "message": "Plan correctly ensures checkpoint terminal sets remain authoritative when roadmap item status briefly diverges, without using advisory learnings, handoffs, queue state, mtimes, or time. This aligns with existing state-artifacts.md guidance.",
+      "file": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md"
+    },
+    {
+      "severity": "none",
+      "code": "typed-cross-roadmap-dependencies",
+      "message": "Plan properly handles typed cross-roadmap dependencies through effective completion from checkpoint terminal sets and fails closed on malformed or identity-mismatched checkpoints as required.",
+      "file": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md"
+    },
+    {
+      "severity": "none",
+      "code": "deterministic-semantics",
+      "message": "Plan correctly defines implementable, deterministic semantics for source_fingerprint, stale flag, and diagnostics including missing checkpoints and unchanged-input byte identity through SHA-256 content hashing.",
+      "file": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md"
+    },
+    {
+      "severity": "none",
+      "code": "global-ordering-testable",
+      "message": "Plan properly defines the global (priority, roadmap_id, item_id) ordering and supervisor grouped compatibility projection as fully testable through deterministic output and schema validation.",
+      "file": "openspec/changes/add-cross-roadmap-readiness-resolver/design.md"
+    },
+    {
+      "severity": "none",
+      "code": "contract-coherence",
+      "message": "Plan maintains coherent contract schema, tasks, package scope, lock set, dependency commit, validation commands, and single sequential package as evidenced by well-defined work-packages.yaml and comprehensive testing approach.",
+      "file": "openspec/changes/add-cross-roadmap-readiness-resolver/work-packages.yaml"
+    },
+    {
+      "severity": "none",
+      "code": "no-omitted-work",
+      "message": "Plan correctly identifies no required schema migration, runtime mirror, documentation, security, deployment, or rollback work is omitted. The change is additive and preserves existing behavior.",
+      "file": "openspec/changes/add-cross-roadmap-readiness-resolver/proposal.md"
+    },
+    {
+      "severity": "none",
+      "code": "existing-behavior-preserved",
+      "message": "Plan correctly ensures no breaking behavior is introduced - existing autopilot-roadmap call sites retain function signature and supervisor command retains grouped compatibility shape while consuming canonical result.",
+      "file": "openspec/changes/add-cross-roadmap-readiness-resolver/proposal.md"
+    }
+  ]
+}

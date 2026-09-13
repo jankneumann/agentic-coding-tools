@@ -10,7 +10,8 @@
     "gate": {
       "type": "string",
       "enum": ["gatekeeper_escalation", "proposal_approval", "plan_review_convergence_failure",
-               "validation_failure", "escalate_resume", "replan_required", "pr_creation", "merge"]
+               "validation_failure", "escalate_resume", "replan_required", "pr_creation", "merge",
+               "roadmap_approval"]
     },
     "changeId": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
     "activeChange": {
@@ -44,7 +45,8 @@
         "deadline": {"type": "string", "format": "date-time"},
         "disposition": {"type": ["string", "null"], "enum": ["auto", "notify_with_timeout", "block", null]},
         "approval_id": {"type": ["string", "null"]},
-        "source": {"type": "string", "enum": ["autopilot", "supervise", "escalation"], "default": "supervise"}
+        "source": {"type": "string", "enum": ["autopilot", "supervise", "escalation"], "default": "supervise"},
+        "decision_id": {"type": ["string", "null"], "description": "The router's gate-decision record id this pending entry projects, so a rehydrated session can resolve `gate-decision:<decision_id>` back to its record."}
       }
     },
     "standingDecision": {
@@ -65,12 +67,39 @@
       "additionalProperties": false,
       "required": ["stub_key", "rank", "decision", "decided_at"],
       "properties": {
-        "stub_key": {"type": "string", "pattern": "^(change|prov):.+$"},
+        "stub_key": {"type": "string", "pattern": "^(change:(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*|prov:[0-9a-f]{32})$"},
         "rank": {"type": "integer", "minimum": 1},
         "decision": {"type": "string", "enum": ["approved", "deferred", "rejected", "pending"]},
         "decided_at": {"type": "string", "format": "date-time"},
-        "suggested_change_id": {"type": ["string", "null"]}
-      }
+        "suggested_change_id": {"type": ["string", "null"], "pattern": "^(add|update|remove|refactor)-[a-z0-9]+(-[a-z0-9]+)*$"},
+        "roadmap_ref": {"type": ["string", "null"], "pattern": "^[a-z0-9-]+:ri-[0-9]{2,}$"},
+        "route": {"type": ["string", "null"], "enum": ["refine-roadmap", "plan-roadmap", null]},
+        "until": {"type": ["string", "null"], "format": "date"},
+        "reason": {"type": ["string", "null"], "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"decision": {"const": "approved"}}, "required": ["decision"]},
+          "then": {
+            "required": ["route", "roadmap_ref"],
+            "properties": {"route": {"type": "string", "enum": ["refine-roadmap", "plan-roadmap"]}},
+            "allOf": [
+              {
+                "if": {"properties": {"route": {"const": "refine-roadmap"}}, "required": ["route"]},
+                "then": {"properties": {"roadmap_ref": {"type": "string", "pattern": "^[a-z0-9-]+:ri-[0-9]{2,}$"}}}
+              },
+              {
+                "if": {"properties": {"route": {"const": "plan-roadmap"}}, "required": ["route"]},
+                "then": {"properties": {"roadmap_ref": {"const": null}}}
+              }
+            ]
+          }
+        },
+        {
+          "if": {"properties": {"decision": {"const": "rejected"}}, "required": ["decision"]},
+          "then": {"required": ["reason"], "properties": {"reason": {"type": "string", "minLength": 1}}}
+        }
+      ]
     }
   },
   "properties": {

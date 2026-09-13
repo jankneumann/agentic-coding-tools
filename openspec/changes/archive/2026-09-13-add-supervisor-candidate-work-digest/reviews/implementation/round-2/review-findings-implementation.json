@@ -1,0 +1,92 @@
+{
+  "review_type": "implementation",
+  "target": "whole-branch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: a newly recorded future deferral does not invalidate unchanged-digest reuse. `decide` updates only the mirror, while `_maintenance` reports lifecycle change only for terminal pruning or a deferral becoming due. Because candidate outputs and the mirror are excluded from the cycle fingerprint, the next ordinary cycle takes the unchanged early exit and re-presents the old pending digest indefinitely; even `--force` returns the prior digest before reconciling decisions. This violates the retained future-deferred composition and pending-before-deferred ordering contracts.",
+      "resolution": "Detect any persisted decision-state drift between the record and prior ranked digest during lifecycle preflight, report it as `lifecycle_changed`, and rebuild from the validated prior caches while preserving `generated_at`. Add an end-to-end regression: rank pending, call `decide(... deferred, until=future)`, run the next unchanged preflight, and assert the rebuilt digest and mirror both remain future-deferred without analyst dispatch.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 216,
+        "end": 245
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Critical: legacy-record sanitization still copies an arbitrary non-empty `roadmap_ref` for `refine-roadmap` approvals without applying the schema's `^[a-z0-9-]+:ri-[0-9]{2,}$` constraint. A malformed historical or handoff entry therefore survives `_clean_digested_stub` and makes the final canonical mirror validator raise, so the compatibility layer cannot produce the schema-writable record it is intended to recover.",
+      "resolution": "Validate `roadmap_ref` with the existing `_ROADMAP_REF_RE` before retaining a refine-roadmap approval; discard or deterministically downgrade an invalid legacy entry according to the established sanitizer policy. Add a rehydrate/mirror regression with an invalid non-empty roadmap reference and assert the resulting durable record validates.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 380,
+        "end": 391
+      },
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: transaction publication and recovery now constrain operations to canonical supervisor-owned targets, bound journal bytes and operation count, validate all checksums before mutation, and retain digest-last ordering across replay.",
+      "resolution": "Retain the complete-preflight, target-authorization, checksum, operation-bound, and interruption-boundary regressions.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 337,
+        "end": 483
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: round-two inspection confirms that unscored lifecycle survivors are preserved for later scoring, pending recovery now forces host rehydration, manifests are bound byte-for-byte to the persisted store, and zero-candidate cycles publish a valid digest without model dispatch; the complete supervise suite passes with 342 tests.",
+      "resolution": "Preserve the new failed-scoring/lifecycle, recovery/rehydration, stale-manifest, and empty-store regressions.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/supervise/test_digest.py",
+      "line_range": {
+        "start": 211,
+        "end": 610
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: the implementation preserves the intended host-assisted boundary: model judgment remains in the skill workflow, while the runtime performs deterministic validation/ranking and emits a pure refiner request instead of mutating roadmap YAML.",
+      "resolution": "Keep the AST capability guard and real refiner preview/apply/stale-SHA integration test.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1,
+        "end": 28
+      },
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "feature_id": "add-supervisor-candidate-work-digest",
+  "package_id": "wp-integration",
+  "attempt": 1,
+  "plan_revision": 5,
+  "contracts_revision": 5,
+  "status": "completed",
+  "locks": {
+    "files": [],
+    "keys": [
+      "feature:add-supervisor-candidate-work-digest:integration"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "openspec/changes/add-supervisor-candidate-work-digest/tasks.md",
+      "openspec/changes/add-supervisor-candidate-work-digest/session-log.md",
+      "openspec/changes/add-supervisor-candidate-work-digest/handoffs/**"
+    ],
+    "read_allow": [
+      "**"
+    ],
+    "deny": [
+      "**/.venv/**"
+    ]
+  },
+  "files_modified": [
+    "openspec/changes/add-supervisor-candidate-work-digest/tasks.md",
+    "openspec/changes/add-supervisor-candidate-work-digest/session-log.md",
+    "openspec/changes/add-supervisor-candidate-work-digest/handoffs/implementation-1.json"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "1a2f7f146a3f5920e6b7523fec16271287df38a7"
+    },
+    "head": {
+      "commit": "d4f79f61",
+      "branch": "openspec/add-supervisor-candidate-work-digest",
+      "worktree": ".git-worktrees/add-supervisor-candidate-work-digest"
+    }
+  },
+  "verification": {
+    "tier": "B",
+    "passed": true,
+    "steps": [
+      {
+        "name": "All skills suites pass",
+        "kind": "command",
+        "command": "cd skills && .venv/bin/python -m pytest -q; then run every CI-registered suite in an isolated process",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [
+            "openspec/changes/add-supervisor-candidate-work-digest/validation-report.md"
+          ],
+          "metrics": {
+            "default_suite": {
+              "passed": 3802,
+              "failed": 0,
+              "skipped": 13
+            },
+            "supervise_suite": {
+              "passed": 314,
+              "failed": 0
+            }
+          }
+        }
+      },
+      {
+        "name": "Work packages validate",
+        "kind": "command",
+        "command": "skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/add-supervisor-candidate-work-digest/work-packages.yaml --check-overlap",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "packages_valid": {
+              "passed": 1,
+              "failed": 0
+            }
+          }
+        }
+      },
+      {
+        "name": "OpenSpec strict validation passes",
+        "kind": "command",
+        "command": "openspec validate add-supervisor-candidate-work-digest --strict",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "openspec_valid": {
+              "passed": 1,
+              "failed": 0
+            }
+          }
+        }
+      },
+      {
+        "name": "Context and traceability gates pass",
+        "kind": "command",
+        "command": "validate_context_impact.py --base 71d9c50b; check_traceability.py --scope change",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [
+            "openspec/changes/add-supervisor-candidate-work-digest/change-context.md"
+          ],
+          "metrics": {
+            "context_traceability": {
+              "passed": 2,
+              "failed": 0
+            }
+          }
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "Integration exercised the complete default and isolated CI test topology, full supervise suite, real refiner preview/apply/stale-SHA flow, package/DAG/context/traceability/OpenSpec gates, and non-deployable spec/evidence validation. The literal one-process skills/tests command is architecturally unsupported because standalone skills share flat module names; the repository CI-isolated topology is authoritative. Reviewer quorum degraded for two small packages after timeouts/schema-invalid adapters; valid findings were remediated."
+}

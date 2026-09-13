@@ -1,0 +1,71 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "none: ProjectionKeyRequest, WorkSubmitRequest, and WorkReconcileRequest correctly enforce model_config extra='forbid' to reject undeclared top-level and nested fields, matching OpenAPI additionalProperties=false specifications.",
+      "resolution": "No action required; strict Pydantic extra-field policy correctly aligns HTTP endpoints with OpenAPI schemas.",
+      "disposition": "accept",
+      "package_id": "wp-coordinator-queue",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 189,
+        "end": 233
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: _projection_mutation_payload and the projection exception handlers ensure every service denial, policy violation, or guardrail failure returns an RFC 7807 application/problem+json 4xx response instead of an HTTP 200 failure envelope.",
+      "resolution": "No action required; error conversion cleanly prevents HTTP 200 success ambiguity.",
+      "disposition": "accept",
+      "package_id": "wp-coordinator-queue",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 119,
+        "end": 135
+      },
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: WorkSubmitRequest types depends_on as list[UUID] | None, guaranteeing malformed UUID strings are rejected at the FastAPI Pydantic validation boundary with HTTP 422.",
+      "resolution": "No action required; strong typing resolves the runtime ValueError vulnerability.",
+      "disposition": "accept",
+      "package_id": "wp-coordinator-queue",
+      "file_path": "agent-coordinator/src/coordination_api.py",
+      "line_range": {
+        "start": 221,
+        "end": 221
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: test_projection_migration_declares_full_head_and_atomic_paths hardcodes a relative path from the workspace root, causing FileNotFoundError when pytest is executed inside agent-coordinator.",
+      "resolution": "Use Path(__file__).parents[1] / 'database/migrations/035_work_queue_projection.sql' to resolve the migration file relative to the test module.",
+      "disposition": "fix",
+      "package_id": "wp-coordinator-queue",
+      "file_path": "agent-coordinator/tests/test_work_queue.py",
+      "line_range": {
+        "start": 531,
+        "end": 534
+      },
+      "axis": "resilience",
+      "severity": "nit"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T13:11:34+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Operator-authorized post-cap remediation fixed exactly the two confirmed round-3 blockers and no other work. The patch is limited to digest.py and test_digest.py; independent verification passed three focused regressions, all 54 digest tests, all 352 supervise tests, ruff, strict OpenSpec validation, and diff integrity.",
+    "completed_work": [
+      "Rejected malformed refine-roadmap references before any durable mirror mutation",
+      "Preserved valid canonical refine-roadmap approval behavior",
+      "Treated persisted store keys absent from prior ranking as lifecycle composition drift",
+      "Proved interrupted unscored survivors cannot be hidden behind unchanged empty-digest reuse"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Constrain post-cap remediation to confirmed blockers",
+        "rationale": "The operator explicitly prohibited new findings, cleanup, refactoring, documentation changes, and feature expansion; only the two deterministic round-3 blockers were modified and tested.",
+        "capability": "supervise",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run one independent review restricted to these two fixes only",
+      "If both fixes pass review, proceed directly to validation without opening new implementation findings"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/supervise/scripts/digest.py",
+        "description": "Two minimal production fixes"
+      },
+      {
+        "path": "skills/tests/supervise/test_digest.py",
+        "description": "Focused regressions for only the two confirmed blockers"
+      }
+    ]
+  }
+}

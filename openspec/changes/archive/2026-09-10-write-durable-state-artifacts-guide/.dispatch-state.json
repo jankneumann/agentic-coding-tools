@@ -1,0 +1,7 @@
+{
+  "change_id": "write-durable-state-artifacts-guide",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "codex"
+  ]
+}

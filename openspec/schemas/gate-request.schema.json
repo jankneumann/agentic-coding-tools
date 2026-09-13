@@ -13,7 +13,8 @@
       "type": "string",
       "enum": [
         "gatekeeper_escalation", "proposal_approval", "plan_review_convergence_failure",
-        "validation_failure", "escalate_resume", "replan_required", "pr_creation", "merge"
+        "validation_failure", "escalate_resume", "replan_required", "pr_creation", "merge",
+        "roadmap_approval"
       ]
     },
     "phase": {"type": "string", "description": "LoopState.current_phase at the time the gate was evaluated."},

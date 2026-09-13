@@ -1,0 +1,169 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Package implementation centralizes shared ownership/replay semantics in docs/guides/state-artifacts.md and keeps the six workflow skills as thin repository-relative references, with no duplicated five-class inventory tables remaining in those skill sources. Task 3.2 consumed main's openspec_paths helper/guard via merge 34d8c330 without creating package-local path infrastructure, matching design D1/D4 and write_allow.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 1,
+        "end": 44
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Spec scenarios are met: five-class inventory with required fields; eight-stage rehydration order pinned identically in the guide, design.md (via change_dir), and supervise; advisory-vs-canonical conflict and missing-state fail-loud rules present; six skills reference docs/guides/state-artifacts.md. Independently verified: 16 state-artifact tests + openspec_paths suite = 719 passed; ruff clean on the changed test; openspec validate --strict --all 90/90; install.sh --check passed; context-impact --base 4f794962 VALID/rationalized.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 1,
+        "end": 110
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Skills use bare backticked repository-relative docs/guides/state-artifacts.md references rather than Markdown links that escape the skill directory, preserving install payload portability. Local .agents/.claude mirrors are byte-identical to the six canonical sources, and bash skills/install.sh --check passed.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/supervise/SKILL.md",
+      "line_range": {
+        "start": 15,
+        "end": 17
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: Guide and supervise correctly separate first-run absence (valid never-started) from claimed-progress-without-canonical-artifact (fail-loud degradation), and forbid reconstructing loop-state/checkpoint truth from handoffs, learnings, phase records, or queue projections.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 30,
+        "end": 36
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "criticality": "low",
+      "description": "none: Missing/conflict paths are required to be named and reported; writer ordering persists authoritative artifacts before projections/handoffs; projection rebuild is explicitly one-way from canonical state, giving operators a recoverable interruption model without promoting derived state.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "docs/guides/state-artifacts.md",
+      "line_range": {
+        "start": 38,
+        "end": 40
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Documentation-only package stays within declared deny boundaries (no agent-coordinator/src, database, or apps writes in package-authored commits), introduces no authz/secret/executable attack surface, and remains rollback-safe as a pure docs/test revert. Security axis reviewed: no vulnerabilities identified.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 86,
+        "end": 91
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "performance",
+      "criticality": "low",
+      "description": "none: Drift guards are structural string/order assertions over a small fixed file set; the focused state-artifact plus openspec_paths verification completed in about 1.57s for 719 tests, appropriate for default CI collection.",
+      "disposition": "accept",
+      "axis": "performance",
+      "severity": "none",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 43,
+        "end": 60
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: After task 3.2 normalized shared-semantics wording from \"link\" to \"reference\" (guide skill-contract line and skill reference tests), skills/supervise/SKILL.md still says \"the guide linked above\" even though the authority pointer is a bare backticked path, not a Markdown link.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Replace \"guide linked above\" with \"guide referenced above\" (or equivalent) to match the repository-relative reference form.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/supervise/SKILL.md",
+      "line_range": {
+        "start": 137,
+        "end": 137
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Optional: Task 2.2 requires the documentation index to reference the canonical guide, and docs/guides/documentation.md does, but skills/tests/state-artifacts/test_state_artifacts_guide.py only asserts the six skill sources. Index drift would not fail the structural suite.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "optional",
+      "resolution": "Add a one-line assertion that docs/guides/documentation.md contains docs/guides/state-artifacts.md or the relative state-artifacts.md link.",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "skills/tests/state-artifacts/test_state_artifacts_guide.py",
+      "line_range": {
+        "start": 63,
+        "end": 66
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "FYI: Per-package context checkpoint remains degraded because checkpoint.load_package() drops the feature-level contracts block and can falsely label the approved API rationale as spurious_rationale. Base-relative validate_context_impact.py --base 4f794962 is VALID/rationalized; absence of a fresh checkpoint is not a hidden package pass. Documented in impl-findings.md as shared-infrastructure follow-up, out of package scope.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "fyi",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/impl-findings.md",
+      "line_range": {
+        "start": 9,
+        "end": 14
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

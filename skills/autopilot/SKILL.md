@@ -12,6 +12,10 @@ triggers:
 
 # Autopilot
 
+## Durable state artifact authority
+
+Shared holder, writer, authority, fallback, and rehydration semantics live in `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
+
 Orchestrate the full plan-review-implement-validate-PR lifecycle with multi-vendor review convergence. For simple features, runs fully automatically from proposal to PR. Stops at merge for human approval.
 
 ## Arguments
@@ -390,11 +394,20 @@ directly. After the slash command returns, run `apply-outcome` so
 
 **Skipped when `cli_review_enabled=false`** — transitions directly to IMPLEMENT.
 
-Multi-vendor plan review with convergence — outcome is `"converged"` if
-no blocking findings, `"not_converged"` otherwise, `"max_iter"` once
-`max_phase_iterations` is exhausted.
+Multi-vendor plan review with a **single** convergence engine. `converge()`
+compacts the gate-time ledger, hunts the last-fix delta after round 1,
+parks disagreements, and applies scoped fixes via `fix_callback`. PLAN_FIX
+is recorded as a `phase_history` sub-step; the outer machine does **not**
+bounce `PLAN_REVIEW → PLAN_FIX → PLAN_REVIEW` as a second cold review.
 
-Dispatch protocol (3 steps):
+Outcome is `"converged"` if no blocking ledger items remain, `"max_iter"`
+if the inner loop stalled or exhausted rounds. `"not_converged"` remains
+in the transition table only for resume of in-flight PLAN_FIX loop-state.
+
+Dispatch protocol (3 steps) — the dispatched agent **executes `converge()`
+as the whole review phase**. Do not instruct it to run `/parallel-review-plan`
+as a one-shot cold review; that re-introduces the outer PLAN_FIX bounce
+this phase exists to remove.
 
 1. Build kwargs:
    ```bash
@@ -403,8 +416,10 @@ Dispatch protocol (3 steps):
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
-   the agent's last message for `(outcome, handoff_id)`.
+   isolation=<dispatch.isolation>)`. The prompt already tells the agent
+   to run `converge()` with a real PLAN_FIX `fix_callback`. Treat
+   `prompt` as opaque. Parse the agent's last message for
+   `(outcome, handoff_id)` — outcome is `"converged"` or `"max_iter"`.
 
 3. Apply the outcome:
    ```bash
@@ -435,13 +450,17 @@ result = converge(
 Then run `apply-outcome` to record `phase_archetype = null`.
 
 **If converged**: Report findings summary, transition to IMPLEMENT.
-**If not converged**: Report reason (max_rounds, stalled, quorum_lost, disagreement), transition to ESCALATE.
+**If not converged**: Report reason (max_rounds, stalled, quorum_lost).
+Disagreement is parked to `reviews/parked-disagreements.json` and does
+not abort the loop. Transition to ESCALATE.
 
-For **inline plan fixes** (PLAN_FIX, NOT a sub-agent dispatch): Read the
-blocking findings, edit the relevant plan files directly (proposal.md,
-design.md, specs, work-packages.yaml), re-validate with `openspec
-validate`. PLAN_FIX inherits `phase_archetype` from the preceding
-PLAN_REVIEW — convergence_loop never overwrites the field.
+For **inline plan fixes** (PLAN_FIX sub-step inside `converge()`, NOT an
+outer-machine phase and NOT a sub-agent dispatch): Read the blocking
+ledger items, edit only their cited `file_path`s (proposal.md, design.md,
+specs, work-packages.yaml), re-validate with `openspec validate`. PLAN_FIX
+inherits `phase_archetype` from the preceding PLAN_REVIEW —
+convergence_loop never overwrites the field. Do not add architecture or
+expand scope.
 
 #### Convergence Durability Contract
 
@@ -584,10 +603,14 @@ inline path — invoke `/iterate-on-implementation <change-id>`. Then run
 
 **Skipped when `cli_review_enabled=false`** — transitions directly to VALIDATE.
 
-Multi-vendor implementation review with `fix_mode="targeted"`. Outcome
-is `"converged"` if no blocking findings, `"not_converged"` otherwise.
+Multi-vendor implementation review with `fix_mode="targeted"`. Same
+one-engine contract as PLAN_REVIEW: IMPL_FIX is a `fix_callback` sub-step
+inside `converge()`, not an outer bounce that re-dispatches a cold review.
+Outcome is `"converged"` if no blocking ledger items remain, `"max_iter"`
+otherwise.
 
-Dispatch protocol (3 steps):
+Dispatch protocol (3 steps) — same one-engine contract as PLAN_REVIEW:
+the dispatched agent executes `converge()` as the whole review phase.
 
 1. Build kwargs:
    ```bash
@@ -596,8 +619,10 @@ Dispatch protocol (3 steps):
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
-   the agent's last message for `(outcome, handoff_id)`.
+   isolation=<dispatch.isolation>)`. The prompt already tells the agent
+   to run `converge()` with a real IMPL_FIX `fix_callback`. Treat
+   `prompt` as opaque. Parse the agent's last message for
+   `(outcome, handoff_id)` — outcome is `"converged"` or `"max_iter"`.
 
 3. Apply the outcome:
    ```bash
@@ -611,11 +636,12 @@ inline path — invoke the convergence loop with `fix_mode="targeted"`
 and a `post_fix_validator` callback for scoped pytest/mypy/openspec
 checks. Then run `apply-outcome` to record `phase_archetype = null`.
 
-For **targeted implementation fixes** (IMPL_FIX, NOT a sub-agent
-dispatch): Look up the lead vendor from `package_authors`, use
+For **targeted implementation fixes** (IMPL_FIX sub-step, NOT a
+sub-agent dispatch): Look up the lead vendor from `package_authors`, use
 `CliVendorAdapter.dispatch()` to send the fix to that specific vendor,
-scoped to the package's `write_allow` paths. IMPL_FIX inherits
-`phase_archetype` from the preceding IMPL_REVIEW.
+scoped to the intersection of the package's `write_allow` paths and the
+finding `file_path`s. IMPL_FIX inherits `phase_archetype` from the
+preceding IMPL_REVIEW.
 
 ### 6. VALIDATE Phase
 
@@ -657,7 +683,8 @@ Only runs if enabled by complexity gate or `--val-review` flag. Reviews
 validation evidence — outcome is `"converged"` if validation passes
 critique, `"not_converged"` otherwise.
 
-Dispatch protocol (3 steps):
+Dispatch protocol (3 steps) — the dispatched agent executes `converge()`
+as the whole VAL_REVIEW phase.
 
 1. Build kwargs:
    ```bash
@@ -666,8 +693,10 @@ Dispatch protocol (3 steps):
    ```
 
 2. Call `Agent(prompt=<dispatch.prompt>, model=<dispatch.model>,
-   isolation=<dispatch.isolation>)`. Treat `prompt` as opaque. Parse
-   the agent's last message for `(outcome, handoff_id)`.
+   isolation=<dispatch.isolation>)`. The prompt already tells the agent
+   to run `converge()` with a real VAL_FIX `fix_callback`. Treat
+   `prompt` as opaque. Parse the agent's last message for
+   `(outcome, handoff_id)`.
 
 3. Apply the outcome:
    ```bash
@@ -841,6 +870,8 @@ See `docs/autopilot-phase-archetype-resolution.md` for the full operator guide.
 - `openspec/changes/<change-id>/loop-state.json` — Full loop state (resumable)
 - `openspec/changes/<change-id>/reviews/round-N/` — Per-round CLI-dispatched review artifacts (PLAN_REVIEW, IMPL_REVIEW, VAL_REVIEW)
 - `openspec/changes/<change-id>/.review-cache/round-N/` — Per-round in-process `converge()` checkpoints (durability path)
+- `openspec/changes/<change-id>/.review-ledger/ledger.json` — Gate-time finding ledger (open/addressed/retired/parked)
+- `openspec/changes/<change-id>/reviews/parked-disagreements.json` — Human queue for disposition disagreements
 - Pull request with evidence trail
 - Coordinator memory entries (episodic)
 - Coordinator handoff documents

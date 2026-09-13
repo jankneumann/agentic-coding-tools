@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "feature_id": "wire-supervise-execution-through-the-dispatch-fn-seam",
+  "package_id": "wp-host-adapter",
+  "attempt": 1,
+  "plan_revision": 3,
+  "contracts_revision": 1,
+  "status": "completed",
+  "locks": {
+    "files": [
+      "skills/supervise/scripts/execution.py"
+    ],
+    "keys": [
+      "feature:wire-supervise-execution-through-the-dispatch-fn-seam:hostadapter"
+    ]
+  },
+  "scope": {
+    "write_allow": [
+      "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md",
+      "skills/supervise/scripts/execution.py",
+      "skills/tests/supervise/test_execution.py",
+      "skills/tests/supervise/fixtures/execution/lifecycle/**"
+    ],
+    "read_allow": [
+      "skills/supervise/**",
+      "skills/autopilot-roadmap/**",
+      "skills/roadmap-runtime/**",
+      "skills/worktree/**",
+      "skills/tests/supervise/**",
+      "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/**"
+    ],
+    "deny": [
+      "**/.venv/**",
+      "skills/supervise/SKILL.md",
+      "skills/autopilot-roadmap/scripts/orchestrator.py"
+    ]
+  },
+  "files_modified": [
+    "openspec/changes/wire-supervise-execution-through-the-dispatch-fn-seam/tasks.md",
+    "skills/supervise/scripts/execution.py",
+    "skills/tests/supervise/fixtures/execution/lifecycle/parked-result.json",
+    "skills/tests/supervise/fixtures/execution/lifecycle/router-context.json",
+    "skills/tests/supervise/fixtures/execution/lifecycle/success-result.json",
+    "skills/tests/supervise/test_execution.py"
+  ],
+  "scope_check": {
+    "passed": true,
+    "violations": []
+  },
+  "git": {
+    "base": {
+      "ref": "5989959c4e342e35773fe9d2c264f1132cb306ef"
+    },
+    "head": {
+      "commit": "d85e3ac4ab487bee96d83f96bb5f2748bea30bf1",
+      "branch": "openspec/wire-supervise-execution-through-the-dispatch-fn-seam--wp-host-adapter",
+      "worktree": ".git-worktrees/wire-supervise-execution-through-the-dispatch-fn-seam/wp-host-adapter"
+    }
+  },
+  "verification": {
+    "tier": "A",
+    "passed": true,
+    "steps": [
+      {
+        "name": "Leased host adapter suite passes",
+        "kind": "command",
+        "command": "skills/.venv/bin/python -m pytest skills/tests/supervise/test_execution.py -q",
+        "exit_code": 0,
+        "passed": true,
+        "evidence": {
+          "artifacts": [],
+          "metrics": {
+            "host_adapter_suite": {
+              "passed": 44,
+              "failed": 0,
+              "duration_seconds": 0.84
+            }
+          }
+        }
+      }
+    ]
+  },
+  "escalations": [],
+  "notes": "git.base/head record the original package execution commits and files_modified is their exact diff. All declared verification commands were revalidated against current feature HEAD 5b619ba94b90af26db42d8d84dd1fbc7ed81f765 on 2026-09-01; every command exited 0 and current metrics are recorded per step."
+}

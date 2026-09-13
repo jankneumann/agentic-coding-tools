@@ -9,8 +9,16 @@ helpers are pure output functions — no database is required.
 from __future__ import annotations
 
 import json
+from unittest.mock import AsyncMock
+from uuid import UUID
 
-from src.coordination_cli import _emit_list, _probe_truncation
+from src.coordination_cli import (
+    _emit_list,
+    _probe_truncation,
+    build_parser,
+    cmd_work_reconcile,
+    cmd_work_submit,
+)
 
 
 def _capture(capsys) -> dict:
@@ -43,9 +51,7 @@ class TestEmitListEnvelope:
             next_steps=["coordination-cli feature show --feature-id <id>"],
         )
         env = _capture(capsys)
-        assert env["next_steps"] == [
-            "coordination-cli feature show --feature-id <id>"
-        ]
+        assert env["next_steps"] == ["coordination-cli feature show --feature-id <id>"]
 
     def test_next_steps_omitted_when_absent(self, capsys):
         _emit_list([{"x": 1}], json_mode=True)
@@ -97,3 +103,130 @@ class TestProbeTruncation:
         trimmed, truncated = _probe_truncation(rows, 3)
         assert truncated is False
         assert trimmed == [1, 2]
+
+
+def test_work_submit_parser_accepts_projection_key() -> None:
+    args = build_parser().parse_args(
+        [
+            "work",
+            "submit",
+            "--task-type",
+            "implement",
+            "--description",
+            "project",
+            "--projection-key",
+            json.dumps(
+                {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 4}
+            ),
+        ]
+    )
+    assert args.projection_key is not None
+
+
+def test_work_submit_cli_exposes_deduplication(monkeypatch, capsys) -> None:
+    from src import work_queue
+
+    service = AsyncMock()
+    service.submit.return_value = work_queue.SubmitResult(
+        success=True,
+        task_id=UUID(int=14),
+        created=False,
+        deduplicated=True,
+        status="pending",
+    )
+    monkeypatch.setattr(work_queue, "get_work_queue_service", lambda: service)
+    args = build_parser().parse_args(
+        [
+            "--json",
+            "work",
+            "submit",
+            "--task-type",
+            "implement",
+            "--description",
+            "project",
+            "--projection-key",
+            json.dumps(
+                {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 4}
+            ),
+        ]
+    )
+    assert cmd_work_submit(args) == 0
+    assert json.loads(capsys.readouterr().out)["deduplicated"] is True
+
+
+def test_work_reconcile_cli_maps_projection_result(monkeypatch, capsys) -> None:
+    from src import work_queue
+
+    service = AsyncMock()
+    service.reconcile_projection.return_value = work_queue.ReconcileResult(
+        success=True,
+        task_id=UUID(int=15),
+        created=True,
+        deduplicated=False,
+        status="pending",
+        cancelled_task_ids=[UUID(int=2)],
+    )
+    monkeypatch.setattr(work_queue, "get_work_queue_service", lambda: service)
+    args = build_parser().parse_args(
+        [
+            "--json",
+            "work",
+            "reconcile",
+            "--task-type",
+            "implement",
+            "--description",
+            "resume",
+            "--projection-key",
+            json.dumps(
+                {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 5}
+            ),
+        ]
+    )
+    assert cmd_work_reconcile(args) == 0
+    assert json.loads(capsys.readouterr().out)["cancelled_task_ids"] == [str(UUID(int=2))]
+
+
+def test_work_projection_cli_failure_omits_success_only_fields(monkeypatch, capsys) -> None:
+    from src import work_queue
+
+    service = AsyncMock()
+    service.submit.return_value = work_queue.SubmitResult(
+        success=False, created=False, reason="stale_projection"
+    )
+    service.reconcile_projection.return_value = work_queue.ReconcileResult(
+        success=False, created=False, reason="stale_projection"
+    )
+    monkeypatch.setattr(work_queue, "get_work_queue_service", lambda: service)
+    common = [
+        "--json",
+        "work",
+        "submit",
+        "--task-type",
+        "implement",
+        "--description",
+        "project",
+    ]
+    assert cmd_work_submit(build_parser().parse_args(common)) == 1
+    assert json.loads(capsys.readouterr().out) == {
+        "success": False,
+        "reason": "stale_projection",
+    }
+
+    reconcile = [
+        "--json",
+        "work",
+        "reconcile",
+        "--task-type",
+        "implement",
+        "--description",
+        "project",
+        "--projection-key",
+        json.dumps(
+            {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 1}
+        ),
+    ]
+    assert cmd_work_reconcile(build_parser().parse_args(reconcile)) == 1
+    assert json.loads(capsys.readouterr().out) == {
+        "success": False,
+        "reason": "stale_projection",
+    }

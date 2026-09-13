@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T01:08:03.657523+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": "impl-fix-round-1",
+    "summary": "Fixed all three blocking implementation-review contract findings with RED-to-GREEN HTTP and service tests. Strict request validation, UUID boundary parsing, and RFC 7807 policy/guardrail denial mappings now match the frozen OpenAPI contract.",
+    "completed_work": [
+      "Added nine focused regressions and confirmed RED then GREEN.",
+      "Forbid undeclared fields in projection request models and validate dependency UUIDs during request parsing.",
+      "Preserve service policy and guardrail denial reasons and map them to 403/422 Problems.",
+      "Passed 141 affected coordinator tests with 16 environment-only PostgreSQL skips, Ruff, strict OpenSpec, and semantic OpenAPI validation."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Reject undeclared request fields at the Pydantic boundary",
+        "rationale": "The runtime request models must implement OpenAPI additionalProperties=false before service dispatch.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Keep HTTP success schema success-only",
+        "rationale": "Every service failure is classified as a 4xx Problem so policy and guardrail denials cannot masquerade as HTTP 200.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Repeat implementation review against this remediation commit."
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/src/coordination_api.py",
+        "description": "Strict request models and RFC 7807 failure mapping"
+      },
+      {
+        "path": "agent-coordinator/src/work_queue.py",
+        "description": "Preserved service denial reasons"
+      },
+      {
+        "path": "agent-coordinator/tests/test_coordination_api.py",
+        "description": "HTTP contract regressions"
+      },
+      {
+        "path": "agent-coordinator/tests/test_work_queue.py",
+        "description": "Service denial reason regressions"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/impl-findings.md",
+        "description": "Fix evidence"
+      }
+    ]
+  }
+}

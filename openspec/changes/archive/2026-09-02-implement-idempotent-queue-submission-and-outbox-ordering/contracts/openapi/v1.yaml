@@ -1,0 +1,121 @@
+openapi: 3.1.0
+info:
+  title: Work Queue Projection Contract
+  version: 1.1.0
+paths:
+  /work/submit:
+    post:
+      operationId: submitWork
+      summary: Submit work, atomically deduplicating an optional complete projection key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/WorkSubmitRequest'}
+      responses:
+        '200':
+          description: Canonical queue task
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ProjectionMutationSuccess'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /work/reconcile:
+    post:
+      operationId: reconcileWorkProjection
+      summary: Reconcile work rows from an authoritative loop-state projection key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/WorkReconcileRequest'}
+      responses:
+        '200':
+          description: Queue converged to the supplied projection key
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ProjectionMutationSuccess'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+components:
+  schemas:
+    ProjectionKey:
+      type: object
+      additionalProperties: false
+      required: [change_id, phase, transition_sequence]
+      properties:
+        change_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^[a-z0-9][a-z0-9-]{0,127}$'
+        phase:
+          type: string
+          enum: [INIT, GATEKEEPER, PLAN, PLAN_ITERATE, PLAN_REVIEW, PLAN_FIX, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, IMPL_FIX, VALIDATE, VAL_REVIEW, VAL_FIX, SUBMIT_PR, ESCALATE, DONE]
+        transition_sequence:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+          description: Strict non-boolean integer copied from LoopState.total_iterations.
+    WorkSubmitRequest:
+      type: object
+      additionalProperties: false
+      required: [task_type, task_description]
+      properties:
+        task_type: {type: string, minLength: 1}
+        task_description: {type: string, minLength: 1}
+        projection_key: {$ref: '#/components/schemas/ProjectionKey'}
+        input_data:
+          type: object
+          additionalProperties: true
+          description: Must not contain reserved change_id, phase, or transition_sequence keys.
+        priority: {type: integer, minimum: 1, maximum: 10, default: 5}
+        depends_on:
+          type: array
+          items: {type: string, format: uuid}
+        agent_requirements: {type: object, additionalProperties: true}
+    WorkReconcileRequest:
+      type: object
+      additionalProperties: false
+      required: [projection_key, task_type, task_description]
+      properties:
+        projection_key: {$ref: '#/components/schemas/ProjectionKey'}
+        task_type: {type: string, minLength: 1}
+        task_description: {type: string, minLength: 1}
+        input_data:
+          type: object
+          additionalProperties: true
+          description: Must not contain reserved change_id, phase, or transition_sequence keys.
+        priority: {type: integer, minimum: 1, maximum: 10, default: 5}
+        agent_requirements: {type: object, additionalProperties: true}
+    ProjectionMutationSuccess:
+      type: object
+      additionalProperties: false
+      required: [success, task_id, status, created, deduplicated, cancelled_task_ids]
+      properties:
+        success: {type: boolean, const: true}
+        task_id: {type: string, format: uuid}
+        status: {type: string, enum: [pending, claimed, running, completed, failed, cancelled]}
+        created: {type: boolean}
+        deduplicated: {type: boolean}
+        cancelled_task_ids:
+          type: array
+          items: {type: string, format: uuid}
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: {type: string, format: uri-reference}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+  responses:
+    Problem:
+      description: RFC 7807 authentication, policy, projection conflict, or validation error
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}

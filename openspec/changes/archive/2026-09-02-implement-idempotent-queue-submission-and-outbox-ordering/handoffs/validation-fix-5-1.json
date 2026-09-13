@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T13:40:00.000000+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude",
+    "session_id": "val-fix-5",
+    "summary": "Fixed all four Codex GitHub review findings on PR #457 with TDD: made complete_task refuse to overwrite a cancelled task, routed every phase-changing ESCALATE persistence path through persist_and_project, audited reconcile_work_projection mutations, and classified non-raising projection-callback failure envelopes in persist_and_project instead of reporting them as ok.",
+    "completed_work": [
+      "Added migration 036_terminal_completion_guard.sql: complete_task now updates only status IN ('claimed', 'running') rows and returns reason='task_not_active' with the current status when refused for that reason; WorkQueueService.complete() logs a warning on that refusal.",
+      "Added a DB-less static contract test for migration 036 and two PostgreSQL-backed behavioural tests (TestCompleteTaskTerminalCancellation) proving a late complete_task call after reconcile-cancellation is refused and does not overwrite the cancellation, and that the ordinary active-claim completion path is unaffected.",
+      "Added a unit test proving the Python-side complete() surfaces status='cancelled'/reason='task_not_active' and logs a warning.",
+      "Routed the exception handler, the phase-raise branch, and the GoalGateRefused handler in autopilot.py's run_loop through persist_and_project(..., mode='submit') so ESCALATE transitions reach the queue-projection seam like every other phase change.",
+      "Added three run_loop-level tests proving each of those three branches now calls the projection callback with mode='submit' for the ESCALATE transition.",
+      "Added get_audit_service().log_operation(operation='reconcile_work_projection', ...) to WorkQueueService.reconcile_projection, carrying the created task id and cancelled task ids; added a unit test and registered the operation in the audit-completeness mutation-surface inventory.",
+      "Reworked persist_and_project to classify a mapping callback response whose status is present and not 'ok' as that status (preserving reason/error) with a logged warning, keeping the prior 'ok' behaviour for non-mapping and statusless-mapping responses; added six unit tests covering failed/skipped/error-key/success/statusless-mapping envelopes plus the warning log.",
+      "Ran coordinator pytest (targeted: 86 passed; full non-e2e/non-integration: 2439 passed, 11 skipped), coordinator mypy src/ (77 files, no issues) and ruff check . (clean), skills/tests/autopilot (369 passed, 6 skipped), full skills suite (2973 passed, 13 skipped, one pre-existing unrelated environment failure in refresh-architecture's interpreter-resolution test), and openspec validate --strict (valid)."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Make cancellation terminal inside complete_task, not just at the caller",
+        "rationale": "complete_task updated WHERE id = p_task_id AND claimed_by = p_agent_id with no status filter, so a worker whose task reconcile_work_projection had already cancelled could still flip the terminal cancelled row back to completed/failed. Restricting the UPDATE to status IN ('claimed', 'running') closes the race at the one place every completion path goes through.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Route every phase-changing persistence path in run_loop through persist_and_project",
+        "rationale": "Only the ordinary phase-advanced branch called the projection seam; the exception handler, the phase-raise branch, and the GoalGateRefused handler persisted with plain save_state and never reached the coordinator, so a coordinated run could durably enter ESCALATE while the previous queue generation stayed active.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Audit reconcile_work_projection the same way submit() audits submit_task",
+        "rationale": "reconcile_projection cancels active tasks and creates the canonical task for a new generation, a mutation surface as significant as submit_task/complete_task, but returned without any audit record.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Classify non-raising projection-callback envelopes instead of reporting them as ok",
+        "rationale": "The coordination-bridge helpers return structured {status: skipped|failed, ...} envelopes instead of raising; persist_and_project previously reported every non-raising response as ok, silently hiding refusals from the run loop and its callers.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Commit and hand off; the orchestrator re-runs VALIDATE and, if that passes, VAL_REVIEW before returning to the merge gate.",
+      "Watch the tests/integration/postgres/ CI job on the next run — the new PostgreSQL-backed TestCompleteTaskTerminalCancellation tests are skipped in this sandbox (no live PostgreSQL/docker access) and only execute there."
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/database/migrations/036_terminal_completion_guard.sql",
+        "description": "New migration making cancellation terminal against late complete_task calls"
+      },
+      {
+        "path": "agent-coordinator/src/work_queue.py",
+        "description": "complete() warning on task_not_active; reconcile_projection() audit logging"
+      },
+      {
+        "path": "agent-coordinator/tests/test_migrations.py",
+        "description": "Static contract test for migration 036"
+      },
+      {
+        "path": "agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py",
+        "description": "TestCompleteTaskTerminalCancellation PostgreSQL-backed behavioural tests"
+      },
+      {
+        "path": "agent-coordinator/tests/test_work_queue.py",
+        "description": "Unit test for the task_not_active warning/result shape"
+      },
+      {
+        "path": "agent-coordinator/tests/test_audit_completeness.py",
+        "description": "test_successful_reconcile_audited and updated MUTATION_SURFACE"
+      },
+      {
+        "path": "skills/autopilot/scripts/autopilot.py",
+        "description": "persist_and_project envelope classification; escalation paths in run_loop routed through it"
+      },
+      {
+        "path": "skills/tests/autopilot/test_queue_projection_ordering.py",
+        "description": "Escalation-path projection tests and envelope-classification tests"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/session-log.md",
+        "description": "Phase: Validation Fix 5 session-log entry"
+      }
+    ]
+  }
+}

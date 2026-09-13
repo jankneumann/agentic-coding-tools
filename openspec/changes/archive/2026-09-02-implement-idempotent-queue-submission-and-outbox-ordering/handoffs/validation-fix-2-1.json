@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T02:40:13.889971+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Resolved the Security evidence-integrity blocker with one fresh isolated ZAP run. The scan completed with warnings at exit 2 (66 pass, 0 fail, 1 informational warning); durable raw, JSON/HTML, normalized, canonical gate/report, and teardown evidence are retained, and the required validation evidence gate passes.",
+    "completed_work": [
+      "fresh isolated Podman API stack",
+      "one bounded ZAP baseline attempt",
+      "durable raw and canonical security artifacts",
+      "required validation evidence gate",
+      "complete container and volume teardown"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Classify scanner exit 2 precisely",
+        "rationale": "The scan is completed_with_warnings, not a zero-exit scan pass; the independent high-threshold risk gate passes with zero threshold findings.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Resume autopilot VAL_REVIEW"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-evidence/security/validation-fix-2/execution.json",
+        "description": "Exact scan execution record"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-evidence/security/validation-fix-2/security-review-report.json",
+        "description": "Canonical security result"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-evidence/security/validation-fix-2/gate.json",
+        "description": "Canonical security gate"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+        "description": "Updated validation evidence"
+      }
+    ]
+  }
+}

@@ -11,6 +11,10 @@ triggers:
 
 # Autopilot Roadmap
 
+## Durable state artifact authority
+
+Shared holder, writer, authority, fallback, and rehydration semantics live in `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
+
 Execute roadmap items iteratively with policy-aware vendor routing and adaptive reprioritization. Manages the full lifecycle of each roadmap item from planning through completion, writing learning entries and adjusting priorities based on accumulated experience.
 
 ## Arguments
@@ -44,6 +48,25 @@ python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 ```
 
 `--dry-run` remains read-only and may run from the shared checkout.
+
+## Approval gate
+
+A direct `/autopilot-roadmap` invocation is itself the operator's approval — there is
+no separate `/supervise cycle` session to have asked first. Before execution starts,
+record that approval as a `roadmap_approval` gate decision (mirroring `/supervise`'s
+own gate router) and pass the resulting reference through, rather than letting
+`ExecutionAdapter.prepare` refuse for want of one (`route-supervise-gates-through-the-
+approval-gate-service`, D2/D5):
+
+```bash
+python3 "<skill-base-dir>/../supervise/scripts/cycle_state.py" --repo-root . \
+  gate-answer --roadmap "$ROADMAP_ID" --gate roadmap_approval \
+  --decision approved --note "direct invocation"
+```
+
+The command prints the recorded decision, including a `roadmap_approval_ref` of the
+form `gate-decision:<decision_id>` — pass that value to `ExecutionAdapter.prepare`
+(and to any dispatched `execute` call) for this run.
 
 ## Input
 
@@ -88,6 +111,12 @@ result = execute_roadmap(
 ```
 
 The `dispatch_fn` receives `(item_id, phase, context)` and returns an outcome string. The SKILL.md layer implements this by invoking `/implement-feature`, `/validate-feature`, etc.
+
+#### Opt-in delegated lifecycle
+
+Supervised execution uses the additive two-stage API; ordinary `execute_roadmap()` callers retain the four historical phases exactly. `prepare_delegated_batch(workspace, repo_root=..., isolation_resolver=..., context=...)` selects the deterministic scope-safe ready batch, resolves each item's isolation envelope, and persists every `prepared` generation before returning any request. It never invokes `dispatch_fn`. Invalid exact change IDs are returned as non-dispatched failures without failing the roadmap item.
+
+The host owns child launch and the acknowledgement/go protocol. After it has advanced the persisted attempts to `launched` and collected schema-valid results, it calls `apply_delegated_batch(workspace, batch_id, results, dispatch_fn, repo_root=...)`. Apply rejects incomplete, duplicate, stale, or mismatched result sets before invoking the callback. Each unresolved generation is then presented exactly once as `dispatch_fn(item_id, "autopilot", context)`, where `context["dispatch_result"]` is the exact correlated result and the remaining context preserves router-owned keys plus dispatch, scope, and isolation identity. Success reuses the existing checkpoint and learning seam; a gate or policy `parked` result remains nonterminal and does not unblock dependents.
 
 ### 4. Handle Success
 

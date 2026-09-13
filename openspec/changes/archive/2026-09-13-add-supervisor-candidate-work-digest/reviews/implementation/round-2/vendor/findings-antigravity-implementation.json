@@ -1,0 +1,82 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "behavioral_failure",
+      "criticality": "critical",
+      "severity": "critical",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "package_id": "whole-branch",
+      "file_path": "skills/tests/supervise/test_workflow_contract.py",
+      "line_range": {
+        "start": 45,
+        "end": 54
+      },
+      "description": "Critical: installed supervise skill mirrors in .claude/skills/supervise/SKILL.md and .agents/skills/supervise/SKILL.md were not updated when canonical skills/supervise/SKILL.md was modified in commit d9c7f0a4, causing test_installed_supervise_skill_mirrors_are_byte_identical_when_present to fail on test execution."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "correctness",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 884,
+        "end": 907
+      },
+      "description": "none: artifact evidence calculation now converts source and as_of timestamps to UTC before date evaluation and forces git pathspecs to literal mode, preventing negative staleness bonuses and glob magic bypasses."
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "architecture",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 572,
+        "end": 646
+      },
+      "description": "none: candidate manifest ranking strictly binds requested candidates byte-for-byte to the persisted store and provides a dedicated schema-valid empty digest publish path for zero-candidate operations."
+    },
+    {
+      "id": 4,
+      "type": "resilience",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "resilience",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 91,
+        "end": 93
+      },
+      "description": "none: digest transaction recovery fails closed by forcing host rehydration after rolling forward pending publication operations, preventing stale record state from overwriting recovered mirrors."
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "severity": "none",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 334,
+        "end": 365
+      },
+      "description": "none: legacy supervisor record fixtures and sanitization layers are properly migrated to comply with canonical schema constraints including required route and roadmap_ref fields."
+    }
+  ]
+}

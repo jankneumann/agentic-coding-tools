@@ -1,0 +1,177 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Non-identical roadmap items sharing one item_id fail closed during roadmap loading with ValueError('duplicate item ids: ...') which maps to diagnostic code 'roadmap_invalid' with stale=true. The check is implemented via a linear-time set scan during _read_roadmap in skills/roadmap-runtime/scripts/resolve_readiness.py:98-107 and verified by test_duplicate_item_ids_make_a_roadmap_invalid in skills/tests/roadmap-runtime/test_readiness.py:328-344.",
+      "resolution": "Accept linear-time semantic duplicate item check and fail-closed roadmap_invalid handling.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "line_range": {
+        "start": 98,
+        "end": 107
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The CLI main() entrypoint in skills/roadmap-runtime/scripts/resolve_readiness.py:419-425 writes json-serialized readiness results with a trailing newline to sys.stdout and returns exit code 2 when hard-invalid input is present. Verified by direct CLI integration test test_cli_emits_json_and_returns_nonzero_for_invalid_input in skills/tests/roadmap-runtime/test_readiness.py:345-357.",
+      "resolution": "Accept CLI boundary error code and newline-terminated JSON emission.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "line_range": {
+        "start": 419,
+        "end": 425
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The admission rule _get_ready_items is defined exactly once in skills/roadmap-runtime/scripts/readiness.py:13-40 and imported by both required consumers (autopilot-roadmap orchestrator.py and resolve_readiness.py). Enforced by AST test in test_readiness.py.",
+      "resolution": "Accept single-definition architecture and AST enforcement.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/readiness.py",
+      "line_range": {
+        "start": 13,
+        "end": 40
+      },
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Valid checkpoints authoritatively govern terminal state over roadmap status fields. Soft status lag emits roadmap_checkpoint_divergence with stale=true without withholding workspace items or completion refs. Hard-invalid checkpoints fail closed with exit code 2 and withhold affected ready items and external completion refs.",
+      "resolution": "Accept checkpoint authority model, divergence diagnostic reporting, and fail-closed error handling.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "line_range": {
+        "start": 203,
+        "end": 275
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Workspaces lacking a checkpoint file default to roadmap definition status as the valid never-started baseline and report checkpoint_absent with stale=false.",
+      "resolution": "Accept missing-checkpoint baseline handling.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "line_range": {
+        "start": 357,
+        "end": 361
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Typed external dependencies (external_depends_on) require effective completion in referenced workspaces before unblocking. Supersession, failed items, and local dependency checks match spec rules, and final flat ready entries are globally sorted by (priority, roadmap_id, item_id).",
+      "resolution": "Accept dependency evaluation rules and global ranking.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "line_range": {
+        "start": 367,
+        "end": 397
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "low",
+      "description": "SHA-256 source_fingerprint is derived from a canonical sorted projection of roadmaps and checkpoints, ignoring timestamps, mtimes, learnings, handoffs, and queue state. Unchanged inputs produce byte-identical JSON stdout with a trailing newline.",
+      "resolution": "Accept content-derived fingerprint determinism and advisory artifact isolation.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "line_range": {
+        "start": 157,
+        "end": 176
+      },
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "Supervisor ready_across_roadmaps groups canonical resolver output by roadmap_id, maintaining backward compatibility for existing callers. Models are loaded via explicit path and unique module names to avoid sys.modules collisions regardless of test collection order.",
+      "resolution": "Accept supervisor compatibility wrapper and collision-proof module loading.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 54,
+        "end": 878
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Unit and integration tests in skills/tests/roadmap-runtime/ pass completely (144 focused tests, 14 readiness tests passing). Ruff linter checks pass with zero warnings. Code coverage includes single definition AST assertions, soft divergence, hard invalid fail-closed behavior, duplicate item ID validation, CLI boundary exit code 2 and stdout formatting.",
+      "resolution": "Accept test suite coverage and verification results.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/tests/roadmap-runtime/test_readiness.py",
+      "line_range": {
+        "start": 120,
+        "end": 357
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 10,
+      "type": "security",
+      "criticality": "low",
+      "description": "The readiness resolver CLI is completely read-only, performs no file writes or network calls, resolves paths relative to repo_root safely, and introduces no contract drift or out-of-scope mutations.",
+      "resolution": "Accept read-only security boundary and path safety.",
+      "disposition": "accept",
+      "package_id": "wp-readiness-runtime",
+      "file_path": "skills/roadmap-runtime/scripts/resolve_readiness.py",
+      "line_range": {
+        "start": 419,
+        "end": 425
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    }
+  ]
+}

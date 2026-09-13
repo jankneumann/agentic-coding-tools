@@ -1,0 +1,167 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The Git-commit staleness rule can yield a negative age. design.md and spec.md define staleness_days as manifest as_of minus git log -1 --format=%cI for an unmodified tracked provenance path, but neither defines commit_time > as_of. Git committer dates may be future-dated, and host as_of may legitimately precede that timestamp; digest.schema.json requires staleness_days minimum 0, while feeding a negative value into min(floor(staleness_days/30), 5) would invert the penalty into a boost.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Fail closed on clock skew: when commit_time > as_of, set staleness_days to null with an explicit degraded marker (preferred) or clamp to 0; never admit a negative value into the ranking formula. Add a task-1.3 fixture covering future committer dates.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 53,
+        "end": 67
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: Crash-recoverable publication still does not cover lifecycle deletions. Revision 4 requires pre-SENSE maintenance to delete terminal stub/cache files and publish a rebuilt digest/mirror baseline, while the journal is defined only as replacement bytes/checksums for cache/digest/mirror targets with digest.json last. Spec.md further says only a wholly valid score document may create a journal and publish, which either forbids journaling the no-score maintenance path or forces unjournaled deletes. A crash after prune and before digest-last therefore leaves durable mixed state the stated roll-forward protocol cannot reconstruct; task 4.1 only interrupts after target replaces, not delete boundaries.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "resolution": "Extend the transaction to encode replace and delete ops, include terminal stub/cache deletions with the rebuilt digest/mirror in one journal, clarify that cache-only maintenance may create that journal without a freshly dispatched score document, and add interruption tests at every deletion/replacement boundary.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 219,
+        "end": 235
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Nit: Digest Approval Routing still says the request SHALL place by stub priority unless --after overrides it, while the next sentences say explicit priority and insertion position are independent and no renumbering is implied. Refiner _apply_add preserves an explicit priority via setdefault and otherwise appends; an implementer can read the first clause as computing insertion from priority.",
+      "disposition": "fix",
+      "axis": "readability",
+      "severity": "nit",
+      "resolution": "Reword to: copy stub priority into the item; default insertion is append unless --after selects position; priority and position are independent.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 124,
+        "end": 124
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Revision 4 correctly splits generated_at from state_updated_at so cache-only lifecycle rebuilds preserve scoring evidence time, validate cached scored_at against generated_at, and still expose the later maintenance transition without dispatching a scorer.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Keep the two-clock contract and the cache-only validation tests called out in tasks 1.3 and 1.4.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 154,
+        "end": 187
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "security",
+      "criticality": "low",
+      "description": "The complete canonical prompt-manifest 64 KiB bound, per-artifact 2 KiB excerpt cap, oversized:<stub_key> fail-closed path, contained regular-file loader, sanitize_string redaction, and untrusted delimiters close the round-2 partial-bound gap without leaving a single schema-valid stub able to force an oversize dispatch.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "resolution": "Preserve prepare-batch fail-before-dispatch behavior and the individually oversized stub fixtures in tasks 1.5 and 4.1.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 9,
+        "end": 9
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The approval-routing contract now matches refine-roadmap behavior: _apply_add never calls _renumber_priorities, setdefault preserves an explicit priority, and the plan no longer claims renumbering on add.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Keep explicit priority copy plus independent --after insertion in stub-to-request tests.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 124,
+        "end": 124
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "observability",
+      "criticality": "low",
+      "description": "digest.schema.json weights now emit staleness_penalty_cap, risk_higher_is_safer, decision_bucket_order, dependency_bucket_order, and tie_breaker alongside the numeric weights, so a consumer can reconstruct the advertised total order from the artifact alone.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "resolution": "Keep the expanded weights object required and const-constrained through contract installation.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/digest.schema.json",
+      "line_range": {
+        "start": 73,
+        "end": 84
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Ranking and stub-to-request now consistently build a strict all-status index from roadmap YAML, active changes, and archived changes with an explicit archived-completed rule, and both proposal and tasks forbid using ri-16 ready-frontier output as that index.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "Implement the shared index once and reuse it for dependency_ready and routing resolution as tasks 1.3 and 1.8 require.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 189,
+        "end": 195
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Failed scoring now has a coherent retry ledger rule: no journal or output updates, prior digest preserved, and the last successful cycle fingerprint left unadvanced so the unchanged early exit cannot suppress the next retry.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Keep the unadvanced-fingerprint assertion in the scoring-failure and integration fixtures.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 54,
+        "end": 59
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "style",
+      "criticality": "low",
+      "description": "FYI: proposal Impact still lists digest.py subcommands as store/rank/digest/stub-to-request/decide and omits prepare-batch, even though What Changes, design D3/D8, tasks, and the normative spec all make prepare-batch the public bounded-manifest boundary.",
+      "disposition": "accept",
+      "axis": "readability",
+      "severity": "fyi",
+      "resolution": "Add prepare-batch to the Impact command list on the next editorial pass; behavior is already specified elsewhere.",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/proposal.md",
+      "line_range": {
+        "start": 196,
+        "end": 196
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

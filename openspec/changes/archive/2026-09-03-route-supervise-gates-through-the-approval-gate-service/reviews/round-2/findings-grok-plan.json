@@ -1,0 +1,128 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: Round-1 finding #22 requires `check_filed(..., *, notified)` to take `notified` from the prior ledger record, but nothing in the plan persists a recoverable delivery bit. `ApprovalDecision` / `build_gate_decision_record` / the change `gate-decision.schema.json` declare no `notified` field; `pendingGate` is `additionalProperties: false` without one either. Worse, `ApprovalGate._apply_default` in `skills/shared/approval_gate.py` overwrites `default_action` to `block` on the undelivered-proceed fail-closed path, so `(resolution=timeout_default_block, default_action=block)` is identical for a genuine `default_action: block` timeout and an undelivered `proceed` \u2014 the two cases are distinguishable only by parsing the reason string, which the plan never specifies. D4 step 0.3 and the NFR/test named after this fix therefore cannot be implemented as written.",
+      "resolution": "Persist `notified` (bool) on every gate-decision that filed an approval \u2014 declare it in task 1.3 / the change `gate-decision.schema.json`, have `build_gate_decision_record` or the router stamp it from the evaluate-time push result (and keep the posture's intended `default_action` on the record, not the overwritten fail-closed value). Have the router pass that stored bit into `check_filed`. Add a contract test that round-trips undelivered vs delivered `timeout_default_block` records without reading `reason`.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md",
+      "line_range": {
+        "start": 167,
+        "end": 185
+      },
+      "axis": "security",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The ask-once / authorization-freshness rule is half-finished after round-1 #26. D4's subject key for `roadmap_approval` is `(gate, roadmap_id, roadmap_fingerprint)` and supervise scenario 4's GIVEN assumes a proceed record whose `roadmap_fingerprint` matches the current DAG, but D2's stamped `extra` fields and task 1.3's declared gate-decision properties list `decision_id` / `source` / `verb` / `roadmap_id` / \u2026 and omit `roadmap_fingerprint`. Separately, D3's `require_approval_ref` / `ExecutionAdapter.prepare` only checks `outcome==proceed`, gate=`roadmap_approval`, and `checkpoint.roadmap_id` \u2014 not fingerprint match \u2014 so a retained `gate-decision:<id>` from before a `refine-roadmap` still authorizes prepare (the e2e test already calls `adapter.prepare` directly). Gate-check reuse alone does not protect the deterministic enforcement boundary the design itself calls out.",
+      "resolution": "Stamp `roadmap_fingerprint` onto every `roadmap_approval` ledger record (declare it in task 1.3 alongside the other optional fields). Extend `require_approval_ref` / prepare to reject a proceed record whose fingerprint does not equal `roadmap_fingerprint(current roadmap)`, and add a `test_prepare_rejects_stale_fingerprint` case next to the other provenance tests in task 2.5.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md",
+      "line_range": {
+        "start": 127,
+        "end": 148
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The skill-workflow delta only ADDS `Roadmap Approval Gate` and never MODIFIES the live `Autopilot Gate Call Sites` requirement in `openspec/specs/skill-workflow/spec.md`. That live requirement still SHALLs that autopilot evaluate every member of `trust_posture.Gate` at exactly one call site (carving out only `replan_required`) and still has the scenario `GIVEN a TRUST_POSTURE.md whose eight gates are all auto`. After archive/merge, that text will contradict the new ADDED scenarios (ninth gate, no autopilot call site for `roadmap_approval`) and the task 1.4 `_ROADMAP_GATES` test fix \u2014 OpenSpec replaces whole requirements only when they are MODIFIED.",
+      "resolution": "Add a MODIFIED delta for `Autopilot Gate Call Sites` that (1) extends the parenthetical carve-out to `roadmap_approval` (evaluated by supervise / `gate_router.py`) and (2) rewrites the auto-posture scenario to 'all gates' or 'every autopilot-evaluated gate' instead of 'eight gates'. Keep the ADDED `Roadmap Approval Gate` scenarios as the supervise-side pin.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 1,
+        "end": 36
+      },
+      "axis": "correctness",
+      "severity": "critical"
+    },
+    {
+      "id": 4,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: skill-workflow scenario 'Late coordinator answer is interpreted by the gate service' still says `WHEN check_filed(Gate.ROADMAP_APPROVAL, approval_id) is called`, but the round-1 API is keyword-only `check_filed(gate, approval_id, *, notified)` with no default (contracts README and task 1.4). As written the scenario's call is not a valid invocation of the method under test and leaves the security-critical argument unbound.",
+      "resolution": "Change the WHEN clause to `check_filed(Gate.ROADMAP_APPROVAL, approval_id, notified=\u2026)` and name the `notified=true` / `notified=false` arms explicitly (matching the existing THEN bullets).",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 30,
+        "end": 36
+      },
+      "axis": "compatibility",
+      "severity": "nit"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: After inserting task 2.0 and removing 2.8, `work-packages.yaml` for `wp-router` still describes the package as 'Tasks 2.1-2.10' and never mentions the `cycle_state._clean_pending_gate` / enum-import prep that is now the package's first commit. Implementers (and lock/scope reviewers) reading only the package blurb will miss the sequencing constraint round-1 added.",
+      "resolution": "Update the wp-router description to 'Tasks 2.0-2.10' and name task 2.0's `cycle_state.py` allowlist/`Gate` import prep as a prerequisite for projection.",
+      "disposition": "fix",
+      "package_id": "wp-router",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/work-packages.yaml",
+      "line_range": {
+        "start": 124,
+        "end": 131
+      },
+      "axis": "readability",
+      "severity": "nit"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "Optional: D5's `normalized_status` is described only as collapsing 'progress' statuses while keeping `superseded` / `skipped` (`_CEDED`) distinct. `ItemStatus` in `skills/roadmap-runtime/scripts/models.py` also has `candidate`, `failed`, `blocked`, and `replan_required`. Whether those hash with progress or stand alone is unspecified, so two implementers can build different fingerprints and still claim to satisfy scenario 4 / task 2.1.",
+      "resolution": "Publish an explicit map (e.g. ceded \u2192 self; everything else \u2192 `active`) in D5 and assert it in `test_roadmap_fingerprint_covers_status_and_external_edges`.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md",
+      "line_range": {
+        "start": 207,
+        "end": 220
+      },
+      "axis": "correctness",
+      "severity": "optional"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Task 2.0 is correctly ordered ahead of the router, replaces the old 2.8 enum swap with no dangling references in proposal/design/tasks/contracts, teaches `_clean_pending_gate` to carry `decision_id`, and is paired with checkpoint bootstrap, lazy `gate_router`\u2194`cycle_state` imports, worktree-resolved `gate-log`, fingerprint growth for external edges/ceded status, and wp-router write scope over the two `skills/tests/autopilot-roadmap/` callers \u2014 the round-1 mechanical fixes land cleanly in the active plan artifacts.",
+      "resolution": "Keep this sequencing and scope coverage as-is while fixing findings 1\u20133.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/tasks.md",
+      "line_range": {
+        "start": 40,
+        "end": 44
+      },
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Every MODIFIED requirement in the supervise and roadmap-orchestration deltas preserves the live scenario names (verified against `openspec/specs/`), and wp-router \u2225 wp-skill-docs keep non-overlapping write scopes (`skills/supervise/scripts/**` vs `SKILL.md` / prose tests, with reciprocal denies), so the parallel cut and OpenSpec replacement integrity for those two capabilities remain sound.",
+      "resolution": "No change; extend the same MODIFIED discipline to skill-workflow's Autopilot Gate Call Sites (finding 3).",
+      "disposition": "accept",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/work-packages.yaml",
+      "line_range": {
+        "start": 148,
+        "end": 230
+      },
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-11T00:31:01.344826+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "software-architect",
+    "session_id": null,
+    "summary": "Resolved contract, fingerprint, reproducibility, composition, routing, and evidence-security blockers in the approved ri-13 plan. Revision 2 now has explicit ranking policy, candidate-only digest composition, durable decision fields, and a validated two-lane implementation DAG.",
+    "completed_work": [
+      "Addressed 12 plan findings and wrote plan-findings.md.",
+      "Refined proposal, design, tasks, spec delta, schemas, contracts README, and work-packages revision 2.",
+      "Strict OpenSpec validation passes.",
+      "Work-package schema, DAG, lock, and overlap validation passes."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use a fixed deterministic rank contract",
+        "rationale": "Weights 3/3/2/1/1, capped staleness, readiness/decision buckets, and stub_key tie-breaking make rankings reproducible and testable.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Keep digest.json candidate-work-focused and composable",
+        "rationale": "Existing operational five-section state remains authoritative; candidate additions cannot erase gates, deadlines, readiness, blockers, or sensor degradation.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Extend the canonical supervisor-record contract",
+        "rationale": "Approval, deferral, and rejection metadata must survive sanitizer, mirror, handoff, and rehydration round trips.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

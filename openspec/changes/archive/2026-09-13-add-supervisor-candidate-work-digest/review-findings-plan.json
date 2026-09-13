@@ -1,0 +1,111 @@
+{
+  "review_type": "plan",
+  "target": "add-supervisor-candidate-work-digest",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "performance",
+      "criticality": "high",
+      "description": "Critical: The 20-stub batch limit does not bound the number of batches or the retained backlog, while every non-supervisor fingerprint change deliberately re-scores the entire backlog. A large or steadily growing candidate store can therefore trigger unbounded model dispatches, latency, and cost in one cycle.",
+      "resolution": "Add a deterministic per-cycle dispatch budget (maximum candidates and/or batches), define pagination or carry-forward ordering for work beyond the budget, and add acceptance scenarios proving a large backlog cannot cause unbounded dispatch.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {"start": 61, "end": 69},
+      "axis": "performance",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: The plan defines validation of completed score documents but no timeout, retry, partial-batch, or fallback behavior when the rubric sub-agent fails, returns no document, or only some batches complete. That leaves the cycle's external-model failure mode and the safety of prior cache/digest reuse undefined.",
+      "resolution": "Specify bounded timeout/retry behavior and an all-or-nothing scoring transaction. Define whether a failed batch aborts while preserving the prior valid digest, degrades to valid same-fingerprint caches, or emits a degraded no-update result, and test partial multi-batch failure.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {"start": 9, "end": 13},
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Ranking and digest generation trust the rubric document's model-produced scored_at value as the staleness clock and generated_at value, but the schema validates only date-time syntax. A hallucinated, stale, or future timestamp can alter penalties, ordering, and persisted evidence time without detection.",
+      "resolution": "Make evidence time a host/script-owned input, or validate scorer timestamps against a host-provided bounded clock before ranking. Add tests for future, stale, naive, and cross-batch timestamps and define one deterministic generated_at rule.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {"start": 44, "end": 69},
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: The design assigns bounded provenance loading and deterministic batch construction to digest.py, but its declared CLI exposes only store, rank, digest, stub-to-request, and decide. The host-dispatched scoring workflow therefore lacks a concrete callable contract for producing the sanitized batch payload that the rubric prompt consumes.",
+      "resolution": "Define a public prepare-batches CLI/API and its schema, including fresh/retained inputs, ready-set input, size accounting, deterministic chunk IDs, degraded evidence, and stdout/file behavior under dry-run; then wire that exact interface into tasks and SKILL.md.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {"start": 71, "end": 87},
+      "axis": "architecture",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: D6 ends with the incomplete sentence 'A due deferral is the explicit', leaving the unchanged-fingerprint exception rationale unfinished.",
+      "resolution": "Complete the D6 sentence with the intended due-deferral behavior or remove the fragment.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {"start": 148, "end": 152},
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: D8 ends mid-sentence after 'Multi-batch scores are exact-set validated,' so the security-boundary decision is visibly incomplete.",
+      "resolution": "Complete the D8 sentence and state the intended all-batch validation/write ordering.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {"start": 160, "end": 169},
+      "axis": "readability",
+      "severity": "nit",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "security",
+      "criticality": "low",
+      "description": "The plan correctly treats provenance as untrusted, bounds contained regular-file reads, rejects symlinks and URIs, redacts secrets, and preserves the host-assisted no-network invariant.",
+      "resolution": "Retain these explicit boundary checks and negative tests during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {"start": 7, "end": 13},
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The plan correctly installs runtime schemas outside the archivable change directory and routes roadmap mutation through refine-roadmap's preview/base-SHA transaction.",
+      "resolution": "Retain byte-identical runtime schema tests and the stale-SHA integration scenario.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/contracts/README.md",
+      "line_range": {"start": 7, "end": 18},
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

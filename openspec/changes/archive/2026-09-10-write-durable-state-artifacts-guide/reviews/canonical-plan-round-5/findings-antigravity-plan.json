@@ -1,0 +1,87 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 47
+      },
+      "description": "NONE: Decisions D1-D3 and the Rehydration Algorithm (\u00a738-47) in design.md define an exact eight-step rehydration-order contract (Bootstrap locator, Roadmap definition, Roadmap execution state, Change execution state, Learning context, Phase history, Handoff context, Rebuild projections) with question-scoped authority across all five durable state artifact classes, preventing advisory handoffs from overriding authoritative loop or roadmap state.",
+      "resolution": "The eight-step rehydration sequence and question-scoped authority principles are unambiguously specified and establish a deterministic operational contract."
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 1,
+        "end": 51
+      },
+      "description": "NONE: The OpenSpec specification in specs/skill-workflow/spec.md comprehensively covers all five durable state-artifact classes and provides concrete SHALL requirements and testable scenarios for discovery, conflict resolution, fresh-session rehydration, degraded missing-state handling, portable skill links, and byte-identical runtime mirrors.",
+      "resolution": "Specification requirements and scenarios are complete, unambiguous, and fully cover the semantic drift boundary of the change."
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/work-packages.yaml",
+      "line_range": {
+        "start": 25,
+        "end": 135
+      },
+      "description": "NONE: Work-package wp-state-artifacts-docs in work-packages.yaml cleanly encapsulates the documentation-only scope with a single sequential DAG (depends_on: []), valid lock declarations matching write_allow paths, an explicit deny block for core coordinator/app paths, and appropriate Verification Tier B commands.",
+      "resolution": "Work package scope, locks, deny rules, and DAG structure strictly enforce boundary isolation while preventing context drift."
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "axis": "observability",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/tasks.md",
+      "line_range": {
+        "start": 1,
+        "end": 70
+      },
+      "description": "NONE: The task breakdown in tasks.md establishes a rigorous RED/GREEN validation workflow (Tasks 1.1-3.2) mapped to design decisions and spec scenarios, pinning five-class inventory, required table headers, rehydration markers, and mirror byte parity in skills/tests/state-artifacts/test_state_artifacts_guide.py registered via skills/pyproject.toml testpaths.",
+      "resolution": "Task breakdown provides complete traceability to spec scenarios and design decisions with explicit structural testing controls."
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "none",
+      "disposition": "accept",
+      "package_id": "wp-state-artifacts-docs",
+      "file_path": "openspec/changes/write-durable-state-artifacts-guide/contracts/README.md",
+      "line_range": {
+        "start": 1,
+        "end": 7
+      },
+      "description": "NONE: The contracts declaration in contracts/README.md accurately reflects that no runtime OpenAPI, database, event, or schema contract applies, adhering strictly to the documentation-only non-goals defined in proposal.md.",
+      "resolution": "Contract boundaries are correctly scoped without inventing unrequested runtime or database API contracts."
+    }
+  ]
+}

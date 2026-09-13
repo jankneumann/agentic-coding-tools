@@ -1,0 +1,38 @@
+{
+  "primary_profile": "mixed",
+  "profiles": [
+    "docker-api",
+    "mixed",
+    "node",
+    "python"
+  ],
+  "confidence": "high",
+  "signals": [
+    "agent-coordinator/docker-compose.yml",
+    "agent-coordinator/pyproject.toml",
+    "apps/kanban-viz/package-lock.json",
+    "apps/kanban-viz/package.json",
+    "packages/agent-scenarios/pyproject.toml",
+    "packages/code-search/pyproject.toml",
+    "packages/context-eval/pyproject.toml",
+    "packages/gen-eval/pyproject.toml",
+    "skills/pyproject.toml"
+  ],
+  "profile_signals": {
+    "python": [
+      "agent-coordinator/pyproject.toml",
+      "packages/agent-scenarios/pyproject.toml",
+      "packages/code-search/pyproject.toml",
+      "packages/context-eval/pyproject.toml",
+      "packages/gen-eval/pyproject.toml",
+      "skills/pyproject.toml"
+    ],
+    "node": [
+      "apps/kanban-viz/package-lock.json",
+      "apps/kanban-viz/package.json"
+    ],
+    "docker-api": [
+      "agent-coordinator/docker-compose.yml"
+    ]
+  }
+}

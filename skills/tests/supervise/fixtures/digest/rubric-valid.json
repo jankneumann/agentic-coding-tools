@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "scored_at": "2026-09-11T01:00:00Z",
+  "scorer": {"vendor": "fixture", "model": "fixture-model", "archetype": "analyst"},
+  "scores": [
+    {
+      "stub_key": "change:add-candidate-digest",
+      "relevance": {"score": 5, "justification": "The gap is still present."},
+      "value": {"score": 4, "justification": "It improves operator decisions."},
+      "readiness": {"score": 3, "justification": "Its contracts are approved."},
+      "scope_fit": {"score": 5, "justification": "It fits one focused change."},
+      "risk": {"score": 4, "justification": "The change is isolated and reversible."},
+      "evidence_read": ["openspec/changes/add-candidate-digest/proposal.md"]
+    },
+    {
+      "stub_key": "prov:0123456789abcdef0123456789abcdef",
+      "relevance": {"score": 4, "justification": "The finding remains reproducible."},
+      "value": {"score": 3, "justification": "It removes recurring manual work."},
+      "readiness": {"score": 2, "justification": "One dependency is still pending."},
+      "scope_fit": {"score": 4, "justification": "The boundary is well defined."},
+      "risk": {"score": 5, "justification": "The blast radius is very small."},
+      "evidence_read": []
+    }
+  ]
+}

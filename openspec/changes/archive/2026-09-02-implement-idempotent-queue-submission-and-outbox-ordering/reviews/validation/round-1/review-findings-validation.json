@@ -1,0 +1,33 @@
+{
+  "review_type": "implementation",
+  "target": "validation-evidence",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "security",
+      "criticality": "critical",
+      "description": "Critical: The Security phase is promoted to pass with warning even though the ZAP wrapper exited nonzero and neither its JSON/HTML output, captured scanner log, nor a canonical security gate artifact is retained, so the claimed 66 passed rules and zero failures cannot be independently audited and do not satisfy validate-feature's required-phase evidence contract.",
+      "resolution": "Rerun the bounded ZAP scan with a writable report directory and retain the canonical gate/report artifacts, or record Security as DEGRADED and obtain the explicit degraded-phase authorization required by validate-feature.",
+      "disposition": "fix",
+      "package_id": "validation-evidence",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+      "line_range": {"start": 28, "end": 34},
+      "axis": "security",
+      "severity": "critical"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Architecture freshness is explicitly marked DEGRADED, the configured mode is advisory, and the report does not misrepresent stale architecture artifacts as current evidence.",
+      "resolution": "No merge-blocking action is required for this advisory phase; retain the source-root correction as follow-up work.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/architecture-impact.md",
+      "line_range": {"start": 1, "end": 16},
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

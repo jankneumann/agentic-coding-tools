@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T01:49:56+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Round-1 integrated implementation review did not converge. Codex, Claude, and Grok supplied schema-valid reviews (31 raw findings, 26 unique, 4 confirmed, 0 disagreements); consensus records 3 blocking findings, and independent deterministic review also exposed a due-deferral reversion, timezone-negative staleness, and legacy-record incompatibility that require remediation before validation.",
+    "completed_work": [
+      "Dispatched read-only branch-wide implementation reviews to antigravity, claude_code, grok, and pi; Claude and Grok returned schema-valid findings, Antigravity returned malformed JSON, and Pi reported auth_required.",
+      "Combined the primary Codex review with two valid external reviews: 31 raw findings, 26 unique findings, 4 confirmed, 22 unconfirmed, and 0 disagreements.",
+      "Reproduced lifecycle failure with an unscored surviving stub, forced-cache timestamp rejection, and stale-manifest publication in isolated repositories.",
+      "Validated all successful findings documents and the normalized consensus report against repository schemas.",
+      "Preserved the complete vendor dispatch manifest, prompt, findings, and consensus under reviews/implementation/round-1/."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Return the implementation to IMPL_FIX",
+        "rationale": "Confirmed critical failures can deadlock lifecycle maintenance after scoring degradation and make the required force-cache path unusable; additional deterministic critical findings can revert due deferrals or reject valid staleness/legacy state.",
+        "capability": "supervise",
+        "supersedes": null
+      },
+      {
+        "title": "Drop Pi from later review rounds until credentials change",
+        "rationale": "The round manifest classifies Pi as auth_required, which is account-scoped and must not be retried unchanged under Autopilot issue-383 policy.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Allow lifecycle rebuilds to retain unscored store entries for later scoring instead of requiring caches for keys absent from the prior digest.",
+      "Normalize due decisions once and thread the maintained record through prepare-batch and rank so a scored cycle cannot restore an expired deferral.",
+      "Implement and test the no-dispatch forced same-fingerprint cache/digest reuse path.",
+      "Bind rank manifests to the current store or a validated dry-run overlay so stale candidate bytes cannot be published.",
+      "Normalize commit and host timestamps to UTC before date subtraction and cover offset-crossing commits.",
+      "Migrate legacy record fixtures and make durable-record sanitization produce schema-writable canonical decisions.",
+      "Define and test a zero-candidate fast path, and ensure post-recovery commands rehydrate or merge the recovered mirror before publishing new state.",
+      "Rerun focused supervise tests, strict OpenSpec validation, and a fresh IMPL_REVIEW round after fixes."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/implementation/round-1/review-findings-implementation.json",
+        "description": "primary reviewer findings"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/implementation/round-1/consensus-implementation.json",
+        "description": "three-reviewer consensus with blocking findings"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/implementation/round-1/vendor/review-manifest.json",
+        "description": "external vendor dispatch evidence and failure classes"
+      },
+      {
+        "path": "skills/supervise/scripts/digest.py",
+        "description": "runtime lifecycle, recovery, ranking, evidence, and cache fixes"
+      },
+      {
+        "path": "skills/supervise/SKILL.md",
+        "description": "host sequencing and force/recovery workflow fixes"
+      },
+      {
+        "path": "skills/supervise/scripts/cycle_state.py",
+        "description": "durable-record compatibility and sanitization fixes"
+      }
+    ]
+  }
+}

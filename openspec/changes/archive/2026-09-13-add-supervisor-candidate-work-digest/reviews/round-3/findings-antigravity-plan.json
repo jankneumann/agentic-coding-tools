@@ -1,0 +1,103 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Revision 4 fully resolves all round-2 correctness blockers by specifying pre-SENSE lifecycle maintenance, Git-commit derived staleness reference timestamps, exact timestamp matching between manifest as_of and scored_at, and complete cache-only re-rank time semantics for state_updated_at versus generated_at.",
+      "resolution": "The spec scenarios and design decisions accurately cover all lifecycle state transitions, timestamp validation rules, and store capacity bounds without ambiguity.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 28,
+        "end": 92
+      }
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The separation of responsibilities between digest.py (store, prepare-batch, rank, digest, stub-to-request, decide) and cycle_state.py state helpers maintains the host-assisted invariant while avoiding monolithic script bloat.",
+      "resolution": "Architecture maintains clean module boundaries and isolates model scoring to host sub-agent dispatches without introducing network or SDK calls into scripts.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 99,
+        "end": 105
+      }
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The atomic roll-forward transaction journal (.digest-transaction.json) with digest.json written last as the commit marker guarantees crash-recoverable publication and prevents mixed cache/digest states across failures.",
+      "resolution": "Scoring failures preserve prior valid digest artifacts and leave the successful cycle ledger fingerprint unadvanced, ensuring deterministic retry on subsequent cycles.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 219,
+        "end": 236
+      }
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "low",
+      "description": "The security posture is robust with strict 64 KiB complete canonical prompt manifest bounds, 2 KiB provenance excerpt caps, contained UTF-8 regular file validation, untrusted data delimiters, and string sanitization.",
+      "resolution": "Symlinks, URIs, binary files, and out-of-root paths are safely rejected before dispatch, failing closed to degraded markers without exposing host infrastructure.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {
+        "start": 200,
+        "end": 218
+      }
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "criticality": "low",
+      "description": "The digest.schema.json weights object comprehensively exposes all ranking policy constants, penalty caps, risk direction, decision and dependency bucket orders, and tie-breaking rules for total deterministic rank reconstructibility.",
+      "resolution": "Every factor score, justification, and mechanical signal is recorded per ranked stub, providing complete transparency into supervisor candidate prioritization.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/digest.schema.json",
+      "line_range": {
+        "start": 73,
+        "end": 85
+      }
+    },
+    {
+      "id": 6,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The refine-roadmap integration preserves explicit stub priorities while decoupling insertion positioning via --after, ensuring zero contract mismatch with existing roadmap tooling.",
+      "resolution": "The plan routes approvals through refiner.py preview and apply transactions with base SHA checks, avoiding direct roadmap file mutations or priority renumbering side effects.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+      "line_range": {
+        "start": 122,
+        "end": 127
+      }
+    }
+  ]
+}

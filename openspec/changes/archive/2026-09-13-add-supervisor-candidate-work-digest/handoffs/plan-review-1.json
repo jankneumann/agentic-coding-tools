@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-11T00:56:06.239538+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "code-reviewer",
+    "session_id": null,
+    "summary": "Multi-vendor plan review did not converge. Four successful reviewers produced 46 raw findings; consensus yielded 32 unique findings, 10 confirmed, and 5 blocking. Strict OpenSpec and work-package DAG/lock/overlap validation pass, but implementation must wait for the confirmed contract, resilience, and completeness blockers to be resolved.",
+    "completed_work": [
+      "Dispatched read-only plan reviews to antigravity, claude_code, grok, and pi; 3/4 external vendors returned schema-valid findings and pi failed schema validation.",
+      "Combined the primary Codex review with three valid vendor reviews: 46 raw findings, 32 unique findings, 10 confirmed, 22 unconfirmed, 0 disagreements.",
+      "Consensus recorded 5 blocking and 9 advisory findings in reviews/consensus-plan.json.",
+      "Strict OpenSpec validation passed.",
+      "Work-package schema, dependency DAG, lock, scope-overlap, and lock-overlap validation passed."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Return the proposal to PLAN_FIX",
+        "rationale": "Consensus reports five blocking findings, including an undefined trusted staleness clock, no concrete sanitized-batch preparation interface, and two truncated design decisions; implementation is not yet safe.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Define a trusted, reproducible evidence-time source for staleness and generated_at; cover future/skewed timestamps and artifact-age derivation.",
+      "Add a concrete CLI/API contract for sanitized evidence preparation and multi-document batch ingestion with global exact-set validation before writes.",
+      "Bound whole-cycle rubric dispatch and define timeout, retry, partial-batch, prior-digest fallback, and all-or-nothing persistence behavior.",
+      "Complete the truncated D6 and D8 decisions and name the concrete secret-redaction implementation.",
+      "Resolve code-verified unconfirmed contract risks: refine-roadmap add does not renumber priorities, ready_across_roadmaps cannot resolve completed/blocked dependencies, and mirror file write scopes omit digest.py/rubric-prompt.md copies.",
+      "Run another PLAN_REVIEW round after PLAN_FIX."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/review-findings-plan.json",
+        "description": "primary reviewer findings"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/consensus-plan.json",
+        "description": "multi-vendor consensus with blocking findings"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/review-manifest.json",
+        "description": "vendor dispatch evidence"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+        "description": "plan decisions requiring fixes"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md",
+        "description": "normative requirements requiring fixes"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/work-packages.yaml",
+        "description": "validated DAG with mirror-scope follow-up"
+      }
+    ]
+  }
+}

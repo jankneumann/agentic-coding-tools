@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-09-02T01:14:37Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": [
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 93.05222209496424,
+      "error": null,
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 1,
+  "quorum_received": 1,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-implementation.json",
+      "finding_count": 4
+    }
+  ]
+}

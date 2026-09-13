@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/review-packet.schema.json",
+  "title": "Review packet metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "change_id",
+    "round",
+    "body_path",
+    "sha256",
+    "char_length",
+    "budget_chars",
+    "tools_overflow",
+    "includes_ledger"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "change_id": { "type": "string", "minLength": 1 },
+    "round": { "type": "integer", "minimum": 1 },
+    "body_path": { "type": "string", "minLength": 1 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "char_length": { "type": "integer", "minimum": 0 },
+    "budget_chars": { "type": "integer", "const": 320000 },
+    "tools_overflow": { "type": "boolean" },
+    "includes_ledger": { "type": "boolean" },
+    "diff_kind": { "type": "string", "enum": ["full", "last_fix", "empty"] }
+  }
+}

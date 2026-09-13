@@ -1,0 +1,126 @@
+{
+  "review_type": "implementation",
+  "target": "whole-branch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "critical",
+      "description": "Critical: `decide` accepts any non-null `roadmap_ref` for a `refine-roadmap` approval, including values that violate the durable schema's `^[a-z0-9-]+:ri-[0-9]{2,}$` contract. It then passes the malformed entry to `write_mirror`; `_clean_digested_stub` drops the entire entry, so the CLI exits successfully while silently erasing the operator's approval and candidate from durable state. An isolated call with `roadmap_ref=\"not a roadmap ref\"` returned a schema-valid mirror whose `digested_stubs` array was empty.",
+      "resolution": "Validate a refine-roadmap reference against the canonical roadmap-reference pattern in `decide` before modifying or writing state, and reject malformed values with a non-zero exit. Add a direct `decide` regression proving malformed references fail without changing the existing mirror or dropping the selected stub.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1212,
+        "end": 1249
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: record-versus-digest decision drift now triggers a cache-only lifecycle rebuild before the unchanged or forced reuse paths, preserving the original scoring time while updating the durable decision, ordering, and state timestamp.",
+      "resolution": "Retain the ordinary and forced future-deferral drift regressions.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1264,
+        "end": 1419
+      },
+      "axis": "correctness",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: the non-empty force path now probes validated prior digest/cache identity and returns an explicit non-persisting `reuse_available: false` result for missing or mismatched caches, allowing the host to fall through to analyst scoring instead of aborting the cycle.",
+      "resolution": "Preserve the byte-identical successful reuse and missing/invalid-cache fallback tests together with the host workflow ordering assertions.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 598,
+        "end": 712
+      },
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: transaction publication and recovery preflight every target and checksum, enforce bounded operation and byte counts, and order the validated digest commit marker last; the provenance reader independently rejects URIs, traversal, symlinks, untracked or modified paths, binary data, and future commit timestamps.",
+      "resolution": "Retain the transaction interruption/authorization suite and untrusted provenance boundary tests.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 346,
+        "end": 492
+      },
+      "axis": "security",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: legacy durable records now canonicalize supported old stub/change identifiers and reject malformed historical refine-roadmap references before final mirror validation, while the canonical and installed supervise skill copies pass byte-identity checks.",
+      "resolution": "Keep the legacy sanitizer and installed-skill synchronization guards in the validation suite.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/cycle_state.py",
+      "line_range": {
+        "start": 332,
+        "end": 407
+      },
+      "axis": "compatibility",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: the implementation preserves the host-assisted boundary: deterministic runtime code validates, ranks, journals, and emits pure roadmap-refiner requests, while model judgment remains in the bounded skill dispatch and no roadmap writer or network client enters `digest.py`.",
+      "resolution": "Retain the AST host-assisted capability guard and real refiner preview/apply integration coverage.",
+      "disposition": "accept",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1,
+        "end": 28
+      },
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "critical",
+      "description": "Critical: lifecycle rebuild can orphan an unscored survivor across an interruption. After scoring A, storing unscored B, and terminally pruning A, `_lifecycle_rebuild` publishes an empty digest because it rebuilds only the intersection with the prior ranked keys, while B remains in the candidate store and mirror. If the cycle stops before Rank, the next unchanged preflight reports `lifecycle_changed: false` because `_decision_drift_keys` ignores remaining store keys absent from the prior digest; the host may therefore re-present the empty digest indefinitely without ever scoring B. An isolated two-preflight reproduction left B stored and requestable by `prepare_batch`, but returned an empty rebuilt digest followed by `lifecycle_changed: false`.",
+      "resolution": "Treat every remaining store key absent from the prior digest ranked set as composition drift that keeps lifecycle changed and bypasses the unchanged early exit until ranking incorporates it. Add a regression covering score A, store B, prune A, interrupt before Rank, then run an unchanged next preflight and assert B cannot be hidden behind the early exit.",
+      "disposition": "fix",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1264,
+        "end": 1308
+      },
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    }
+  ]
+}
