@@ -116,6 +116,18 @@
       "note": "2 rounds, 13 findings, ALL report-accuracy \u2014 zero code findings. Round 2 found round 1 corrections landed only in ## Overall while the gate-parsed ## Spec Compliance still carried the retracted claim. context-refresh actually run: 56 failures, 1 ours (spec:skill-workflow pending merge, normal pre-archive), 55 unrelated. Vendors degraded: pi auth expired, antigravity flag error, codex timeout.",
       "outcome": "operator_accepted",
       "phase": "VAL_REVIEW"
+    },
+    {
+      "phase": "VALIDATE",
+      "outcome": "passed",
+      "at": "2026-09-13T16:04:34.430715+00:00",
+      "note": "RE-VERIFIED after VAL_REVIEW. The goal gate refused the first record as predating the report, correctly: VAL_REVIEW retracted two report claims and strengthened the scenario-12 CLI test after VALIDATE ran, so the original record did not cover the current content. Re-ran the full gate set against the corrected tree: 377 passed 1 skipped, install.sh --check clean, dependency_direction clean, openspec validate --strict valid. The four gate-parsed sections still read pass / not_applicable. No restamping: the gates were actually re-run."
+    },
+    {
+      "phase": "VALIDATE",
+      "outcome": "passed",
+      "at": "2026-09-13T16:05:39.233021+00:00",
+      "note": "Final re-verification, recorded AFTER the report was finalized. The goal gate refused twice, correctly: first because VAL_REVIEW corrections postdated the VALIDATE record, then again because adding the required Validation Review section re-staled it. The gate wants the record to refer to the report as it stands, so the report was finished first and the full gate set re-run against it: 377 passed 1 skipped, install.sh --check clean, dependency_direction clean, openspec validate --strict valid, and all five gate-parsed sections read pass or not_applicable."
     }
   ],
   "last_handoff_id": "val-review-round-2",

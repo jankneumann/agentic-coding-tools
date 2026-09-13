@@ -188,6 +188,45 @@ documentation rather than gate input; the four phases the gate does read are
 recorded in their own sections above. It is written in the same form so a
 reader does not have to guess which checks were run.
 
+## Validation Review
+
+- **Status**: pass
+
+VAL_REVIEW was enabled by the GATEKEEPER judge. Its stated reason was not the
+complexity gate's database-migration signal — that was a confirmed false
+positive, a substring match on "migration" in a work-package description about
+migrating a Python module — but an independent one: this change refactors
+`prioritize-proposals`, a working and otherwise unrelated skill, to fix a
+defect in `audit-choices`, and D4's characterization guard is what makes that
+safe. Confirming the guard was honoured rather than quietly relaxed was the
+assigned subject.
+
+**Two rounds, 13 findings, none about the code.** Every finding concerned
+whether this report's claims matched its evidence. All are fixed, and the
+corrections are visible in the sections above:
+
+- Round 1 found the report claimed "all four quality gates green" when four
+  gates did pass but not the four the Phase 5 checkpoint names —
+  `make context-refresh` had been silently swapped out for the pytest run. It
+  also found the "no nominal coverage" claim false for scenario 12.
+- Round 2 found round 1's corrections had landed only in `## Overall`, while
+  `## Spec Compliance` — the section `gate_logic` parses — still carried the
+  retracted claim. It also challenged the unverified assertion that the
+  context-refresh failure was unrelated to this branch, which prompted
+  actually running the read-only check and attributing its 56 failures.
+
+**D4 verified independently.** `test_priorities_paths.py`,
+`test_retention.py`, `test_smoke_e2e.py` and `prioritize-proposals/SKILL.md`
+are byte-unchanged against both `main` and the merge base, and the
+characterization test was committed before the shared module and before the
+migration, in that order.
+
+**Vendor participation was degraded.** Round 1: grok and claude_code returned;
+antigravity errored on a dispatcher flag and codex timed out at 900s. Round 2:
+grok and claude_code returned; antigravity errored again and pi's
+authentication expired. Both rounds met the two-reviewer quorum, and grok
+returned clean in both, but four-vendor coverage was not achieved in either.
+
 ## Known and Out of Scope (not fixed here, by design)
 
 - `make context-refresh` — **run, not assumed.** The first version of this
