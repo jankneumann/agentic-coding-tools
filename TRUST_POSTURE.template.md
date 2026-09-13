@@ -21,6 +21,8 @@ gates:
     disposition: block
   merge:
     disposition: block
+  roadmap_approval:
+    disposition: block
 ---
 
 # Trust Posture Contract (template)
@@ -67,7 +69,7 @@ expires with no human response:
 `notify_with_timeout`; setting them on an `auto` or `block` gate is a validation
 error (it usually means a mis-placed field).
 
-## The eight gates
+## The nine gates
 
 | gate key | prose name | fires when |
 |---|---|---|
@@ -79,6 +81,7 @@ error (it usually means a mis-placed field).
 | `replan_required` | replan_required | a roadmap item enters `replan_required` |
 | `pr_creation` | PR creation | the loop is ready to open a pull request |
 | `merge` | merge | the SUBMIT_PR → DONE merge handoff |
+| `roadmap_approval` | roadmap approval | a roadmap's DAG of items is ready to authorize (distinct from `proposal_approval`, which authorizes one change) |
 
 A gate omitted from `gates:` resolves to `block` (fail-closed). Only an unknown
 gate key or an unknown disposition is a hard validation error.

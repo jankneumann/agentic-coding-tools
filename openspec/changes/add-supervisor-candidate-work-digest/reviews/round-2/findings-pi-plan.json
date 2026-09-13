@@ -1,0 +1,119 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "pi",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The plan correctly addresses the core issue of having no persistent storage for candidate work stubs between supervisor cycles, providing a tracked file store at openspec/supervise/candidates/.",
+      "resolution": "The design properly specifies byte-stable writes with sort_keys and trailing newlines, and separates lifecycle state from the file content.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: The separation of concerns between rubric scoring (model) and ranking (deterministic script) is well-designed, maintaining the host-assisted invariant while enabling interpretable rankings.",
+      "resolution": "The design correctly splits subjective scoring to the model and objective ranking to the script, with proper caching and validation mechanisms.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "high",
+      "description": "Critical: The bounded evidence loading with security measures (2 KiB per artifact, 64 KiB per batch, symlink/URI rejection, sanitization) properly addresses security concerns with untrusted provenance data.",
+      "resolution": "The implementation correctly uses contained regular file reading only, with proper redaction and delimiters for untrusted data.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "performance",
+      "criticality": "medium",
+      "description": "Nit: The 20-candidate cap is well-justified for performance but could be mentioned explicitly in the performance section of non-functional requirements.",
+      "resolution": "Consider adding the 20-candidate limit as an explicit performance target in the non-functional requirements table.",
+      "disposition": "fix",
+      "axis": "performance",
+      "severity": "nit",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/proposal.md",
+      "line_range": "135-137"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Optional: The dependency resolution logic for cross-roadmap dependencies is clearly specified but could benefit from additional test scenarios covering edge cases.",
+      "resolution": "Add explicit test scenarios for complex cross-roadmap dependency chains in the test plan.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "optional",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": "255-265"
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Critical: The schema definitions for rubric scores and digest are comprehensive and align with the described behavior, including proper validation of stub keys and factor justifications.",
+      "resolution": "The JSON schemas properly enforce all constraints mentioned in the design document.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/contracts/schemas/digest.schema.json"
+    },
+    {
+      "id": 7,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "FYI: The timeout and retry mechanism for rubric scoring (120 seconds, one retry) provides good resilience against model failures while preventing indefinite blocking.",
+      "resolution": "The timeout and retry settings are appropriate for maintaining system responsiveness.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "fyi",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": "415-420"
+    },
+    {
+      "id": 8,
+      "type": "compatibility",
+      "criticality": "high",
+      "description": "Critical: The dry-run behavior is properly specified to not write anything under openspec/supervise/, maintaining compatibility with existing workflows.",
+      "resolution": "The design correctly specifies that cached scores may be read but rebuilds are only emitted to stdout during dry-run.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/proposal.md",
+      "line_range": "185"
+    },
+    {
+      "id": 9,
+      "type": "observability",
+      "criticality": "medium",
+      "description": "Optional: Consider adding more explicit observability metrics for tracking digest generation performance and rubric scoring success rates.",
+      "resolution": "Add specific metrics to track in the observability section of non-functional requirements.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "optional",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/proposal.md",
+      "line_range": "175-180"
+    },
+    {
+      "id": 10,
+      "type": "architecture",
+      "criticality": "high",
+      "description": "Critical: The work package decomposition is well-structured with clear dependencies and appropriate scope boundaries, enabling parallel implementation.",
+      "resolution": "The work package DAG properly sequences contract definition before implementation and separates concerns appropriately.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/work-packages.yaml"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "change_id": "add-cross-roadmap-readiness-resolver",
+  "validator_vendors": [],
+  "worker_vendors": [
+    "codex"
+  ]
+}

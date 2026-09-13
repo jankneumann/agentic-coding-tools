@@ -2,23 +2,22 @@
 
 Evaluated sub-types:
 
-- **OpenAPI** — none. No HTTP surface; the coordinator is reached only through the
-  existing handoff write that change 2 already contracts.
+- **OpenAPI** — none. No HTTP surface.
 - **Database** — none.
-- **Events** — two file-carried JSON Schemas under `schemas/`:
-  - `rubric-score.schema.json` — the only output the rubric sub-agent may produce:
-    per-stub five-factor scores with justifications, plus the fingerprint they were
-    scored under. `digest.py rank` rejects anything else.
-  - `digest.schema.json` — `openspec/supervise/digest.json`, the ranked digest with
-    factor breakdown, mechanical signals, and section assignment.
+- **Events** — `rubric-score.schema.json` and `digest.schema.json` are the reviewed source
+  contracts and are installed byte-identically as
+  `openspec/schemas/supervise-rubric-score.schema.json` and
+  `openspec/schemas/supervise-digest.schema.json` so archival cannot break runtime lookup.
+- **Persistence extension** — canonical `openspec/schemas/supervisor-record.schema.json`
+  and `supervisor-record-mirror.schema.json` gain decision metadata (`roadmap_ref`,
+  `route`, `until`, `reason`) with decision-specific conditions.
 - **Type generation** — none.
 
-Consumed contracts (not owned here): `openspec/schemas/candidate-work.schema.json`
-(ri-11), `contracts/schemas/supervisor-record.schema.json` from
-`extend-handoff-document-with-supervisor-record` (`back_edge.digested_stubs`), and
-`skills/refine-roadmap/templates/refinement-request.yaml` (the `add` op shape
-`stub-to-request` emits).
+Consumed contracts (not owned here): `openspec/schemas/candidate-work.schema.json`, the
+`back_edge.digested_stubs` envelope introduced by ri-05, strict roadmap YAML loaders,
+active change directories, the completed-change convention (`openspec/changes/archive/`
+plus no unchecked archived task), Git path history, and
+`skills/refine-roadmap/templates/refinement-request.yaml`.
 
-Coordination boundary: `wp-digest-module` writes `digest.json` and reads
-`rubric-score` files; `wp-rubric-prompt` produces a prompt whose only valid output is
-a `rubric-score` document. They meet only at that schema.
+Coordination boundary: `wp-digest-module` reads schema-valid rubric documents;
+`wp-rubric-prompt` produces only that contract. They meet at the stable rubric schema.

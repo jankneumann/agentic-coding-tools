@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-02T00:30:23.944764+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "coordinator egress denied by managed approval policy",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": "implement-phase",
+    "summary": "Implemented idempotent keyed work submission and full-generation reconciliation across PostgreSQL, service, HTTP, direct/proxy MCP, CLI, coordination bridge, and optional autopilot persist-first projection seams. All non-PostgreSQL package and integration gates pass; the real PostgreSQL suite is present but skipped because the Docker socket is denied and this environment contains PostgreSQL client binaries only.",
+    "completed_work": [
+      "Validated frozen OpenAPI and SQL contracts",
+      "Implemented and committed wp-coordinator-queue at 796201a4852fa97d05a9c2b471c2d5e988808eec",
+      "Integrated wp-bridge-projection through 93868b80",
+      "Updated guide, task status, generated traceability, and package checkpoints",
+      "Passed 130 coordinator tests with 16 explicit PostgreSQL skips and 459 bridge/autopilot tests"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use the full projection generation as the high-water head",
+        "rationale": "The authoritative head is the pair (phase, transition_sequence), so equal-sequence phase disagreement fails closed and reconciliation advances both fields.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Keep queue projection optional and downstream of persistence",
+        "rationale": "Durable loop-state remains authoritative and coordinator absence cannot affect local-parallel or sequential execution.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run the 16 PostgreSQL integration cases where a server or Docker socket is available",
+      "Proceed to canonical validation review"
+    ],
+    "relevant_files": [
+      {
+        "path": "agent-coordinator/database/migrations/035_work_queue_projection.sql",
+        "description": "atomic identity and reconciliation migration"
+      },
+      {
+        "path": "agent-coordinator/src/work_queue.py",
+        "description": "service semantics"
+      },
+      {
+        "path": "skills/autopilot/scripts/autopilot.py",
+        "description": "persist-first projection seam"
+      },
+      {
+        "path": "docs/guides/work-queue-truth-projection.md",
+        "description": "operator-facing recovery guide"
+      },
+      {
+        "path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/change-context.md",
+        "description": "requirement traceability"
+      }
+    ]
+  }
+}

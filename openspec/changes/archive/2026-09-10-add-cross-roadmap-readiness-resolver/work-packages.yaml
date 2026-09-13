@@ -1,0 +1,132 @@
+schema_version: 1
+
+feature:
+  id: add-cross-roadmap-readiness-resolver
+  title: "Add cross-roadmap readiness resolver"
+  plan_revision: 1
+  created_by: autopilot-roadmap
+  created_at: "2026-09-10T14:00:00Z"
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/add-cross-roadmap-readiness-resolver/contracts/README.md"
+    files:
+      - "openspec/changes/add-cross-roadmap-readiness-resolver/contracts/README.md"
+
+defaults:
+  priority: 2
+  lock_ttl_minutes: 120
+  timeout_minutes: 90
+  retry_budget: 2
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-readiness-runtime
+    title: "Canonical checkpoint-aware readiness runtime"
+    task_type: implementation
+    description: |
+      Complete tasks 1.1 through 3.2 sequentially in the feature worktree.
+      Pin the existing admission behavior with RED tests, move its authority into
+      roadmap-runtime, add the deterministic cross-roadmap command, delegate the
+      supervisor compatibility view, then run the complete verification matrix.
+    role: runtime-engineer
+    archetype: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/roadmap-runtime/scripts/readiness.py"
+        - "skills/roadmap-runtime/scripts/resolve_readiness.py"
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/supervise/scripts/cycle_state.py"
+      keys:
+        - "feature:cross-roadmap-readiness:write"
+      ttl_minutes: 120
+      reason: "Readiness admission must move atomically to one shared authority"
+    scope:
+      write_allow:
+        - "skills/roadmap-runtime/scripts/readiness.py"
+        - "skills/roadmap-runtime/scripts/resolve_readiness.py"
+        - "skills/autopilot-roadmap/scripts/orchestrator.py"
+        - "skills/supervise/scripts/cycle_state.py"
+        - "skills/tests/roadmap-runtime/**"
+        - "skills/tests/autopilot-roadmap/**"
+        - "skills/tests/plan-roadmap/test_cross_roadmap.py"
+        - "skills/tests/supervise/**"
+        - "openspec/changes/add-cross-roadmap-readiness-resolver/**"
+        - "docs/decisions/roadmap-orchestration.md"
+      read_allow:
+        - "**"
+      deny:
+        - "agent-coordinator/**"
+        - "apps/**"
+        - "openspec/roadmaps/**"
+    context_impact:
+      surfaces:
+        - "apis"
+        - "capabilities"
+        - "decisions"
+        - "documentation"
+        - "semantic_code"
+    worktree:
+      name: add-cross-roadmap-readiness-resolver-main
+      mode: isolated
+    timeout_minutes: 90
+    retry_budget: 2
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Focused readiness behavior passes"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/roadmap-runtime skills/tests/autopilot-roadmap skills/tests/plan-roadmap/test_cross_roadmap.py skills/tests/supervise -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["focused_tests_green"]
+        - name: "Readiness sources lint cleanly"
+          kind: command
+          command: "skills/.venv/bin/python -m ruff check skills/roadmap-runtime/scripts/readiness.py skills/roadmap-runtime/scripts/resolve_readiness.py skills/autopilot-roadmap/scripts/orchestrator.py skills/supervise/scripts/cycle_state.py skills/tests/roadmap-runtime"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["ruff_clean"]
+        - name: "Plan and package contracts validate"
+          kind: command
+          command: "openspec validate add-cross-roadmap-readiness-resolver --strict && skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/add-cross-roadmap-readiness-resolver/work-packages.yaml"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["openspec_package_valid"]
+        - name: "Install payload remains portable"
+          kind: command
+          command: "bash skills/install.sh --check"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: ["install_check_green"]
+    metadata:
+      loc_estimate: 360
+      alternatives_count: 3
+      complexity: medium
+      package_kind: algorithm
+    inputs:
+      dependency_commit: "39cb6a3e87f591d488f52f0e04563406df21584b"
+      dependency_learning: []
+    outputs:
+      result_keys:
+        - "focused_tests_green"
+        - "ruff_clean"
+        - "openspec_package_valid"
+        - "install_check_green"
+      artifacts:
+        - "skills/roadmap-runtime/scripts/readiness.py"
+        - "skills/roadmap-runtime/scripts/resolve_readiness.py"
+

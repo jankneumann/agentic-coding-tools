@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-01T08:35:28.416875+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "external coordinator transmission disabled for this validation run",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Revalidated PR #451 at exact code head 7e4ffa08. The prior overlap-proof, seven-package evidence, eight exact-SHA row, and prescribed traceability failures are resolved; all required hard-gate phases and exact-head CI pass without override.",
+    "completed_work": [
+      "spec",
+      "evidence",
+      "architecture",
+      "quality",
+      "ci",
+      "hard-gate"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Do not override the local cli-augmented transmission boundary",
+        "rationale": "The optional local gen-eval invocation could transmit private repository content externally, so it remains explicitly degraded; exact-head CI gen-eval passed and no merge-gate override was used.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "/cleanup-feature wire-supervise-execution-through-the-dispatch-fn-seam"
+    ],
+    "relevant_files": []
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Round-2 finding #38's `notified` stamp is still unimplementable as written. `design.md` D2 (line 84) says the router stamps `notified` from `push_notification`'s return value, and `contracts/schemas/gate-decision.schema.json` lines 138\u2013143 declare the field \u2014 but `ApprovalGate.evaluate` keeps that bool local to `_notify` (`skills/shared/approval_gate.py:328`) and `ApprovalDecision` / `to_audit_record()` (`approval_gate.py:130\u2013174`) expose no `notified` attribute. Tasks 1.4/1.5 never add it to `_Draft`/`ApprovalDecision`/`to_audit_record`, and acceptance outcome 3 forbids the router from re-calling `push_notification`. For the common `default_action: block` timeout both arms persist identical `(resolution=timeout_default_block, default_action=block)`, so the bit cannot be recovered from the decision either \u2014 leaving D4 step 0.3 and task 2.10's distinguishability contract without a seam.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "resolution": "Add optional `notified: bool | None` to `_Draft`/`ApprovalDecision`, set it from the `_notify` push result, include it in `to_audit_record()`, and have `build_gate_decision_record` / the router carry that value onto the ledger (never re-push). Pin this in task 1.4/1.5 and D2.",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md",
+      "line_range": {
+        "start": 84,
+        "end": 88
+      }
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: The ADDED `Supervise Gate Routing` SHALL still detects undelivered notifications from resolution text \u2014 the exact property round-2 #38 proved impossible. `specs/supervise/spec.md:119` states: `when the coordinator reports expired and the prior record's resolution shows the notification was never delivered`. After #38, delivery lives only in the persisted `notified` bool (skill-workflow scenario and D4 were updated; this SHALL was not). An implementer following the supervise requirement would try to parse `resolution`/`reason` and miss the fail-closed path.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "critical",
+      "resolution": "Rewrite that SHALL to match D4 / skill-workflow: `check_filed(..., notified=<record.notified>)`; when status is `expired` and `notified` is false, return no decision. Drop any claim that `resolution` encodes delivery.",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/specs/supervise/spec.md",
+      "line_range": {
+        "start": 119,
+        "end": 119
+      }
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: Round-2 #39's fingerprint freshness check is half-wired for the default console-approval path. `gate-decision.schema.json:145\u2013149` says `roadmap_fingerprint` is stamped on every `roadmap_approval` record, and D3 (design.md:157) has `require_approval_ref` reject a mismatched stamp \u2014 but D2's `answer(...)` bullet (design.md:99\u2013109) and task 2.1 only require the stamp on an `evaluation`, not on `gate-answer` / `check_filed` proceed records. Absent posture (today's real config) reaches prepare only via console `gate-answer`; a missing stamp compares unequal to the current hash and `prepare` refuses every console approval. Separately, D2's signature `require_approval_ref(checkpoint, approval_ref, *, gate, dispatch_id=None, roadmap_id=None)` (design.md:111) has no `roadmap`/`repo_root`, while `Checkpoint` carries no DAG shape \u2014 so the D3 recompute cannot be coded from the published signature alone.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Stamp `roadmap_fingerprint` on every `roadmap_approval` ledger write (evaluate, answer, and check_filed proceed). Extend `require_approval_ref` to take the current `Roadmap` (or `repo_root`+loader), and have `prepare` load `roadmap.yaml` before the check. Name both in tasks 2.1/2.2/2.5/2.6.",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/design.md",
+      "line_range": {
+        "start": 111,
+        "end": 157
+      }
+    },
+    {
+      "id": 4,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: The MODIFIED `Refuse unapproved roadmap execution` scenario never names fingerprint staleness as a refusal. `specs/supervise/spec.md:90` WHEN clause is only `no roadmap_approval_ref is supplied, or the supplied reference does not resolve to a proceed decision for that roadmap`, and the Approved Roadmap Execution requirement body (line 81) likewise stops at resolve-to-proceed. D3 and task 2.5's `test_prepare_rejects_stale_fingerprint` require rejecting a still-`proceed` ref whose stamped fingerprint no longer matches \u2014 a case that does resolve to proceed. Without a scenario arm, archive leaves that authorization rule unpinned in the live spec.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Extend the WHEN/THEN (and optionally the requirement sentence) so a `proceed` `roadmap_approval` ref whose `roadmap_fingerprint` \u2260 current DAG shape is refused with the same shape as an unresolvable ref.",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/specs/supervise/spec.md",
+      "line_range": {
+        "start": 89,
+        "end": 92
+      }
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "Nit: Supervise notify scenario still invokes `check_filed` without the keyword-only `notified` round-2 #41 required on the skill-workflow twin. `specs/supervise/spec.md:137` says the router calls `ApprovalGate.check_filed` with the recorded `approval_id` only. Per task 1.4 / contracts README, `check_filed(gate, approval_id, *, notified)` has no default \u2014 this WHEN is not a valid call of the method under test and leaves the security argument unbound in the scenario that exercises late coordinator answers.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Change the AND to `check_filed(..., approval_id, notified=<prior record's notified>)`, mirroring the skill-workflow Late coordinator answer arms.",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/specs/supervise/spec.md",
+      "line_range": {
+        "start": 137,
+        "end": 137
+      }
+    },
+    {
+      "id": 6,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Nit: `gate-decision.schema.json:143` claims `default_action` on the record is the posture's declared value, unchanged by the fail-closed override. Live `_apply_default` overwrites it: on undelivered proceed it sets `default_action=DefaultAction.BLOCK` (`skills/shared/approval_gate.py:433`), and this change never tasks altering that. Distinguishability is correctly achieved by `notified` alone (task 2.10); the parenthetical mis-documents the persisted shape and reintroduces the half of round-2 #38's resolution (keep intended default_action) that was never tasked.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "nit",
+      "resolution": "Either (a) fix the schema/README description to say `default_action` may be the applied/fail-closed value and readers must use `notified`, or (b) task preserving the posture's intended `default_action` on the record when fail-closing.",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/contracts/schemas/gate-decision.schema.json",
+      "line_range": {
+        "start": 138,
+        "end": 144
+      }
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Round-2 mechanical fixes that are complete and should not be re-opened: `notified` + `roadmap_fingerprint` are declared on `contracts/schemas/gate-decision.schema.json` with the sha256 pattern; skill-workflow MODIFIED `Autopilot Gate Call Sites` carves out `roadmap_approval` and de-numbers the all-auto scenario (all five live scenarios preserved; `openspec validate --strict` green); Late coordinator answer WHEN clauses pass `notified=True`/`False`; wp-router description says Tasks 2.0-2.10; task 2.0 precedes projection; autopilot-roadmap test callers are in wp-router write_allow. Remaining defects above are half-applied round-2 text/seams, not stale re-reports of #1\u2013#42.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No change; keep these pins while fixing findings 1\u20136.",
+      "file_path": "openspec/changes/route-supervise-gates-through-the-approval-gate-service/plan-findings.md",
+      "line_range": {
+        "start": 96,
+        "end": 101
+      }
+    }
+  ]
+}

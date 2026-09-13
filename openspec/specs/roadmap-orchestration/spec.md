@@ -226,6 +226,90 @@ WHEN writing `checkpoint.json`
 THEN the writer SHALL ensure vendor_state and pause_state contain only structured metadata
 AND it SHALL NOT include raw error responses, authentication headers, or session tokens.
 
+### Requirement: Delegated Autopilot Item Lifecycle
+
+The roadmap orchestrator SHALL provide an opt-in two-stage delegated lifecycle: prepare persists a batch without invoking `dispatch_fn`; apply invokes the existing synchronous callback exactly once per collected generation result with phase `autopilot`. The child Autopilot run remains the sole writer of that change phase state.
+
+#### Scenario: Delegate one item lifecycle
+- **WHEN** a dependency-ready item with an exact `change_id` is executed in delegated-lifecycle mode
+- **THEN** prepare returns a durable batch ID and request without invoking `dispatch_fn`, and apply later invokes `dispatch_fn(item_id, "autopilot", context)` exactly once for that generation through the bound result lookup
+- **AND** the roadmap checkpoint is completed only after a successful structured dispatch result
+
+#### Scenario: Reject an item without an exact change identifier
+- **WHEN** delegated-lifecycle mode selects an item whose `change_id` is absent or invalid
+- **THEN** no background dispatch is admitted
+- **AND** the item and checkpoint remain resumable with a deterministic failure reason
+
+### Requirement: Scope-Safe Ready Batches
+
+The roadmap orchestrator MUST admit multiple items to the same ready batch only when their aggregated declared write scopes and lock keys prove that they are independent.
+
+#### Scenario: Fan out disjoint ready items
+- **WHEN** two dependency-ready items have valid work packages with disjoint `write_allow` scopes and lock keys
+- **THEN** both items are emitted in the same prepared host batch without invoking `dispatch_fn`
+- **AND** a synchronization-barrier test observes both host task handles live before either result is awaited
+
+#### Scenario: Serialize overlapping or indeterminate items
+- **WHEN** ready items overlap by write scope or lock key, or either item has missing, invalid, empty, or boundless write-scope evidence
+- **THEN** the items are not admitted to the same batch and each affected request carries `proof: serial_indeterminate` with a schema-valid possibly empty `write_allow`
+- **AND** deterministic priority and item-id ordering selects the first item while the remainder stay ready
+
+#### Scenario: Treat ambiguous glob intersection conservatively
+- **WHEN** two items declare globs whose intersection cannot be disproven, including `a/*/c` versus `a/b/*`
+- **THEN** the classifier returns `ambiguous` rather than `disjoint`
+- **AND** all package scopes, including integration and runtime-mirror write scopes, participate in the decision
+
+### Requirement: Outcome-Only Resume Contract
+
+The roadmap orchestrator SHALL persist only structured dispatch outcomes and handoff identifiers needed to resume; it MUST NOT persist a child transcript in roadmap state or dispatch context.
+
+#### Scenario: Apply a successful child outcome
+- **WHEN** a child returns a schema-valid success result correlated to the current dispatch identifier and change identifier
+- **THEN** the item is completed and its learning entry is written once only after result path, branch, and loop-state evidence exactly match the prepared attempt and the resolved path remains contained by its verified worktree
+- **AND** contradictory status/outcome pairs are schema-invalid and the checkpoint records bounded outcome metadata without transcript content
+
+#### Scenario: Reject stale or mismatched child outcome
+- **WHEN** a result carries a different dispatch identifier, change identifier, or already-applied attempt
+- **THEN** the result is rejected without advancing the item
+- **AND** a resumed run can safely redispatch or reconcile the current attempt
+
+#### Scenario: Preserve a parked child
+- **WHEN** a child Autopilot run returns a schema-valid parked result for a pending gate or paused policy state
+- **THEN** the attempt is recorded as parked and the roadmap item is not marked failed or completed
+- **AND** dependents are not failure-blocked while the parked snapshot's bounded metadata (`kind`, `reason`, and the nullable `gate`, `deadline`, `resume_hint` the result contract permits — never an `approval_id`, which lives only in the supervise gate router's own ledger) remains available to that router, which is the only consumer permitted to resume it
+
+### Requirement: Durable Delegated Attempt Ledger
+
+The roadmap checkpoint SHALL record every delegated dispatch attempt before its request is returned to the host and SHALL preserve unresolved attempts across session restart.
+
+#### Scenario: Persist a prepared batch before launch
+- **WHEN** the scheduler prepares a safe batch of delegated item requests
+- **THEN** each request's identity, exact isolation/scope/context envelope, stable launch token, marker path, attempt, phase, and prepared status are saved in `checkpoint.json` before the requests are emitted
+- **AND** a crash after preparation loses agent launch work rather than losing the identity of potentially running work
+
+#### Scenario: Resume with an unresolved attempt
+- **WHEN** a fresh supervisor loads a checkpoint containing a prepared attempt without a correlated result
+- **THEN** it reconciles a persisted host launch acknowledgement, an atomic child-start marker, and worktree Autopilot state before deciding whether work launched
+- **AND** pre-go stale claims may be reclaimed by generation compare-and-swap; after go, takeover requires positive task-death evidence, and unknown liveness becomes non-resumable quarantine
+
+#### Scenario: Reconcile lease crash windows
+- **WHEN** a crash occurs before marker creation, after marker but before Autopilot entry, before host acknowledgement, or while a child is active
+- **THEN** the generation-specific ack/go barrier prevents Autopilot entry before durable handle acknowledgement, while markers, heartbeats, handle status, exact worktree loop-state, and terminal handoff/result evidence classify the generation
+- **AND** a pre-go expired claim may be reclaimed safely, but a post-go generation may be reclaimed only after positive task-death evidence; mere absence or expiry enters quarantine
+- **AND** duplicate owners, active-lease token reuse, and stale owners that fail compare-and-swap are refused
+
+#### Scenario: Resume an authorized parked attempt
+- **WHEN** the supervise gate router supplies an `approval_ref` of the form `gate-decision:<decision_id>` for a `pending_gate` or `policy_pause` parked dispatch
+- **THEN** the resume command verifies the reference resolves to a `gate_decisions` record in the same checkpoint with outcome `proceed`, a gate equal to the parked gate (or `escalate_resume` for `policy_pause`), and a matching `dispatch_id`, then compare-and-swaps parked to prepared, increments the lease generation, and emits one continuation with the same dispatch ID, attempt, token, worktree, and loop-state
+- **AND** a reference that does not resolve, resolves to a `blocked` decision, or names a different gate or dispatch is rejected without mutating the attempt
+- **AND** the normal child-start protocol transitions it to launched while duplicate or unauthorized resumes are rejected
+- **AND** `ExecutionAdapter.prepare` likewise requires a `roadmap_approval_ref` resolving to a `proceed` `roadmap_approval` decision for the checkpoint's roadmap before any attempt is written
+
+#### Scenario: Quarantine unknown post-go liveness
+- **WHEN** a post-go generation has no terminal result and its durable task handle cannot positively establish live or dead status
+- **THEN** the attempt becomes `quarantined` with its uncertain lease unreleased and no takeover or duplicate Autopilot entry occurs
+- **AND** approval-gate resume is forbidden until reconciliation positively proves the prior task dead or terminal
+
 ### Requirement: Roadmap items are refined before they are implemented
 
 An item advanced to by the roadmap runtime SHALL enter the planning phase, so that its preliminary scaffold is refined using what was learned implementing its dependencies before any implementation begins.
@@ -245,4 +329,81 @@ AND a refinement pass SHALL therefore run before implementation.
 #### Scenario: Refinement acts on the scaffold rather than an empty directory
 WHEN a refinement pass begins for a newly advanced item
 THEN the item's change directory SHALL already contain the preliminary proposal and spec delta written at roadmap-creation time.
+
+### Requirement: Canonical Cross-Roadmap Readiness Resolution
+
+The roadmap runtime SHALL expose a read-only repository-wide resolver that uses roadmap definitions plus canonical checkpoint state to emit one globally ranked ready-now list. The admission function `_get_ready_items` MUST have exactly one source definition in `roadmap-runtime` and SHALL be imported by both `autopilot-roadmap` and the repository-wide resolver.
+
+#### Scenario: Return one globally ranked ready-now list
+
+- **WHEN** the resolver scans multiple active roadmap workspaces containing dependency-ready items
+- **THEN** it SHALL return one flat list sorted by priority, roadmap id, and item id
+- **AND** each entry SHALL carry roadmap id, item id, priority, and effort.
+
+#### Scenario: Preserve the existing autopilot admission contract
+
+- **WHEN** autopilot asks for ready items in one roadmap
+- **THEN** the shared helper SHALL admit only approved or in-progress items whose local and external prerequisites are complete
+- **AND** it SHALL exclude checkpoint-completed, checkpoint-failed, superseded, and `superseded_by` items.
+
+#### Scenario: Use one shared implementation
+
+- **WHEN** the repository's Python sources are inspected by AST
+- **THEN** exactly one function definition named `_get_ready_items` SHALL exist under `skills/`
+- **AND** both the autopilot orchestrator and repository-wide resolver SHALL import that definition from `roadmap-runtime`.
+
+### Requirement: Checkpoint-Authoritative Cross-Roadmap Edges
+
+The resolver SHALL treat a present valid checkpoint's completed and failed terminal sets as authoritative for its roadmap, and SHALL use roadmap item status only when the checkpoint is absent as a valid never-started state. Typed `external_depends_on` edges MUST remain blocked until their effective external prerequisite is completed.
+
+#### Scenario: External prerequisite completion unblocks without dependent edits
+
+- **GIVEN** supervisor item `ri-04` has `external_depends_on: [roadmap-always-on-agent-automation:ri-06]`
+- **WHEN** always-on `ri-06` is incomplete in its effective state
+- **THEN** supervisor `ri-04` SHALL be absent from ready output
+- **AND** when the always-on checkpoint records `ri-06` completed, `ri-04` SHALL become ready without editing the supervisor roadmap.
+
+#### Scenario: Checkpoint terminal state overrides stale roadmap status
+
+- **WHEN** a valid checkpoint records an item completed or failed while its roadmap definition still says approved or in-progress
+- **THEN** the resolver SHALL exclude that item from ready output
+- **AND** external dependents SHALL observe completion only for the checkpoint-completed case.
+
+#### Scenario: Invalid checkpoint fails closed
+
+- **WHEN** a checkpoint is malformed, names a different roadmap, references unknown terminal item ids, or contradicts its own terminal sets
+- **THEN** the resolver SHALL mark that workspace stale with a bounded reason code
+- **AND** it SHALL withhold that workspace's items and completion refs instead of reconstructing state from advisory artifacts.
+#### Scenario: Valid checkpoint divergence remains authoritative
+
+- **WHEN** a structurally valid matching checkpoint has terminal sets that lag or lead terminal status fields in its roadmap
+- **THEN** the resolver SHALL emit a stale `roadmap_checkpoint_divergence` diagnostic without withholding the workspace
+- **AND** readiness and external completion SHALL continue to use the checkpoint terminal sets.
+
+#### Scenario: Invalid roadmap fails closed
+
+- **WHEN** an active roadmap is malformed or duplicates another active roadmap declared id
+- **THEN** the resolver SHALL emit `roadmap_invalid` or `duplicate_roadmap_id`, return non-zero from the CLI, and withhold affected workspace state.
+
+### Requirement: Deterministic Readiness Projection
+
+The resolver SHALL derive its output only from active `roadmap.yaml` files and sibling `checkpoint.json` state. Its JSON output MUST contain a SHA-256 `source_fingerprint` over canonical readiness-relevant input, a content-consistency `stale` signal, and bounded diagnostics. A downstream projection can detect staleness by comparing its stored source fingerprint with a newly resolved fingerprint. It SHALL NOT contain a generated timestamp or depend on mtimes, learnings, handoffs, coordinator state, or queue projections.
+
+#### Scenario: Unchanged inputs produce byte-identical output
+
+- **WHEN** the readiness command runs twice with no roadmap or checkpoint content change
+- **THEN** the two stdout byte streams SHALL be identical
+- **AND** their source fingerprints SHALL be identical
+- **AND** ready entries, diagnostics, and keys SHALL use deterministic ordering.
+
+#### Scenario: Missing checkpoint is a valid first run
+
+- **WHEN** a valid roadmap workspace has no checkpoint and no advisory record claims prior progress
+- **THEN** the resolver SHALL evaluate roadmap definition status as the never-started baseline
+- **AND** it SHALL report `checkpoint_absent` without marking the report stale.
+
+#### Scenario: Advisory state cannot change readiness
+
+- **WHEN** learning, handoff, or queue artifacts change while every roadmap and checkpoint remains byte-identical
+- **THEN** the resolver output SHALL remain byte-identical.
 

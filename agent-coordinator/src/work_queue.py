@@ -5,6 +5,7 @@ Tasks are claimed atomically to prevent double-assignment.
 """
 
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -134,9 +135,7 @@ class ClaimResult:
     def from_dict(cls, data: dict[str, Any]) -> "ClaimResult":
         deadline = None
         if data.get("deadline"):
-            deadline = datetime.fromisoformat(
-                str(data["deadline"]).replace("Z", "+00:00")
-            )
+            deadline = datetime.fromisoformat(str(data["deadline"]).replace("Z", "+00:00"))
 
         task_id = None
         if data.get("task_id"):
@@ -177,22 +176,130 @@ class CompleteResult:
         )
 
 
+PROJECTION_PHASES = frozenset(
+    {
+        "INIT",
+        "GATEKEEPER",
+        "PLAN",
+        "PLAN_ITERATE",
+        "PLAN_REVIEW",
+        "PLAN_FIX",
+        "IMPLEMENT",
+        "IMPL_ITERATE",
+        "IMPL_REVIEW",
+        "IMPL_FIX",
+        "VALIDATE",
+        "VAL_REVIEW",
+        "VAL_FIX",
+        "SUBMIT_PR",
+        "ESCALATE",
+        "DONE",
+    }
+)
+_RESERVED_PROJECTION_KEYS = frozenset({"change_id", "phase", "transition_sequence"})
+_CHANGE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,127}$")
+
+
+@dataclass(frozen=True)
+class ProjectionKey:
+    """Complete loop-state generation used only for derived queue projection."""
+
+    change_id: str
+    phase: str
+    transition_sequence: int
+
+    @classmethod
+    def parse(cls, value: "ProjectionKey | dict[str, Any]") -> "ProjectionKey | None":
+        if isinstance(value, cls):
+            key = value
+        elif isinstance(value, dict) and set(value) == _RESERVED_PROJECTION_KEYS:
+            change_id = value.get("change_id")
+            phase = value.get("phase")
+            transition_sequence = value.get("transition_sequence")
+            if not isinstance(change_id, str):
+                return None
+            if not isinstance(phase, str):
+                return None
+            if isinstance(transition_sequence, bool) or not isinstance(
+                transition_sequence, int
+            ):
+                return None
+            key = cls(
+                change_id=change_id,
+                phase=phase,
+                transition_sequence=transition_sequence,
+            )
+        else:
+            return None
+        if not isinstance(key.change_id, str) or not _CHANGE_ID_RE.fullmatch(key.change_id):
+            return None
+        if not isinstance(key.phase, str) or key.phase not in PROJECTION_PHASES:
+            return None
+        sequence = key.transition_sequence
+        if (
+            isinstance(sequence, bool)
+            or not isinstance(sequence, int)
+            or not 0 <= sequence <= 2147483647
+        ):
+            return None
+        return key
+
+    def as_input_data(self) -> dict[str, Any]:
+        return {
+            "change_id": self.change_id,
+            "phase": self.phase,
+            "transition_sequence": self.transition_sequence,
+        }
+
+
 @dataclass
 class SubmitResult:
-    """Result of submitting a new task."""
+    """Result of submitting a task, including projection replay metadata."""
 
     success: bool
     task_id: UUID | None = None
+    created: bool = True
+    deduplicated: bool = False
+    status: str | None = None
+    reason: str | None = None
+    failure_category: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "SubmitResult":
-        task_id = None
-        if data.get("task_id"):
-            task_id = UUID(str(data["task_id"]))
-
+        task_id = UUID(str(data["task_id"])) if data.get("task_id") else None
+        created = bool(data.get("created", True))
         return cls(
-            success=data["success"],
+            success=bool(data.get("success", False)),
             task_id=task_id,
+            created=created,
+            deduplicated=bool(data.get("deduplicated", not created)),
+            status=data.get("status"),
+            reason=data.get("reason"),
+        )
+
+
+@dataclass
+class ReconcileResult(SubmitResult):
+    """Result of atomically reconciling the queue projection."""
+
+    cancelled_task_ids: list[UUID] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ReconcileResult":
+        base = SubmitResult.from_dict(data)
+        cancelled = sorted(
+            (UUID(str(value)) for value in data.get("cancelled_task_ids", [])),
+            key=str,
+        )
+        return cls(
+            success=base.success,
+            task_id=base.task_id,
+            created=base.created,
+            deduplicated=base.deduplicated,
+            status=base.status,
+            reason=base.reason,
+            failure_category=base.failure_category,
+            cancelled_task_ids=cancelled,
         )
 
 
@@ -250,9 +357,7 @@ class WorkQueueService:
         resolved_agent_id = agent_id or config.agent.agent_id
         resolved_agent_type = agent_type or config.agent.agent_type
 
-        claim_duration_hist, wait_time_hist, _, _, guardrail_counter = (
-            _ensure_instruments()
-        )
+        claim_duration_hist, wait_time_hist, _, _, guardrail_counter = _ensure_instruments()
 
         with start_span("queue.claim", {"agent_id": resolved_agent_id}):
             from .policy_engine import get_policy_engine
@@ -304,9 +409,7 @@ class WorkQueueService:
                 # claiming agent's ID so the RPC can skip tasks where
                 # input_data->>'submitted_by' matches the claimant.
                 exclude_submitted_by: str | None = None
-                if task_types and any(
-                    t in ("evaluate", "review") for t in task_types
-                ):
+                if task_types and any(t in ("evaluate", "review") for t in task_types):
                     exclude_submitted_by = resolved_agent_id
 
                 result = await self.db.rpc(
@@ -354,9 +457,7 @@ class WorkQueueService:
             if claim_result.success and result.get("created_at"):
                 try:
                     if wait_time_hist is not None:
-                        created_at_str = str(result["created_at"]).replace(
-                            "Z", "+00:00"
-                        )
+                        created_at_str = str(result["created_at"]).replace("Z", "+00:00")
                         created_at = datetime.fromisoformat(created_at_str)
                         now = datetime.now(UTC)
                         wait_ms = (now - created_at).total_seconds() * 1000
@@ -389,21 +490,13 @@ class WorkQueueService:
                             trust_level=trust_level,
                         )
                         if not check.safe:
-                            patterns = [
-                                v.pattern_name
-                                for v in check.violations
-                                if v.blocked
-                            ]
+                            patterns = [v.pattern_name for v in check.violations if v.blocked]
                             # Record guardrail block counter
                             try:
                                 if guardrail_counter is not None:
                                     guardrail_counter.add(
                                         1,
-                                        {
-                                            "pattern": patterns[0]
-                                            if patterns
-                                            else "unknown"
-                                        },
+                                        {"pattern": patterns[0] if patterns else "unknown"},
                                     )
                             except Exception:
                                 logger.debug(
@@ -414,16 +507,11 @@ class WorkQueueService:
                             # stuck in "claimed" with no agent to work it.
                             if claim_result.task_id:
                                 try:
-                                    msg = (
-                                        "Blocked by guardrails: "
-                                        f"{', '.join(patterns)}"
-                                    )
+                                    msg = f"Blocked by guardrails: {', '.join(patterns)}"
                                     await self.db.rpc(
                                         "complete_task",
                                         {
-                                            "p_task_id": str(
-                                                claim_result.task_id
-                                            ),
+                                            "p_task_id": str(claim_result.task_id),
                                             "p_agent_id": resolved_agent_id,
                                             "p_success": False,
                                             "p_result": None,
@@ -438,10 +526,7 @@ class WorkQueueService:
                                     )
                             return ClaimResult(
                                 success=False,
-                                reason=(
-                                    "destructive_operation_blocked: "
-                                    f"{', '.join(patterns)}"
-                                ),
+                                reason=(f"destructive_operation_blocked: {', '.join(patterns)}"),
                             )
                 except TrustResolutionError:
                     # Must not land in the blanket handler below: swallowing it
@@ -450,20 +535,14 @@ class WorkQueueService:
                     # _resolve_trust_level documents as unacceptable (#408).
                     raise
                 except Exception:
-                    logger.error(
-                        "Guardrails check failed during claim", exc_info=True
-                    )
+                    logger.error("Guardrails check failed during claim", exc_info=True)
 
             try:
                 await get_audit_service().log_operation(
                     agent_id=resolved_agent_id,
                     operation="claim_task",
                     parameters={"task_types": task_types},
-                    result={
-                        "task_id": str(claim_result.task_id)
-                        if claim_result.task_id
-                        else None
-                    },
+                    result={"task_id": str(claim_result.task_id) if claim_result.task_id else None},
                     success=claim_result.success,
                 )
             except Exception:
@@ -537,17 +616,12 @@ class WorkQueueService:
                         trust_level=trust_level,
                     )
                     if not check.safe:
-                        patterns = [
-                            v.pattern_name for v in check.violations if v.blocked
-                        ]
+                        patterns = [v.pattern_name for v in check.violations if v.blocked]
                         return CompleteResult(
                             success=False,
                             status="blocked",
                             task_id=task_id,
-                            reason=(
-                                "destructive_operation_blocked: "
-                                f"{', '.join(patterns)}"
-                            ),
+                            reason=(f"destructive_operation_blocked: {', '.join(patterns)}"),
                         )
                 except TrustResolutionError:
                     # Must not land in the blanket handler below: swallowing it
@@ -556,9 +630,7 @@ class WorkQueueService:
                     # _resolve_trust_level documents as unacceptable (#408).
                     raise
                 except Exception:
-                    logger.error(
-                        "Guardrails check failed during complete", exc_info=True
-                    )
+                    logger.error("Guardrails check failed during complete", exc_info=True)
 
             # Look up the task for claimed_at to compute task duration
             task_type_label = "unknown"
@@ -569,9 +641,7 @@ class WorkQueueService:
                     task_type_label = task_obj.task_type
                     claimed_at_snapshot = task_obj.claimed_at
             except Exception:
-                logger.debug(
-                    "Failed to fetch task for duration metric", exc_info=True
-                )
+                logger.debug("Failed to fetch task for duration metric", exc_info=True)
 
             result_data = await self.db.rpc(
                 "complete_task",
@@ -585,6 +655,19 @@ class WorkQueueService:
             )
 
             complete_result = CompleteResult.from_dict(result_data)
+
+            if not complete_result.success and complete_result.reason == "task_not_active":
+                # The row was claimed by this agent but is no longer active
+                # (e.g. cancelled by projection reconciliation while this
+                # worker was still running) — surface a clear, actionable
+                # warning instead of letting the refusal pass silently.
+                logger.warning(
+                    "complete_task refused for task %s: no longer active "
+                    "(current status=%s, agent=%s)",
+                    task_id,
+                    result_data.get("status"),
+                    resolved_agent_id,
+                )
 
             # Record task duration only after completion succeeds
             if (
@@ -607,9 +690,7 @@ class WorkQueueService:
                             },
                         )
                 except Exception:
-                    logger.debug(
-                        "Failed to record task duration metric", exc_info=True
-                    )
+                    logger.debug("Failed to record task duration metric", exc_info=True)
 
             try:
                 await get_audit_service().log_operation(
@@ -622,9 +703,7 @@ class WorkQueueService:
                     success=complete_result.success,
                 )
             except Exception:
-                logger.warning(
-                    "Audit log failed for complete_task", exc_info=True
-                )
+                logger.warning("Audit log failed for complete_task", exc_info=True)
 
             return complete_result
 
@@ -637,6 +716,7 @@ class WorkQueueService:
         depends_on: list[UUID] | None = None,
         deadline: datetime | None = None,
         agent_requirements: dict[str, Any] | None = None,
+        projection_key: ProjectionKey | dict[str, Any] | None = None,
     ) -> SubmitResult:
         """Submit a new task to the work queue.
 
@@ -654,6 +734,15 @@ class WorkQueueService:
         Returns:
             SubmitResult with the new task ID
         """
+        parsed_projection = None
+        if input_data and _RESERVED_PROJECTION_KEYS.intersection(input_data):
+            return SubmitResult(success=False, created=False, reason="reserved_projection_key")
+        if projection_key is not None:
+            parsed_projection = ProjectionKey.parse(projection_key)
+            if parsed_projection is None:
+                return SubmitResult(success=False, created=False, reason="invalid_projection_key")
+            input_data = {**(input_data or {}), **parsed_projection.as_input_data()}
+
         config = get_config()
         resolved_agent_id = config.agent.agent_id
         resolved_agent_type = config.agent.agent_type
@@ -674,7 +763,13 @@ class WorkQueueService:
                 },
             )
             if not decision.allowed:
-                return SubmitResult(success=False, task_id=None)
+                return SubmitResult(
+                    success=False,
+                    task_id=None,
+                    created=False,
+                    reason=decision.reason or "operation_not_permitted",
+                    failure_category="policy",
+                )
 
             # Guardrails check on submitted task content
             try:
@@ -697,6 +792,8 @@ class WorkQueueService:
                     return SubmitResult(
                         success=False,
                         task_id=None,
+                        created=False,
+                        reason="guardrail_denied",
                     )
             except TrustResolutionError:
                 # Must not land in the blanket handler below: swallowing it
@@ -705,9 +802,7 @@ class WorkQueueService:
                 # _resolve_trust_level documents as unacceptable (#408).
                 raise
             except Exception:
-                logger.error(
-                    "Guardrails check failed during submit", exc_info=True
-                )
+                logger.error("Guardrails check failed during submit", exc_info=True)
 
             depends_on_str = None
             if depends_on:
@@ -720,9 +815,7 @@ class WorkQueueService:
             import json as _json
 
             agent_req_json = (
-                _json.dumps(agent_requirements)
-                if agent_requirements is not None
-                else None
+                _json.dumps(agent_requirements) if agent_requirements is not None else None
             )
 
             result = await self.db.rpc(
@@ -745,9 +838,7 @@ class WorkQueueService:
                 if submit_counter is not None:
                     submit_counter.add(1, {"task_type": task_type})
             except Exception:
-                logger.debug(
-                    "Failed to record submit counter metric", exc_info=True
-                )
+                logger.debug("Failed to record submit counter metric", exc_info=True)
 
             try:
                 await get_audit_service().log_operation(
@@ -757,18 +848,130 @@ class WorkQueueService:
                         "priority": priority,
                     },
                     result={
-                        "task_id": str(submit_result.task_id)
-                        if submit_result.task_id
-                        else None
+                        "task_id": str(submit_result.task_id) if submit_result.task_id else None
                     },
                     success=submit_result.success,
                 )
             except Exception:
-                logger.warning(
-                    "Audit log failed for submit_task", exc_info=True
-                )
+                logger.warning("Audit log failed for submit_task", exc_info=True)
 
             return submit_result
+
+    async def reconcile_projection(
+        self,
+        *,
+        projection_key: ProjectionKey | dict[str, Any],
+        task_type: str,
+        description: str,
+        input_data: dict[str, Any] | None = None,
+        priority: int = 5,
+        agent_requirements: dict[str, Any] | None = None,
+    ) -> ReconcileResult:
+        """Converge derived queue rows to one authoritative loop-state generation."""
+        key = ProjectionKey.parse(projection_key)
+        if key is None:
+            return ReconcileResult(success=False, created=False, reason="invalid_projection_key")
+        if input_data and _RESERVED_PROJECTION_KEYS.intersection(input_data):
+            return ReconcileResult(success=False, created=False, reason="reserved_projection_key")
+        config = get_config()
+        from .policy_engine import get_policy_engine
+
+        decision = await get_policy_engine().check_operation(
+            agent_id=config.agent.agent_id,
+            agent_type=config.agent.agent_type,
+            operation="submit_work",
+            context={
+                "mode": "reconcile",
+                "task_type": task_type,
+                "priority": priority,
+            },
+        )
+        if not decision.allowed:
+            return ReconcileResult(
+                success=False,
+                created=False,
+                reason=decision.reason or "operation_not_permitted",
+                failure_category="policy",
+            )
+
+        # Guardrails check on reconciled task content.
+        #
+        # Reconciliation is a mutating queue operation on the same content submit()
+        # screens: it cancels active rows for the projection key and inserts a
+        # canonical task. Reaching the RPC on content that ordinary submit() would
+        # reject would make reconcile a way around the trust and guardrail checks,
+        # so the same screen runs here, on the same scan text, with the same
+        # denial semantics.
+        try:
+            from .guardrails import get_guardrails_service
+
+            guardrails = get_guardrails_service()
+            trust_level = await self._resolve_trust_level(
+                config.agent.agent_id, config.agent.agent_type
+            )
+            scan_text = description
+            if input_data:
+                scan_text += "\n" + str(input_data)
+            check = await guardrails.check_operation(
+                operation_text=scan_text[:2000],
+                agent_id=config.agent.agent_id,
+                agent_type=config.agent.agent_type,
+                trust_level=trust_level,
+            )
+            if not check.safe:
+                return ReconcileResult(
+                    success=False,
+                    created=False,
+                    reason="guardrail_denied",
+                )
+        except Exception:
+            logger.error("Guardrails check failed during reconcile", exc_info=True)
+
+        payload = {**(input_data or {}), **key.as_input_data()}
+        import json as _json
+
+        result = await self.db.rpc(
+            "reconcile_work_projection",
+            {
+                "p_change_id": key.change_id,
+                "p_phase": key.phase,
+                "p_transition_sequence": key.transition_sequence,
+                "p_task_type": task_type,
+                "p_description": description,
+                "p_input_data": payload,
+                "p_priority": priority,
+                "p_agent_requirements": (
+                    _json.dumps(agent_requirements) if agent_requirements is not None else None
+                ),
+            },
+        )
+        reconcile_result = ReconcileResult.from_dict(result)
+
+        try:
+            await get_audit_service().log_operation(
+                agent_id=config.agent.agent_id,
+                operation="reconcile_work_projection",
+                parameters={
+                    "change_id": key.change_id,
+                    "phase": key.phase,
+                    "transition_sequence": key.transition_sequence,
+                    "task_type": task_type,
+                },
+                result={
+                    "task_id": (
+                        str(reconcile_result.task_id) if reconcile_result.task_id else None
+                    ),
+                    "created": reconcile_result.created,
+                    "cancelled_task_ids": [
+                        str(cancelled_id) for cancelled_id in reconcile_result.cancelled_task_ids
+                    ],
+                },
+                success=reconcile_result.success,
+            )
+        except Exception:
+            logger.warning("Audit log failed for reconcile_work_projection", exc_info=True)
+
+        return reconcile_result
 
     async def get_pending(
         self,

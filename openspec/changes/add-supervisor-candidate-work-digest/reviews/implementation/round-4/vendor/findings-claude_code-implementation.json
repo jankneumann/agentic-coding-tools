@@ -1,0 +1,39 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: PASS \u2014 `decide` validates `roadmap_ref` for an approved `refine-roadmap` route at digest.py:1216-1220, before any record copy or `write_mirror` call at the end of the function, so a malformed ref cannot mutate the mirror. The guard rejects non-string values via the short-circuited `isinstance` check and rejects every string that is not `^[a-z0-9-]+:ri-[0-9]{2,}$` (module regex at digest.py:45) using `fullmatch`, which also forbids a trailing newline; empty strings, missing colon, whitespace, uppercase, and single-digit item numbers all raise `ValueError`. The pre-existing null check is preserved ahead of it. Canonical refs still flow through: the approved branch persists `route` and `roadmap_ref` onto the selected digested stub and returns the written mirror. Verified statically by reading the delta and the surrounding `decide` body; the two named regressions (`test_decide_rejects_malformed_refine_roadmap_ref_without_writing_mirror`, `test_decide_accepts_canonical_refine_roadmap_ref`) could not be executed because pytest invocation was refused by the sandbox permission layer, not because it failed.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1216,
+        "end": 1220
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: PASS \u2014 `_decision_drift_keys` now appends a remaining store key that has no entry in the prior digest's `ranked` set (digest.py:1282-1285) instead of skipping it, so an unranked survivor counts as lifecycle composition drift. Traced against the interrupted sequence: after A is scored, B is stored unscored, A is terminally rejected, and the first prune-only preflight rebuilds an empty-`ranked` digest, the next preflight recomputes `_maintenance` over on-disk candidates only, so A is gone and `pruned`/`woken` are both empty. The fix is therefore load-bearing rather than vacuous: `drifted` is the only non-empty input, it makes `_lifecycle_rebuild` proceed rather than return `None`, the returned rebuilt digest makes `lifecycle_changed` true at digest.py:340, and the rebuild skips the cache-identity loop for B because that loop only covers `remaining & prior_ranked_keys`, so B's missing rubric cache raises nothing. `prepare_batch` then sees B in the store with a pending decision and lists it in `requested_keys`. Verified statically by reading the delta and tracing the call path; `test_lifecycle_marks_unranked_survivor_as_changed_after_interrupted_empty_rebuild` could not be executed because pytest invocation was refused by the sandbox permission layer, not because it failed.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/supervise/scripts/digest.py",
+      "line_range": {
+        "start": 1282,
+        "end": 1285
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

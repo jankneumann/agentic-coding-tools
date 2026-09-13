@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-01T22:10:25.237880+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "external transmission not authorized",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "PR #451 was rebase-merged into the roadmap branch after explicit console authorization and a no-override validation gate. All 20 tasks were complete, the nondeployable change required no staged rollout, and the OpenSpec proposal was archived with its spec deltas promoted.",
+    "completed_work": [
+      "recorded explicit merge authorization",
+      "merged PR #451",
+      "refreshed architecture artifacts",
+      "verified all tasks complete",
+      "archived the OpenSpec change",
+      "promoted three capability spec deltas",
+      "regenerated the decision index"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use rebase merge for the agent-authored PR",
+        "rationale": "Preserves the conventional implementation and review history for blame and bisect.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Do not migrate tasks",
+        "rationale": "All 20 OpenSpec tasks were checked complete before archive.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Treat rollout as not applicable",
+        "rationale": "The validated feature surface is explicitly nondeployable, so traffic stages, dashboards, and rollback controls do not apply.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "record the ri-03 roadmap learning and mark the item complete",
+      "replan and select the next approved ready roadmap item"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/archive/2026-09-01-wire-supervise-execution-through-the-dispatch-fn-seam/session-log.md",
+        "description": "durable cleanup and lifecycle record"
+      },
+      {
+        "path": "openspec/specs/roadmap-orchestration/spec.md",
+        "description": "promoted roadmap orchestration requirements"
+      },
+      {
+        "path": "openspec/specs/supervise/spec.md",
+        "description": "promoted supervisor requirements"
+      }
+    ]
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "review_type": "plan",
+  "target": "implement-idempotent-queue-submission-and-outbox-ordering",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The remediated generation head schema and RPC contract store the full (phase, transition_sequence) tuple in work_queue_projection_heads, enforcing exact head matching on submit, rejecting same-sequence/different-phase submissions without manufacturing second active generations, and restricting head movement strictly to reconciliation.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/db/schema.sql",
+      "line_range": {
+        "start": 3,
+        "end": 27
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Both /work/submit and /work/reconcile explicitly define RFC 7807 409 Problem responses in the OpenAPI contract for projection conflict states (stale_projection, projection_generation_mismatch, reconciliation_required), ensuring transport-level specification completeness.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/contracts/openapi/v1.yaml",
+      "line_range": {
+        "start": 23,
+        "end": 42
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "description": "The final integration package (wp-integration) and coordinator package (wp-coordinator-queue) explicitly execute test_mcp_work_projection.py as part of their verification gates, ensuring transport parity for direct MCP projections is validated in end-to-end integration.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/work-packages.yaml",
+      "line_range": {
+        "start": 237,
+        "end": 252
+      },
+      "axis": "observability",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "low",
+      "description": "Reconciliation endpoint authorization maps to the existing submit_work policy action with mode=reconcile context, preserving security policy boundaries while enforcing strict RFC 7807 401/403 problem responses on authorization failure.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/specs/agent-coordinator/spec.md",
+      "line_range": {
+        "start": 96,
+        "end": 101
+      },
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The autopilot state machine maintains a strict persist-first outbox ordering where loop-state write succeeds prior to queue projection, and resume reconciliation reconstructs queue projections strictly from loaded loop-state without treating queue state as authoritative.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 3,
+        "end": 23
+      },
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The work-package DAG and write_allow scopes cleanly isolate contracts (wp-contracts), coordinator persistence (wp-coordinator-queue), bridge outbox seams (wp-bridge-projection), and cross-boundary integration validation (wp-integration) without scope overlap or circular dependencies.",
+      "resolution": "No action required.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/work-packages.yaml",
+      "line_range": {
+        "start": 26,
+        "end": 270
+      },
+      "axis": "architecture",
+      "severity": "none"
+    }
+  ]
+}

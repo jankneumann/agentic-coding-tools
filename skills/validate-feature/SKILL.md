@@ -17,6 +17,10 @@ triggers:
 
 # Validate Feature
 
+## Durable state artifact authority
+
+Shared holder, writer, authority, fallback, and rehydration semantics live in `docs/guides/state-artifacts.md`. The procedures below retain this skill's phase-specific commands and gates.
+
 Deploy the feature locally with DEBUG logging, run security scans and behavioral tests against live services, check CI/CD status, and verify OpenSpec spec compliance. Produces a structured validation report and posts it to the PR.
 
 ## Arguments
@@ -875,7 +879,8 @@ Checks per package:
 - No unresolved escalations with disposition fix or escalate
 
 Cross-package consistency:
-- No two packages report modifications to the same file
+- No two packages report modifications to the same file, with one bounded exception: the exact change-local task record `openspec/changes/<change-id>/tasks.md` MAY be shared when every reporting package declared the path in `write_allow` and the approved plan revision explicitly permits task-coupled commits. Keep that path in each truthful `files_modified` list and report the exception explicitly with the affected package IDs; never hide it by rewriting package evidence.
+- Every other duplicated modified file remains a failure, including source, test, contract, schema, runtime-mirror, and other OpenSpec files.
 - All packages used the same contracts_revision and plan_revision
 
 If change-context.md exists, populate the Evidence column from work-queue results.

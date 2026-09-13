@@ -41,3 +41,313 @@
 ### Context
 Refined the supervisor-roadmap ri-13 sketch into a full plan: a tracked stub store under openspec/supervise/candidates/, a hybrid ranking where a host-dispatched rubric sub-agent returns schema-constrained five-factor scores and digest.py computes the final order deterministically with cached scores per fingerprint, a digest.json artifact, and approval routed through refine-roadmap's previewed add transaction. Tier: coordinated. Gate 1 selected Approach 1.
 
+---
+
+## Phase: Plan Iteration 1 (2026-09-11)
+
+**Agent**: software-architect | **Session**: N/A
+
+### Decisions
+1. **Use a fixed deterministic rank contract** — Weights 3/3/2/1/1, capped staleness, readiness/decision buckets, and stub_key tie-breaking make rankings reproducible and testable.
+2. **Keep digest.json candidate-work-focused and composable** — Existing operational five-section state remains authoritative; candidate additions cannot erase gates, deadlines, readiness, blockers, or sensor degradation.
+3. **Extend the canonical supervisor-record contract** — Approval, deferral, and rejection metadata must survive sanitizer, mirror, handoff, and rehydration round trips.
+
+### Alternatives Considered
+- Let digest.json replace the full supervisor digest: rejected because It would duplicate and risk regressing established operational state semantics.
+- Add per-stub evidence fingerprints now: rejected because A second invalidation contract increases scope; revision 2 conservatively re-scores the backlog on any non-supervisor fingerprint change.
+
+### Trade-offs
+- Accepted Whole-backlog re-scoring on a changed cycle fingerprint over Partial cache invalidation because Keeps the first implementation deterministic and reviewable while output-only cycles remain cache hits.
+- Accepted Bounded, redacted provenance excerpts over Maximum source context because Prevents path, secret, prompt-injection, and unbounded-context risks at the model boundary.
+
+### Completed Work
+- Addressed 12 plan findings and wrote plan-findings.md.
+- Refined proposal, design, tasks, spec delta, schemas, contracts README, and work-packages revision 2.
+- Strict OpenSpec validation passes.
+- Work-package schema, DAG, lock, and overlap validation passes.
+
+### Context
+Resolved contract, fingerprint, reproducibility, composition, routing, and evidence-security blockers in the approved ri-13 plan. Revision 2 now has explicit ranking policy, candidate-only digest composition, durable decision fields, and a validated two-lane implementation DAG.
+
+---
+
+## Phase: Plan Review (2026-09-11)
+
+**Agent**: code-reviewer | **Session**: N/A
+
+### Decisions
+1. **Return the proposal to PLAN_FIX** — Consensus reports five blocking findings, including an undefined trusted staleness clock, no concrete sanitized-batch preparation interface, and two truncated design decisions; implementation is not yet safe.
+
+### Completed Work
+- Dispatched read-only plan reviews to antigravity, claude_code, grok, and pi; 3/4 external vendors returned schema-valid findings and pi failed schema validation.
+- Combined the primary Codex review with three valid vendor reviews: 46 raw findings, 32 unique findings, 10 confirmed, 22 unconfirmed, 0 disagreements.
+- Consensus recorded 5 blocking and 9 advisory findings in reviews/consensus-plan.json.
+- Strict OpenSpec validation passed.
+- Work-package schema, dependency DAG, lock, scope-overlap, and lock-overlap validation passed.
+
+### Next Steps
+- Define a trusted, reproducible evidence-time source for staleness and generated_at; cover future/skewed timestamps and artifact-age derivation.
+- Add a concrete CLI/API contract for sanitized evidence preparation and multi-document batch ingestion with global exact-set validation before writes.
+- Bound whole-cycle rubric dispatch and define timeout, retry, partial-batch, prior-digest fallback, and all-or-nothing persistence behavior.
+- Complete the truncated D6 and D8 decisions and name the concrete secret-redaction implementation.
+- Resolve code-verified unconfirmed contract risks: refine-roadmap add does not renumber priorities, ready_across_roadmaps cannot resolve completed/blocked dependencies, and mirror file write scopes omit digest.py/rubric-prompt.md copies.
+- Run another PLAN_REVIEW round after PLAN_FIX.
+
+### Relevant Files
+- `openspec/changes/add-supervisor-candidate-work-digest/review-findings-plan.json` — primary reviewer findings
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/consensus-plan.json` — multi-vendor consensus with blocking findings
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/review-manifest.json` — vendor dispatch evidence
+- `openspec/changes/add-supervisor-candidate-work-digest/design.md` — plan decisions requiring fixes
+- `openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md` — normative requirements requiring fixes
+- `openspec/changes/add-supervisor-candidate-work-digest/work-packages.yaml` — validated DAG with mirror-scope follow-up
+
+### Context
+Multi-vendor plan review did not converge. Four successful reviewers produced 46 raw findings; consensus yielded 32 unique findings, 10 confirmed, and 5 blocking. Strict OpenSpec and work-package DAG/lock/overlap validation pass, but implementation must wait for the confirmed contract, resilience, and completeness blockers to be resolved.
+
+---
+
+## Phase: Plan Review (2026-09-11)
+
+**Agent**: code-reviewer | **Session**: N/A
+
+### Decisions
+1. **Return revision 3 to PLAN_FIX** — Confirmed blockers remain in lifecycle early-exit behavior, staleness derivation, priority contract consistency, oversized input handling, dependency-index instructions, failure retry/publication semantics, and ranking-policy observability.
+
+### Completed Work
+- Ran a separate round-2 vendor dispatch after PLAN_FIX cb449eb1; Antigravity, Claude, Grok, and Pi all completed.
+- Validated the Codex, Antigravity, Claude, and Grok findings documents and synthesized them without overwriting round-1 artifacts.
+- Round-2 consensus: 17 unique findings, 8 confirmed, 8 unconfirmed, 1 disagreement, 7 blocking, and 1 advisory.
+- Excluded Pi from consensus because multiple severity=none observations incorrectly began with the Critical prefix, violating the review skill's coherence contract.
+- Strict OpenSpec validation and work-package schema/DAG/lock/overlap validation passed.
+
+### Next Steps
+- Treat every lifecycle mutation, including terminal pruning, as a reason to bypass unchanged early exit and rebuild the digest.
+- Define the reproducible source-artifact timestamp used to compute staleness_days.
+- Remove the normative claim that refine-roadmap add renumbers priorities; align the spec with explicit priority plus independent insertion position.
+- Define complete-prompt byte accounting and fail-closed handling for one oversized but schema-valid stub.
+- Replace stale multi-batch/readiness-resolver instructions with the single-manifest protocol and exact all-status/archive dependency-index APIs.
+- Resolve the cached scored_at versus new as_of contradiction on due-deferral cache-only reranking.
+- Define an implementable crash-recoverable publish protocol and ensure failed scoring does not advance the successful-cycle fingerprint, so the next cycle retries.
+- Expose or stop claiming the full ranking policy in digest.json, and resolve the mirror-scope disagreement by using a narrowly scoped synchronization/check command.
+- Run the third and final PLAN_REVIEW round after PLAN_FIX.
+
+### Relevant Files
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/round-2/findings-codex-plan.json` — round-2 primary findings
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/round-2/consensus-plan.json` — round-2 consensus with seven blocking findings
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/round-2/review-manifest.json` — round-2 vendor dispatch evidence
+- `openspec/changes/add-supervisor-candidate-work-digest/design.md` — revision-3 design requiring fixes
+- `openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md` — normative contract requiring fixes
+- `openspec/changes/add-supervisor-candidate-work-digest/tasks.md` — stale implementation instructions requiring alignment
+
+### Context
+Round-2 multi-vendor plan review did not converge after PLAN_FIX cb449eb1. Four external reviewers completed; the coherent consensus set combined Codex, Antigravity, Claude, and Grok into 17 unique findings with 8 confirmed, 7 blocking, and 1 low-severity disagreement. Pi output was retained in the round artifact directory but excluded from consensus because its positive severity=none findings used contradictory Critical prefixes. Strict OpenSpec and work-package validation still pass.
+
+## Phase: Plan Fix (2026-09-11)
+
+**Agent**: software-architect | **Session**: N/A
+
+### Decisions
+1. **Make lifecycle maintenance a committed pre-SENSE baseline** — Terminal pruning and due waking both rebuild before fresh admission, so unchanged reuse and overflow cannot resurrect stale candidates.
+2. **Split scoring time from state-update time** — `generated_at` validates cached rubric evidence; `state_updated_at` records later cache-only maintenance without forcing a model dispatch.
+3. **Use a recoverable publication journal** — Canonical replacement bytes and checksums support deterministic roll-forward with `digest.json` last, while dry-run remains non-mutating.
+
+### Completed Work
+- Resolved all seven round-2 blocking findings and the adjacent dry-run, force, `prov:` key, archive-source, and maintenance/overflow ambiguities.
+- Bumped plan and contract revision to 4 and recorded the finding-to-resolution map in `plan-findings.md`.
+- Strict OpenSpec, work-package schema/overlap, dependency-DAG, JSON, and whitespace validation pass.
+
+### Next Steps
+- Run the third and final independent PLAN_REVIEW round.
+- On convergence, transition directly to IMPLEMENT and dispatch the contract-first work package.
+
+### Context
+Revision 4 is implementation-ready if the final review confirms convergence. The implementation contract now specifies one bounded prompt, deterministic evidence time, complete ranking-policy metadata, a strict dependency-status index, and crash-recoverable publication.
+
+---
+
+## Phase: Plan Review (2026-09-11)
+
+**Agent**: code-reviewer | **Session**: N/A
+
+### Decisions
+1. **Stop automatic review iteration at max_iter** — Two blocking contract gaps remain after the third and final review: future-dated Git commits can produce invalid or rank-boosting negative staleness, and lifecycle deletions are not represented by the replacement-only crash journal.
+2. **Exclude incoherent Pi findings from consensus** — Pi returned severity none observations prefixed Critical and nit findings with disposition accept, violating the review skill severity-prefix and disposition coherence contract.
+
+### Alternatives Considered
+- Treat revision 4 as converged based on Antigravity positives: rejected because Codex and Grok independently reproduced both blockers from the normative text and schemas; deterministic safety/correctness gaps cannot be waived by one positive review.
+
+### Trade-offs
+- Accepted A max-iteration stop for operator disposition over Beginning implementation with underspecified time-skew and deletion-recovery semantics because Both gaps can produce schema-invalid ranking or durable mixed lifecycle state after a crash.
+
+### Completed Work
+- Dispatched fresh round-3 reviews to Antigravity, Claude Code, Grok, and Pi; Antigravity, Grok, and Pi completed, while Claude Code timed out after 600 seconds.
+- Validated Codex, Antigravity, and Grok findings and synthesized quorum consensus without overwriting rounds 1 or 2.
+- Round-3 consensus: 12 unique findings, 3 confirmed, 7 unconfirmed, 2 disagreements, 2 blocking, and 5 advisory.
+- Strict OpenSpec validation and work-package schema/DAG/lock/overlap validation passed.
+
+### Next Steps
+- Define future-commit clock-skew handling so staleness_days is never negative and add a corresponding test.
+- Extend the durable journal to encode terminal stub/cache deletions in the same lifecycle transaction as mirror/digest replacements, with deletion-boundary crash tests.
+- After operator disposition or a manual plan fix, repeat validation before implementation.
+
+### Relevant Files
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/round-3/findings-codex-plan.json` — Primary final-round findings.
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/round-3/consensus-plan.json` — Quorum consensus with two blocking disagreements.
+- `openspec/changes/add-supervisor-candidate-work-digest/reviews/round-3/review-manifest.json` — Fresh vendor dispatch evidence.
+- `openspec/changes/add-supervisor-candidate-work-digest/design.md` — Revision-4 design containing the remaining staleness and journal gaps.
+- `openspec/changes/add-supervisor-candidate-work-digest/specs/supervise/spec.md` — Normative contract containing the remaining gaps.
+
+### Context
+Third and final multi-vendor plan review of revision 4 did not converge. Three coherent reviewers reached quorum after Claude timed out; consensus contains two deterministic blocking disagreements, each supported by Codex and Grok and opposed by Antigravity. Because the configured maximum of three PLAN_REVIEW iterations is exhausted, the phase outcome is max_iter rather than another automatic PLAN_FIX loop.
+
+## Phase: Manual Plan Fix (2026-09-11)
+
+**Agent**: software-architect | **Session**: N/A
+
+### Decisions
+1. **Fail closed on future Git timestamps** — Clock skew yields null staleness and explicit degradation; it can never boost rank.
+2. **Journal deletions with replacements** — Terminal candidate/cache removal and rebuilt mirror/digest state form one typed, roll-forward transaction with per-parent durability.
+
+### Completed Work
+- Resolved both deterministic blockers from final review and incorporated the low-cost routing/Impact clarity notes.
+- Bumped plan and contract revision to 5.
+
+### Next Steps
+- Re-run strict OpenSpec and package validations.
+- Obtain the recorded escalation-resume authorization required after the three-round review limit.
+
+### Context
+The proposal's substantive review blockers are resolved, but autopilot policy still requires an operator decision before the loop can leave max-iteration escalation and enter implementation.
+
+## Phase: Escalation Resume (2026-09-11)
+
+**Agent**: orchestrator | **Session**: N/A
+
+### Decisions
+1. **Proceed after manual review repair** — The operator explicitly authorized recording the max-iteration escalation as resolved and continuing into implementation after revision 5 fixed both deterministic blockers.
+
+### Completed Work
+- Recorded approvals for the convergence-failure and escalation-resume gates.
+- Transitioned from ESCALATE through the reviewed PLAN_REVIEW boundary into IMPLEMENT without a fourth vendor round; the state history retains the max-iteration result and explicit operator override.
+
+### Next Steps
+- Dispatch the IMPLEMENT phase through the resolved implementer archetype.
+
+### Context
+Revision 5 passes strict OpenSpec, package scope/overlap, and dependency-DAG validation. Implementation begins contract-first in the existing managed feature worktree.
+
+---
+
+## Phase: Implementation (2026-09-11)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Emit complete refinement requests** `architectural: supervise` — Real preview/apply testing proved the refiner requires top-level rationale, actor, and source in addition to operations; stub-to-request now emits that envelope and remains a pure no-roadmap-write boundary.
+2. **Use the repository CI-isolated pytest topology** — A monolithic skills/tests process is architecturally unsupported because standalone skills share flat module names; the authoritative default testpaths plus one-process-per-suite topology passed.
+3. **Retain degraded package-review quorum** — Grok and Claude timed out on two small packages and Pi twice returned schema-invalid findings. Valid findings were reproduced and fixed with tests; manifests preserve the incomplete external coverage without treating malformed output as evidence.
+
+### Capability Gaps Observed
+- **adapter_failure**: Implementation review adapters can exceed their declared timeout or return nonconforming finding objects, preventing two-vendor quorum despite successful deterministic verification. (skill: parallel-review-implementation, severity: medium)
+
+### Completed Work
+- Five work packages completed with TDD and scope checks
+- Stable digest/rubric/record schemas installed
+- Candidate digest runtime and crash journal implemented
+- CYCLE and INTAKE workflows composed
+- Real refiner preview/apply/stale-SHA integration verified
+- Spec/evidence validation report passed
+
+### Next Steps
+- Run full /validate-feature add-supervisor-candidate-work-digest
+- Review and merge the implementation pull request
+
+### Relevant Files
+- `skills/supervise/scripts/digest.py` — Candidate store, ranking, lifecycle, recovery, and routing runtime
+- `skills/supervise/SKILL.md` — CYCLE and INTAKE host orchestration
+- `openspec/changes/add-supervisor-candidate-work-digest/validation-report.md` — Implementation spec/evidence gate
+
+### Context
+Implemented the approved candidate-work digest across stable schemas, crash-recoverable runtime state, bounded analyst prompting, supervisor workflow composition, and approval routing. All deterministic implementation, package, traceability, and spec/evidence gates pass; two documentation-sized review packages retain explicit degraded-quorum evidence after external adapter failures.
+
+---
+
+## Phase: Implementation Iteration 1 (2026-09-12)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Fail closed on journal authority** — Recovery now accepts only typed supervisor-owned targets and validates the complete bounded journal before any mutation.
+2. **Keep one bounded analyst payload** — Dry-run stubs and ready-set context now travel inside the exact stdout-bounded manifest instead of disappearing or bypassing the 64-KiB limit.
+3. **Preserve terminal decision history** — Approved and rejected records remain durable after their active candidate/cache artifacts are pruned.
+
+### Alternatives Considered
+- Trust the journal because only digest.py writes it: rejected because Tracked or interrupted state is still an input boundary; recovery must not grant arbitrary repository write authority.
+- Inject ready-set data as a separate prompt block: rejected because A second payload would escape the exact 64-KiB manifest accounting.
+
+### Trade-offs
+- Accepted A 1-MiB and 42-operation journal ceiling over Unbounded terminal-history transactions because The ceiling covers the maximum active batch transaction while bounding recovery resource use.
+
+### Completed Work
+- Restricted, bounded, and fully preflighted transaction recovery
+- Added dry-run fresh-stub overlays and safe fresh-key propagation
+- Preserved terminal decisions and validated lifecycle cache identity
+- Bounded exact stdout payload including ready-set context
+- Normalized canonical change dependencies and pending-recovery refusal
+- Bounded evidence reads and refreshed same-key candidates transactionally
+- Added ten-finding implementation artifact and updated traceability
+
+### Context
+Independent review identified ten medium-or-higher defects in candidate digest recovery, dry-run composition, lifecycle durability, prompt bounds, dependency resolution, and evidence I/O. All ten were fixed with RED/GREEN regression coverage; the focused, default, static, package, and strict OpenSpec gates pass.
+
+---
+
+## Phase: Validation (2026-09-12)
+
+**Agent**: codex | **Session**: N/A
+
+### Completed Work
+- spec
+- evidence
+- architecture
+- tests
+
+### Next Steps
+- Proceed to the Autopilot PR submission gate
+
+### Relevant Files
+- `openspec/changes/add-supervisor-candidate-work-digest/validation-report.md` — Final validation verdict and phase evidence
+- `openspec/changes/add-supervisor-candidate-work-digest/architecture-impact.md` — Architecture diff and advisory findings
+- `openspec/changes/add-supervisor-candidate-work-digest/change-context.md` — Current requirement traceability evidence
+
+### Context
+Validated the non-deployable ri-13 supervisor digest change at 99d97e08. All required local spec, package, architecture, test, lint, mirror, and OpenSpec gates passed; remote GitHub CI status remained unverified because the environment disallowed that external metadata query.
+
+---
+
+## Phase: Submit PR (2026-09-12)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Reuse existing pull request** — PR #528 already targeted the exact feature branch, so updating its evidence avoided a duplicate.
+2. **Keep structural size findings advisory** — No new cycle, high-impact module, or scoped flow defect was found; expanding completed ri-13 scope was not warranted.
+
+### Completed Work
+- plan-review:3-rounds
+- implementation:5-packages
+- implementation-review:4-rounds
+- validation:passed
+- pr:528-updated
+
+### Next Steps
+- Obtain operator merge authorization
+- If authorized, use cleanup-feature as the separate merge executor
+
+### Relevant Files
+- `openspec/changes/add-supervisor-candidate-work-digest/loop-state.json` — Full Autopilot convergence history
+- `openspec/changes/add-supervisor-candidate-work-digest/validation-report.md` — Passing validation evidence
+- `openspec/changes/add-supervisor-candidate-work-digest/architecture-impact.md` — Architecture assessment
+
+### Context
+ri-13 completed seven convergence rounds: three plan reviews and four implementation reviews. Five work packages delivered contracts, an isolated digest runtime, an isolated rubric prompt, shared workflow integration, and integration verification. Codex authored the primary implementation and targeted fixes; Claude, Antigravity, and Grok supplied independent review signals; the final Codex/Claude/Grok quorum accepted both operator-scoped post-cap fixes with zero blockers. Validation passed 3,802 repository skills tests and 352 focused supervise tests. Existing PR #528 was reused and updated rather than creating a duplicate. Best-effort review-artifact opening resolved the curated file set but could not launch because the `code` CLI is unavailable in this environment.

@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T03:02:00+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Targeted IMPL_FIX round 2 resolved the deterministic decision-drift blocker and all closely related lifecycle/reuse compatibility findings. Independent verification passed 349 supervise tests, ruff, installed-skill sync, strict validation of all 89 OpenSpec items, and diff integrity.",
+    "completed_work": [
+      "Detected record-versus-digest decision drift and rebuilt maintained digests from validated caches",
+      "Added an explicit non-empty force-reuse probe before analyst dispatch",
+      "Converted missing or invalid reuse caches into an unavailable result that permits analyst fallback",
+      "Rejected terminal same-key re-admission while preserving durable terminal history",
+      "Validated legacy refine-roadmap references during durable-record sanitization",
+      "Added regression coverage for ordinary and forced decision drift, reuse fallback, terminal re-admission, and malformed legacy records"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Expose cache reuse as a probe",
+        "rationale": "The host must distinguish a successful digest reuse from an unavailable cache that should proceed to analyst scoring without treating either as corruption.",
+        "capability": "supervise",
+        "supersedes": null
+      },
+      {
+        "title": "Reject terminal same-key re-admission",
+        "rationale": "Silently accepting a key with durable approved or rejected history creates invisible work and capacity loss; explicit rejection preserves deterministic lifecycle semantics.",
+        "capability": "supervise",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run implementation review round 3",
+      "Proceed to validation only if the implementation review converges"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/supervise/scripts/digest.py",
+        "description": "Decision drift, reuse probe, analyst fallback, and terminal re-admission behavior"
+      },
+      {
+        "path": "skills/supervise/scripts/cycle_state.py",
+        "description": "Canonical roadmap-reference validation during legacy sanitization"
+      },
+      {
+        "path": "skills/supervise/SKILL.md",
+        "description": "Executable non-empty force-reuse host branch"
+      },
+      {
+        "path": "skills/tests/supervise/test_digest.py",
+        "description": "Direct behavioral regressions for review-round-2 findings"
+      }
+    ]
+  }
+}

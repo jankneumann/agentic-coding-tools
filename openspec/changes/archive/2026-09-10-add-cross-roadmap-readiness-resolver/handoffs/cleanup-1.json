@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-10T22:21:07.473125+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "external coordinator intentionally skipped",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Merged PR #509 at exact validated head 168bda14 into the roadmap integration branch; all tasks were complete and the change is ready to archive.",
+    "completed_work": [
+      "merge PR #509",
+      "verify exact authorized head and all CI checks",
+      "pass pre-merge validation gate",
+      "confirm all OpenSpec tasks complete"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Preserve stacked roadmap topology with a merge commit",
+        "rationale": "PR #509 targets the long-lived supervisor roadmap integration branch and the established roadmap sync-point pattern preserves the exact CI-green feature history.",
+        "capability": "roadmap-orchestration",
+        "supersedes": null
+      },
+      {
+        "title": "Use local cleanup coordination fallback",
+        "rationale": "The external coordinator queue registration was not authorized for repository metadata; GitHub and local hard gates remained authoritative.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "archive add-cross-roadmap-readiness-resolver",
+      "refresh canonical specs and decision index",
+      "validate the archived integration branch",
+      "resume supervisor roadmap item ri-13"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-cross-roadmap-readiness-resolver/validation-report.md",
+        "description": "final validation evidence"
+      },
+      {
+        "path": "openspec/roadmaps/supervisor-roadmap/roadmap.yaml",
+        "description": "roadmap execution state"
+      }
+    ]
+  }
+}

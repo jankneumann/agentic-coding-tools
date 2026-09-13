@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "change_id": "implement-idempotent-queue-submission-and-outbox-ordering",
+  "review_type": "implementation",
+  "created_at": "2026-09-02T03:14:46Z",
+  "target": "validation-evidence",
+  "head_sha": "ebb6a1a11429d32bda950a190354cfb0720f4d7d",
+  "dispatches": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex-primary",
+      "success": true,
+      "elapsed_seconds": 3.0,
+      "error": null,
+      "error_class": null,
+      "findings_path": "review-findings-validation.json"
+    },
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity-local",
+      "success": true,
+      "elapsed_seconds": 31.52840010682121,
+      "error": null,
+      "error_class": null,
+      "findings_path": "findings-antigravity-validation.json"
+    }
+  ],
+  "quorum_requested": 2,
+  "quorum_received": 2,
+  "quorum_met": true,
+  "same_provider_independent_reviewers": false,
+  "timeout_failures": 0,
+  "schema_failures": 0,
+  "blocking_count": 0,
+  "disagreement_count": 0,
+  "verdict": "converged"
+}

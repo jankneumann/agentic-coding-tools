@@ -267,3 +267,137 @@ class TestWorkQueueConcurrencyPostgres:
         assert all(r.success for r in results)
         task_ids = {r.task_id for r in results}
         assert len(task_ids) == 2  # Each got a different task
+
+
+class TestWorkQueueProjectionMigrationContract:
+    def test_migration_035_static_contract(self):
+        from pathlib import Path
+
+        sql = (
+            Path(__file__).resolve().parents[3]
+            / "database/migrations/035_work_queue_projection.sql"
+        ).read_text()
+        assert "DROP FUNCTION IF EXISTS coordinator_notify(TEXT,TEXT,TEXT,TEXT,TEXT);" in sql
+        assert "CREATE TABLE IF NOT EXISTS work_queue_projection_heads" in sql
+        assert "CREATE UNIQUE INDEX IF NOT EXISTS work_queue_projection_key_uidx" in sql
+        assert "phase TEXT NOT NULL" in sql
+        assert "pg_advisory_xact_lock(hashtextextended" in sql
+        assert "projection_generation_mismatch" in sql
+        assert "reconciliation_required" in sql
+        assert "cancelled_by_projection_reconcile" in sql
+        assert "ON CONFLICT ((input_data ->>" in sql
+        assert "OR (CASE WHEN" in sql
+        assert "ELSE FALSE END)" in sql
+        statements = [line.strip() for line in sql.splitlines()]
+        assert "BEGIN;" in statements
+        assert "COMMIT;" in statements
+        assert statements.index("BEGIN;") < statements.index(
+            "LOCK TABLE work_queue IN SHARE ROW EXCLUSIVE MODE;"
+        ) < statements.index("COMMIT;")
+
+    @pytest.mark.asyncio
+    async def test_projection_submit_replay_returns_one_canonical_task(self, pg_work_queue):
+        key = {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 1}
+        first, second = await asyncio.gather(
+            pg_work_queue.submit(task_type="implement", description="one", projection_key=key),
+            pg_work_queue.submit(task_type="implement", description="one", projection_key=key),
+        )
+        assert first.task_id == second.task_id
+        assert sorted([first.created, second.created]) == [False, True]
+
+    @pytest.mark.asyncio
+    async def test_projection_head_rejects_equal_sequence_different_phase(self, pg_work_queue):
+        first = {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 2}
+        mismatch = {"change_id": "projection-change", "phase": "VALIDATE", "transition_sequence": 2}
+        assert (
+            await pg_work_queue.submit(
+                task_type="implement", description="one", projection_key=first
+            )
+        ).success is True
+        result = await pg_work_queue.submit(
+            task_type="validate", description="wrong generation", projection_key=mismatch
+        )
+        assert result.success is False
+        assert result.reason == "projection_generation_mismatch"
+
+    @pytest.mark.asyncio
+    async def test_reconcile_advances_full_head_and_cancels_stale(self, pg_work_queue):
+        old = {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 3}
+        new = {"change_id": "projection-change", "phase": "VALIDATE", "transition_sequence": 4}
+        stale = await pg_work_queue.submit(
+            task_type="implement", description="old", projection_key=old
+        )
+        current = await pg_work_queue.reconcile_projection(
+            projection_key=new, task_type="validate", description="current"
+        )
+        assert current.success is True
+        assert current.created is True
+        assert stale.task_id in current.cancelled_task_ids
+        replay = await pg_work_queue.reconcile_projection(
+            projection_key=new, task_type="validate", description="current"
+        )
+        assert replay.task_id == current.task_id
+        assert replay.created is False
+
+
+class TestCompleteTaskTerminalCancellation:
+    """Migration 036: cancellation by reconciliation must be terminal.
+
+    Without the ``status IN ('claimed', 'running')`` guard in complete_task,
+    a worker that was already cancelled by reconcile_work_projection could
+    still flip its now-terminal ``cancelled`` row back to
+    ``completed``/``failed`` by calling complete_task after the fact.
+    """
+
+    async def test_late_complete_after_reconcile_cancel_is_refused(self, pg_work_queue):
+        stale = {"change_id": "terminal-change", "phase": "IMPLEMENT", "transition_sequence": 1}
+        fresh = {"change_id": "terminal-change", "phase": "VALIDATE", "transition_sequence": 2}
+
+        submitted = await pg_work_queue.submit(
+            task_type="implement", description="stale work", projection_key=stale
+        )
+        claim = await pg_work_queue.claim(
+            agent_id="integ-pg-agent-1", agent_type="test_agent"
+        )
+        assert claim.task_id == submitted.task_id
+
+        reconciled = await pg_work_queue.reconcile_projection(
+            projection_key=fresh, task_type="validate", description="fresh work"
+        )
+        assert submitted.task_id in reconciled.cancelled_task_ids
+
+        cancelled_task = await pg_work_queue.get_task(submitted.task_id)
+        assert cancelled_task.status == "cancelled"
+
+        late_complete = await pg_work_queue.complete(
+            task_id=submitted.task_id,
+            success=True,
+            result={"output": "too late"},
+            agent_id="integ-pg-agent-1",
+        )
+        assert late_complete.success is False
+        assert late_complete.reason == "task_not_active"
+        assert late_complete.status == "cancelled"
+
+        # The cancellation must not have been overwritten by the late call.
+        still_cancelled = await pg_work_queue.get_task(submitted.task_id)
+        assert still_cancelled.status == "cancelled"
+        assert still_cancelled.result is not None
+        assert still_cancelled.result.get("reason") == "cancelled_by_projection_reconcile"
+
+    async def test_complete_still_succeeds_for_active_claimed_task(self, pg_work_queue):
+        """The new status filter does not regress the ordinary completion path."""
+        await pg_work_queue.submit(task_type="test", description="normal task")
+        claim = await pg_work_queue.claim(
+            agent_id="integ-pg-agent-1", agent_type="test_agent"
+        )
+        assert claim.success is True
+
+        complete = await pg_work_queue.complete(
+            task_id=claim.task_id,
+            success=True,
+            result={"ok": True},
+            agent_id="integ-pg-agent-1",
+        )
+        assert complete.success is True
+        assert complete.status == "completed"

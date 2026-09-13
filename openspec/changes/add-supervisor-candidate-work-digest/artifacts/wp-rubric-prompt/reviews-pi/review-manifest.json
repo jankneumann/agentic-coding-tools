@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-09-11T03:31:16Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "qwen/qwen3-coder",
+      "models_attempted": [
+        "qwen/qwen3-coder"
+      ],
+      "elapsed_seconds": 47.168352589942515,
+      "error": "Findings failed review-findings schema validation: findings/0/axis: 'functional_correctness' is not one of ['correctness', 'readability', 'architecture', 'security', 'performance', 'observability', 'resilience', 'compatibility']; findings/0/criticality: 'none' is not one of ['low', 'medium', 'high', 'critical']; findings/0/disposition: 'approved' is not one of ['fix', 'regenerate', 'accept', 'escalate']; findings/0/type: 'compliance' is not one of ['spec_gap', 'contract_mismatch', 'architecture', 'security', 'performance', 'style', 'correctness', 'observability', 'compatibility', 'resilience', 'behavioral_failure']; findings/1/axis: 'functional_correctness' is not one of ['correctness', 'readability', 'architecture', 'security', 'performance', 'observability', 'resilience', 'compatibility']",
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 1,
+  "quorum_received": 0,
+  "vendors": []
+}

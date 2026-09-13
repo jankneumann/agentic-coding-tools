@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T02:17:03+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Targeted IMPL_FIX resolved all round-1 blocking and deterministic critical/high findings, plus the related bounded low-risk issues. Independent inspection found and closed an additional empty-store stale-manifest variant. The complete supervise suite, lint, installed-skill sync check, strict OpenSpec validation, and diff integrity all pass.",
+    "completed_work": [
+      "Retained unscored lifecycle survivors while preserving terminal pruning and later scoring retry",
+      "Added validated no-dispatch reuse for forced same-fingerprint cycles and a zero-candidate fast path",
+      "Made transaction recovery fail closed until host rehydration and normalized due decisions across prepare/rank",
+      "Bound ranking manifests byte-for-byte to the persisted store, including the empty-store case",
+      "Normalized staleness timestamps to UTC and made git evidence pathspecs literal",
+      "Migrated legacy supervisor-record fixtures and hardened canonical durable-record sanitization",
+      "Added direct regressions for all reviewed behaviors and synchronized workflow documentation"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Require exact persisted-store identity at rank time",
+        "rationale": "A manifest is valid only when its key set and candidate bytes exactly match current persisted state; an empty store cannot authorize a stale non-empty manifest.",
+        "capability": "supervise",
+        "supersedes": null
+      },
+      {
+        "title": "Fail closed after transaction recovery",
+        "rationale": "Stopping for rehydration prevents a recovered mirror from being overwritten by stale host-owned record state later in the same command sequence.",
+        "capability": "supervise",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run implementation review round 2 against the complete branch",
+      "Proceed to validate-feature only after review convergence"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/supervise/scripts/digest.py",
+        "description": "Lifecycle, cache reuse, manifest binding, empty digest, recovery, and evidence fixes"
+      },
+      {
+        "path": "skills/supervise/scripts/cycle_state.py",
+        "description": "Canonical legacy-record migration and schema-writable sanitization"
+      },
+      {
+        "path": "skills/tests/supervise/test_digest.py",
+        "description": "Behavioral regressions for the round-1 blockers and empty-store variant"
+      },
+      {
+        "path": "skills/supervise/SKILL.md",
+        "description": "Recovery rehydration and zero-candidate host sequencing"
+      }
+    ]
+  }
+}

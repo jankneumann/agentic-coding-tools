@@ -1,0 +1,370 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "wp-state-artifacts-docs",
+  "reviewers": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 4,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 13,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 10,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Optional: The traceability row `skill-workflow.state-artifacts-links` names `docs/guides/documentation.md` in Files Changed and cites `skills/tests/state-artifacts/test_state_artifacts_guide.py` as its test, but that test never reads `docs/guides/documentation.md`. A repository-wide grep for `docs/guides/documentation` across `*.py`, `*.sh` and `*.yml` returns no matches, so nothing anywhere enforces the index entry. The guide's only discovery path from the 'Foundational \u2014 read these before contributing' list is therefore unguarded, which is precisely the drift class this change exists to prevent: the guide would stay green while becoming unreachable to a new contributor."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: change-context.md:29-30 carries stale package-checkpoint evidence: it names only documentation and semantic_code and attributes degradation to pending projections/unconfigured indexing, while the current package declares four surfaces and the fresh checkpoint attempt actually failed closed on a lossy feature-level contract context."
+    },
+    {
+      "id": 3,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: The task 3.2 test now resolves design.md through the shared change_dir(ROOT, CHANGE_ID) helper while retaining the exact eight-stage ordering assertion, and the repository-wide archival guard plus the focused suite pass 719/719."
+    },
+    {
+      "id": 4,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 11
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: The guide establishes question-scoped authority and a one-way canonical-state-to-projection boundary without introducing a sixth authority class or changing runtime behavior."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: All six existing workflow skills keep their phase-specific commands and gates and add only the same repository-relative canonical-guide reference, preserving consumers while reducing semantic duplication."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: The rehydration rewrite kept the `try_handoff_read(limit=1, supervisor_only=true)` command but deleted the sentence explaining why the filter is mandatory ('a newer ordinary handoff must not mask the newest supervisor handoff'). A grep for `supervisor_only` and `mask` in the file now returns only the command itself, and the canonical guide never mentions the flag, so that rationale exists nowhere. This is phase-specific knowledge, not shared ownership semantics, so design.md's first risk ('over-centralizing removes necessary commands') applies: a future editor can drop the argument without any document objecting. The same edit also dropped the `written_at` selection rule and the note that the rehydrator freshly derives `active_changes`."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: In all six skills the `## Durable state artifact authority` heading is inserted between the H1 and the skill's own one-line purpose statement, so that summary is now rendered as body text of the state-artifacts section. In autopilot the sentence 'Orchestrate the full plan-review-implement-validate-PR lifecycle...' sits at line 19, below the reference block at 15-17. Same shape at autopilot-roadmap:14, session-log:13, supervise:15, implement-feature:20 and validate-feature:20. No test breaks \u2014 `skill_invariants.py` asserts frontmatter and tail blocks, not section order \u2014 but an agent reading the document top-down now meets a cross-reference before it learns what the skill does."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: The structural suite pins the guide's prose markers but never checks that anything the guide points at still exists. The inventory names `save_state()`, `runner.py` state commands, `roadmap-runtime` checkpoint helpers, the roadmap learning writer and `PhaseRecord.write_both()`; line 15 links the sibling guide `work-queue-truth-projection.md`. I verified all of these resolve today, but a rename or a moved sibling guide leaves the suite green and the canonical guide silently wrong. D4 rightly refuses full-prose snapshots, yet existence checks are not prose checks and would cost a few lines."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: The module consumes `change_dir` from the shared helper but computes its root with a bare `Path(__file__).resolve().parents[3]`. The helper exports `repo_root_from` for exactly this, its docstring calls a bare `parents[N]` 'archive-fragile when the test moves', and the guard's own failure message at skills/tests/openspec_paths/test_change_path_stability.py:217 prescribes `change_dir(repo_root_from(__file__, N), '<change-id>')`. Task 3.2 asked the package to consume the existing helper; it consumed half of it."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: `test_supervise_rehydration_matches_canonical_order` resolves eight unanchored generic phrases with `text.index`, which returns the first occurrence anywhere in a 460-line document rather than within the rehydration section. Today each marker occurs exactly once (verified by grep), so the test is sound. But phrases such as 'Learning context', 'Handoff context' and 'Rebuild projections' are ordinary English that the growing `execute` verb section could easily reuse; a single earlier occurrence would then make the assertion report on text that is not the rehydration list at all. The guide-side and design-side variants avoid this by using the numbered `1. `-prefixed form."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: The mirror-parity test skips whenever either runtime copy is absent, which design.md's last risk deliberately accepts so fresh CI checkouts do not fail on gitignored artifacts. The consequence worth recording is that a genuinely broken `install.sh` is indistinguishable from a clean checkout at this assertion \u2014 both skip. The compensating control is the pre-push local gate plus `install.sh --check`, and I confirmed all twelve mirrors are byte-identical right now by checksum, so nothing is wrong today; the gap is that the signal is manual."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: Task 3.3 ('Run the complete validation matrix') and both remaining checkpoints are still unchecked, and change-context.md records 'Gaps: complete validation matrix pending'. That matches loop-state.json, which reports `current_phase: IMPL_REVIEW`, so this is honest reporting rather than a checkbox drift \u2014 the pattern the ri-09 failure warned about is absent here. Recording it so the merge gate does not read the partial evidence in impl-findings.md as a completed matrix."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: Diffing the roadmap base against HEAD shows exactly one changed file that no work package declares in `scope.write_allow` \u2014 the roadmap checkpoint, flipped from `planning` to `implementing` for ri-10. This is the roadmap orchestrator's own write at a different altitude, not a package escape, and it is consistent with the authority model the new guide documents: the checkpoint belongs to roadmap-runtime, never to an implementer. A naive branch-diff scope check will nevertheless flag it. Separately, I confirmed the declared `--base main` context-impact command is safe on this stacked branch: `package_files()` filters by write_allow first, and the attributed file set is byte-identical for `--base main` and `--base 4f794962`."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Every factual claim in the five-row inventory checks out against the code. `autopilot.py:155` defines `save_state` and `runner.py:72` resolves `<change_dir>/loop-state.json`; `checkpoint.py:39` sets `workspace / 'checkpoint.json'`; `learning.py` writes `learnings/<item-id>.md` and maintains `learning-log.md` as the index; `phase_record.py:682` builds the local fallback as `<phase_slug>-<n>.json` under `openspec/changes/<change-id>/handoffs/`; `cycle_state.py:85` pins `openspec/supervise/supervisor-record.json`. The roadmap workspace on disk contains exactly the four artifacts the guide describes. The `write_both()` description \u2014 append, sanitize, coordinator with tracked fallback, then regenerate the derived decision index \u2014 matches the four-step docstring at phase_record.py:364 including the ordering rationale. Zero drift between the new normative document and the runtime it describes."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: The guide reference is a bare backticked repository path rather than a Markdown link, and that choice is enforced by real tooling: `validate_install_manifest.py::_local_markdown_link_errors` rejects any Markdown link that escapes the installed payload or names an unshipped target, so a relative link out of `skills/<name>/` into `docs/guides/` would fail `install.sh --check` on every installed copy. The decision is recorded in the generated skill-workflow index rather than left implicit. I verified all twelve runtime mirrors under `.agents/skills/` and `.claude/skills/` are byte-identical to their canonical sources by checksum, so task 3.1 holds independently of the test that would have skipped."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 13,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Task 3.2 is the cleanest part of the package. Its entire delta against the pre-merge tip is four files: one word in the guide, one checkbox, the `tests/openspec_paths` testpaths entry, and a three-line test change that replaces a literal `openspec/changes/<id>/design.md` with `change_dir(ROOT, CHANGE_ID)`. It consumed the shared helper rather than copying path infrastructure into the package, which keeps the three-tree byte-identity assertion in `test_change_path_stability.py::test_shared_helper_copies_are_byte_identical` satisfied. The AST guard scans `skills/` and finds no pinned change directory in the new module, so the eight-stage design assertion survives archival \u2014 the exact defect that broke thirty assertions in the 2026-09-08 sweep. RED evidence of 9 failed / 6 passed reconciles with the fifteen tests the file held at that commit, and the sixteen-test GREEN count reconciles with the file today."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Skills use bare backticked repository-relative docs/guides/state-artifacts.md references rather than Markdown links that escape the skill directory, preserving install payload portability. Local .agents/.claude mirrors are byte-identical to the six canonical sources, and bash skills/install.sh --check passed."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Guide and supervise correctly separate first-run absence (valid never-started) from claimed-progress-without-canonical-artifact (fail-loud degradation), and forbid reconstructing loop-state/checkpoint truth from handoffs, learnings, phase records, or queue projections."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Missing/conflict paths are required to be named and reported; writer ordering persists authoritative artifacts before projections/handoffs; projection rebuild is explicitly one-way from canonical state, giving operators a recoverable interruption model without promoting derived state."
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Documentation-only package stays within declared deny boundaries (no agent-coordinator/src, database, or apps writes in package-authored commits), introduces no authz/secret/executable attack surface, and remains rollback-safe as a pure docs/test revert. Security axis reviewed: no vulnerabilities identified."
+    },
+    {
+      "id": 21,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Drift guards are structural string/order assertions over a small fixed file set; the focused state-artifact plus openspec_paths verification completed in about 1.57s for 719 tests, appropriate for default CI collection."
+    },
+    {
+      "id": 22,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: After task 3.2 normalized shared-semantics wording from \"link\" to \"reference\" (guide skill-contract line and skill reference tests), skills/supervise/SKILL.md still says \"the guide linked above\" even though the authority pointer is a bare backticked path, not a Markdown link."
+    },
+    {
+      "id": 23,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: Task 2.2 requires the documentation index to reference the canonical guide, and docs/guides/documentation.md does, but skills/tests/state-artifacts/test_state_artifacts_guide.py only asserts the six skill sources. Index drift would not fail the structural suite."
+    },
+    {
+      "id": 24,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: Per-package context checkpoint remains degraded because checkpoint.load_package() drops the feature-level contracts block and can falsely label the approved API rationale as spurious_rationale. Base-relative validate_context_impact.py --base 4f794962 is VALID/rationalized; absence of a fresh checkpoint is not a hidden package pass. Documented in impl-findings.md as shared-infrastructure follow-up, out of package scope."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 24,
+    "confirmed_count": 2,
+    "unconfirmed_count": 22,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 24
+  }
+}

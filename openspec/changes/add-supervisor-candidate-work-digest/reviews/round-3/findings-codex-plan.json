@@ -1,0 +1,46 @@
+{
+  "review_type": "plan",
+  "target": "add-supervisor-candidate-work-digest",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Critical: The Git-based staleness rule does not define what happens when the last commit timestamp is later than the host manifest as_of. Git permits future-dated commits, so the specified subtraction can produce a negative staleness_days (rejected by digest.schema.json) or, if fed directly into the formula, a negative penalty that incorrectly boosts the candidate.",
+      "resolution": "Specify and test a fail-closed clock-skew rule: when commit_time > as_of, emit staleness_days: null plus an explicit degraded marker (or clamp to zero, if that is the intended policy), and never allow a negative value into the formula.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {"start": 53, "end": 67},
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "high",
+      "description": "Critical: Lifecycle maintenance is required to delete terminal stub/cache files and publish a rebuilt digest as one maintained baseline, but the recovery journal is defined only in terms of replacement bytes/checksums for cache, digest, and mirror targets. It neither represents deletions nor explicitly includes candidate-store removal. A crash after pruning and before the digest/mirror replacements can therefore leave durable mixed state that the stated roll-forward protocol cannot reconstruct.",
+      "resolution": "Extend the transaction contract to encode both replace and delete operations, include terminal stub/cache deletions and the rebuilt mirror/digest in the same journal, define per-parent-directory fsync and digest-last ordering, and add interruption tests for every deletion/replacement boundary during terminal-only and mixed prune/wake maintenance.",
+      "disposition": "fix",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {"start": 154, "end": 234},
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Revision 4 correctly separates generated_at from state_updated_at, allowing lifecycle-only rebuilds to preserve cache evidence time while exposing the later state transition.",
+      "resolution": "Preserve this two-clock contract and its cache-only validation tests during implementation.",
+      "disposition": "accept",
+      "file_path": "openspec/changes/add-supervisor-candidate-work-digest/design.md",
+      "line_range": {"start": 177, "end": 187},
+      "axis": "architecture",
+      "severity": "none",
+      "evidence_class": "judgment"
+    }
+  ]
+}

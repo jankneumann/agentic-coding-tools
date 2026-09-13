@@ -1,0 +1,114 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: `bd0c0fdc`'s asyncpg `jsonb`/`json` codec in `db_postgres.py` avoids double-encoding already-serialized strings, defensively encodes `None` as JSON `null`, and registers decode via `json.loads`; the live `TestCompleteTaskTerminalCancellation` path that previously saw `Task.result` as a raw string now passes, matching Validation 7's root-cause closure.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "agent-coordinator/src/db_postgres.py",
+      "line_range": {
+        "start": 92,
+        "end": 174
+      },
+      "axis": "correctness",
+      "severity": "none"
+    },
+    {
+      "id": 2,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: `dda2834f` correctly drops dead `_agent_identity()` injection from `proxy_submit_work` / `proxy_reconcile_work_projection` under `extra=\"forbid\"`, and `reconcile_projection()` applies the same trust/guardrail screen and `guardrail_denied` denial as `submit()` on description plus caller `input_data` before the mutating RPC.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 865,
+        "end": 894
+      },
+      "axis": "security",
+      "severity": "none"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: migration `036` restricts `complete_task` to `status IN ('claimed','running')`, returns distinct `task_not_active` with current status, and `WorkQueueService.complete()` warns on that refusal; live tests cover late complete-after-reconcile-cancel refusal and ordinary claimed completion success.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "agent-coordinator/database/migrations/036_terminal_completion_guard.sql",
+      "line_range": {
+        "start": 28,
+        "end": 61
+      },
+      "axis": "resilience",
+      "severity": "none"
+    },
+    {
+      "id": 4,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: reused ZAP evidence remains valid for the final product tree \u2014 SHA-256 of `zap.stdout.log` / `zap-report.json` match `execution.json`, `gate.json` is PASS with `triggered_count=0`, no dependency manifests changed since the retained scan base, product tree at `377b9deb` is `d403701f\u2026`, and post-product commits only add evidence/orchestration; PR #457 checks at that exact SHA are all substantive pass with `test-integration` green.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-evidence/security/validation-fix-2/gate.json",
+      "line_range": {
+        "start": 1,
+        "end": 5
+      },
+      "axis": "compatibility",
+      "severity": "none"
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Validation 7's Package Evidence warning (residual advisory to restore per-package work-result persistence) and Architecture DEGRADED (advisory source-root refresh defect) remain honestly scoped and non-blocking; `architecture-impact.md`'s Canonical Validation 7 Audit cites the correct product commit/tree and does not treat either as a merge blocker.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/architecture-impact.md",
+      "line_range": {
+        "start": 26,
+        "end": 28
+      },
+      "axis": "architecture",
+      "severity": "none"
+    },
+    {
+      "id": 6,
+      "type": "style",
+      "criticality": "low",
+      "description": "Nit: Canonical Validation 7 Residual Advisories duplicates item `3` (architecture-impact header drift appears twice, with items numbered 1\u20134 then another `3`), a report-editing slip that does not change the PASS decision or the advisory non-blocking scope.",
+      "resolution": "Renumber residual advisories to a unique 1\u20134 list when next editing the validation report.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "openspec/changes/implement-idempotent-queue-submission-and-outbox-ordering/validation-report.md",
+      "line_range": {
+        "start": 435,
+        "end": 441
+      },
+      "axis": "readability",
+      "severity": "nit"
+    },
+    {
+      "id": 7,
+      "type": "security",
+      "criticality": "low",
+      "description": "FYI: `reconcile_projection()` scans caller `input_data` before merging `projection_key` into the RPC payload, whereas `submit()` merges the projection key into `input_data` before the guardrail scan \u2014 so the texts are not byte-identical on keyed calls. Projection-key fields are tightly validated (change_id/phase/sequence), so this is not a practical bypass of the new reconcile screen.",
+      "resolution": "Optionally merge `key.as_input_data()` into the scanned payload first if strict scan-text identity with `submit()` is desired.",
+      "disposition": "accept",
+      "package_id": "validation-evidence",
+      "file_path": "agent-coordinator/src/work_queue.py",
+      "line_range": {
+        "start": 880,
+        "end": 898
+      },
+      "axis": "security",
+      "severity": "fyi"
+    }
+  ]
+}

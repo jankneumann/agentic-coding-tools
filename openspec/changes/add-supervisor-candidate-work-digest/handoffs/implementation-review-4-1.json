@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T13:24:13Z",
+  "coordinator_error": {
+    "error_type": "unknown",
+    "message": "local operator-authorized constrained review handoff",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "The one operator-authorized post-cap implementation review converged within its frozen two-fix scope. Both named fixes passed local deterministic reproduction and received matching PASS verdicts from Claude Code and Grok. Consensus contains exactly two confirmed accept findings, zero blockers, zero unconfirmed findings, and zero disagreements; no other issue or work was inspected, admitted, or proposed.",
+    "completed_work": [
+      "Reviewed only commit delta 85c3118f..94f902d6 and only the two operator-named round-3 fixes.",
+      "Ran the three authorized regressions: malformed refine-roadmap rejection without mirror mutation, canonical refine-roadmap persistence, and interrupted unranked-survivor lifecycle drift; all 3 passed.",
+      "Dispatched the frozen two-verdict prompt to configured vendors with Pi excluded after its prior auth_required result. Claude Code and Grok returned schema-valid two-item PASS reviews; Antigravity returned truncated invalid JSON and Codex omitted required finding IDs, so both invalid outputs were rejected.",
+      "Synthesized primary, Claude Code, and Grok verdicts at quorum 3/3: exactly 2 confirmed PASS findings and 0 blockers."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Converge the constrained post-cap review",
+        "rationale": "Each of the two authorized fixes passed deterministic local reproduction and was independently accepted by both schema-valid external reviewers; no blocking verdict remains within the operator-frozen scope.",
+        "capability": "supervise",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "The orchestrator may record the converged IMPL_REVIEW outcome and continue to validation."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/implementation/round-4/review-prompt.md",
+        "description": "operator-frozen two-fix pass/fail prompt"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/implementation/round-4/review-findings-implementation.json",
+        "description": "primary deterministic two-fix PASS verdicts"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/implementation/round-4/vendor/review-manifest.json",
+        "description": "multi-vendor dispatch outcomes and accepted-vendor paths"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/implementation/round-4/consensus-implementation.json",
+        "description": "three-reviewer consensus containing exactly two confirmed PASS findings"
+      }
+    ]
+  }
+}

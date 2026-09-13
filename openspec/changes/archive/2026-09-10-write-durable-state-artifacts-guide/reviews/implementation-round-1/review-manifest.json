@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-09-10T04:40:56Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": [
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 97.83602669788525,
+      "error": "Invalid JSON output: {\n  \"review_type\": \"implementation\",\n  \"target\": \"wp-state-artifacts-docs\",\n  \"reviewer_vendor\": \"antigravity\",\n  \"findings\": [\n    {\n      \"id\": 1,\n      \"type\": \"correctness\",\n      \"criticality\": \"low\",\n      \"severity\": \"none\",\n      \"disposition\": \"accept\",\n      \"axis\": \"correctness\",\n      \"package_id\": \"wp-state-artifacts-docs\",\n      \"file_path\": \"docs/guides/state-artifacts.md\",\n      \"line_range\": {\n        \"start\": 1,\n        \"end\": 45\n      },\n      \"description\": \"none: The canonic",
+      "error_class": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "(default)",
+      "models_attempted": [
+        "(default)"
+      ],
+      "elapsed_seconds": 506.8388509610668,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 203.39023829856887,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "qwen/qwen3-coder",
+      "models_attempted": [
+        "qwen/qwen3-coder"
+      ],
+      "elapsed_seconds": 174.53268090309575,
+      "error": "Findings failed review-findings schema validation: findings/0: 'id' is a required property; findings/0: 'type' is a required property; findings/0: 'criticality' is a required property; findings/0: 'axis' is a required property; findings/1: 'id' is a required property",
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 2,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 13
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-implementation.json",
+      "finding_count": 10
+    }
+  ]
+}

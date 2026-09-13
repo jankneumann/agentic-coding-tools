@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/supervisor-record.schema.json",
+  "title": "SupervisorRecord",
+  "description": "Supervisor-scoped rehydration record carried in handoff_documents.supervisor_record and (non-derivable sections only) in openspec/supervise/supervisor-record.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "written_at",
+    "written_by",
+    "active_changes",
+    "pending_gates",
+    "standing_decisions",
+    "back_edge"
+  ],
+  "$defs": {
+    "gate": {
+      "type": "string",
+      "enum": [
+        "gatekeeper_escalation",
+        "proposal_approval",
+        "plan_review_convergence_failure",
+        "validation_failure",
+        "escalate_resume",
+        "replan_required",
+        "pr_creation",
+        "merge",
+        "roadmap_approval"
+      ]
+    },
+    "changeId": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "activeChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "change_id",
+        "current_phase"
+      ],
+      "properties": {
+        "change_id": {
+          "$ref": "#/$defs/changeId"
+        },
+        "current_phase": {
+          "type": "string"
+        },
+        "phase_since": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "branch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "worktree": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pending_gate": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "gate",
+            "requested_at"
+          ],
+          "properties": {
+            "gate": {
+              "$ref": "#/$defs/gate"
+            },
+            "requested_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "roadmap_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z0-9-]+:ri-[0-9]{2,}$"
+        },
+        "last_handoff_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "pendingGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gate",
+        "change_id",
+        "requested_at",
+        "deadline"
+      ],
+      "properties": {
+        "gate": {
+          "$ref": "#/$defs/gate"
+        },
+        "change_id": {
+          "$ref": "#/$defs/changeId"
+        },
+        "requested_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "deadline": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "disposition": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "auto",
+            "notify_with_timeout",
+            "block",
+            null
+          ]
+        },
+        "approval_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "autopilot",
+            "supervise",
+            "escalation"
+          ],
+          "default": "supervise"
+        },
+        "decision_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "gate-decision record id when the entry was written by the supervise gate router."
+        }
+      }
+    },
+    "standingDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "decided_at",
+        "scope",
+        "decision"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the decision applies to: a change-id, roadmap item ref, stub key, or 'global'."
+        },
+        "decision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expires_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    },
+    "digestedStub": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stub_key",
+        "rank",
+        "decision",
+        "decided_at"
+      ],
+      "properties": {
+        "stub_key": {
+          "type": "string",
+          "pattern": "^(change|prov):.+$"
+        },
+        "rank": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "deferred",
+            "rejected",
+            "pending"
+          ]
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "suggested_change_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "written_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "written_by": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent_name",
+        "session_id"
+      ],
+      "properties": {
+        "agent_name": {
+          "type": "string"
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "active_changes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/activeChange"
+      }
+    },
+    "pending_gates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pendingGate"
+      }
+    },
+    "standing_decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/standingDecision"
+      }
+    },
+    "back_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "last_digest_at",
+        "last_fingerprint",
+        "digested_stubs"
+      ],
+      "properties": {
+        "last_digest_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "last_fingerprint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "digested_stubs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/digestedStub"
+          }
+        }
+      }
+    }
+  }
+}
