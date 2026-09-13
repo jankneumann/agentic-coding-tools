@@ -26,6 +26,7 @@ import json
 import logging
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -54,6 +55,7 @@ from review_dispatcher import (  # noqa: E402
     ReviewResult,
 )
 from review_ledger import (  # noqa: E402
+    adjudication_items as ledger_adjudication_items,
     append_parked_disagreement,
     blocking_items as ledger_blocking_items,
     compact as compact_ledger,
@@ -312,6 +314,64 @@ def _accepts_kwarg(func: Callable[..., Any], name: str) -> bool:
         return True
     return any(
         p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+    )
+
+
+def _write_review_checkpoint(
+    checkpoint_dir: Path,
+    results: list[ReviewResult],
+    *,
+    review_type: str,
+    change_id: str,
+    quorum_requested: int,
+) -> None:
+    """Write one independently readable snapshot of completed vendor results."""
+    vendors_index: list[dict[str, Any]] = []
+    dispatches: list[dict[str, Any]] = []
+    for result in results:
+        dispatches.append({
+            "vendor": result.vendor,
+            "success": result.success,
+            "model_used": result.model_used,
+            "models_attempted": result.models_attempted,
+            "elapsed_seconds": result.elapsed_seconds,
+            "error": result.error,
+            "error_class": (
+                result.error_class.value if result.error_class else None
+            ),
+        })
+        cf_write_raw_output(
+            checkpoint_dir,
+            vendor=result.vendor,
+            review_type=review_type,
+            stdout=result.raw_stdout,
+            stderr=result.raw_stderr,
+            coercions=list(result.coercions or []),
+        )
+        if result.success and result.findings:
+            findings_array = result.findings.get("findings", [])
+            cf_write_vendor_findings(
+                checkpoint_dir,
+                vendor=result.vendor,
+                review_type=review_type,
+                target=change_id,
+                findings=findings_array,
+                reviewer_vendor=result.vendor,
+            )
+            vendors_index.append({
+                "name": result.vendor,
+                "findings_path": f"findings-{result.vendor}-{review_type}.json",
+                "finding_count": len(findings_array),
+            })
+    cf_write_manifest(
+        checkpoint_dir,
+        review_type=review_type,
+        target=change_id,
+        vendors=vendors_index,
+        change_id=change_id,
+        dispatches=dispatches,
+        quorum_requested=quorum_requested,
+        quorum_received=sum(1 for result in results if result.success),
     )
 
 
@@ -592,6 +652,34 @@ def converge(
         }
         if _accepts_kwarg(orchestrator.dispatch_and_wait, "packet_path"):
             dispatch_kwargs["packet_path"] = packet_path
+        checkpointed: dict[str, ReviewResult] = {}
+        checkpoint_lock = threading.Lock()
+
+        def _checkpoint_result(result: ReviewResult, expected_count: int) -> None:
+            with checkpoint_lock:
+                checkpointed[result.vendor] = result
+                try:
+                    _write_review_checkpoint(
+                        checkpoint_dir,
+                        list(checkpointed.values()),
+                        review_type=review_type,
+                        change_id=change_id,
+                        quorum_requested=expected_count,
+                    )
+                except (OSError, PermissionError) as exc:
+                    cf_safe_log_error(
+                        "convergence.checkpoint_write_failed",
+                        change_id=change_id,
+                        review_type=review_type,
+                        original_exception_class=type(exc).__name__,
+                        original_exception_message=str(exc),
+                        artifacts_dir=str(checkpoint_dir),
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                    )
+                    raise
+
+        if _accepts_kwarg(orchestrator.dispatch_and_wait, "result_callback"):
+            dispatch_kwargs["result_callback"] = _checkpoint_result
         results = orchestrator.dispatch_and_wait(**dispatch_kwargs)
 
         # 2aa. Durably checkpoint vendor findings BEFORE synthesis. This is
@@ -600,53 +688,12 @@ def converge(
         # narrow try/except around the writes only logs and re-raises; it
         # does not swallow.
         try:
-            vendors_index: list[dict[str, Any]] = []
-            dispatches: list[dict[str, Any]] = []
-            for r in results:
-                dispatches.append({
-                    "vendor": r.vendor,
-                    "success": r.success,
-                    "model_used": r.model_used,
-                    "models_attempted": r.models_attempted,
-                    "elapsed_seconds": r.elapsed_seconds,
-                    "error": r.error,
-                    "error_class": r.error_class.value if r.error_class else None,
-                })
-                cf_write_raw_output(
-                    checkpoint_dir,
-                    vendor=r.vendor,
-                    review_type=review_type,
-                    stdout=r.raw_stdout,
-                    stderr=r.raw_stderr,
-                    coercions=list(r.coercions or []),
-                )
-                if r.success and r.findings:
-                    findings_array = r.findings.get("findings", [])
-                    cf_write_vendor_findings(
-                        checkpoint_dir,
-                        vendor=r.vendor,
-                        review_type=review_type,
-                        target=change_id,
-                        findings=findings_array,
-                        reviewer_vendor=r.vendor,
-                    )
-                    vendors_index.append({
-                        "name": r.vendor,
-                        "findings_path": f"findings-{r.vendor}-{review_type}.json",
-                        "finding_count": len(findings_array),
-                    })
-            cf_write_manifest(
+            _write_review_checkpoint(
                 checkpoint_dir,
                 review_type=review_type,
-                target=change_id,
-                vendors=vendors_index,
                 change_id=change_id,
-                dispatches=dispatches,
-                # quorum_requested = total vendors dispatched (incl. failures);
-                # vendors_index only lists successful reviews, so passing it
-                # implicitly via the default would understate intent.
+                results=results,
                 quorum_requested=len(results),
-                quorum_received=sum(1 for r in results if r.success),
             )
         except (OSError, PermissionError) as exc:
             cf_safe_log_error(
@@ -756,6 +803,7 @@ def converge(
         blocking = ledger_blocking_items(
             ledger, blocking_criticalities=blocking_criticalities,
         )
+        adjudication = ledger_adjudication_items(ledger)
 
         # Track post-compact blocking trend
         trend.append(len(blocking))
@@ -770,6 +818,39 @@ def converge(
                 f"{summary.get('confirmed_count', 0)} confirmed, "
                 f"{summary.get('unconfirmed_count', 0)} unconfirmed"
             )
+
+        if adjudication:
+            logger.warning(
+                "Adjudication required for %d high-impact judgment findings",
+                len(adjudication),
+            )
+            adjudication_result = ConvergenceResult(
+                converged=False,
+                rounds=round_num,
+                reason="adjudication_required",
+                consensus=consensus_dict,
+                escalate_findings=adjudication,
+                validation_errors=all_validation_errors or None,
+                checkpoint_dir=latest_checkpoint_dir,
+            )
+            if escalation_callback is not None:
+                escalation_callback(_build_escalation_summary(
+                    reason="adjudication_required",
+                    rounds_completed=round_num,
+                    unresolved_findings=adjudication,
+                    trend=trend,
+                    consensus_dict=consensus_dict,
+                ))
+            if memory_callback:
+                memory_callback(json.dumps(_build_convergence_metrics(
+                    rounds_completed=round_num,
+                    findings_per_round=trend,
+                    convergence_status="adjudication_required",
+                    total_time_seconds=time.monotonic() - start_time,
+                    consensus_dict=consensus_dict,
+                    escalation_count=1,
+                )))
+            return adjudication_result
 
         # 2i. If no blocking → converged (parked leftovers are advisory).
         if not blocking:

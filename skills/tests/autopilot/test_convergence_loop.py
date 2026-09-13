@@ -276,6 +276,55 @@ def test_unconfirmed_medium_judgment_does_not_enter_fix_callback(tmp_path: Path)
     fix_cb.assert_not_called()
 
 
+@pytest.mark.parametrize("criticality", ["high", "critical"])
+def test_unconfirmed_high_impact_judgment_requires_adjudication(
+    tmp_path: Path,
+    criticality: str,
+) -> None:
+    finding = _make_consensus_finding(
+        1,
+        status="unconfirmed",
+        criticality=criticality,
+        evidence_class="judgment",
+    )
+    results = [
+        _make_review_result("vendor_a", findings=[{
+            "id": 1,
+            "type": "correctness",
+            "criticality": criticality,
+            "description": "Stale checkpoint may overwrite a concurrent transition",
+            "disposition": "fix",
+            "evidence_class": "judgment",
+        }]),
+        _make_review_result("vendor_b", findings=[]),
+    ]
+    ctx = _setup_converge(
+        [results],
+        [_make_consensus_report(findings=[finding])],
+        tmp_path,
+    )
+    fix_cb = MagicMock()
+    escalation_cb = MagicMock()
+
+    with patch("convergence_loop.ConsensusSynthesizer", return_value=ctx["synthesizer"]):
+        result = converge(
+            change_id="test-change",
+            review_type="plan",
+            artifacts_dir=ctx["artifacts_dir"],
+            worktree_path=tmp_path,
+            orchestrator=ctx["orchestrator"],
+            fix_callback=fix_cb,
+            escalation_callback=escalation_cb,
+        )
+
+    assert result.converged is False
+    assert result.reason == "adjudication_required"
+    assert result.escalate_findings
+    assert result.escalate_findings[0]["evidence_class"] == "judgment"
+    fix_cb.assert_not_called()
+    escalation_cb.assert_called_once()
+
+
 def test_non_decreasing_blocking_stalls(tmp_path: Path) -> None:
     finding = _make_consensus_finding(1, status="confirmed", criticality="high")
     round_results = [
@@ -709,4 +758,3 @@ def test_spec_gap_payload_includes_derived_spec_file(tmp_path: Path) -> None:
     assert str(spec) in payload["allowed_paths"]
     ledger = load_or_create(ctx["artifacts_dir"], "test-change")
     assert ledger["items"][0]["spec_file"] == str(spec)
-

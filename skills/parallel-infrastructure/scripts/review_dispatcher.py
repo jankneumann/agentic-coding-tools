@@ -113,6 +113,51 @@ def _validate_findings_or_error(
     return findings, None
 
 
+_PLACEHOLDER_ONLY_PATTERNS = (
+    re.compile(r"^placeholder(?:\s+(?:while|pending|until)\b.*)?[.!]?$", re.IGNORECASE),
+    re.compile(
+        r"^(?:review|analysis)(?:\s+is)?\s+"
+        r"(?:pending|in[ -]progress|running)(?:\b.*)?[.!]?$",
+        re.IGNORECASE,
+    ),
+)
+
+
+def _is_placeholder_message(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    normalized = " ".join(value.strip().split())
+    return any(pattern.fullmatch(normalized) for pattern in _PLACEHOLDER_ONLY_PATTERNS)
+
+
+def _is_placeholder_only_response(
+    findings: dict[str, Any],
+    stdout: str,
+) -> bool:
+    """Return True only when the complete response is provisional text."""
+    items = findings.get("findings") or []
+    if items:
+        descriptions = [
+            item.get("description")
+            for item in items
+            if isinstance(item, dict)
+        ]
+        return bool(descriptions) and all(
+            _is_placeholder_message(description) for description in descriptions
+        )
+
+    try:
+        envelope = json.loads(stdout)
+    except (json.JSONDecodeError, TypeError):
+        return False
+    if not isinstance(envelope, dict):
+        return False
+    return any(
+        _is_placeholder_message(envelope.get(key))
+        for key in ("text", "output", "response")
+    )
+
+
 # ---------------------------------------------------------------------------
 # Error classification
 # ---------------------------------------------------------------------------
@@ -600,6 +645,18 @@ class CliVendorAdapter:
             findings, schema_error = _validate_findings_or_error(findings)
             if findings is not None:
                 findings = stamp_judgment_ingest(findings)
+                if _is_placeholder_only_response(findings, stdout):
+                    return ReviewResult(
+                        vendor=self.vendor,
+                        success=False,
+                        model_used=model_name,
+                        models_attempted=models_attempted,
+                        elapsed_seconds=elapsed,
+                        error="non_substantive_placeholder",
+                        raw_stdout=stdout,
+                        raw_stderr=stderr or None,
+                        coercions=coercions,
+                    )
                 arr = findings.get("findings") or []
                 if arr == [] and elapsed < empty_findings_min_seconds():
                     return ReviewResult(
@@ -1961,6 +2018,7 @@ class ReviewOrchestrator:
         timeout_seconds: int | None = None,
         exclude_vendor: str | None = None,
         packet_path: Path | str | None = None,
+        result_callback: Callable[[ReviewResult, int], None] | None = None,
     ) -> list[ReviewResult]:
         """Dispatch reviews to available vendors concurrently and collect results.
 
@@ -2130,6 +2188,11 @@ class ReviewOrchestrator:
 
         collected: dict[int, ReviewResult] = {}
 
+        def _collect(index: int, result: ReviewResult) -> None:
+            if result_callback is not None:
+                result_callback(result, job_count)
+            collected[index] = result
+
         with ThreadPoolExecutor(max_workers=job_count) as pool:
             submit_futs = {
                 pool.submit(
@@ -2155,50 +2218,54 @@ class ReviewOrchestrator:
             }
 
             submitted: list[tuple[dict[str, Any], ReviewResult]] = []
-            for fut in as_completed(submit_futs):
+            for fut in as_completed({**submit_futs, **sync_futs}):
+                if fut in sync_futs:
+                    _collect(sync_futs[fut], fut.result())
+                    continue
                 job = submit_futs[fut]
-                submitted.append((job, fut.result()))
-
-            poll_futs: dict[Any, dict[str, Any]] = {}
-            for job, submit_result in submitted:
+                submit_result = fut.result()
                 mode_config = job["mode_config"]
                 if (
                     submit_result.success
                     and submit_result.task_id
                     and mode_config.poll
                 ):
-                    adapter = job["adapter"]
-                    task_id = submit_result.task_id
-                    poll_config = mode_config.poll
-
-                    def _poll_run(
-                        run_cwd: Path,
-                        a: CliVendorAdapter = adapter,
-                        tid: str = task_id,
-                        pc: PollConfig = poll_config,
-                    ) -> ReviewResult:
-                        return a.poll_for_result(tid, pc, cwd=run_cwd)
-
-                    poll_futs[pool.submit(
-                        _safe_vendor_call,
-                        job["vendor"],
-                        partial(
-                            _dispatch_with_snapshot_fallback,
-                            vendor=job["vendor"],
-                            cwd=cwd,
-                            round_id=round_id,
-                            run=_poll_run,
-                        ),
-                    )] = job
+                    submitted.append((job, submit_result))
                 else:
-                    collected[job["index"]] = submit_result
+                    _collect(job["index"], submit_result)
 
-            for fut in as_completed({**sync_futs, **poll_futs}):
+            poll_futs: dict[Any, dict[str, Any]] = {}
+            for job, submit_result in submitted:
+                mode_config = job["mode_config"]
+                adapter = job["adapter"]
+                task_id = submit_result.task_id
+                poll_config = mode_config.poll
+                assert task_id is not None
+                assert poll_config is not None
+
+                def _poll_run(
+                    run_cwd: Path,
+                    a: CliVendorAdapter = adapter,
+                    tid: str = task_id,
+                    pc: PollConfig = poll_config,
+                ) -> ReviewResult:
+                    return a.poll_for_result(tid, pc, cwd=run_cwd)
+
+                poll_futs[pool.submit(
+                    _safe_vendor_call,
+                    job["vendor"],
+                    partial(
+                        _dispatch_with_snapshot_fallback,
+                        vendor=job["vendor"],
+                        cwd=cwd,
+                        round_id=round_id,
+                        run=_poll_run,
+                    ),
+                )] = job
+
+            for fut in as_completed(poll_futs):
                 result = fut.result()
-                if fut in sync_futs:
-                    collected[sync_futs[fut]] = result
-                else:
-                    collected[poll_futs[fut]["index"]] = result
+                _collect(poll_futs[fut]["index"], result)
 
         return [collected[i] for i in sorted(collected)]
 
