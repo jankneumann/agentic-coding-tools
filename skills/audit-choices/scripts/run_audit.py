@@ -146,9 +146,6 @@ def _run_audit_inner(
     now: datetime | None,
     git_sha: str | None,
 ) -> AuditRunResult:
-    # D7: resolved before routing, since a range run's output directory is
-    # built from these same two values (D1/D5) rather than from the raw
-    # change_id.
     bundle = collect_evidence.collect_evidence(
         repo_root, change_id=change_id, base_sha=base_sha, head_sha=head_sha
     )
@@ -238,7 +235,7 @@ def _run_audit_inner(
         # D8: retention runs last and can never turn this successful write
         # into a failure — a housekeeping failure is not a write failure.
         try:
-            apply_retention(choices_root, retain=DEFAULT_RETAIN)
+            apply_retention(choices_root, retain=DEFAULT_RETAIN, protect=change_dir.name)
         except Exception as exc:  # noqa: BLE001 - D8: retention never fails a successful run
             logger.warning(
                 "audit-choices: retention failed for the standalone-audit "

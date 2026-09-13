@@ -1,0 +1,103 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "file_path": "skills/tests/audit-choices/test_readonly_posture.py",
+      "line_range": "456-487",
+      "description": "TestChangeIdHeaderTimingMatchesMain::test_generated_at_is_captured_after_evidence_collection almost never fails when the bug it targets is present. make_header formats generated_at as %Y-%m-%dT%H:%M:%SZ, which drops everything below the second. The test compares that value with observed[0].replace(microsecond=0). Suppose resolved_now were moved back above collect_evidence (the regression this test exists to catch). It would then be captured a few microseconds before observed[0]. Both values round down to the same second, so `generated_at >= observed[0].replace(microsecond=0)` still holds. The test only fails if the evidence pass happens to cross a second boundary. The production code is correct (run_audit.py:174 resolves the values after split_schema_valid, where main does), but this guard does not prove it.",
+      "resolution": "Make the ordering observable instead of relying on wall-clock time. One option is to monkeypatch run_audit.datetime with a stub whose now() records a call sequence shared with slow_collect, then assert collect_evidence ran before now(). Another is to make slow_collect sleep past the next whole second before returning, then assert generated_at > observed[0].replace(microsecond=0)."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "file_path": "skills/tests/audit-choices/test_end_to_end.py",
+      "line_range": "423-466",
+      "description": "The scenario-12 CLI case (test_cli_exit_code_and_no_range_directory_under_changes) passes even when the range run fails completely. _cli() returns 0 whatever happens (the never-blocks contract), and a failed run writes nothing. So both assertions, `exit_code == 0` and 'no range:/.. entry under openspec/changes/', hold for a run that persisted no ledger. This is also the only test that runs the range form with now=None and git_sha=None, the real path where _head_sha(repo_root) and datetime.now(timezone.utc) feed build_run_id through route_output_dir. Every other range test injects both values. A regression on that path would slip through: for example _head_sha returning an empty or short string (build_run_id raises ValueError), or a bootstrap or import problem that only shows up in the CLI path. The driver would report ok=False, exit 0, and the test would pass.",
+      "resolution": "After _cli() returns, assert that exactly one openspec/choices/<run-id>*/choices.json exists, that its change_id equals range_change_id, and that openspec/choices/latest.json is byte-equal to it. Optionally match the directory name against RUN_ID_RE and check that its sha7 is head_sha[:7]."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "file_path": "skills/tests/audit-choices/test_readonly_posture.py",
+      "line_range": "70-77",
+      "description": "The D6 closed-write-set tests are closed over files but not directories. _snapshot skips every path where path.is_dir() is true, so an empty directory created by a run never shows up in changed_or_new. The effect D8 calls a 'fourth effect outside D6's set' is exactly such an empty reserved run directory, which list_active_runs counts as a run. It is tested only on the failure path (TestFailedRangeRunLeavesNoOrphanDirectory). On the success path, test_range_form_writes_confined_to_run_directory_and_latest and the over-limit retention test would still pass if a regression reserved twice: _reserve_run_id mkdirs the base, the driver then writes to a `-2` sibling, and the empty base is left behind. The retention variant's deleted-set check has the same blind spot for a run directory emptied but not removed.",
+      "resolution": "Include directories in the snapshot, for example by recording each directory's relative path with a sentinel value. Then assert that the set of new directories equals the expected set: the run directory, openspec/choices/ and openspec/ if they are new, and archive/<oldest> in the retention case."
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "skills/tests/audit-choices/test_skill_md.py",
+      "line_range": "82-91",
+      "description": "The 'run directory' check in _assert_names_all_three_effects is loose enough that the archive clause alone satisfies it. The Read-Only Contract paragraph says 'retention's move of older run directories into openspec/choices/archive/', and the Output bullet says 'once more than the retained count of run directories exist'. Both contain 'run director'. You could delete the run-directory effect from either passage ('that run's choices.json and choices.md under openspec/choices/' in the contract, or the '<YYYY-MM-DD>-HHMMSS-<sha7>/choices.json' path in Output), and test_read_only_contract_names_the_range_form_destinations and test_output_section_lists_the_range_form_destination would still pass. Only the Red Flags bullet, which lacks the phrase 'run directories', is pinned the way the docstring claims.",
+      "resolution": "Pin the run-directory effect with a phrase the other two effects cannot supply. For example, require 'openspec/choices/<' or 'HHMMSS', or require 'choices.json' to appear somewhere in the passage other than inside an openspec/changes/<change-id>/ path. Alternatively, drop the 'run director' and \"run's\" alternatives."
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "optional",
+      "disposition": "fix",
+      "file_path": "skills/audit-choices/scripts/run_audit.py",
+      "line_range": "238-250",
+      "description": "Retention can archive the run that was just written. apply_retention(choices_root, retain=DEFAULT_RETAIN) chooses what to archive purely by (base, ordinal) ordering from list_active_runs and never excludes change_dir. openspec/choices/ is a tracked tree, so it can receive run directories from other machines or branches. If DEFAULT_RETAIN or more active runs sort after the current run's name, the current run is the oldest of 31 and gets moved to archive/<run-id>/ in the same call. Causes include a clock behind the one that produced the committed runs, or two HEADs in the same second where the other sha7 sorts higher. The driver then returns ok=True with json_path and md_path pointing at files that no longer exist, and latest.* now copies an archived run. The workflow's commit step would stage nonexistent paths, which is the 'false outcome' problem D8 guards against in the other direction.",
+      "resolution": "Never archive the current run. Either pass the current run name to apply_retention as an exclusion (keep the parameter optional so prioritize-proposals is unaffected), or check after retention whether change_dir still exists and, if not, log a warning and return the archived paths."
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "fyi",
+      "disposition": "accept",
+      "file_path": "skills/audit-choices/scripts/run_audit.py",
+      "line_range": "227-236",
+      "description": "The latest.* update is not atomic as a pair. shutil.copyfile(json_path, latest_json) runs first. If the second copy then raises OSError (disk full, or latest.md is read-only or a directory), the guard logs a warning, and latest.json now mirrors the new run while latest.md still mirrors the previous one. Scenario 12 requires latest.json and latest.md to be copies of 'that run's pair'. After this failure the two pointers silently describe different runs, and the warning does not mention the mismatch.",
+      "resolution": "Copy both files to temporary siblings under choices_root, then os.replace them into place one after the other. Or, if the md copy fails, remove or restore latest.json and say in the warning that the pointers were left unchanged. This is acceptable as-is if split pointers are an explicitly tolerated degraded state."
+    },
+    {
+      "id": 7,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "disposition": "accept",
+      "file_path": "skills/shared/artifact_paths.py",
+      "line_range": "94-96",
+      "description": "The migration is not quite behavior-neutral for prioritize-proposals, and D4's guard would not catch the difference. Widening RUN_ID_RE with (?:-(\\d+))? means the priorities list_active_runs now accepts directory names main rejected, such as `2026-06-10-143052-a93fe59-2` or `2026-06-10-7`. retention.py --base openspec/priorities will now count those directories toward the retain limit and may archive them. On main they were ignored. None of the three guard layers covers this: test_output_characterization.py pins only names the skill produces, and the unchanged test_retention.py and test_priorities_paths.py never test a suffixed or date-plus-digits name. Hand trace: every name that matched on main still has group 4 = None, so its sort key is (name, 1) and the lexical order of previously valid names is preserved. The only observable change is admitting new names.",
+      "resolution": "Either accept this and note it in D8 ('prioritize-proposals now also counts suffixed siblings'), or add a characterization case that pins it. Splitting the regex (suffix allowed only for the choices root) would contradict D2's one-format goal, so documenting it is the better choice."
+    },
+    {
+      "id": 8,
+      "type": "style",
+      "criticality": "low",
+      "axis": "readability",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "skills/audit-choices/scripts/run_audit.py",
+      "line_range": "149-151",
+      "description": "Three comments or docstrings are stale or contradictory. (a) run_audit.py:149-151 says '# D7: resolved before routing\u2026' directly above collect_evidence, but the values are now resolved at line 174, after evidence collection, and the comment at 169-173 says hoisting them there would be wrong. The first comment is left over from the hoisted version that impl-round-2 reverted. (b) prioritize-proposals/scripts/retention.py:5 still says retention 'sorts lexically', but list_active_runs now sorts by (base, suffix ordinal). (c) shared/artifact_paths.py:113-114: the list_active_runs docstring runs two sentences together ('sorted chronologically' then 'Ordered by \u2026' with no period), and the same explanation is repeated in the comment at lines 128-132.",
+      "resolution": "Delete or rewrite the comment at run_audit.py:149-151. Update retention.py's module docstring to describe (base, ordinal) ordering. Fix the list_active_runs docstring and remove the duplicate comment."
+    }
+  ]
+}

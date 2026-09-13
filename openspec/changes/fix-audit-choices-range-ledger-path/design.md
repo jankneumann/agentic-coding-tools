@@ -284,6 +284,13 @@ output moved to `openspec/priorities/<YYYY-MM-DD>-HHMMSS-<sha7>/`.
   not a merged view across runs. `SKILL.md`'s verification step for
   idempotency is reworded so a range re-audit compares the two run
   directories' ledgers rather than one file with itself.
+  - Retention never archives the run that was just written. It is passed as
+    `protect` and excluded from the archive candidates — though not from the
+    count, so the tree still settles at `retain` directories and the
+    next-oldest is taken instead. `openspec/choices/` is tracked, so it can
+    hold runs from other branches or machines with later dates; without this
+    a run whose date sorts oldest would have its ledger moved out from under
+    the `json_path` the driver just returned (impl-round-3).
   - Retention runs last, after the pair and `latest.*` are written, and is
     wrapped on its own: a failure (a `shutil.move` that cannot complete) logs a
     warning and leaves the result `ok=True` with both paths set. Without that,

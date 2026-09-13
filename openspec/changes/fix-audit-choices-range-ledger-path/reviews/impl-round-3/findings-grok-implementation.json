@@ -1,0 +1,55 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "TestChangeIdHeaderTimingMatchesMain.test_generated_at_is_captured_after_evidence_collection does not pin the impl-round-2 header-timing contract. It records collect_evidence's wall clock into observed, then asserts generated_at >= observed[0].replace(microsecond=0). The wrapper never delays collection and never freezes datetime.now, so a regression that resolves now/git_sha before collect_evidence still passes whenever both timestamps fall in the same UTC second \u2014 the common case for this fixture. The assertion only fails if collection happens to cross a second boundary. The change-id form's byte-for-byte header timing can therefore regress with a green suite.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Replace the wall-clock comparison with a deterministic probe: monkeypatch datetime.now (or inject distinct now values around collect_evidence) so a pre-collection resolution yields a generated_at strictly before the collection timestamp and fails, while the post-collection order passes.",
+      "file_path": "skills/tests/audit-choices/test_readonly_posture.py",
+      "line_range": {
+        "start": 456,
+        "end": 487
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "D6 guards the latest.* copyfile the same way it guards retention \u2014 after write_ledger_pair succeeds, an OSError must warn and leave ok=True with json_path/md_path set, otherwise the outer handler reports a persisted ledger as failed. Retention has TestRangeFormRetention.test_retention_failure_does_not_fail_a_successful_run (monkeypatch apply_retention, assert ok, paths on disk, exactly one warning). Nothing analogous monkeypatches shutil.copyfile or asserts the 'could not update the latest.* pointers' warning. Removing the copy try/except leaves every existing test green while reintroducing the false-failure window round-2 already found.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Add a range-form case that monkeypatches shutil.copyfile to raise OSError after a successful pair write and asserts result.ok is True, both paths set and on disk, and exactly one warning naming the latest.* pointers (mirroring the retention-failure test).",
+      "file_path": "skills/audit-choices/scripts/run_audit.py",
+      "line_range": {
+        "start": 227,
+        "end": 236
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "test_red_flags_bullet_names_the_range_form_destinations is still not scoped to the read-only Red Flags bullet. _paragraph_containing delimits on blank lines, and the Red Flags section is a contiguous markdown list with no blank lines between bullets, so the returned 'bullet' is the entire six-bullet section (confirmed: it includes the unrelated provenance.commits bullet and the exit-code bullet). Mentions of latest.json, openspec/choices/archive/, or \"run's\" anywhere in Red Flags satisfy the check even if the contract-violation bullet drops the range-form destination. Task 5.1 asked for paragraph-scoped pins so a mention elsewhere cannot pass.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Split the Red Flags section on '\\n- ' (or equivalent) and assert against the single bullet that contains 'the read-only contract has been violated', not the blank-line-delimited span of the whole list.",
+      "file_path": "skills/tests/audit-choices/test_skill_md.py",
+      "line_range": {
+        "start": 104,
+        "end": 108
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

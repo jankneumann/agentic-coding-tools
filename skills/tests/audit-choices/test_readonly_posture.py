@@ -10,7 +10,7 @@ import json
 import logging
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -450,19 +450,42 @@ class TestChangeIdHeaderTimingMatchesMain:
     hoisting their resolution above `collect_evidence` changed *when* the
     change-id form captures them too. `main` resolves them immediately before
     building the header, and the change-id form is contracted byte-for-byte
-    unchanged, so a slow evidence pass or a moving HEAD must not shift
-    `generated_at`."""
+    unchanged.
 
-    def test_generated_at_is_captured_after_evidence_collection(self, fixture_repo, monkeypatch):
+    impl-round-3 (claude_code, grok): the first version of this test compared
+    a second-truncated `generated_at` against the collection start and passed
+    whenever both fell in the same second — which is almost always. It never
+    failed against the bug. This version does not measure time at all: it
+    replaces the clock with a counter, so "resolved before collection" and
+    "resolved after collection" produce different values rather than the same
+    one rounded.
+    """
+
+    def test_generated_at_is_resolved_after_evidence_collection(
+        self, fixture_repo, monkeypatch
+    ):
         repo_root = fixture_repo["repo_root"]
         real_collect = run_audit.collect_evidence.collect_evidence
-        observed: list[datetime] = []
 
-        def slow_collect(*args, **kwargs):
-            observed.append(datetime.now(timezone.utc))
+        # A clock that advances one hour per call. Whichever side of
+        # collect_evidence the resolution happens on gets a different hour,
+        # so the assertion discriminates without depending on wall time.
+        ticks = {"n": 0}
+        base = datetime(2026, 8, 23, tzinfo=timezone.utc)
+
+        class _Clock:
+            @staticmethod
+            def now(tz=None):
+                ticks["n"] += 1
+                return base + timedelta(hours=ticks["n"])
+
+        def collecting(*args, **kwargs):
+            # Burn a tick so that resolving before vs after differs by an hour.
+            _Clock.now()
             return real_collect(*args, **kwargs)
 
-        monkeypatch.setattr(run_audit.collect_evidence, "collect_evidence", slow_collect)
+        monkeypatch.setattr(run_audit, "datetime", _Clock)
+        monkeypatch.setattr(run_audit.collect_evidence, "collect_evidence", collecting)
 
         result = run_audit.run_audit(
             repo_root=repo_root,
@@ -473,15 +496,81 @@ class TestChangeIdHeaderTimingMatchesMain:
             run_id="run-timing-001",
         )
         assert result.ok is True
-        assert observed, "evidence collection did not run"
 
         doc = json.loads(result.json_path.read_text())
-        generated_at = datetime.strptime(
-            doc["header"]["generated_at"], "%Y-%m-%dT%H:%M:%SZ"
-        ).replace(tzinfo=timezone.utc)
-        # Resolved after evidence collection, as on main. If it were hoisted
-        # above, generated_at would predate the collection timestamp.
-        assert generated_at >= observed[0].replace(microsecond=0), (
-            "generated_at was captured before evidence collection; the "
-            "change-id form's header timing changed"
+        generated_at = doc["header"]["generated_at"]
+        # Tick 1 is burned inside collect_evidence, so a resolution that runs
+        # after it sees hour 2. Resolving before collection would give hour 1.
+        assert generated_at == "2026-08-23T02:00:00Z", (
+            f"generated_at is {generated_at}; hour 01 means it was resolved "
+            "before evidence collection, which is the impl-round-2 regression"
+        )
+
+
+class TestLatestCopyFailureDoesNotFailARun:
+    """impl-round-3 (grok): retention's guard has a test; the latest.* guard
+    added in the same round did not. Both close the same window — the pair is
+    already on disk, so a housekeeping failure must not report a persisted
+    ledger as a failed run."""
+
+    def test_copy_failure_leaves_the_run_successful(self, fixture_repo, monkeypatch, caplog):
+        repo_root = fixture_repo["repo_root"]
+
+        def _boom(*args, **kwargs):
+            raise OSError("simulated latest.* copy failure")
+
+        monkeypatch.setattr(run_audit.shutil, "copyfile", _boom)
+
+        with caplog.at_level(logging.WARNING):
+            result = run_audit.run_audit(
+                repo_root=repo_root,
+                change_id=f"range:{fixture_repo['base_sha']}..{fixture_repo['head_sha']}",
+                base_sha=fixture_repo["base_sha"],
+                head_sha=fixture_repo["head_sha"],
+                candidates=[_good_candidate(fixture_repo["head_sha"])],
+                run_id="run-latest-fail-001",
+                now=datetime(2026, 8, 24, tzinfo=timezone.utc),
+                git_sha=fixture_repo["head_sha"],
+            )
+
+        assert result.ok is True, "a latest.* failure must not fail a written run"
+        assert result.json_path is not None and result.json_path.exists()
+        assert result.md_path is not None and result.md_path.exists()
+        assert any("latest" in r.message.lower() for r in caplog.records), (
+            "the failure must be reported, not swallowed"
+        )
+
+
+class TestRetentionNeverArchivesTheRunJustWritten:
+    """impl-round-3 (claude_code): `apply_retention` chose what to archive
+    purely by ordering and never excluded the caller's own run. Because
+    `openspec/choices/` is tracked, it can hold runs from other branches or
+    machines with later dates, so a run whose date sorts oldest would have its
+    ledger archived out from under the `json_path` the driver returns."""
+
+    def test_our_run_survives_even_when_it_sorts_oldest(self, fixture_repo):
+        repo_root = fixture_repo["repo_root"]
+        choices_root = repo_root / "openspec" / "choices"
+        choices_root.mkdir(parents=True, exist_ok=True)
+        # Every other run is newer, so ours is the oldest and would be the
+        # first thing retention takes.
+        for i in range(1, DEFAULT_RETAIN + 2):
+            d = choices_root / f"2027-06-{i % 28 + 1:02d}-000000-{i:07x}"
+            d.mkdir(parents=True, exist_ok=True)
+            (d / "choices.json").write_text("{}")
+
+        result = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id=f"range:{fixture_repo['base_sha']}..{fixture_repo['head_sha']}",
+            base_sha=fixture_repo["base_sha"],
+            head_sha=fixture_repo["head_sha"],
+            candidates=[_good_candidate(fixture_repo["head_sha"])],
+            run_id="run-protect-001",
+            now=datetime(2020, 1, 1, tzinfo=timezone.utc),  # oldest by far
+            git_sha=fixture_repo["head_sha"],
+        )
+        assert result.ok is True
+        assert result.json_path.exists(), (
+            "retention archived the run that had just been written; the path "
+            "the driver returned no longer exists"
         )

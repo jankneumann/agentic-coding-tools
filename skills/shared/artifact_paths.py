@@ -45,6 +45,13 @@ ARCHIVE_DIRNAME = "archive"
 # computed run-id's directory already exists at the same HEAD in the same
 # UTC second. `prioritize-proposals` never emits a suffix; accepting one
 # costs it nothing and keeps one format shared.
+#: Widening this with the optional `-(\d+)` group also widens what
+#: `prioritize-proposals` accepts: its `list_active_runs` now tolerates a
+#: suffixed directory name it used to skip. That producer never emits one,
+#: so the only reachable effect is that a hand-created `<run-id>-2` under
+#: `openspec/priorities/` would be counted rather than ignored. Accepted as
+#: the cost of one shared format; D4's guard does not cover it because no
+#: such directory exists.
 RUN_ID_RE = re.compile(
     r"^(\d{4}-\d{2}-\d{2})(?:-(\d{6}|legacy)(?:-([a-f0-9]+))?)?(?:-(\d+))?$"
 )
@@ -144,13 +151,25 @@ def list_active_runs(base_dir: Path) -> list[Path]:
     return out
 
 
-def apply_retention(base_dir: Path, retain: int) -> RetentionResult:
+def apply_retention(
+    base_dir: Path, retain: int, *, protect: str | None = None
+) -> RetentionResult:
     """Move the oldest active runs under `base_dir` to `archive/` until
     `retain` remain. Archive-not-delete: nothing is ever destroyed.
 
     Returns the resulting active and archived counts (this call's archive
     moves only — an existing archive is never re-counted).
     """
+    # `protect` names the run the caller just wrote. Retention orders by
+    # (base, ordinal), and a caller whose run sorts oldest — clock skew, or a
+    # tracked tree that received newer runs from another branch or machine —
+    # would otherwise have its own ledger archived out from under the paths it
+    # is about to return, so `json_path` would name a file that had moved.
+    #
+    # It is excluded from the archive *candidates*, not from the count: the
+    # tree still settles at `retain` directories, and the next-oldest run is
+    # taken in its place. Dropping it from the count too would quietly make
+    # the real bound `retain + 1`.
     if retain < 1:
         raise ValueError(f"retain must be >= 1, got {retain}")
     active = list_active_runs(base_dir)
@@ -158,7 +177,8 @@ def apply_retention(base_dir: Path, retain: int) -> RetentionResult:
         return RetentionResult(active_count=len(active), archived_count=0)
     archive_dir = base_dir / ARCHIVE_DIRNAME
     archive_dir.mkdir(exist_ok=True)
-    to_archive = active[: len(active) - retain]
+    candidates = [p for p in active if p.name != protect]
+    to_archive = candidates[: len(active) - retain]
     for src in to_archive:
         dst = archive_dir / src.name
         shutil.move(str(src), str(dst))
