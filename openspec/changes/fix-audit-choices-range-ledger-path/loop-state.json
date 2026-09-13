@@ -1,7 +1,7 @@
 {
   "schema_version": 5,
   "change_id": "fix-audit-choices-range-ledger-path",
-  "current_phase": "VAL_REVIEW",
+  "current_phase": "SUBMIT_PR",
   "iteration": 3,
   "total_iterations": 6,
   "max_phase_iterations": 3,
@@ -12,9 +12,9 @@
   ],
   "blocking_findings": [],
   "vendor_availability": {
-    "antigravity": true,
+    "antigravity": false,
     "claude_code": true,
-    "codex": true,
+    "codex": false,
     "grok": true,
     "pi": false
   },
@@ -30,7 +30,8 @@
     "implement-513368da",
     "impl-iterate-bd5046f1",
     "impl-review-round-3",
-    "validate-1fd4f0de"
+    "validate-1fd4f0de",
+    "val-review-round-2"
   ],
   "phase_history": [
     {
@@ -100,21 +101,32 @@
       "phase": "VALIDATE"
     },
     {
-      "phase": "VALIDATE",
-      "outcome": "passed",
       "at": "2026-09-13T11:44:21.227098+00:00",
-      "note": "Scenarios 12-15 each spot-checked by breaking the behavior and confirming the pinning test fails; none nominal. D4 guard verified byte-identical against origin/main. 377 passed. Harness refused Edit/Write as well as git against the managed worktree \u2014 a wider refusal than previously seen."
+      "note": "Scenarios 12-15 each spot-checked by breaking the behavior and confirming the pinning test fails; none nominal. D4 guard verified byte-identical against origin/main. 377 passed. Harness refused Edit/Write as well as git against the managed worktree \u2014 a wider refusal than previously seen.",
+      "outcome": "passed",
+      "phase": "VALIDATE"
+    },
+    {
+      "at": "2026-09-13T14:50:00.903537+00:00",
+      "outcome": "converged",
+      "phase": "VAL_REVIEW"
+    },
+    {
+      "at": "2026-09-13T14:50:00.957935+00:00",
+      "note": "2 rounds, 13 findings, ALL report-accuracy \u2014 zero code findings. Round 2 found round 1 corrections landed only in ## Overall while the gate-parsed ## Spec Compliance still carried the retracted claim. context-refresh actually run: 56 failures, 1 ours (spec:skill-workflow pending merge, normal pre-archive), 55 unrelated. Vendors degraded: pi auth expired, antigravity flag error, codex timeout.",
+      "outcome": "operator_accepted",
+      "phase": "VAL_REVIEW"
     }
   ],
-  "last_handoff_id": "validate-1fd4f0de",
+  "last_handoff_id": "val-review-round-2",
   "started_at": "2026-09-12T02:56:20.382561+00:00",
-  "phase_started_at": "2026-09-13T11:44:21.227107+00:00",
-  "previous_phase": "VALIDATE",
+  "phase_started_at": "2026-09-13T14:50:00.957943+00:00",
+  "previous_phase": "VAL_REVIEW",
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
   "error": null,
-  "phase_archetype": null,
+  "phase_archetype": "runner",
   "force": false,
   "gate_signals": {
     "external_dep_count": 0,
@@ -156,8 +168,38 @@
       "reason": "gate 'proposal_approval' approved by the operator \u2014 Operator approved autonomous execution. Plan content was separately approved at plan-feature Gate 2; gatekeeper returned proceed_with_review.",
       "recorded_at": "2026-09-12T03:07:28.204604+00:00",
       "resolution": "console_approved"
+    },
+    {
+      "gate": "pr_creation",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'pr_creation' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-13T14:50:13.086904+00:00"
     }
   ],
-  "pending_gate": null,
+  "pending_gate": {
+    "schema_version": 1,
+    "change_id": "fix-audit-choices-range-ledger-path",
+    "gate": "pr_creation",
+    "phase": "SUBMIT_PR",
+    "requested_at": "2026-09-13T14:50:13.087445+00:00",
+    "prompt": "Create the pull request for this change?",
+    "context": {
+      "branch": "openspec/fix-audit-choices-range-ledger-path",
+      "change_id": "fix-audit-choices-range-ledger-path"
+    },
+    "posture": {
+      "disposition": "block",
+      "posture_present": false
+    }
+  },
   "goal_gate": null
 }
