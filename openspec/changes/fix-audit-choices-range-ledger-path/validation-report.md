@@ -96,7 +96,12 @@ broke the implementation and confirmed the pinning test actually fails
   correctly naming the unexpected file. Reverted; suite back to green.
   Discriminating.
 
-No nominal (non-discriminating) coverage found among scenarios 12–15.
+Scenarios 12–15 are backed by discriminating tests. One qualification,
+found by validation review and since fixed: the scenario-12 CLI case
+asserted only `exit_code == 0` and the absence of a `range:` directory,
+both of which hold for a run that did nothing, since `_cli()` returns 0
+whatever happens. That one case was nominal until it was given a positive
+assertion. See `## Overall` for the full correction.
 
 **D4 guard (prioritize-proposals migration is behavior-preserving), verified:**
 
@@ -170,11 +175,39 @@ $ openspec validate fix-audit-choices-range-ledger-path --strict
 Change 'fix-audit-choices-range-ledger-path' is valid
 ```
 
+## Quality Gates
+
+- **Status**: degraded
+
+Three of the four gates the Phase 5 checkpoint names pass: `install.sh
+--check`, `dependency_direction.py`, and `tests/ci_coverage`. The fourth,
+`make context-refresh`, is red for the reasons attributed below — one of its
+56 entries is this change's own pre-archive spec delta and 55 are unrelated.
+This heading is not in `gate_logic`'s parsed allow-list, so this status is
+documentation rather than gate input; the four phases the gate does read are
+recorded in their own sections above. It is written in the same form so a
+reader does not have to guess which checks were run.
+
 ## Known and Out of Scope (not fixed here, by design)
 
-- `make context-refresh` fails repo-wide for ~30 unrelated active changes —
-  pre-existing, unrelated to this change, not re-verified here since it is
-  explicitly out of scope for VALIDATE.
+- `make context-refresh` — **run, not assumed.** The first version of this
+  report called the failure "unrelated to this change" without running
+  anything, which validation review correctly challenged: a read-only target
+  (`make context-refresh-check`, Makefile:449) exists, and this branch does
+  edit a generated file, `docs/decisions/skill-workflow.md`.
+
+  Run: exit 2, 56 failing validations. Attribution:
+  - **`docs/decisions` reports current.** The regenerated decisions file this
+    branch edits is consistent, so it contributes no drift there.
+  - **One failure is ours**: `spec:skill-workflow` — "has a pending merge".
+    That is the expected state of any unarchived change's spec delta, which
+    merges at archive time by design, not drift this change introduced.
+  - **The other 55 are unrelated**, all "would be created" or "has a pending
+    merge" for other active changes' specs.
+
+  So the gate is red, one of its 56 entries belongs to this change, and that
+  entry is the normal pre-archive state. "Unrelated" was imprecise; "not
+  caused by this change's code" is accurate.
 - Low findings from implementation review round 3, left unfixed by
   decision. Validation review found the first version of this list both
   incomplete and wrong about two entries; corrected here.
@@ -201,7 +234,14 @@ Change 'fix-audit-choices-range-ledger-path' is valid
      enough that the archive clause alone satisfies it** — "run directories"
      appears inside the archive sentence, so the run-directory effect is not
      independently pinned.
-  5. **Widening `RUN_ID_RE` also widened what `prioritize-proposals`
+  5. **Scenario 15's mutation was weaker than it reads.**
+     `test_range_form_writes_confined_to_run_directory_and_latest` builds its
+     allowed set from `result.json_path.parent` — the implementation's own
+     answer about where the run went. A routing change that moved the run
+     somewhere unintended would move the expectation with it. The stray-file
+     mutation the report cites does discriminate, but only for writes
+     *outside* whatever directory the implementation chose.
+  6. **Widening `RUN_ID_RE` also widened what `prioritize-proposals`
      accepts.** Its `list_active_runs` now tolerates a suffixed directory
      name it previously skipped. That producer never emits one, so the only
      reachable effect is a hand-created `<run-id>-2` being counted rather
