@@ -36,9 +36,9 @@
 
 ## Phase 3: Validation
 
-- [ ] 3.1 Update requirement traceability evidence [XS]
+- [x] 3.1 Update requirement traceability evidence [XS]
   **Dependencies**: 1.5, 2.5
-- [ ] 3.2 Run strict OpenSpec validation [XS]
+- [x] 3.2 Run strict OpenSpec validation [XS]
   **Dependencies**: 3.1
-- [ ] 3.3 Run repository quality gates [S]
+- [x] 3.3 Run repository quality gates [S]
   **Dependencies**: 3.2

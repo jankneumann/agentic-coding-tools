@@ -45,3 +45,24 @@ The supervisor-roadmap failure investigation identified three review-pipeline gu
 | Date Range | 2026-09-13 — 2026-09-13 |
 | Interactions | 1 implementation directive plus status updates |
 | Source | live conversation and canonical roadmap artifacts |
+
+---
+
+## Phase: Validation (2026-09-13)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Defer behavior-preserving module splits** — Architecture size checks are advisory and a split would widen the incident-recovery change; GitHub issue #535 owns the follow-up.
+
+### Completed Work
+- spec
+- evidence
+- architecture
+- vendor-review
+
+### Next Steps
+- /cleanup-feature harden-substantive-review-gates
+
+### Context
+Validated the non-deployable review-convergence guardrails through three authorized vendor-panel rounds. Required spec, package, test, traceability, and changed-surface lint gates passed; advisory modularity debt is issue #535.
