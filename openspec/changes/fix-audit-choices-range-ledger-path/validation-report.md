@@ -168,15 +168,37 @@ Change 'fix-audit-choices-range-ledger-path' is valid
 - `make context-refresh` fails repo-wide for ~30 unrelated active changes —
   pre-existing, unrelated to this change, not re-verified here since it is
   explicitly out of scope for VALIDATE.
-- Three low findings deliberately left unfixed from implementation review
-  round 3: the `latest.*` pair is not updated atomically (a copy failure or
-  crash between the two `shutil.copyfile` calls can leave `latest.json` and
-  `latest.md` out of sync); the closed-write-set snapshot helper
-  (`_snapshot` in the test files) skips directories rather than walking
-  into them structurally (it only records file leaf paths, which is
-  sufficient for the assertions made but not a general-purpose directory
-  diff); and one Red Flags doc assertion in `SKILL.md` is broader in
-  wording than the literal three-effect set D6 defines.
+- Low findings from implementation review round 3, left unfixed by
+  decision. Validation review found the first version of this list both
+  incomplete and wrong about two entries; corrected here.
+
+  1. **The `latest.*` pair is not updated atomically.** A failure between the
+     two `shutil.copyfile` calls leaves `latest.json` mirroring the new run
+     and `latest.md` the previous one. The failure is logged and the
+     canonical pair in the run directory is unaffected, which is why this is
+     low rather than medium.
+  2. **The closed-write-set snapshot helper does not see directories.**
+     `_snapshot` records file leaf paths only, so an empty directory is
+     invisible to the general closed-set assertions. The one effect that
+     matters — an orphaned empty run directory — has its own dedicated test
+     (`TestFailedRangeRunLeavesNoOrphanDirectory`), so the behavior is
+     covered even though the general helper would not catch it.
+  3. **One Red Flags assertion is over-broad — in the test, not the doc.**
+     The first version of this list put the defect in `SKILL.md`. That is
+     wrong: the Red Flags bullet correctly names all three effects. The
+     defect is in `skills/tests/audit-choices/test_skill_md.py`, where
+     `_paragraph_containing` splits on blank lines and the Red Flags list has
+     none, so the "bullet" it returns is the whole section and the assertion
+     is satisfied by text from a neighbouring bullet.
+  4. **The `<run-id>` check in `_assert_names_all_three_effects` is loose
+     enough that the archive clause alone satisfies it** — "run directories"
+     appears inside the archive sentence, so the run-directory effect is not
+     independently pinned.
+  5. **Widening `RUN_ID_RE` also widened what `prioritize-proposals`
+     accepts.** Its `list_active_runs` now tolerates a suffixed directory
+     name it previously skipped. That producer never emits one, so the only
+     reachable effect is a hand-created `<run-id>-2` being counted rather
+     than ignored. Recorded at the regex definition.
 
 ## Security
 
@@ -205,11 +227,38 @@ were run and spot-checked for discrimination per Spec Compliance above.
 
 ## Overall
 
-**PASS.** All four quality gates green at the expected counts (377 passed,
-1 skipped), both linters clean, `openspec validate --strict` valid, all
-tasks/checkpoints checked and verified against shipped code, D4's
-byte-unchanged guard holds for all four named files, the characterization
-test covers the one migration failure mode that matters (subprocess entry
-points from a runtime-shaped layout), and all four newly-added/modified
-scenarios (12–15) are backed by discriminating tests, each confirmed by a
-deliberate spot-check mutation that the corresponding test caught.
+**PASS.**
+
+Corrected after validation review, which found two claims in the first
+version of this section overstated.
+
+**Gates — three of the checkpoint's four, plus the test suites.** The Phase 5
+checkpoint in `tasks.md` names four gates: `install.sh --check`,
+`dependency_direction.py`, `make context-refresh`, and `tests/ci_coverage`.
+Three pass. **`make context-refresh` was not run to green** — it fails
+repo-wide for roughly thirty unrelated active changes with pending spec
+merges, which predates this branch and is unaffected by it. Recording that as
+one of "four green" was wrong: the first version of this section counted the
+combined pytest run as the fourth gate and quietly dropped context-refresh.
+The pytest run (377 passed, 1 skipped) and `openspec validate --strict` are
+additional evidence, not checkpoint gates.
+
+**Status of that gate: DEGRADED, not pass.** It could not be run to
+completion for reasons outside this change, and a check that could not run is
+not a check that passed.
+
+**Scenario coverage.** Scenarios 12–15 are backed by tests confirmed
+discriminating by deliberate spot-check mutation. One qualification, raised by
+validation review and since fixed: the scenario-12 CLI case
+(`test_cli_exit_code_and_no_range_directory_under_changes`) originally
+asserted only `exit_code == 0` and the absence of a `range:` directory, both
+of which hold for a run that did nothing — `_cli()` returns 0 whatever
+happens. It now asserts the run produced exactly one run directory containing
+both halves of the pair. The other three cases discriminated as reported.
+
+**D4.** `test_priorities_paths.py`, `test_retention.py`, `test_smoke_e2e.py`
+and `prioritize-proposals/SKILL.md` are byte-unchanged against both `main` and
+the merge base, and the characterization test was committed before the shared
+module and the migration, in that order. It covers the migration failure mode
+that matters — subprocess entry points from a runtime-shaped layout — and does
+not claim to cover the bash-authored report body, which no test exercises.

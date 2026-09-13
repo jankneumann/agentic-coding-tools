@@ -457,6 +457,18 @@ class TestStandaloneRangeInvocation:
         exit_code = run_audit._cli()
         assert exit_code == 0
 
+        # Both assertions above and below hold vacuously for a run that did
+        # nothing at all — `_cli()` returns 0 whatever happens (the
+        # never-blocks contract) and a failed run writes no directory. So
+        # assert the positive first: the run actually produced its pair.
+        # impl-round-3 and VAL_REVIEW both flagged this case as nominal
+        # without it.
+        choices_root = repo_root / "openspec" / "choices"
+        runs = [d for d in choices_root.iterdir() if d.is_dir() and d.name != "archive"]
+        assert len(runs) == 1, f"expected exactly one run directory, got {runs}"
+        assert (runs[0] / "choices.json").is_file()
+        assert (runs[0] / "choices.md").is_file()
+
         # This change's whole purpose: no directory named after the commit
         # range exists anywhere under openspec/changes/.
         changes_dir = repo_root / "openspec" / "changes"
