@@ -1,0 +1,135 @@
+schema_version: 1
+
+feature:
+  id: harden-substantive-review-gates
+  title: "Harden substantive review gates"
+  plan_revision: 1
+  created_by: codex
+  created_at: "2026-09-13T00:00:00Z"
+  deployable: false
+
+contracts:
+  revision: 1
+  openapi:
+    primary: "openspec/changes/harden-substantive-review-gates/contracts/README.md"
+    files:
+      - "openspec/changes/harden-substantive-review-gates/contracts/README.md"
+
+defaults:
+  priority: 1
+  lock_ttl_minutes: 120
+  timeout_minutes: 60
+  retry_budget: 1
+  verification_tier_required: B
+  min_trust_level: 2
+
+packages:
+  - package_id: wp-dispatch
+    title: "Dispatcher admission and terminal callbacks"
+    task_type: bugfix
+    description: "Reject placeholder-only output and emit each terminal vendor result exactly once while preserving final dispatch order."
+    role: implementer
+    priority: 1
+    depends_on: []
+    locks:
+      files:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+      keys:
+        - "feature:harden-substantive-review-gates:dispatch"
+      ttl_minutes: 120
+      reason: "Review ingestion and collector callback are one dispatcher boundary"
+    scope:
+      write_allow:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+        - "skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py"
+      read_allow:
+        - "skills/parallel-infrastructure/**"
+        - "openspec/changes/harden-substantive-review-gates/**"
+    context_impact:
+      surfaces: [semantic_code]
+    worktree:
+      name: harden-substantive-review-gates-wp-dispatch
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Dispatcher regressions"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [dispatcher_tests_pass]
+    metadata:
+      loc_estimate: 90
+      alternatives_count: 3
+      complexity: medium
+      package_kind: integration
+    inputs: {}
+    outputs:
+      result_keys: [dispatcher_tests_pass]
+      artifacts:
+        - "skills/parallel-infrastructure/scripts/review_dispatcher.py"
+
+  - package_id: wp-convergence
+    title: "Adjudication and incremental checkpoints"
+    task_type: bugfix
+    description: "Route high-impact unconfirmed judgment to escalation and persist terminal results through the dispatcher callback."
+    role: implementer
+    priority: 2
+    depends_on: [wp-dispatch]
+    locks:
+      files:
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/parallel-infrastructure/scripts/review_ledger.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+      keys:
+        - "feature:harden-substantive-review-gates:convergence"
+      ttl_minutes: 120
+      reason: "Convergence classification and checkpoint transaction form one recovery boundary"
+    scope:
+      write_allow:
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/parallel-infrastructure/scripts/review_ledger.py"
+        - "skills/parallel-infrastructure/scripts/checkpoint_findings.py"
+        - "skills/tests/autopilot/test_convergence_loop.py"
+        - "skills/tests/autopilot/test_convergence_checkpoint.py"
+      read_allow:
+        - "skills/autopilot/**"
+        - "skills/parallel-infrastructure/**"
+        - "openspec/changes/harden-substantive-review-gates/**"
+    context_impact:
+      surfaces: [semantic_code]
+    worktree:
+      name: harden-substantive-review-gates-wp-convergence
+      mode: isolated
+    timeout_minutes: 60
+    retry_budget: 1
+    min_trust_level: 2
+    verification:
+      tier_required: B
+      steps:
+        - name: "Convergence regressions"
+          kind: command
+          command: "skills/.venv/bin/python -m pytest skills/tests/autopilot/test_convergence_loop.py skills/tests/autopilot/test_convergence_checkpoint.py -q"
+          cwd: "."
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [convergence_tests_pass]
+    metadata:
+      loc_estimate: 130
+      alternatives_count: 3
+      complexity: medium
+      package_kind: integration
+    inputs:
+      callback_contract: "openspec/changes/harden-substantive-review-gates/contracts/README.md"
+    outputs:
+      result_keys: [convergence_tests_pass]
+      artifacts:
+        - "skills/autopilot/scripts/convergence_loop.py"
+        - "skills/parallel-infrastructure/scripts/review_ledger.py"
