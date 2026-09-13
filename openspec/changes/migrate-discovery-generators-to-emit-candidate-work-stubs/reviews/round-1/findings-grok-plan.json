@@ -1,0 +1,215 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: New-roadmap candidate intake never specifies how required roadmap envelope fields are derived. design.md says intake feeds validate/save/scaffold, but roadmap.schema.json requires roadmap_id and source_proposal, and neither the D5 mapping table nor the Candidate intake section defines those values for stub-originated roadmaps.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Extend the intake contract and roadmap-orchestration scenarios to state exact derivation rules for roadmap_id and source_proposal (and any other envelope fields required by validate/save/scaffold), including operator-provided versus stub-derived sources.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 105,
+        "end": 114
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Bug-scrub eligibility is contradictory across the plan. D3 and the skill-workflow scenario speak of a promoted/eligible finding, while the refined producer contract requires emitting every finding already selected by the severity filter, and bug-scrub's default severity_filter is low.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Pick one rule and use it everywhere: either define promoted/eligible as membership in the severity-filtered report set, or define a stricter promotion gate; update D3, the refined contract, and the Bug-scrub promotes a finding scenario to match.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 31,
+        "end": 83
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: The bug-scrub category-to-effort table is not executable. design.md buckets simple diagnostics, test/deferred, and architecture/security/spec, but Finding.category also includes lint, type-error, and code-marker, which are never named in the mapping.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Replace the prose buckets with an explicit category\u2192effort table covering every Finding.category value, and add a fail-closed rule for any unexpected category.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 83,
+        "end": 85
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "security",
+      "criticality": "medium",
+      "description": "Nit: The inert-rendering / opaque-provenance security rule exists only in design.md and is absent from the skill-workflow and roadmap-orchestration spec deltas, so it is not a testable requirement for implementers or validators.",
+      "disposition": "fix",
+      "axis": "security",
+      "severity": "nit",
+      "resolution": "Add a SHALL requirement and scenario that candidate title/description/rationale/provenance are treated as inert data: renderers escape structure and must not dereference provenance URIs.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 93,
+        "end": 94
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Nit: Explore-feature mapping says it maps blockers, but neither design.md nor the Explore-feature emits shortlist candidates scenario states whether opportunities.json blocked_by entries become candidate-work depends_on, tags, or are dropped.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Specify a deterministic blocked_by\u2192depends_on (or explicit non-mapping) rule, including how non-change-id blocker strings are rejected or encoded.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 88,
+        "end": 90
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "architecture",
+      "criticality": "medium",
+      "description": "Nit: tasks.md Phase 1 implementation tasks depend only on their RED tests and omit 0.2, even though producer adapters need the shared validator/atomic writer created in 0.2; work-packages.yaml currently carries that ordering instead.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "resolution": "Add task 0.2 to the Dependencies lists for tasks 1.2, 1.4, and 1.6 so the task graph matches the shared-module prerequisite already expressed by wp-producers\u2192wp-contracts.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/tasks.md",
+      "line_range": {
+        "start": 31,
+        "end": 46
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "Nit: wp-producers.write_allow includes skills/tests/bug-scrub/**, but its verification command runs only skills/bug-scrub/tests and omits skills/tests/bug-scrub, so documentation-contract updates in the canonical test tree would not be exercised by the package gate.",
+      "disposition": "fix",
+      "axis": "architecture",
+      "severity": "nit",
+      "resolution": "Extend the Producer suites pass command to include skills/tests/bug-scrub, matching the write scope and the explore-feature dual-tree pattern already present.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml",
+      "line_range": {
+        "start": 93,
+        "end": 95
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 8,
+      "type": "observability",
+      "criticality": "low",
+      "description": "Optional: Failure semantics define user-facing refusals, but the plan adds no structured logging, stable error codes, or metrics for sidecar validation failures, mixed-batch ranking refusals, or intake collision/dependency failures.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "optional",
+      "resolution": "Accept for this CLI-skill migration, or optionally require machine-readable error codes plus one structured log/event per refused write/rank/intake path.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 120,
+        "end": 127
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "performance",
+      "criticality": "low",
+      "description": "Optional: If emit-every-severity-filtered-finding remains the rule, default severity_filter=low can project very large candidate batches into prioritize-proposals with no plan-level bound, pagination, or higher candidate threshold.",
+      "disposition": "accept",
+      "axis": "performance",
+      "severity": "optional",
+      "resolution": "Accept if operators are expected to raise the filter, or document a candidate-specific minimum severity / max-batch guard before ranking.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 82,
+        "end": 83
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "style",
+      "criticality": "low",
+      "description": "FYI: Ranking treats unresolved active dependencies as blocked queue entries, while intake fails closed on unresolved dependencies. That stage difference is coherent, but a one-line cross-reference in design.md would prevent implementers from unifying the two behaviors by mistake.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "fyi",
+      "resolution": "No change required; optionally add an explicit note that ranking may soft-block while intake must hard-fail.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 98,
+        "end": 112
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "The work-package DAG is acyclic, parallel packages have non-overlapping write scopes, wp-prioritize correctly waits on wp-producers, and roadmap-intake/integration deny openspec/roadmaps/** so active roadmap mutation stays outside package write scopes.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "Keep the validated package boundaries and roadmap deny lists as implementation invariants.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml",
+      "line_range": {
+        "start": 100,
+        "end": 175
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 12,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "Fail-closed persistence and mutation safety are well specified: full-batch validation before atomic sidecar replacement, no partial files, ranking refusal before scoring, and existing-roadmap changes only through refine-roadmap preview/apply.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "resolution": "Preserve these refusal and transaction boundaries in shared writer and plan-roadmap intake tests.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 120,
+        "end": 127
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 13,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "The additive-sidecar approach correctly preserves rich producer artifacts, keeps the improve-harness legacy proposal flag for one migration window, and leaves the ri-11 candidate-work schema unchanged while centralizing validation in skills/shared.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "resolution": "Retain additive outputs and the compatibility wrapper through the stated migration window.",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/proposal.md",
+      "line_range": {
+        "start": 36,
+        "end": 50
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

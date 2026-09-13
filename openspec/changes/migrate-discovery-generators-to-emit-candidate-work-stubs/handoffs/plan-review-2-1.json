@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-10T13:53:41.121285+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex-reviewer",
+    "session_id": null,
+    "summary": "Confirmation review found two deterministic plan nits and remediated them in revision 4. The external vendor dispatcher exceeded the enforced round bound before persisting results, so quorum was 1/5 and the phase remains not_converged.",
+    "completed_work": [
+      "Ran round-2 primary review against commit 835224f9.",
+      "Started four-vendor dispatch with the documented 600-second timeout and reaped it at the supervising bound.",
+      "Persisted an explicit interrupted manifest and no-quorum consensus.",
+      "Fixed exact bug-scrub category mappings and the missing task 3.3 dependency; advanced the executable plan to revision 4.",
+      "Passed strict OpenSpec, work-package DAG/scope/overlap, and review-artifact validation."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Use exact bug-scrub category literals",
+        "rationale": "An executable closed mapping must name the repository contract values rather than prose shorthand.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Keep task and package dependency graphs aligned",
+        "rationale": "Candidate intake implementation consumes the shared validator and therefore depends on task 0.2 in both representations.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Run another independent confirmation review against plan revision 4 before implementation."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/reviews/round-2/consensus-plan.json",
+        "description": "round-2 no-quorum consensus"
+      },
+      {
+        "path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/reviews/round-2/review-manifest.json",
+        "description": "interrupted dispatch record"
+      },
+      {
+        "path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+        "description": "revision-4 exact mappings"
+      }
+    ]
+  }
+}

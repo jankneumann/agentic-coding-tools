@@ -1,0 +1,199 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 80,
+        "end": 103
+      },
+      "description": "Critical: The three producers populate `priority` on mutually incompatible scales, yet `priority` is the primary key of the mixed ranking lane, so a mixed batch orders by an incomparable number. design.md:81 maps bug-scrub severity critical..info to priority 1..5 (a bounded 5-point severity scale, per skills/bug-scrub/scripts/models.py:13). design.md:85 maps improve-harness one-based rank to priority (unbounded 1..N over `rank_findings`, skills/improve-harness/scripts/generate_report.py:199). design.md:90 maps explore-feature rank the same way over a 3-7 item shortlist (skills/explore-feature/SKILL.md:255). design.md:102 then sets the ready-queue key to `priority, effort, generator, suggested change ID` with no normalization step. The result is deterministic and stable, satisfying the spec scenario at specs/skill-workflow/spec.md:53, but semantically wrong: the ordering does not rank candidates by any shared notion of importance.",
+      "resolution": "Add an explicit cross-generator normalization rule before the ready-queue sort. Either (a) define a single 1..5 priority band that all three adapters must map into, documenting the per-generator band table in contracts/README.md alongside the effort table, or (b) keep the raw generator priority as a tie-breaker only and rank primarily on a normalized field the adapters compute. Add a test to skills/tests/prioritize-proposals that asserts an improve-harness rank-8 gap does not sort below a bug-scrub info-severity finding.",
+      "disposition": "fix"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 88,
+        "end": 90
+      },
+      "description": "Critical: Explore-feature is specified to emit the \"exact hinted or derived change ID\" with no prefix normalization, but the skill instructs agents to create `fix-` opportunities, which the canonical schema pattern rejects, and D2's fail-closed batch validation then discards every candidate in the run. skills/explore-feature/SKILL.md:189 says cross-interface inconsistencies suggest `fix-` opportunities, while SKILL.md:269 declares the prefix set as add-/update-/refactor-/remove-. openspec/schemas/candidate-work.schema.json constrains suggested_change_id to `^(add|update|remove|refactor)-...`. Because design.md:26 requires the writer to validate the full list and preserve the prior file on failure, one `fix-` shortlist entry makes the whole sidecar unwritable, not just that entry. design.md:81 states a slug rule only for bug-scrub; improve-harness and explore-feature have no stated prefix derivation at all.",
+      "resolution": "Specify the suggested_change_id derivation for all three producers, not just bug-scrub, including how a non-conforming or absent hint is normalized. For explore-feature, map `fix-` hints to `update-` (or reject the single entry with a named error rather than failing the batch) and state which behavior applies. Add a fixture in skills/tests/candidate-work covering a `fix-` hinted opportunity so the chosen behavior is pinned.",
+      "disposition": "fix"
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 54,
+        "end": 70
+      },
+      "description": "Critical: The new-roadmap intake path is specified only at item granularity, so the enclosing roadmap document has no defined `roadmap_id` or `source_proposal` and the scaffolded change has no defined capability. openspec/schemas/roadmap.schema.json:7 requires schema_version, roadmap_id, source_proposal, and items at the top level, but the D5 mapping table (design.md:56-64) covers seven item fields and stops. A candidate-work stub carries no proposal path; its only free-form fields are `tags` and `provenance.source_artifact`. Separately, skills/plan-roadmap/scripts/scaffolder.py:188 resolves the spec-delta capability directory from `item.capability` and falls back to `_slugify(roadmap_id)`; the candidate schema has no capability field and the mapping table does not populate one, so a candidate-derived change scaffolds its spec delta under a capability directory that does not exist in openspec/specs/. specs/roadmap-orchestration/spec.md:12 only asserts a schema-valid roadmap *item*, so no scenario catches this.",
+      "resolution": "Extend the D5 mapping table and the roadmap-orchestration delta to cover the new-roadmap envelope: define how roadmap_id is derived from the stub (suggested_change_id is the obvious source), what source_proposal points at (provenance.source_artifact is the candidate), and how capability is chosen or explicitly deferred. Add a scenario asserting the new-roadmap payload passes decomposer.validate_roadmap, and a scenario asserting the scaffolded spec delta lands under a capability the operator supplied rather than a slugified roadmap id.",
+      "disposition": "fix"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 90,
+        "end": 91
+      },
+      "description": "Critical: Explore-feature blockers are mapped into `depends_on`, but that field is prose in the source artifact and is interpreted as an exact change ID by both consumers, so explore-feature candidates become permanently blocked and un-intakeable. skills/explore-feature/SKILL.md:270 defines `blocked-by` as holding \"existing change-ids, missing infra, unresolved design decisions\", i.e. free text alongside identifiers. design.md:91 maps blockers into the stub. design.md:100-102 then resolves dependencies by exact change ID against the batch, roadmap items, and archives, marking unknown ones blocked, and design.md:126 makes an unresolvable dependency a hard refusal at intake. An opportunity blocked by \"unresolved design decision on retry semantics\" therefore ranks as blocked forever and can never be approved into the roadmap.",
+      "resolution": "Split the mapping: route only blockers that match the change-id shape into `depends_on`, and carry prose blockers into `rationale` or `tags` where they inform a human without gating dependency resolution. State the discriminator explicitly in design.md and contracts/README.md, and add a skills/tests/explore-feature case with one change-id blocker and one prose blocker asserting only the former reaches depends_on.",
+      "disposition": "fix"
+    },
+    {
+      "id": 5,
+      "type": "compatibility",
+      "criticality": "high",
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml",
+      "line_range": {
+        "start": 180,
+        "end": 197
+      },
+      "description": "Critical: Task 4.2 runs skills/install.sh, which validates the install manifest before syncing, and the new shared dependency will fail that validation with no package holding write access to the manifest. skills/install.sh:219 invokes shared/validate_install_manifest.py before any mirror sync. That validator detects cross-skill references via the `<skill-base-dir>/../<name>` idiom (validate_install_manifest.py:30) and errors with \"cross-skill dependency is not declared\" for any undeclared pair (validate_install_manifest.py:277-280). skills/install-manifest.json currently has no `cross_skill_dependencies` entry for bug-scrub, improve-harness, or prioritize-proposals, and D2 makes all of them consume skills/shared/candidate_work.py. No package in this plan lists skills/install-manifest.json in write_allow: wp-contracts (lines 39-43) allows only shared/candidate_work.py and the prioritize validator script, and wp-integration (lines 181-195) allows only mirror paths and the openspec change directory.",
+      "resolution": "Add skills/install-manifest.json to a write_allow scope (wp-contracts is the natural owner since it creates the shared module) and add an explicit task to declare `shared` under cross_skill_dependencies for bug-scrub, improve-harness, and prioritize-proposals. Also add .claude/skills/install-manifest.json and .agents/skills/install-manifest.json to wp-integration's write_allow, since sync_install_manifest (install.sh:656-672) writes both mirror copies.",
+      "disposition": "fix"
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 61,
+        "end": 62
+      },
+      "description": "Nit: Mapping the candidate's `priority` straight onto the roadmap item's `priority` produces duplicate priorities when the target is an existing roadmap. skills/refine-roadmap/scripts/refiner.py:165 defaults a new item's priority to max+1 precisely to avoid collisions, and only applies that default when the caller omits the field; supplying an explicit priority bypasses it. openspec/schemas/roadmap.schema.json:145 imposes no uniqueness constraint, so validation will not catch it, and only the reorder operation renumbers (refiner.py:340). A bug-scrub critical finding mapped to priority 1 and added to roadmap-supervisor-orchestration would tie with the existing ri-01, leaving execution order ambiguous for autopilot-roadmap.",
+      "resolution": "Qualify the D5 priority mapping by target mode: keep candidate priority for the new-roadmap payload, and for the existing-roadmap refine add request either omit priority (letting refiner._normalize_new_item assign max+1) or emit an explicit reorder operation that places the item at the position its priority implies. State the chosen behavior in specs/roadmap-orchestration/spec.md and cover it in the task 3.2 test.",
+      "disposition": "fix"
+    },
+    {
+      "id": 7,
+      "type": "architecture",
+      "criticality": "medium",
+      "axis": "architecture",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 73,
+        "end": 76
+      },
+      "description": "Nit: D6 asserts that ri-13 must call this change's intake helper rather than build a second mapping, but nothing sequences ri-13 after ri-12, so ri-13 can execute first and the reuse contract silently fails. openspec/roadmaps/roadmap-supervisor-orchestration/roadmap.yaml:307-311 lists ri-13's depends_on as ri-02, ri-05, ri-11, ri-16 with no ri-12 edge, and both items are status approved. The plan cannot add the edge itself: proposal.md:104 puts direct roadmap writes out of scope, and openspec/roadmaps/** is denied in the wp-roadmap-intake and wp-integration scopes (work-packages.yaml:151, 197). The design states an intent with no enforcing mechanism.",
+      "resolution": "Add the ri-12 to ri-13 dependency edge through refine-roadmap as an explicit prerequisite step recorded in proposal.md Dependencies, or downgrade D6 to a documented recommendation and say plainly that ri-13 may land a second mapping if it runs first. Do not leave the reuse claim implicit.",
+      "disposition": "fix"
+    },
+    {
+      "id": 8,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml",
+      "line_range": {
+        "start": 76,
+        "end": 95
+      },
+      "description": "Nit: The wp-producers verification command does not execute two of the four test directories the package is allowed to write, so tests placed there per the repo convention never run at the package gate. write_allow at lines 78-79 adds skills/tests/bug-scrub/** and skills/tests/improve-harness/**, matching the AGENTS.md rule that tests live in skills/tests/<skill-name>/, but the verification command at line 95 runs skills/bug-scrub/tests, skills/improve-harness/tests, skills/explore-feature/tests, and skills/tests/explore-feature only. skills/tests/improve-harness does not exist yet, and skills/tests/bug-scrub/test_skill_md.py is the invariant guard for the SKILL.md that task 1.2 modifies, so a broken SKILL.md passes wp-producers and surfaces only in the wp-integration full-suite run.",
+      "resolution": "Extend the wp-producers verification command to include skills/tests/bug-scrub and skills/tests/improve-harness, or narrow write_allow to the per-skill tests directories and state in tasks.md that these three producers intentionally keep their suites under skills/<skill>/tests. Either way, make the executed set match the writable set.",
+      "disposition": "fix"
+    },
+    {
+      "id": 9,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "nit",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/proposal.md",
+      "line_range": {
+        "start": 87,
+        "end": 87
+      },
+      "description": "Nit: The determinism non-functional requirement is stated over input bytes alone, which is not achievable for the explore-feature adapter and is contradicted by the spec scenario it is meant to verify. proposal.md:87 sets the metric to \"Same input bytes\" yielding a byte-identical batch, but design.md:88-90 makes explore-feature eligibility depend on whether a change ID is absent from active and archived changes, which is repository state rather than input. specs/skill-workflow/spec.md:37 states the correct condition, \"the same input and repository state\". A VALIDATE phase testing the proposal's weaker wording would either pass vacuously or fail on an unrelated archive.",
+      "resolution": "Change the proposal.md determinism metric to \"Same input bytes and repository state\" so the non-functional requirement and the scenario it is verified by agree.",
+      "disposition": "fix"
+    },
+    {
+      "id": 10,
+      "type": "performance",
+      "criticality": "low",
+      "axis": "performance",
+      "severity": "optional",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 80,
+        "end": 82
+      },
+      "description": "Optional: Bug-scrub is specified to promote every finding that passes its severity filter, and that filter defaults to the lowest band, so a routine scrub emits an unbounded candidate batch into the discovery back-edge. skills/bug-scrub/scripts/main.py:138 sets --severity to \"low\" by default across eight collectors including code markers, deferred issues, ruff, and mypy. Each surviving finding becomes one proposed OpenSpec change ID that ri-13's digest will later present for approval. The plan sets no cap, no promotion threshold distinct from the report threshold, and no grouping rule, and the non-functional requirements table carries no volume bound.",
+      "resolution": "Consider decoupling promotion from reporting: default candidate promotion to medium-or-above severity with an explicit flag to widen it, or group same-category findings in one file into a single stub. If unbounded promotion is intended, record that decision in design.md so a later reader does not read it as an oversight.",
+      "disposition": "accept"
+    },
+    {
+      "id": 11,
+      "type": "compatibility",
+      "criticality": "low",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/tasks.md",
+      "line_range": {
+        "start": 31,
+        "end": 31
+      },
+      "description": "FYI: The shared module cannot be referred to by its literal repo path in any shipped skill text, which constrains the \"canonical skill documentation\" work in tasks 1.2, 1.4, 1.6, 2.2, and 3.3. skills/shared/validate_install_manifest.py:24-28 flags any line in a scanned SKILL.md or script matching `skills/shared/<file>` unless prefixed by .claude/ or .agents/, and install.sh runs that validator before syncing. Documentation must use the `<skill-base-dir>/../shared/candidate_work.py` idiom, as skills/refine-roadmap/SKILL.md already does for checkout_policy.py. The plan's own design.md and contracts/README.md use the literal path safely because openspec/ is outside the scanned payload.",
+      "resolution": "No plan change required. Note the idiom in contracts/README.md when task 0.3 documents the shared seam so implementers do not discover it via a failing install.sh at task 4.2.",
+      "disposition": "accept"
+    },
+    {
+      "id": 12,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "none",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/design.md",
+      "line_range": {
+        "start": 66,
+        "end": 70
+      },
+      "description": "The roadmap mutation boundary is correctly drawn and matches the existing implementation. D5 routes every existing-roadmap change through a refine-roadmap add request under preview and apply rather than writing roadmap.yaml, which is exactly the transaction skills/refine-roadmap/scripts/refiner.py implements with base_sha256 and append-only refinement records (openspec/schemas/roadmap.schema.json:75-115). The design's requirement that acceptance outcomes come from the operator rather than being invented also aligns with refiner._normalize_new_item at skills/refine-roadmap/scripts/refiner.py:159, which already rejects a new item lacking acceptance_outcomes, so the plan reinforces an existing invariant instead of duplicating or weakening it. The fail-closed write ordering in D2, validating the full batch before atomic replacement, is likewise specified with concrete failure semantics at design.md:120-126.",
+      "resolution": "No action needed.",
+      "disposition": "accept"
+    }
+  ]
+}

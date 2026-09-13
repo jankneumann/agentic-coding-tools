@@ -1,0 +1,138 @@
+{
+  "schema_version": 5,
+  "change_id": "migrate-discovery-generators-to-emit-candidate-work-stubs",
+  "current_phase": "ESCALATE",
+  "iteration": 0,
+  "total_iterations": 8,
+  "max_phase_iterations": 3,
+  "findings_trend": [],
+  "blocking_findings": [],
+  "vendor_availability": {},
+  "packages_status": {},
+  "package_authors": {},
+  "implementation_strategy": {},
+  "memory_ids": [],
+  "handoff_ids": [
+    "ri12-gatekeeper-1",
+    "plan-iteration-1-1",
+    "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/handoffs/plan-review-1-1.json",
+    "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/handoffs/plan-review-2-1.json",
+    "plan-review-round3-quorum-failed"
+  ],
+  "phase_history": [
+    {
+      "at": "2026-09-10T12:21:33.338007+00:00",
+      "outcome": "proceed",
+      "phase": "GATEKEEPER"
+    },
+    {
+      "at": "2026-09-10T12:46:46.358442+00:00",
+      "outcome": "complete",
+      "phase": "PLAN_ITERATE"
+    },
+    {
+      "at": "2026-09-10T13:36:03.269346+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-10T13:55:23.462055+00:00",
+      "outcome": "not_converged",
+      "phase": "PLAN_REVIEW"
+    },
+    {
+      "at": "2026-09-10T14:09:56.333799+00:00",
+      "outcome": "max_iter",
+      "phase": "PLAN_REVIEW"
+    }
+  ],
+  "last_handoff_id": "plan-review-round3-quorum-failed",
+  "started_at": "2026-09-10T12:19:08.112689+00:00",
+  "phase_started_at": "2026-09-10T14:10:34.676218+00:00",
+  "previous_phase": "PLAN_REVIEW",
+  "escalation_reason": "PLAN_REVIEW exhausted 3 bounded rounds without substantive review quorum; implementation is prohibited until review convergence is restored",
+  "val_review_enabled": false,
+  "cli_review_enabled": true,
+  "error": null,
+  "phase_archetype": "reviewer",
+  "force": false,
+  "gate_signals": {
+    "external_dep_count": 0,
+    "has_broad_write_scope": false,
+    "has_db_migration": false,
+    "has_proposal": true,
+    "has_security_signal": false,
+    "has_specs": true,
+    "has_tasks": true,
+    "has_work_packages": true,
+    "package_count": 4,
+    "total_loc_estimate": 1400
+  },
+  "gate_verdict": null,
+  "gate_decisions": [
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "notified": null,
+      "outcome": "blocked",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "recorded_at": "2026-09-10T12:21:47.672637+00:00",
+      "resolution": "posture_block",
+      "timeout_seconds": null
+    },
+    {
+      "approval_id": null,
+      "authorizing_disposition": "block",
+      "default_action": null,
+      "disposition": "block",
+      "gate": "proposal_approval",
+      "note": "Roadmap-altitude approval for ri-12 is durable; discovery, direction, and plan approval are pre-authorized.",
+      "notified": null,
+      "outcome": "proceed",
+      "phase": "PLAN",
+      "posture_present": false,
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 Roadmap-altitude approval for ri-12 is durable; discovery, direction, and plan approval are pre-authorized.",
+      "recorded_at": "2026-09-10T12:22:06.796441+00:00",
+      "resolution": "console_approved",
+      "timeout_seconds": null
+    },
+    {
+      "gate": "plan_review_convergence_failure",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'plan_review_convergence_failure' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "PLAN_REVIEW",
+      "recorded_at": "2026-09-10T14:09:58.495224+00:00"
+    },
+    {
+      "gate": "plan_review_convergence_failure",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'plan_review_convergence_failure' approved by the operator \u2014 Final bounded PLAN_REVIEW lacked substantive quorum; supervisor directed ESCALATE and prohibited implementation.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "PLAN_REVIEW",
+      "recorded_at": "2026-09-10T14:10:19.356552+00:00",
+      "note": "Final bounded PLAN_REVIEW lacked substantive quorum; supervisor directed ESCALATE and prohibited implementation."
+    }
+  ],
+  "pending_gate": null,
+  "goal_gate": null
+}
