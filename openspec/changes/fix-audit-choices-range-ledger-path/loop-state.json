@@ -1,7 +1,7 @@
 {
   "schema_version": 5,
   "change_id": "fix-audit-choices-range-ledger-path",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "iteration": 3,
   "total_iterations": 6,
   "max_phase_iterations": 3,
@@ -128,12 +128,24 @@
       "outcome": "passed",
       "at": "2026-09-13T16:05:39.233021+00:00",
       "note": "Final re-verification, recorded AFTER the report was finalized. The goal gate refused twice, correctly: first because VAL_REVIEW corrections postdated the VALIDATE record, then again because adding the required Validation Review section re-staled it. The gate wants the record to refer to the report as it stands, so the report was finished first and the full gate set re-run against it: 377 passed 1 skipped, install.sh --check clean, dependency_direction clean, openspec validate --strict valid, and all five gate-parsed sections read pass or not_applicable."
+    },
+    {
+      "phase": "SUBMIT_PR",
+      "outcome": "merge_authorized",
+      "at": "2026-09-13T19:50:45.321928+00:00",
+      "note": "PR #534 authorized. CI green after fixing two failures CI found that eight review rounds did not: an unused local, and undeclared context_impact surfaces attributed to this branch by name."
+    },
+    {
+      "phase": "DONE",
+      "outcome": "done",
+      "at": "2026-09-13T19:50:45.321963+00:00",
+      "note": "Goal gate: refused. PR #534 awaiting /cleanup-feature."
     }
   ],
   "last_handoff_id": "val-review-round-2",
   "started_at": "2026-09-12T02:56:20.382561+00:00",
   "phase_started_at": "2026-09-13T14:50:00.957943+00:00",
-  "previous_phase": "VAL_REVIEW",
+  "previous_phase": "SUBMIT_PR",
   "escalation_reason": null,
   "val_review_enabled": true,
   "cli_review_enabled": true,
@@ -211,8 +223,51 @@
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-09-13T16:03:13.619288+00:00",
       "note": "Operator approved PR creation via autopilot console after the evidence summary."
+    },
+    {
+      "gate": "merge",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-13T16:21:37.703901+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 Operator authorized merge. PR #534 CLEAN/MERGEABLE, CI green (22 pass, 1 skip, 0 fail). Merge executed separately by /cleanup-feature.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-13T19:50:45.271618+00:00",
+      "note": "Operator authorized merge. PR #534 CLEAN/MERGEABLE, CI green (22 pass, 1 skip, 0 fail). Merge executed separately by /cleanup-feature."
     }
   ],
   "pending_gate": null,
-  "goal_gate": null
+  "goal_gate": {
+    "verdict": "refused",
+    "reason": "validate record predates report",
+    "evidence": {
+      "merge_authorized": true,
+      "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/534",
+      "report_path": "openspec/changes/fix-audit-choices-range-ledger-path/validation-report.md",
+      "checked_at": "2026-09-13T19:50:45.321945+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-09-13T16:05:39.233021+00:00",
+      "report_mtime": "2026-09-13T16:15:09.549942+00:00"
+    }
+  }
 }
