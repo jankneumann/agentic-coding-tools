@@ -104,3 +104,31 @@ Reviewed the plan against the code it touches and found twelve issues, four high
 ### Context
 Reviewed the implementation against design.md D1-D8; confirmed the D1/D5/D6/D8 routing, retention, and read-only-contract wiring, the D4 characterization guard (three frozen files byte-unchanged from the merge base), and the D3 no-surviving-definitions constraint all hold. Refactored parse_run_id in skills/shared/artifact_paths.py from a variable-arity (3-or-4-tuple) return into a fixed 3-tuple plus a new run_id_suffix() accessor for the D8 collision suffix, since the only production caller (list_active_runs) discarded the parsed result entirely and the frozen prioritize-proposals tests only ever unpack three values.
 
+---
+
+## Phase: Cleanup (2026-09-13)
+
+**Agent**: claude_code | **Session**: N/A
+
+### Decisions
+1. **Merge commit instead of the default rebase** — GitHub refused the rebase: the branch contains a merge commit from resolving a docs/decisions conflict after main advanced 258 commits. Of the two remaining options, a merge commit preserves all 39 commits including the 15 fix commits that each name the review finding they close, which is exactly the history the skill's rebase-by-default rationale exists to protect. Squash would have collapsed that record into one commit.
+2. **No open-task migration needed** — tasks.md has zero unchecked items, and validation independently verified each checked task maps to shipped code.
+3. **Six low findings archived unfixed, recorded in the report** — Non-atomic latest.* pointers, a directory-blind snapshot helper, two over-broad doc assertions, scenario 15's self-referential allowed set, and the RUN_ID_RE widening's effect on prioritize-proposals. None changes behavior; all are named in validation-report.md so they are findable rather than lost.
+
+### Alternatives Considered
+- Squash merge: rejected because Would have destroyed the per-finding commit record that three implementation-review rounds produced.
+
+### Completed Work
+- pre-merge-gate
+- merge
+- choices-surfacing
+- archive
+- decision-index
+- branch-cleanup
+
+### Next Steps
+- Six low findings recorded in validation-report.md remain open; none blocks anything.
+
+### Context
+Merged PR #534 with a merge commit rather than the default rebase: the branch carries a merge from resolving a conflict with main, so GitHub refused to rebase it. No open tasks to migrate. Step 5.5 ran for the first time against a real change and correctly reported 'no choices ledger' rather than 'no open choices'.
+
