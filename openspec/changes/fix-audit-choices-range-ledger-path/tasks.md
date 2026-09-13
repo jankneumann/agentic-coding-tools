@@ -201,7 +201,9 @@ review found that requirement still forbade writing outside
   `choices.md` and the `latest.*` pair, and calls the shared `build_run_id`
   with the driver's `resolved_now` and `resolved_git_sha` — the same two
   values `make_header` receives (D7). Order of effects on a range run: write
-  the pair via `write_ledger_pair`, then `shutil.copyfile` each of the pair to
+  the pair via `write_ledger_pair`, then — inside its own guard, like
+  retention's, since the pair is already on disk and a copy failure must not
+  report a persisted ledger as a failed run (D6) — `shutil.copyfile` each of the pair to
   `latest.json` / `latest.md` at `openspec/choices/` (D6). Nothing else opens
   a file for writing; the contract in 5.1 names exactly these effects plus the
   retention move 5.2 adds.

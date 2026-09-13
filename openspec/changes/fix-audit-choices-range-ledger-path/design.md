@@ -165,7 +165,14 @@ output moved to `openspec/priorities/<YYYY-MM-DD>-HHMMSS-<sha7>/`.
     thirty-first standalone audit.
   - `latest.*` are byte-identical copies of the run's pair, made with
     `shutil.copyfile` — the same relationship `prioritize-proposals` has
-    between `report.*` and its `latest.*`. The contract's "only writer"
+    between `report.*` and its `latest.*`. **The copy is guarded like
+    retention is**, and for the same reason: it runs after the pair is
+    already on disk, so letting an `OSError` reach the driver's outer
+    handler would report `ok=False, json_path=None` for a run whose ledger
+    was in fact persisted, and the workflow's warn-and-continue would then
+    skip committing a ledger that exists. A failed copy warns and leaves the
+    run successful. `latest.*` is a convenience pointer; the pair is the
+    artifact. The contract's "only writer"
     sentence is reworded accordingly: `write_ledger_pair` stays the only thing
     that *produces* ledger content; the copy produces none, and retention moves
     directories without opening a file.
