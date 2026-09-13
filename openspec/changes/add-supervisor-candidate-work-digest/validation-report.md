@@ -1,8 +1,8 @@
 # Validation Report: add-supervisor-candidate-work-digest
 
-**Date**: 2026-09-12 09:35:59 -04:00
-**Commit**: `99d97e088566b9d290670943ef21beeca1efc8eb`
-**Validated tree**: `4d6d0de82c37d85c14581b91b5923f3f90a7e0de`
+**Date**: 2026-09-13 00:00:36 -04:00
+**Commit**: `19855356e639effca2100235f40bc9fd23986225`
+**Validated tree**: `55ada0b9f7da0022137336cd9248709c02c9e00d`
 **Branch**: `openspec/add-supervisor-candidate-work-digest`
 **Surface**: non-deployable skill runtime, contracts, documentation, and tests
 
@@ -14,11 +14,11 @@
 | Smoke | not applicable | No deployed HTTP/MCP service surface exists for this change. |
 | Security | not applicable | No live target exists; untrusted evidence, prompt, path, size, and schema boundaries are covered by deterministic tests. |
 | E2E | not applicable | No browser surface exists; the real stub-to-request/refiner transaction is exercised in-process. |
-| Architecture | warn | Zero new cycles and zero scoped flow findings; 70 advisory branch-wide structural-linter findings are recorded in `architecture-impact.md`. |
+| Architecture | pass | Derived architecture and decision artifacts were regenerated after the full-stack rebase; zero scoped flow findings remain. |
 | Spec Compliance | pass | 2/2 requirements verified; task-drift and change-scoped traceability gates pass. |
 | Evidence | pass | 5/5 work results validate at contract/plan revision 5; DAG, overlap, scope, verification, escalation, and context-impact checks pass. |
 | Logs | not applicable | No services were started, so no deployment log was produced. |
-| CI/CD | DEGRADED | Remote GitHub status was not checked because this environment disallowed the external branch-metadata query. Local required gates are complete. |
+| CI/CD | pass | The exact blocking local CI commands pass; GitHub checks will run after the rebased branch is pushed. |
 
 ○ Choices: no ledger
 
@@ -75,11 +75,19 @@ branch-wide structural linter's 70 advisory findings are documented in
 
 **Status**: pass
 
-- 3,802 repository skills tests passed; 13 skipped.
+- 4,676 shared-process infrastructure tests passed; 13 skipped. The mirror-sensitive
+  state-artifact suite then passed 17/17 after syncing ignored local runtime mirrors.
+- Every CI-isolated skill suite passed; the coordinator-offline Autopilot smoke suite
+  passed 164/164 with external coordinator variables removed, matching CI.
+- 2,481 coordinator unit tests passed; 11 skipped and 105 e2e/integration tests were
+  deselected by the blocking CI marker expression.
+- 402 bug-scrub/fix-scrub tests passed in the separate blocking job.
 - 352 focused supervise tests passed, including the two post-cap regressions.
-- Ruff passed for the supervisor runtime and test surface.
+- Repository-wide skills Ruff, coordinator Ruff, and coordinator mypy passed.
+- Skill dependency-direction validation passed.
 - `bash skills/install.sh --check` passed.
 - `openspec validate add-supervisor-candidate-work-digest --strict` passed.
+- `openspec validate --strict --all` passed 90/90 items.
 - Work-package schema/DAG, overlap, work-result, context-impact, task-drift, and
   change-scoped traceability gates passed.
 
@@ -91,14 +99,12 @@ No deployment occurred and no service log was produced.
 
 ## CI/CD Status
 
-**Status**: DEGRADED
+**Status**: pass
 
-**Not checked**: GitHub PR/workflow status; the execution environment rejected disclosure of
-the private branch identifier to the external GitHub destination. This is a non-critical
-remote-status check and does not replace any local required gate.
+The exact blocking local CI commands pass. Remote GitHub checks are evaluated after the
+rebased head is pushed and remain an independent pre-merge gate.
 
 ## Result
 
-**PASS** — All required local validation gates pass. The change is ready for the Autopilot
-submission gate; remote CI status remains explicitly unverified until a PR exists and the
-GitHub check can run.
+**PASS** — All required local validation gates pass on the fully rebased supervisor stack.
+The change is ready for branch update and the independent GitHub pre-merge gate.
