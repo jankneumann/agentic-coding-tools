@@ -8,12 +8,12 @@
   "schema_version": 1,
   "standing_decisions": [
     {
-      "decided_at": "2026-09-10T11:50:20.985704+00:00",
+      "decided_at": "2026-09-13T15:02:42.607495+00:00",
       "decision": "roadmap_approval:proceed",
-      "id": "1d8eb383-2f08-449b-a0d8-6dc9464ddd85",
-      "rationale": "direct autopilot-roadmap invocation: supervisor roadmap",
+      "id": "c7ea211d-f613-4ab6-9726-27374e5821c2",
+      "rationale": "direct invocation",
       "scope": "roadmap-supervisor-orchestration"
     }
   ],
-  "written_at": "2026-09-10T11:50:20.973467Z"
+  "written_at": "2026-09-13T15:03:19.819715Z"
 }

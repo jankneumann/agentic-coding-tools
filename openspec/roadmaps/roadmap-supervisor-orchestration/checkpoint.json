@@ -4,7 +4,7 @@
   "current_item_id": "ri-10",
   "phase": "completed",
   "created_at": "2026-09-01T02:35:00.134952+00:00",
-  "updated_at": "2026-09-10T22:43:11.789909+00:00",
+  "updated_at": "2026-09-13T15:09:03.099819+00:00",
   "completed_items": [
     "ri-01",
     "ri-02",
@@ -18,7 +18,8 @@
     "ri-08",
     "ri-04",
     "ri-10",
-    "ri-16"
+    "ri-16",
+    "ri-13"
   ],
   "failed_items": [
     {
@@ -285,11 +286,11 @@
       "change_id": "add-supervisor-candidate-work-digest",
       "phase": "autopilot",
       "attempt": 1,
-      "status": "parked",
+      "status": "completed",
       "prepared_at": "2026-09-10T22:38:01.760038+00:00",
       "launch_token": "xfXGyyh0fwoxvddNz2bHDmlI3iTvE_jQ",
       "launch_marker_path": ".supervised-dispatch/add-supervisor-candidate-work-digest/ri-13-attempt-1.marker",
-      "lease_generation": 1,
+      "lease_generation": 2,
       "launch_history": [
         {
           "generation": 1,
@@ -321,6 +322,37 @@
           "marker_path": ".supervised-dispatch/add-supervisor-candidate-work-digest/ri-13-attempt-1.marker",
           "observed_at": "2026-09-10T22:39:06.999271+00:00",
           "handle": "/root/ri13_autopilot"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "codex-ri13-reconcile-20260913-g2",
+          "state": "claimed",
+          "marker_path": ".supervised-dispatch/add-supervisor-candidate-work-digest/ri-13-attempt-1.marker",
+          "observed_at": "2026-09-13T15:05:42.714400+00:00"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "codex-ri13-reconcile-20260913-g2",
+          "state": "acknowledged",
+          "marker_path": ".supervised-dispatch/add-supervisor-candidate-work-digest/ri-13-attempt-1.marker",
+          "observed_at": "2026-09-13T15:06:05.502863+00:00",
+          "handle": "/root/ri13_reconcile"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "codex-ri13-reconcile-20260913-g2",
+          "state": "go_released",
+          "marker_path": ".supervised-dispatch/add-supervisor-candidate-work-digest/ri-13-attempt-1.marker",
+          "observed_at": "2026-09-13T15:06:05.502863+00:00",
+          "handle": "/root/ri13_reconcile"
+        },
+        {
+          "generation": 2,
+          "owner_nonce": "codex-ri13-reconcile-20260913-g2",
+          "state": "entered",
+          "marker_path": ".supervised-dispatch/add-supervisor-candidate-work-digest/ri-13-attempt-1.marker",
+          "observed_at": "2026-09-13T15:06:30.852600+00:00",
+          "handle": "/root/ri13_reconcile"
         }
       ],
       "scope": {
@@ -361,25 +393,25 @@
         "invocation": "direct_autopilot_roadmap"
       },
       "lease": {
-        "generation": 1,
-        "owner_nonce": "codex-ri13-owner-20260910",
+        "generation": 2,
+        "owner_nonce": "codex-ri13-reconcile-20260913-g2",
         "state": "released",
-        "acquired_at": "2026-09-10T22:38:13.612750+00:00",
-        "heartbeat_at": "2026-09-10T22:38:13.612750+00:00",
-        "expires_at": "2026-09-10T23:38:13.612750+00:00"
+        "acquired_at": "2026-09-13T15:05:42.714400+00:00",
+        "heartbeat_at": "2026-09-13T15:05:42.714400+00:00",
+        "expires_at": "2026-09-13T16:05:42.714400+00:00"
       },
       "launch_evidence": {
         "kind": "host_ack",
-        "generation": 1,
-        "handle": "/root/ri13_autopilot",
-        "observed_at": "2026-09-10T22:39:06.898467+00:00"
+        "generation": 2,
+        "handle": "/root/ri13_reconcile",
+        "observed_at": "2026-09-13T15:06:05.502863+00:00"
       },
       "launch_gate": {
-        "generation": 1,
+        "generation": 2,
         "state": "entered",
-        "handle": "/root/ri13_autopilot",
-        "go_released_at": "2026-09-10T22:39:06.898467+00:00",
-        "entered_at": "2026-09-10T22:39:06.999271+00:00"
+        "handle": "/root/ri13_reconcile",
+        "go_released_at": "2026-09-13T15:06:05.502863+00:00",
+        "entered_at": "2026-09-13T15:06:30.852600+00:00"
       },
       "application_journal": {
         "schema_version": 1,
@@ -390,38 +422,26 @@
           "change_id": "add-supervisor-candidate-work-digest",
           "dispatch_id": "batch-d04b4c6458221e0731470363:ri-13:attempt-1",
           "evidence": {
-            "commit": "571f2857467a11281a7875b918dbe964e257c876",
-            "loop_state_digest": "46f02daefd1b01ee647af9a272935c711bbb3bd75d764e96b18a7962d2dadfb4",
+            "commit": "d9ddd4a521b51b14f32d0c27955074e9dddd7172",
+            "loop_state_digest": "e35b72f692bc4fe0ba77fb7019ae4eaca9d6f6a250c83782a6a42d87a74e7c0c",
             "loop_state_path": "openspec/changes/add-supervisor-candidate-work-digest/loop-state.json"
           },
-          "lease_generation": 1,
-          "outcome": "parked",
-          "parked": {
-            "deadline": null,
-            "gate": "proposal_approval",
-            "kind": "pending_gate",
-            "reason": "Repository trust posture is absent, so proposal_approval requires the operator explicit answer before implementation.",
-            "resume_hint": "Ask verbatim: Approve this OpenSpec proposal and begin implementation? Then record via runner.py gate-answer and resume autopilot."
-          },
+          "handoff_id": "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/submit-pr-1.json",
+          "lease_generation": 2,
+          "outcome": "success",
           "schema_version": 1,
           "worktree_path": "/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/add-supervisor-candidate-work-digest"
         },
-        "result_digest": "2b19ab8fe1a3c9a722ccb875f5977d236e53c48a2e627c16562ca3d8ed10f37f",
-        "bound_at": "2026-09-10T22:43:11.775956+00:00",
-        "callback_started_at": "2026-09-10T22:43:11.778835+00:00",
-        "callback_acknowledged_at": "2026-09-10T22:43:11.780190+00:00",
-        "terminal_persisted_at": "2026-09-10T22:43:11.781449+00:00",
-        "effects_applied_at": "2026-09-10T22:43:11.789869+00:00"
+        "result_digest": "fea1d07a2bd37607771325dd221c235e5027d131686798f417ed30f5deb05052",
+        "bound_at": "2026-09-13T15:09:03.084323+00:00",
+        "callback_started_at": "2026-09-13T15:09:03.086545+00:00",
+        "callback_acknowledged_at": "2026-09-13T15:09:03.087955+00:00",
+        "terminal_persisted_at": "2026-09-13T15:09:03.089483+00:00",
+        "effects_applied_at": "2026-09-13T15:09:03.099782+00:00"
       },
-      "outcome": "parked",
-      "resolved_at": "2026-09-10T22:43:11.781441+00:00",
-      "parked": {
-        "deadline": null,
-        "gate": "proposal_approval",
-        "kind": "pending_gate",
-        "reason": "Repository trust posture is absent, so proposal_approval requires the operator explicit answer before implementation.",
-        "resume_hint": "Ask verbatim: Approve this OpenSpec proposal and begin implementation? Then record via runner.py gate-answer and resume autopilot."
-      }
+      "outcome": "success",
+      "resolved_at": "2026-09-13T15:09:03.089478+00:00",
+      "handoff_id": "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/submit-pr-1.json"
     }
   ],
   "gate_decisions": [
@@ -532,6 +552,72 @@
       "change_id": "add-cross-roadmap-readiness-resolver",
       "item_id": "ri-16",
       "note": "operator authorized via chat: merge 509"
+    },
+    {
+      "gate": "roadmap_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'roadmap_approval' approved by the operator \u2014 direct invocation",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-09-13T15:02:42.607495+00:00",
+      "decision_id": "c7ea211d-f613-4ab6-9726-27374e5821c2",
+      "source": "supervise",
+      "verb": "cycle",
+      "roadmap_id": "roadmap-supervisor-orchestration",
+      "roadmap_fingerprint": "8e3c6c0baa7672cfca01fcd78feb93c047948bd7d93de62063d49e8e9ca51d74",
+      "note": "direct invocation"
+    },
+    {
+      "gate": "proposal_approval",
+      "outcome": "blocked",
+      "resolution": "posture_block",
+      "authorizing_disposition": "block",
+      "reason": "gate 'proposal_approval' parked: trust posture disposition is block",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-09-13T15:03:03.078038+00:00",
+      "decision_id": "815b0a8b-ce2b-4e47-ba50-6db9b9bdff2b",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "roadmap-supervisor-orchestration",
+      "change_id": "add-supervisor-candidate-work-digest",
+      "dispatch_id": "batch-d04b4c6458221e0731470363:ri-13:attempt-1",
+      "item_id": "ri-13"
+    },
+    {
+      "gate": "proposal_approval",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'proposal_approval' approved by the operator \u2014 direct roadmap approval inherited by dependency-ready ri-13",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUPERVISE",
+      "recorded_at": "2026-09-13T15:03:19.851540+00:00",
+      "decision_id": "a806f3b1-3db7-4220-a77b-04db2fccc8f9",
+      "source": "supervise",
+      "verb": "resume",
+      "roadmap_id": "roadmap-supervisor-orchestration",
+      "change_id": "add-supervisor-candidate-work-digest",
+      "dispatch_id": "batch-d04b4c6458221e0731470363:ri-13:attempt-1",
+      "item_id": "ri-13",
+      "note": "direct roadmap approval inherited by dependency-ready ri-13"
     }
   ]
 }
