@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-09-12T13:56:16Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": true,
+      "model_used": "gemini-3.6-flash-medium",
+      "models_attempted": [
+        "gemini-3.6-flash-medium"
+      ],
+      "elapsed_seconds": 53.448709764983505,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "claude_code",
+      "success": false,
+      "model_used": "(default)",
+      "models_attempted": [
+        "(default)"
+      ],
+      "elapsed_seconds": 435.6499892012216,
+      "error": "Findings failed review-findings schema validation: findings/0: 'disposition' is a required property; findings/1: 'disposition' is a required property; findings/2: 'disposition' is a required property; findings/3: 'disposition' is a required property; findings/4: 'disposition' is a required property",
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.5",
+      "models_attempted": [
+        "gpt-5.5"
+      ],
+      "elapsed_seconds": 222.05932042514905,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 435.91631178278476,
+      "error": null,
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 3,
+  "vendors": [
+    {
+      "name": "antigravity",
+      "findings_path": "findings-antigravity-implementation.json",
+      "finding_count": 0
+    },
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-implementation.json",
+      "finding_count": 2
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-implementation.json",
+      "finding_count": 5
+    }
+  ]
+}

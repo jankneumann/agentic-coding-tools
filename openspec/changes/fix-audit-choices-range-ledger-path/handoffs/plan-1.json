@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T02:45:09.570090+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": null,
+    "summary": "Planned the fix for a standalone range audit writing to openspec/changes/range:<base>..<head>/. The operator chose to extract the run-id format to skills/shared/ rather than copy it, so the change also migrates prioritize-proposals onto the shared helper under a characterization test that forbids any change to its on-disk output.",
+    "completed_work": [],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Destination mirrors openspec/priorities/",
+        "rationale": "prioritize-proposals is the only other producer of this artifact class and already answered this question, explicitly rejecting openspec/changes/ as 'the wrong home for a meta-report'. Reusing its dated run-directory layout avoids inventing a second shape for one artifact class.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "The shared module holds the run-id format, not the filenames",
+        "rationale": "The two producers write different filenames (report.* vs choices.*). Extracting those too would give the shared helper knowledge of both callers, which is the coupling the extraction exists to avoid. skills/shared/ is a declared shared_library, so no cross_skill_dependencies entry is needed.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "The prioritize-proposals migration is guarded by a test written first",
+        "rationale": "A working skill is being refactored to fix a bug in a different one, which is the shape of change that quietly alters behavior. The characterization test pins its on-disk output before anything moves and must pass unchanged after.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Task 1.1 \u2014 the characterization test, before any code moves"
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/fix-audit-choices-range-ledger-path/proposal.md",
+        "description": "approved proposal"
+      },
+      {
+        "path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+        "description": "decisions D1-D6"
+      }
+    ]
+  }
+}

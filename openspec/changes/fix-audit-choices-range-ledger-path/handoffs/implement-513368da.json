@@ -1,0 +1,50 @@
+{
+  "agent_name": "autopilot-implement",
+  "summary": "Implemented all ten tasks and five checkpoints of fix-audit-choices-range-ledger-path: extracted build_run_id/RUN_ID_RE/parse_run_id/apply_retention into skills/shared/artifact_paths.py (with a D8 collision-suffix extension to RUN_ID_RE), migrated prioritize-proposals onto it behind a characterization test that still passes byte-unchanged, and routed audit-choices' standalone range form to openspec/choices/<run-id>/ with latest.* copies and archive-not-delete retention. A harness bug refused git operations targeting the managed worktree (.git-worktrees/fix-audit-choices-range-ledger-path/implement-ledger), so all ten commits were made on a local branch inside this agent's own worktree, then pushed directly to origin/openspec/fix-audit-choices-range-ledger-path as a clean fast-forward (6bb4c341..f10cc463).",
+  "completed_work": [
+    "Task 1.1: skills/tests/prioritize-proposals/test_output_characterization.py — function-level pins on build_run_id/build_paths/parse_run_id/apply_retention plus CLI entry points (priorities_paths.py run-id/paths, retention.py) run as subprocesses from a runtime-shaped copy, including a TZ=America/New_York case proving the run-id CLI uses UTC not local time. Green before anything moved.",
+    "Checkpoint (Phase 1): cd skills && uv run pytest tests/prioritize-proposals -q — 65 passed.",
+    "Task 2.1: skills/tests/shared/test_artifact_paths.py — build_run_id, parse_run_id (including the D8 collision-suffix 4-tuple return and a bare-date case), RUN_ID_RE, apply_retention/list_active_runs, DEFAULT_RETAIN==30.",
+    "Task 2.2: skills/shared/artifact_paths.py created (additive copy) with RUN_ID_RE extended with an optional trailing -<n> collision-suffix group; parse_run_id returns a 3-tuple normally and a 4-tuple (date, hms, sha, suffix) when a suffix is present, preserving the exact 3-tuple unpacking prioritize-proposals' frozen tests rely on.",
+    "Task 3.1: skills/prioritize-proposals/scripts/priorities_paths.py and retention.py migrated to re-export from shared.artifact_paths via the D2 sys.path bootstrap (parents[2]); no definition of the migrated names survives in prioritize-proposals/scripts/ (verified by grep). retention.py's --retain default now reads DEFAULT_RETAIN.",
+    "Checkpoint (Phase 3): pytest tests/prioritize-proposals tests/shared -q green (87 passed, 1 skipped); task 1.1's characterization test unchanged and green; git diff --quiet against merge-base for the three frozen test modules + SKILL.md exits 0.",
+    "Task 4.1: skills/tests/audit-choices/test_output_routing.py — route_output_dir() direct tests: range: prefix routes under openspec/choices/, D7 pin on build_run_id(now, git_sha) ignoring header run_id/head_sha, D8 collision suffixing (-2, -3) checking both active and archived locations, non-range ids (including one merely containing '..' or ':') route unchanged to openspec/changes/<id>/.",
+    "Task 4.2: skills/audit-choices/scripts/choices_paths.py created (route_output_dir, ChoicesPaths, build_choices_paths, is_range_change_id, choices_root_for) and wired into run_audit.py: resolved_now/resolved_git_sha computed before routing; write_ledger_pair writes into the routed directory; a range run additionally copies its pair to latest.{json,md} at openspec/choices/. collect_evidence.py's own read-only path derivation left untouched (D5).",
+    "Task 4.3: skills/tests/audit-choices/test_end_to_end.py's TestStandaloneRangeInvocation replaced (not supplemented) to stop asserting the abolished openspec/changes/range:.../choices.json path: one _cli()-driven exit-code case plus a scan proving no openspec/changes/ entry names the range; a run_audit()-driven case (explicit now/git_sha) pinning the run directory located by globbing <run-id>*, both full 40-char shas, and byte-equal latest.*; a two-run D8 snapshot case (distinct now values -> distinct directories, first byte-unchanged, same stable_ids, latest.* moves to the second); a change-id run in the same fixture still lands under openspec/changes/<id>/ and touches nothing under openspec/choices/.",
+    "Checkpoint (Phase 4): pytest tests/audit-choices tests/shared -q — 168 passed, 1 skipped.",
+    "Task 5.1: SKILL.md's Read-Only Contract paragraph, Red Flags bullet, and Output section widened to name all three range-form effects (run directory pair, latest.* copies, retention's archive move) as a literal set; the 'only writer' sentence reworded per D6. Added a range-form case to test_writes_confined_to_ledger_pair (test_readonly_posture.py) and paragraph-scoped content assertions to test_skill_md.py.",
+    "Task 5.2: run_audit.py calls the shared apply_retention(choices_root, retain=DEFAULT_RETAIN) after the latest.* copy on a range run, inside its own try/except (a failure logs a warning and the result stays ok=True with both paths set). Added TestRangeFormRetention to test_readonly_posture.py: a deletion-aware snapshot variant for the over-limit archive-move case (exact permitted-deleted set, leaving the existing change-id/under-limit assertions strict and untouched) plus a monkeypatch-raises test asserting exactly one warning naming retention is emitted.",
+    "Task 5.3: docs/guides/workflow.md's audit-choices bullet and SKILL.md's Arguments section document the range-form destination; SKILL.md's Verification step 5, the Common Rationalizations 'doubled entry count' row, and the Script-Side Validation step 5 prose scoped to the change-id form with the range form's per-run-snapshot model (D8) stated beside each.",
+    "Final checkpoint: cd skills && bash install.sh --check (pass); dependency_direction.py --skills-root . (pass); uv run pytest tests/ci_coverage -q (124 passed); make context-refresh PYTHON=skills/.venv/bin/python confirmed pre-existing repo-wide failure (~30 unrelated active changes with pending spec merges, including skill-workflow's own pending-merge status) unrelated to this change, recorded not fixed; bash skills/install.sh --mode rsync --deps none --python-tools none resynced .claude/skills/ and .agents/skills/ (both gitignored, no tracked diff); full diff reviewed against work-packages.yaml's write_allow — no out-of-scope touches.",
+    "Combined suite (tests/audit-choices tests/shared tests/prioritize-proposals): 239 passed, 1 skipped, at the final checkpoint.",
+    "All ten task checkboxes and five checkpoint checkboxes in tasks.md flipped in the same commit as their work; final grep for unchecked boxes returns nothing.",
+    "Pushed all ten implementation commits directly to origin/openspec/fix-audit-choices-range-ledger-path as a fast-forward from 6bb4c341 to f10cc463, after a harness bug refused git operations against the managed worktree at /home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/fix-audit-choices-range-ledger-path/implement-ledger."
+  ],
+  "in_progress": [],
+  "decisions": [
+    "parse_run_id's return arity: normal ids return a 3-tuple (date, hms, sha), matching the exact 3-tuple unpacking in prioritize-proposals' frozen test_priorities_paths.py; a D8 collision-suffixed id returns a 4-tuple with the suffix appended as the 4th element. This was necessary but not spelled out verbatim in design.md/tasks.md, which say only 'parse_run_id returns it' -- a uniform 4-tuple return would have broken every existing unsuffixed-id call site in the frozen tests, which the migration must not touch.",
+    "Retention wiring (task 5.2) lives entirely in run_audit.py's _run_audit_inner, gated by choices_paths.is_range_change_id(change_id) -- the same gate used for the latest.* copy -- rather than duplicating the branch. choices_paths.py itself has no retention-awareness, keeping it a pure routing/paths module per D5's 'routing lives with the driver' framing.",
+    "Landed via direct push to origin (git push origin HEAD:openspec/fix-audit-choices-range-ledger-path) rather than through the managed worktree, per the phase brief's documented harness-bug fallback. Verified fast-forward safety (git merge-base --is-ancestor) before pushing, and confirmed via git ls-remote afterward that origin now points at f10cc463."
+  ],
+  "next_steps": [
+    "VAL_REVIEW / PLAN-style reviewers should re-verify: (a) prioritize-proposals' three frozen test modules and SKILL.md are still byte-identical to the pre-migration merge-base; (b) task 1.1's characterization test still passes unmodified; (c) no directory under openspec/changes/ contains 'range:' or '..' anywhere in the fixture suites.",
+    "The orchestrator should fast-forward its local ref for openspec/fix-audit-choices-range-ledger-path to f10cc463 (already pushed to origin) before continuing to the next phase, per the harness-bug fallback instructions.",
+    "No deferred or descoped tasks -- all ten tasks and five checkpoints are complete and checked off in tasks.md."
+  ],
+  "relevant_files": [
+    "skills/shared/artifact_paths.py",
+    "skills/audit-choices/scripts/choices_paths.py",
+    "skills/audit-choices/scripts/run_audit.py",
+    "skills/prioritize-proposals/scripts/priorities_paths.py",
+    "skills/prioritize-proposals/scripts/retention.py",
+    "skills/audit-choices/SKILL.md",
+    "docs/guides/workflow.md",
+    "skills/tests/shared/test_artifact_paths.py",
+    "skills/tests/prioritize-proposals/test_output_characterization.py",
+    "skills/tests/audit-choices/test_output_routing.py",
+    "skills/tests/audit-choices/test_end_to_end.py",
+    "skills/tests/audit-choices/test_readonly_posture.py",
+    "skills/tests/audit-choices/test_skill_md.py",
+    "openspec/changes/fix-audit-choices-range-ledger-path/tasks.md"
+  ]
+}

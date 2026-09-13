@@ -7,9 +7,10 @@ skill-workflow.6 (Adverse verdicts never block).
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -17,8 +18,10 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS_DIR = REPO_ROOT / "skills" / "audit-choices" / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
+sys.path.insert(0, str(REPO_ROOT / "skills"))
 
 import run_audit  # noqa: E402
+from shared.artifact_paths import DEFAULT_RETAIN  # noqa: E402
 
 
 def _git(repo_root, *args):
@@ -113,6 +116,46 @@ class TestWritesConfinedToLedgerPair:
         assert changed_or_new == allowed, f"unexpected writes: {changed_or_new - allowed}"
 
         # And nothing was deleted either.
+        assert set(before.keys()) <= set(after.keys())
+
+    def test_range_form_writes_confined_to_run_directory_and_latest(self, fixture_repo):
+        """A standalone range audit's closed write set (D6): with fewer
+        than the retained run count present, its working-tree diff is
+        exactly the new run directory's pair plus latest.* — nothing
+        deleted, nothing moved."""
+        repo_root = fixture_repo["repo_root"]
+        base_sha = fixture_repo["base_sha"]
+        head_sha = fixture_repo["head_sha"]
+        range_change_id = f"range:{base_sha}..{head_sha}"
+        now = datetime(2026, 8, 21, tzinfo=timezone.utc)
+        before = _snapshot(repo_root)
+
+        result = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id=range_change_id,
+            base_sha=base_sha,
+            head_sha=head_sha,
+            candidates=[_good_candidate(head_sha)],
+            run_id="run-range-001",
+            now=now,
+            git_sha=head_sha,
+        )
+        assert result.ok is True
+
+        after = _snapshot(repo_root)
+        changed_or_new = {k for k in after if k not in before or after[k] != before[k]}
+
+        run_dir = result.json_path.parent
+        run_prefix = str(run_dir.relative_to(repo_root)) + "/"
+        allowed = {
+            run_prefix + "choices.json",
+            run_prefix + "choices.md",
+            "openspec/choices/latest.json",
+            "openspec/choices/latest.md",
+        }
+        assert changed_or_new == allowed, f"unexpected writes: {changed_or_new - allowed}"
+
+        # Nothing deleted or moved.
         assert set(before.keys()) <= set(after.keys())
 
 
@@ -236,3 +279,298 @@ class TestHallucinationGuard:
         assert result.dropped_count == 1
         doc = json.loads((fixture_repo["change_dir"] / "choices.json").read_text())
         assert doc["entries"][0]["choice"] == "A valid choice"
+
+
+class TestRangeFormRetention:
+    """Retention on the standalone-audit tree (design D3, D6, D8).
+
+    This case needs a deletion-aware variant of `_snapshot`'s closure
+    assertion: `TestWritesConfinedToLedgerPair` (above) keeps the strict
+    `set(before.keys()) <= set(after.keys())` — no deletion — unchanged,
+    because a retention archive move is out of scope for that case (fewer
+    than the retained count of runs are present there). Here, over the
+    limit, the archive `shutil.move` legitimately removes the oldest run's
+    two files from their original keys, so this variant asserts an exact
+    permitted-deleted set instead of relaxing the guarantee globally.
+    """
+
+    def test_over_limit_retention_archives_oldest_alongside_the_new_pair(self, fixture_repo):
+        repo_root = fixture_repo["repo_root"]
+        base_sha = fixture_repo["base_sha"]
+        head_sha = fixture_repo["head_sha"]
+        choices_root = repo_root / "openspec" / "choices"
+
+        # DEFAULT_RETAIN pre-existing run directories, all dated well before
+        # the new run below, so the new run is guaranteed to be the newest
+        # and the very oldest of the pre-existing set is guaranteed to be
+        # archived.
+        oldest_run_id = "2020-01-01-000000-aaaaaaa"
+        pre_existing = [oldest_run_id] + [
+            f"2020-01-{i + 2:02d}-000000-{i:07x}" for i in range(DEFAULT_RETAIN - 1)
+        ]
+        for run_id in pre_existing:
+            d = choices_root / run_id
+            d.mkdir(parents=True)
+            # Distinct per-run sentinels: identical stubs would let a
+            # delete-and-recreate implementation satisfy the path-set
+            # assertions below while destroying the pair the scenario
+            # promises arrives "intact".
+            (d / "choices.json").write_text('{"sentinel": "%s"}' % run_id)
+            (d / "choices.md").write_text(f"sentinel {run_id}")
+
+        before = _snapshot(repo_root)
+
+        range_change_id = f"range:{base_sha}..{head_sha}"
+        result = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id=range_change_id,
+            base_sha=base_sha,
+            head_sha=head_sha,
+            candidates=[_good_candidate(head_sha)],
+            run_id="run-range-retention-001",
+            now=datetime(2026, 8, 21, tzinfo=timezone.utc),
+            git_sha=head_sha,
+        )
+        assert result.ok is True
+
+        after = _snapshot(repo_root)
+        created_or_modified = {k for k in after if k not in before or after[k] != before[k]}
+        deleted = {k for k in before if k not in after}
+
+        run_dir = result.json_path.parent
+        run_prefix = str(run_dir.relative_to(repo_root)) + "/"
+        old_prefix = f"openspec/choices/{oldest_run_id}/"
+        archived_prefix = f"openspec/choices/archive/{oldest_run_id}/"
+
+        permitted_created = {
+            run_prefix + "choices.json",
+            run_prefix + "choices.md",
+            "openspec/choices/latest.json",
+            "openspec/choices/latest.md",
+            archived_prefix + "choices.json",
+            archived_prefix + "choices.md",
+        }
+        permitted_deleted = {
+            old_prefix + "choices.json",
+            old_prefix + "choices.md",
+        }
+
+        assert created_or_modified == permitted_created, (
+            f"unexpected writes: {created_or_modified - permitted_created}"
+        )
+        assert deleted == permitted_deleted, f"unexpected deletions: {deleted - permitted_deleted}"
+
+        # Scenario 14 says the archived pair arrives intact, and path-set
+        # equality does not say that: an implementation that deleted the
+        # active pair and wrote empty files at the archive paths would
+        # satisfy every assertion above. Read the bytes back.
+        archived_dir = choices_root / "archive" / oldest_run_id
+        assert (
+            archived_dir / "choices.json"
+        ).read_text() == '{"sentinel": "%s"}' % oldest_run_id
+        assert (
+            archived_dir / "choices.md"
+        ).read_text() == f"sentinel {oldest_run_id}"
+
+    def test_retention_failure_does_not_fail_a_successful_run(self, fixture_repo, monkeypatch, caplog):
+        def _raise(*args, **kwargs):
+            raise OSError("boom: retention could not move the archive directory")
+
+        monkeypatch.setattr(run_audit, "apply_retention", _raise)
+
+        repo_root = fixture_repo["repo_root"]
+        base_sha = fixture_repo["base_sha"]
+        head_sha = fixture_repo["head_sha"]
+        range_change_id = f"range:{base_sha}..{head_sha}"
+
+        with caplog.at_level(logging.WARNING):
+            result = run_audit.run_audit(
+                repo_root=repo_root,
+                change_id=range_change_id,
+                base_sha=base_sha,
+                head_sha=head_sha,
+                candidates=[_good_candidate(head_sha)],
+                run_id="run-range-retfail-001",
+                now=datetime(2026, 8, 21, tzinfo=timezone.utc),
+                git_sha=head_sha,
+            )
+
+        # The never-raises contract holds even when retention itself blows
+        # up: a housekeeping failure must never masquerade as a write
+        # failure (D8).
+        assert result.ok is True
+        assert result.json_path is not None
+        assert result.md_path is not None
+        assert result.json_path.exists()
+        assert result.md_path.exists()
+
+        # Without this assertion, an implementation that swallows the
+        # failure silently would pass, and the operator would lose the
+        # only signal that the standalone-audit tree has stopped being
+        # bounded.
+        retention_warnings = [
+            r for r in caplog.records if "retention" in r.getMessage().lower()
+        ]
+        assert len(retention_warnings) == 1
+
+
+class TestFailedRangeRunLeavesNoOrphanDirectory:
+    """impl-round-2 (codex): reserving the run directory by creating it means
+    a later failure can leave an empty directory behind — a fourth effect
+    outside D6's closed write set, which `list_active_runs` then counts as a
+    run that produced no ledger."""
+
+    def test_write_failure_removes_the_reserved_directory(self, fixture_repo, monkeypatch):
+        repo_root = fixture_repo["repo_root"]
+        choices_root = repo_root / "openspec" / "choices"
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError("simulated write failure")
+
+        monkeypatch.setattr(run_audit.choices_ledger, "write_ledger_pair", _boom)
+
+        result = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id=f"range:{fixture_repo['base_sha']}..{fixture_repo['head_sha']}",
+            base_sha=fixture_repo["base_sha"],
+            head_sha=fixture_repo["head_sha"],
+            candidates=[_good_candidate(fixture_repo["head_sha"])],
+            run_id="run-orphan-001",
+            now=datetime(2026, 8, 22, tzinfo=timezone.utc),
+            git_sha=fixture_repo["head_sha"],
+        )
+        assert result.ok is False, "the driver still reports the failure"
+
+        leftovers = sorted(p.name for p in choices_root.iterdir()) if choices_root.exists() else []
+        assert leftovers == [], f"reserved directory left behind after a failed run: {leftovers}"
+
+
+class TestChangeIdHeaderTimingMatchesMain:
+    """impl-round-2 (codex): the range routing needs `now`/`git_sha`, and
+    hoisting their resolution above `collect_evidence` changed *when* the
+    change-id form captures them too. `main` resolves them immediately before
+    building the header, and the change-id form is contracted byte-for-byte
+    unchanged.
+
+    impl-round-3 (claude_code, grok): the first version of this test compared
+    a second-truncated `generated_at` against the collection start and passed
+    whenever both fell in the same second — which is almost always. It never
+    failed against the bug. This version does not measure time at all: it
+    replaces the clock with a counter, so "resolved before collection" and
+    "resolved after collection" produce different values rather than the same
+    one rounded.
+    """
+
+    def test_generated_at_is_resolved_after_evidence_collection(
+        self, fixture_repo, monkeypatch
+    ):
+        repo_root = fixture_repo["repo_root"]
+        real_collect = run_audit.collect_evidence.collect_evidence
+
+        # A clock that advances one hour per call. Whichever side of
+        # collect_evidence the resolution happens on gets a different hour,
+        # so the assertion discriminates without depending on wall time.
+        ticks = {"n": 0}
+        base = datetime(2026, 8, 23, tzinfo=timezone.utc)
+
+        class _Clock:
+            @staticmethod
+            def now(tz=None):
+                ticks["n"] += 1
+                return base + timedelta(hours=ticks["n"])
+
+        def collecting(*args, **kwargs):
+            # Burn a tick so that resolving before vs after differs by an hour.
+            _Clock.now()
+            return real_collect(*args, **kwargs)
+
+        monkeypatch.setattr(run_audit, "datetime", _Clock)
+        monkeypatch.setattr(run_audit.collect_evidence, "collect_evidence", collecting)
+
+        result = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id="my-change",
+            base_sha=fixture_repo["base_sha"],
+            head_sha=fixture_repo["head_sha"],
+            candidates=[_good_candidate(fixture_repo["head_sha"])],
+            run_id="run-timing-001",
+        )
+        assert result.ok is True
+
+        doc = json.loads(result.json_path.read_text())
+        generated_at = doc["header"]["generated_at"]
+        # Tick 1 is burned inside collect_evidence, so a resolution that runs
+        # after it sees hour 2. Resolving before collection would give hour 1.
+        assert generated_at == "2026-08-23T02:00:00Z", (
+            f"generated_at is {generated_at}; hour 01 means it was resolved "
+            "before evidence collection, which is the impl-round-2 regression"
+        )
+
+
+class TestLatestCopyFailureDoesNotFailARun:
+    """impl-round-3 (grok): retention's guard has a test; the latest.* guard
+    added in the same round did not. Both close the same window — the pair is
+    already on disk, so a housekeeping failure must not report a persisted
+    ledger as a failed run."""
+
+    def test_copy_failure_leaves_the_run_successful(self, fixture_repo, monkeypatch, caplog):
+        repo_root = fixture_repo["repo_root"]
+
+        def _boom(*args, **kwargs):
+            raise OSError("simulated latest.* copy failure")
+
+        monkeypatch.setattr(run_audit.shutil, "copyfile", _boom)
+
+        with caplog.at_level(logging.WARNING):
+            result = run_audit.run_audit(
+                repo_root=repo_root,
+                change_id=f"range:{fixture_repo['base_sha']}..{fixture_repo['head_sha']}",
+                base_sha=fixture_repo["base_sha"],
+                head_sha=fixture_repo["head_sha"],
+                candidates=[_good_candidate(fixture_repo["head_sha"])],
+                run_id="run-latest-fail-001",
+                now=datetime(2026, 8, 24, tzinfo=timezone.utc),
+                git_sha=fixture_repo["head_sha"],
+            )
+
+        assert result.ok is True, "a latest.* failure must not fail a written run"
+        assert result.json_path is not None and result.json_path.exists()
+        assert result.md_path is not None and result.md_path.exists()
+        assert any("latest" in r.message.lower() for r in caplog.records), (
+            "the failure must be reported, not swallowed"
+        )
+
+
+class TestRetentionNeverArchivesTheRunJustWritten:
+    """impl-round-3 (claude_code): `apply_retention` chose what to archive
+    purely by ordering and never excluded the caller's own run. Because
+    `openspec/choices/` is tracked, it can hold runs from other branches or
+    machines with later dates, so a run whose date sorts oldest would have its
+    ledger archived out from under the `json_path` the driver returns."""
+
+    def test_our_run_survives_even_when_it_sorts_oldest(self, fixture_repo):
+        repo_root = fixture_repo["repo_root"]
+        choices_root = repo_root / "openspec" / "choices"
+        choices_root.mkdir(parents=True, exist_ok=True)
+        # Every other run is newer, so ours is the oldest and would be the
+        # first thing retention takes.
+        for i in range(1, DEFAULT_RETAIN + 2):
+            d = choices_root / f"2027-06-{i % 28 + 1:02d}-000000-{i:07x}"
+            d.mkdir(parents=True, exist_ok=True)
+            (d / "choices.json").write_text("{}")
+
+        result = run_audit.run_audit(
+            repo_root=repo_root,
+            change_id=f"range:{fixture_repo['base_sha']}..{fixture_repo['head_sha']}",
+            base_sha=fixture_repo["base_sha"],
+            head_sha=fixture_repo["head_sha"],
+            candidates=[_good_candidate(fixture_repo["head_sha"])],
+            run_id="run-protect-001",
+            now=datetime(2020, 1, 1, tzinfo=timezone.utc),  # oldest by far
+            git_sha=fixture_repo["head_sha"],
+        )
+        assert result.ok is True
+        assert result.json_path.exists(), (
+            "retention archived the run that had just been written; the path "
+            "the driver returned no longer exists"
+        )

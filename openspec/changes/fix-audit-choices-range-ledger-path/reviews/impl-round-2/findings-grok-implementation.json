@@ -1,0 +1,41 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "After write_ledger_pair succeeds on a range run, an exception from shutil.copyfile(latest.*) is caught by run_audit()'s outer handler and reported as ok=False with json_path=None/md_path=None and the log line 'ledger not updated', even though the run directory's choices.json/choices.md are already on disk. This is the same false-failure window D8 closed for apply_retention (which is wrapped immediately below), but the latest.* copies sit unprotected between the successful write and that wrap. Reproduced: pair present under openspec/choices/<run-id>/ while the result claims the ledger was not updated.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "optional",
+      "resolution": "Handle latest.* copy failures in their own branch after a successful write_ledger_pair: keep json_path/md_path set to the written pair, and either (a) warn-and-continue like retention if the pair alone defines success, or (b) return ok=False with an error that names the latest-copy failure without claiming the ledger was not updated. Do not let the outer catch-all be the only handler for post-write range-form effects.",
+      "package_id": "wp-main",
+      "file_path": "skills/audit-choices/scripts/run_audit.py",
+      "line_range": {
+        "start": 183,
+        "end": 212
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "route_output_dir() (which mkdir-reserves the run directory for range ids) runs at the start of _run_audit_inner, before collect_evidence and validation, even though change_dir is first needed at write_ledger_pair. Any failure in evidence collection or later validation therefore leaves an empty openspec/choices/<run-id>/ directory, reports ok=False, and still consumes that run-id (and a retention slot). Reproduced: monkeypatched collect_evidence raising leaves choices/<run-id>/ with no children. Empty failure dirs that sort as newer than real runs can push intact ledgers into archive while occupying active retain slots.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "optional",
+      "resolution": "Call route_output_dir immediately before write_ledger_pair (after evidence/validation), preserving mkdir(exist_ok=False) atomic reservation for D8 without creating empty run directories when the audit fails earlier. Optionally remove an empty reservation in the outer failure path if one must still be created earlier.",
+      "package_id": "wp-main",
+      "file_path": "skills/audit-choices/scripts/run_audit.py",
+      "line_range": {
+        "start": 160,
+        "end": 190
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

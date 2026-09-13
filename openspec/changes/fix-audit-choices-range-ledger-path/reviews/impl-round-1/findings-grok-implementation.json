@@ -1,0 +1,92 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "Nit: `TestRangeFormRetention.test_over_limit_retention_archives_oldest_alongside_the_new_pair` is the scenario-14 / task-5.2 pin for \"pair intact\", but it only asserts path-set equality for `permitted_created` / `permitted_deleted`. The pre-existing stubs are written as `\"{}\"` / `\"stub\"`, and nothing reads those bytes back from `openspec/choices/archive/<run-id>/`. A retention implementation that deleted the active pair and recreated empty (or otherwise different) files at the archive paths would still satisfy this test, so the \"SHALL NOT be destroyed\" clause is not actually pinned here.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "After the run, assert the archived files' contents equal the pre-move stubs (e.g. `read_text() == \"{}\"` / `\"stub\"`), matching the content pin already used in `test_output_characterization.py` for prioritize-proposals retention.",
+      "package_id": "wp-main",
+      "file_path": "skills/tests/audit-choices/test_readonly_posture.py",
+      "line_range": {
+        "start": 341,
+        "end": 357
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: D8's collision guard is implemented as designed and the silent-unbounded-tree failure mode is closed. `_run_id_taken` rejects names present under either the active root or `archive/`; `_free_run_id` advances `-2`, `-3`, \u2026; `RUN_ID_RE` accepts the trailing `-(\\d+)` group; `parse_run_id` keeps a fixed 3-tuple while `run_id_suffix` reads the suffix; `list_active_runs` filters via `parse_run_id`, so hand-tracing shows collision-suffixed directories remain visible to retention.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No change. Keep the archive-aware taken check and the suffix-capable regex coupled through `parse_run_id`.",
+      "package_id": "wp-main",
+      "file_path": "skills/audit-choices/scripts/choices_paths.py",
+      "line_range": {
+        "start": 73,
+        "end": 95
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "FYI: D4's characterization guard holds for what it claims: `test_priorities_paths.py`, `test_retention.py`, `test_smoke_e2e.py`, and `prioritize-proposals/SKILL.md` are byte-unchanged vs `main` (`git diff --quiet` exit 0), and `test_output_characterization.py` pins exact run-id/path strings, legacy parse tuples, archive-not-delete, runtime-shaped CLI subprocesses, and the TZ=America/New_York UTC wall-clock check. Breakage that could still pass it: changes to report body/schema authorship in the SKILL.md bash compose path (`mkdir`/`cp` of report contents \u2014 never subprocess-tested end-to-end); error-message string changes; a behavior-identical local redefinition sitting beside the re-exports (D3's \"only re-exports\" rule is enforced by a work-package grep, not a lasting test); and any prioritize-proposals behavior outside path construction/retention CLI entrypoints.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "fyi",
+      "resolution": "No action required for this change. Treat the three-part D4 guard as sufficient for the migration's blast radius; do not weaken the runtime-shaped subprocess cases.",
+      "package_id": "wp-main",
+      "file_path": "skills/tests/prioritize-proposals/test_output_characterization.py",
+      "line_range": {
+        "start": 1,
+        "end": 24
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: D6's closed write set has no fourth durable effect in the driver, and the posture tests are closed correctly around retention deletes. A range run only (1) writes the run-dir pair via `write_ledger_pair`, (2) `shutil.copyfile`s `latest.*`, and (3) calls shared `apply_retention`. `collect_evidence` performs no writes. The under-limit snapshot keeps strict no-deletion; the over-limit case uses a separate permitted-deleted set rather than relaxing the change-id predicate. D3 holds (prioritize-proposals scripts only re-export the moved names). Scope claim holds: no diffs to `choices_ledger.py`, `collect_evidence.py`, or `openspec/schemas/`; `_cli()` still always returns 0.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "resolution": "No change. Keep the under-limit and over-limit posture cases on separate predicates.",
+      "package_id": "wp-main",
+      "file_path": "skills/audit-choices/scripts/run_audit.py",
+      "line_range": {
+        "start": 192,
+        "end": 212
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Scenarios 12\u201315 each have assertions that would fail on regression. 12: `test_range_run_writes_under_choices_root_with_latest_copies` pins `change_id`, full 40-char `audited_range` shas, `openspec/choices/<run-id>/` location via glob, byte-equal `latest.*`, and no top-level `range:`/`..` under `openspec/changes/`; `_cli` case pins exit 0. 13: `test_change_id_run_in_same_fixture_still_writes_to_changes_tree` requires the change-id pair under `openspec/changes/<id>/` and that `openspec/choices/` is absent. 14: over-limit posture test pins the archive move path set; retention-failure test pins `ok is True`, both paths set/on disk, and exactly one warning naming retention. 15: under-limit range posture test requires the working-tree diff equal exactly the run pair plus `latest.*`.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "resolution": "No change beyond finding 1's content pin for the archived pair.",
+      "package_id": "wp-main",
+      "file_path": "skills/tests/audit-choices/test_end_to_end.py",
+      "line_range": {
+        "start": 467,
+        "end": 593
+      },
+      "evidence_class": "deterministic"
+    }
+  ]
+}

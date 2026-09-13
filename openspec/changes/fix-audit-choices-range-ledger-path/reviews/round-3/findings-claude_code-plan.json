@@ -1,0 +1,151 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "line_range": {
+        "start": 213,
+        "end": 218
+      },
+      "description": "D8's collision guard produces directory names that parse_run_id rejects, so retention silently stops seeing them. D8 states the helper 'appends -2, -3, ... until one is free' and that 'the suffixed name still parses as a run id so retention keeps counting it'; tasks.md 4.1 (lines 142-147) turns that into a required assertion. It is false against the code being reused. skills/prioritize-proposals/scripts/priorities_paths.py:17 defines RUN_ID_RE as ^(\\d{4}-\\d{2}-\\d{2})(?:-(\\d{6}|legacy)(?:-([a-f0-9]+))?)?$ \u2014 the sha group is [a-f0-9]+ anchored to end-of-string, so it cannot absorb a trailing '-2'. parse_run_id (priorities_paths.py:61-75) therefore raises ValueError for '2026-09-12-143052-abc1234-2', and list_active_runs (retention.py:30-46) swallows that ValueError and skips the entry. Consequences: (a) every collision-suffixed run directory is invisible to apply_retention \u2014 never counted toward the retain limit, never archived, never bounded, which defeats new spec scenario skill-workflow.14 'Standalone audit output is bounded' for exactly the directories D8 introduces; (b) the test task 4.1 instructs an implementer to write is unwritable as specified and will fail. Note the provenance: round-2 codex asked for a 'deterministic disambiguator' and round-2 grok explicitly recommended softening D8's wording 'rather than changing the run-id format' \u2014 the applied fix took the format change without checking the regex.",
+      "resolution": "Pick one and make it consistent across D8, D2, task 2.1 and task 4.1. (a) Widen the shared RUN_ID_RE to an optional collision ordinal, e.g. ^(\\d{4}-\\d{2}-\\d{2})(?:-(\\d{6}|legacy)(?:-([a-f0-9]+)(?:-(\\d+))?)?)?$, extend parse_run_id's documented contract to return the ordinal, and add both the positive and the ordering case ('<rid>' sorts before '<rid>-2') to task 2.1's shared tests. This is safe against D4 part 3: the only pre-existing negative case is test_priorities_paths.py:90-96, which asserts ValueError for 'not-a-priorities-run', so widening the regex does not touch a byte-frozen test. (b) Or drop the suffix and give build_run_id sub-second resolution for the choices caller. (c) Or accept grok's original advice: revert to no guard, soften D8 to 'normally fresh', and state the same-second merge as an accepted property shared with openspec/priorities/. Whichever is chosen, task 4.1's assertion text must match the regex that will actually exist."
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/proposal.md",
+      "line_range": {
+        "start": 44,
+        "end": 49
+      },
+      "description": "The collision suffix falsifies D7's stated invariant, and two artifacts still assert it. proposal.md lines 44-47 and design.md D7 (line 182) both claim the run directory is 'built from the same generated_at and git_sha the ledger's header records, so a ledger's location is derivable from its own contents'. Once D8 can rename the directory to '<run-id>-2', that derivation is one-way only: given the ledger you can compute the run-id prefix, but not which suffixed sibling holds it, and given the directory name '-2' you cannot recover it from any header field. This is not merely cosmetic \u2014 it is the sole justification D7 offers for preferring resolved_now/resolved_git_sha over other keys, and task 4.3 (lines 183-186) instructs the end-to-end test to locate the pair at 'openspec/choices/<run-id>' computed from those two values, which is wrong for any suffixed run.",
+      "resolution": "Restate the D7 property as it will actually hold: the run directory's *prefix* is derived from the header's generated_at and git_sha, with a collision ordinal appended when a same-second, same-HEAD directory already exists, so a ledger's location is recoverable by globbing '<run-id>*' rather than by exact name. Update proposal.md's What Changes bullet, D7's rationale sentence, and task 4.3's locate step to glob rather than assume the exact name."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/tasks.md",
+      "line_range": {
+        "start": 198,
+        "end": 216
+      },
+      "description": "D6's 'literal, checkable set' is checkable in behavior but unpinned in text, so the contract wording can silently go unwritten. The spec delta makes the closed write set normative in prose ('For a standalone commit-range audit it is that run's ledger pair ..., the latest.json and latest.md copies ..., and the archive move retention performs. Nothing else, in either form.'), and D6's whole argument for enumerating three effects rather than loosening to a rule is that the enumeration stays literal and checkable. Task 5.1 rewrites the Read-Only Contract paragraph (SKILL.md:34), the Red Flags bullet (SKILL.md:118) and the Output section (SKILL.md:99-101), but adds no assertion that any of those strings changed. The only existing content test, skills/tests/audit-choices/test_skill_md.py:35-38, asserts only that the substrings 'read-only' and 'MUST NOT modify' appear \u2014 both already true today and both still true if the range-form destination is never mentioned. The result is that the doc half of D6 can regress or be skipped entirely while every listed gate stays green, which is the loose-content-assertion failure the plan flags elsewhere.",
+      "resolution": "Add skills/tests/audit-choices/test_skill_md.py to task 5.1's Files and to the package's write_allow-covered edits, and add a case asserting that the Read-Only Contract paragraph and the Red Flags bullet each name 'openspec/choices/' and 'openspec/choices/archive/', and that the Output section lists the range-form destination. Assert on the specific paragraphs, not on whole-file substring presence, so an unrelated mention elsewhere cannot satisfy it."
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/tasks.md",
+      "line_range": {
+        "start": 226,
+        "end": 232
+      },
+      "description": "The retention-move assertion collides with the posture helper's existing no-deletion invariant, and no task resolves it. Task 5.2 requires that with the limit exceeded 'the working-tree diff is exactly the new pair, latest.*, and that one move'. The test it extends is built on skills/tests/audit-choices/test_readonly_posture.py, whose closed-set check is a two-part assertion: a created-or-modified set equality (line 108-113) and, separately, 'assert set(before.keys()) <= set(after.keys())' at line 116, i.e. nothing was deleted. A retention archive move is a shutil.move (retention.py:64) and therefore removes openspec/choices/<oldest>/choices.json and choices.md from their original keys, which makes line 116 fail. Neither task 5.1 nor 5.2 says what happens to that assertion. The two ways an implementer resolves it unaided are both bad: drop line 116 for all cases, which quietly removes the deletion guarantee from the change-id form as well, or leave the over-limit case out of the snapshot-based test, which is precisely the effect D6 added to the contract because it would otherwise be an undeclared write.",
+      "resolution": "State in task 5.2 that the range-form over-limit case uses a deletion-aware variant of the snapshot helper: the permitted deleted set is exactly the archived run directory's two files, the permitted created set is exactly the new pair plus latest.* plus the same two files under openspec/choices/archive/<run-id>/, and the change-id case keeps the strict 'nothing deleted' assertion unchanged. Name test_readonly_posture.py's helper explicitly so the two cases do not share one relaxed predicate."
+    },
+    {
+      "id": 5,
+      "type": "architecture",
+      "criticality": "medium",
+      "axis": "architecture",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/tasks.md",
+      "line_range": {
+        "start": 97,
+        "end": 111
+      },
+      "description": "Task 2.2's file ledger contradicts its own instruction, leaving the extraction boundary undefined. The task says 'Move build_run_id, RUN_ID_RE, parse_run_id, and apply_retention (with list_active_runs, RetentionResult, ARCHIVE_DIRNAME) from skills/prioritize-proposals/scripts/', but its Files field lists only skills/shared/artifact_paths.py. A move out of those two modules is an edit to those two modules, which the plan assigns to task 3.1 instead. As written the DAG has no state in which the tree is consistent: after 2.2 either the names still exist in both places (a copy, not a move, so the duplication D3 exists to remove is briefly real and nothing detects if 3.1 forgets to delete one) or they were deleted from priorities_paths.py under a task that does not declare that file. In the second case the pre-existing test modules that D4 part 3 freezes \u2014 test_priorities_paths.py:12-16 and test_retention.py:13 import the moved names from the old module paths \u2014 are red at the 2.2 checkpoint boundary. Related, the per-file accounting elsewhere is precise (task 5.3 was given an explicit dependency on 5.1 solely because both touch SKILL.md), so this is the one place the ledger is not.",
+      "resolution": "Make 2.2 explicitly additive: create skills/shared/artifact_paths.py as a copy, state that the old definitions are removed in 3.1, and add a sentence to 3.1 requiring that no definition of build_run_id, RUN_ID_RE, parse_run_id, apply_retention, list_active_runs, RetentionResult or ARCHIVE_DIRNAME survives in skills/prioritize-proposals/scripts/ after it. Alternatively add both prioritize-proposals modules to 2.2's Files and fold 3.1 into it. Either way the Files field and the verb should agree."
+    },
+    {
+      "id": 6,
+      "type": "correctness",
+      "criticality": "medium",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/tasks.md",
+      "line_range": {
+        "start": 175,
+        "end": 192
+      },
+      "description": "Task 4.3 misdescribes the test it extends, and one of the assertions it specifies is not reachable through the entry point that test uses. Two problems. First, the task says TestStandaloneRangeInvocation 'currently asserts the recorded change_id and exit code' and then says only 'Add: ...'. It also asserts the ledger's location: skills/tests/audit-choices/test_end_to_end.py:450 reads repo_root/'openspec'/'changes'/range_change_id/'choices.json'. That is exactly the path this change abolishes, so the task's real work includes replacing an existing assertion, not just adding to it. Second, the same test drives the driver through run_audit._cli() (test_end_to_end.py:446-447), and _cli() (run_audit.py:214-221) passes neither now nor git_sha, so the driver resolves both internally at run_audit.py:164-165. A test on that path cannot know resolved_now, yet task 4.3 requires asserting the directory equals build_run_id of 'the driver's resolved_now and resolved_git_sha'. The same gap hits the task's 'a second range run over the same range at a later now' clause: through _cli() the caller cannot choose now, and two back-to-back runs will normally land in the same UTC second, which is the collision case rather than the one the task means to exercise.",
+      "resolution": "Say in task 4.3 that the openspec/changes/<range-id> path assertion at test_end_to_end.py:450 is replaced, not supplemented. For the D7 and two-run assertions, specify the entry point: either call run_audit.run_audit() directly with explicit now and git_sha (as test_readonly_posture.py already does at lines 95-104), or reconstruct the expected run-id by parsing the written header's generated_at and git_sha. Keep at least one case on _cli() for the exit-code contract."
+    },
+    {
+      "id": 7,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "optional",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "line_range": {
+        "start": 109,
+        "end": 132
+      },
+      "description": "Answering the D4 sufficiency question: the guard is now sufficient for the import-bootstrap failure it was strengthened to catch, but one behavioral value the migration actually changes is pinned nowhere. Verified as sound: parents[2] resolves to skills/ in both the source tree and an install target, matching the worktree.py precedent at skills/worktree/scripts/worktree.py:40; the runtime-shaped copy places <tmp>/shared beside <tmp>/prioritize-proposals/scripts so a script-mode run genuinely exercises the bootstrap; no existing test subprocesses these CLIs (test_smoke_e2e.py:99-102 runs only artifact_header.py); and the three frozen modules do import the moved names from the old module paths, so D4 part 3 really does prove the re-exports. The hole: task 3.1 changes retention.py's argparse default from the literal 30 (retention.py:73) to the imported DEFAULT_RETAIN, and nothing exercises that default. Task 1.1's subprocess case passes --retain 1 explicitly, test_retention.py never touches the CLI at all (no _cli, argv, --retain or subprocess reference in it), and prioritize-proposals/SKILL.md:307-308 always passes --retain \"${RETAIN_N}\" explicitly. Task 2.1 asserts DEFAULT_RETAIN == 30 in the shared module but never that retention.py's CLI default is bound to it, so wiring that default to a wrong constant, or to a stale literal, ships green.",
+      "resolution": "Add one subprocess case to task 1.1 that runs retention.py --base <base> with --retain omitted against a base holding 31 runs, asserting active=30 archived=1. It costs one fixture and closes the only value the migration changes that no other assertion reaches."
+    },
+    {
+      "id": 8,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "fyi",
+      "disposition": "fix",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 1,
+        "end": 3
+      },
+      "description": "The idempotency requirement now means two different things depending on invocation form, and only the skill prose records that. Canonical openspec/specs/skill-workflow/spec.md:5649-5672, requirement 'Choices ledger entry content', states that each entry carries a content-derived stable_id 'so that re-running the audit is idempotent for unchanged decisions', with scenario 'Re-audit is idempotent' at line 5668 covering 'the audit runs twice over the same commit range with no new commits'. That scenario is worded for the range form specifically, and after this change a second range run no longer updates a ledger in place \u2014 it writes a new snapshot directory, and merge_entries never fires. D8 argues the letter still holds because ids stay content-derived and no single file gains a duplicate, which is defensible. But task 5.3 scopes three places in SKILL.md (the Common Rationalizations row at line 114, the Persist idempotently prose at line 85, verification step 5 at line 131) to the change-id form, while the canonical requirement that those three passages implement is left unmodified and unscoped. The delta already modifies two requirements for exactly this reason \u2014 round-1 review caught 'Independent read-only choices audit' still forbidding the write the change performs \u2014 and this is the same class of omission one requirement over.",
+      "resolution": "Either add 'Choices ledger entry content' as a third MODIFIED requirement whose scenario distinguishes the two forms (change-id: no duplicate entries within the ledger; range: no duplicate entries within each run's snapshot, with the same stable_id across snapshots), or add one sentence to the design's Non-Goals recording deliberately that the canonical scenario is read per-file and needs no delta. The first is preferable given task 4.3 already asserts the cross-directory stable_id property, which is currently a task-level behavior with no spec anchor."
+    },
+    {
+      "id": 9,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "none",
+      "disposition": "accept",
+      "evidence_class": "deterministic",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/proposal.md",
+      "line_range": {
+        "start": 38,
+        "end": 70
+      },
+      "description": "Verification record for the plan's factual claims, the D7 merits question, D6 completeness, scope and the task graph. Confirmed against the tree: run_audit.py:145 is the sole creating derivation and collect_evidence.py:276 the matching read-only one, which never creates a directory (D5 accurate); priorities_paths.py exports build_run_id, RUN_ID_RE, parse_run_id, build_paths and the frozen PrioritiesPaths, and its CLI has run-id and paths subcommands whose 'paths' form is genuinely unused by SKILL.md, exactly as task 1.1 now says; retention.py archives via shutil.move with argparse default 30, matching SKILL.md:39's RETAIN_N=30, and list_active_runs calls parse_run_id; make_header (choices_ledger.py:59-78) does store generated_at as a %Y-%m-%dT%H:%M:%SZ string while build_run_id rejects anything but a UTC-aware datetime, so D7's 'pass resolved_now, not header[generated_at]' warning is correct and load-bearing; install-manifest.json lists shared under shared_libraries and install.sh's SHARED_LIBS loop installs it on every target regardless of --only, and audit-choices, prioritize-proposals and worktree all have no cross_skill_dependencies entry today while worktree already imports shared.environment_profile, so 'no manifest edit needed' holds; dependency_direction.py's docstring permits importing from skills/shared/; skills/tests/prioritize-proposals/ holds exactly the three importer modules named plus three unrelated ones that touch none of the moved names. Both MODIFIED requirements reproduce every canonical scenario verbatim and add only 13/14/15, so nothing is dropped on sync. Scope holds: no task touches decision-choices.schema.json, the ledger document shape, the entry pipeline, the six-field header or the always-return-0 path at run_audit.py:229. The DAG 1.1 to 2.1 to 2.2 to {3.1, 4.1 to 4.2 to {4.3, 5.1 to 5.3, 5.2}} is acyclic with no file overlap between concurrently eligible tasks, subject to finding 5's accounting. On the merits: D7 is right and should stand \u2014 iterate-on-implementation supplies a run_id of the form iterate-on-implementation-<ISO timestamp>, whose colons are the same class of uncontrolled path text as range:<base>..<head>, so keying the directory on resolved_now and resolved_git_sha is the only option that does not reintroduce the defect. D8's per-run snapshot model and its isolation of retention failure from AuditRunResult.ok are also right; only its collision mechanism is wrong, per finding 1. D6's three-effect set is complete for the working tree \u2014 collect_evidence only reads, write_ledger's parent mkdir is part of the pair write, and archive/ creation is part of the move \u2014 and its checkability gap is finding 4, not a fourth effect.",
+      "resolution": "No action."
+    }
+  ]
+}

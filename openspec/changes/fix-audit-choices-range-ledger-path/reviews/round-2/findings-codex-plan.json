@@ -1,0 +1,18 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+      "description": "Critical: D7/D8 claim every range run gets a fresh per-run snapshot, but the chosen directory key is only generated_at rounded to seconds plus git_sha. Two standalone range audits started in the same second at the same repository HEAD will target the same openspec/choices/<run-id>/ directory; the existing choices_ledger.write_ledger_pair path merges into an existing choices.json, so separate range snapshots can be combined or overwritten while still passing the planned later-now tests.",
+      "resolution": "Make the standalone run directory collision-safe without using raw uncontrolled path text, and add a regression test for two range audits at the same now/git_sha, including different audited ranges. For example, derive a sanitized suffix from existing ledger contents such as header.run_id plus audited_range, or detect an existing run directory and allocate a deterministic disambiguator; then assert each invocation gets an isolated ledger and latest.* points to only the newest run."
+    }
+  ]
+}

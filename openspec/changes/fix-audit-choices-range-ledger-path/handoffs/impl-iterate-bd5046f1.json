@@ -1,0 +1,39 @@
+{
+  "agent_name": "impl-iterate-bd5046f1",
+  "summary": "Reviewed the IMPLEMENT-phase code against design.md D1-D8 and found the routing, retention, read-only-contract, and D4 characterization-guard wiring all correct. One quality issue: parse_run_id in skills/shared/artifact_paths.py returned a 3-tuple for ordinary run ids and a 4-tuple when a D8 collision suffix was present, even though the only production caller (list_active_runs) discarded the result entirely. Fixed by splitting it into a fixed 3-tuple return plus a new run_id_suffix() accessor. All four quality gates green.",
+  "completed_work": [
+    "Verified D1 destination layout (openspec/choices/<run-id>/ with latest.* pointers) matches choices_paths.py",
+    "Verified D5 routing helper (route_output_dir) is keyed on the recorded change_id prefix only, in run_audit.py/choices_paths.py",
+    "Verified D6 read-only contract and its three-part closed write set via test_readonly_posture.py's snapshot assertions",
+    "Verified D7 run-directory naming from resolved_now/resolved_git_sha, never the header run_id or audited head_sha",
+    "Verified D8 collision guard (-2/-3 suffixes, checked against both active and archive paths) and retention-never-fails-a-successful-run behavior",
+    "Verified D4's three-part characterization guard: test_priorities_paths.py, test_retention.py, test_smoke_e2e.py, and prioritize-proposals/SKILL.md are byte-unchanged from the merge-base with main (git diff --quiet confirmed before and after this iteration's edits)",
+    "Verified D3: no re-exported name (build_run_id, RUN_ID_RE, parse_run_id, apply_retention, list_active_runs, RetentionResult, ARCHIVE_DIRNAME) is redefined in skills/prioritize-proposals/scripts/ -- only imported/re-exported",
+    "Refactored parse_run_id in skills/shared/artifact_paths.py from a variable-arity (3-or-4-tuple) return into a fixed 3-tuple, and added run_id_suffix(name) -> str | None to read the D8 collision suffix separately",
+    "Updated skills/tests/shared/test_artifact_paths.py and skills/tests/audit-choices/test_output_routing.py for the new accessor (both are this change's own new tests, not part of D4's frozen set)",
+    "Updated design.md's D8 paragraph to describe the fixed-arity parser plus accessor instead of the variable-arity return",
+    "Appended an Implementation Iteration 1 session-log entry and wrote this handoff",
+    "Confirmed all four quality gates green: 366 passed / 1 skipped (up from baseline 363/1, +3 for the new run_id_suffix tests) across audit-choices, shared, prioritize-proposals, and ci_coverage tests; both linters (install.sh --check, dependency_direction.py) clean"
+  ],
+  "in_progress": [],
+  "decisions": [
+    "Split parse_run_id into a fixed-arity parser plus a separate run_id_suffix() accessor rather than keeping the variable-arity (3-or-4-tuple) return, because the only production caller (list_active_runs) discarded the parsed result as a pure validity check, and the frozen prioritize-proposals tests only ever unpack three values -- so nothing depended on the wider tuple, while a shape-dependent return arity is an ergonomic hazard for any future caller.",
+    "Documented this in design.md's D8 paragraph rather than leaving the design doc describing the old variable-arity shape, since the doc made a specific claim ('parse_run_id returns it') that would otherwise drift from the implementation."
+  ],
+  "next_steps": [
+    "No further findings above the medium threshold identified in this iteration; the implementation is ready for /validate-feature",
+    "If another iteration is dispatched, it can start from a clean baseline (366 passed / 1 skipped, both linters clean) at commit 6600d172"
+  ],
+  "relevant_files": [
+    "skills/shared/artifact_paths.py",
+    "skills/tests/shared/test_artifact_paths.py",
+    "skills/tests/audit-choices/test_output_routing.py",
+    "skills/audit-choices/scripts/run_audit.py",
+    "skills/audit-choices/scripts/choices_paths.py",
+    "skills/audit-choices/SKILL.md",
+    "skills/prioritize-proposals/scripts/priorities_paths.py",
+    "skills/prioritize-proposals/scripts/retention.py",
+    "openspec/changes/fix-audit-choices-range-ledger-path/design.md",
+    "openspec/changes/fix-audit-choices-range-ledger-path/session-log.md"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/audit-choices/scripts/choices_paths.py",
+      "line_range": {
+        "start": 88,
+        "end": 95
+      },
+      "description": "Critical: choices_paths.py checks whether a run id is free but does not reserve it atomically; two range audits started concurrently in the same UTC second at the same HEAD can both observe the base id as free, then both write to the same directory because the actual mkdir happens later with exist_ok=True in the ledger writer.",
+      "resolution": "Reserve the range run directory atomically as part of suffix selection, for example by attempting mkdir(parents=True, exist_ok=False) inside the suffix loop and retrying on FileExistsError, while keeping change-id audits on the existing merge-capable path."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/shared/artifact_paths.py",
+      "line_range": {
+        "start": 131,
+        "end": 131
+      },
+      "description": "Critical: list_active_runs sorts suffixed run ids lexically, so retention no longer archives the oldest run once suffixes reach two digits. After the base run has been archived, names like ...-10 sort before ...-2, causing scenario 14's oldest-run guarantee to fail even though the tree remains bounded.",
+      "resolution": "Sort active runs by parsed run-id components plus a numeric suffix key, treating the unsuffixed base as suffix 1 and suffixed names as their integer suffix, and add a retention test covering more than 30 same-second collision-suffixed runs."
+    }
+  ]
+}

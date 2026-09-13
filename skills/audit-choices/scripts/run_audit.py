@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -34,9 +35,12 @@ from typing import Any
 _THIS_DIR = Path(__file__).resolve().parent
 if str(_THIS_DIR) not in sys.path:
     sys.path.insert(0, str(_THIS_DIR))
+sys.path.insert(0, str(_THIS_DIR.parents[1]))  # .../skills, for shared.artifact_paths
 
 import choices_ledger  # noqa: E402
+import choices_paths  # noqa: E402
 import collect_evidence  # noqa: E402
+from shared.artifact_paths import DEFAULT_RETAIN, apply_retention  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -142,8 +146,6 @@ def _run_audit_inner(
     now: datetime | None,
     git_sha: str | None,
 ) -> AuditRunResult:
-    change_dir = repo_root / "openspec" / "changes" / change_id
-
     bundle = collect_evidence.collect_evidence(
         repo_root, change_id=change_id, base_sha=base_sha, head_sha=head_sha
     )
@@ -161,18 +163,87 @@ def _run_audit_inner(
     valid_entries, invalid_entries = choices_ledger.split_schema_valid(resolved)
     dropped_all = dropped_provenance + invalid_entries
 
+    # Resolved here, not before `collect_evidence` above: on `main` these two
+    # are captured immediately before the header is built, and the change-id
+    # form is contracted byte-for-byte unchanged. Hoisting them earlier makes
+    # a slow evidence pass or a moving HEAD produce a different
+    # `generated_at`/`git_sha` than it would have.
     resolved_now = now or datetime.now(timezone.utc)
     resolved_git_sha = git_sha or _head_sha(repo_root)
+
+    # D5: a `range:`-prefixed recorded id routes to a dated run directory
+    # under openspec/choices/ (D1); everything else keeps writing to
+    # openspec/changes/<change-id>/, byte-for-byte as before.
+    # collect_evidence.py derives its own openspec/changes/<change_id> path
+    # for reading only (D5) and is deliberately left alone.
+    #
+    # For the range form this call RESERVES the directory by creating it
+    # (D8), so it is made as late as possible: everything that can fail —
+    # evidence collection, provenance filtering, schema validation — has
+    # already run. What can still fail is the pair write itself, so an empty
+    # reserved directory is cleaned up below rather than left behind for
+    # `list_active_runs` to count as a run that produced no ledger.
+    change_dir = choices_paths.route_output_dir(
+        repo_root=repo_root, change_id=change_id, now=resolved_now, git_sha=resolved_git_sha
+    )
+
     header = choices_ledger.make_header(now=resolved_now, git_sha=resolved_git_sha, run_id=run_id)
 
-    json_path, md_path = choices_ledger.write_ledger_pair(
-        change_dir,
-        header=header,
-        change_id=change_id,
-        audited_range={"base_sha": base_sha, "head_sha": head_sha},
-        entries=valid_entries,
-        auditor=auditor,
-    )
+    try:
+        json_path, md_path = choices_ledger.write_ledger_pair(
+            change_dir,
+            header=header,
+            change_id=change_id,
+            audited_range={"base_sha": base_sha, "head_sha": head_sha},
+            entries=valid_entries,
+            auditor=auditor,
+        )
+    except Exception:
+        # D6: a reserved-but-empty run directory is a fourth effect outside
+        # the closed write set, and `list_active_runs` would count it. Only
+        # remove it when it is genuinely empty — never delete a written pair.
+        if choices_paths.is_range_change_id(change_id):
+            try:
+                change_dir.rmdir()
+            except OSError:
+                pass
+        raise
+
+    # D6: a range run's only other effects are the latest.* copies at
+    # openspec/choices/ (this block) and retention's archive move, which
+    # runs after and can never turn this successful write into a failure.
+    if choices_paths.is_range_change_id(change_id):
+        choices_root = choices_paths.choices_root_for(repo_root)
+        paths = choices_paths.build_choices_paths(choices_root, change_dir.name)
+        # Guarded for the same reason retention is (D8): the pair is already
+        # on disk at this point, so letting a copy failure reach the outer
+        # handler would report ok=False with json_path=None for a run whose
+        # ledger was in fact persisted. The workflow would then skip
+        # committing a ledger that exists. latest.* is a convenience pointer,
+        # not the artifact.
+        try:
+            shutil.copyfile(json_path, paths.latest_json)
+            shutil.copyfile(md_path, paths.latest_md)
+        except OSError as exc:
+            logger.warning(
+                "audit-choices: could not update the latest.* pointers at %s; "
+                "the run's ledger pair is written and valid: %s",
+                choices_root,
+                exc,
+            )
+
+        # D8: retention runs last and can never turn this successful write
+        # into a failure — a housekeeping failure is not a write failure.
+        try:
+            apply_retention(choices_root, retain=DEFAULT_RETAIN, protect=change_dir.name)
+        except Exception as exc:  # noqa: BLE001 - D8: retention never fails a successful run
+            logger.warning(
+                "audit-choices: retention failed for the standalone-audit "
+                "directory %s; the standalone-audit tree may exceed its "
+                "retention bound until this is resolved: %s",
+                choices_root,
+                exc,
+            )
 
     return AuditRunResult(
         ok=True,
