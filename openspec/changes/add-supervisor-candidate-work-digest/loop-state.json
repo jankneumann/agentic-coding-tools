@@ -1,9 +1,9 @@
 {
   "schema_version": 5,
   "change_id": "add-supervisor-candidate-work-digest",
-  "current_phase": "SUBMIT_PR",
+  "current_phase": "DONE",
   "iteration": 0,
-  "total_iterations": 19,
+  "total_iterations": 20,
   "max_phase_iterations": 4,
   "findings_trend": [],
   "blocking_findings": [],
@@ -121,7 +121,7 @@
   ],
   "last_handoff_id": "local:openspec/changes/add-supervisor-candidate-work-digest/handoffs/submit-pr-1.json",
   "started_at": "2026-09-10T22:40:09.976184+00:00",
-  "phase_started_at": "2026-09-12T19:53:31.691642+00:00",
+  "phase_started_at": "2026-09-13T03:24:05.723209+00:00",
   "previous_phase": "IMPL_REVIEW",
   "escalation_reason": "IMPL_REVIEW reached max_iter with two confirmed deterministic blockers",
   "val_review_enabled": false,
@@ -343,24 +343,42 @@
       "disposition": "block",
       "phase": "SUBMIT_PR",
       "recorded_at": "2026-09-12T21:52:01.704620+00:00"
+    },
+    {
+      "gate": "merge",
+      "outcome": "proceed",
+      "resolution": "console_approved",
+      "authorizing_disposition": "block",
+      "reason": "gate 'merge' approved by the operator \u2014 Operator authorized merging PR #528 and running cleanup-feature.",
+      "approval_id": null,
+      "default_action": null,
+      "posture_present": false,
+      "notified": null,
+      "timeout_seconds": null,
+      "disposition": "block",
+      "phase": "SUBMIT_PR",
+      "recorded_at": "2026-09-13T03:23:38.885956+00:00",
+      "note": "Operator authorized merging PR #528 and running cleanup-feature."
     }
   ],
-  "pending_gate": {
-    "schema_version": 1,
-    "change_id": "add-supervisor-candidate-work-digest",
-    "gate": "merge",
-    "phase": "SUBMIT_PR",
-    "requested_at": "2026-09-12T21:52:01.705062+00:00",
-    "prompt": "Authorize merging this pull request? (autopilot records the authorization only; /cleanup-feature merges)",
-    "context": {
+  "pending_gate": null,
+  "goal_gate": {
+    "verdict": "passed",
+    "reason": "all required evidence present",
+    "evidence": {
+      "merge_authorized": true,
       "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/528",
-      "branch": "openspec/add-supervisor-candidate-work-digest",
-      "change_id": "add-supervisor-candidate-work-digest"
-    },
-    "posture": {
-      "disposition": "block",
-      "posture_present": false
+      "report_path": "openspec/changes/add-supervisor-candidate-work-digest/validation-report.md",
+      "checked_at": "2026-09-13T03:24:05.714009+00:00",
+      "validate_outcome": "passed",
+      "validate_at": "2026-09-12T19:52:52.782384+00:00",
+      "report_mtime": "2026-09-12T13:42:16.677039+00:00",
+      "required_sections": [
+        "Spec Compliance"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "pass"
+      }
     }
-  },
-  "goal_gate": null
+  }
 }
