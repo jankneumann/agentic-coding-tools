@@ -119,3 +119,29 @@ Five-vendor consensus met quorum and identified seven blocking findings. All mat
 ### Context
 Confirmation review found two deterministic plan nits and remediated them in revision 4. The external vendor dispatcher exceeded the enforced round bound before persisting results, so quorum was 1/5 and the phase remains not_converged.
 
+---
+
+## Phase: Plan Iteration 2 (2026-09-13)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Derive IDs independently of batch membership** — Unconditional provenance hashes prevent a later collision from renaming existing candidates.
+2. **Use semantic score bands for explore priority** — Shortlist position is not comparable to severity evidence from other producers.
+3. **Require exact target-roadmap dependency mapping at intake** — The roadmap item contract cannot silently omit or rewrite dependency identities.
+
+### Alternatives Considered
+- Retain collision-triggered suffixing: rejected because The winning unsuffixed ID changes when batch membership changes.
+- Clamp shortlist rank to five priority bands: rejected because That still equates local ordering with cross-generator urgency.
+
+### Trade-offs
+- Accepted A conservative default effort derived from affected-skill breadth over Inferring effort from severity because Severity measures urgency, not implementation size.
+
+### Completed Work
+- Resolved two high correctness findings and four medium plan gaps.
+- Removed copied historical runtime/review state from the clean recovery branch while preserving the original branch.
+- Passed strict OpenSpec, work-package, and mirror-payload validation.
+
+### Context
+Recovered ri-12 on current main and resolved substantive multi-vendor findings. Revision 5 now has membership-independent IDs, semantic priority and effort mappings, exact dependency behavior, focused scenario traceability, and complete mirror gates.
+

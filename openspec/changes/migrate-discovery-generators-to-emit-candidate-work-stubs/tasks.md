@@ -26,14 +26,15 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 - [ ] 1.1 Test: bug-scrub maps an eligible finding to a schema-valid stub with stable
       provenance/common priority/exhaustive effort/normalized slug, writes byte-stable
       JSON, and leaves no partial file on validation failure — **S**
-      **Spec scenarios**: sw *Bug-scrub promotes a finding*, *Candidate batch validation fails*
+      **Spec scenarios**: sw *Bug-scrub promotes a finding*, *Candidate batch validation fails*, *Candidate sidecar is deterministic and complete*, *Requested candidate discovery returns no eligible entries*
       **Design decisions**: D1-D3
       **Dependencies**: 0.1
 - [ ] 1.2 Implement bug-scrub candidate projection, CLI/output wiring, and canonical skill documentation — **S**
       **Dependencies**: 0.2, 1.1
 - [ ] 1.3 Test: improve-harness maps a ranked gap to a schema-valid stub and retains the
-      legacy markdown proposal helper/flag — **S**
-      **Spec scenarios**: sw *Improve-harness emits a capability-gap candidate*
+      legacy markdown proposal helper/flag, decouples effort from severity, and keeps
+      stdout-only mode write-free — **S**
+      **Spec scenarios**: sw *Improve-harness emits a capability-gap candidate*, *Requested candidate discovery returns no eligible entries*
       **Design decisions**: D1-D3
       **Dependencies**: 0.1
 - [ ] 1.4 Implement improve-harness candidate projection/output, compatibility wrapper, and canonical skill documentation — **S**
@@ -41,7 +42,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 - [ ] 1.5 Test: explore-feature projects only untracked shortlist items, preserves rich
       opportunities, normalizes change-ID prefixes, separates prose blockers from exact
       dependency IDs, validates the sidecar, and skips existing/scaffolded entries — **S**
-      **Spec scenarios**: sw *Explore-feature emits shortlist candidates*
+      **Spec scenarios**: sw *Explore-feature emits shortlist candidates*, *Producers assign comparable priority*, *Candidate text is rendered safely*
       **Design decisions**: D1-D3
       **Dependencies**: 0.1
 - [ ] 1.6 Implement explore-feature projection helper and canonical skill output contract — **S**
@@ -52,8 +53,9 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 
 - [ ] 2.1 Test: a mixed three-generator batch is validated, ranked exactly once per
       stub on the shared five-band priority scale, retains provenance, safely renders
-      inert source text, has stable ties, and fails closed on a malformed member — **S**
-      **Spec scenarios**: sw *Mixed producer batch is ranked*, *Mixed batch contains a malformed stub*
+      inert source text, topologically orders in-batch edges with blocked propagation,
+      has stable ties, and fails closed on malformed, cyclic, or duplicate input — **S**
+      **Spec scenarios**: sw *Mixed producer batch is ranked*, *Mixed batch contains a malformed stub*, *Mixed batch contains dependencies*, *Mixed batch has a cycle or duplicate change ID*
       **Design decisions**: D4
       **Dependencies**: 1.2, 1.4, 1.6
 - [ ] 2.2 Implement the explicit candidate-work loader/ranker, CLI/report integration, and canonical skill documentation
@@ -66,13 +68,13 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 - [ ] 3.1 Test: approved stub plus acceptance outcomes maps to one valid new-roadmap item,
       creates the complete roadmap envelope/capability scaffold, preserves exact change
       ID/provenance, and resolves dependencies — **S**
-      **Spec scenarios**: ro *Approved stub creates a new-roadmap item*
+      **Spec scenarios**: ro *Approved stub creates a new-roadmap item*, *Approved input is a batch or collides with existing work*
       **Design decisions**: D5
       **Dependencies**: 0.1
 - [ ] 3.2 Test: existing-roadmap intake emits a refine add request; missing acceptance
       outcomes and unresolved dependencies fail before any write; execution priority is
       omitted so refine-roadmap assigns max+1 without a collision — **S**
-      **Spec scenarios**: ro *Approved stub targets an existing roadmap*, *Approved stub omits acceptance outcomes*, *Candidate dependency cannot be resolved*
+      **Spec scenarios**: ro *Approved stub targets an existing roadmap*, *Approved stub omits acceptance outcomes*, *Candidate dependency cannot be resolved*, *Approved input is a batch or collides with existing work*, *Existing-roadmap request is previewable*
       **Design decisions**: D5, D6
       **Dependencies**: 3.1
 - [ ] 3.3 Implement the plan-roadmap candidate intake helper/CLI and canonical skill documentation for
@@ -84,10 +86,11 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
 
 - [ ] 4.1 Test: exercise representative outputs from all three producers through mixed
       ranking and approved-stub roadmap intake without hand-edited intermediate data — **S**
-      **Spec scenarios**: all sw/ro scenarios
+      **Spec scenarios**: sw *Mixed producer batch is ranked*; ro *Approved stub creates a new-roadmap item*, *Existing-roadmap request is previewable*
       **Dependencies**: 2.2, 3.3
 - [ ] 4.2 Run `skills/install.sh` once to sync canonical skill/shared sources into
-      generated mirrors; verify no mirror drift or unrelated generated diff — **S**
+      generated mirrors; run `skills/install.sh --check`; verify no mirror drift or
+      unrelated generated diff — **S**
       **Design decisions**: D1-D6
       **Dependencies**: 4.1
 - [ ] 4.3 Run focused suites, full skills suite, ruff, package validation, and strict

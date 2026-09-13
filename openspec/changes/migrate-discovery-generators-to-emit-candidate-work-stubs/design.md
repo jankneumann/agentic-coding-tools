@@ -22,8 +22,8 @@ artifact; an explicit output path may override it.
 skills/shared/candidate_work.py owns schema discovery, single/batch validation,
 canonical JSON bytes, and atomic replacement. The existing ri-11 validator remains a
 thin compatibility wrapper, so producers do not import another product skill. The
-writer rejects duplicate suggested IDs, validates the full list, sorts by priority,
-change ID, and provenance, and only then atomically writes canonical JSON. Failure
+writer rejects duplicate final suggested IDs, validates the full list, sorts by
+priority, change ID, and provenance, and only then atomically writes canonical JSON. Failure
 preserves the prior file; successful empty discovery writes an empty array.
 
 ### D3 — Producer mappings are deterministic and conservative
@@ -43,7 +43,13 @@ preserves the prior file; successful empty discovery writes an empty array.
 
 Every adapter normalizes hinted or derived slugs through the canonical prefix set.
 An existing `add-`, `update-`, `remove-`, or `refactor-` prefix is retained; `fix-`
-is normalized to `update-`; and an unprefixed slug receives `update-`.
+is normalized to `update-`; and an unprefixed slug receives `update-`. An explicit
+source hint is normalized as-is. A derived ID is always
+`<normalized-source-slug>-<provenance-hash>`, where `provenance-hash` is the first
+eight lowercase hex characters of SHA-256 over the canonical JSON provenance object.
+Because derivation is per entry rather than dependent on batch membership, adding a
+new colliding entry cannot rename an earlier candidate. Duplicate final IDs,
+including two colliding explicit hints, fail the whole batch.
 
 All emitted stubs populate `provenance.generator` even though the schema leaves it
 optional.
@@ -54,9 +60,14 @@ optional.
 array, ranks stubs with stable tie-breakers, and can render them alongside active
 proposals without pretending a stub is already scaffolded. Every adapter emits a
 shared five-band priority estimate: critical/immediate=1, high=2, medium/normal=3,
-low=4, and informational/backlog=5. Source-local rank never bypasses this common
-scale. Candidate readiness uses `depends_on`; size uses `effort`; provenance supports
-relevance checks. A mixed batch retains the originating generator in output.
+low=4, and informational/backlog=5. Bug-scrub severity and improve-harness maximum
+severity map directly to those bands. Explore-feature maps its reproducible weighted
+score rather than shortlist position: score >=2.75 maps to 2, >=2.00 to 3, >=1.50 to
+4, and lower scores to 5; priority 1 remains reserved for explicit critical or
+immediate evidence. Source-local rank is retained only as provenance and never
+bypasses this common scale. Candidate readiness uses `depends_on`; size uses `effort`;
+provenance supports relevance checks. A mixed batch retains the originating generator
+in output.
 
 ### D5 — Plan-roadmap owns candidate-to-item mapping, not direct active-roadmap writes
 
@@ -98,18 +109,25 @@ output directory. Severity maps critical through info to priority 1 through 5;
 `lint`/`type-error`/`code-marker` map to XS,
 `test-failure`/`deferred-issue` map to S, and
 `architecture`/`security`/`spec-violation` map to M, with unknown categories
-rejected rather than silently guessed. Improve-harness emits every ranked gap: critical/high/medium/low
-map to priority 1/2/3/4 and effort L/M/S/XS, while source rank is retained in a
-bounded `source-rank-N` tag. A file report gets an adjacent sidecar;
-stdout-only behavior remains write-free without an explicit candidate output, and the
+rejected rather than silently guessed. Improve-harness emits every ranked gap:
+critical/high/medium/low map to priority 1/2/3/4. Effort derives from affected-skill
+count rather than severity: one skill maps to S, two or three to M, and four or more
+to L; missing affected-skill evidence maps to M plus an `effort-estimate-default` tag.
+Source rank is retained in a bounded `source-rank-N` tag. A file report gets an
+adjacent sidecar; stdout-only behavior remains write-free without an explicit
+candidate output, and the
 legacy proposal flag remains. Explore-feature emits only opportunities whose exact
 normalized hinted or derived change ID is absent from active and archived changes and
-is not marked existing; it maps stable ID, problem statement, why-now, effort, a
-bounded 1..5 priority from shortlist rank, and only blockers that resolve to exact
-change IDs. Prose blockers are retained in rationale/tags, not `depends_on`.
+is not marked existing; it maps stable ID, problem statement, why-now, effort, the
+weighted-score bands from D4, and only blockers that resolve to exact change IDs.
+Shortlist rank is provenance only. Prose blockers are retained in rationale/tags, not
+`depends_on`.
 
-All producers retain rich output and populate generator/source provenance. Colliding
-normalized slugs receive a stable eight-hex SHA-256 suffix derived from provenance.
+All producers retain rich output and populate generator/source provenance. Derived
+slugs unconditionally receive the stable provenance suffix defined in D3; duplicate
+final IDs are rejected. Bug-scrub derives its base from `Finding.title`,
+improve-harness from `capability_gap`, and explore-feature from its stable ID/title
+when no explicit hint exists.
 Candidate text is inert data: renderers escape Markdown/terminal structure and never
 dereference, fetch, or execute provenance URIs.
 
@@ -117,10 +135,14 @@ dereference, fetch, or execute provenance URIs.
 
 Candidate work is a separate report lane, never an input to the active-proposal score.
 Dependencies resolve by exact change ID within the batch, then roadmap items, then
-archives. Batch edges are topologically ordered; completed dependencies are satisfied;
-active-incomplete or unknown dependencies mark a candidate blocked. Cycles and duplicate
-suggested IDs fail the lane. The ready-queue key is priority, effort XS through XL,
-generator, then suggested change ID; blocked candidates follow ready ones.
+archives. In-batch dependencies create graph edges and do not by themselves mark a
+candidate blocked. Completed external dependencies are satisfied. An active-incomplete
+or unknown external dependency marks its candidate and all transitive in-batch
+dependents blocked. Ranking uses Kahn topological traversal: among zero-indegree nodes,
+choose by `(blocked_tier, priority, effort XS..XL, generator,
+suggested_change_id)`, where ready is tier 0 and blocked is tier 1. This preserves every
+dependency-before-dependent edge while keeping ready components before blocked
+components. Cycles and duplicate suggested IDs fail the lane before scoring.
 
 ### Candidate intake
 
@@ -131,10 +153,12 @@ creates a complete schema-version-1 envelope whose `source_proposal` is the cand
 provenance source and whose sole approved `ri-01` item carries the capability. Existing
 mode assigns the next free ri-NN and omits priority from the refine add operation so
 refine-roadmap assigns max+1 without collisions. Both modes preserve the candidate
-priority in provenance/rationale and assign exact change ID, actor, source, and
-rationale. Exact dependency change IDs map to local or unique external item references;
-completed archives are satisfied. Unknown, ambiguous, cyclic dependencies and
-active/archive change-ID collisions fail before writes.
+priority in the request rationale and assign exact change ID, actor, source, and
+rationale. Every dependency must resolve to exactly one item in the target roadmap;
+the mapped item ID is retained without dropping or rewriting it. Archives participate
+in collision detection but cannot satisfy this target-roadmap mapping. Unknown,
+ambiguous, cyclic dependencies and active/archive change-ID collisions fail before
+writes.
 
 New-roadmap mode feeds the existing validate/save/scaffold path with overwrite disabled.
 Existing-roadmap mode emits exactly one refine add operation; the host must run preview
@@ -145,7 +169,7 @@ must call this helper after ri-12 rather than maintain a second mapping.
 ## Failure semantics
 
 - Invalid or unmappable producer data: explicit error, no sidecar replacement.
-- Invalid or colliding normalized change ID: explicit error, no sidecar replacement.
+- Invalid or duplicate final suggested change ID: explicit error, no sidecar replacement.
 - Invalid mixed batch: fail before ranking; include the offending batch index.
 - Duplicate suggested IDs or a dependency cycle: fail before ranking or persistence.
 - Missing acceptance outcomes: refuse candidate intake.
@@ -155,15 +179,17 @@ must call this helper after ri-12 rather than maintain a second mapping.
 ## Test strategy
 
 Tests precede implementation. Every producer suite proves a representative output
-passes the real ri-11 validator, normalizes invalid/legacy prefixes, separates prose
-blockers from dependency IDs, and leaves no partial file on malformed input. Consumer
-tests cover a mixed three-generator batch on the shared priority scale, deterministic
-ordering, inert rendering, invalid-batch refusal, complete one-item new-roadmap
+passes the real ri-11 validator, normalizes invalid/legacy prefixes, derives
+membership-independent IDs, separates prose blockers from dependency IDs, writes an
+empty requested sidecar when nothing is eligible, and leaves no partial file on
+malformed input. Consumer tests cover a mixed three-generator batch on the shared
+priority scale, the exact Kahn traversal including blocked propagation, deterministic
+ordering, inert rendering, cycle/duplicate refusal, complete one-item new-roadmap
 creation with capability, and collision-free existing-roadmap refine request
 generation. A cross-skill integration test exercises producer fixtures through
 ranking and intake without hand editing. Install-manifest validation proves every
-portable skill that imports the shared helper declares its dependency before mirror
-sync.
+portable skill that imports the shared helper declares its dependency and that both
+harness mirror manifests are synchronized.
 
 ## Compatibility notes
 
