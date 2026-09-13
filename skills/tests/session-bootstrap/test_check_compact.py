@@ -18,10 +18,11 @@ from typing import Any
 
 import pytest
 
-_HOOK = (
-    Path(__file__).resolve().parents[2]
-    / "session-bootstrap" / "scripts" / "hooks" / "check_compact.py"
+_HOOKS_DIR = (
+    Path(__file__).resolve().parents[2] / "session-bootstrap" / "scripts" / "hooks"
 )
+_HOOK = _HOOKS_DIR / "check_compact.py"
+_PRECOMPACT_HOOK = _HOOKS_DIR / "precompact_handoff.py"
 
 
 def _run_hook(
@@ -30,9 +31,15 @@ def _run_hook(
     home: Path,
     cwd: Path,
     env_extra: dict[str, str] | None = None,
+    hook: Path = _HOOK,
 ) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["HOME"] = str(home)
+    # Identity comes from the payload unless a test opts into an env source;
+    # the developer's own session variables must not leak into the key.
+    env.pop("AGENT_ID", None)
+    env.pop("SESSION_ID", None)
+    env.pop("COORDINATION_API_URL", None)
     # Strip ANTHROPIC_API_KEY so the proxy path is exercised by default.
     env.pop("ANTHROPIC_API_KEY", None)
     env.pop("CLAUDE_COMPACT_THRESHOLD_PCT", None)
@@ -40,7 +47,7 @@ def _run_hook(
     if env_extra:
         env.update(env_extra)
     return subprocess.run(
-        [sys.executable, str(_HOOK)],
+        [sys.executable, str(hook)],
         input=json.dumps(hook_input),
         capture_output=True,
         text=True,
@@ -50,14 +57,36 @@ def _run_hook(
     )
 
 
-def _write_transcript(path: Path, message_chars: int) -> None:
+def _write_transcript(
+    path: Path, message_chars: int, *, cwd: Path | None = None,
+    mention: str = "",
+) -> None:
     """Write a transcript JSONL whose total content length is approximately
     message_chars (split across one large user message). Token estimate via
-    proxy = chars // 4."""
+    proxy = chars // 4. ``cwd`` and ``mention`` scope the session: the row
+    records cwd as a working directory and the content names a change id."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    body = "x" * message_chars
-    row = {"message": {"role": "user", "content": body}}
+    body = (mention + " " if mention else "") + "x" * message_chars
+    row: dict[str, Any] = {"message": {"role": "user", "content": body}}
+    if cwd is not None:
+        row["cwd"] = str(cwd)
     path.write_text(json.dumps(row) + "\n")
+
+
+def _session_payload(
+    tmp_path: Path, cwds: list[Path], mentions: list[str],
+    session_id: str = "sess-1",
+) -> dict:
+    """A Stop-hook payload whose transcript records ``cwds`` as working
+    directories and mentions each change id in ``mentions``."""
+    transcript = tmp_path / f"{session_id}.jsonl"
+    rows = [
+        {"cwd": str(cwd), "message": {"role": "user", "content": " ".join(mentions)}}
+        for cwd in cwds
+    ]
+    transcript.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    return {"session_id": session_id, "transcript_path": str(transcript),
+            "cwd": str(cwds[0])}
 
 
 def _write_handoff(cwd: Path, change_id: str, phase: str, n: int = 1) -> Path:
@@ -152,14 +181,16 @@ def test_phase_boundary_blocks_when_below_threshold(
 ) -> None:
     home, cwd = isolated
     transcript = cwd / "session.jsonl"
-    _write_transcript(transcript, 1000)  # well below threshold
+    # well below threshold; this session worked in cwd on test-change
+    _write_transcript(transcript, 1000, cwd=cwd, mention="/autopilot test-change")
     _write_handoff(cwd, "test-change", "implementation")
     _write_loop_state(
         cwd, "test-change",
         "openspec/changes/test-change/handoffs/implementation-1.json",
     )
     result = _run_hook(
-        hook_input={"transcript_path": str(transcript)},
+        hook_input={"session_id": "sess-1", "cwd": str(cwd),
+                    "transcript_path": str(transcript)},
         home=home,
         cwd=cwd,
     )
@@ -250,6 +281,96 @@ def test_threshold_trip_creates_flag(isolated: tuple[Path, Path]) -> None:
         },
     )
     assert (home / ".claude" / "compact-pending-flagger.flag").exists()
+
+
+def test_other_sessions_applied_handoff_does_not_block(
+    isolated: tuple[Path, Path],
+) -> None:
+    """Regression: an applied handoff for a change this session never touched
+    (another session's autopilot run) must not request /compact here."""
+    home, cwd = isolated
+    transcript = cwd / "session.jsonl"
+    _write_transcript(transcript, 1000, cwd=cwd, mention="/autopilot my-change")
+    _write_handoff(cwd, "their-change", "implementation")
+    _write_loop_state(
+        cwd, "their-change",
+        "openspec/changes/their-change/handoffs/implementation-1.json",
+    )
+    result = _run_hook(
+        hook_input={"session_id": "sess-1", "cwd": str(cwd),
+                    "transcript_path": str(transcript)},
+        home=home,
+        cwd=cwd,
+    )
+    assert result.returncode == 0
+    assert result.stdout == ""
+
+
+def test_flag_keyed_on_payload_session_id(isolated: tuple[Path, Path]) -> None:
+    """Regression: with AGENT_ID unset the flag used to be
+    compact-pending-unknown.flag, shared by every session on the machine."""
+    home, cwd = isolated
+    transcript = cwd / "session.jsonl"
+    _write_transcript(transcript, 4000)
+    result = _run_hook(
+        hook_input={"session_id": "abc-123", "transcript_path": str(transcript)},
+        home=home,
+        cwd=cwd,
+        env_extra={
+            "CLAUDE_CONTEXT_LIMIT": "1000",
+            "CLAUDE_COMPACT_THRESHOLD_PCT": "70",
+        },
+    )
+    decision = json.loads(result.stdout)
+    assert "session=abc-123" in decision["reason"]
+    assert "unknown" not in decision["reason"]
+    assert (home / ".claude" / "compact-pending-abc-123.flag").exists()
+    assert not (home / ".claude" / "compact-pending-unknown.flag").exists()
+
+
+def test_session_flag_does_not_suppress_other_session(
+    isolated: tuple[Path, Path],
+) -> None:
+    home, cwd = isolated
+    flag_a = home / ".claude" / "compact-pending-session-a.flag"
+    flag_a.parent.mkdir(parents=True, exist_ok=True)
+    flag_a.touch()
+    transcript = cwd / "session.jsonl"
+    _write_transcript(transcript, 4000)
+    result = _run_hook(
+        hook_input={"session_id": "session-b", "transcript_path": str(transcript)},
+        home=home,
+        cwd=cwd,
+        env_extra={
+            "CLAUDE_CONTEXT_LIMIT": "1000",
+            "CLAUDE_COMPACT_THRESHOLD_PCT": "70",
+        },
+    )
+    assert json.loads(result.stdout)["decision"] == "block"
+
+
+def test_precompact_clears_the_flag_stop_created(
+    isolated: tuple[Path, Path],
+) -> None:
+    """Stop and PreCompact must derive the same key from their payloads, so
+    compaction re-arms the hook for the next threshold crossing."""
+    home, cwd = isolated
+    transcript = cwd / "session.jsonl"
+    _write_transcript(transcript, 4000)
+    payload = {"session_id": "round-trip", "transcript_path": str(transcript)}
+    env = {"CLAUDE_CONTEXT_LIMIT": "1000", "CLAUDE_COMPACT_THRESHOLD_PCT": "70"}
+    flag = home / ".claude" / "compact-pending-round-trip.flag"
+
+    _run_hook(hook_input=payload, home=home, cwd=cwd, env_extra=env)
+    assert flag.exists()
+    precompact = _run_hook(
+        hook_input={**payload, "hook_event_name": "PreCompact"},
+        home=home, cwd=cwd, hook=_PRECOMPACT_HOOK,
+    )
+    assert precompact.returncode == 0
+    assert not flag.exists()
+    rearmed = _run_hook(hook_input=payload, home=home, cwd=cwd, env_extra=env)
+    assert json.loads(rearmed.stdout)["decision"] == "block"
 
 
 def test_malformed_transcript_does_not_crash(
@@ -364,13 +485,16 @@ def test_recent_phase_boundary_finds_in_cwd(
     # Stub git worktree list to return only this directory.
     monkeypatch.setattr(hook_module, "_all_worktree_roots",
                          lambda: [tmp_path])
-    assert hook_module._recent_phase_boundary() == "implementation"
+    payload = _session_payload(tmp_path, [tmp_path], ["test"])
+    assert hook_module._recent_phase_boundary(payload) == "implementation"
 
 
-def test_recent_phase_boundary_scans_all_worktrees(
+def test_recent_phase_boundary_scans_session_worktrees(
     hook_module: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A handoff written in a sibling worktree must be visible from cwd."""
+    """A handoff written in a sibling worktree the session has worked in must
+    be visible from cwd (e.g. autopilot applying an outcome in the feature
+    worktree while the session started in the main checkout)."""
     main_root = tmp_path / "main"
     sibling = tmp_path / "wt-pkg-a"
     main_root.mkdir()
@@ -388,7 +512,8 @@ def test_recent_phase_boundary_scans_all_worktrees(
     monkeypatch.chdir(main_root)  # pretend we're in the main checkout
     monkeypatch.setattr(hook_module, "_all_worktree_roots",
                          lambda: [main_root, sibling])
-    assert hook_module._recent_phase_boundary() == "validation"
+    payload = _session_payload(tmp_path, [main_root, sibling], ["test"])
+    assert hook_module._recent_phase_boundary(payload) == "validation"
 
 
 def test_sdk_cache_hits_when_transcript_unchanged(

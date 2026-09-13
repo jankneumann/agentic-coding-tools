@@ -4,10 +4,12 @@
 Runs immediately before Claude Code compacts the conversation. Two duties:
 
   1. **Clear the flag** written by check_compact.py so the next Stop after the
-     compaction does not immediately re-block.
+     compaction does not immediately re-block. Both hooks key the flag on the
+     session (session_scope.session_key), derived from their hook payloads.
   2. **Write a snapshot handoff** to the coordinator (and local fallback) so
      SessionStart's register_agent.py rehydrates context post-compaction.
-     Symmetric with deregister_agent.py.
+     Only this session's PhaseRecords are folded in. Symmetric with
+     deregister_agent.py.
 
 Stdlib-only (urllib) — matches the constraint on register/deregister hooks.
 """
@@ -16,42 +18,17 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import session_scope  # noqa: E402
+
 PREFIX = "[precompact_handoff]"
 MAX_NEXT_STEPS_IN_SUMMARY = 3
-
-
-def _all_worktree_roots(cwd: Path | None = None) -> list[Path]:
-    """Return every checkout known to the current git repository. See
-    check_compact.py:_all_worktree_roots for the full rationale."""
-    cwd = cwd or Path.cwd()
-    try:
-        result = subprocess.run(
-            ["git", "worktree", "list", "--porcelain"],
-            capture_output=True, text=True, timeout=2, check=True,
-            cwd=str(cwd),
-        )
-    except (subprocess.SubprocessError, FileNotFoundError, OSError):
-        return [cwd]
-    roots: list[Path] = []
-    for line in result.stdout.splitlines():
-        if line.startswith("worktree "):
-            roots.append(Path(line.split(" ", 1)[1]))
-    return roots or [cwd]
-
-
-def _agent_id() -> str:
-    return os.environ.get("AGENT_ID", "unknown")
-
-
-def _flag_path() -> Path:
-    return Path.home() / ".claude" / f"compact-pending-{_agent_id()}.flag"
 
 
 def _coordinator_url() -> str | None:
@@ -89,25 +66,31 @@ def _read_hook_input() -> dict:
         return {}
 
 
-def _clear_flag() -> None:
+def _clear_flag(payload: dict | None = None) -> None:
     try:
-        _flag_path().unlink()
+        session_scope.flag_path(payload).unlink()
     except FileNotFoundError:
         pass
     except OSError as exc:
         print(f"{PREFIX} failed to clear flag: {exc}", file=sys.stderr)
 
 
-def _latest_phase_record(cwd: Path | None = None) -> dict[str, Any] | None:
-    """Find the newest openspec/changes/<id>/handoffs/<phase>-<N>.json across
-    every worktree of the current repo, return its inner ``payload`` dict.
-    Returns None if no handoff exists or parsing fails. The on-disk format
-    is the local-fallback envelope:
+def _latest_phase_record(
+    payload: dict | None = None, cwd: Path | None = None,
+) -> dict[str, Any] | None:
+    """Find this session's newest openspec/changes/<id>/handoffs/<phase>-<N>.json
+    and return its inner ``payload`` dict. A handoff from a worktree the
+    session never worked in, or for a change it never mentioned, belongs to
+    another session and is skipped (session_scope.SessionScope.owns_handoff).
+    Returns None if no owned handoff exists or parsing fails. The on-disk
+    format is the local-fallback envelope:
     {schema_version, written_at, coordinator_error, payload: {...}}."""
+    roots = session_scope.all_worktree_roots(cwd)
+    scope = session_scope.load_session_scope(payload, fallback_cwd=cwd)
     candidates: list[Path] = []
     seen: set[Path] = set()
-    for root in _all_worktree_roots(cwd):
-        for p in root.glob("openspec/changes/*/handoffs/*.json"):
+    for root in roots:
+        for p in root.glob(session_scope.HANDOFF_GLOB):
             try:
                 resolved = p.resolve()
             except OSError:
@@ -115,7 +98,8 @@ def _latest_phase_record(cwd: Path | None = None) -> dict[str, Any] | None:
             if resolved in seen:
                 continue
             seen.add(resolved)
-            candidates.append(p)
+            if scope.owns_handoff(p, roots):
+                candidates.append(p)
     if not candidates:
         return None
     try:
@@ -126,19 +110,21 @@ def _latest_phase_record(cwd: Path | None = None) -> dict[str, Any] | None:
         data = json.loads(newest.read_text())
     except (OSError, json.JSONDecodeError):
         return None
-    payload = data.get("payload")
-    if isinstance(payload, dict):
-        return payload
+    handoff_payload = data.get("payload")
+    if isinstance(handoff_payload, dict):
+        return handoff_payload
     if "summary" in data:  # tolerate flat-shaped handoffs
         return data
     return None
 
 
-def _build_summary(record: dict[str, Any] | None) -> str:
+def _build_summary(
+    record: dict[str, Any] | None, session: str = "unknown",
+) -> str:
     """Compose a snapshot summary from the latest PhaseRecord, with a
     fallback message when none exists. Includes the first few next_steps
     inline so post-compact rehydration carries actionable context."""
-    base = f"Pre-compact snapshot (agent={_agent_id()})."
+    base = f"Pre-compact snapshot (session={session})."
     if not record:
         return (
             f"{base} No phase handoffs available; rehydrate by inspecting "
@@ -170,9 +156,9 @@ def _write_handoff(payload: dict) -> None:
               file=sys.stderr)
         return
 
-    record = _latest_phase_record()
+    record = _latest_phase_record(payload)
     session_id = os.environ.get("SESSION_ID", "") or payload.get("session_id", "")
-    summary = _build_summary(record)
+    summary = _build_summary(record, session_scope.session_key(payload))
 
     body: dict[str, Any] = {
         "agent_id": "",
@@ -201,7 +187,7 @@ def _write_handoff(payload: dict) -> None:
 
 def main() -> int:
     payload = _read_hook_input()
-    _clear_flag()
+    _clear_flag(payload)
     _write_handoff(payload)
     return 0
 
