@@ -140,6 +140,12 @@
       "outcome": "done",
       "at": "2026-09-13T19:50:45.321963+00:00",
       "note": "Goal gate: refused. PR #534 awaiting /cleanup-feature."
+    },
+    {
+      "phase": "VALIDATE",
+      "outcome": "passed",
+      "at": "2026-09-13T19:51:19.016649+00:00",
+      "note": "Re-verified after the CI-driven report correction. CI found two failures eight review rounds missed: an unused local, and a BLOCKING context_impact finding attributed to this branch by name, which the report had wrongly cleared using a repo-wide check instead of the branch-scoped gate. Both fixed; report corrected. Full gate set re-run against the final report: 378 passed 1 skipped, install.sh clean, dependency_direction clean, context-drift-gate exit 0, openspec validate --strict valid."
     }
   ],
   "last_handoff_id": "val-review-round-2",
@@ -258,16 +264,24 @@
   ],
   "pending_gate": null,
   "goal_gate": {
-    "verdict": "refused",
-    "reason": "validate record predates report",
+    "verdict": "passed",
+    "reason": "all required evidence present",
     "evidence": {
       "merge_authorized": true,
       "pr_url": "https://github.com/jankneumann/agentic-coding-tools/pull/534",
       "report_path": "openspec/changes/fix-audit-choices-range-ledger-path/validation-report.md",
-      "checked_at": "2026-09-13T19:50:45.321945+00:00",
+      "checked_at": "2026-09-13T19:51:19.016963+00:00",
       "validate_outcome": "passed",
-      "validate_at": "2026-09-13T16:05:39.233021+00:00",
-      "report_mtime": "2026-09-13T16:15:09.549942+00:00"
+      "validate_at": "2026-09-13T19:51:19.016649+00:00",
+      "report_mtime": "2026-09-13T16:15:09.549942+00:00",
+      "required_sections": [
+        "Spec Compliance",
+        "Validation Review"
+      ],
+      "phase_statuses": {
+        "Spec Compliance": "pass",
+        "Validation Review": "pass"
+      }
     }
   }
 }
