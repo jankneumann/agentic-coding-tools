@@ -4,7 +4,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.diagnostics.json",
       "required": false,
-      "sha256": "448d557df3cde15b4e4abfa30ecbf4536860b10d6eeb6352cf8f2fef393cfe94",
+      "sha256": "a94abc5d9443e8b9d473c2a898d944dc1704eac87d96cdfdb9387f39729b8b07",
       "size_bytes": 1051230,
       "tier": "committed"
     },
@@ -12,7 +12,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.graph.json",
       "required": true,
-      "sha256": "4ca8b99ed7fedaf311f606c25465b21e5b1ffe302e9f75fb5230a488cf4b87d2",
+      "sha256": "17093c6955521c5a7fe23b3859cca58b4fa7ed0338c0b1509ed2997ac4dcc3ff",
       "size_bytes": 884499,
       "tier": "committed"
     },
@@ -20,7 +20,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.report.md",
       "required": false,
-      "sha256": "e08da0d10db198c34aa579056cdd09ff4a12aedbdb11c0e09d4a904c25485f73",
+      "sha256": "a86bcd4309b908c831932891984b993f606b05c0c329fd6480955579a792f8b1",
       "size_bytes": 55402,
       "tier": "committed"
     },
@@ -28,7 +28,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.summary.json",
       "required": true,
-      "sha256": "739323899a5989d3b4b5d4a1061ec67e4a74ec64a6e01a54f5a2367d50b46426",
+      "sha256": "dc4b516ad6fad43a42f3406933bdb6998e85a2205559bb461110260627598c68",
       "size_bytes": 23692,
       "tier": "committed"
     },
@@ -36,7 +36,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/comment_insights.json",
       "required": false,
-      "sha256": "31f9c6d7fb6cfe6e6d8ec56823a2c93a5af831627b983b71b813d942ad50e32c",
+      "sha256": "c3da82665cca55736a1ff232fdab15223b3d6c4e8c7f082365905809e735aae3",
       "size_bytes": 20830,
       "tier": "committed"
     },
@@ -44,7 +44,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/parallel_zones.json",
       "required": false,
-      "sha256": "9f38def1789c233cad290808bab010af844f0fa2baa3775fb889731ff3c13906",
+      "sha256": "dad6d1842cb7589e5665de009aafa3e2adc50254dfe7b48b675e96a1b8e3466d",
       "size_bytes": 507680,
       "tier": "local-cache"
     },
@@ -52,7 +52,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/pattern_insights.json",
       "required": false,
-      "sha256": "2664e5d61fab02c1aaf8f23628055e1e2af75f05945d52fa1ec761c20dae02c3",
+      "sha256": "34ae8e22a7cb12f923f95845ef55d5564feca75eb47865fb2eead35f79502616",
       "size_bytes": 4161,
       "tier": "committed"
     },
@@ -76,7 +76,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/treesitter_enrichment.json",
       "required": false,
-      "sha256": "ec2a5992a309d0548680cfb21240e7ef0fee438afe4ffab1ecc2869591ebbea1",
+      "sha256": "c8baa3a9e38833c4926c771b163583cc396495f859ef141cdc5f8c50642a2d6e",
       "size_bytes": 1297352,
       "tier": "local-cache"
     },
@@ -129,7 +129,7 @@
       "tier": "committed"
     }
   ],
-  "generated_at": "2026-09-13T03:50:07+00:00",
+  "generated_at": "2026-09-13T04:13:24+00:00",
   "input_enumeration": "git",
   "input_fingerprint": "14944a7400656b2a0c6e3918f04e3fe4e8cdbeea15be3ccbd58a6fa2bd239f68",
   "input_roots": [
@@ -166,7 +166,7 @@
   },
   "repository_id": "cleanup",
   "schema_version": 2,
-  "source_revision": "913ae17506ad257ae7ef23a2168e8e9930ee893d",
+  "source_revision": "9146b85f5ff45d93c062be57698c978d4dc30e1f",
   "validation": {
     "error_count": 0,
     "status": "passed",

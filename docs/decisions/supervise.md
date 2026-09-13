@@ -5,14 +5,14 @@
 
 ---
 
-## 2026-09-11 — add-supervisor-candidate-work-digest
+## 2026-09-11 — 2026-09-13-add-supervisor-candidate-work-digest
 
 ### Phase: Implementation
 
 **Emit complete refinement requests** — Real preview/apply testing proved the refiner requires top-level rationale, actor, and source in addition to operations; stub-to-request now emits that envelope and remains a pure no-roadmap-write boundary.
 
 - Status: `active`
-- Source: [openspec/changes/add-supervisor-candidate-work-digest/session-log.md](/openspec/changes/add-supervisor-candidate-work-digest/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-13-add-supervisor-candidate-work-digest/session-log.md](/openspec/changes/archive/2026-09-13-add-supervisor-candidate-work-digest/session-log.md) (D1)
 
 ---
 

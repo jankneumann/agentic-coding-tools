@@ -351,3 +351,26 @@ Validated the non-deployable ri-13 supervisor digest change at 99d97e08. All req
 
 ### Context
 ri-13 completed seven convergence rounds: three plan reviews and four implementation reviews. Five work packages delivered contracts, an isolated digest runtime, an isolated rubric prompt, shared workflow integration, and integration verification. Codex authored the primary implementation and targeted fixes; Claude, Antigravity, and Grok supplied independent review signals; the final Codex/Claude/Grok quorum accepted both operator-scoped post-cap fixes with zero blockers. Validation passed 3,802 repository skills tests and 352 focused supervise tests. Existing PR #528 was reused and updated rather than creating a duplicate. Best-effort review-artifact opening resolved the curated file set but could not launch because the `code` CLI is unavailable in this environment.
+
+---
+
+## Phase: Cleanup (2026-09-13)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Use merge-commit fallback** — GitHub reported that the clean, mergeable 223-commit branch could not be rebased; a merge commit preserved the reviewed granular history without squashing.
+2. **No task migration** — The proposal tasks file contains no unchecked tasks.
+3. **Archive after merge** — The operator explicitly approved post-merge cleanup for PR #528.
+
+### Completed Work
+- merge
+- task-migration-check
+- archive
+
+### Next Steps
+- Run deterministic main-context convergence and continue with the next approved roadmap item.
+
+### Context
+PR #528 merged with a merge commit after GitHub rejected the default rebase operation; the granular commit history was preserved. All proposal tasks were complete, so no migration was needed, and the approved OpenSpec archive is being landed through the main-context convergence pass.
+
