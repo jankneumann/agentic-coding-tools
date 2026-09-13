@@ -266,3 +266,23 @@ def test_checkpoint_schemas_publish_the_optional_attempt_ledger() -> None:
             {**_legacy_checkpoint(), "dispatch_attempts": [invalid]}
         )
     )
+
+
+def test_checkpoint_schema_accepts_resume_hint_on_parked_attempt() -> None:
+    attempt = _launched_attempt()
+    attempt.update(
+        status="parked",
+        outcome="parked",
+        resolved_at="2026-09-01T00:09:00Z",
+        parked={
+            "kind": "pending_gate",
+            "reason": "approval required",
+            "resume_hint": "approve the pending gate",
+        },
+        lease={**attempt["lease"], "state": "released"},
+    )
+    validator = Draft202012Validator(json.loads(_CANONICAL_SCHEMA.read_text()))
+
+    validator.validate(
+        {**_legacy_checkpoint(), "dispatch_attempts": [attempt]}
+    )
