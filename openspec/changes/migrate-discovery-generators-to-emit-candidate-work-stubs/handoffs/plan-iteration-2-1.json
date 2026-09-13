@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-13T21:06:14.877916+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Recovered ri-12 on current main and resolved substantive multi-vendor findings. Revision 5 now has membership-independent IDs, semantic priority and effort mappings, exact dependency behavior, focused scenario traceability, and complete mirror gates.",
+    "completed_work": [
+      "Resolved two high correctness findings and four medium plan gaps.",
+      "Removed copied historical runtime/review state from the clean recovery branch while preserving the original branch.",
+      "Passed strict OpenSpec, work-package, and mirror-payload validation."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Derive IDs independently of batch membership",
+        "rationale": "Unconditional provenance hashes prevent a later collision from renaming existing candidates.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Use semantic score bands for explore priority",
+        "rationale": "Shortlist position is not comparable to severity evidence from other producers.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Require exact target-roadmap dependency mapping at intake",
+        "rationale": "The roadmap item contract cannot silently omit or rewrite dependency identities.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [],
+    "relevant_files": []
+  }
+}

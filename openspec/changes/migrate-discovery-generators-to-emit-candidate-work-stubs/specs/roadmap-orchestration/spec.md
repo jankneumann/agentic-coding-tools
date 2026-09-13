@@ -20,7 +20,7 @@ without hand-editing intermediate artifacts.
 - **WHEN** an approved canonical stub targets an existing roadmap workspace
 - **THEN** plan-roadmap SHALL route the mapped item through a refine-roadmap add request
 - **AND** the request SHALL omit execution priority so refine-roadmap assigns the next free priority
-- **AND** the candidate priority SHALL remain present in request provenance or rationale
+- **AND** the candidate priority SHALL remain present in the request rationale
 - **AND** the existing roadmap SHALL NOT be written before preview and apply authorization
 
 #### Scenario: Approved stub omits acceptance outcomes
@@ -31,7 +31,7 @@ without hand-editing intermediate artifacts.
 
 #### Scenario: Candidate dependency cannot be resolved
 
-- **WHEN** a stub dependency cannot be mapped to an item in the target roadmap
+- **WHEN** a stub dependency cannot be mapped to exactly one item in the target roadmap
 - **THEN** plan-roadmap MUST fail with the unresolved dependency name
 - **AND** it MUST NOT silently drop or rewrite the dependency
 

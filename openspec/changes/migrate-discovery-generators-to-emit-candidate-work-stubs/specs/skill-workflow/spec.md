@@ -35,6 +35,7 @@ while preserving their existing rich artifacts.
 - **WHEN** supported generators project entries into a mixed candidate batch
 - **THEN** each adapter SHALL map source evidence onto the shared five-band priority scale
 - **AND** source-local rank SHALL NOT be treated as an unbounded cross-generator priority
+- **AND** explore-feature SHALL map its weighted score through documented fixed bands rather than mapping shortlist position
 
 #### Scenario: Candidate batch validation fails
 
@@ -54,11 +55,12 @@ while preserving their existing rich artifacts.
 - **THEN** source text SHALL be escaped as inert Markdown or terminal text
 - **AND** provenance URIs SHALL NOT be dereferenced, fetched, or executed
 
-#### Scenario: Discovery returns no eligible entries
+#### Scenario: Requested candidate discovery returns no eligible entries
 
-- **WHEN** a generator succeeds with no eligible entries
+- **WHEN** a generator with a file-backed or explicitly requested candidate destination succeeds with no eligible entries
 - **THEN** it SHALL atomically persist an empty candidate array
 - **AND** stale candidates SHALL NOT remain
+- **AND** improve-harness stdout-only mode without an explicit candidate destination SHALL remain write-free
 
 ### Requirement: Prioritize-proposals ranks mixed candidate work
 

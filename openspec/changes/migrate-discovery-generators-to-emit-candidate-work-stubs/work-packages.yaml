@@ -3,13 +3,14 @@ schema_version: 1
 feature:
   id: migrate-discovery-generators-to-emit-candidate-work-stubs
   title: "Migrate discovery generators to emit candidate-work stubs"
-  plan_revision: 4
+  plan_revision: 5
   created_by: plan-feature
   deployable: false
 
 contracts:
-  revision: 1
+  revision: 2
   openapi:
+    # No OpenAPI surface; README is the contracts entrypoint per repo convention.
     primary: "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/contracts/README.md"
     files:
       - "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/contracts/README.md"
@@ -189,12 +190,14 @@ packages:
         - ".claude/skills/explore-feature/**"
         - ".claude/skills/prioritize-proposals/**"
         - ".claude/skills/plan-roadmap/**"
+        - ".claude/skills/install-manifest.json"
         - ".agents/skills/shared/**"
         - ".agents/skills/bug-scrub/**"
         - ".agents/skills/improve-harness/**"
         - ".agents/skills/explore-feature/**"
         - ".agents/skills/prioritize-proposals/**"
         - ".agents/skills/plan-roadmap/**"
+        - ".agents/skills/install-manifest.json"
         - "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/**"
       read_allow: ["**"]
       deny: ["**/.venv/**", "openspec/roadmaps/**"]
@@ -223,5 +226,9 @@ packages:
           kind: command
           command: "skills/.venv/bin/python -m ruff check skills/shared skills/bug-scrub skills/improve-harness skills/explore-feature skills/prioritize-proposals skills/plan-roadmap && skills/.venv/bin/python skills/validate-packages/scripts/validate_work_packages.py openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/work-packages.yaml --check-overlap"
           evidence: {artifacts: [], result_keys: ["quality"]}
+        - name: "Harness mirror payload is complete"
+          kind: command
+          command: "skills/install.sh --check"
+          evidence: {artifacts: [], result_keys: ["mirrors"]}
     metadata: {loc_estimate: 180, complexity: medium, package_kind: integration}
-    outputs: {result_keys: ["openspec", "integration_suite"]}
+    outputs: {result_keys: ["openspec", "integration_suite", "full_suite", "quality", "mirrors"]}

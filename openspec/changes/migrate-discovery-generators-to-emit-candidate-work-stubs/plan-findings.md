@@ -52,3 +52,18 @@ boundary before the enforced bound.
 
 Round 3 has zero blocking plan findings, but the required external quorum is only
 1/2. The final bounded review therefore ends as `max_iter`, not false convergence.
+
+
+## Recovery Review Round 1 (2026-09-13)
+
+| # | Type | Criticality | Description | Resolution |
+|---|---|---|---|---|
+| 1 | correctness | high | Collision handling depended on batch membership and contradicted duplicate-ID refusal. | Derived IDs now always include a canonical-provenance hash; explicit hints are normalized as-is; duplicate final IDs fail. |
+| 2 | correctness | high | Explore-feature mapped shortlist rank directly to cross-generator priority. | Fixed weighted-score bands now map semantic evidence to priorities 2-5; priority 1 requires explicit critical/immediate evidence. |
+| 3 | correctness | medium | Dependency mapping, topological ordering, and blocked propagation were ambiguous. | Intake now requires one exact target-roadmap item; ranking uses specified Kahn traversal with transitive blocked status. |
+| 4 | correctness | medium | Improve-harness fabricated effort from severity. | Effort now derives from affected-skill count; severity controls priority only. |
+| 5 | compatibility | medium | Mirror manifests were outside integration write scope and mirror verification was unpublished. | Added both manifest paths, a `skills/install.sh --check` gate, and complete result keys. |
+| 6 | testability | medium | Several scenarios were traced only to the catch-all integration task. | Assigned every behavior to focused producer, ranking, or intake RED tests and narrowed the integration task. |
+| 7 | infrastructure | high | Three harnesses failed before launch because the copied review history made the packet exceed host argv limits. | Historical runtime artifacts remain on the original failed branch but were removed from this clean recovery branch; the next packet contains only canonical plan artifacts. |
+
+Plan revision 5 passes strict OpenSpec validation, package schema/DAG/scope/overlap validation, and mirror-payload validation.
