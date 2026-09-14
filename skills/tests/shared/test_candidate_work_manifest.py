@@ -21,3 +21,10 @@ def test_candidate_work_consumers_declare_the_shared_runtime() -> None:
         "prioritize-proposals",
     ):
         assert "shared" in dependencies.get(skill, []), skill
+
+
+def test_plan_roadmap_declares_refine_roadmap_runtime() -> None:
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    dependencies = manifest["cross_skill_dependencies"]
+
+    assert "refine-roadmap" in dependencies.get("plan-roadmap", [])

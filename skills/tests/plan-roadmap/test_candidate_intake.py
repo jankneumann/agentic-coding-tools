@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+import candidate_intake
 from candidate_intake import (
     CandidateIntakeError,
     build_new_roadmap,
@@ -13,7 +14,15 @@ from candidate_intake import (
     next_free_item_id,
     preview_existing_roadmap,
 )
-from models import Effort, ItemStatus, Roadmap, RoadmapItem, RoadmapStatus, save_roadmap
+from models import (
+    Effort,
+    ItemStatus,
+    Roadmap,
+    RoadmapItem,
+    RoadmapStatus,
+    load_roadmap,
+    save_roadmap,
+)
 from refiner import BaseRoadmapChangedError, apply_refinement
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -141,6 +150,89 @@ def test_new_roadmap_save_is_no_overwrite_and_scaffolds_capability(tmp_path: Pat
         )
 
 
+def test_new_roadmap_rejects_duplicate_semantic_roadmap_id(tmp_path: Path) -> None:
+    repo_root = _repo(tmp_path)
+    existing_path = (
+        repo_root / "openspec/roadmaps/different-directory/roadmap.yaml"
+    )
+    save_roadmap(
+        Roadmap(
+            schema_version=1,
+            roadmap_id="context-refresh",
+            source_proposal="docs/existing.md",
+            status=RoadmapStatus.APPROVED,
+            items=[_item("ri-01", "add-existing", 1)],
+        ),
+        existing_path,
+    )
+
+    with pytest.raises(CandidateIntakeError, match="roadmap ID.*already exists"):
+        create_new_roadmap(
+            _candidate(),
+            repo_root=repo_root,
+            roadmap_id="context-refresh",
+            capability="context-index",
+            acceptance_outcomes=["The context index is current"],
+        )
+
+    assert not (repo_root / "openspec/roadmaps/context-refresh").exists()
+    assert not (repo_root / "openspec/changes/update-context-index").exists()
+
+
+def test_new_roadmap_does_not_overwrite_change_appearing_after_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = _repo(tmp_path)
+    destination = repo_root / "openspec/changes/update-context-index"
+    sentinel = destination / "proposal.md"
+    original_lifecycle_records = candidate_intake._lifecycle_records
+
+    def introduce_active_change(root: Path):
+        records = original_lifecycle_records(root)
+        destination.mkdir(parents=True)
+        sentinel.write_text("existing active work", encoding="utf-8")
+        return records
+
+    monkeypatch.setattr(
+        candidate_intake, "_lifecycle_records", introduce_active_change
+    )
+
+    with pytest.raises(CandidateIntakeError, match="already exists"):
+        create_new_roadmap(
+            _candidate(),
+            repo_root=repo_root,
+            roadmap_id="context-refresh",
+            capability="context-index",
+            acceptance_outcomes=["The context index is current"],
+        )
+
+    assert sentinel.read_text(encoding="utf-8") == "existing active work"
+    assert not (repo_root / "openspec/roadmaps/context-refresh").exists()
+
+
+def test_new_roadmap_scaffold_failure_leaves_no_partial_roadmap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = _repo(tmp_path)
+
+    def fail_scaffold(*_args, **_kwargs):
+        raise OSError("simulated scaffold failure")
+
+    monkeypatch.setattr(candidate_intake, "scaffold_change", fail_scaffold)
+
+    with pytest.raises(OSError, match="simulated scaffold failure"):
+        create_new_roadmap(
+            _candidate(),
+            repo_root=repo_root,
+            roadmap_id="context-refresh",
+            capability="context-index",
+            acceptance_outcomes=["The context index is current"],
+        )
+
+    assert not (repo_root / "openspec/roadmaps/context-refresh").exists()
+    assert not (repo_root / "openspec/changes/update-context-index").exists()
+
+
 def test_existing_preview_uses_fresh_monotonic_id_and_refiner_priority(tmp_path: Path) -> None:
     repo_root = _repo(tmp_path)
     path = _write_roadmap(
@@ -161,6 +253,40 @@ def test_existing_preview_uses_fresh_monotonic_id_and_refiner_priority(tmp_path:
     assert result.preview.candidate["items"][-1]["priority"] == 9
     assert not (repo_root / "openspec/changes/update-context-index").exists()
     assert path.read_bytes() == before
+
+
+def test_existing_preview_retries_when_base_changes_before_preview(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = _repo(tmp_path)
+    path = _write_roadmap(
+        repo_root,
+        "target",
+        [_item("ri-01", "add-one", 3)],
+    )
+    original_preview = candidate_intake.preview_refinement
+    calls = 0
+
+    def interleaved_preview(
+        roadmap_path: Path, request: dict[str, object], root: Path
+    ):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            concurrent = load_roadmap(roadmap_path, root)
+            concurrent.items.append(_item("ri-05", "add-concurrent", 8))
+            save_roadmap(concurrent, roadmap_path, overwrite=True)
+        return original_preview(roadmap_path, request, root)
+
+    monkeypatch.setattr(
+        candidate_intake, "preview_refinement", interleaved_preview
+    )
+
+    result = _preview(_candidate(), repo_root, path)
+
+    assert calls == 2
+    assert result.request["operations"][0]["item"]["item_id"] == "ri-06"
+    assert result.preview.candidate["items"][-1]["priority"] == 9
 
 
 def test_next_free_item_id_expands_past_two_digits() -> None:
@@ -192,7 +318,14 @@ def test_dependencies_map_local_external_and_completed(tmp_path: Path) -> None:
 
     assert item["depends_on"] == ["ri-01"]
     assert item["external_depends_on"] == ["other:ri-02"]
-    assert "Satisfied dependency: add-done (completed)" in item["rationale"]
+    assert "Resolved dependency: add-local -> ri-01" in item["rationale"]
+    assert (
+        "Resolved dependency: add-external -> other:ri-02"
+        in item["rationale"]
+    )
+    assert item["rationale"].count(
+        "Satisfied dependency: add-done (completed)"
+    ) == 1
 
 
 @pytest.mark.parametrize(

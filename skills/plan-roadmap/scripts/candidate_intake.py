@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
+import shutil
 import sys
+import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,6 +48,7 @@ from scaffolder import scaffold_change
 _KEBAB_CASE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _ITEM_ID = re.compile(r"^ri-(\d+)$")
 _ARCHIVE_PREFIX = re.compile(r"^\d{4}-\d{2}-\d{2}-(.+)$")
+_PREVIEW_ATTEMPTS = 3
 
 
 class CandidateIntakeError(ValueError):
@@ -125,12 +129,17 @@ def _roadmap_records(roadmap: Roadmap) -> list[LifecycleRecord]:
     ]
 
 
-def _lifecycle_records(repo_root: Path) -> list[LifecycleRecord]:
+def _active_roadmaps(repo_root: Path) -> dict[str, Roadmap]:
     roadmaps, errors = load_all_roadmaps_strict(repo_root)
     if errors:
         raise CandidateIntakeError(
             "roadmap lifecycle registry could not be loaded: " + "; ".join(errors)
         )
+    return roadmaps
+
+
+def _lifecycle_records(repo_root: Path) -> list[LifecycleRecord]:
+    roadmaps = _active_roadmaps(repo_root)
     records = [
         record
         for roadmap in roadmaps.values()
@@ -172,6 +181,13 @@ def _lifecycle_records(repo_root: Path) -> list[LifecycleRecord]:
     return records
 
 
+def _assert_roadmap_id_available(roadmap_id: str, repo_root: Path) -> None:
+    if roadmap_id in _active_roadmaps(repo_root):
+        raise CandidateIntakeError(
+            f"roadmap ID {roadmap_id!r} already exists in another workspace"
+        )
+
+
 def _assert_available(change_id: str, records: Sequence[LifecycleRecord]) -> None:
     matches = [record for record in records if record.change_id == change_id]
     if matches:
@@ -203,9 +219,10 @@ def _mapped_dependencies(
     *,
     target_roadmap_id: str,
     records: Sequence[LifecycleRecord],
-) -> tuple[list[str], list[str], list[str]]:
+) -> tuple[list[str], list[str], list[str], list[str]]:
     local: list[str] = []
     external: list[str] = []
+    resolved: list[str] = []
     satisfied: list[str] = []
     for change_id in stub.get("depends_on", []):
         resolution = resolve_dependency(change_id, records)
@@ -223,9 +240,12 @@ def _mapped_dependencies(
             )
         if owner.roadmap_id == target_roadmap_id:
             local.append(owner.item_id)
+            item_ref = owner.item_id
         else:
-            external.append(f"{owner.roadmap_id}:{owner.item_id}")
-    return local, external, satisfied
+            item_ref = f"{owner.roadmap_id}:{owner.item_id}"
+            external.append(item_ref)
+        resolved.append(f"Resolved dependency: {change_id} -> {item_ref}")
+    return local, external, resolved, satisfied
 
 
 def _mapped_item(
@@ -238,12 +258,12 @@ def _mapped_item(
     capability: str | None,
     include_priority: bool,
 ) -> RoadmapItem:
-    local, external, satisfied = _mapped_dependencies(
+    local, external, resolved, satisfied = _mapped_dependencies(
         stub, target_roadmap_id=target_roadmap_id, records=records
     )
     rationale = stub["rationale"]
-    if satisfied:
-        rationale += "\n\n" + "\n".join(satisfied)
+    if annotations := resolved + satisfied:
+        rationale += "\n\n" + "\n".join(annotations)
     return RoadmapItem(
         item_id=item_id,
         title=stub["title"],
@@ -289,6 +309,7 @@ def build_new_roadmap(
     target = _kebab_case(roadmap_id, "roadmap_id")
     approved_capability = _kebab_case(capability, "capability")
     outcomes = _validated_outcomes(acceptance_outcomes)
+    _assert_roadmap_id_available(target, root)
     records = _lifecycle_records(root)
     _assert_available(stub["suggested_change_id"], records)
     item = _mapped_item(
@@ -313,6 +334,44 @@ def build_new_roadmap(
     return roadmap
 
 
+def _remove_owned_directories(paths: Sequence[Path]) -> None:
+    for path in reversed(paths):
+        if path.is_dir():
+            shutil.rmtree(path)
+
+
+def _install_staged_new_roadmap(
+    *,
+    staged_roadmap_path: Path,
+    staged_change_dir: Path,
+    roadmap_path: Path,
+    change_dir: Path,
+) -> None:
+    owned: list[Path] = []
+    try:
+        for destination in (change_dir, roadmap_path.parent):
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                destination.mkdir()
+            except FileExistsError as exc:
+                raise CandidateIntakeError(
+                    f"candidate intake destination already exists at {destination}"
+                ) from exc
+            owned.append(destination)
+        shutil.copytree(staged_change_dir, change_dir, dirs_exist_ok=True)
+        shutil.copy2(staged_roadmap_path, roadmap_path)
+    except BaseException:
+        _remove_owned_directories(owned)
+        raise
+
+
+def _new_change_id(roadmap: Roadmap) -> str:
+    item = roadmap.get_item("ri-01")
+    if item is None or not item.change_id:
+        raise CandidateIntakeError("new roadmap ri-01 has no change ID")
+    return item.change_id
+
+
 def create_new_roadmap(
     candidate: object,
     *,
@@ -334,8 +393,22 @@ def create_new_roadmap(
         capability=capability,
         acceptance_outcomes=acceptance_outcomes,
     )
-    save_roadmap(roadmap, roadmap_path, overwrite=False)
-    change_dir = scaffold_change(roadmap, root, "ri-01")
+    change_dir = root / "openspec" / "changes" / _new_change_id(roadmap)
+    staging_parent = root / "openspec"
+    staging_parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=".candidate-intake-", dir=staging_parent
+    ) as temporary_name:
+        staging_root = Path(temporary_name)
+        staged_roadmap_path = staging_root / "roadmap.yaml"
+        save_roadmap(roadmap, staged_roadmap_path, overwrite=False)
+        staged_change_dir = scaffold_change(roadmap, staging_root, "ri-01")
+        _install_staged_new_roadmap(
+            staged_roadmap_path=staged_roadmap_path,
+            staged_change_dir=staged_change_dir,
+            roadmap_path=roadmap_path,
+            change_dir=change_dir,
+        )
     return NewRoadmapIntakeResult(roadmap, roadmap_path, change_dir)
 
 
@@ -355,36 +428,49 @@ def preview_existing_roadmap(
     if not isinstance(actor, str) or not actor.strip():
         raise CandidateIntakeError("actor must be nonblank")
     target_path = Path(roadmap_path)
-    roadmap = load_roadmap(target_path, root)
-    records = _lifecycle_records(root)
-    _assert_available(stub["suggested_change_id"], records)
-    item = _mapped_item(
-        stub,
-        item_id=next_free_item_id(roadmap),
-        target_roadmap_id=roadmap.roadmap_id,
-        outcomes=outcomes,
-        records=records,
-        capability=None,
-        include_priority=False,
-    )
-    item_data = item.to_dict()
-    item_data.pop("priority")
-    item_data.pop("capability", None)
-    request = {
-        "rationale": (
-            f"Approved candidate intake for {stub['suggested_change_id']}.\n"
-            f"Candidate priority: {stub['priority']}"
-        ),
-        "actor": actor.strip(),
-        "source": stub["provenance"]["source_artifact"],
-        "operations": [{"op": "add", "item": item_data}],
-    }
-    preview = preview_refinement(target_path, request, root)
-    if preview.errors:
-        raise CandidateIntakeError(
-            "candidate refinement preview is invalid: " + "; ".join(preview.errors)
+    for _attempt in range(_PREVIEW_ATTEMPTS):
+        base_bytes = target_path.read_bytes()
+        roadmap = load_roadmap(target_path, root)
+        if target_path.read_bytes() != base_bytes:
+            continue
+        records = _lifecycle_records(root)
+        if target_path.read_bytes() != base_bytes:
+            continue
+        _assert_available(stub["suggested_change_id"], records)
+        item = _mapped_item(
+            stub,
+            item_id=next_free_item_id(roadmap),
+            target_roadmap_id=roadmap.roadmap_id,
+            outcomes=outcomes,
+            records=records,
+            capability=None,
+            include_priority=False,
         )
-    return ExistingRoadmapIntakePreview(request, preview)
+        item_data = item.to_dict()
+        item_data.pop("priority")
+        item_data.pop("capability", None)
+        request = {
+            "rationale": (
+                f"Approved candidate intake for {stub['suggested_change_id']}.\n"
+                f"Candidate priority: {stub['priority']}"
+            ),
+            "actor": actor.strip(),
+            "source": stub["provenance"]["source_artifact"],
+            "operations": [{"op": "add", "item": item_data}],
+        }
+        preview = preview_refinement(target_path, request, root)
+        expected_base = hashlib.sha256(base_bytes).hexdigest()
+        if preview.base_sha256 != expected_base:
+            continue
+        if preview.errors:
+            raise CandidateIntakeError(
+                "candidate refinement preview is invalid: "
+                + "; ".join(preview.errors)
+            )
+        return ExistingRoadmapIntakePreview(request, preview)
+    raise CandidateIntakeError(
+        "roadmap changed repeatedly during candidate intake; preview again"
+    )
 
 
 def _parser() -> argparse.ArgumentParser:

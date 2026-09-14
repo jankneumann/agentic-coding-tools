@@ -112,6 +112,7 @@
     ],
     "plan-roadmap": [
       "parallel-infrastructure",
+      "refine-roadmap",
       "roadmap-runtime",
       "shared",
       "worktree"
