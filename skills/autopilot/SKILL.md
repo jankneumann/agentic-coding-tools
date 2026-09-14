@@ -840,18 +840,23 @@ phase-to-archetype mapping lives under `phase_mapping`.
 | `GATEKEEPER` | `gatekeeper` | premium |
 | `INIT`, `SUBMIT_PR` | `runner` | economy |
 
-**Operator override** — force a specific model for one or more phases via the
-`AUTOPILOT_PHASE_MODEL_OVERRIDE` env var. Format:
-`<PHASE>=<model>[,<PHASE>=<model>]*`. Example:
+**Operator override (explicit escape hatch)** — bypass YAML archetype/tier
+selection and force harness model ids directly for one or more phases via the
+`AUTOPILOT_PHASE_MODEL_OVERRIDE` env var. This is **non-default operator
+policy**, not the authored selection path: normal runs resolve phases through
+`archetypes.yaml` / `phase_mapping`. Format:
+`<PHASE>=<harness-model-id>[,<PHASE>=<harness-model-id>]*`. Example (ids are
+illustrative harness strings the override injects as-is):
 
 ```bash
 export AUTOPILOT_PHASE_MODEL_OVERRIDE="PLAN=gpt-5.5,IMPL_REVIEW=gpt-5.4,VALIDATE=gpt-5.4-mini"
 ```
 
-Override sets `options["model"]` only; the `system_prompt` is left to the
-provider adapter default to keep override behavior predictable. Unknown phase
-names are warned and ignored; unknown model names pass through to the selected
-provider adapter for validation.
+Override sets `options["model"]` only (harness model ids, not archetype
+names); the `system_prompt` is left to the provider adapter default to keep
+override behavior predictable. Unknown phase names are warned and ignored;
+unknown model names pass through to the selected provider adapter for
+validation.
 
 **Failure mode** — if the coordinator endpoint is unreachable or returns an
 error, the bridge logs a structured warning and the phase dispatches with the
