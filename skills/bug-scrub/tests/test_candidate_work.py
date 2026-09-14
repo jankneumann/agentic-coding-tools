@@ -187,3 +187,51 @@ def test_validation_failure_returns_concise_error_and_preserves_report(
     assert "Traceback" not in captured.err
     assert (out_dir / "bug-scrub-report.json").exists()
     assert not (out_dir / "bug-scrub-candidate-work.json").exists()
+
+
+def test_cli_unsupported_category_is_concise_and_preserves_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import main as bug_main
+    from models import SourceResult
+
+    monkeypatch.setitem(
+        bug_main.ALL_SOURCES,
+        "fake-unsupported",
+        lambda _project: SourceResult(
+            source="fake-unsupported",
+            status="ok",
+            findings=[_finding(category="new-category")],
+        ),
+    )
+    out_dir = tmp_path / "reports"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "main.py",
+            "--source",
+            "fake-unsupported",
+            "--severity",
+            "info",
+            "--project-dir",
+            str(tmp_path),
+            "--out-dir",
+            str(out_dir),
+            "--format",
+            "json",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        bug_main.main()
+
+    captured = capsys.readouterr()
+    assert exc_info.value.code == 2
+    assert captured.err.startswith("error: candidate-work sidecar not written:")
+    assert "unsupported bug-scrub category" in captured.err
+    assert "Traceback" not in captured.err
+    assert (out_dir / "bug-scrub-report.json").exists()
+    assert not (out_dir / "bug-scrub-candidate-work.json").exists()

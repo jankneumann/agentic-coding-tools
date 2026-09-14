@@ -32,7 +32,7 @@ and lowercases `capability_gap`; and explore-feature requires the exact stable
 opportunity ID. The object is serialized with `json.dumps(identity, sort_keys=True,
 separators=(",", ":"), ensure_ascii=False)` and UTF-8 encoded. Titles, report paths,
 source-entry collections, rank, and other volatile provenance are excluded. Duplicate
-final IDs fail the complete write. Explore-feature reuses its documented 1.0..3.3 weighted-score formula and fixed D4
+final IDs fail the complete write. Explore-feature reuses its documented 1.0..3.1 weighted-score formula and fixed D4
 bands; shortlist rank is provenance only and explore never emits priority 1.
 Improve-harness derives effort from affected-skill count, never severity. Ranking uses
 the empty string when the optional provenance generator is absent. The repeatable `--candidate-work PATH` option validates every supplied object or array, concatenates

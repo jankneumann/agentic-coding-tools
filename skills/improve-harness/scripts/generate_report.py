@@ -336,7 +336,7 @@ def create_proposal_stub(finding: dict[str, Any]) -> str:
 # CLI entry point
 # ---------------------------------------------------------------------------
 
-def main() -> None:
+def main() -> int:
     """CLI entry point — generate report from memory entries."""
     import argparse
     import sys
@@ -384,7 +384,11 @@ def main() -> None:
             if args.candidate_work_output
             else Path(args.output).with_name("improve-harness-candidate-work.json")
         )
-        write_projection(ranked, candidate_path, source_artifact)
+        try:
+            write_projection(ranked, candidate_path, source_artifact)
+        except (OSError, ValueError) as exc:
+            print(f"error: candidate-work sidecar not written: {exc}", file=sys.stderr)
+            return 2
         print(f"Candidate work written to {candidate_path}")
 
     if args.create_proposal and entries:
@@ -400,6 +404,8 @@ def main() -> None:
                 print("\n---\n")
                 print(stub)
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

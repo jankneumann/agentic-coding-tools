@@ -79,7 +79,7 @@ shared five-band priority estimate: critical/immediate=1, high=2, medium/normal=
 low=4, and informational/backlog=5. Bug-scrub severity and improve-harness `max_severity` map directly to those bands.
 Explore-feature reuses its documented formula `impact*0.4 + strategic_fit*0.25 +
 (4-effort)*0.2 + (4-risk)*0.15 + focus_match*0.1` with the existing numeric
-mappings, whose closed range is 1.0..3.3. Score >=2.75 maps to 2, >=2.00 to 3,
+mappings, whose closed range is 1.0..3.1. Score >=2.75 maps to 2, >=2.00 to 3,
 >=1.50 to 4, and lower scores to 5. Explore-feature has no critical/immediate source
 field and therefore never emits priority 1. Source-local rank is retained only as provenance and never
 bypasses this common scale. Candidate readiness uses `depends_on`; size uses `effort`;
@@ -153,8 +153,9 @@ dereference, fetch, or execute provenance URIs.
 
 Candidate work is a separate report lane, never an input to the active-proposal score.
 Ranking and intake share one resolver that groups every exact change-ID match across
-the candidate batch, roadmap items, active OpenSpec changes, and archives. A group is satisfied only when every match is a completed roadmap item or an
-archived-completed change. If exactly one live match remains,
+the candidate batch, items in active roadmaps, active OpenSpec changes, and archived
+OpenSpec changes. A group is satisfied only when every match is a completed roadmap
+item or an archived-completed change. If exactly one live match remains,
 it determines the outcome: an in-batch candidate creates a graph edge, a live roadmap
 item is local or external according to its roadmap, and an active change without a
 roadmap item remains unresolved. Completed/archive records for the same lifecycle lineage do

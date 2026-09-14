@@ -13,6 +13,8 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
 
 from candidate_work import (
+    CandidateWorkCollisionError,
+    CandidateWorkValidationError,
     collect_lifecycle_records,
     derive_suggested_change_id,
     write_candidate_work,
@@ -46,11 +48,33 @@ def _marked_existing(item: dict[str, Any]) -> bool:
     )
 
 
+def _level(item: dict[str, Any], field: str) -> int:
+    value = str(item.get(field, "med"))
+    key = value.lower()
+    if key not in _LEVEL:
+        item_id = str(item.get("id", "<missing>"))
+        raise ValueError(
+            f"opportunity {item_id} has unknown {field} {value!r}"
+        )
+    return _LEVEL[key]
+
+
+def _effort(item: dict[str, Any]) -> str:
+    value = str(item.get("effort", "M"))
+    key = value.upper()
+    if key not in _EFFORT_SCORE:
+        item_id = str(item.get("id", "<missing>"))
+        raise ValueError(
+            f"opportunity {item_id} has unknown effort {value!r}"
+        )
+    return key
+
+
 def _priority(item: dict[str, Any]) -> int:
-    impact = _LEVEL[str(item.get("impact", "med")).lower()]
-    strategic = _LEVEL[str(item.get("strategic_fit", "med")).lower()]
-    effort = _EFFORT_SCORE[str(item.get("effort", "M")).upper()]
-    risk = _LEVEL[str(item.get("risk", "med")).lower()]
+    impact = _level(item, "impact")
+    strategic = _level(item, "strategic_fit")
+    effort = _EFFORT_SCORE[_effort(item)]
+    risk = _level(item, "risk")
     focus = float(item.get("focus_match", 0))
     score = impact * 0.4 + strategic * 0.25 + (4 - effort) * 0.2
     score += (4 - risk) * 0.15 + focus * 0.1
@@ -141,7 +165,7 @@ def project_candidate_work(
                 "finding_ids": [source_id],
                 "generator": "explore-feature",
             },
-            "effort": str(item.get("effort", "M")).upper(),
+            "effort": _effort(item),
             "priority": _priority(item),
             "suggested_change_id": suggested_id,
             "tags": _tags(item, prose_blockers),
@@ -190,13 +214,24 @@ def run(source: Path, destination: Path | None = None) -> Path:
     )
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("opportunities", type=Path)
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
-    print(run(args.opportunities, args.output))
+    try:
+        destination = run(args.opportunities, args.output)
+    except (
+        CandidateWorkCollisionError,
+        CandidateWorkValidationError,
+        OSError,
+        ValueError,
+    ) as exc:
+        print(f"error: candidate-work sidecar not written: {exc}", file=sys.stderr)
+        return 2
+    print(destination)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
