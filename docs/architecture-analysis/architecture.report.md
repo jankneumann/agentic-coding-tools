@@ -2,26 +2,26 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-09-14T07:57:44+00:00
-Git SHA: `5693a3206ab0ffb0a232c69f569629f975be1635`
+Generated: 2026-09-14T08:37:30+00:00  
+Git SHA: `3c0bc59311316ea3f55f6ada651d80d4f9cd49f5`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (84 tools, 11 resources, 2 prompts), backed by **28 Postgres tables**. The codebase contains 1112 functions (444 async) and 255 classes.
+This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (84 tools, 11 resources, 2 prompts), backed by **29 Postgres tables**. The codebase contains 1112 functions (444 async) and 255 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1890 |
+| Total nodes | 1893 |
 | Total edges | 1225 |
 | Python modules | 77 |
 | Functions | 1112 (444 async) |
 | Classes | 255 |
 | Mcp Endpoints | 97 |
-| DB tables | 28 |
+| DB tables | 29 |
 | Python nodes | 1444 |
-| Sql nodes | 446 |
+| Sql nodes | 449 |
 
 ## Module Responsibility Map
 
@@ -461,7 +461,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1164 independent groups** identified. The largest interconnected group has 553 modules; 1472 modules are leaf nodes (safe to modify in isolation).
+**1167 independent groups** identified. The largest interconnected group has 553 modules; 1475 modules are leaf nodes (safe to modify in isolation).
 
 **42 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -489,9 +489,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1472)
+### Leaf Modules (1475)
 
-1472 modules have no dependents — changes are fully isolated. 1140 of the 1164 groups are singletons.
+1475 modules have no dependents — changes are fully isolated. 1143 of the 1167 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -502,7 +502,7 @@ Functions called by the most other functions — changes here have wide blast ra
 ```mermaid
 flowchart TB
     Backend["Backend (1444 nodes)"]
-    Database["Database (446 nodes)"]
+    Database["Database (449 nodes)"]
 ```
 
 ### Backend Components
@@ -1157,5 +1157,9 @@ erDiagram
         TEXT phase
         INTEGER transition_sequence
         TIMESTAMPTZ updated_at
+    }
+    public__work_queue_projection_ownership {
+        TIMESTAMPTZ created_at
+        UUID task_id
     }
 ```

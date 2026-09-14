@@ -2103,6 +2103,29 @@
       ],
       "file": "035_work_queue_projection.sql",
       "line": 50
+    },
+    {
+      "name": "public.work_queue_projection_ownership",
+      "schema": "public",
+      "columns": [
+        {
+          "name": "task_id",
+          "type": "UUID",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "NOW()"
+        }
+      ],
+      "primary_key": [
+        "task_id"
+      ],
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 3
     }
   ],
   "foreign_keys": [
@@ -2234,6 +2257,18 @@
       "to_table": "public.code_search_indexes",
       "to_columns": [
         "index_id"
+      ],
+      "constraint_name": "",
+      "on_delete": "CASCADE"
+    },
+    {
+      "from_table": "public.work_queue_projection_ownership",
+      "from_columns": [
+        "task_id"
+      ],
+      "to_table": "public.work_queue",
+      "to_columns": [
+        "id"
       ],
       "constraint_name": "",
       "on_delete": "CASCADE"
@@ -3553,7 +3588,7 @@
     {
       "name": "public.submit_task",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 7,
+      "line": 20,
       "language": "plpgsql",
       "parameters": [
         {
@@ -3593,14 +3628,16 @@
       "referenced_tables": [
         "public.v_head_phase",
         "public.v_id",
+        "public.v_status",
         "public.work_queue",
-        "public.work_queue_projection_heads"
+        "public.work_queue_projection_heads",
+        "public.work_queue_projection_ownership"
       ]
     },
     {
       "name": "public.reconcile_work_projection",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 124,
+      "line": 143,
       "language": "plpgsql",
       "parameters": [
         {
@@ -3647,14 +3684,16 @@
         "public.v_cancelled",
         "public.v_head_seq",
         "public.v_id",
+        "public.v_status",
         "public.work_queue",
-        "public.work_queue_projection_heads"
+        "public.work_queue_projection_heads",
+        "public.work_queue_projection_ownership"
       ]
     },
     {
       "name": "public.notify_projection_insert",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 228,
+      "line": 252,
       "language": "plpgsql",
       "parameters": [],
       "return_type": "trigger",
@@ -3810,24 +3849,31 @@
       "columns": [
         "index_id"
       ]
+    },
+    {
+      "from": "public.work_queue_projection_ownership",
+      "to": "public.work_queue",
+      "columns": [
+        "task_id"
+      ]
     }
   ],
   "summary": {
-    "total_tables": 28,
-    "total_columns": 300,
-    "total_foreign_keys": 11,
+    "total_tables": 29,
+    "total_columns": 302,
+    "total_foreign_keys": 12,
     "total_indexes": 70,
     "most_referenced_tables": [
+      {
+        "table": "public.work_queue",
+        "references": 3
+      },
       {
         "table": "public.code_search_indexes",
         "references": 3
       },
       {
         "table": "public.agent_profiles",
-        "references": 2
-      },
-      {
-        "table": "public.work_queue",
         "references": 2
       },
       {
