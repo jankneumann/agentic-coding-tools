@@ -292,6 +292,12 @@ def prompt_contract_block() -> str:
     if "disposition" in enums:
         lines.append("  disposition: " + "|".join(enums["disposition"]))
     lines.append("Use exactly one value from each listed set; do not invent values.")
+    lines.append(
+        "OPTIONAL: report which selected files you actually reviewed as a "
+        "top-level `coverage` object: `{\"reviewed\": [\"path\", ...], "
+        "\"skipped\": [{\"path\": \"path\", \"reason\": \"why\"}, ...]}`. "
+        "Omitting `coverage` is treated as full coverage, never as a penalty."
+    )
     lines.append("Output ONLY a JSON object with a top-level `findings` array.")
     return "\n".join(lines)
 

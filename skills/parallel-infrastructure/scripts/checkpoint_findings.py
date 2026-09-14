@@ -221,15 +221,22 @@ def write_vendor_findings(
     target: str,
     findings: list[dict[str, Any]],
     reviewer_vendor: str | None = None,
+    coverage: dict[str, Any] | None = None,
 ) -> Path:
     """Write a per-vendor findings file as a wrapper object.
 
-    Wrapper shape: ``{review_type, target, reviewer_vendor, findings: [...]}``.
-    Path: ``out_dir / "findings-{vendor}-{review_type}.json"``.
+    Wrapper shape: ``{review_type, target, reviewer_vendor, findings: [...]}``,
+    plus an optional ``coverage`` block (add-deterministic-review-
+    preprocessing, D5) when the vendor reported one. Path:
+    ``out_dir / "findings-{vendor}-{review_type}.json"``.
 
     Keyword-only after ``out_dir`` to prevent positional confusion. Validates
     vendor name, review_type, and each finding BEFORE any disk operation —
-    a malformed input never produces a partial file.
+    a malformed input never produces a partial file. ``coverage`` is passed
+    through verbatim (already coerced and rate-computed by the caller) and
+    omitted from the payload entirely when ``None``, so a vendor that never
+    reports coverage writes byte-identical files to before this parameter
+    existed.
     """
     safe_dir = _validate_path_safety(out_dir, vendor, review_type)
     for finding in findings:
@@ -241,6 +248,8 @@ def write_vendor_findings(
         "reviewer_vendor": reviewer_vendor or vendor,
         "findings": findings,
     }
+    if coverage is not None:
+        payload["coverage"] = coverage
     fpath = safe_dir / f"findings-{vendor}-{review_type}.json"
     _atomic_write_json(fpath, payload)
     return fpath

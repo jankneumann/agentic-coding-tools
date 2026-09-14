@@ -11,8 +11,11 @@ from consensus_synthesizer import (
     ConsensusSynthesizer,
     Finding,
     VendorResult,
+    _coverage_quorum_threshold,
+    _eligible_vendor_count,
     _jaccard,
     _paths_match,
+    _reviewed_files_from_coverage,
     _tokenize,
     _types_compatible,
     match_score,
@@ -346,6 +349,82 @@ class TestCrossVendorFormatSkew:
 # ---------------------------------------------------------------------------
 # Consensus synthesis
 # ---------------------------------------------------------------------------
+
+class TestCoverageEligibility:
+    def test_full_coverage_vendor_always_counts(self) -> None:
+        vendors = [
+            VendorResult(vendor="codex", findings=[]),
+            VendorResult(vendor="grok", findings=[], reviewed_files=None),
+        ]
+        assert _eligible_vendor_count("src/api.py", vendors) == 2
+
+    def test_partial_vendor_excluded_for_unreviewed_file(self) -> None:
+        vendors = [
+            VendorResult(vendor="codex", findings=[]),
+            VendorResult(
+                vendor="grok", findings=[],
+                reviewed_files=frozenset({"src/a.py", "src/b.py"}),
+            ),
+        ]
+        assert _eligible_vendor_count("src/unreviewed.py", vendors) == 1
+
+    def test_partial_vendor_counted_for_reviewed_file(self) -> None:
+        vendors = [
+            VendorResult(vendor="codex", findings=[]),
+            VendorResult(
+                vendor="grok", findings=[],
+                reviewed_files=frozenset({"src/a.py"}),
+            ),
+        ]
+        assert _eligible_vendor_count("src/a.py", vendors) == 2
+
+    def test_no_file_path_cannot_be_gated(self) -> None:
+        vendors = [
+            VendorResult(vendor="codex", findings=[]),
+            VendorResult(vendor="grok", findings=[], reviewed_files=frozenset({"src/a.py"})),
+        ]
+        assert _eligible_vendor_count(None, vendors) == 2
+
+    def test_reviewed_files_from_coverage_below_threshold(self) -> None:
+        coverage = {"reviewed": ["src/a.py"], "skipped": [], "rate": 0.4}
+        result = _reviewed_files_from_coverage(coverage, threshold=0.8)
+        assert result == frozenset({"src/a.py"})
+
+    def test_reviewed_files_from_coverage_at_or_above_threshold_is_full(self) -> None:
+        coverage = {"reviewed": ["src/a.py"], "skipped": [], "rate": 0.8}
+        assert _reviewed_files_from_coverage(coverage, threshold=0.8) is None
+
+    def test_reviewed_files_from_coverage_missing_block_is_full(self) -> None:
+        assert _reviewed_files_from_coverage(None, threshold=0.8) is None
+
+    def test_reviewed_files_from_coverage_missing_rate_is_full(self) -> None:
+        coverage = {"reviewed": ["src/a.py"], "skipped": []}
+        assert _reviewed_files_from_coverage(coverage, threshold=0.8) is None
+
+    def test_coverage_quorum_threshold_has_a_sane_default(self) -> None:
+        assert 0.0 < _coverage_quorum_threshold() <= 1.0
+
+    def test_eligible_vendors_flows_into_consensus_finding_and_to_dict(self) -> None:
+        synth = ConsensusSynthesizer(quorum=2)
+        result = synth.synthesize(
+            review_type="plan",
+            target="test-feature",
+            vendor_results=[
+                VendorResult(vendor="codex", findings=[
+                    _finding(id=1, file_path="src/unreviewed.py", description="Lone finding on a file grok never reviewed"),
+                ]),
+                VendorResult(
+                    vendor="grok", findings=[],
+                    reviewed_files=frozenset({"src/other.py"}),
+                ),
+            ],
+        )
+        cf = result.consensus_findings[0]
+        assert cf.status == "unconfirmed"
+        assert cf.eligible_vendors == 1
+        d = synth.to_dict(result)
+        assert d["consensus_findings"][0]["eligible_vendors"] == 1
+
 
 class TestConsensusSynthesizer:
     def test_confirmed_finding(self) -> None:

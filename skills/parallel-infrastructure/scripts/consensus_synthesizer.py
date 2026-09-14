@@ -141,6 +141,15 @@ class VendorResult:
     success: bool = True
     elapsed_seconds: float = 0.0
     error: str | None = None
+    # Files this vendor actually reviewed, set only when it reported
+    # coverage below the quorum threshold (add-deterministic-review-
+    # preprocessing, D5). ``None`` — the default — means every file counts
+    # toward this vendor's eligibility: coverage was never reported, or was
+    # reported at or above the threshold. Populated by callers that have
+    # coverage info (consensus_synthesizer.py's own CLI reads it from the
+    # per-vendor findings file); a caller that never sets it gets identical
+    # behavior to before this field existed.
+    reviewed_files: frozenset[str] | None = None
 
 
 @dataclass
@@ -174,6 +183,12 @@ class ConsensusFinding:
     #: reproducible observation is what carries it, and a model agreeing with a
     #: failing test does not make the test less real.
     evidence_class: str = DETERMINISTIC
+    #: Count of successful vendors eligible to have reviewed this finding's
+    #: file — see :func:`_eligible_vendor_count`. Equals the full panel size
+    #: unless a vendor reported partial coverage that excluded this file, so
+    #: an "unconfirmed" finding on a file nobody else was asked to look at
+    #: is not confused with one where a full panel looked and stayed silent.
+    eligible_vendors: int = 0
 
 
 @dataclass
@@ -258,6 +273,30 @@ def _paths_match(a: str | None, b: str | None) -> bool:
         return True
     shorter, longer = (na, nb) if len(na) <= len(nb) else (nb, na)
     return longer.endswith("/" + shorter)
+
+
+def _eligible_vendor_count(
+    file_path: str | None, vendor_results: list["VendorResult"],
+) -> int:
+    """Count vendors eligible to have reviewed *file_path* (D5).
+
+    A vendor whose ``reviewed_files`` is a set (it reported coverage below
+    the quorum threshold) counts only when *file_path* matches one of its
+    reviewed paths. ``reviewed_files is None`` — unreported coverage, or
+    coverage at/above threshold — always counts, so the coverage feature
+    can only ever narrow a panel from what it counted before, never widen
+    it artificially. A finding with no ``file_path`` cannot be file-gated,
+    so every vendor counts.
+    """
+    if not file_path:
+        return len(vendor_results)
+    count = 0
+    for vr in vendor_results:
+        if vr.reviewed_files is None or any(
+            _paths_match(file_path, p) for p in vr.reviewed_files
+        ):
+            count += 1
+    return count
 
 
 def _tokenize(text: str) -> set[str]:
@@ -427,7 +466,7 @@ class ConsensusSynthesizer:
         matches = self._match_all(all_findings)
 
         # Classify matches into consensus findings
-        consensus_findings = self._classify(matches)
+        consensus_findings = self._classify(matches, successful)
 
         # Compute summary counts
         confirmed = sum(1 for cf in consensus_findings if cf.status == "confirmed")
@@ -532,11 +571,14 @@ class ConsensusSynthesizer:
             else DETERMINISTIC
         )
 
-    def _classify(self, matches: list[FindingMatch]) -> list[ConsensusFinding]:
+    def _classify(
+        self, matches: list[FindingMatch], successful: list[VendorResult],
+    ) -> list[ConsensusFinding]:
         """Classify matches into confirmed/unconfirmed/disagreement."""
         results: list[ConsensusFinding] = []
 
         for i, m in enumerate(matches, 1):
+            eligible = _eligible_vendor_count(m.primary.file_path, successful)
             if not m.matched:
                 # Single vendor finding — unconfirmed
                 results.append(ConsensusFinding(
@@ -552,6 +594,7 @@ class ConsensusSynthesizer:
                     description=m.primary.description,
                     agreed_axis=_canonical_axis(m.primary.axis),
                     evidence_class=self._consensus_evidence_class(m),
+                    eligible_vendors=eligible,
                 ))
                 continue
 
@@ -585,6 +628,7 @@ class ConsensusSynthesizer:
                     description=m.primary.description,
                     agreed_axis=_agreed_axis([m.primary, *m.matched]),
                     evidence_class=self._consensus_evidence_class(m),
+                    eligible_vendors=eligible,
                 ))
             else:
                 # Disposition disagreement
@@ -605,6 +649,7 @@ class ConsensusSynthesizer:
                     vendor_dispositions=all_dispositions,
                     agreed_axis=_agreed_axis([m.primary, *m.matched]),
                     evidence_class=self._consensus_evidence_class(m),
+                    eligible_vendors=eligible,
                 ))
 
         return results
@@ -632,6 +677,7 @@ class ConsensusSynthesizer:
                     "agreed_criticality": cf.agreed_criticality,
                     "recommended_disposition": cf.recommended_disposition,
                     "description": cf.description,
+                    "eligible_vendors": cf.eligible_vendors,
                     **({"vendor_dispositions": cf.vendor_dispositions} if cf.vendor_dispositions else {}),
                 }
                 for cf in report.consensus_findings
@@ -842,6 +888,47 @@ def _resolve_canonical_schema(schema_arg: str | None) -> dict[str, Any]:
         ) from exc
 
 
+def _coverage_quorum_threshold() -> float:
+    """Return the coverage-eligibility threshold (D5), sourced from the
+    review-rules sidecar when available, else its documented default.
+
+    Duplicated from ``review_rules.DEFAULT_COVERAGE_QUORUM_THRESHOLD``
+    rather than requiring repo-root/project-layer resolution here: the
+    synthesizer's CLI has no natural ``cwd`` to resolve a project override
+    against (it reads findings files, not a worktree), so it uses the
+    embedded default. A project override is honored where it is resolved —
+    the dispatcher — and recorded on disk in each vendor's ``coverage.rate``,
+    which this threshold is compared against.
+    """
+    try:
+        import review_rules
+
+        return review_rules.DEFAULT_COVERAGE_QUORUM_THRESHOLD
+    except Exception:  # noqa: BLE001 — degrade to the documented default
+        return 0.8
+
+
+def _reviewed_files_from_coverage(
+    coverage: Any, *, threshold: float,
+) -> frozenset[str] | None:
+    """Derive ``VendorResult.reviewed_files`` from a per-vendor coverage block.
+
+    Returns ``None`` (full eligibility) when there is no coverage block, no
+    computed ``rate``, or the rate is at/above *threshold* — matching D5:
+    coverage only ever narrows eligibility, and only when reported below
+    the quorum threshold.
+    """
+    if not isinstance(coverage, dict):
+        return None
+    rate = coverage.get("rate")
+    reviewed = coverage.get("reviewed")
+    if not isinstance(rate, (int, float)) or isinstance(rate, bool):
+        return None
+    if rate >= threshold or not isinstance(reviewed, list):
+        return None
+    return frozenset(str(p) for p in reviewed if isinstance(p, str))
+
+
 def _validate_vendor_document(
     data: dict[str, Any], path: Path, schema: dict[str, Any]
 ) -> None:
@@ -953,6 +1040,7 @@ def main() -> int:
     # against it so a drifted finding (missing required field / wrong enum)
     # fails loudly here rather than passing silently into consensus.
     canonical_schema = _resolve_canonical_schema(args.schema)
+    coverage_quorum_threshold = _coverage_quorum_threshold()
 
     for p in findings_paths:
         if not p.exists():
@@ -976,7 +1064,12 @@ def main() -> int:
         if vendor in judgment_vendors:
             for finding in findings:
                 finding.evidence_class = JUDGMENT
-        vendor_results.append(VendorResult(vendor=vendor, findings=findings))
+        reviewed_files = _reviewed_files_from_coverage(
+            data.get("coverage"), threshold=coverage_quorum_threshold,
+        )
+        vendor_results.append(
+            VendorResult(vendor=vendor, findings=findings, reviewed_files=reviewed_files)
+        )
 
     # Additive behavioral source: load findings-gen-eval.json from
     # --input-dir (if provided). Missing file is not an error.
