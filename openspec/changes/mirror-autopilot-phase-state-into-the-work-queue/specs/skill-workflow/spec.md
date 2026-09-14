@@ -50,7 +50,7 @@ A coordinated Autopilot host SHALL project every durably persisted phase generat
 - **WHEN** a labelled submit or reconcile requests either the same generation or a newer generation for that change
 - **THEN** it SHALL return `projection_key_collision` before head advancement, insertion, cancellation, reactivation, or relabelling
 - **AND** the legacy row, requested row, and projection head SHALL remain unchanged
-- **AND** repair SHALL succeed only after an administrator verifies provenance and explicitly registers the legacy row UUID
+- **AND** repair SHALL succeed only after an administrator verifies provenance and explicitly registers every complete keyed row UUID for the change, including cancelled historical generations; registering only the current row is insufficient
 
 #### Scenario: Reserved projection identity and owned rows reject ordinary issue mutation
 
