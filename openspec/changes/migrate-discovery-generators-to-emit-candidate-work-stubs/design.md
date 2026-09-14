@@ -44,12 +44,19 @@ preserves the prior file; successful empty discovery writes an empty array.
 Every adapter normalizes hinted or derived slugs through the canonical prefix set.
 An existing `add-`, `update-`, `remove-`, or `refactor-` prefix is retained; `fix-`
 is normalized to `update-`; and an unprefixed slug receives `update-`. An explicit
-source hint is normalized as-is. A derived ID is always
-`<normalized-source-slug>-<provenance-hash>`, where `provenance-hash` is the first
-eight lowercase hex characters of SHA-256 over the canonical JSON provenance object.
-Because derivation is per entry rather than dependent on batch membership, adding a
-new colliding entry cannot rename an earlier candidate. Duplicate final IDs,
-including two colliding explicit hints, fail the whole batch.
+source hint is normalized as-is and remains unsuffixed. A derived ID is always
+`<normalized-source-slug>-<identity-hash>`, where `identity-hash` is the first eight
+lowercase hex characters of SHA-256 over an immutable producer identity object with
+exactly `generator` and `source_id` keys. Bug-scrub uses the exact finding ID,
+improve-harness uses the normalized capability gap (trim surrounding whitespace,
+collapse internal whitespace to one ASCII space, and lowercase), and explore-feature
+uses the exact stable opportunity ID. The identity object is encoded with
+`json.dumps(identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`
+and UTF-8 before hashing. Report paths, source-entry collections, rank, and all other
+volatile provenance are excluded. Because derivation is per immutable source identity
+rather than dependent on batch membership or report location, later evidence cannot
+rename an earlier candidate. Duplicate final IDs, including two colliding explicit
+hints, fail the whole batch.
 
 All emitted stubs populate `provenance.generator` even though the schema leaves it
 optional.
@@ -125,7 +132,7 @@ Shortlist rank is provenance only. Prose blockers are retained in rationale/tags
 `depends_on`.
 
 All producers retain rich output and populate generator/source provenance. Derived
-slugs unconditionally receive the stable provenance suffix defined in D3; duplicate
+slugs unconditionally receive the stable identity suffix defined in D3; duplicate
 final IDs are rejected. Bug-scrub derives its base from `Finding.title`,
 improve-harness from `capability_gap`, and explore-feature from its stable ID/title
 when no explicit hint exists.

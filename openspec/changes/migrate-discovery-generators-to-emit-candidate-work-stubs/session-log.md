@@ -174,3 +174,31 @@ Recovered ri-12 on current main and resolved substantive multi-vendor findings. 
 ### Context
 Resolved all confirmed revision-5 review findings and made dependency conversion, ranking, collision checks, and scenario ownership executable. The plan remains intentionally paused for adjudication of the immutable source-identity basis used by derived IDs.
 
+---
+
+## Phase: Plan Iteration 4 (2026-09-14)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Hash the minimal immutable producer identity tuple** — Stable source identity must survive report relocation, reranking, and provenance growth.
+2. **Keep explicit source hints unsuffixed** — Explicit IDs are already caller-selected identities and remain subject to normalization and duplicate rejection.
+
+### Alternatives Considered
+- Hash the complete provenance object: rejected because rank, paths, and source-entry collections change without changing the underlying source
+- Require every producer to provide an explicit suggested ID: rejected because the existing producer artifacts do not all carry a compatible explicit change ID
+
+### Trade-offs
+- Accepted producer-specific source identity rules over one generic provenance hash because the explicit mapping is stable, testable, and preserves producer semantics
+
+### Completed Work
+- Specified exact identity keys, per-producer source IDs, normalization, serialization, and hashing.
+- Added normative scenario coverage and task traceability for stable IDs and duplicate rejection.
+- Advanced the recovery plan to revision 7 for final all-harness review.
+
+### Next Steps
+- Dispatch the final scoped plan diff to all configured harnesses and gate on substantive quorum.
+
+### Context
+Applied the operator-approved immutable source-identity basis for all derived candidate IDs. Revision 7 now excludes volatile provenance, pins exact serialization, keeps explicit hints unsuffixed, and fails duplicate final IDs before replacement.
+
