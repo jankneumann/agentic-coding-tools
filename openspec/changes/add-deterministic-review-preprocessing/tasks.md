@@ -20,24 +20,24 @@ flagged in design D9 as the chained dispatcher work.
 
 ## 2. Fact-check pass
 
-- [ ] 2.1 Write tests for the fact-check parser, protected-subject veto, and decision file (size: M)
+- [x] 2.1 Write tests for the fact-check parser, protected-subject veto, and decision file (size: M)
   **Spec scenarios**: skill-workflow Diff-Grounded Fact Check Before Synthesis (all four scenarios)
   **Contracts**: `contracts/fact-check-decisions.schema.json`
   **Design decisions**: D6, D10
   **Dependencies**: 1.2
   **Files**: `skills/parallel-infrastructure/scripts/tests/test_fact_check.py`
 
-- [ ] 2.2 Implement `fact_check.py` with the ported prompt, economy-tier model resolution, veto, and decision writer (size: M)
+- [x] 2.2 Implement `fact_check.py` with the ported prompt, economy-tier model resolution, veto, and decision writer (size: M)
   **Dependencies**: 2.1
   **Files**: `skills/parallel-infrastructure/scripts/fact_check.py`, `skills/parallel-infrastructure/scripts/prompts/fact_check_system.md`, `skills/parallel-infrastructure/scripts/prompts/fact_check_user.md`
 
-- [ ] 2.3 Write tests for the convergence loop calling fact-check after checkpoint and before synthesis, with the `fact_check=False` switch (size: S)
+- [x] 2.3 Write tests for the convergence loop calling fact-check after checkpoint and before synthesis, with the `fact_check=False` switch (size: S)
   **Spec scenarios**: review-convergence-safety Terminal vendor results are checkpointed incrementally (checkpoint precedes fact-check removal)
   **Design decisions**: D6
   **Dependencies**: 2.2
   **Files**: `skills/tests/autopilot/test_convergence_fact_check.py`
 
-- [ ] 2.4 Wire fact-check into `converge()` and add `fact_check_tokens`, `fact_check`, and `fact_check_removed` to the round manifest writer (size: M)
+- [x] 2.4 Wire fact-check into `converge()` and add `fact_check_tokens`, `fact_check`, and `fact_check_removed` to the round manifest writer (size: M)
   **Dependencies**: 2.3
   **Files**: `skills/autopilot/scripts/convergence_loop.py`, `skills/parallel-infrastructure/scripts/checkpoint_findings.py`
 

@@ -28,7 +28,7 @@ import subprocess
 import sys
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -71,6 +71,7 @@ from review_ledger import (  # noqa: E402
     mark_addressed,
 )
 from review_packet import build_review_packet  # noqa: E402
+import fact_check as fact_check_module  # noqa: E402
 
 # Module-level aliases so tests can monkeypatch the checkpoint helpers via
 # ``convergence_loop.cf_write_vendor_findings``. The bare imports also make
@@ -376,6 +377,84 @@ def _write_review_checkpoint(
     )
 
 
+def _resolve_fact_check_caller(
+    orchestrator: Any, vendor: str, cwd: Path,
+) -> fact_check_module.Caller | None:
+    """Build a fact-check caller for *vendor* from the orchestrator's CLI
+    adapter, or ``None`` when unavailable.
+
+    Deliberately swallows every exception: a mocked or minimal orchestrator
+    (as every existing convergence_loop test constructs) has no real
+    ``.adapters`` mapping, and that must degrade to "no caller" rather than
+    error — the fact-check pass is additive, never a new failure mode for a
+    caller that never asked for it.
+    """
+    try:
+        adapters = getattr(orchestrator, "adapters", None) or {}
+        for adapter in adapters.values():
+            if (
+                getattr(adapter, "vendor", None) == vendor
+                and getattr(adapter, "transport", None) == "mcp"
+            ):
+                return fact_check_module.build_default_caller(
+                    adapter.cli_config, vendor, cwd=cwd,
+                )
+    except Exception:  # noqa: BLE001 — see docstring
+        return None
+    return None
+
+
+def _augment_manifest_with_fact_check(
+    checkpoint_dir: Path,
+    results: list[ReviewResult],
+    *,
+    review_type: str,
+    change_id: str,
+    quorum_requested: int,
+    fact_check_info: dict[str, dict[str, Any]],
+) -> None:
+    """Re-write the round manifest with fact-check fields on each vendor.
+
+    Called after :func:`_write_review_checkpoint` has already durably
+    persisted the raw (pre-fact-check) per-vendor findings files — this only
+    rewrites ``review-manifest.json`` to add observability fields; it never
+    touches the raw findings files fact-check read from.
+    """
+    vendors_index: list[dict[str, Any]] = []
+    dispatches: list[dict[str, Any]] = []
+    for result in results:
+        dispatches.append({
+            "vendor": result.vendor,
+            "success": result.success,
+            "model_used": result.model_used,
+            "models_attempted": result.models_attempted,
+            "elapsed_seconds": result.elapsed_seconds,
+            "error": result.error,
+            "error_class": (
+                result.error_class.value if result.error_class else None
+            ),
+        })
+        if result.success and result.findings:
+            findings_array = result.findings.get("findings", [])
+            entry = {
+                "name": result.vendor,
+                "findings_path": f"findings-{result.vendor}-{review_type}.json",
+                "finding_count": len(findings_array),
+            }
+            entry.update(fact_check_info.get(result.vendor, {}))
+            vendors_index.append(entry)
+    cf_write_manifest(
+        checkpoint_dir,
+        review_type=review_type,
+        target=change_id,
+        vendors=vendors_index,
+        change_id=change_id,
+        dispatches=dispatches,
+        quorum_requested=quorum_requested,
+        quorum_received=sum(1 for result in results if result.success),
+    )
+
+
 def _git(worktree_path: Path, *args: str) -> str:
     try:
         proc = subprocess.run(
@@ -573,6 +652,7 @@ def converge(
     escalation_callback: Callable[[dict[str, Any]], None] | None = None,
     blocking_criticalities: set[str] | None = None,
     stall_window: int = _DEFAULT_STALL_WINDOW,
+    fact_check: bool = True,
 ) -> ConvergenceResult:
     """Run the review-fix convergence loop.
 
@@ -601,6 +681,13 @@ def converge(
         stall_window: Number of data points for stall detection.
             Stall is detected when ``trend[-1] >= trend[-stall_window]``.
             Defaults to 2 (post-compact blocking must strictly decrease).
+        fact_check: When True (default), run a diff-grounded fact-check pass
+            on each vendor's validated findings after they are durably
+            checkpointed and before synthesis. Removes only findings the
+            packet proves wrong; any failure to reach a model (including no
+            CLI adapter being resolvable, the normal case for a mocked or
+            minimal orchestrator) skips the pass for that vendor and keeps
+            every finding. Set False to disable entirely.
 
     Returns:
         ConvergenceResult with convergence status and details.
@@ -725,6 +812,76 @@ def converge(
                 checkpoint_dir=latest_checkpoint_dir,
             )
 
+        # 2b.5. Diff-grounded fact-check, after the durable raw checkpoint
+        # and before synthesis. Operates on a copy of `results` — the raw
+        # per-vendor findings files on disk (written above) are never
+        # rewritten, only the in-memory set fed to the synthesizer is
+        # filtered. `prompt` (the packet body) stands in for a narrower
+        # diff-only string until review_packet.py exposes one separately.
+        results_for_synthesis = results
+        if fact_check:
+            results_for_synthesis = []
+            fact_check_info: dict[str, dict[str, Any]] = {}
+            for result in results:
+                if not (result.success and result.findings):
+                    results_for_synthesis.append(result)
+                    continue
+                findings_list = result.findings.get("findings", [])
+                caller = _resolve_fact_check_caller(
+                    orchestrator, result.vendor, worktree_path,
+                )
+                model = (
+                    fact_check_module.resolve_economy_model(result.vendor)
+                    if caller is not None else None
+                )
+                outcome = fact_check_module.run(
+                    vendor=result.vendor,
+                    round_num=round_num,
+                    findings=findings_list,
+                    packet_diff=prompt,
+                    caller=caller,
+                    model=model,
+                )
+                try:
+                    fact_check_module.write_decision_file(checkpoint_dir, outcome)
+                except OSError as exc:
+                    cf_safe_log_error(
+                        "convergence.fact_check_decision_write_failed",
+                        change_id=change_id,
+                        review_type=review_type,
+                        original_exception_class=type(exc).__name__,
+                        original_exception_message=str(exc),
+                        artifacts_dir=str(checkpoint_dir),
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                    )
+                filtered_payload = dict(result.findings)
+                filtered_payload["findings"] = outcome.kept_findings
+                results_for_synthesis.append(replace(result, findings=filtered_payload))
+                fact_check_info[result.vendor] = {
+                    "fact_check": outcome.status,
+                    "fact_check_removed": outcome.removed_count,
+                    "fact_check_tokens": outcome.tokens,
+                }
+            try:
+                _augment_manifest_with_fact_check(
+                    checkpoint_dir,
+                    results,
+                    review_type=review_type,
+                    change_id=change_id,
+                    quorum_requested=len(results),
+                    fact_check_info=fact_check_info,
+                )
+            except (OSError, PermissionError) as exc:
+                cf_safe_log_error(
+                    "convergence.fact_check_manifest_write_failed",
+                    change_id=change_id,
+                    review_type=review_type,
+                    original_exception_class=type(exc).__name__,
+                    original_exception_message=str(exc),
+                    artifacts_dir=str(checkpoint_dir),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                )
+
         # 2c-e. Compute consensus. Narrow try/except covers the three steps
         # between checkpoint persistence and consensus availability: parsing
         # vendor outputs into Finding objects, synthesize(), and to_dict(). On
@@ -733,7 +890,7 @@ def converge(
         # ORIGINAL exception unmodified. NOT a fallback — the caller still
         # sees the failure.
         try:
-            vendor_results = _review_results_to_vendor_results(results)
+            vendor_results = _review_results_to_vendor_results(results_for_synthesis)
             report = synthesizer.synthesize(
                 review_type=review_type,
                 target=change_id,
