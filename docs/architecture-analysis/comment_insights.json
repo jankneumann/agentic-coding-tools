@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-10T22:34:52+00:00",
+  "generated_at": "2026-09-14T03:18:47+00:00",
   "summary": {
-    "total_comments": 2617,
+    "total_comments": 2604,
     "total_with_markers": 21,
     "marker_totals": {
       "NOTE": 4,
@@ -11,9 +11,9 @@
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1886,
-    "documented_nodes": 280,
-    "documentation_coverage": 0.148
+    "total_graph_nodes": 1887,
+    "documented_nodes": 281,
+    "documentation_coverage": 0.149
   },
   "marker_hotspots": [
     {
@@ -163,7 +163,7 @@
   "file_summaries": [
     {
       "file": "agents_config.py",
-      "total_comments": 299,
+      "total_comments": 281,
       "with_markers": 2,
       "languages": [
         "python"
@@ -468,6 +468,14 @@
     {
       "file": "kanban-viz/src/__tests__/runtime.test.ts",
       "total_comments": 4,
+      "with_markers": 0,
+      "languages": [
+        "typescript"
+      ]
+    },
+    {
+      "file": "kanban-viz/src/__tests__/setup.ts",
+      "total_comments": 5,
       "with_markers": 0,
       "languages": [
         "typescript"

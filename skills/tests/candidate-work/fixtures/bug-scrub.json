@@ -1,0 +1,16 @@
+[
+  {
+    "schema_version": 1,
+    "title": "Repair type-check failures",
+    "description": "Correct the reported type errors without changing public behavior.",
+    "rationale": "Bug-scrub found a failing type-check gate.",
+    "provenance": {
+      "source_artifact": "docs/bug-scrub/report.json",
+      "finding_ids": ["type-src-worker-py-12"],
+      "generator": "bug-scrub"
+    },
+    "effort": "XS",
+    "priority": 2,
+    "suggested_change_id": "update-type-src-worker-py-12-a1b2c3d4"
+  }
+]

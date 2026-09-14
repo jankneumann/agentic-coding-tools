@@ -1,0 +1,534 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "add-supervisor-candidate-work-digest",
+  "reviewers": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 8,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 17,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 14,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 1
+        },
+        {
+          "vendor": "claude_code",
+          "finding_id": 2
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: Ranking and digest generation trust the rubric document's model-produced scored_at value as the staleness clock and generated_at value, but the schema validates only date-time syntax. A hallucinated, stale, or future timestamp can alter penalties, ordering, and persisted evidence time without detection."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: digest.py rank and decide lack a CLI timestamp parameter (e.g. --now), preventing deterministic generated_at and decided_at timestamps required for byte-for-byte matching against digest-expected.json in Task 1.3 and satisfying the spec idempotency scenario."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: The plan asserts that the refiner renumbers priorities after an add, and builds stub-priority placement on that assertion. It does not. `_renumber_priorities` (skills/refine-roadmap/scripts/refiner.py:220) is called only from `_apply_split` (line 346) and `_apply_reorder` (line 361); `_apply_add` (lines 249-259) never calls it. `_normalize_new_item` (line 166) instead defaults an absent `priority` to `max(existing)+1`. So an item inserted via `after: ri-02` occupies list position 3 but carries the numerically lowest priority, and both the refiner's own readiness sort (refiner.py:486) and the canonical resolver (skills/roadmap-runtime/scripts/resolve_readiness.py:394) order by `priority` first. An approved high-priority stub would therefore land at the back of the ready frontier \u2014 the exact inversion the digest exists to prevent. spec.md:79 ('The refiner SHALL own final priority renumbering') and design.md:100 ('insertion position; `refiner` then renumbers the roadmap') are both false against the consumed contract."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: `dependency_ready` \u2014 the second key in the total order \u2014 is sourced from a helper that cannot answer the question. proposal.md:45-46 says readiness comes 'from `ready_across_roadmaps`' and design.md:46-47 from 'the canonical cross-roadmap resolver'. Both return only the *ready frontier*: `resolve_readiness` (skills/roadmap-runtime/scripts/resolve_readiness.py:376-404) emits rows of `{roadmap_id, item_id, priority, effort, change_id, title}` for items that may start now, and `ready_across_roadmaps` (cycle_state.py:866-877) just regroups them. A stub's `depends_on` names change-ids (candidate-work.schema.json:76-80); a dependency that is already *completed* never appears in `ready`, so a fully-unblocked stub scores `dependency_ready: false` and sinks below genuinely blocked work. The same missing change-id-to-status index is what `stub-to-request` needs for design.md:102-103 ('archived-completed dependency \u2014 omitted as already satisfied'). The semantics of `dependency_ready` for a stub with an empty `depends_on`, and for a stub depending on another pending stub, are also undefined, and no task or scenario exercises the resolution itself."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: `wp-skill-docs` must pass `bash skills/install.sh --check` (work-packages.yaml:198-201) and prove the canonical and mirrored supervise skills are byte-identical (tasks.md:144-146), but its `write_allow` covers only the two `SKILL.md` mirrors. The installer mirrors whole skill directories: `.claude/skills/supervise/scripts/` and `.agents/skills/supervise/scripts/` each currently hold `cycle_state.py`, `execution.py`, and `gate_router.py`. The new `skills/supervise/scripts/digest.py` and `skills/supervise/templates/rubric-prompt.md` therefore need four additional mirror files that no package is scoped to write, and `wp-digest-module` and `wp-rubric-prompt` are not scoped for them either. The check step fails, and resyncing to make it pass is an out-of-scope write."
+    },
+    {
+      "id": 6,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 13
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "Critical: The 20-stub batch limit does not bound the number of batches or the retained backlog, while every non-supervisor fingerprint change deliberately re-scores the entire backlog. A large or steadily growing candidate store can therefore trigger unbounded model dispatches, latency, and cost in one cycle."
+    },
+    {
+      "id": 7,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "Critical: The plan defines validation of completed score documents but no timeout, retry, partial-batch, or fallback behavior when the rubric sub-agent fails, returns no document, or only some batches complete. That leaves the cycle's external-model failure mode and the safety of prior cache/digest reuse undefined."
+    },
+    {
+      "id": 8,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.611111111111111,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "Critical: The design assigns bounded provenance loading and deterministic batch construction to digest.py, but its declared CLI exposes only store, rank, digest, stub-to-request, and decide. The host-dispatched scoring workflow therefore lacks a concrete callable contract for producing the sanitized batch payload that the rubric prompt consumes."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: proposal/CLI show digest.py rank --scores scores.json (singular), while rubric-score.schema.json caps scores at maxItems 20 per document and the design chunks large backlogs into multiple batches. There is no contract for how multiple batch score documents are passed into rank or exact-set validated together before cache/digest writes."
+    },
+    {
+      "id": 10,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 5
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 8
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "description": "Nit: D6 ends with the incomplete sentence 'A due deferral is the explicit', leaving the unchanged-fingerprint exception rationale unfinished."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Batch chunking has no defined behavior when a single stub exceeds the 64 KiB budget on its own. `candidate-work.schema.json` places `minLength: 1` but no maximum on `title`, `description`, and `rationale` (lines 23-37), so one verbose generator stub can exhaust the batch budget before any provenance excerpt is added. design.md:162-165 and spec.md:9 state the 20-stub and 64 KiB caps but give no rule for this case: dropping the stub silently loses a candidate from `ranked`, and emitting it anyway breaks the cap the security requirement rests on. Task 1.6 ('deterministic 20-stub chunking') and task 1.5's 'oversized' fixture both address provenance excerpt size, not stub payload size."
+    },
+    {
+      "id": 12,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 6
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "description": "Nit: 'the existing secret sanitizer' (design.md:167-168, echoed as 'existing sanitizer reuse' in tasks.md:68-69) does not identify a module, and neither sanitizer inside the supervise skill redacts secrets from free text. `cycle_state._sanitize_text` (skills/supervise/scripts/cycle_state.py:230-231) strips control characters only, and `execution._SECRET_KEY` (skills/supervise/scripts/execution.py:59-63, 154-155) matches dictionary *keys* and raises rather than redacting. The only real text redactor is `sanitize_string` in `skills/roadmap-runtime/scripts/sanitizer.py`, which lives in a different skill and is never named. An implementer building `digest.py` around `cycle_state` imports would most naturally reach for `_sanitize_text` and ship provenance excerpts to a third-party model unredacted, satisfying the letter of the task while violating spec.md:9."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The frozen `weights` object cannot carry what the design says it carries. design.md:52-53 claims 'These constants and buckets are emitted in `weights`, so a reader can recompute every rank and tied inputs always have one answer', but the schema fixes `weights` to exactly six numeric properties (`relevance`, `value`, `readiness`, `scope_fit`, `risk`, `staleness_penalty_per_30d`) under `additionalProperties: false`. There is no slot for the staleness cap of five, the risk-direction convention, the pending-before-deferred and ready-before-blocked bucket order, or the `stub_key` tie-break. A consumer holding only `digest.json` can reproduce the weighted sum but not the total order, so the interpretability NFR at proposal.md:175 is only partly met by the artifact."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "security",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The `stub-to-request` output location is never specified. tasks.md:83-84 says only 'emit a temporary request for the host/refiner transaction', and spec.md:79 names no path. The choice is load-bearing in three places: `classify_write` (cycle_state.py:883-910) forbids any absolute path and any repo-relative path outside `_ALLOWED_WRITE_PREFIXES`, so a request under `/tmp` is invisible to the audit while one under `openspec/supervise/` is audited; spec.md:13 forbids creating anything under `openspec/supervise/` during a dry run, which would block request generation there; and `audit_since_snapshot` (cycle_state.py:988) only sees repo-relative changes. Task 1.7 exercises the real preview and apply without pinning where the request lives."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The fate of CYCLE step 4 is left unresolved. Today it runs `/prioritize-proposals` over 'the surviving stubs plus active proposals and ready roadmap items' as one ranked list (SKILL.md:199-206), and `TestWorkflowContract` pins the string (skills/tests/supervise/test_cycle_state.py:509). The new design produces a candidate-only ranking, while proposal.md:194 keeps proposal ranking in `/prioritize-proposals` and out of scope. tasks.md:132-134 says to rewrite steps 1-5 but never says whether the `/prioritize-proposals` invocation survives, what the operator now sees for active proposals, or how the two ranked lists compose. Relatedly, the outputs table at SKILL.md:435 lists `/prioritize-proposals` artifacts and is not updated to add `openspec/supervise/digest.json` or the candidates store."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: 'Risk is inverted: 5 means safest' (design.md:48) describes a scoring convention, but tasks.md:47 asks the implementer to 'test ... risk inversion', which reads as a code transform. The rubric contract already defines the inverted scale at the source \u2014 rubric-score.schema.json:29 says '5 = lowest risk, 1 = highest; scored so that higher is always better' \u2014 and the formula adds `+ risk` unmodified. An implementer who applies `6 - risk` in `rank` to satisfy the task would double-invert and systematically promote the riskiest candidates, and the ordering tests in task 1.3 would still pass because they would be written against the same mistaken reading."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: `digest.py decide` has no defined `rank` to write when the target key has no existing back-edge entry. `digestedStub` requires `rank` with `minimum: 1` and a parseable `decided_at` (openspec/schemas/supervisor-record.schema.json:65-76), and `_clean_digested_stub` drops any entry failing either check (skills/supervise/scripts/cycle_state.py:311-326). But spec.md:81 has `rank` synchronize only ranked pending and deferred items, so the INTAKE 'approve from digest' path (tasks.md:138-142) can reach `decide` for a key that was never ranked in this session, or whose entry was lost. Task 1.9 tests 'same-key replace' and 'unrelated-entry preservation' but not the create-on-absent case. A second issue in the same area: approved and rejected entries keep a stale `rank` forever, since re-ranking skips them."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 14,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: D4 treats `refiner.py apply` as a pure roadmap edit, but it also scaffolds a change directory and runs repository-wide strict validation. `apply_refinement` creates `openspec/changes/<change_id>/` for every new item (skills/refine-roadmap/scripts/refiner.py:670-683) and then calls the default strict validator, which shells out to `openspec validate --strict --all` (lines 604-615, 700-704). Two consequences go unremarked: approving a stub immediately makes `dedupe_stubs` suppress that key as `change-exists` (cycle_state.py:784-785) and changes the cycle fingerprint, and any unrelated invalid active change blocks every stub approval repo-wide. It also makes task 1.7's 'real refiner preview and apply' costly and environment-dependent unless the test injects the `strict_validator` seam (refiner.py:624) or builds a fixture repo where the CLI passes."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Dry-run forbids creating, modifying, or removing anything under openspec/supervise/, while lifecycle maintenance must prune terminal files and may wake due deferrals before the unchanged-fingerprint exit. The plan never states whether dry-run skips prune/wake entirely or recomputes a stdout-only digest without mutating store/mirror."
+    },
+    {
+      "id": 20,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 9
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "fix",
+      "description": "Nit: D8 ends mid-sentence after 'Multi-batch scores are exact-set validated,' so the security-boundary decision is visibly incomplete."
+    },
+    {
+      "id": 21,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 7,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 12
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The plan correctly treats provenance as untrusted, bounds contained regular-file reads, rejects symlinks and URIs, redacts secrets, and preserves the host-assisted no-network invariant."
+    },
+    {
+      "id": 22,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The plan correctly installs runtime schemas outside the archivable change directory and routes roadmap mutation through refine-roadmap's preview/base-SHA transaction."
+    },
+    {
+      "id": 23,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: rubric-score.schema.json sets minItems: 1 on scores array, which would reject an empty rubric score payload if an empty stub batch is validated."
+    },
+    {
+      "id": 24,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: The contract documentation and schemas omit the explicit JSON schema definition for per-stub cached <stub_key>.rubric.json files."
+    },
+    {
+      "id": 25,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: templates/rubric-prompt.md relies on host-rendered {{batch}} slots containing provenance excerpts, which should be bounded to prevent excessive prompt lengths."
+    },
+    {
+      "id": 26,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The architecture cleanly separates model scoring from deterministic ranking, uses refine-roadmap preview/apply for transaction safety, and prevents supervisor scripts from directly mutating roadmap.yaml."
+    },
+    {
+      "id": 27,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 7,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 14
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Work packages and task breakdowns follow strict TDD ordering, clear file locks, and valid DAG dependencies across all 5 phases."
+    },
+    {
+      "id": 28,
+      "status": "confirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 15,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 10
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: On the due-deferral path, `digest.json` changes content while both of its identity fields stay fixed. `fingerprint` is unchanged by definition (the tree did not move) and `generated_at` is the maximum rubric `scored_at`, which does not move either because no new scoring occurs (design.md:63-69, 147-150). Yet the deferred stub crosses from the future-deferred bucket into pending, so ranks shift and the bytes differ (spec.md:54-58). A consumer treating the pair as a change key \u2014 a reasonable reading given the byte-identity guarantees elsewhere \u2014 would conclude nothing happened."
+    },
+    {
+      "id": 29,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 16,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: The interaction between the operator's `--force` flag and the no-dispatch-on-unchanged rule is unstated. SKILL.md:164-167 lets `--force` bypass the unchanged-fingerprint early exit for both normal and dry-run cycles, while spec.md:41-46 requires that an unchanged fingerprint with no due transition dispatch no rubric sub-agent. Whether `--force` re-dispatches scoring, re-renders from cache, or only bypasses the SENSE gate is not decided anywhere in the plan, and task 3.2 rewrites exactly this block."
+    },
+    {
+      "id": 30,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 17,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The host-assisted invariant claim in design.md:72-74 checks out. `TestHostAssistedInvariant` walks `skills/supervise/scripts` with `rglob(\"*.py\")` and asserts no LLM SDK import and no network client in any file it finds, so `digest.py` is covered the moment it lands with no new test and no way to opt out. Placing the ranking module in that directory is what makes the invariant structural rather than aspirational, and the split of model judgment into a schema-constrained score file with arithmetic in code gives the join point an inspectable, diffable artifact."
+    },
+    {
+      "id": 31,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: stub-to-request must emit a temporary refine-roadmap request for preview/apply, but the plan does not say the file must live outside the repository like other supervise mktemp artifacts, risking audit-since false positives if implementers write under openspec/."
+    },
+    {
+      "id": 32,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 13,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Roadmap mutation correctly stays on refine-roadmap's preview then apply --expect-base-sha256 transaction, with stable runtime schema installation outside the archivable change directory and explicit stale-SHA refusal tests."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 32,
+    "confirmed_count": 10,
+    "unconfirmed_count": 22,
+    "disagreement_count": 0,
+    "blocking_count": 5,
+    "advisory_count": 9
+  }
+}

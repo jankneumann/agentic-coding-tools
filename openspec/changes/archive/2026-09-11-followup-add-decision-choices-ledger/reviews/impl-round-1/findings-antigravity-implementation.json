@@ -1,0 +1,43 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": "577",
+      "description": "Step 11.5 bash fence attempts to execute agent slash command `/audit-choices` inside shell command substitution `$(/audit-choices ...)`. In bash shell execution, `/audit-choices` is evaluated as a root-filesystem binary path rather than an agent sub-agent dispatch, failing immediately with exit code 127 (`No such file or directory`). Consequently, executing this step as shell code always triggers `if ! audit_output=$(...); then`, setting `SKIP_REASON=\"audit dispatch failed\"` and skipping the audit on every run.",
+      "resolution": "Disambiguate agent sub-agent dispatch from shell execution in Step 11.5 by separating the agent skill invocation from the bash code fence, or execute the driver script directly via `python3 \"<skill-base-dir>/../audit-choices/scripts/run_audit.py\"` after sub-agent dispatch."
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "medium",
+      "axis": "resilience",
+      "severity": "optional",
+      "disposition": "fix",
+      "file_path": "skills/iterate-on-implementation/SKILL.md",
+      "line_range": "577-585",
+      "description": "Step 11.5 returns immediately when audit dispatch fails or reports a warning (lines 579 and 583), bypassing the partial-pair cleanup block at lines 598-616. If `run_audit.py` or `write_ledger_pair` wrote or modified `choices.json` before warning or failing, returning early leaves an untracked or dirty orphan file on disk in the working tree instead of cleaning it up per F6.",
+      "resolution": "Move the partial-pair / orphan file cleanup block so it runs unconditionally before returning on audit dispatch failure or warning in `audit_choices_step`."
+    },
+    {
+      "id": 3,
+      "type": "spec_gap",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "skills/tests/audit-choices/test_workflow_hooks.py",
+      "line_range": "255-257",
+      "description": "`test_choices_row_in_step_12_report_file_heredoc` checks `assert \"$CHOICES_ROW\" in section` but fails to assert `\"$CHOICES_LINES\" in section`. Task 3.2 specified carrying both `$CHOICES_ROW` and `$CHOICES_LINES` into Step 12 persisted heredoc so open decision entry details reach `validation-report.md`. Without asserting `$CHOICES_LINES`, the test would not catch a regression where `$CHOICES_LINES` is omitted from the persisted report.",
+      "resolution": "Update `test_choices_row_in_step_12_report_file_heredoc` to assert both `\"$CHOICES_ROW\" in section` and `\"$CHOICES_LINES\" in section`."
+    }
+  ]
+}

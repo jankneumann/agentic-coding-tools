@@ -13,13 +13,13 @@ triggers:
 
 Decompose a long-form markdown proposal into a prioritized set of OpenSpec change candidates, each with a dependency DAG, effort estimate, and acceptance outcomes. Produces a `roadmap.yaml` artifact and optionally scaffolds the approved changes as OpenSpec change directories.
 
-The decomposition itself is done by a premium model: the orchestrator dispatches a generator (a Claude subagent by default, or an external vendor such as `gpt-5.5` / `gemini-3.1-pro`) that reads the **entire** proposal against an explicit output contract and returns a `roadmap.yaml`. Python's role is the deterministic backstop — proposal-readiness checks before generation, and schema / dependency / DAG validation afterwards.
+The decomposition itself is done by a **premium-tier** generator: the orchestrator dispatches a Claude subagent by default, or an external vendor (`codex` / `gemini`) whose model is taken from the premium tier in `agent-coordinator/archetypes.yaml`. The generator reads the **entire** proposal against an explicit output contract and returns a `roadmap.yaml`. Python's role is the deterministic backstop — proposal-readiness checks before generation, and schema / dependency / DAG validation afterwards.
 
 When no proposal yet exists, the skill scaffolds one from the template at `openspec/schemas/roadmap/templates/proposal.md` so the operator (or the agent itself, in `--draft` mode) can fill it in before decomposition.
 
 ## Arguments
 
-`$ARGUMENTS` accepts four invocation forms:
+`$ARGUMENTS` accepts five invocation forms:
 
 1. **Decompose existing proposal** — `<path-to-proposal.md>`
    Decompose the proposal at the given path. The path may be inside or outside `openspec/roadmaps/`.
@@ -35,8 +35,11 @@ When no proposal yet exists, the skill scaffolds one from the template at `opens
    `<workspace>/replan-request.json`, which that skill writes when its `replan_required`
    gate proceeds; without the request file this form is refused. See **Replan Mode**.
 
+5. **Intake one approved candidate-work stub** -- `--candidate <stub.json> --outcome "<measurable outcome>" (--new-roadmap-id <id> --capability <id> | --existing-roadmap <roadmap.yaml>)`
+   Validate and map exactly one canonical candidate. New-roadmap mode creates the approved one-item roadmap and scaffold; existing-roadmap mode returns a read-only refine preview.
+
 Optional flags:
-- `--vendor <claude|codex|gemini>` — Choose the generator. Default `claude` dispatches a Claude subagent via the Agent tool. `codex` / `gemini` route through the shared CLI dispatcher to the external vendor (`gpt-5.5` / `gemini-3.1-pro`).
+- `--vendor <claude|codex|gemini>` — Choose the generator. Default `claude` dispatches a Claude subagent via the Agent tool. `codex` / `gemini` route through the shared CLI dispatcher using each vendor's **premium** tier from `archetypes.yaml` (not a hardcoded model version).
 - `--workspace <path>` — Override the default output workspace (default: `openspec/roadmaps/<roadmap_id>/`).
 - `--force` — Overwrite an existing `roadmap.yaml` at the target. Without this, `/plan-roadmap` aborts on collision to protect operator edits to `status` / `priority`.
 
@@ -68,6 +71,43 @@ python3 "<skill-base-dir>/../shared/checkout_policy.py" require-mutation
 If the invocation only reads a proposal and returns advice in chat, no worktree
 is required. `--replan` rewrites `roadmap.yaml`, so it is a mutation mode: set up the
 worktree the same way before R2.
+
+## Approved Candidate-Work Intake
+
+Candidate intake is a deterministic approval boundary; it does not invent acceptance outcomes or select candidates. Run it inside the managed worktree established above:
+
+```bash
+python3 "<skill-base-dir>/scripts/candidate_intake.py" \
+  --repo-root . \
+  --candidate path/to/candidate.json \
+  --outcome "Observable behavior is verified" \
+  --new-roadmap-id <roadmap-id> \
+  --capability <capability>
+```
+
+For an active roadmap, replace the last two flags with
+`--existing-roadmap openspec/roadmaps/<roadmap-id>/roadmap.yaml`. This mode emits
+exactly one refine-roadmap add request plus its preview and performs no mutation.
+Apply that request only through refine-roadmap with the emitted
+`preview.base_sha256`; a changed roadmap requires a new preview.
+
+The helper accepts one schema-valid object, never an array. It preserves the exact
+suggested change ID, uses `provenance.source_artifact` for the new roadmap
+`source_proposal`, and requires nonblank operator-approved outcomes. New roadmaps
+use approved `ri-01` with the candidate priority and capability. Existing roadmaps
+are freshly loaded, receive the next monotonic `ri-NN`, and omit priority so
+refine-roadmap assigns max+1; the candidate priority remains in request rationale.
+New-roadmap creation stages the roadmap and scaffold, claims their exact destinations
+exclusively, and rolls back only directories created by that intake attempt if
+installation fails.
+
+Dependencies resolve by exact change ID through the shared lifecycle resolver. A
+unique target-roadmap item becomes a local item ID, a unique sibling-roadmap item
+becomes `<roadmap-id>:<item-id>`, and an all-completed group is recorded as
+satisfied rationale. Unknown, ambiguous, active-without-roadmap, and
+failed/skipped/superseded-only dependencies fail before writes.
+Local and external conversions remain explicit as
+`Resolved dependency: <change-id> -> <item-ref>` rationale lines.
 
 ## Output
 
@@ -274,5 +314,6 @@ Shared models and utilities are in `<skill-base-dir>/../roadmap-runtime/scripts/
 |---|---|
 | `<skill-base-dir>/scripts/decomposer.py` | Deterministic validation only: `validate_proposal()` (readiness), `validate_roadmap()` (schema + ids + DAG), `scan_archive_state()`, `make_repo_relative()`, and the `validate` / `validate-repo` / `replan-scope` / `replan-finish` CLIs. Contains no keyword extraction and no LLM calls. |
 | `<skill-base-dir>/scripts/scaffolder.py` | `populate_change_ids(roadmap)` — derives and persists each item's `change_id`; called in Step 7 before `save_roadmap`. `scaffold_changes(roadmap, repo_root)` — scaffolds every approved item into a change directory that validates (Step 8). `scaffold_change(..., item_id)` — the single-item form, for re-scaffolding or repair. |
+| `<skill-base-dir>/scripts/candidate_intake.py` | Validates one approved candidate-work stub. Creates a no-overwrite one-item roadmap and scaffold, or emits one read-only refine-roadmap add preview with a fresh item ID and stale-base protection. |
 | `<skill-base-dir>/scripts/renderer.py` | Renders `roadmap.yaml` → human-readable `roadmap.md` (maintenance direction). |
 | `templates/generation-prompt.md` | The model-facing generation contract dispatched in Step 3. |

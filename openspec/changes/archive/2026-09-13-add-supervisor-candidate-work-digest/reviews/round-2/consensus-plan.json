@@ -1,0 +1,351 @@
+{
+  "schema_version": 1,
+  "review_type": "plan",
+  "target": "add-supervisor-candidate-work-digest",
+  "reviewers": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 9,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 9,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude_code",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 15,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 0,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: Preflight pruning removes approved/rejected store files and caches, but only a due deferral is specified to bypass the unchanged-fingerprint early exit. A terminal-only prune can therefore re-present the prior digest byte-for-byte even though it still contains the removed terminal candidate, and the freed capacity is not exposed to SENSE."
+    },
+    {
+      "id": 2,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 2
+        },
+        {
+          "vendor": "claude_code",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: The revised plan makes the staleness reference clock host-owned but still never defines the artifact timestamp subtracted from it. candidate-work.schema.json contains no observed/emitted timestamp; filesystem mtime changes across clones and is absent from the cycle fingerprint, so identical trees can receive different staleness penalties."
+    },
+    {
+      "id": 3,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 3
+        },
+        {
+          "vendor": "claude_code",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: The normative spec still says refiner owns final priority renumbering, while the revised design explicitly says add does not renumber and the consumed _apply_add implementation confirms it. Implementers cannot satisfy both contracts."
+    },
+    {
+      "id": 4,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 4
+        },
+        {
+          "vendor": "claude_code",
+          "finding_id": 6
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: D8 caps the full manifest input at 64 KiB, but the proposal and normative spec cap only evidence; canonical stub title/description/rationale strings have no maximum. The behavior for one schema-valid stub whose payload alone exceeds 64 KiB is undefined, so implementation must either violate the security bound or omit required ranked work."
+    },
+    {
+      "id": 5,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 6
+        },
+        {
+          "vendor": "claude_code",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: Revision 3 selects one bounded batch and a strict all-status dependency index, but implementation instructions still require deterministic chunk/merge behavior and the canonical readiness resolver, and the proposal dependency section still claims ri-16's ready-frontier resolver supplies dependency status. These contradictory instructions can recreate the exact multi-batch and incomplete-readiness defects PLAN_FIX intended to remove."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: The due-deferral wake path and the host-owned-timestamp rule are mutually unsatisfiable. spec.md:11 requires `rank` to reject \"any `scored_at` not exactly equal to the host-owned manifest `as_of`\", and the *Scoring time is host-owned* scenario (spec.md:41-46) makes an earlier `scored_at` a hard rejection before any write. But design.md:30-31 and design.md:163-164, plus the *Lifecycle maintenance runs before unchanged exit* scenario (spec.md:74-78), require a due deferral to be re-ranked from the existing cache with a new host-owned `--as-of` and no dispatch. Cached rubric documents are schema-valid singletons (design.md:67-68) and therefore carry the prior cycle's `scored_at`, so that re-rank is rejected by the rule that is supposed to protect it. There is also no CLI shape for the cache-only case: the only ranker is `digest.py rank --batch-manifest <path> --scores <path>` (proposal.md:44-47), which requires a fresh score document, and `prepare-batch` is defined only as the dispatch manifest builder (design.md:176-180)."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: Task 1.8 (tasks.md:88-90) tells the implementer to \"use the canonical readiness resolver\" for `stub-to-request` dependency resolution, and proposal.md:204-205 still claims ri-16's resolver supplies \"dependency readiness and routing local versus cross-roadmap prerequisites\". The resolver cannot do this. `resolve_readiness` (skills/roadmap-runtime/scripts/resolve_readiness.py:398-404) returns only `ready`, `diagnostics`, `stale` and `source_fingerprint`, and `cycle_state.ready_across_roadmaps` (skills/supervise/scripts/cycle_state.py:866-877) just regroups that `ready` list. A completed prerequisite is never in `ready`, so the *Unresolved dependency is refused* rule (spec.md:111-114) would fail closed on an already-satisfied dependency, and blocked or pending prerequisites are indistinguishable from nonexistent ones. design.md:50-51 already switched `rank` to \"a strict index of all roadmap item/change statuses plus archived changes\"; the task and proposal text did not follow."
+    },
+    {
+      "id": 8,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "Critical: The plan promises an atomic publish across per-stub caches, digest.json, and supervisor-record.json without defining a transaction, recovery marker, or write order; ordinary atomic file replacement cannot make multiple paths crash-atomic. It also says a failed scoring run retries next cycle without specifying whether cycle-ledger.json advances, which can instead trigger the unchanged early exit and suppress that retry."
+    },
+    {
+      "id": 9,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 7,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 7
+        },
+        {
+          "vendor": "claude_code",
+          "finding_id": 8
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "fix",
+      "description": "Nit: D2 still says ranking constants and buckets are emitted in weights, but digest.schema.json allows only six numeric weight fields and cannot represent the staleness cap, decision/readiness bucket order, risk direction, or stub-key tie-break. A consumer cannot reconstruct the advertised total order from the artifact alone."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Store overflow and lifecycle maintenance collide in one cycle with no defined precedence. The *Candidate capacity bounds dispatch cost* scenario (spec.md:47-52) requires `store` to fail \"without changing the store or prior digest\" and forbids any rubric dispatch, while the *Lifecycle maintenance runs before unchanged exit* scenario (spec.md:74-78) requires a due deferral to return to pending and be re-ranked. Maintenance runs pre-fingerprint (design.md:29-31) and store runs after dedupe, so with a full store and a 21st fresh stub, the woken deferral is computed and then discarded when the preserved prior digest is re-presented. The operator sees a stale bucket for a transition the plan promises is durable."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: `digest.schema.json` cannot represent a `prov:`-keyed candidate, even though every other layer can. `rankedStub` lists `suggested_change_id` as required (digest.schema.json:13) and constrains it to the non-nullable change-id pattern (line 19), while `stub_key` on line 15 admits `prov:[0-9a-f]{32}`. The `prov:` branch exists throughout the plan: `cycle_state.stub_key` falls back to it (cycle_state.py:725-732), the record schemas allow `suggested_change_id: null` (openspec/schemas/supervisor-record.schema.json:74), and task 1.1 tests reversible `prov--<hex32>` encoding. Any prov-keyed stub that reaches `rank` produces a digest that fails its own schema."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: Dry-run and the new pre-fingerprint maintenance pass are never reconciled. spec.md:13 requires that under `--dry-run` nothing below `openspec/supervise/` is created, modified or removed, and the existing skill is stricter still (skills/supervise/SKILL.md:52 writes nothing, \"not even the ledger\"). But design.md:29-31 and design.md:140-142 place `store --prune-only` unconditionally before the fingerprint gate, and that gate applies to dry runs (SKILL.md:164-166). Task 1.1 tests \"terminal prune and due-deferral maintenance before unchanged exit\" and \"dry-run no-write behavior\" as separate items and never their intersection, so it is undefined whether a dry run reports a due deferral it may not persist."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "spec_gap",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: The archived-change half of dependency resolution has no named source. spec.md:11 requires readiness from \"all roadmap item/change statuses plus archived changes\" and spec.md:99 requires \"already-satisfied archived dependencies\" to be omitted, but contracts/README.md:16-18 attributes this to a roadmap-runtime \"archived-change registry\" that does not exist: skills/roadmap-runtime/scripts/ contains no archive reader, and `cycle_state.active_change_ids` explicitly excludes the archive. The only archive-aware modules are elsewhere (skills/explore-feature/scripts/archive_index.py, skills/bug-scrub/scripts/collect_deferred.py) and neither is referenced by any task or scope. The plan also never says how \"archived-completed\" is distinguished from merely archived."
+    },
+    {
+      "id": 14,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 8,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 8
+        },
+        {
+          "vendor": "claude_code",
+          "finding_id": 14
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The revised plan now names a concrete text redactor, rejects unsafe provenance paths, bounds candidate count, and keeps all model dispatch in the host rather than deterministic scripts."
+    },
+    {
+      "id": 15,
+      "status": "disagreement",
+      "primary_vendor": "codex",
+      "primary_finding_id": 9,
+      "matched_findings": [
+        {
+          "vendor": "antigravity",
+          "finding_id": 9
+        },
+        {
+          "vendor": "claude_code",
+          "finding_id": 12
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "escalate",
+      "description": "The revised work-package scope now includes the new digest, cycle-state, and rubric-prompt runtime mirrors, while preserving an acyclic two-lane dependency graph.",
+      "vendor_dispositions": {
+        "codex": "accept",
+        "antigravity": "accept",
+        "claude_code": "fix"
+      }
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 13,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: The plan carries `plan_revision: 3` and `contracts.revision: 3` (work-packages.yaml:6, 11), but plan-findings.md records only \"Iteration 1\", twelve findings, and \"Termination reason: threshold met\" (plan-findings.md:38-43), and session-log.md's last entry is the round-1 Plan Review that returned the proposal to PLAN_FIX. Nothing maps the five blocking consensus findings to their revision-3 resolutions, so a reviewer cannot tell which round-1 blockers were addressed by commit cb449eb1 and which, such as findings 2, 3 and 5 above, survived. Two entries are also dated 2026-09-11, a day ahead of the plan-findings date of 2026-09-10."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 15,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "The fingerprint self-invalidation fix is sound and matches the existing implementation's shape. `_tree_listing` already excludes LEDGER_PATH and MIRROR_PATH from both `git ls-tree` and the `git diff` pathspec (skills/supervise/scripts/cycle_state.py:124-169), so extending the same exclusion list to the candidate store, rubric caches and digest.json is a narrow, testable edit rather than new machinery. Owning the extension of both canonical record schemas in wp-contracts is also correct, since `digestedStub` sets `additionalProperties: false` and `_clean_digested_stub` (cycle_state.py:311-335) allowlists fields, so decision metadata would otherwise be silently stripped."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 17,
+    "confirmed_count": 8,
+    "unconfirmed_count": 8,
+    "disagreement_count": 1,
+    "blocking_count": 7,
+    "advisory_count": 1
+  }
+}

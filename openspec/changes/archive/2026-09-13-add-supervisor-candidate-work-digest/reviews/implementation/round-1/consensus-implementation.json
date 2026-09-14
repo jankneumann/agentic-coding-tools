@@ -1,0 +1,406 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "whole-branch",
+  "reviewers": [
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 7,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "claude",
+      "agent_id": "claude_code",
+      "success": true,
+      "findings_count": 14,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 10,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 3,
+  "quorum_received": 3,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: lifecycle rebuilding requires a valid cache for every surviving store file before publishing any prune. A scoring failure deliberately leaves newly admitted stubs in the store without caches; if an older ranked stub is then approved or rejected, the next preflight reaches the cache-less survivor, raises, and cannot prune the terminal item or perform the required later scoring retry."
+    },
+    {
+      "id": 2,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "fix",
+      "description": "Critical: the promised `--force` same-fingerprint cache reuse has no executable path. `prepare-batch` always uses the new cycle `as_of`, while `rank` without a score document rejects every prior singleton whose `scored_at` differs from that new value; the documented Rank sequence otherwise dispatches an analyst unconditionally. Thus a forced unchanged cycle either dispatches contrary to the spec or fails cache validation instead of re-presenting the prior digest."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: mutating commands recover a pending transaction after the host has already rehydrated and supplied `record`, then continue using that pre-recovery record. A recovered mirror can therefore be overwritten later in the same cycle by stale gates, decisions, or digested-stub state, violating the requirement to preserve unrelated newer durable state."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "critical",
+      "recommended_disposition": "accept",
+      "description": "Critical: Due-deferral wake from `store --prune-only` is not durable across the rest of the same CYCLE when the tree also changes. `_maintenance` correctly flips due stubs to pending and `_lifecycle_rebuild` publishes that pending state, but `SKILL.md` keeps using the pre-maintenance `$SUPERVISE_RECORD` for later `prepare-batch` and `rank`. Those commands re-read the stale deferred+until entry, put the stub back in the future-deferred bucket, and overwrite the mirror with deferred again. Independently reproduced: after wake the mirror is pending; after prepare-batch+rank with the stale record it is deferred/`2026-09-15` again."
+    },
+    {
+      "id": 5,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "fix",
+      "description": "Critical: `rank` never binds its manifest candidates to the current persisted store. A stale manifest can publish caches and a digest for old candidate bytes after a same-key refresh; because candidate outputs are excluded from the cycle fingerprint, the mismatch can then be reused indefinitely on an unchanged tree."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: an empty surviving backlog yields a valid-looking manifest with zero requested keys, but the rubric schema requires at least one score and the workflow says to dispatch exactly one analyst. There is no successful first-cycle or changed-cycle path for the ordinary case where discovery produces no candidates."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: staleness is computed as a difference of calendar dates taken in two different timezones, so it can be negative even when the clock-skew guard passes. Line 803 compares the aware datetimes correctly (`source_time > as_of`), but line 805 then does `(as_of.date() - source_time.date()).days`. `git log -1 --format=%cI` emits the committer's local offset, while the host-owned `as_of` is normally UTC. A commit made shortly before `as_of` from a timezone east of UTC yields a later local date and therefore a negative day count. The spec is explicit that this must not happen: 'A commit timestamp later than manifest `as_of` SHALL produce null staleness and `clock_skew:<source_artifact>` degradation, never a negative value or score increase' (specs/supervise/spec.md). Two consequences follow. At digest.py:638 `min(staleness // 30, 5)` evaluates to `-1` for `staleness == -1` (Python floor division), so `- penalty` awards a silent +1 score bonus, corrupting the deterministic total order the whole design rests on. Worse, `supervise-digest.schema.json` declares `signals.staleness_days` with `minimum: 0`, so `_validate` at digest.py:701 rejects the assembled digest and the entire scored batch is discarded after the analyst has already been paid for."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: the canonical record schemas were tightened in a way that invalidates already-committed records, and the tests conceal it by rewriting the fixtures in memory instead of migrating them. `supervisor-record.schema.json` and its mirror now constrain `stub_key` to `^(change:(add|update|remove|refactor)-...|prov:[0-9a-f]{32})$` and make `route` and `roadmap_ref` required for any `approved` entry. The committed fixtures `skills/tests/supervise/fixtures/supervisor-record/full.json:35-41` and `mirror.json:24-30` hold `change:extend-handoff-document-with-supervisor-record` with `decision: approved` and neither new field, so they now violate both schemas. Rather than migrating those files, `test_full_record_fixture_validates` and `test_mirror_fixture_validates` mutate each approved entry before validating, and `test_supervisor_record.py:54-70` adds a `_json()` helper that silently rewrites the same key and injects `route`/`roadmap_ref`. The fixtures are the documented example of the record shape, so the suite now green-lights a contract the fixtures do not satisfy. The runtime has no compensating migration: `_clean_digested_stub` (cycle_state.py:334-358) still validates `stub_key` against the old loose `^(change|prov):.+$` and passes `route`, `roadmap_ref`, `until` and `reason` through `_clean_optional_text` unvalidated, so a legacy entry survives sanitization and then fails `_validate_record` inside `write_mirror`. The sanitization layer exists precisely to guarantee a writable mirror from untrusted rehydrated state, and it no longer does. `cycle_state.stub_key` (line 748-750) still emits `change:<anything-non-empty>` and `dedupe_stubs` does not validate against `candidate-work.schema.json`, so non-canonical keys remain producible."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: `prepare_batch` trusts host-supplied decision state and never applies due-wake itself (lines 845-868), while `rank_candidates` copies `decision`/`until` from that same prior index into the published digest and mirror (lines 618-628 and 703-716). This is the code-side half of finding 1: even with a corrected SKILL reload, any caller that passes a pre-maintenance record can silently undo lifecycle wake on a scored cycle."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: After a terminal reject/approve is pruned, `store_candidates` will re-admit the same stub_key as fresh and count it toward the 20-candidate cap, but `prepare_batch` unconditionally skips approved/rejected decisions and therefore omits that file from the manifest. Independently reproduced: re-admitted rejected key is stored and listed in `fresh_keys`, yet `prepare_batch` returns `requested_keys: []`, so the slot is consumed by invisible work until the next prune-only pass."
+    },
+    {
+      "id": 11,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [
+        {
+          "vendor": "claude_code",
+          "finding_id": 10
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: transaction recovery now authorizes operation-specific supervisor-owned paths, bounds bytes and operation count, validates every entry and checksum before mutation, and keeps digest replacement last."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: model dispatch remains in the host skill while the new runtime is deterministic and network-free, and approval continues through the preview/SHA-guarded refiner boundary rather than writing roadmap YAML directly."
+    },
+    {
+      "id": 13,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: the tracked/unmodified evidence gate passes `source_artifact` to git as a pathspec with glob magic enabled, while the excerpt is read from the literal filesystem path. `git ls-files --error-unmatch`, `git diff --quiet HEAD` and `git log -1 --format=%cI` all interpret `*`, `?` and `[...]` as wildcards, so a literal filename containing those characters can be cleared by a different, genuinely tracked file. The spec requires that 'untracked, modified, missing, and unsafe artifacts SHALL use null staleness and degradation', and this is a mechanical way to bypass that gate. The traversal, symlink and `resolve(strict=True)` checks that precede it all operate on the literal path, so they do not constrain what git matches."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: the `binary` case of `test_prepare_batch_never_reads_unsafe_or_unavailable_evidence` passes for the wrong reason, leaving the NUL-byte detector at digest.py:793-794 with no real coverage. The fixture writes `reports/binary.bin` but never commits it, so `_artifact_evidence` returns `evidence_untracked:reports/binary.bin` at line 787 before the content is ever inspected. The assertion `any(fixture in marker for marker in candidate['degraded'])` is satisfied because the literal string 'binary' appears in the file path, not because a binary artifact was detected. The `UnicodeDecodeError` fallback at lines 796-798 is likewise unreached. The tasks file lists this exact fixture as RED coverage for task 1.5, so the traceability claim is overstated."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: `decide` validates `--until` with bare `datetime.fromisoformat`, which accepts a full date-time, but every consumer declares that field as a calendar date. Both record schemas give `until` `\"format\": \"date\"`, and `supervise-digest.schema.json` gives `signals.deferred_until` the same format; `digest.py` validates with `FormatChecker()` enabled (line 128), as does `cycle_state._validate_record` (cycle_state.py:243-245). The write therefore succeeds or fails depending on which validator sees the value first, and the failure surfaces in a later command rather than at the point of bad input."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: the mirror-fingerprint fallback in `_lifecycle_rebuild` chains `.get()` calls without guarding an explicit null. `(record or {}).get('back_edge', {}).get('last_fingerprint')` supplies the `{}` default only when the key is absent; a record that carries `\"back_edge\": null` returns `None` from the first `.get` and raises `AttributeError` on the second. Every other reader of this structure is defensive \u2014 `_decision_index` (line 189-192) and `_clean_back_edge` (cycle_state.py:361-363) both type-check before indexing \u2014 so this is the one unguarded path."
+    },
+    {
+      "id": 17,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: the reproducibility non-functional requirement is tested at the byte level rather than asserted. `test_ranking_is_byte_identical_for_shuffled_input` reverses both the manifest candidates and the score rows and compares the persisted `digest.json` bytes, which pins the canonical serializer (`sort_keys` plus trailing newline at digest.py:115-116) together with the total order at digest.py:675-682. It is complemented by `test_supervisor_outputs_do_not_change_cycle_fingerprint`, which commits a candidate file, a cache, a digest and a journal and proves the fingerprint is unchanged \u2014 the exclusion set added to `_tree_listing` covers both the `ls-tree` listing and the `diff` pathspecs, so a supervisor-output-only commit cannot make the next cycle look dirty and re-dispatch an analyst."
+    },
+    {
+      "id": 18,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: the host-assisted invariant is enforced structurally instead of by convention. `test_digest_runtime_has_no_model_network_or_roadmap_write_capability` parses `digest.py` with `ast`, asserts the import set is disjoint from the model and HTTP client modules, and walks every `write_text`/`write_bytes`/`replace`/`unlink` call to assert none of them mentions `roadmap.yaml`. That keeps the design's central claim \u2014 judgment is dispatched by the host, arithmetic and persistence live in the script, and roadmap mutation belongs to `refiner.py` \u2014 checkable by a machine rather than by a reviewer's memory. `stub_to_request` (digest.py:1007-1085) is correspondingly pure: it reads the roadmap only to compute the next item ID and dependency classes, and returns a request dict."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 13,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: the approval seam is proved against the real refiner rather than a mock. `test_stub_request_runs_real_refiner_preview_apply_and_stale_sha_refusal` renders a request from a stored stub, runs the genuine `preview_refinement`, applies with the preview's base SHA-256, asserts the change was actually scaffolded on disk, and then re-applies with the now-stale SHA to prove `BaseRoadmapChangedError` fires. This is the safety property the proposal's non-functional table calls out, and testing it through the real transaction is what makes 'approval never bypasses the preview' a claim about behavior rather than about documentation."
+    },
+    {
+      "id": 20,
+      "status": "unconfirmed",
+      "primary_vendor": "claude_code",
+      "primary_finding_id": 14,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: `store_candidates` returns a structured result that is sufficient for the host to narrate the cycle without re-deriving state \u2014 `retained_keys`, `fresh_keys`, `pruned_keys`, `woken_keys`, `lifecycle_changed`, `pending_recovery`, `dry_run`, and the `rebuilt_digest` itself. That is what lets the dry-run path report lifecycle transitions on stdout while writing nothing, and it keeps the Degraded rendering in SKILL.md grounded in returned data rather than inference. `CandidateCapacityError` and `OversizedManifestError` similarly carry the specific keys (`unpersisted_keys`, `marker`) the operator needs to act on, instead of a generic message."
+    },
+    {
+      "id": 21,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: `test_prepare_batch_output_is_deterministic_and_at_most_64_kib` asserts length using compact `separators=(',', ':')` JSON without the trailing newline, while production `_manifest_bytes` / CLI stdout use default-spaced `json.dumps(...)+'\\n'`. The production bound itself is correct and covered by the stdout-serialization rejection test; this assertion would not catch a regression that only overflows the real encoding."
+    },
+    {
+      "id": 22,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: The rubric trust boundary matches the hardened contract: `prepare_batch` embeds `ready_set` inside the single manifest, measures exact stdout serialization via `_manifest_bytes`, enforces the 64 KiB cap (including individually oversized stubs), frames provenance as untrusted data after `sanitize_string`, and the prompt places trusted instructions before the untrusted manifest block."
+    },
+    {
+      "id": 23,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Terminal lifecycle history is handled cleanly at the module boundary: active pending/deferred entries are ranked from the live backlog, while `_merge_terminal_history` preserves approved/rejected decisions in the durable mirror without keeping those keys in the active store or ranked digest. That matches design D5 and closes impl-findings #4 without conflating payload files and supervisor facts."
+    },
+    {
+      "id": 24,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Provenance loading is bounded the way impl-findings #9 required: `_artifact_evidence` opens a binary handle and reads only `MAX_EVIDENCE_BYTES + 1`, with a regression test that fails if the full artifact is slurped via `Path.read_bytes`."
+    },
+    {
+      "id": 25,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Publication resilience is solid for the scored and lifecycle paths: operations are staged in a fsynced roll-forward journal, non-digest targets are applied first, `digest.json` is replaced last, checksums make recovery idempotent, and read-only/dry-run entry points refuse mixed state while mutating commands recover first."
+    },
+    {
+      "id": 26,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Compatibility with the existing supervisor record surface is preserved: canonical and mirror schemas gain optional decision metadata with conditional requirements, `cycle_state._clean_digested_stub` round-trips those fields, fingerprint exclusions keep store/cache/digest/journal commits from self-invalidating the cycle, and the `.agents`/`.claude` supervise mirrors are byte-identical to the canonical skill."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 26,
+    "confirmed_count": 4,
+    "unconfirmed_count": 22,
+    "disagreement_count": 0,
+    "blocking_count": 3,
+    "advisory_count": 1
+  }
+}

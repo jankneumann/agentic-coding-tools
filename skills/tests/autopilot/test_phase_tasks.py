@@ -60,6 +60,16 @@ def test_phase_task_instructions_returns_string_for_active_phase() -> None:
     assert "do not merge the feature branch" in flat
 
 
+def test_review_phase_tasks_run_converge_not_cold_review() -> None:
+    """Coordinated PLAN/IMPL/VAL_REVIEW must execute converge(), not a
+    one-shot /parallel-review-* bounce into an outer FIX phase."""
+    for phase in ("PLAN_REVIEW", "IMPL_REVIEW", "VAL_REVIEW"):
+        text = phase_agent._PHASE_TASKS[phase]
+        assert "converge()" in text, phase
+        assert "fix_callback" in text, phase
+        assert "Do NOT" in text, phase
+
+
 def test_phase_task_instructions_unknown_phase_falls_back() -> None:
     """Backward-compat: unknown phase still returns a generic string."""
     text = phase_agent._phase_task_instructions("BOGUS_PHASE")

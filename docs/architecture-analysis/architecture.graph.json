@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-09-10T22:34:52+00:00",
-      "git_sha": "6db8aa9b7bd57e0da95578750c0fc0b929f53632",
+      "generated_at": "2026-09-14T05:30:41+00:00",
+      "git_sha": "0ca4a72941416d9aeefc2727685c3467b4aa1aeb",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -1020,8 +1020,8 @@
       "name": "PollConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 526,
-        "end": 540
+        "start": 507,
+        "end": 521
       },
       "tags": [],
       "signatures": {}
@@ -1033,8 +1033,8 @@
       "name": "ModeConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 544,
-        "end": 549
+        "start": 525,
+        "end": 530
       },
       "tags": [],
       "signatures": {}
@@ -1046,8 +1046,8 @@
       "name": "CliConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 553,
-        "end": 573
+        "start": 534,
+        "end": 554
       },
       "tags": [],
       "signatures": {}
@@ -1059,8 +1059,8 @@
       "name": "SdkConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 577,
-        "end": 590
+        "start": 558,
+        "end": 571
       },
       "tags": [],
       "signatures": {}
@@ -1072,8 +1072,8 @@
       "name": "AgentEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 594,
-        "end": 609
+        "start": 575,
+        "end": 590
       },
       "tags": [],
       "signatures": {}
@@ -1085,8 +1085,8 @@
       "name": "EscalationConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 617,
-        "end": 627
+        "start": 598,
+        "end": 608
       },
       "tags": [],
       "signatures": {}
@@ -1098,8 +1098,8 @@
       "name": "ArchetypeConfig",
       "file": "agents_config.py",
       "span": {
-        "start": 631,
-        "end": 642
+        "start": 612,
+        "end": 623
       },
       "tags": [],
       "signatures": {}
@@ -1111,8 +1111,8 @@
       "name": "PhaseMappingEntry",
       "file": "agents_config.py",
       "span": {
-        "start": 646,
-        "end": 656
+        "start": 627,
+        "end": 637
       },
       "tags": [],
       "signatures": {}
@@ -1124,8 +1124,8 @@
       "name": "ModelSpec",
       "file": "agents_config.py",
       "span": {
-        "start": 660,
-        "end": 670
+        "start": 641,
+        "end": 651
       },
       "tags": [],
       "signatures": {}
@@ -1137,8 +1137,8 @@
       "name": "ResolvedArchetype",
       "file": "agents_config.py",
       "span": {
-        "start": 674,
-        "end": 687
+        "start": 655,
+        "end": 668
       },
       "tags": [],
       "signatures": {}
@@ -1150,8 +1150,8 @@
       "name": "ProviderModelMappingError",
       "file": "agents_config.py",
       "span": {
-        "start": 690,
-        "end": 707
+        "start": 671,
+        "end": 688
       },
       "tags": [],
       "signatures": {}
@@ -1163,8 +1163,8 @@
       "name": "LocalRosterConfigError",
       "file": "agents_config.py",
       "span": {
-        "start": 710,
-        "end": 728
+        "start": 691,
+        "end": 709
       },
       "tags": [],
       "signatures": {}
@@ -1176,8 +1176,8 @@
       "name": "LocalProviderTrustBoundaryError",
       "file": "agents_config.py",
       "span": {
-        "start": 731,
-        "end": 749
+        "start": 712,
+        "end": 730
       },
       "tags": [],
       "signatures": {}
@@ -1189,8 +1189,8 @@
       "name": "DuplicateApiKeyError",
       "file": "agents_config.py",
       "span": {
-        "start": 962,
-        "end": 977
+        "start": 943,
+        "end": 958
       },
       "tags": [],
       "signatures": {}
@@ -1202,8 +1202,8 @@
       "name": "ProfileSyncError",
       "file": "agents_config.py",
       "span": {
-        "start": 1110,
-        "end": 1116
+        "start": 1091,
+        "end": 1097
       },
       "tags": [],
       "signatures": {}
@@ -1215,8 +1215,8 @@
       "name": "ProfileSyncResult",
       "file": "agents_config.py",
       "span": {
-        "start": 1120,
-        "end": 1146
+        "start": 1101,
+        "end": 1127
       },
       "tags": [],
       "signatures": {}
@@ -3282,8 +3282,8 @@
       "name": "SchemaValidationError",
       "file": "kanban_viz_files.py",
       "span": {
-        "start": 107,
-        "end": 121
+        "start": 128,
+        "end": 142
       },
       "tags": [],
       "signatures": {}
@@ -4335,8 +4335,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 693,
-        "end": 707
+        "start": 674,
+        "end": 688
       },
       "tags": [
         "dunder"
@@ -4350,8 +4350,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 719,
-        "end": 728
+        "start": 700,
+        "end": 709
       },
       "tags": [
         "dunder"
@@ -4365,8 +4365,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 739,
-        "end": 749
+        "start": 720,
+        "end": 730
       },
       "tags": [
         "dunder"
@@ -4380,8 +4380,8 @@
       "name": "_default_agents_path",
       "file": "agents_config.py",
       "span": {
-        "start": 756,
-        "end": 757
+        "start": 737,
+        "end": 738
       },
       "tags": [
         "private"
@@ -4395,8 +4395,8 @@
       "name": "_default_secrets_path",
       "file": "agents_config.py",
       "span": {
-        "start": 760,
-        "end": 761
+        "start": 741,
+        "end": 742
       },
       "tags": [
         "private"
@@ -4410,8 +4410,8 @@
       "name": "load_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 764,
-        "end": 904
+        "start": 745,
+        "end": 885
       },
       "tags": [
         "db_access"
@@ -4425,8 +4425,8 @@
       "name": "_parse_mode",
       "file": "agents_config.py",
       "span": {
-        "start": 836,
-        "end": 858
+        "start": 817,
+        "end": 839
       },
       "tags": [
         "private",
@@ -4441,8 +4441,8 @@
       "name": "_resolve_api_key_from_openbao",
       "file": "agents_config.py",
       "span": {
-        "start": 911,
-        "end": 959
+        "start": 892,
+        "end": 940
       },
       "tags": [
         "private",
@@ -4457,8 +4457,8 @@
       "name": "__init__",
       "file": "agents_config.py",
       "span": {
-        "start": 970,
-        "end": 977
+        "start": 951,
+        "end": 958
       },
       "tags": [
         "dunder"
@@ -4472,8 +4472,8 @@
       "name": "get_api_key_identities",
       "file": "agents_config.py",
       "span": {
-        "start": 980,
-        "end": 1028
+        "start": 961,
+        "end": 1009
       },
       "tags": [
         "db_access"
@@ -4487,8 +4487,8 @@
       "name": "mutations",
       "file": "agents_config.py",
       "span": {
-        "start": 1137,
-        "end": 1146
+        "start": 1118,
+        "end": 1127
       },
       "tags": [
         "property"
@@ -4502,8 +4502,8 @@
       "name": "derive_allowed_operations",
       "file": "agents_config.py",
       "span": {
-        "start": 1149,
-        "end": 1178
+        "start": 1130,
+        "end": 1159
       },
       "tags": [
         "db_access"
@@ -4517,8 +4517,8 @@
       "name": "_is_unique_violation",
       "file": "agents_config.py",
       "span": {
-        "start": 1190,
-        "end": 1206
+        "start": 1171,
+        "end": 1187
       },
       "tags": [
         "private"
@@ -4532,8 +4532,8 @@
       "name": "_registry_sync_timestamp",
       "file": "agents_config.py",
       "span": {
-        "start": 1209,
-        "end": 1222
+        "start": 1190,
+        "end": 1203
       },
       "tags": [
         "private"
@@ -4547,8 +4547,8 @@
       "name": "_desired_profile_row",
       "file": "agents_config.py",
       "span": {
-        "start": 1225,
-        "end": 1235
+        "start": 1206,
+        "end": 1216
       },
       "tags": [
         "private"
@@ -4562,8 +4562,8 @@
       "name": "_profile_drift",
       "file": "agents_config.py",
       "span": {
-        "start": 1238,
-        "end": 1253
+        "start": 1219,
+        "end": 1234
       },
       "tags": [
         "private",
@@ -4578,8 +4578,8 @@
       "name": "_emit_sync_audit",
       "file": "agents_config.py",
       "span": {
-        "start": 1256,
-        "end": 1298
+        "start": 1237,
+        "end": 1279
       },
       "tags": [
         "async",
@@ -4594,8 +4594,8 @@
       "name": "_sync_assignments",
       "file": "agents_config.py",
       "span": {
-        "start": 1301,
-        "end": 1484
+        "start": 1282,
+        "end": 1465
       },
       "tags": [
         "async",
@@ -4611,8 +4611,8 @@
       "name": "sync_profiles",
       "file": "agents_config.py",
       "span": {
-        "start": 1487,
-        "end": 1713
+        "start": 1468,
+        "end": 1694
       },
       "tags": [
         "async",
@@ -4627,8 +4627,8 @@
       "name": "get_mcp_env",
       "file": "agents_config.py",
       "span": {
-        "start": 1720,
-        "end": 1748
+        "start": 1701,
+        "end": 1729
       },
       "tags": [
         "db_access"
@@ -4642,8 +4642,8 @@
       "name": "get_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1758,
-        "end": 1771
+        "start": 1739,
+        "end": 1752
       },
       "tags": [],
       "signatures": {}
@@ -4655,8 +4655,8 @@
       "name": "get_agent_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1774,
-        "end": 1779
+        "start": 1755,
+        "end": 1760
       },
       "tags": [],
       "signatures": {}
@@ -4668,8 +4668,8 @@
       "name": "reset_agents_config",
       "file": "agents_config.py",
       "span": {
-        "start": 1782,
-        "end": 1785
+        "start": 1763,
+        "end": 1766
       },
       "tags": [],
       "signatures": {}
@@ -4681,8 +4681,8 @@
       "name": "get_dispatch_configs",
       "file": "agents_config.py",
       "span": {
-        "start": 1792,
-        "end": 1853
+        "start": 1773,
+        "end": 1834
       },
       "tags": [],
       "signatures": {}
@@ -4694,8 +4694,8 @@
       "name": "get_agent_isolation",
       "file": "agents_config.py",
       "span": {
-        "start": 1860,
-        "end": 1869
+        "start": 1841,
+        "end": 1850
       },
       "tags": [],
       "signatures": {}
@@ -4707,8 +4707,8 @@
       "name": "_default_archetypes_path",
       "file": "agents_config.py",
       "span": {
-        "start": 1876,
-        "end": 1877
+        "start": 1857,
+        "end": 1858
       },
       "tags": [
         "private"
@@ -4722,8 +4722,8 @@
       "name": "_as_positive_number",
       "file": "agents_config.py",
       "span": {
-        "start": 1880,
-        "end": 1884
+        "start": 1861,
+        "end": 1865
       },
       "tags": [
         "private"
@@ -4737,8 +4737,8 @@
       "name": "_validate_local_roster",
       "file": "agents_config.py",
       "span": {
-        "start": 1887,
-        "end": 2006
+        "start": 1868,
+        "end": 1987
       },
       "tags": [
         "private",
@@ -4753,8 +4753,8 @@
       "name": "load_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 2009,
-        "end": 2099
+        "start": 1990,
+        "end": 2080
       },
       "tags": [
         "db_access"
@@ -4768,8 +4768,8 @@
       "name": "get_archetype",
       "file": "agents_config.py",
       "span": {
-        "start": 2107,
-        "end": 2118
+        "start": 2088,
+        "end": 2099
       },
       "tags": [
         "db_access"
@@ -4783,8 +4783,8 @@
       "name": "get_phase_mapping",
       "file": "agents_config.py",
       "span": {
-        "start": 2121,
-        "end": 2130
+        "start": 2102,
+        "end": 2111
       },
       "tags": [],
       "signatures": {}
@@ -4796,8 +4796,8 @@
       "name": "reset_archetypes_config",
       "file": "agents_config.py",
       "span": {
-        "start": 2133,
-        "end": 2138
+        "start": 2114,
+        "end": 2119
       },
       "tags": [],
       "signatures": {}
@@ -4809,8 +4809,8 @@
       "name": "_served_local_roster",
       "file": "agents_config.py",
       "span": {
-        "start": 2141,
-        "end": 2167
+        "start": 2122,
+        "end": 2148
       },
       "tags": [
         "private",
@@ -4825,8 +4825,8 @@
       "name": "_with_served_local_roster",
       "file": "agents_config.py",
       "span": {
-        "start": 2170,
-        "end": 2181
+        "start": 2151,
+        "end": 2162
       },
       "tags": [
         "private"
@@ -4840,8 +4840,8 @@
       "name": "_normalize_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 2184,
-        "end": 2211
+        "start": 2165,
+        "end": 2192
       },
       "tags": [
         "private",
@@ -4856,8 +4856,8 @@
       "name": "get_provider_model_map",
       "file": "agents_config.py",
       "span": {
-        "start": 2214,
-        "end": 2218
+        "start": 2195,
+        "end": 2223
       },
       "tags": [],
       "signatures": {}
@@ -4869,8 +4869,8 @@
       "name": "_tier_entry_to_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 2221,
-        "end": 2233
+        "start": 2226,
+        "end": 2238
       },
       "tags": [
         "private",
@@ -4885,8 +4885,8 @@
       "name": "_best_defined_tier",
       "file": "agents_config.py",
       "span": {
-        "start": 2236,
-        "end": 2242
+        "start": 2241,
+        "end": 2247
       },
       "tags": [
         "private",
@@ -4901,8 +4901,8 @@
       "name": "resolve_provider_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 2245,
-        "end": 2323
+        "start": 2250,
+        "end": 2328
       },
       "tags": [
         "db_access"
@@ -4916,8 +4916,8 @@
       "name": "resolve_provider_model",
       "file": "agents_config.py",
       "span": {
-        "start": 2326,
-        "end": 2339
+        "start": 2331,
+        "end": 2344
       },
       "tags": [],
       "signatures": {}
@@ -4929,8 +4929,8 @@
       "name": "compose_prompt",
       "file": "agents_config.py",
       "span": {
-        "start": 2346,
-        "end": 2355
+        "start": 2351,
+        "end": 2360
       },
       "tags": [],
       "signatures": {}
@@ -4942,8 +4942,8 @@
       "name": "_unique_dir_prefixes",
       "file": "agents_config.py",
       "span": {
-        "start": 2362,
-        "end": 2378
+        "start": 2367,
+        "end": 2383
       },
       "tags": [
         "private",
@@ -4958,8 +4958,8 @@
       "name": "resolve_model",
       "file": "agents_config.py",
       "span": {
-        "start": 2381,
-        "end": 2417
+        "start": 2386,
+        "end": 2422
       },
       "tags": [],
       "signatures": {}
@@ -4971,8 +4971,8 @@
       "name": "_resolve_model_spec",
       "file": "agents_config.py",
       "span": {
-        "start": 2420,
-        "end": 2482
+        "start": 2425,
+        "end": 2487
       },
       "tags": [
         "private",
@@ -4987,8 +4987,8 @@
       "name": "_finalize",
       "file": "agents_config.py",
       "span": {
-        "start": 2429,
-        "end": 2445
+        "start": 2434,
+        "end": 2450
       },
       "tags": [
         "private"
@@ -5002,8 +5002,8 @@
       "name": "resolve_archetype_for_phase",
       "file": "agents_config.py",
       "span": {
-        "start": 2490,
-        "end": 2596
+        "start": 2495,
+        "end": 2601
       },
       "tags": [],
       "signatures": {}
@@ -14802,14 +14802,29 @@
       "signatures": {}
     },
     {
+      "id": "py:kanban_viz_files._change_dir",
+      "kind": "function",
+      "language": "python",
+      "name": "_change_dir",
+      "file": "kanban_viz_files.py",
+      "span": {
+        "start": 58,
+        "end": 77
+      },
+      "tags": [
+        "private"
+      ],
+      "signatures": {}
+    },
+    {
       "id": "py:kanban_viz_files._load_schema",
       "kind": "function",
       "language": "python",
       "name": "_load_schema",
       "file": "kanban_viz_files.py",
       "span": {
-        "start": 69,
-        "end": 100
+        "start": 90,
+        "end": 121
       },
       "tags": [
         "private"
@@ -14823,8 +14838,8 @@
       "name": "__init__",
       "file": "kanban_viz_files.py",
       "span": {
-        "start": 115,
-        "end": 121
+        "start": 136,
+        "end": 142
       },
       "tags": [
         "dunder"
@@ -14838,8 +14853,8 @@
       "name": "_validate_against",
       "file": "kanban_viz_files.py",
       "span": {
-        "start": 124,
-        "end": 132
+        "start": 145,
+        "end": 153
       },
       "tags": [
         "private"
@@ -14853,8 +14868,8 @@
       "name": "_validate_slug",
       "file": "kanban_viz_files.py",
       "span": {
-        "start": 135,
-        "end": 139
+        "start": 156,
+        "end": 160
       },
       "tags": [
         "private"
@@ -14868,8 +14883,8 @@
       "name": "_git_sha",
       "file": "kanban_viz_files.py",
       "span": {
-        "start": 142,
-        "end": 153
+        "start": 163,
+        "end": 174
       },
       "tags": [
         "private"
@@ -14883,8 +14898,8 @@
       "name": "_atomic_write",
       "file": "kanban_viz_files.py",
       "span": {
-        "start": 156,
-        "end": 168
+        "start": 177,
+        "end": 189
       },
       "tags": [
         "private"
@@ -14898,8 +14913,8 @@
       "name": "write_saved_view",
       "file": "kanban_viz_files.py",
       "span": {
-        "start": 171,
-        "end": 208
+        "start": 192,
+        "end": 229
       },
       "tags": [],
       "signatures": {}
@@ -14911,8 +14926,8 @@
       "name": "write_audit_event",
       "file": "kanban_viz_files.py",
       "span": {
-        "start": 211,
-        "end": 253
+        "start": 232,
+        "end": 274
       },
       "tags": [],
       "signatures": {}
@@ -21061,21 +21076,6 @@
       }
     },
     {
-      "id": "pg:public.public.file_locks.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.work_queue",
       "kind": "table",
       "language": "sql",
@@ -21194,10 +21194,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.enable",
+      "id": "pg:public.public.work_queue.depends_on",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "depends_on",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21205,44 +21205,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "UUID[]"
       }
     },
     {
-      "id": "pg:public.public.work_queue.labels",
+      "id": "pg:public.public.work_queue.status",
       "kind": "column",
       "language": "sql",
-      "name": "labels",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.parent_id",
-      "kind": "column",
-      "language": "sql",
-      "name": "parent_id",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UUID"
-      }
-    },
-    {
-      "id": "pg:public.public.work_queue.issue_type",
-      "kind": "column",
-      "language": "sql",
-      "name": "issue_type",
+      "name": "status",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21254,10 +21224,25 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.assignee",
+      "id": "pg:public.public.work_queue.result",
       "kind": "column",
       "language": "sql",
-      "name": "assignee",
+      "name": "result",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "JSONB"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.error_message",
+      "kind": "column",
+      "language": "sql",
+      "name": "error_message",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21269,10 +21254,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.closed_at",
+      "id": "pg:public.public.work_queue.created_at",
       "kind": "column",
       "language": "sql",
-      "name": "closed_at",
+      "name": "created_at",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21284,10 +21269,10 @@
       }
     },
     {
-      "id": "pg:public.public.work_queue.close_reason",
+      "id": "pg:public.public.work_queue.started_at",
       "kind": "column",
       "language": "sql",
-      "name": "close_reason",
+      "name": "started_at",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21295,14 +21280,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TIMESTAMPTZ"
       }
     },
     {
-      "id": "pg:public.public.work_queue.metadata",
+      "id": "pg:public.public.work_queue.completed_at",
       "kind": "column",
       "language": "sql",
-      "name": "metadata",
+      "name": "completed_at",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21310,14 +21295,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "JSONB"
+        "type": "TIMESTAMPTZ"
       }
     },
     {
-      "id": "pg:public.public.work_queue.agent_requirements",
+      "id": "pg:public.public.work_queue.deadline",
       "kind": "column",
       "language": "sql",
-      "name": "agent_requirements",
+      "name": "deadline",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21325,7 +21310,52 @@
       },
       "tags": [],
       "signatures": {
-        "type": "JSONB"
+        "type": "TIMESTAMPTZ"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.attempt_count",
+      "kind": "column",
+      "language": "sql",
+      "name": "attempt_count",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.max_attempts",
+      "kind": "column",
+      "language": "sql",
+      "name": "max_attempts",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.work_queue.IF",
+      "kind": "column",
+      "language": "sql",
+      "name": "IF",
+      "file": "001_core_schema.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "NOT EXISTS labels TEXT[]"
       }
     },
     {
@@ -21458,7 +21488,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -21477,21 +21507,6 @@
       }
     },
     {
-      "id": "pg:public.public.agent_sessions.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.agent_sessions.capabilities",
       "kind": "column",
       "language": "sql",
@@ -21503,7 +21518,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -21552,10 +21567,10 @@
       }
     },
     {
-      "id": "pg:public.public.agent_sessions.delegated_from",
+      "id": "pg:public.public.agent_sessions.IF",
       "kind": "column",
       "language": "sql",
-      "name": "delegated_from",
+      "name": "IF",
       "file": "001_core_schema.sql",
       "span": {
         "start": 1,
@@ -21563,22 +21578,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.agent_sessions.phase_archetype",
-      "kind": "column",
-      "language": "sql",
-      "name": "phase_archetype",
-      "file": "001_core_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
+        "type": "NOT EXISTS delegated_from TEXT"
       }
     },
     {
@@ -21745,10 +21745,10 @@
       }
     },
     {
-      "id": "pg:public.public.handoff_documents.enable",
+      "id": "pg:public.public.handoff_documents.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "002_handoff_documents.sql",
       "span": {
         "start": 1,
@@ -21756,22 +21756,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.handoff_documents.supervisor_record",
-      "kind": "column",
-      "language": "sql",
-      "name": "supervisor_record",
-      "file": "002_handoff_documents.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "JSONB"
+        "type": "NOT EXISTS supervisor_record JSONB"
       }
     },
     {
@@ -21904,7 +21889,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -21919,7 +21904,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -21950,21 +21935,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.memory_episodic.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "004_memory_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -22131,21 +22101,6 @@
       }
     },
     {
-      "id": "pg:public.public.changesets.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "005_verification_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.verification_results",
       "kind": "table",
       "language": "sql",
@@ -22200,7 +22155,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_tier"
       }
     },
     {
@@ -22215,7 +22170,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_executor"
       }
     },
     {
@@ -22230,7 +22185,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_status"
       }
     },
     {
@@ -22324,21 +22279,6 @@
       }
     },
     {
-      "id": "pg:public.public.verification_results.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "005_verification_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.verification_policies",
       "kind": "table",
       "language": "sql",
@@ -22423,7 +22363,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_tier"
       }
     },
     {
@@ -22438,7 +22378,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
+        "type": "verification_executor"
       }
     },
     {
@@ -22499,21 +22439,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.verification_policies.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "005_verification_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -22662,21 +22587,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.operation_guardrails.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "006_guardrails_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -22858,21 +22768,6 @@
       }
     },
     {
-      "id": "pg:public.public.guardrail_violations.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "006_guardrails_tables.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.agent_profiles",
       "kind": "table",
       "language": "sql",
@@ -22972,7 +22867,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -22987,7 +22882,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -23111,10 +23006,10 @@
       }
     },
     {
-      "id": "pg:public.public.agent_profiles.enable",
+      "id": "pg:public.public.agent_profiles.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "007_agent_profiles.sql",
       "span": {
         "start": 1,
@@ -23122,22 +23017,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.agent_profiles.synced_from_registry_at",
-      "kind": "column",
-      "language": "sql",
-      "name": "synced_from_registry_at",
-      "file": "007_agent_profiles.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TIMESTAMPTZ"
+        "type": "NOT EXISTS synced_from_registry_at TIMESTAMPTZ"
       }
     },
     {
@@ -23226,21 +23106,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.agent_profile_assignments.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "007_agent_profiles.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -23407,10 +23272,10 @@
       }
     },
     {
-      "id": "pg:public.public.audit_log.enable",
+      "id": "pg:public.public.audit_log.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "008_audit_log.sql",
       "span": {
         "start": 1,
@@ -23418,22 +23283,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.audit_log.delegated_from",
-      "kind": "column",
-      "language": "sql",
-      "name": "delegated_from",
-      "file": "008_audit_log.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
+        "type": "NOT EXISTS delegated_from TEXT"
       }
     },
     {
@@ -23570,21 +23420,6 @@
       }
     },
     {
-      "id": "pg:public.public.network_policies.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "009_network_policies.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.network_access_log",
       "kind": "table",
       "language": "sql",
@@ -23700,21 +23535,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.network_access_log.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "009_network_policies.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -23851,10 +23671,10 @@
       }
     },
     {
-      "id": "pg:public.public.cedar_policies.enable",
+      "id": "pg:public.public.cedar_policies.IF",
       "kind": "column",
       "language": "sql",
-      "name": "enable",
+      "name": "IF",
       "file": "010_cedar_policy_store.sql",
       "span": {
         "start": 1,
@@ -23862,22 +23682,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
-      "id": "pg:public.public.cedar_policies.policy_version",
-      "kind": "column",
-      "language": "sql",
-      "name": "policy_version",
-      "file": "010_cedar_policy_store.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "INTEGER"
+        "type": "NOT EXISTS policy_version INTEGER"
       }
     },
     {
@@ -23996,21 +23801,6 @@
       "tags": [],
       "signatures": {
         "type": "TIMESTAMPTZ"
-      }
-    },
-    {
-      "id": "pg:public.public.cedar_entities.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "010_cedar_policy_store.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
       }
     },
     {
@@ -24143,7 +23933,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "TEXT[]"
       }
     },
     {
@@ -24174,6 +23964,21 @@
       "tags": [],
       "signatures": {
         "type": "INTEGER"
+      }
+    },
+    {
+      "id": "pg:public.public.feature_registry.metadata",
+      "kind": "column",
+      "language": "sql",
+      "name": "metadata",
+      "file": "012_feature_registry.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "JSONB"
       }
     },
     {
@@ -24636,21 +24441,6 @@
       }
     },
     {
-      "id": "pg:public.public.approval_queue.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "014_fix_approval_queue_schema.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.notification_tokens",
       "kind": "table",
       "language": "sql",
@@ -24857,21 +24647,6 @@
       }
     },
     {
-      "id": "pg:public.public.issue_comments.enable",
-      "kind": "column",
-      "language": "sql",
-      "name": "enable",
-      "file": "017_issue_tracking.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UNKNOWN"
-      }
-    },
-    {
       "id": "pg:public.public.code_search_registry",
       "kind": "table",
       "language": "sql",
@@ -25005,10 +24780,10 @@
       }
     },
     {
-      "id": "pg:public.public.code_search_registry.canonical_index_id",
+      "id": "pg:public.public.code_search_registry.IF",
       "kind": "column",
       "language": "sql",
-      "name": "canonical_index_id",
+      "name": "IF",
       "file": "028_code_search_registry.sql",
       "span": {
         "start": 1,
@@ -25016,22 +24791,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "UUID"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_registry.git_common_dir_fingerprint",
-      "kind": "column",
-      "language": "sql",
-      "name": "git_common_dir_fingerprint",
-      "file": "028_code_search_registry.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
+        "type": "NOT EXISTS canonical_index_id UUID"
       }
     },
     {
@@ -25112,6 +24872,21 @@
       "kind": "column",
       "language": "sql",
       "name": "namespace_key",
+      "file": "029_revision_aware_code_search_indexes.sql",
+      "span": {
+        "start": 1,
+        "end": 1
+      },
+      "tags": [],
+      "signatures": {
+        "type": "TEXT"
+      }
+    },
+    {
+      "id": "pg:public.public.code_search_indexes.source_revision",
+      "kind": "column",
+      "language": "sql",
+      "name": "source_revision",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -25348,10 +25123,10 @@
       }
     },
     {
-      "id": "pg:public.public.code_search_indexes.policy_fingerprint",
+      "id": "pg:public.public.code_search_indexes.CONSTRAINT",
       "kind": "column",
       "language": "sql",
-      "name": "policy_fingerprint",
+      "name": "CONSTRAINT",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -25359,14 +25134,14 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
+        "type": "code_search_indexes_natural_key"
       }
     },
     {
-      "id": "pg:public.public.code_search_indexes.pipeline_fingerprint",
+      "id": "pg:public.public.code_search_indexes.IF",
       "kind": "column",
       "language": "sql",
-      "name": "pipeline_fingerprint",
+      "name": "IF",
       "file": "029_revision_aware_code_search_indexes.sql",
       "span": {
         "start": 1,
@@ -25374,37 +25149,7 @@
       },
       "tags": [],
       "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_indexes.embedder_fingerprint",
-      "kind": "column",
-      "language": "sql",
-      "name": "embedder_fingerprint",
-      "file": "029_revision_aware_code_search_indexes.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "TEXT"
-      }
-    },
-    {
-      "id": "pg:public.public.code_search_indexes.parent_index_id",
-      "kind": "column",
-      "language": "sql",
-      "name": "parent_index_id",
-      "file": "029_revision_aware_code_search_indexes.sql",
-      "span": {
-        "start": 1,
-        "end": 1
-      },
-      "tags": [],
-      "signatures": {
-        "type": "UUID"
+        "type": "NOT EXISTS policy_fingerprint TEXT"
       }
     },
     {
@@ -27545,6 +27290,20 @@
       "type": "call",
       "confidence": "high",
       "evidence": "ast:call:_with_served_local_roster"
+    },
+    {
+      "from": "py:agents_config.get_provider_model_map",
+      "to": "py:agents_config._default_archetypes_path",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:_default_archetypes_path"
+    },
+    {
+      "from": "py:agents_config.get_provider_model_map",
+      "to": "py:agents_config.load_archetypes_config",
+      "type": "call",
+      "confidence": "high",
+      "evidence": "ast:call:load_archetypes_config"
     },
     {
       "from": "py:agents_config.get_provider_model_map",

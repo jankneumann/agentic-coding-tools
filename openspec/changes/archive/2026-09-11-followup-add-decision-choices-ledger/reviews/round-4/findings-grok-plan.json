@@ -1,0 +1,87 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Task 3.2 / design F4 prescribe the zero-open validate-feature row as `\u2713 Choices: <n> entries, 0 needs-user`, and say the hook distinguishes \u25cb vs \u2713 only by testing for `choices.json` then calling `needs_user.py`. That reader returns only `needs-user` entries (or silence), so it cannot supply total entry count `n`. Neither 3.0, 3.2, nor F3 specifies another way to obtain `n` (extend the reader, inline JSON length, or drop the count from the row). As written, the documented \u2713 form is not producible from the tools the task names.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Either (a) drop `<n> entries` from the \u2713 form (e.g. `\u2713 Choices: 0 needs-user`), (b) extend `needs_user.py` with a status/count mode both gates use, or (c) explicitly instruct the validate-feature hook to read `len(entries)` from `choices.json` via a skill-relative one-liner. Update F3/F4, 3.0, 3.2, and 3.7 together.",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "line_range": {
+        "start": 107,
+        "end": 115
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Proposal, design F1, and task 3.2 all require echoing the \u26a0 Choices form under validate-feature's After Validation prompt when any `needs-user` entry is open. Task 3.7 pins the Choices row in the Step 11 sketch and Step 12 heredoc, and the \u25cb/\u2713 empty forms, but never asserts After Validation. A SKILL.md rewrite could drop that echo and still pass every 3.7 check while losing the second half of F1's named human decision point.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Extend task 3.7's validate-feature assertions to require the After Validation section to mention the \u26a0 Choices / needs-user echo path that task 3.2 already mandates.",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "line_range": {
+        "start": 229,
+        "end": 233
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "F2 and task 3.1 say Step 11.5 compares the fresh ledger's `entries` array and `schema_version` against `git show HEAD:.../choices.json`, ignoring `generated_at`, `run_id`, `git_sha`, `generator`, `event_kind`, `audited_range`, and `auditor`. In the shipped ledger document (`choices_ledger.build_document` / decision-choices schema), `schema_version`, `generated_at`, `run_id`, `git_sha`, `generator`, and `event_kind` live under `header`, not at the document root; `audited_range` and `auditor` are siblings of `entries`. The comparison contract never says `header.schema_version` or that other header fields are ignored as a group, so an implementer can look for a missing top-level `schema_version`, compare the whole `header` (always dirty), or skip the schema bump guard.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Rewrite F2 and task 3.1 to compare exactly `entries` and `header.schema_version` (parsed JSON equality), and to ignore every other top-level and header field by name. Have 3.7 assert that `header.schema_version` wording, not a bare `schema_version`.",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/design.md",
+      "line_range": {
+        "start": 111,
+        "end": 119
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "Task 3.6 lists skill-workflow.9 and .10 among its covered scenarios via `needs_user.py` reader output. Those scenarios' WHEN clauses are gate presentation in validate-feature and cleanup-feature (`stable_id`/confidence/headline at the human decision point, approve/archive semantics unchanged). The 3.6 assertions only drive the driver and call the reader in a tmp fixture; they never exercise either SKILL.md gate. This is the same overclaim class round 2 already removed for skill-workflow.2, still present for 9\u201310.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "nit",
+      "resolution": "Narrow 3.6's scenario list to skill-workflow.1, .3\u2013.7, and the reader half of .11 (and optionally reader filtering shared by 9\u201310 without citing 9\u201310 as covered). Keep gate-side 9\u201311 coverage on 3.2/3.3 + 3.7 only.",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "line_range": {
+        "start": 170,
+        "end": 197
+      },
+      "evidence_class": "deterministic"
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "Task 3.0 requires absent ledger \u2192 empty stdout for the reader, and separately `--format json` \u2192 the same entries as a JSON array. For `--format json` with an absent or unreadable ledger, empty stdout is not a JSON array, while printing `[]` would match the json-mode contract and F3's 'caller can pipe it without branching' intent. The task leaves the json empty-case under-specified relative to text mode.",
+      "disposition": "fix",
+      "axis": "compatibility",
+      "severity": "optional",
+      "resolution": "Spell the empty cases per format: text \u2192 empty stdout; json \u2192 `[]`, still exit 0 (and keep the stderr warning on unreadable input).",
+      "file_path": "openspec/changes/followup-add-decision-choices-ledger/tasks.md",
+      "line_range": {
+        "start": 45,
+        "end": 50
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}

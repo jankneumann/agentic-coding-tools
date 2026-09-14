@@ -85,14 +85,17 @@ agents:
       command: claude
       dispatch_modes:
         review:
-          args: ["--print", "--allowedTools", "Read,Grep,Glob"]
+          # --json-schema verified 2026-09-12 (claude 2.1.268 --help).
+          # Model + thinking come from archetypes.yaml reviewer/premium tier.
+          args: ["--print", "--allowedTools", "Read,Grep,Glob", "--json-schema", "@review-findings-schema"]
         alternative:
           args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash"]
         quick:
           args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash"]
       model_flag: "--model"
+      # null → review_dispatcher resolves archetypes.yaml premium for claude_code
       model: null
-      model_fallbacks: ["claude-sonnet-4-6"]
+      model_fallbacks: []
       prompt_via_stdin: true
 
   claude-remote:
@@ -111,7 +114,9 @@ agents:
       dispatch_modes:
         review:
           # Sync: --print --remote blocks and returns stdout
-          args: ["--print", "--remote", "--allowedTools", "Read,Grep,Glob"]
+          # --json-schema verified 2026-09-12 (same claude CLI as claude-local).
+          # Model + thinking come from archetypes.yaml reviewer/premium tier.
+          args: ["--print", "--remote", "--allowedTools", "Read,Grep,Glob", "--json-schema", "@review-findings-schema"]
         alternative:
           # Async: --remote without --print returns immediately
           args: ["--remote"]
@@ -129,7 +134,7 @@ agents:
           args: ["--print", "--allowedTools", "Read,Grep,Glob,Write,Edit,Bash"]
       model_flag: "--model"
       model: null
-      model_fallbacks: ["claude-sonnet-4-6"]
+      model_fallbacks: []
       prompt_via_stdin: true
     sdk:
       package: anthropic
@@ -162,14 +167,15 @@ agents:
       command: codex
       dispatch_modes:
         review:
+          # Model + thinking come from archetypes.yaml reviewer/premium tier.
           args: ["exec", "-s", "read-only"]
         alternative:
           args: ["exec", "-s", "workspace-write"]
         quick:
           args: ["exec", "-s", "workspace-write"]
       model_flag: "-m"
-      model: "gpt-5.5"
-      model_fallbacks: ["gpt-5.4", "gpt-5.4-mini"]
+      model: null
+      model_fallbacks: []
 
   codex-remote:
     type: codex
@@ -194,6 +200,7 @@ agents:
         review:
           # codex cloud exec requires --env; set CODEX_CLOUD_ENV in environment
           # All cloud exec is async — submit + poll
+          # Model + thinking come from archetypes.yaml reviewer/premium tier.
           args: ["cloud", "exec", "--env", "${CODEX_CLOUD_ENV}"]
           async: true
           poll:
@@ -214,13 +221,13 @@ agents:
             interval_seconds: 30
             timeout_seconds: 1800
       model_flag: "-m"
-      model: "gpt-5.4"
-      model_fallbacks: ["gpt-5.3-codex"]
+      model: null
+      model_fallbacks: []
     sdk:
       package: openai
       method: chat.completions.create
-      model: gpt-5.4
-      model_fallbacks: [gpt-5.4-mini]
+      model: gpt-5.6-sol
+      model_fallbacks: [gpt-5.6-terra, gpt-5.6-luna]
       api_key_env: OPENAI_API_KEY
       max_tokens: 16384
 
@@ -262,14 +269,17 @@ agents:
           # Read-only-ness comes from --mode plan (no edits), not from
           # withholding permissions. This was the only dispatch mode missing
           # the flag.
-          args: ["--mode", "plan", "--dangerously-skip-permissions"]
+          #
+          # --json-schema verified 2026-09-12 (agy 1.2.2 --help: schema string
+          # or path). Sentinel injected by CliVendorAdapter._resolve_args.
+          args: ["--mode", "plan", "--dangerously-skip-permissions", "--json-schema", "@review-findings-schema"]
         alternative:
           args: ["--mode", "accept-edits", "--dangerously-skip-permissions"]
         quick:
           args: ["--mode", "accept-edits", "--dangerously-skip-permissions"]
       model_flag: "--model"
-      model: "gemini-3.6-flash-medium"
-      model_fallbacks: ["gemini-3.6-flash-low"]
+      model: null
+      model_fallbacks: []
       prompt_via_flag: "--prompt"
 
   # ---------------------------------------------------------------------------
@@ -327,7 +337,7 @@ agents:
         quick:
           args: ["--prompt-file", "/dev/stdin", "--always-approve"]
       model_flag: "-m"
-      model: "grok-4.5"
+      model: null
       model_fallbacks: []
       prompt_via_stdin: true
 
@@ -398,8 +408,8 @@ agents:
         quick:
           args: ["-p", "--provider", "openrouter", "--approve"]
       model_flag: "--model"
-      model: "qwen/qwen3-coder"
-      model_fallbacks: ["qwen/qwen3-coder-flash"]
+      model: null
+      model_fallbacks: []
       # pi cannot serve a single request without this key; availability
       # checks fail closed on it instead of reporting the bare binary as
       # a usable vendor (issue #383).

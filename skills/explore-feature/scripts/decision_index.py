@@ -395,6 +395,16 @@ def emit_readme(output_dir: Path, capabilities: list[str]) -> None:
         "introduced them SHOULD remain untagged — they clutter the index "
         "without adding archaeological value.",
         "",
+        "**Related: the choices ledger.** `choices.json`/`choices.md` "
+        "(produced by the `audit-choices` skill, one pair per change under "
+        "`openspec/changes/<change-id>/`) are this index's independently "
+        "audited, per-change complement: implementation-time decisions an "
+        "auditor found in the diff, not decisions the implementer chose to "
+        "tag as architectural. The two stores cross-reference each other "
+        "via `<change-id>#D<n>` and never write to one another — the "
+        "ledger is read-only end to end and this index is regenerated only "
+        "from session-log `Decisions` bullets.",
+        "",
         "## How to read a capability timeline",
         "",
         "Each `<capability>.md` file is reverse-chronological (newest first). "

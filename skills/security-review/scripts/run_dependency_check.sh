@@ -145,6 +145,63 @@ _db_state() {
   echo "fresh:$age"
 }
 
+#: Paths that are not this repository's dependencies.
+#
+# `.git-worktrees/` holds transient branch checkouts — duplicate copies of
+# manifests that already exist at their real path. On the first real scan all 5
+# worktree paths were scanned and BOTH findings were attributed to a worktree
+# copy rather than to apps/kanban-viz/package-lock.json, where the vulnerable
+# dependency actually lives. The duplicates also multiplied npm audit calls until
+# registry.npmjs.org returned 429, which is what produced the non-zero exit.
+_SCAN_EXCLUDES=(
+  --exclude "**/.git-worktrees/**"
+  --exclude "**/node_modules/**"
+  --exclude "**/.venv/**"
+  --exclude "**/.uv-cache/**"
+  --exclude "**/site-packages/**"
+)
+
+_report_has_results() {
+  # Did the scan actually produce a report? That is the observable fact, and a
+  # better rule than an exit-code table: dependency-check's codes are
+  # version-specific, but "there is a parseable report with a dependencies
+  # array" is unambiguous.
+  python3 -c 'import json,sys
+try:
+    doc = json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception:
+    raise SystemExit(1)
+raise SystemExit(0 if isinstance(doc.get("dependencies"), list) else 1)' "$report_path" 2>/dev/null
+}
+
+_classify_scan_rc() {
+  # $1: the scanner exit code. Echoes "ok" or "error".
+  #
+  # A non-zero exit with a written report means the scan RAN and some analyzer
+  # failed — not that nothing was checked. Observed 2026-09-10 on this repo's
+  # first real scan: NodeAuditAnalyzer took a 429 from registry.npmjs.org,
+  # dependency-check exited 14, and a complete 1.9 MB report naming 556
+  # dependencies and a real moderate CVE (GHSA-82fw-gwwq-j7x9) was discarded as
+  # NOT CHECKED — which `--allow-degraded-pass` then turned into a clean PASS.
+  #
+  # Same conflation fixed for ZAP in e9aec674 and not carried here. The findings
+  # are real whatever the exit code says, so they flow; the non-zero exit is
+  # recorded in the message rather than erasing them.
+  if [[ "$1" -eq 0 ]]; then
+    echo "ok"
+  elif _report_has_results; then
+    echo "ok"
+  else
+    echo "error"
+  fi
+}
+
+_degraded_note() {
+  # Names the partial coverage rather than implying completeness.
+  [[ "$1" -eq 0 ]] && return
+  printf '%s' " (exit $1 — the scan completed but at least one analyzer failed, so coverage is partial; see /tmp/security-review-depcheck.log)"
+}
+
 _nvd_hint() {
   # dependency-check is invoked with --noupdate, so it needs a pre-populated NVD
   # database mounted at its data directory. With none, it exits 13 having logged
@@ -285,9 +342,9 @@ if command -v dependency-check >/dev/null 2>&1; then
     dependency-check --scan "$repo" --project "$project" --format JSON --out "$out_dir" >/tmp/security-review-depcheck.log 2>&1
     native_rc=$?
     set -e
-    if [[ $native_rc -eq 0 ]]; then
+    if [[ "$(_classify_scan_rc "$native_rc")" == "ok" ]]; then
       status="ok"
-      message="native dependency-check completed"
+      message="native dependency-check completed$(_degraded_note "$native_rc")"
     elif [[ -n "$container_runtime" ]]; then
       mode="${container_runtime}-fallback"
       set +e
@@ -300,12 +357,13 @@ if command -v dependency-check >/dev/null 2>&1; then
         --project "$project" \
         --format JSON \
         --out /report \
+        "${_SCAN_EXCLUDES[@]}" \
         --noupdate >/tmp/security-review-depcheck.log 2>&1
       runtime_rc=$?
       set -e
-      if [[ $runtime_rc -eq 0 ]]; then
+      if [[ "$(_classify_scan_rc "$runtime_rc")" == "ok" ]]; then
         status="ok"
-        message="native dependency-check failed (exit $native_rc); $container_runtime fallback completed"
+        message="native dependency-check failed (exit $native_rc); $container_runtime fallback completed$(_degraded_note "$runtime_rc")"
       else
         status="error"
         message="native dependency-check failed (exit $native_rc); $container_runtime fallback failed (exit $runtime_rc)$(_nvd_hint)"
@@ -331,15 +389,16 @@ elif [[ -n "$container_runtime" ]]; then
       --project "$project" \
       --format JSON \
       --out /report \
+      "${_SCAN_EXCLUDES[@]}" \
       --noupdate >/tmp/security-review-depcheck.log 2>&1
     rc=$?
     set -e
-    if [[ $rc -eq 0 ]]; then
+    if [[ "$(_classify_scan_rc "$rc")" == "ok" ]]; then
       status="ok"
-      message="$container_runtime dependency-check completed"
+      message="$container_runtime dependency-check completed$(_degraded_note "$rc")"
     else
       status="error"
-      message="$container_runtime dependency-check failed (exit $rc)$(_nvd_hint)"
+      message="$container_runtime dependency-check failed to run (exit $rc)$(_nvd_hint)"
     fi
   fi
 else

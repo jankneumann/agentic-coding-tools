@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T02:48:16+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Round-2 integrated implementation review did not converge. Codex, Antigravity, and Grok supplied schema-valid reviews (18 raw findings, 14 unique, 3 confirmed, 1 disagreement); the canonical consensus records 1 blocking disagreement. Primary review independently reproduced that a newly deferred candidate leaves the mirror deferred while lifecycle_changed stays false and the persisted digest remains pending.",
+    "completed_work": [
+      "Dispatched read-only branch-wide implementation reviews to antigravity, claude_code, grok, and pi; Antigravity and Grok returned schema-valid findings, Claude timed out at 720 seconds, and Pi returned schema-invalid findings.",
+      "Combined the primary Codex review with two valid external reviews: 18 raw findings, 14 unique findings, 3 confirmed, 10 unconfirmed, and 1 disagreement.",
+      "Reproduced the future-deferral state mismatch and malformed legacy roadmap-reference failure in isolated temporary repositories.",
+      "Ran the complete supervise suite (342 passed), ruff on the runtime, strict OpenSpec validation, review schema validation, and the canonical skill install check.",
+      "Preserved the complete vendor dispatch manifest, prompt, successful findings, primary findings, and consensus under reviews/implementation/round-2/."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Return the implementation to IMPL_FIX",
+        "rationale": "The consensus gate records one blocking disagreement, and the underlying future-deferral mismatch is deterministically reproducible: unchanged reuse can render a durable deferred decision as pending indefinitely.",
+        "capability": "supervise",
+        "supersedes": null
+      },
+      {
+        "title": "Preserve bounded vendor failures as review evidence",
+        "rationale": "Claude exhausted the configured timeout and Pi failed schema validation; both failures are recorded in the manifest and were not retried outside policy. The primary plus two successful external vendors still met quorum 3/3.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Treat persisted decision drift between the record and prior digest as lifecycle change and rebuild from validated prior caches without analyst dispatch.",
+      "Document and test the non-empty --force reuse branch so the host calls rank without scores before dispatching an analyst.",
+      "Validate refine-roadmap roadmap_ref during legacy durable-record sanitization so malformed historical data cannot block mirror recovery.",
+      "Evaluate the non-blocking terminal re-admission and missing-cache reuse findings while touching the same lifecycle/reuse surfaces.",
+      "Refresh installed supervise runtime copies before validation, then rerun focused tests and IMPL_REVIEW."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/implementation/round-2/review-findings-implementation.json",
+        "description": "primary reviewer findings with isolated reproductions"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/implementation/round-2/consensus-implementation.json",
+        "description": "three-reviewer consensus with one blocking disagreement"
+      },
+      {
+        "path": "openspec/changes/add-supervisor-candidate-work-digest/reviews/implementation/round-2/vendor/review-manifest.json",
+        "description": "external vendor dispatch evidence and bounded failure classes"
+      },
+      {
+        "path": "skills/supervise/scripts/digest.py",
+        "description": "decision lifecycle and force reuse behavior requiring targeted fixes"
+      },
+      {
+        "path": "skills/supervise/scripts/cycle_state.py",
+        "description": "legacy durable-record sanitization requiring roadmap reference validation"
+      },
+      {
+        "path": "skills/supervise/SKILL.md",
+        "description": "host procedure missing the explicit non-empty force-cache reuse branch"
+      }
+    ]
+  }
+}

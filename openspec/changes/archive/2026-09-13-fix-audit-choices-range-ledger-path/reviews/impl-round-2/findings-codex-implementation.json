@@ -1,0 +1,55 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/audit-choices/scripts/run_audit.py",
+      "line_range": {
+        "start": 152,
+        "end": 164
+      },
+      "package_id": "whole-branch",
+      "description": "Critical: range audits reserve `openspec/choices/<run-id>/` before evidence collection or document validation, so any later internal error returns `ok=False` but leaves an empty run directory behind. That directory is a fourth side effect outside D6's closed write set and `list_active_runs` will count it as a run even though no ledger pair was written.",
+      "resolution": "Move the atomic reservation as late as possible, just before writing the ledger pair, and clean up the reserved directory on any failure before `choices.json` is written; add a range-form internal-error test that asserts no run directory remains."
+    },
+    {
+      "id": 2,
+      "type": "compatibility",
+      "criticality": "medium",
+      "axis": "compatibility",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/audit-choices/scripts/run_audit.py",
+      "line_range": {
+        "start": 149,
+        "end": 181
+      },
+      "package_id": "whole-branch",
+      "description": "Critical: change-id audits now resolve `generated_at` and `git_sha` before `collect_evidence()`, while main resolved them after evidence processing immediately before writing. For ordinary change-id runs without explicit `now`/`git_sha`, a slow evidence pass or moving HEAD can produce different header bytes, violating the stated byte-for-byte unchanged contract for the change-id form.",
+      "resolution": "Branch the routing: for non-range change ids keep the old order and resolve `now`/`git_sha` after evidence processing; only range audits need those values early to reserve the dated output directory."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "low",
+      "axis": "correctness",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "skills/tests/audit-choices/test_skill_md.py",
+      "line_range": {
+        "start": 69,
+        "end": 88
+      },
+      "package_id": "whole-branch",
+      "description": "Nit: the D6 SKILL.md assertions only check for `openspec/choices/` and `openspec/choices/archive/`. They would still pass if the Read-Only Contract, Red Flags, or Output section stopped naming `latest.json` and `latest.md`, even though scenarios 12 and 15 require those latest pointers explicitly.",
+      "resolution": "Assert the exact required destination tokens in each relevant section: `choices.json`, `choices.md`, `latest.json`, `latest.md`, and `openspec/choices/archive/`."
+    }
+  ]
+}

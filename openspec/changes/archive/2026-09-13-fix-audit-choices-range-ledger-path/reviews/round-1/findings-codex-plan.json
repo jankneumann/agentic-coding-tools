@@ -1,0 +1,37 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "openspec/specs/skill-workflow/spec.md",
+      "line_range": {
+        "start": 5623,
+        "end": 5640
+      },
+      "description": "Critical: The delta only modifies `Choices audit workflow integration`, but the canonical `Independent read-only choices audit` requirement still says the auditor MUST NOT modify anything outside `openspec/changes/<change-id>/choices.json` and `choices.md`; the planned range output under `openspec/choices/` would still violate this unmodified requirement.",
+      "resolution": "Add a MODIFIED requirement for `Independent read-only choices audit` that distinguishes change-id audits from standalone range audits and explicitly permits the three D6 range effects, with a matching scenario or updated existing scenario. If standalone range ledgers are intended to satisfy `Choices ledger artifact pair`, update that requirement too so it no longer describes all ledgers as per-change-only."
+    },
+    {
+      "id": 2,
+      "type": "observability",
+      "criticality": "medium",
+      "axis": "observability",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "openspec/changes/fix-audit-choices-range-ledger-path/tasks.md",
+      "line_range": {
+        "start": 192,
+        "end": 206
+      },
+      "description": "Nit: Task 5.2 requires retention failure to log a warning, but its test assertion only checks `ok is True`, paths, and the pair on disk; an implementation could silently swallow retention failures and still pass.",
+      "resolution": "Extend the monkeypatched-retention-failure test to assert that a warning log/message is emitted and names the retention failure, while still confirming the successful ledger write remains reported as `ok=True`."
+    }
+  ]
+}

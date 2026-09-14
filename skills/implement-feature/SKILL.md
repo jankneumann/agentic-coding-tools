@@ -254,7 +254,7 @@ openspec status --change "<change-id>"
 ##### Archetype Resolution (Phase 2)
 
 Before dispatching implementation agents, resolve the archetype model. This enables
-complexity-based escalation from Sonnet to Opus for large work packages:
+complexity-based escalation from standard to frontier/premium tier for large work packages:
 
 ```python
 import sys
@@ -289,7 +289,7 @@ When tasks.md contains 3+ **independent tasks** (no shared files), implement con
 ```
 Task(
   subagent_type="general-purpose",
-  model=impl_model,  # archetype: implementer (sonnet, or opus if escalated)
+  model=impl_model,  # archetype: implementer (standard tier; frontier/premium on escalation)
   description="Implement task N: <brief>",
   prompt="You are implementing OpenSpec <change-id>, Task N.
 **Your Task**
@@ -339,7 +339,7 @@ For each package whose dependencies are satisfied, dispatch via Agent tool:
 ```
 Task(
   subagent_type="general-purpose",
-  model=impl_model,  # archetype: implementer (sonnet, or opus if escalated)
+  model=impl_model,  # archetype: implementer (standard tier; frontier/premium on escalation)
   description="Implement <package-id>",
   prompt="You are implementing work package <package-id> for OpenSpec <change-id>.
 

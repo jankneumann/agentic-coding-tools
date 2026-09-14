@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-12T13:40:55.217736+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "grok",
+    "session_id": null,
+    "summary": "Implemented packed review packets, concurrent dispatch_and_wait, and verify-then-wire structured-output flags. Two 2s stub vendors overlap at ~2.0s. Claude and Antigravity gained --json-schema; Codex --output-schema was verified but not wired (file path vs inline sentinel).",
+    "completed_work": [
+      "review_packet.py + schema tests",
+      "converge() packed prompt",
+      "concurrent dispatch_and_wait + snapshot fallback",
+      "structured-output probe table and agents.yaml wiring",
+      "packet-plus-concurrency fixture"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Packet markdown is the dispatch prompt",
+        "rationale": "converge() builds review_packet.py output and passes the body as prompt; packet_path is optional kwargs.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Thread pool concurrent dispatch with async submit-then-poll",
+        "rationale": "D2: wall clock is max(vendor). Async vendors must not submit+poll one-by-one.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "Wire only empirically verified schema flags",
+        "rationale": "Claude and agy accept --json-schema; Codex needs a file path the sentinel cannot supply; pi --mode json is NDJSON.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "validate-feature pack-and-parallelize-vendor-review",
+      "optional live p50 measurement"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_packet.py",
+        "description": "Packet builder"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+        "description": "Concurrent dispatch"
+      },
+      {
+        "path": "skills/autopilot/scripts/convergence_loop.py",
+        "description": "Packet passed as review prompt"
+      },
+      {
+        "path": "agent-coordinator/agents.yaml",
+        "description": "Verified --json-schema flags"
+      }
+    ]
+  }
+}

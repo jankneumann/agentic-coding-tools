@@ -220,7 +220,7 @@ This changes the review persona to challenge design decisions rather than just c
 
 ### 6. Produce Findings
 
-Generate findings as JSON conforming to `review-findings.schema.json`:
+Generate findings as JSON conforming to `review-findings.schema.json`. Required fields and enums MUST match `review_findings_schema.prompt_contract()` (include `axis` and `severity`):
 
 ```json
 {

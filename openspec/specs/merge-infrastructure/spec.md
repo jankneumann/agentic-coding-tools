@@ -139,12 +139,18 @@ AND return within 1 second
 
 ### Requirement: Merge Plan Persistence and Projection
 
-Merge plan storage SHALL select a tier using the existing merge-backend detection so the
-coordinator is never a hard dependency. In the absence of an available coordinator, the
-local `merge-plan.json` file SHALL be the authoritative store of plan state. The
-human-readable `merge-plan.md` SHALL always be a faithful projection of the authoritative
-`merge-plan.json` — rendering it SHALL NOT change plan state, and every node present in the
-JSON SHALL appear in the projection.
+Merge plan storage SHALL select a tier using the existing merge-backend
+detection so the coordinator is never a hard dependency. In the absence of an
+available coordinator, the local `merge-plan.json` file SHALL be the
+authoritative store of plan state. The human-readable `merge-plan.md` SHALL
+always be a faithful projection of the authoritative `merge-plan.json` —
+rendering it SHALL NOT change plan state, and every node present in the JSON
+SHALL appear in the projection.
+
+Schema version `1.1` SHALL add definition fields `kind`, `change_id`, and
+`remediation_skill` without collapsing the definition/live-state split. Live
+state MAY record a compact/resume pointer after a successful merge; adding that
+pointer SHALL NOT rewrite definition fields.
 
 #### Scenario: File tier is authoritative when no coordinator is available
 
@@ -155,13 +161,19 @@ JSON SHALL appear in the projection.
 #### Scenario: Rendered projection matches the authoritative JSON
 
 - **WHEN** `merge-plan.md` is rendered from `merge-plan.json`
-- **THEN** every node in the JSON SHALL appear in the projection with its current `outcome`
+- **THEN** every node in the JSON SHALL appear in the projection with its current `outcome`, `kind`, and `remediation_skill`
 - **AND** rendering SHALL NOT mutate the authoritative plan state
 
 #### Scenario: Plan state is separated into definition and live fields
 
 - **WHEN** a plan is persisted
-- **THEN** definition fields (PR set, dependency edges, strategy, gate rules) SHALL be
-  distinguishable from live-state fields (`outcome`, in-flight claim, vendor verdict, inserted blockers)
+- **THEN** definition fields (PR set, dependency edges, strategy, gate rules, kind, change_id, remediation_skill) SHALL be distinguishable from live-state fields (`outcome`, in-flight claim, vendor verdict, inserted blockers, compact/resume pointer)
 - **AND** a live-state update SHALL NOT require rewriting the definition fields
+
+<!-- Scenario ID: merge-infrastructure.schema-1-1-kind-fields -->
+#### Scenario: Schema 1.1 round-trips kind fields
+
+- **WHEN** a plan node is written with `kind`, `change_id`, and `remediation_skill`
+- **THEN** a subsequent load SHALL validate against schema version `1.1`
+- **AND** SHALL round-trip those fields without dropping them
 

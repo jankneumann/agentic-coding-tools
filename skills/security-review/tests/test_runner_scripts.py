@@ -654,3 +654,101 @@ def test_an_explicit_override_wins_over_the_pin(tmp_path: Path) -> None:
                          env=env, check=True).stdout.strip()
     assert out.startswith("ghcr.io/zaproxy/zaproxy:stable@sha256:"), out
 
+
+def _write_report(out_dir: Path, dependencies: list | None = None) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "dependency-check-report.json").write_text(
+        json.dumps({"scanInfo": {}, "dependencies": dependencies or []}), encoding="utf-8"
+    )
+
+
+def test_a_completed_scan_is_not_discarded_because_an_analyzer_failed(tmp_path: Path) -> None:
+    """The finding that motivated this.
+
+    On this repo's first real scan, NodeAuditAnalyzer took a 429 from
+    registry.npmjs.org. dependency-check exited 14 having written a complete
+    1.9 MB report naming 556 dependencies and a real moderate CVE
+    (GHSA-82fw-gwwq-j7x9). The wrapper mapped any non-zero exit to `error`, the
+    gate turned that into NOT CHECKED, and `--allow-degraded-pass` turned NOT
+    CHECKED into a clean PASS. A scan that found a real vulnerability reported as
+    a pass with zero findings.
+    """
+    data_dir = tmp_path / "nvd"
+    _seed_db(data_dir, age_days=1)
+    out_dir = tmp_path / "out"
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir(exist_ok=True)
+    _write_executable(fake_bin / "docker", "#!/usr/bin/env bash\nexit 1\n")
+    # A runtime that writes a real report and then exits non-zero, exactly as
+    # dependency-check does when one analyzer fails.
+    _write_executable(
+        fake_bin / "podman",
+        f"""#!/usr/bin/env bash
+if [[ "${{1:-}}" == "info" ]]; then exit 0; fi
+mkdir -p "{out_dir}"
+cat > "{out_dir}/dependency-check-report.json" <<'JSON'
+{{"scanInfo": {{}}, "dependencies": [{{"fileName": "vitest:3.2.7", "vulnerabilities": [{{"name": "GHSA-82fw-gwwq-j7x9", "severity": "moderate"}}]}}]}}
+JSON
+exit 14
+""",
+    )
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
+    env["DEPENDENCY_CHECK_DATA_DIR"] = str(data_dir)
+
+    result = subprocess.run(
+        ["bash", str(SCRIPTS_DIR / "run_dependency_check.sh"),
+         "--repo", str(tmp_path), "--out", str(out_dir)],
+        capture_output=True, text=True, env=env, check=False,
+    )
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ok", (
+        "a scan that wrote a report ran; only a scan that wrote nothing did not"
+    )
+    assert "exit 14" in payload["message"] and "partial" in payload["message"], (
+        "the degraded coverage must be stated, not silently upgraded to a clean pass"
+    )
+
+
+def test_a_scan_that_wrote_nothing_is_still_an_error(tmp_path: Path) -> None:
+    """The control. Without it the rule above could pass by calling everything ok."""
+    data_dir = tmp_path / "nvd"
+    _seed_db(data_dir, age_days=1)
+    payload, _ = _depcheck(
+        tmp_path,
+        ["--repo", str(tmp_path), "--out", str(tmp_path / "out")],
+        {"DEPENDENCY_CHECK_DATA_DIR": str(data_dir)},
+        runtime_exit=14,
+    )
+    assert payload["status"] == "error"
+    assert "failed to run" in payload["message"]
+
+
+def test_the_scan_excludes_install_and_worktree_paths(tmp_path: Path) -> None:
+    """`.git-worktrees/` holds duplicate manifests at paths nothing should report.
+
+    On the first real scan, both findings were attributed to a worktree copy
+    rather than to `apps/kanban-viz/package-lock.json` where the vulnerable
+    dependency actually lives — and the duplicate lockfiles multiplied npm audit
+    calls until the registry returned 429, which is what produced the non-zero
+    exit in the first place. Excluding install state removed 554 of 556 scanned
+    paths (313 .uv-cache wheels, 241 node_modules, 2 worktree copies) and lost
+    no findings: those are local build artifacts, not repository content.
+    """
+    data_dir = tmp_path / "nvd"
+    _seed_db(data_dir, age_days=1)
+    _depcheck(
+        tmp_path,
+        ["--repo", str(tmp_path), "--out", str(tmp_path / "out")],
+        {"DEPENDENCY_CHECK_DATA_DIR": str(data_dir)},
+    )
+    argv = (tmp_path / "podman-argv").read_text(encoding="utf-8")
+    for pattern in (
+        "**/.git-worktrees/**",
+        "**/node_modules/**",
+        "**/.venv/**",
+        "**/.uv-cache/**",
+    ):
+        assert pattern in argv, f"{pattern} is not excluded from the scan"
+

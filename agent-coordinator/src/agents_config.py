@@ -73,61 +73,42 @@ DEFAULT_LOCAL_HOST_CLASS: dict[str, Any] = {
 }
 _REVIEWED_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-# Tier entries are either a bare model-id string or {"model": ..., "thinking": ...}.
-# Thinking level is part of the model definition, not a dispatch afterthought:
-# it shifts both cost and capability enough that a standard model at xhigh
-# thinking can out-cost a premium model at medium. Cost-per-successful-task
-# tuning happens by editing these entries — never by editing tests, which must
-# derive expectations from this map / archetypes.yaml rather than literals.
+# Emergency fallback ONLY — used when archetypes.yaml cannot be loaded.
+# The authored tier→model map lives solely in archetypes.yaml::model_aliases.
+# get_provider_model_map() prefers that YAML; do not edit roster values here
+# to "keep in sync". Tests must derive expectations from the loaded YAML.
 DEFAULT_PROVIDER_MODEL_MAP: dict[str, Any] = {
     "schema_version": 2,
     "tiers": list(ALL_MODEL_TIERS),
     "providers": {
         "claude_code": {
             "frontier": "fable",
-            "premium": "opus",
+            "premium": {"model": "fable", "thinking": "medium"},
             "standard": "sonnet",
             "economy": "haiku",
         },
         "codex": {
             "frontier": {"model": "gpt-5.6-sol", "thinking": "xhigh"},
-            "premium": {"model": "gpt-5.6-sol", "thinking": "medium"},
+            "premium": {"model": "gpt-5.6-sol", "thinking": "high"},
             "standard": "gpt-5.6-terra",
             "economy": "gpt-5.6-luna",
         },
-        # Roster per contracts/roster.md; tier slugs resolved empirically in
-        # Phase 1 (design.md § Empirical CLI findings, E1/E5/E8) and signed off
-        # by the operator at checkpoint 1.4 (2026-07-23).
         "antigravity": {
-            # agy `models` catalog (E1); one model across three effort levels.
-            # Effort is baked into the slug suffix, not a separate flag.
-            # `frontier` omitted — falls back to premium (operator, 2026-07-23).
-            "premium": "gemini-3.6-flash-high",
+            "premium": "gemini-3.8-flash-high",
             "standard": "gemini-3.6-flash-medium",
             "economy": "gemini-3.6-flash-low",
         },
         "grok": {
-            # Single model `grok-4.5` (E5); tiers differ only by thinking budget,
-            # translated to `--reasoning-effort` by the dispatching adapter.
             "premium": {"model": "grok-4.5", "thinking": "high"},
             "standard": {"model": "grok-4.5", "thinking": "medium"},
             "economy": {"model": "grok-4.5", "thinking": "low"},
         },
         "pi": {
-            # OpenRouter `<publisher>/<model>` slugs (spec configuration.2).
-            # `standard` fixed to qwen/qwen3-coder by roadmap ri-01; frontier is
-            # Kimi 3 (E8). premium/economy stay in the qwen3-coder family.
             "frontier": "moonshotai/kimi-k3",
-            "premium": "qwen/qwen3-coder-plus",
+            "premium": "nvidia/nemotron-3-ultra-550b-a55b",
             "standard": "qwen/qwen3-coder",
             "economy": "qwen/qwen3-coder-flash",
         },
-        # Always-on local host (GB10 class). This is the tier -> model-id view
-        # of `model_aliases.local` in archetypes.yaml; the parameter metadata
-        # and operator review date live there, where startup validation
-        # enforces the MoE-first hardware rule (D4). `frontier`/`premium` are
-        # deliberately omitted — they degrade to the best defined tier. Keep
-        # both in sync; a test asserts the two rosters agree.
         "local": {
             "standard": "gpt-oss-120b",
             "economy": "qwen3-coder-30b-a3b",
@@ -2212,7 +2193,31 @@ def _normalize_provider_model_map(raw_map: dict[str, Any] | None) -> dict[str, A
 
 
 def get_provider_model_map() -> dict[str, Any]:
-    """Return the currently loaded provider model map or defaults."""
+    """Return the authored provider model map from ``archetypes.yaml``.
+
+    Loads ``archetypes.yaml`` on first access when the cache is cold so
+    callers never silently use the embedded emergency fallback while the
+    YAML file is present. The emergency ``DEFAULT_PROVIDER_MODEL_MAP`` is
+    returned only when the YAML path is missing or fails to load.
+    """
+    global _provider_model_map
+    if _provider_model_map is None:
+        path = _default_archetypes_path()
+        if path.exists():
+            try:
+                load_archetypes_config(path)
+            except Exception:  # noqa: BLE001 — fall back loudly
+                logger.exception(
+                    "Failed to load archetypes.yaml from %s; using emergency "
+                    "DEFAULT_PROVIDER_MODEL_MAP",
+                    path,
+                )
+        else:
+            logger.warning(
+                "archetypes.yaml not found at %s — using emergency "
+                "DEFAULT_PROVIDER_MODEL_MAP",
+                path,
+            )
     if _provider_model_map is None:
         return _normalize_provider_model_map(None)
     return _provider_model_map

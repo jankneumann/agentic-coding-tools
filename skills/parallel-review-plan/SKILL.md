@@ -233,7 +233,7 @@ If `CAN_HANDOFF=true`, write a review handoff with:
 
 After writing your own findings, dispatch reviews to other vendor CLIs and synthesize consensus.
 
-**Write the review prompt** to `openspec/changes/<change-id>/reviews/review-prompt.md` — include instructions to read the plan artifacts and output only valid JSON conforming to `review-findings.schema.json`.
+**Write the review prompt** to `openspec/changes/<change-id>/reviews/review-prompt.md` — include instructions to read the plan artifacts and output only valid JSON conforming to `review-findings.schema.json`. The required-field list and enums MUST come from `review_findings_schema.prompt_contract()` / `prompt_contract_block()` — do not hand-copy the field list.
 
 **Adversarial mode**: If `--adversarial` flag was passed, wrap the review prompt with adversarial framing before dispatch:
 

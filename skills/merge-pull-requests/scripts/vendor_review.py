@@ -224,15 +224,9 @@ def _finding_contract() -> tuple[tuple[str, ...], dict[str, tuple[str, ...]]]:
         )
         if str(dispatcher_dir) not in sys.path:
             sys.path.insert(0, str(dispatcher_dir))
-        from review_findings_schema import finding_item_schema
+        from review_findings_schema import prompt_contract
 
-        item = finding_item_schema()
-        required = tuple(item.get("required") or ())
-        enums = {
-            name: tuple(spec["enum"])
-            for name, spec in (item.get("properties") or {}).items()
-            if isinstance(spec, dict) and spec.get("enum")
-        }
+        required, enums = prompt_contract()
         if required and enums:
             return required, enums
     except Exception:  # noqa: BLE001 - prompt must build even if the schema moves

@@ -33,11 +33,13 @@
     "last_digest_at": "2026-08-31T23:15:00Z",
     "last_fingerprint": "sha256:supervisor-record-fixture",
     "digested_stubs": [{
-      "stub_key": "change:extend-handoff-document-with-supervisor-record",
+      "stub_key": "change:add-extend-handoff-document-with-supervisor-record",
       "rank": 1,
       "decision": "approved",
       "decided_at": "2026-08-31T23:20:00Z",
-      "suggested_change_id": "extend-handoff-document-with-supervisor-record"
+      "suggested_change_id": "add-extend-handoff-document-with-supervisor-record",
+      "route": "plan-roadmap",
+      "roadmap_ref": null
     }]
   }
 }

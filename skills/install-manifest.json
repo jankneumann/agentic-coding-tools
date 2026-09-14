@@ -40,11 +40,15 @@
     "bao-vault": [
       "langfuse"
     ],
+    "bug-scrub": [
+      "shared"
+    ],
     "changelog-version": [
       "shared",
       "worktree"
     ],
     "cleanup-feature": [
+      "audit-choices",
       "coordination-bridge",
       "explore-feature",
       "merge-pull-requests",
@@ -66,6 +70,9 @@
     "fix-scrub": [
       "worktree"
     ],
+    "improve-harness": [
+      "shared"
+    ],
     "implement-feature": [
       "coordination-bridge",
       "coordinator-task-status-renderer",
@@ -75,6 +82,7 @@
       "worktree"
     ],
     "iterate-on-implementation": [
+      "audit-choices",
       "coordination-bridge",
       "parallel-infrastructure",
       "worktree"
@@ -104,9 +112,13 @@
     ],
     "plan-roadmap": [
       "parallel-infrastructure",
+      "refine-roadmap",
       "roadmap-runtime",
       "shared",
       "worktree"
+    ],
+    "prioritize-proposals": [
+      "shared"
     ],
     "project-context-refresh": [
       "validate-packages"
@@ -152,6 +164,7 @@
       "shared"
     ],
     "validate-feature": [
+      "audit-choices",
       "coordination-bridge",
       "refresh-architecture",
       "security-review",
@@ -186,6 +199,9 @@
       "distribution": "portable"
     },
     "archive-roadmap": {
+      "distribution": "portable"
+    },
+    "audit-choices": {
       "distribution": "portable"
     },
     "autopilot": {

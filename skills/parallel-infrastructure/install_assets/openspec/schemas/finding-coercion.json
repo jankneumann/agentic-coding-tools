@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "type_aliases": {
+    "bug": "correctness",
+    "logic": "correctness",
+    "defect": "correctness",
+    "error": "correctness",
+    "functional": "correctness",
+    "vulnerability": "security",
+    "vuln": "security",
+    "perf": "performance",
+    "efficiency": "performance",
+    "lint": "style",
+    "formatting": "style",
+    "convention": "style",
+    "design": "architecture",
+    "structure": "architecture",
+    "completeness": "architecture",
+    "testability": "correctness",
+    "clarity": "style",
+    "feasibility": "architecture",
+    "scope": "architecture",
+    "consistency": "correctness",
+    "parallelizability": "architecture",
+    "assumptions": "architecture"
+  },
+  "axis_aliases": {
+    "completeness": "architecture",
+    "testability": "correctness",
+    "clarity": "readability",
+    "feasibility": "architecture",
+    "scope": "architecture",
+    "consistency": "correctness",
+    "parallelizability": "architecture",
+    "assumptions": "architecture",
+    "bug": "correctness",
+    "lint": "readability"
+  },
+  "severity_from_criticality": {
+    "critical": "critical",
+    "high": "critical",
+    "medium": "nit",
+    "low": "optional"
+  },
+  "criticality_from_severity": {
+    "critical": "critical",
+    "nit": "medium",
+    "optional": "low",
+    "fyi": "low",
+    "none": "low"
+  }
+}

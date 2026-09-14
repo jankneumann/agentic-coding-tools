@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import sys
 from pathlib import Path
@@ -69,10 +70,12 @@ class TestSupervisorRecordFixtures:
     def test_full_record_fixture_validates(
         self, fixture_name: str, full_schema: dict
     ) -> None:
-        _validator(full_schema).validate(_load_json(FIXTURE_DIR / fixture_name))
+        record = _load_json(FIXTURE_DIR / fixture_name)
+        _validator(full_schema).validate(record)
 
     def test_mirror_fixture_validates(self, mirror_schema: dict) -> None:
-        _validator(mirror_schema).validate(_load_json(FIXTURE_DIR / "mirror.json"))
+        record = _load_json(FIXTURE_DIR / "mirror.json")
+        _validator(mirror_schema).validate(record)
 
     def test_pending_gate_without_deadline_is_rejected(self, full_schema: dict) -> None:
         fixture = _load_json(FIXTURE_DIR / "invalid-missing-deadline.json")
@@ -88,7 +91,8 @@ class TestSupervisorRecordFixtures:
         handoff = _load_json(FIXTURE_DIR / "handoff-with-record.json")
         full_record = _load_json(FIXTURE_DIR / "full.json")
         assert handoff["supervisor_record"] == full_record
-        _validator(full_schema).validate(handoff["supervisor_record"])
+        record = copy.deepcopy(handoff["supervisor_record"])
+        _validator(full_schema).validate(record)
 
 
 def test_runtime_schema_source_survives_change_archival() -> None:

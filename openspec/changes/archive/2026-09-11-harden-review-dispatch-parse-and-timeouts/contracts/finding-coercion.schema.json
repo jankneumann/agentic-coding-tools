@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/finding-coercion.schema.json",
+  "title": "Review finding coercion table",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "type_aliases", "axis_aliases", "severity_from_criticality", "criticality_from_severity"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "type_aliases": {
+      "type": "object",
+      "description": "Maps illegal or informal type strings onto review-findings type enums.",
+      "additionalProperties": {
+        "type": "string",
+        "enum": [
+          "spec_gap",
+          "contract_mismatch",
+          "architecture",
+          "security",
+          "performance",
+          "style",
+          "correctness",
+          "observability",
+          "compatibility",
+          "resilience",
+          "behavioral_failure"
+        ]
+      }
+    },
+    "axis_aliases": {
+      "type": "object",
+      "description": "Maps informal axis or misplaced type strings onto review-findings axis enums. completeness → architecture, testability → correctness.",
+      "additionalProperties": {
+        "type": "string",
+        "enum": [
+          "correctness",
+          "readability",
+          "architecture",
+          "security",
+          "performance",
+          "observability",
+          "resilience",
+          "compatibility"
+        ]
+      }
+    },
+    "severity_from_criticality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["critical", "high", "medium", "low"],
+      "properties": {
+        "critical": { "type": "string", "const": "critical" },
+        "high": { "type": "string", "const": "critical" },
+        "medium": { "type": "string", "const": "nit" },
+        "low": { "type": "string", "const": "optional" }
+      }
+    },
+    "criticality_from_severity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["critical", "nit", "optional", "fyi", "none"],
+      "properties": {
+        "critical": { "type": "string", "const": "critical" },
+        "nit": { "type": "string", "const": "medium" },
+        "optional": { "type": "string", "const": "low" },
+        "fyi": { "type": "string", "const": "low" },
+        "none": { "type": "string", "const": "low" }
+      }
+    }
+  }
+}

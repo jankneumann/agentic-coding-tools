@@ -332,7 +332,13 @@ def _cli_main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("openspec/changes/add-decision-index/backfill-proposals.json"),
+        # Not inside a change directory. This defaulted to
+        # `openspec/changes/add-decision-index/`, which stopped existing when
+        # that change was archived on 2026-04-24 — so the default write target
+        # has been broken ever since. Archives are a record and should not be
+        # written into even when they do exist, so the fix is to leave the
+        # changes tree entirely rather than to resolve the archived path.
+        default=Path("docs/reports/decision-tag-backfill-proposals.json"),
         help="Output JSON proposals path.",
     )
     parser.add_argument(
