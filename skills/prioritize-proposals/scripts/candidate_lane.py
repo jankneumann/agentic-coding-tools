@@ -361,7 +361,7 @@ def render_candidate_markdown(ranking: CandidateRanking) -> str:
             [
                 f"## {item.rank}\\. {escape_inert_text(candidate['title'])}",
                 f"- **Lane**: {item.lane}",
-                f"- **Change ID**: `{escape_inert_text(item.change_id)}`",
+                f"- **Change ID**: `{item.change_id}`",
                 f"- **Status**: {'blocked' if item.blocked else 'ready'}",
                 f"- **Priority / Effort**: {candidate['priority']} / {candidate['effort']}",
                 f"- **Generator**: {escape_inert_text(generator)}",
