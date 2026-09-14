@@ -66,8 +66,15 @@ packages:
       deny: []
     context_impact:
       surfaces:
+        - capabilities
         - documentation
         - semantic_code
+      rationale:
+        apis:
+          reason: >-
+            contracts/ contains only README stating no OpenAPI/DB/event contracts;
+            listed for work-packages schema completeness, not an API surface.
+          approved_by: cleanup
     worktree:
       name: retire-skill-literal-model-hints-wp-main
       mode: isolated
