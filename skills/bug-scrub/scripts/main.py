@@ -9,10 +9,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Ensure scripts directory is on the path
+# Ensure local and shared scripts are on the path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
 
 from aggregate import aggregate
+from candidate_work import CandidateWorkCollisionError, CandidateWorkValidationError
 from bug_candidate_work import write_projection
 from collect_architecture import collect as collect_architecture
 from collect_deferred import collect as collect_deferred
@@ -115,7 +117,11 @@ def run(
         Path(candidate_work_output) if candidate_work_output
         else Path(out_dir) / "bug-scrub-candidate-work.json"
     )
-    write_projection(report, candidate_path, str(Path(out_dir) / rich_name))
+    try:
+        write_projection(report, candidate_path, str(Path(out_dir) / rich_name))
+    except (CandidateWorkCollisionError, CandidateWorkValidationError) as exc:
+        print(f"error: candidate-work sidecar not written: {exc}", file=sys.stderr)
+        return 2
     print(f"Candidate work written: {candidate_path}")
 
     # Summary

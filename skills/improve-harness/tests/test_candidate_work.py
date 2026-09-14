@@ -115,3 +115,20 @@ def test_stdout_only_cli_remains_write_free(tmp_path: Path, monkeypatch) -> None
     generate_report.main()
 
     assert not (tmp_path / "improve-harness-candidate-work.json").exists()
+
+
+def test_equal_severity_uses_affected_skill_effort_bands() -> None:
+    findings = [
+        _finding(capability_gap="One", affected_skills=["one"]),
+        _finding(capability_gap="Two", affected_skills=["one", "two"]),
+        _finding(capability_gap="Three", affected_skills=["one", "two", "three"]),
+        _finding(
+            capability_gap="Four",
+            affected_skills=["one", "two", "three", "four"],
+        ),
+    ]
+
+    candidates = project_candidate_work(findings, "reports/gaps.md")
+
+    assert [candidate["priority"] for candidate in candidates] == [2, 2, 2, 2]
+    assert [candidate["effort"] for candidate in candidates] == ["S", "M", "M", "L"]
