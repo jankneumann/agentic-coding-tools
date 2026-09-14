@@ -44,17 +44,10 @@ class CheckpointManager:
     def load(self) -> Checkpoint:
         if not self.checkpoint_path.exists():
             raise FileNotFoundError(f"No checkpoint at {self.checkpoint_path}")
-        checkpoint = load_checkpoint(self.checkpoint_path, self.repo_root)
-        # `gate_decisions` is carried as a sidecar (see `record_gate_decision`),
-        # so re-attach it on load — otherwise a resumed run would silently drop
-        # the audit trail of every gate the previous run evaluated.
-        raw = json.loads(self.checkpoint_path.read_text())
-        checkpoint.gate_decisions = list(raw.get("gate_decisions", []))
-        return checkpoint
+        return load_checkpoint(self.checkpoint_path, self.repo_root)
 
     def save(self, checkpoint: Checkpoint) -> None:
         save_checkpoint(checkpoint, self.checkpoint_path)
-        self._write_gate_decisions(checkpoint)
         logger.info(
             "Checkpoint saved: item=%s phase=%s",
             checkpoint.current_item_id,
@@ -108,19 +101,10 @@ class CheckpointManager:
         record instead was the alternative, and it would leave a blocked gate with
         no evidence that a human decision ever happened.
         """
-        decisions = list(getattr(checkpoint, "gate_decisions", None) or [])
-        decisions.append(dict(record))
-        checkpoint.gate_decisions = decisions  # type: ignore[attr-defined]
-        self.save(checkpoint)
-
-    def _write_gate_decisions(self, checkpoint: Checkpoint) -> None:
-        """Merge the sidecar into the JSON ``save_checkpoint`` just wrote."""
-        decisions = getattr(checkpoint, "gate_decisions", None)
-        if not decisions:
-            return
-        data = json.loads(self.checkpoint_path.read_text())
-        data["gate_decisions"] = list(decisions)
-        self.checkpoint_path.write_text(json.dumps(data, indent=2) + "\n")
+        current = self.load() if self.exists() else checkpoint
+        current.gate_decisions.append(dict(record))
+        self.save(current)
+        checkpoint.gate_decisions = list(current.gate_decisions)
 
     def fail_item(
         self,
