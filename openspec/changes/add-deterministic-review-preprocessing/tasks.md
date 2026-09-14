@@ -16,7 +16,7 @@ flagged in design D9 as the chained dispatcher work.
   **Dependencies**: 1.1
   **Files**: `skills/tests/parallel-infrastructure/test_review_packet_schema.py`
 
-- [ ] Checkpoint: run contract tests, review diff, verify scope
+- [x] Checkpoint: run contract tests, review diff, verify scope
 
 ## 2. Fact-check pass
 
@@ -41,7 +41,7 @@ flagged in design D9 as the chained dispatcher work.
   **Dependencies**: 2.3
   **Files**: `skills/autopilot/scripts/convergence_loop.py`, `skills/parallel-infrastructure/scripts/checkpoint_findings.py`
 
-- [ ] Checkpoint: run fact-check and convergence tests, review diff, verify scope
+- [x] Checkpoint: run fact-check and convergence tests, review diff, verify scope
 
 ## 3. OCR vendor
 
@@ -69,7 +69,7 @@ flagged in design D9 as the chained dispatcher work.
   **Dependencies**: 3.4
   **Files**: `agent-coordinator/agents.yaml`
 
-- [ ] Checkpoint: run adapter, coercion, and discovery tests, review diff, verify scope
+- [x] Checkpoint: run adapter, coercion, and discovery tests, review diff, verify scope
 
 ## 4. Packet selection and rule groups
 
@@ -99,7 +99,7 @@ flagged in design D9 as the chained dispatcher work.
   **Dependencies**: 4.4
   **Files**: `skills/parallel-infrastructure/scripts/review-rules.json`, `skills/parallel-infrastructure/install_assets/openspec/schemas/review-rules.json`
 
-- [ ] Checkpoint: run selection and rules tests, review diff, verify scope
+- [x] Checkpoint: run selection and rules tests, review diff, verify scope
 
 - [x] 4.6 Write tests for packet building with selection meta, rule groups, truncated list, v2 metadata, and preview parity (size: M)
   **Spec scenarios**: skill-workflow Review Packet As Default Input (all four scenarios), Preview Parity For File Selection
@@ -112,7 +112,7 @@ flagged in design D9 as the chained dispatcher work.
   **Dependencies**: 4.6
   **Files**: `skills/parallel-infrastructure/scripts/review_packet.py`
 
-- [ ] Checkpoint: run packet tests, review diff, verify scope
+- [x] Checkpoint: run packet tests, review diff, verify scope
 
 ## 5. Snippet anchor and line resolver
 
@@ -136,7 +136,7 @@ flagged in design D9 as the chained dispatcher work.
   **Dependencies**: 5.3
   **Files**: `openspec/schemas/review-findings.schema.json`, `skills/parallel-infrastructure/install_assets/openspec/schemas/review-findings.schema.json`
 
-- [ ] Checkpoint: run resolver and schema tests, review diff, verify scope
+- [x] Checkpoint: run resolver and schema tests, review diff, verify scope
 
 - [x] 5.5 Write dispatcher tests for resolution after validation and the `unanchored_findings` manifest count (size: S)
   **Spec scenarios**: skill-workflow Finding Coercion Before Validation (line resolution runs after validation), Review Manifest Generation
@@ -148,7 +148,7 @@ flagged in design D9 as the chained dispatcher work.
   **Dependencies**: 5.5
   **Files**: `skills/parallel-infrastructure/scripts/review_dispatcher.py`, `skills/parallel-infrastructure/scripts/checkpoint_findings.py`
 
-- [ ] Checkpoint: run dispatcher tests, review diff, verify scope
+- [x] Checkpoint: run dispatcher tests, review diff, verify scope
 
 ## 6. Matching and ledger on snippets
 
@@ -208,16 +208,16 @@ flagged in design D9 as the chained dispatcher work.
 
 ## 9. Integration
 
-- [ ] 9.1 Run the full parallel-infrastructure and autopilot suites plus `skills/install.sh --check` (size: S)
+- [x] 9.1 Run the full parallel-infrastructure and autopilot suites plus `skills/install.sh --check` (size: S)
   **Dependencies**: 2.4, 3.5, 4.7, 6.4, 7.3, 8.2
   **Files**: none
 
-- [ ] 9.2 Document the selection gate, rule sidecar, coverage, fact-check, and OCR vendor in the parallel-infrastructure and autopilot skill docs (size: S)
+- [x] 9.2 Document the selection gate, rule sidecar, coverage, fact-check, and OCR vendor in the parallel-infrastructure and autopilot skill docs (size: S)
   **Dependencies**: 9.1
   **Files**: `skills/parallel-infrastructure/SKILL.md`, `skills/autopilot/SKILL.md`, `docs/guides/workflow.md`
 
-- [ ] 9.3 Record the live fact-check precision and token delta in the validation report (size: S)
+- [x] 9.3 Record the live fact-check precision and token delta in the validation report (size: S)
   **Dependencies**: 9.1
   **Files**: `openspec/changes/add-deterministic-review-preprocessing/validation-report.md`
 
-- [ ] Checkpoint: run full suites, review diff, verify scope
+- [x] Checkpoint: run full suites, review diff, verify scope
