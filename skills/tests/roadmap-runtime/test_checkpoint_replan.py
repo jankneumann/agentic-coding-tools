@@ -12,8 +12,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import checkpoint as checkpoint_module
+
 from checkpoint import CheckpointManager
 from models import (
+    CheckpointPhase,
     Effort,
     ItemStatus,
     Roadmap,
@@ -151,3 +154,47 @@ class TestGateDecisionSidecar:
         cp = mgr.create(_make_roadmap())
         mgr.record_gate_decision(cp, {"gate": "replan_required", "outcome": "proceed"})
         assert mgr.load().gate_decisions[0]["gate"] == "replan_required"
+
+    def test_gate_decision_append_preserves_a_concurrent_checkpoint_transition(self, tmp_path):
+        """A decision evaluated from an old snapshot must not roll back later work.
+
+        This deterministically models a gate router holding a checkpoint while an
+        unrelated execution transition commits during approval-service waiting.
+        The durable authority after the append must include both changes.
+        """
+        mgr = CheckpointManager(tmp_path)
+        mgr.create(_make_roadmap())
+        pre_wait_snapshot = mgr.load()
+
+        concurrent_transition = mgr.load()
+        mgr.advance_phase(concurrent_transition, CheckpointPhase.IMPLEMENTING)
+
+        record = {"gate": "escalate_resume", "outcome": "blocked"}
+        mgr.record_gate_decision(pre_wait_snapshot, record)
+
+        reloaded = mgr.load()
+        assert reloaded.phase == CheckpointPhase.IMPLEMENTING
+        assert reloaded.gate_decisions == [record]
+
+    def test_save_publishes_gate_decisions_in_its_atomic_checkpoint_payload(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """No observer may see a newly saved checkpoint without its decision ledger."""
+        mgr = CheckpointManager(tmp_path)
+        checkpoint = mgr.create(_make_roadmap())
+        record = {"gate": "escalate_resume", "outcome": "blocked"}
+        checkpoint.gate_decisions = [record]
+        observed_payloads: list[dict] = []
+        original_save_checkpoint = checkpoint_module.save_checkpoint
+
+        def capture_atomic_payload(checkpoint_to_save, path):
+            original_save_checkpoint(checkpoint_to_save, path)
+            observed_payloads.append(json.loads(path.read_text()))
+
+        monkeypatch.setattr(checkpoint_module, "save_checkpoint", capture_atomic_payload)
+
+        mgr.save(checkpoint)
+
+        assert observed_payloads[0]["gate_decisions"] == [record]
