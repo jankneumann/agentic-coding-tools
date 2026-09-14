@@ -1,0 +1,13 @@
+diff --git a/src/reports.py b/src/reports.py
+index e69de29..3333333 100644
+--- a/src/reports.py
++++ b/src/reports.py
+@@ -20,4 +20,6 @@ def export_report(report, fmt):
+ def export_report(report, fmt):
+-    logger.info("exporting report")
++    logger.info("exporting report as %s", fmt)
+     data = render(report, fmt)
+-    return data
++    if fmt not in SUPPORTED_FORMATS:
++        raise UnsupportedFormatError(fmt)
++    return data

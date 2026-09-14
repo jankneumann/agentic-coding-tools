@@ -1,0 +1,37 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "type": "performance",
+      "criticality": "low",
+      "severity": "low",
+      "disposition": "accept",
+      "axis": "correctness",
+      "file_path": "src/retry.py",
+      "existing_code": "time.sleep(delay)",
+      "description": "The final failed attempt still sleeps delay seconds before raising RetryExhausted, wasting time with no further retry to benefit from it."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "medium",
+      "disposition": "fix",
+      "axis": "correctness",
+      "file_path": "src/retry.py",
+      "existing_code": "delay = 0.5",
+      "description": "The retry delay is hardcoded to a fixed 0.5 seconds and never increases between attempts."
+    },
+    {
+      "id": 3,
+      "type": "correctness",
+      "criticality": "high",
+      "severity": "high",
+      "disposition": "fix",
+      "axis": "correctness",
+      "file_path": "src/retry.py",
+      "existing_code": "for i in range(attempts):",
+      "description": "Off-by-one: the loop variable i is never used, and the exception path does not distinguish the last attempt from earlier ones before raising."
+    }
+  ]
+}

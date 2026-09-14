@@ -1,0 +1,26 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "severity": "high",
+      "disposition": "fix",
+      "axis": "correctness",
+      "file_path": "src/cache.py",
+      "existing_code": "return self.store.get(key)",
+      "description": "get() does not update recency order, so this cache never actually evicts least-recently-used entries despite the class name."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "low",
+      "severity": "low",
+      "disposition": "accept",
+      "axis": "correctness",
+      "file_path": "src/cache.py",
+      "existing_code": "def __init__(self, capacity):",
+      "description": "capacity still has no default value, so every call site must pass it explicitly."
+    }
+  ]
+}
