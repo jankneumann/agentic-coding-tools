@@ -414,3 +414,40 @@ agents:
       # checks fail closed on it instead of reporting the bare binary as
       # a usable vendor (issue #383).
       api_key_env: OPENROUTER_API_KEY
+
+  ocr-local:
+    type: ocr
+    profile: ocr_local
+    trust_level: 1
+    transport: mcp
+    isolation: none
+    capabilities: []
+    archetypes: [reviewer]
+    description: >-
+      Optional Open Code Review (alibaba/open-code-review) reviewer. A
+      different architecture, not a different model: deterministic file
+      selection, rule resolution, and line positioning around a single LLM
+      call, run through ocr_adapter.py rather than a general-purpose
+      coding-agent CLI (openspec/changes/add-deterministic-review-
+      preprocessing). Tier-1 only when the `ocr` binary is on PATH and an
+      LLM endpoint is configured (OCR_LLM_URL/OCR_LLM_TOKEN env, or
+      ~/.opencodereview/config.json) — see ocr_adapter.can_dispatch().
+      Absent either, discovery skips it with the standard Tier-3 line and
+      no other vendor's dispatch changes.
+    cli:
+      command: python3
+      dispatch_modes:
+        review:
+          # Path is relative to `cwd` (the reviewed worktree), which
+          # resolves correctly for this repo's own self-review — the
+          # primary use case, and the only one exercised today. A foreign
+          # target repo without this path present would fail this one
+          # dispatch (script not found) rather than a clean Tier-3 skip;
+          # review_dispatcher.py's sentinel-resolution mechanism (used for
+          # grok's --json-schema) is the fix for that, and is out of this
+          # package's scope.
+          args: ["skills/parallel-infrastructure/scripts/ocr_adapter.py"]
+      model_flag: "--model"
+      model: null
+      model_fallbacks: []
+      prompt_via_stdin: true
