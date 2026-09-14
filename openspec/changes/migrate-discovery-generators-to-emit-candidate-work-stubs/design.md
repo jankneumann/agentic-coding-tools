@@ -153,11 +153,11 @@ dereference, fetch, or execute provenance URIs.
 
 Candidate work is a separate report lane, never an input to the active-proposal score.
 Ranking and intake share one resolver that groups every exact change-ID match across
-the candidate batch, roadmap items, active OpenSpec changes, and archives. If all
-matches are terminal, the dependency is satisfied. If exactly one live match remains,
+the candidate batch, roadmap items, active OpenSpec changes, and archives. A group is satisfied only when every match is a completed roadmap item or an
+archived-completed change. If exactly one live match remains,
 it determines the outcome: an in-batch candidate creates a graph edge, a live roadmap
 item is local or external according to its roadmap, and an active change without a
-roadmap item remains unresolved. Terminal records for the same lifecycle lineage do
+roadmap item remains unresolved. Completed/archive records for the same lifecycle lineage do
 not make a unique live match ambiguous; two or more live matches do. Unknown or
 multiple-live dependencies fail intake and seed blocked status in ranking. In-batch
 dependencies create graph edges and do not by themselves mark a candidate blocked.
@@ -181,12 +181,13 @@ ri-NN in the one add request immediately before refine-roadmap preview, and omit
 priority so refine-roadmap validates the ID and assigns max+1 without collisions. Both
 modes preserve the candidate
 priority in the request rationale and assign exact change ID, actor, source, and
-rationale. The shared resolver collapses duplicate terminal lifecycle records. A uniquely live
+rationale. The shared resolver collapses duplicate completed/archive lifecycle records. A
+uniquely live
 target-roadmap item becomes its local `ri-NN`; a uniquely live item in another roadmap
-becomes `external_depends_on: ["roadmap-id:ri-NN"]`; and an all-terminal dependency is
+becomes `external_depends_on: ["roadmap-id:ri-NN"]`; and an all-completed dependency is
 recorded as `Satisfied dependency: <change-id> (completed)` in the rationale with no
-live edge. Each conversion is explicit in the preview. Unknown dependencies, active
-changes without a unique roadmap item, and multiple live matches fail before writes.
+live edge. Each conversion is explicit in the preview. Unknown dependencies, active changes without a unique roadmap item, retired-only
+failed/skipped/superseded groups, and multiple live matches fail before writes.
 
 New-roadmap mode feeds the existing validate/save/scaffold path with overwrite disabled.
 Existing-roadmap mode emits exactly one refine add operation against a freshly loaded workspace. Existing refine-roadmap behavior supplies omitted
@@ -204,7 +205,7 @@ must call this helper after ri-12 rather than maintain a second mapping.
 - Invalid mixed batch: fail before ranking; include the offending batch index.
 - Duplicate suggested IDs or a dependency cycle: fail before ranking or persistence.
 - Missing acceptance outcomes: refuse candidate intake.
-- Dependency that cannot be resolved to one unique live local/external item or an all-terminal lifecycle group: refuse and name it.
+- Dependency that cannot be resolved to one unique live local/external item or an all-completed lifecycle group: refuse and name it.
 - Existing-roadmap mutation without refine-roadmap preview/apply: unsupported.
 
 ## Test strategy
