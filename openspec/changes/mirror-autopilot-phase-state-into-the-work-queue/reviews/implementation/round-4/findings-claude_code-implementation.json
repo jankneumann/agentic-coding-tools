@@ -1,0 +1,92 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 392,
+        "end": 410
+      },
+      "description": "`runner.py transition` (the new canonical host writer) does not handle `autopilot.GoalGateRefused`. `_apply_transition` raises it (autopilot.py:810-858, a RuntimeError subclass) whenever the resolved target is DONE and the goal gate finds no evidence, e.g. `--outcome created` from SUBMIT_PR. `_cmd_transition` catches only GatePending, ValueError and OSError, so the refusal escapes as an uncaught traceback with exit 1 and no state change. Both other DONE paths convert the same refusal into a persisted ESCALATE (`run_loop` autopilot.py:1122-1130 and `gate-answer` runner.py:270-278) per design D6 ('a refusal is never a silent stop'). On the prose host the operator sees an 'operational failure' exit, nothing is written, and per SKILL.md exit 1 suppresses projection, so neither loop-state nor the queue records the escalation.",
+      "resolution": "Catch `autopilot.GoalGateRefused` in `_cmd_transition`, call `autopilot.enter_escalate(state, f\"goal gate refused: {exc.reason}\")`, save, write the reason to stderr, and return 0 (matching `gate-answer`) or a documented dedicated exit code; add a runner test that seeds SUBMIT_PR state without DONE evidence and asserts the persisted phase is ESCALATE and total_iterations advanced once."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "severity": "critical",
+      "axis": "correctness",
+      "disposition": "escalate",
+      "evidence_class": "judgment",
+      "package_id": "wp-live-integration",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/tasks.md",
+      "line_range": {
+        "start": 21,
+        "end": 23
+      },
+      "description": "Tasks 3.1-3.3 are checked as complete, and design D5/D9 and the proposal acceptance require a coordinator-backed proof (three live generations, >50 seeded lower-priority issues, connected-SSE and polling visibility within 5 seconds, crash-after-save resume, interrupted-cleanup retry, 100-row bound). The parent-to-HEAD diff contains no such test: the only coordinator test added is `agent-coordinator/tests/test_autopilot_projection_visibility.py`, whose migration check (lines 13-26) is substring matching on the SQL text, and the skill tests monkeypatch every bridge call. Migration 037 (claim_task overload drop plus `task_type <> 'issue'` exclusion and the new trigger body) therefore has no executed evidence anywhere in the change; `handoffs/implementation-review-3.json` line 73 itself defers 'Live PostgreSQL migration execution evidence' to VALIDATE. Marking 3.1-3.3 done misrepresents the verification tier-A contract in work-packages.yaml.",
+      "resolution": "Either add the coordinator-backed tests (pytest marker gated on a reachable PostgreSQL/coordinator, exercising migration 037 claim exclusion, label-change notify, reconcile cleanup and the kanban `/issues/list` query with >50 seeded issues) or revert 3.1-3.3 to unchecked and record the deferral explicitly in tasks.md and the validation handoff so VALIDATE cannot pass on the string-match test alone."
+    },
+    {
+      "id": 3,
+      "type": "performance",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "performance",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 320,
+        "end": 348
+      },
+      "description": "When a `projection_snapshot` marker is dequeued it is immediately converted by awaiting `_build_snapshot` (line 327), and only afterwards is `window_count` incremented and compared to `_BACKPRESSURE_LIMIT`. If the window is already saturated, the backpressure branch drains the queue and awaits `_build_snapshot` a second time (line 346), discarding the first result. During a 100-row stale-label repair this doubles the database-backed snapshot work for the same tick. Not a correctness issue because the second snapshot is fresher, but the first query is wasted.",
+      "resolution": "Run the backpressure window bookkeeping before converting the marker, or `continue` after yielding the marker-built snapshot and resetting `window_count`, so at most one `_build_snapshot` runs per loop iteration."
+    },
+    {
+      "id": 4,
+      "type": "style",
+      "criticality": "low",
+      "severity": "optional",
+      "axis": "readability",
+      "disposition": "fix",
+      "evidence_class": "judgment",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/tests/autopilot/test_phase_projection_isolation.py",
+      "line_range": {
+        "start": 46,
+        "end": 86
+      },
+      "description": "`test_coordinator_free_run_cannot_call_projection_transport` drives `run_loop` with `queue_projection_fn=None`, so `persist_and_project` returns before any callback and the patched bridge functions can never be reached; the test cannot fail for the isolation property D10 describes (a host constructing the adapter on the coordinator-free tier). It also inserts into `sys.path` without cleanup. Similarly `test_projection_openapi_problem_contract_matches_runtime` (agent-coordinator test, lines 145-173) only parses the YAML and never compares against the FastAPI app's problem handlers, so its name overstates what it proves. The real isolation guard is the AST top-level import test, which is sound.",
+      "resolution": "Make the isolation test spy on `queue_projection.QueueProjectionAdapter` construction via `sys.modules` inspection after a local-parallel/sequential `runner.py` command sequence (init, transition, apply-outcome without `project-state`), and rename or extend the OpenAPI test to assert the runtime handler output (e.g. call `/work/submit` without a key through TestClient and check `application/problem+json` plus the `Problem` required fields)."
+    },
+    {
+      "id": 5,
+      "type": "observability",
+      "criticality": "low",
+      "severity": "fyi",
+      "axis": "observability",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 53,
+        "end": 106
+      },
+      "description": "Review-process note: pytest and ruff invocations required sandbox approval that this non-interactive session could not grant, so the suites listed in work-packages.yaml were not executed by this reviewer; conclusions are from static reading. Verified positives with file evidence: (a) projection identity is derived only from `(change_id, current_phase, total_iterations)` with the stricter change-id grammar checked before transport (lines 54-67); (b) only a `status=error`/409/`detail=reconciliation_required` envelope advances to reconcile, matching migration 035's `v_seq > v_head_seq` branch (lines 89-90, 149-158; 035_work_queue_projection.sql:116-118); (c) one `detect_coordination` snapshot is reused across submit, label and cleanup calls via `_coordination_state` (coordination_bridge.py:526-537); (d) HTTP-200 `success:false` issue-service replies are demoted to `status=failed` with a bounded reason (coordination_bridge.py:1233-1248); (e) canonical labelling precedes stale cleanup and any failure returns a bounded degraded envelope without touching loop-state (lines 99-140); (f) `enter_escalate` increments the sequence exactly once and only on a real phase change (autopilot.py:510-513); (g) migration 037 drops both historical `claim_task` overloads (001 and 021 signatures) and re-creates the 027 six-arg signature with `task_type <> 'issue'` (037 lines 7-25); (h) the label-change trigger derives change_id from NEW labels with OLD fallback so removals stay routable (037 lines 96-116); (i) SSE marker coalescing clears the pending flag before the query so a mid-query update enqueues one follow-up, and off_event still runs for both callbacks in `finally` (event_stream.py:273-280, 320-328, 375-378); (j) canonical and installed skill copies (`skills/`, `.claude/skills/`, `.agents/skills/`) are byte-identical apart from `__pycache__` and test dirs; (k) `_projection_mutation_payload` now rejects a success result with no task_id as 422 (coordination_api.py:130-131); (l) OpenAPI work-queue.yaml declares `/work/reconcile`, `ProjectionKey`, `ProjectionMutationResult` and problem+json 401/403/409/422 consistent with the runtime handlers at coordination_api.py:835-896.",
+      "resolution": "No change required; run `skills/.venv/bin/python -m pytest skills/tests/autopilot skills/tests/coordination-bridge -q` and the coordinator suites in an interactive session to close the execution gap noted here."
+    }
+  ]
+}

@@ -115,7 +115,8 @@ verified false negatives are pinned as mutation cases in the test.
 ## Implemented projection interfaces
 
 - HTTP: `POST /work/submit` accepts an optional `projection_key`;
-  `POST /work/reconcile` requires it. Successful responses expose the canonical
+  `POST /work/reconcile` requires it. Projection calls may also provide the
+  exact owned `projection_labels` pair. Successful responses expose the canonical
   task ID, status, `created`, `deduplicated`, and sorted cancellation IDs.
   Authentication, policy, projection conflicts, and validation failures use
   RFC 7807 Problems.
@@ -126,10 +127,11 @@ verified false negatives are pinned as mutation cases in the test.
   `coordination-cli work reconcile --projection-key <json>` map to the same
   service contract.
 - `skills/coordination-bridge/scripts/coordination_bridge.py` provides optional
-  submit/reconcile helpers plus coordinator-only projection-label repair.
-  `skills/autopilot/scripts/queue_projection.py` derives the exact phase key,
-  advances through reconciliation only for `reconciliation_required`, labels
-  the canonical priority-1 `task_type=issue` row, and clears stale labels.
+  coordinator-only submit/reconcile helpers. The adapter derives the exact phase
+  key, advances through reconciliation only for `reconciliation_required`, and
+  passes the exact owned label pair with the priority-1 `task_type=issue` row.
+  Migration 038 applies canonical labels and clears stale owned labels inside the
+  same per-change transaction that advances or repairs the projection head.
 - `runner.py init` and `transition` are the canonical state writers;
   `project-state --mode submit|reconcile` is the explicit coordinated host
   boundary. Projection responses are never state-machine inputs.
@@ -150,9 +152,12 @@ projection labels change. Connected SSE clients turn that event into a fresh
 snapshot; the existing label-only issue polling path remains the fallback.
 Canonical rows use priority 1, so the current projection remains inside the
 50-row board window even when ordinary lower-priority issues are present.
+Implicit label-filtered issue reads exclude cancelled rows; callers requesting
+all statuses explicitly retain the complete diagnostic view.
 
 Projection outages are a degradation, not a rollback. The next coordinated
-resume reconciles from `loop-state.json`, labels the canonical row first, then
-clears cancelled or interrupted stale double-labelled rows (bounded to 100).
+resume reconciles from `loop-state.json`. The coordinator serializes concurrent
+generations under one advisory transaction, ensures and labels the canonical
+row, cancels stale active rows, and clears owned labels from noncanonical rows.
 Local-parallel and sequential execution retain the callback-free default and do
 not import or call any projection helper.

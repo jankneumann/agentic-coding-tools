@@ -24,6 +24,57 @@ class TestWorkQueueSubmitLive:
 
 
 @pytest.mark.e2e
+class TestWorkQueueProjectionLive:
+    def test_projection_submit_reconcile_and_board_query(self, api_client, auth_headers) -> None:
+        change_id = "e2e-phase-projection"
+        labels = [f"change:{change_id}", "projection:autopilot-phase"]
+        first = {
+            "task_type": "issue",
+            "task_description": "Autopilot phase PLAN",
+            "priority": 1,
+            "projection_key": {
+                "change_id": change_id,
+                "phase": "PLAN",
+                "transition_sequence": 1,
+            },
+            "projection_labels": labels,
+        }
+        second = {
+            **first,
+            "task_description": "Autopilot phase IMPLEMENT",
+            "projection_key": {
+                "change_id": change_id,
+                "phase": "IMPLEMENT",
+                "transition_sequence": 2,
+            },
+        }
+
+        created = api_client.post("/work/submit", headers=auth_headers, json=first)
+        assert created.status_code == 200
+        stale_id = created.json()["task_id"]
+
+        advance = api_client.post("/work/submit", headers=auth_headers, json=second)
+        assert advance.status_code == 409
+        assert advance.json()["detail"] == "reconciliation_required"
+
+        reconciled = api_client.post(
+            "/work/reconcile", headers=auth_headers, json=second
+        )
+        assert reconciled.status_code == 200
+        current_id = reconciled.json()["task_id"]
+        assert stale_id in reconciled.json()["cancelled_task_ids"]
+
+        board = api_client.post(
+            "/issues/list",
+            headers=auth_headers,
+            json={"labels": [f"change:{change_id}"]},
+        )
+        assert board.status_code == 200
+        assert [issue["id"] for issue in board.json()["issues"]] == [current_id]
+        assert board.json()["issues"][0]["labels"] == labels
+
+
+@pytest.mark.e2e
 class TestWorkQueueLifecycleLive:
     """Full work queue lifecycle against live database."""
 

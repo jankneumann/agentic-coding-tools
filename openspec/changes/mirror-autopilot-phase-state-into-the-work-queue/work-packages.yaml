@@ -3,12 +3,12 @@ schema_version: 1
 feature:
   id: mirror-autopilot-phase-state-into-the-work-queue
   title: Mirror Autopilot phase state into the work queue
-  plan_revision: 3
+  plan_revision: 4
   created_by: codex
   deployable: false
 
 contracts:
-  revision: 2
+  revision: 3
   openapi:
     primary: openspec/contracts/agent-coordinator/openapi/work-queue.yaml
     files:
@@ -26,7 +26,7 @@ packages:
   - package_id: wp-projection-adapter
     title: Coordinated phase projection adapter and host registration
     task_type: integration
-    description: Implement tasks 1.1 through 2.5 with TDD, including canonical host writers, head advancement, and coordinator-only label repair while preserving the coordinator-free default and one-way authority contract.
+    description: Implement tasks 1.1 through 2.6 with TDD, including canonical host writers, head advancement, and transactionally serialized coordinator-only label repair while preserving the coordinator-free default and one-way authority contract.
     role: implementer
     priority: 1
     depends_on: []
@@ -37,7 +37,11 @@ packages:
         - skills/autopilot/SKILL.md
         - skills/coordination-bridge/scripts/coordination_bridge.py
         - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
+        - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
         - agent-coordinator/src/event_stream.py
+        - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/src/issue_service.py
+        - agent-coordinator/src/work_queue.py
         - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
       keys:
         - feature:autopilot-live-queue-projection:modify
@@ -51,7 +55,11 @@ packages:
         - skills/tests/autopilot/**
         - skills/tests/coordination-bridge/**
         - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
+        - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
         - agent-coordinator/src/event_stream.py
+        - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/src/issue_service.py
+        - agent-coordinator/src/work_queue.py
         - agent-coordinator/tests/**
         - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
       read_allow:
@@ -120,13 +128,17 @@ packages:
         - skills/autopilot/SKILL.md
         - skills/coordination-bridge/scripts/coordination_bridge.py
         - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
+        - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
         - agent-coordinator/src/event_stream.py
+        - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/src/issue_service.py
+        - agent-coordinator/src/work_queue.py
         - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
 
   - package_id: wp-live-integration
     title: Coordinator, crash recovery, and kanban proof
     task_type: integration
-    description: Implement tasks 3.1 through 4.3 against the existing coordinator and read-only kanban data path, including partial-label repair and row-limit proof without frontend behavior changes.
+    description: Implement tasks 3.1 through 4.3 against live PostgreSQL and the read-only kanban data path, including concurrent-generation serialization, crash recovery, row-limit proof, connected SSE refresh, and label-only polling without frontend behavior changes.
     role: integrator
     priority: 2
     depends_on: [wp-projection-adapter]
@@ -175,6 +187,14 @@ packages:
           evidence:
             artifacts: []
             result_keys: [coordinator_tests_pass]
+        - name: Run live PostgreSQL projection and migration tests
+          kind: command
+          command: agent-coordinator/.venv/bin/python -m pytest agent-coordinator/tests/integration/postgres/test_autopilot_projection_acceptance_postgres.py agent-coordinator/tests/integration/postgres/test_work_queue_postgres.py agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py agent-coordinator/tests/e2e/postgres/test_work_queue_live.py -q
+          cwd: .
+          expect_exit_code: 0
+          evidence:
+            artifacts: []
+            result_keys: [live_postgres_projection_tests_pass]
         - name: Run strict OpenSpec validation
           kind: command
           command: openspec validate --strict --all

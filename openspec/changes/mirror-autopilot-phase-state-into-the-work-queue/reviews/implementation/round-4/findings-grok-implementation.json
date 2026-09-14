@@ -1,0 +1,202 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "grok",
+  "findings": [
+    {
+      "id": 1,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "Critical: Acceptance tasks 3.1\u20133.3 are marked complete, but at HEAD `f16b8d3f` there is still no live coordinator/PostgreSQL proof for three successive phase rows, crash/resume reconcile-from-file, GitHub-backend override resistance, 100-row cleanup, connected SSE refresh, or the >50 lower-priority issue `/issues/list` visibility window within 5 seconds. `agent-coordinator/tests/test_autopilot_projection_visibility.py` only string-scans migration 037 and unit-tests SSE coalescing with a FakeBus; round-1 deferred the live proof to VALIDATE and it remains absent. This leaves proposal acceptance and design D5 unverified.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Add postgres-gated integration tests that exercise live submit/reconcile/label repair, resume after mid-projection kill, SSE snapshot membership, and label-only `/issues/list` after seeding >50 ordinary lower-priority issues; keep them skip-tolerant when the integration DB is unavailable, and uncheck or annotate tasks 3.1\u20133.3 until they pass.",
+      "package_id": "wp-live-integration",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/tasks.md",
+      "line_range": {
+        "start": 21,
+        "end": 23
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "medium",
+      "description": "Critical: Design D7 and task 1.1 require adapter tests that project at least three successive generations so first-insert and same-generation replay cannot hide an inverted submit/reconcile mapping. `skills/tests/autopilot/test_queue_projection.py` covers one-shot identity, a single `reconciliation_required` fallthrough, mismatch degradation, and reconcile cleanup, but never drives three increasing `(phase, transition_sequence)` generations through the adapter.",
+      "disposition": "fix",
+      "axis": "correctness",
+      "severity": "critical",
+      "resolution": "Add a RED/GREEN adapter test that submits three successive LoopState generations, asserts head-advance via the exact nested HTTP-409 `reconciliation_required` envelope where needed, and proves same-generation replay stays idempotent while `projection_generation_mismatch` remains degraded.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/tests/autopilot/test_queue_projection.py",
+      "line_range": {
+        "start": 86,
+        "end": 129
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "resilience",
+      "criticality": "medium",
+      "description": "Critical: `runner.py project-state` returns exit 1 for any non-ok projection envelope (`return 0 if result.get(\"status\") == \"ok\" else 1` at runner.py:436), the same class used for missing-state I/O failures (lines 429\u2013431). SKILL.md:84\u201385 says projection failure is degraded and must not rewrite loop-state, but never tells the host to continue phase work on a non-zero `project-state` exit. Coordinated hosts that treat any non-zero as a stop will halt an otherwise healthy run on a transient coordinator/label outage, violating observability-only projection.",
+      "disposition": "fix",
+      "axis": "resilience",
+      "severity": "critical",
+      "resolution": "Keep exit 1/2 for load/validation/transport crashes, but return 0 with `{\"status\":\"degraded\",...}` on the stdout envelope for business/coordinator degradation\u2014or explicitly document and test that hosts must continue after non-zero `project-state` when stdout reports degraded.",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 413,
+        "end": 436
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Exact nested HTTP-409 reconciliation remains narrow and spec-correct. `_requires_reconciliation` demands `status=error`, `status_code=409`, dict `response`, and `detail == \"reconciliation_required\"` (queue_projection.py:149-158); sibling `projection_generation_mismatch` degrades without reconcile (`test_only_exact_reconciliation_required_conflict_advances_head`).",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 149,
+        "end": 158
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Projection issue helpers treat HTTP-200 business failures as non-success. `_require_projection_operation_success` (coordination_bridge.py:1233-1247) keeps status ok only when `response.success is True`; `try_projection_issue_update`/`list` route through it, and the adapter degrades on non-ok label/list/cleanup envelopes.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/coordination-bridge/scripts/coordination_bridge.py",
+      "line_range": {
+        "start": 1233,
+        "end": 1247
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "security",
+      "criticality": "low",
+      "description": "none: Migration 037 removes legacy `claim_task` overloads before installing the sole issue-excluding form (DROP of 3-arg and 5-arg signatures at lines 7-8; `AND task_type <> 'issue'` at line 25), so unfiltered SQL callers cannot resolve a historical overload that would claim projection rows.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql",
+      "line_range": {
+        "start": 7,
+        "end": 25
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "performance",
+      "criticality": "low",
+      "description": "none: One capability snapshot is detected once per adapter call and reused for the full submit/reconcile/label/list/cleanup chain via `_coordination_state` (queue_projection.py:60-82; coordination_bridge.py:531-533). `test_projection_reuses_one_capability_snapshot_for_all_bridge_calls` pins identity reuse.",
+      "disposition": "accept",
+      "axis": "performance",
+      "severity": "none",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 60,
+        "end": 82
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 8,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "none: SSE projection coalescing and unsubscribe remain sound. `_on_task_event` latches `projection_refresh_pending` and enqueues one marker for `projection.labels_changed` bursts (event_stream.py:276-280); consumption paths clear the latch so mid-refresh events re-arm exactly once; the `finally` block identity-unregisters both bus callbacks (355-360).",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "package_id": "wp-projection-adapter",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 272,
+        "end": 360
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 9,
+      "type": "architecture",
+      "criticality": "low",
+      "description": "none: Coordinator-free isolation is structural. `runner.py` imports `queue_projection` only inside `_cmd_project_state` (418-419); `persist_and_project` short-circuits when `queue_projection_fn is None`; AST and fail-fast transport spies in `test_phase_projection_isolation.py` prove no publisher traffic on the callback-free path.",
+      "disposition": "accept",
+      "axis": "architecture",
+      "severity": "none",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 418,
+        "end": 419
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 10,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: OpenAPI work-queue revision 2 declares `/work/reconcile`, `projection_key`, `ProjectionMutationResult` including `cancelled_task_ids`, and Problem401/403/409/422 as `application/problem+json`; `test_projection_openapi_problem_contract_matches_runtime` locks parity with the runtime handlers.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "package_id": "wp-projection-adapter",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/work-queue.yaml",
+      "line_range": {
+        "start": 95,
+        "end": 154
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 11,
+      "type": "compatibility",
+      "criticality": "low",
+      "description": "none: Installed skill mirror parity holds at HEAD `f16b8d3f`. Canonical sources under `skills/` for autopilot `SKILL.md`, `queue_projection.py`, `runner.py`, `autopilot.py`, and coordination-bridge `coordination_bridge.py` are byte-identical to both `.agents/skills/` and `.claude/skills/` mirrors.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "package_id": "whole-branch",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 1,
+        "end": 1
+      },
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 12,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "none: Runner pending/validation/operational exits are distinct for the mutation writers. `_cmd_transition` returns 0 for `GatePending`, 2 for `ValueError`, and 1 for `OSError` (runner.py:401-409); focused runner tests cover gate-pending stop, unknown-outcome exit 2, and missing-state project-state I/O exit 1.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 401,
+        "end": 409
+      },
+      "evidence_class": "judgment"
+    }
+  ]
+}
