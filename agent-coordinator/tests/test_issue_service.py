@@ -196,9 +196,28 @@ class TestIssueList:
         assert len(issues) == 1
         assert issues[0].title == "Match"
         query = mock_db.query.call_args[0][1]
+        assert "status=in.(pending,claimed,running,completed,failed,blocked)" in query
         assert "labels=cs." in query
         assert "api" in query
         assert "followup" in query
+
+    @pytest.mark.asyncio
+    async def test_explicit_all_status_keeps_cancelled_labelled_issues_queryable(
+        self, service, mock_db
+    ):
+        mock_db.query.return_value = [
+            _make_issue_row(
+                title="Cancelled projection",
+                status="cancelled",
+                labels=["change:demo"],
+            )
+        ]
+
+        issues = await service.list_issues(status="all", labels=["change:demo"])
+
+        assert [issue.status for issue in issues] == ["cancelled"]
+        query = mock_db.query.call_args[0][1]
+        assert "status=in.(pending,claimed,running,completed,failed,blocked)" not in query
 
     @pytest.mark.asyncio
     async def test_list_by_labels_does_not_post_filter_after_limit(

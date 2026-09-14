@@ -88,16 +88,22 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [task_type, task_description]
               properties:
-                task_type: {type: string}
-                task_description: {type: string}
+                task_type: {type: string, minLength: 1}
+                task_description: {type: string, minLength: 1}
                 input_data: {type: object}
-                priority: {type: integer}
-                depends_on: {type: array, items: {type: string}}
+                priority: {type: integer, minimum: 1, maximum: 10}
+                depends_on: {type: array, items: {type: string, format: uuid}}
                 agent_requirements: {type: object}
                 projection_key:
                   $ref: "#/components/schemas/ProjectionKey"
+                projection_labels:
+                  type: array
+                  minItems: 2
+                  maxItems: 2
+                  items: {type: string, maxLength: 160}
       responses:
         "200":
           description: Task created with its task_id (spec 138-139)
@@ -128,14 +134,20 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [projection_key, task_type, task_description]
               properties:
                 projection_key:
                   $ref: "#/components/schemas/ProjectionKey"
-                task_type: {type: string}
-                task_description: {type: string}
+                projection_labels:
+                  type: array
+                  minItems: 2
+                  maxItems: 2
+                  items: {type: string, maxLength: 160}
+                task_type: {type: string, minLength: 1}
+                task_description: {type: string, minLength: 1}
                 input_data: {type: object}
-                priority: {type: integer}
+                priority: {type: integer, minimum: 1, maximum: 10}
                 agent_requirements: {type: object}
       responses:
         "200":

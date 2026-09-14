@@ -316,6 +316,10 @@ class IssueService:
         if status and status != "all":
             statuses = STATUS_MAP.get(status, [status])
             parts.append(f"status=in.({','.join(statuses)})")
+        elif labels and status is None:
+            parts.append(
+                "status=in.(pending,claimed,running,completed,failed,blocked)"
+            )
 
         if issue_type:
             parts.append(f"issue_type=eq.{issue_type}")

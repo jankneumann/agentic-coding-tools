@@ -56,7 +56,7 @@ def test_submit_derives_exact_identity_and_repairs_owned_labels(monkeypatch) -> 
     monkeypatch.setattr(
         queue_projection.bridge,
         "try_projection_issue_update",
-        lambda **kw: calls.append(("update", kw)) or {"status": "ok"},
+        lambda **_kw: pytest.fail("atomic projection must not mutate issues afterward"),
     )
 
     result = queue_projection.QueueProjectionAdapter(
@@ -76,10 +76,11 @@ def test_submit_derives_exact_identity_and_repairs_owned_labels(monkeypatch) -> 
         "execution_tier",
         "projection_provenance",
     }
-    assert calls[1][1]["labels"] == [
+    assert submit["projection_labels"] == [
         "change:mirror-phase",
         "projection:autopilot-phase",
     ]
+    assert [kind for kind, _ in calls] == ["submit"]
     assert "secret" not in json.dumps(result)
 
 
@@ -139,15 +140,12 @@ def test_reconcile_cleans_only_double_labelled_noncanonical_rows(monkeypatch) ->
     monkeypatch.setattr(
         queue_projection.bridge,
         "try_projection_issue_list",
-        lambda **kw: {
-            "status": "ok",
-            "response": {"issues": [{"id": "canonical"}, {"id": "leftover"}]},
-        },
+        lambda **_kw: pytest.fail("atomic reconcile must not list issues afterward"),
     )
     monkeypatch.setattr(
         queue_projection.bridge,
         "try_projection_issue_update",
-        lambda **kw: calls.append(kw) or {"status": "ok"},
+        lambda **_kw: pytest.fail("atomic reconcile must not mutate issues afterward"),
     )
 
     result = queue_projection.QueueProjectionAdapter(http_url="x")(
@@ -155,10 +153,7 @@ def test_reconcile_cleans_only_double_labelled_noncanonical_rows(monkeypatch) ->
     )
 
     assert result["status"] == "ok"
-    assert {c["issue_id"] for c in calls if c["labels"] == []} == {
-        "cancelled",
-        "leftover",
-    }
+    assert calls == []
 
 
 def test_projection_rejects_stricter_change_id_before_transport(monkeypatch) -> None:
@@ -216,16 +211,11 @@ def test_projection_reuses_one_capability_snapshot_for_all_bridge_calls(
         states.append(kw["_coordination_state"])
         return _ok("current", cancelled=["stale"])
 
-    def update(**kw):
-        states.append(kw["_coordination_state"])
-        return {"status": "ok"}
-
     monkeypatch.setattr(queue_projection.bridge, "try_submit_work", submit)
-    monkeypatch.setattr(queue_projection.bridge, "try_projection_issue_update", update)
 
     result = queue_projection.QueueProjectionAdapter(http_url="x")(
         _state(), mode="submit"
     )
 
     assert result["status"] == "ok"
-    assert states == [capability, capability, capability]
+    assert states == [capability]

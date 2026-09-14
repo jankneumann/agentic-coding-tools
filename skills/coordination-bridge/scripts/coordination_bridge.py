@@ -674,12 +674,13 @@ def try_submit_work(
     priority: int = 5,
     depends_on: list[str] | None = None,
     projection_key: dict[str, Any] | None = None,
+    projection_labels: list[str] | None = None,
     http_url: str | None = None,
     api_key: str | None = None,
     _coordination_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Submit queue work when queue capability is available."""
-    validation_reason = _validate_projection_payload(projection_key, input_data)
+    validation_reason = _validate_projection_payload(projection_key, input_data, projection_labels)
     if validation_reason is not None:
         return {"status": "failed", "reason": validation_reason}
     return _execute_single_endpoint_operation(
@@ -694,6 +695,11 @@ def try_submit_work(
             "priority": priority,
             "depends_on": depends_on,
             **({"projection_key": projection_key} if projection_key is not None else {}),
+            **(
+                {"projection_labels": projection_labels}
+                if projection_labels is not None
+                else {}
+            ),
         },
         http_url=http_url,
         api_key=api_key,
@@ -725,7 +731,9 @@ _PROJECTION_PHASES = frozenset(
 
 
 def _validate_projection_payload(
-    projection_key: dict[str, Any] | None, input_data: dict[str, Any] | None
+    projection_key: dict[str, Any] | None,
+    input_data: dict[str, Any] | None,
+    projection_labels: list[str] | None = None,
 ) -> str | None:
     """Return a no-raise failure reason for invalid projection identity."""
     if projection_key is not None:
@@ -747,6 +755,12 @@ def _validate_projection_payload(
             or not 0 <= sequence <= 2147483647
         ):
             return "invalid_projection_key"
+    if projection_labels is not None:
+        if projection_key is None or projection_labels != [
+            f"change:{projection_key['change_id']}",
+            "projection:autopilot-phase",
+        ]:
+            return "invalid_projection_labels"
     duplicated = _PROJECTION_IDENTITY_FIELDS.intersection(input_data or {})
     if duplicated:
         return "reserved_projection_key"
@@ -756,6 +770,7 @@ def _validate_projection_payload(
 def try_reconcile_work_projection(
     *,
     projection_key: dict[str, Any],
+    projection_labels: list[str] | None = None,
     task_type: str,
     task_description: str,
     input_data: dict[str, Any] | None = None,
@@ -766,7 +781,7 @@ def try_reconcile_work_projection(
     _coordination_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Reconcile a queue projection without raising transport failures."""
-    validation_reason = _validate_projection_payload(projection_key, input_data)
+    validation_reason = _validate_projection_payload(projection_key, input_data, projection_labels)
     if validation_reason is not None:
         return {"status": "failed", "reason": validation_reason}
     return _execute_single_endpoint_operation(
@@ -776,6 +791,11 @@ def try_reconcile_work_projection(
         path="/work/reconcile",
         payload={
             "projection_key": projection_key,
+            **(
+                {"projection_labels": projection_labels}
+                if projection_labels is not None
+                else {}
+            ),
             "task_type": task_type,
             "task_description": task_description,
             "input_data": input_data,

@@ -1,5 +1,6 @@
 """Tests for the work queue service."""
 
+import json
 from uuid import UUID
 
 import pytest
@@ -654,17 +655,26 @@ async def test_projection_submit_returns_canonical_deduplicated_result(mock_supa
         )
     )
     result = await WorkQueueService(db_client).submit(
-        task_type="implement",
+        task_type="issue",
         description="project current phase",
         projection_key={
             "change_id": "projection-change",
             "phase": "IMPLEMENT",
             "transition_sequence": 4,
         },
+        projection_labels=[
+            "change:projection-change",
+            "projection:autopilot-phase",
+        ],
     )
     assert result.task_id == task_id
     assert result.created is False
     assert result.deduplicated is True
+    request = mock_supabase.calls.last.request
+    assert json.loads(request.content)["p_projection_labels"] == [
+        "change:projection-change",
+        "projection:autopilot-phase",
+    ]
 
 
 @pytest.mark.asyncio
@@ -734,10 +744,19 @@ async def test_reconcile_returns_sorted_cancelled_ids(mock_supabase, db_client):
             "phase": "IMPLEMENT",
             "transition_sequence": 5,
         },
-        task_type="implement",
+        task_type="issue",
         description="resume",
+        projection_labels=[
+            "change:projection-change",
+            "projection:autopilot-phase",
+        ],
     )
     assert result.success is True
+    request = mock_supabase.calls.last.request
+    assert json.loads(request.content)["p_projection_labels"] == [
+        "change:projection-change",
+        "projection:autopilot-phase",
+    ]
     assert result.cancelled_task_ids == sorted(cancelled, key=str)
 
 

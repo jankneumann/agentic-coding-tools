@@ -26,6 +26,20 @@ def test_migration_excludes_all_issue_rows_and_uses_old_label_fallback() -> None
     assert "OLD.labels" in sql
 
 
+def test_migration_038_atomically_repairs_owned_projection_labels() -> None:
+    sql = (
+        Path(__file__).parents[1]
+        / "database/migrations/038_atomic_projection_labels.sql"
+    ).read_text()
+    compact = "".join(sql.split())
+    assert "p_projection_labelsTEXT[]DEFAULTNULL" in compact
+    assert "pg_advisory_xact_lock(hashtextextended" in sql
+    assert "projection:autopilot-phase" in sql
+    assert "labels=p_projection_labels" in compact
+    assert "status='cancelled'" in compact
+    assert "COMMIT;" in sql
+
+
 def test_projection_label_events_coalesce_into_one_fresh_snapshot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -164,12 +178,28 @@ def test_projection_openapi_problem_contract_matches_runtime() -> None:
         submit["requestBody"]["content"]["application/json"]["schema"]["properties"]
     )
     for operation in (submit, reconcile):
+        request_schema = operation["requestBody"]["content"]["application/json"]["schema"]
+        assert request_schema["additionalProperties"] is False
+        properties = request_schema["properties"]
+        assert properties["task_type"]["minLength"] == 1
+        assert properties["task_description"]["minLength"] == 1
+        assert properties["priority"] == {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+        }
+        projection_labels = properties["projection_labels"]
+        assert projection_labels["minItems"] == 2
+        assert projection_labels["maxItems"] == 2
         assert operation["responses"]["200"]["content"]["application/json"]["schema"][
             "$ref"
         ] == "#/components/schemas/ProjectionMutationResult"
         assert operation["responses"]["401"]["$ref"] == (
             "#/components/responses/Problem401"
         )
+    assert submit["requestBody"]["content"]["application/json"]["schema"]["properties"][
+        "depends_on"
+    ]["items"]["format"] == "uuid"
 
 
 

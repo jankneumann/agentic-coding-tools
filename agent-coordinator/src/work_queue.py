@@ -252,6 +252,21 @@ class ProjectionKey:
         }
 
 
+def _projection_labels_are_valid(
+    key: ProjectionKey | None, task_type: str, labels: list[str] | None
+) -> bool:
+    if labels is None:
+        return True
+    return (
+        key is not None
+        and task_type == "issue"
+        and labels == [
+            f"change:{key.change_id}",
+            "projection:autopilot-phase",
+        ]
+    )
+
+
 @dataclass
 class SubmitResult:
     """Result of submitting a task, including projection replay metadata."""
@@ -717,6 +732,7 @@ class WorkQueueService:
         deadline: datetime | None = None,
         agent_requirements: dict[str, Any] | None = None,
         projection_key: ProjectionKey | dict[str, Any] | None = None,
+        projection_labels: list[str] | None = None,
     ) -> SubmitResult:
         """Submit a new task to the work queue.
 
@@ -742,6 +758,12 @@ class WorkQueueService:
             if parsed_projection is None:
                 return SubmitResult(success=False, created=False, reason="invalid_projection_key")
             input_data = {**(input_data or {}), **parsed_projection.as_input_data()}
+        if not _projection_labels_are_valid(
+            parsed_projection, task_type, projection_labels
+        ):
+            return SubmitResult(
+                success=False, created=False, reason="invalid_projection_labels"
+            )
 
         config = get_config()
         resolved_agent_id = config.agent.agent_id
@@ -828,6 +850,7 @@ class WorkQueueService:
                     "p_depends_on": depends_on_str,
                     "p_deadline": deadline_str,
                     "p_agent_requirements": agent_req_json,
+                    "p_projection_labels": projection_labels,
                 },
             )
 
@@ -866,6 +889,7 @@ class WorkQueueService:
         input_data: dict[str, Any] | None = None,
         priority: int = 5,
         agent_requirements: dict[str, Any] | None = None,
+        projection_labels: list[str] | None = None,
     ) -> ReconcileResult:
         """Converge derived queue rows to one authoritative loop-state generation."""
         key = ProjectionKey.parse(projection_key)
@@ -873,6 +897,10 @@ class WorkQueueService:
             return ReconcileResult(success=False, created=False, reason="invalid_projection_key")
         if input_data and _RESERVED_PROJECTION_KEYS.intersection(input_data):
             return ReconcileResult(success=False, created=False, reason="reserved_projection_key")
+        if not _projection_labels_are_valid(key, task_type, projection_labels):
+            return ReconcileResult(
+                success=False, created=False, reason="invalid_projection_labels"
+            )
         config = get_config()
         from .policy_engine import get_policy_engine
 
@@ -943,6 +971,7 @@ class WorkQueueService:
                 "p_agent_requirements": (
                     _json.dumps(agent_requirements) if agent_requirements is not None else None
                 ),
+                "p_projection_labels": projection_labels,
             },
         )
         reconcile_result = ReconcileResult.from_dict(result)

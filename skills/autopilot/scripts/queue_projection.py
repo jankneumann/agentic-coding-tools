@@ -17,7 +17,6 @@ import coordination_bridge as bridge  # type: ignore[import-not-found]  # noqa: 
 
 _CHANGE_ID_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,127}\Z")
 _OWNED_PROJECTION_LABEL = "projection:autopilot-phase"
-_MAX_CLEANUP_ROWS = 100
 _MAX_REASON = 200
 
 
@@ -71,12 +70,14 @@ class QueueProjectionAdapter:
         }
         if self.change_path:
             input_data["change_path"] = self.change_path[:512]
+        labels = ["change:" + change_id, _OWNED_PROJECTION_LABEL]
         call = {
             "projection_key": key,
             "task_type": "issue",
             "task_description": f"Autopilot phase {state.current_phase}"[:500],
             "input_data": input_data,
             "priority": 1,
+            "projection_labels": labels,
             "http_url": self.http_url,
             "api_key": self.api_key,
             "_coordination_state": coordination_state,
@@ -96,54 +97,7 @@ class QueueProjectionAdapter:
         if not isinstance(task_id, str) or not task_id:
             return {"status": "degraded", "reason": "canonical_task_id_missing"}
 
-        labels = [f"change:{change_id}", _OWNED_PROJECTION_LABEL]
-        labelled = bridge.try_projection_issue_update(
-            issue_id=task_id,
-            labels=labels,
-            http_url=self.http_url,
-            api_key=self.api_key,
-            _coordination_state=coordination_state,
-        )
-        if labelled.get("status") != "ok":
-            return _degraded(labelled, "canonical_label_update_failed")
-
-        stale_ids = {
-            value
-            for value in response.get("cancelled_task_ids", [])
-            if isinstance(value, str) and value != task_id
-        }
-        if mode == "reconcile":
-            listed = bridge.try_projection_issue_list(
-                labels=labels,
-                limit=_MAX_CLEANUP_ROWS,
-                http_url=self.http_url,
-                api_key=self.api_key,
-                _coordination_state=coordination_state,
-            )
-            if listed.get("status") != "ok":
-                return _degraded(listed, "stale_label_list_failed")
-            payload = listed.get("response")
-            issues = payload.get("issues", []) if isinstance(payload, dict) else []
-            stale_ids.update(
-                str(issue["id"])
-                for issue in issues[:_MAX_CLEANUP_ROWS]
-                if isinstance(issue, dict)
-                and issue.get("id")
-                and str(issue["id"]) != task_id
-            )
-
-        for stale_id in sorted(stale_ids):
-            cleared = bridge.try_projection_issue_update(
-                issue_id=stale_id,
-                labels=[],
-                http_url=self.http_url,
-                api_key=self.api_key,
-                _coordination_state=coordination_state,
-            )
-            if cleared.get("status") != "ok":
-                return _degraded(cleared, "stale_label_cleanup_failed")
-
-        return {"status": "ok", "task_id": task_id, "cleaned": len(stale_ids)}
+        return {"status": "ok", "task_id": task_id}
 
     @staticmethod
     def _requires_reconciliation(envelope: object) -> bool:
