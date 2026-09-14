@@ -91,11 +91,11 @@ TDD order within each WP: tests before implementation. Approach A (Gate 1).
 
 ## WP3 — Spec lock-in verify (D5)
 
-- [ ] 3.1 Confirm delta specs match implementation and
+- [x] 3.1 Confirm delta specs match implementation and
   `openspec validate retire-skill-literal-model-hints --strict` passes (S)
   **Spec scenarios**: all scenarios in this change’s spec deltas
   **Design decisions**: D5
   **Dependencies**: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6
   **Files**: `openspec/changes/retire-skill-literal-model-hints/specs/**`
 
-- [ ] Checkpoint: run tests, review full diff vs main, verify write scope
+- [x] Checkpoint: run tests, review full diff vs main, verify write scope
