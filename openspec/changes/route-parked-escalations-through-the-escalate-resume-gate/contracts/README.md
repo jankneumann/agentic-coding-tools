@@ -23,3 +23,5 @@ No route input, durable record, or result may contain child transcript, raw appr
 ## Delegated apply cohort
 
 For a named batch, apply requires results exactly for attempts whose current application-journal state is not `effects_applied`. All submitted results still require the current dispatch identity, lease generation, isolation, evidence, and journal digest. Already-applied peers are omitted and rejected if submitted.
+
+A proceed atomically clears the matched generation-G terminal fields, including `application_journal`, before creating G+1; it must never leave G journal state `effects_applied` on the resumed attempt.
