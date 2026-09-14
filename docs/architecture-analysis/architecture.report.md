@@ -2,26 +2,26 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-09-14T05:30:41+00:00
-Git SHA: `0ca4a72941416d9aeefc2727685c3467b4aa1aeb`
+Generated: 2026-09-14T14:49:14+00:00  
+Git SHA: `d2bbfee29ea540fbd8652b5a9dd1dd3dc9d06cfb`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (84 tools, 11 resources, 2 prompts), backed by **28 Postgres tables**. The codebase contains 1111 functions (444 async) and 255 classes.
+This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (84 tools, 11 resources, 2 prompts), backed by **29 Postgres tables**. The codebase contains 1115 functions (444 async) and 256 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1869 |
-| Total edges | 1223 |
+| Total nodes | 1901 |
+| Total edges | 1228 |
 | Python modules | 77 |
-| Functions | 1111 (444 async) |
-| Classes | 255 |
+| Functions | 1115 (444 async) |
+| Classes | 256 |
 | Mcp Endpoints | 97 |
-| DB tables | 28 |
-| Python nodes | 1443 |
-| Sql nodes | 426 |
+| DB tables | 29 |
+| Python nodes | 1448 |
+| Sql nodes | 453 |
 
 ## Module Responsibility Map
 
@@ -87,7 +87,7 @@ This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (8
 | `notifications.webhook` | Service | POST JSON payload with event data to the webhook URL. | 0 / 0 |
 | `openspec_proposals_api` | Service | Return the repo root. | 4 / 7 |
 | `openspec_sources` | Service | Parse OPENSPEC_SOURCES env var value into SourceDescriptors. | 5 / 1 |
-| `policy_engine` | Foundation | Get the global policy engine based on configuration. | 24 / 21 |
+| `policy_engine` | Foundation | Get the global policy engine based on configuration. | 24 / 22 |
 | `policy_sync` | Service | Return the singleton PolicySyncService instance. | 0 / 0 |
 | `port_allocator` | Service | Return the global ``PortAllocatorService`` singleton. | 9 / 1 |
 | `profile_loader` | Service | Recursively merge *override* into a copy of *base*. | 3 / 0 |
@@ -101,7 +101,7 @@ This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (8
 | `teams` | Service | Get the global crew manifest (lazy singleton). | 2 / 3 |
 | `telemetry` | Foundation | Initialize OpenTelemetry providers based on environment configuration. | 21 / 0 |
 | `trust_levels` | Service | — | 1 / 0 |
-| `trust_resolution` | Foundation | Record a failed trust resolution; never masks the original fault. | 9 / 8 |
+| `trust_resolution` | Foundation | Record a failed trust resolution; never masks the original fault. | 10 / 8 |
 | `watchdog` | Service | Return the singleton WatchdogService. | 3 / 4 |
 | `work_queue` | Foundation | Get the global work queue service instance. | 20 / 36 |
 | `worktrees_view` | Service | Default: parents[2] of this file = repo root. | 2 / 2 |
@@ -279,29 +279,18 @@ This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (8
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2812 findings** across 5 categories:
+**2813 findings** across 4 categories:
 
-### Orphan — 1243
+### Orphan — 1248
 
-1243 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+1248 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'PollConfig' is unreachable from any entrypoint or test
 - 'ModeConfig' is unreachable from any entrypoint or test
 - 'CliConfig' is unreachable from any entrypoint or test
-- ... and 1238 more
-
-### Pattern Consistency — 9
-
-9 unclassified findings.
-
-- 'IF' uses PascalCase but most columns use snake_case
-- 'IF' uses PascalCase but most columns use snake_case
-- 'IF' uses PascalCase but most columns use snake_case
-- 'IF' uses PascalCase but most columns use snake_case
-- 'IF' uses PascalCase but most columns use snake_case
-- ... and 4 more
+- ... and 1243 more
 
 ### Reachability — 97
 
@@ -316,16 +305,16 @@ Breakdown: 89 info, 8 warning.
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
 - ... and 92 more
 
-### Test Coverage — 1366
+### Test Coverage — 1371
 
-1366 functions lack test references — consider adding tests for critical paths.
+1371 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 1361 more
+- ... and 1366 more
 
 ### Disconnected Flow (expected) — 97
 
@@ -346,31 +335,31 @@ Breakdown: 89 info, 8 warning.
 
 | Node | Dependents | Risk |
 |------|------------|------|
-| `config.get_config` | 182 | Critical — affects 182 downstream functions (30 modules affected) |
+| `config.get_config` | 183 | Critical — affects 183 downstream functions (30 modules affected) |
 | `http_proxy._error_response` | 111 | Critical — affects 111 downstream functions (modules: coordination_mcp, http_proxy) |
 | `http_proxy.get_client` | 111 | Critical — affects 111 downstream functions (modules: coordination_mcp, http_proxy) |
 | `http_proxy._request` | 110 | Critical — affects 110 downstream functions (modules: coordination_mcp, http_proxy) |
 | `http_proxy._agent_identity` | 70 | Critical — affects 70 downstream functions (modules: coordination_mcp, http_proxy) |
 | `policy_engine.get_policy_engine` | 45 | Critical — affects 45 downstream functions (6 modules affected) |
-| `audit.get_audit_service` | 43 | Critical — affects 43 downstream functions (15 modules affected) |
+| `audit.get_audit_service` | 44 | Critical — affects 44 downstream functions (15 modules affected) |
 | `config` | 32 | Critical — affects 32 downstream functions (32 modules affected) |
 | `coordination_api.resolve_identity` | 32 | Critical — affects 32 downstream functions (modules: coordination_api) |
-| `teams.CrewManifest.validate` | 31 | Critical — affects 31 downstream functions (8 modules affected) |
+| `teams.CrewManifest.validate` | 32 | Critical — affects 32 downstream functions (8 modules affected) |
 | `coordination_cli._print_dict` | 29 | Critical — affects 29 downstream functions (modules: coordination_cli) |
 | `coordination_api.authorize_operation` | 28 | Critical — affects 28 downstream functions (modules: coordination_api) |
 | `coordination_cli._output` | 28 | Critical — affects 28 downstream functions (modules: coordination_cli) |
 | `db.create_db_client` | 28 | Critical — affects 28 downstream functions (24 modules affected) |
 | `db.get_db` | 27 | Critical — affects 27 downstream functions (23 modules affected) |
+| `profile_loader.interpolate` | 27 | Critical — affects 27 downstream functions (9 modules affected) |
 | `coordination_cli._run` | 26 | Critical — affects 26 downstream functions (modules: coordination_cli) |
 | `db_postgres` | 26 | Critical — affects 26 downstream functions (26 modules affected) |
-| `profile_loader.interpolate` | 26 | Critical — affects 26 downstream functions (9 modules affected) |
+| `profile_loader._load_secrets_file` | 26 | Critical — affects 26 downstream functions (9 modules affected) |
 | `db` | 25 | Critical — affects 25 downstream functions (25 modules affected) |
-| `profile_loader._load_secrets_file` | 25 | Critical — affects 25 downstream functions (9 modules affected) |
-| `agents_config._default_agents_path` | 21 | Critical — affects 21 downstream functions (8 modules affected) |
-| `agents_config._default_secrets_path` | 21 | Critical — affects 21 downstream functions (8 modules affected) |
-| `agents_config.load_agents_config._parse_mode` | 21 | Critical — affects 21 downstream functions (8 modules affected) |
+| `agents_config._default_agents_path` | 22 | Critical — affects 22 downstream functions (8 modules affected) |
+| `agents_config._default_secrets_path` | 22 | Critical — affects 22 downstream functions (8 modules affected) |
+| `agents_config.load_agents_config._parse_mode` | 22 | Critical — affects 22 downstream functions (8 modules affected) |
+| `agents_config.load_agents_config` | 21 | Critical — affects 21 downstream functions (8 modules affected) |
 | `code_search_authorization._is_normalized_relative` | 21 | Critical — affects 21 downstream functions (modules: code_search, code_search_authorization) |
-| `agents_config.load_agents_config` | 20 | Critical — affects 20 downstream functions (8 modules affected) |
 | `code_search_authorization.validate_safe_glob` | 20 | Critical — affects 20 downstream functions (modules: code_search, code_search_authorization) |
 | `merge_queue.get_merge_queue_service` | 20 | Critical — affects 20 downstream functions (modules: coordination_api, coordination_cli, coordination_mcp) |
 | `feature_registry.get_feature_registry_service` | 19 | High — test `feature_registry` changes thoroughly (5 modules affected) |
@@ -386,9 +375,9 @@ Breakdown: 89 info, 8 warning.
 
 | Indicator | Value |
 |-----------|-------|
-| Async ratio | 444/1111 (40%) |
-| Docstring coverage | 792/1111 (71%) |
-| Dead code candidates | 512 |
+| Async ratio | 444/1115 (40%) |
+| Docstring coverage | 792/1115 (71%) |
+| Dead code candidates | 514 |
 
 ### Hot Functions
 
@@ -409,7 +398,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ### Dead Code Candidates
 
-512 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
+514 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
 
 - **agents_config** (10): `mutations`, `get_mcp_env`, `reset_agents_config`, `get_agent_isolation`, `get_phase_mapping`, `reset_archetypes_config`, ... (+4)
 - **approval** (8): `db`, `submit_request`, `check_request`, `decide_request`, `expire_stale_requests`, `list_pending`, ... (+2)
@@ -437,7 +426,7 @@ Functions called by the most other functions — changes here have wide blast ra
 - **guardrails** (5): `reset_guardrail_instruments`, `from_dict`, `db`, `_load_patterns`, `check_operation`
 - **handoffs** (4): `db`, `write`, `read`, `get_recent`
 - **help_service** (1): `_register`
-- **issue_service** (10): `db`, `create`, `list_issues`, `show`, `update`, `close`, ... (+4)
+- **issue_service** (12): `db`, `create`, `list_issues`, `show`, `update`, `close`, ... (+6)
 - **kanban_viz_files** (2): `_change_dir`, `_load_schema`
 - **langfuse_middleware** (1): `dispatch`
 - **langfuse_tracing** (4): `create_span`, `end_span`, `trace_operation`, `reset_langfuse`
@@ -472,13 +461,13 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1144 independent groups** identified. The largest interconnected group has 552 modules; 1452 modules are leaf nodes (safe to modify in isolation).
+**1172 independent groups** identified. The largest interconnected group has 554 modules; 1482 modules are leaf nodes (safe to modify in isolation).
 
 **42 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
 ### Interconnected Groups
 
-**Group 0** (552 members spanning 55 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_runtime`
+**Group 0** (554 members spanning 55 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_runtime`
   ... and 47 more modules
 
 **Group 1** (56 members spanning 56 modules): `agents_config`, `approval`, `audit`, `audit_triage`, `axi_output`, `cloudflare_access`, `code_search`, `code_search_authorization`
@@ -500,9 +489,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1452)
+### Leaf Modules (1482)
 
-1452 modules have no dependents — changes are fully isolated. 1120 of the 1144 groups are singletons.
+1482 modules have no dependents — changes are fully isolated. 1147 of the 1172 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -512,8 +501,8 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1443 nodes)"]
-    Database["Database (426 nodes)"]
+    Backend["Backend (1448 nodes)"]
+    Database["Database (453 nodes)"]
 ```
 
 ### Backend Components
@@ -552,7 +541,7 @@ flowchart TB
     handoffs["handoffs (14 symbols)"]
     help_service["help_service (6 symbols)"]
     http_proxy["http_proxy (70 symbols)"]
-    issue_service["issue_service (23 symbols)"]
+    issue_service["issue_service (27 symbols)"]
     kanban_viz_files["kanban_viz_files (11 symbols)"]
     langfuse_middleware["langfuse_middleware (5 symbols)"]
     langfuse_tracing["langfuse_tracing (10 symbols)"]
@@ -595,7 +584,7 @@ flowchart TB
     trust_levels["trust_levels (2 symbols)"]
     trust_resolution["trust_resolution (5 symbols)"]
     watchdog["watchdog (18 symbols)"]
-    work_queue["work_queue (30 symbols)"]
+    work_queue["work_queue (31 symbols)"]
     worktrees_view["worktrees_view (4 symbols)"]
     agents_config -->|"call"| audit
     agents_config -->|"call"| config
@@ -817,16 +806,17 @@ erDiagram
         TEXT agent_id
         TIMESTAMPTZ assigned_at
         TEXT assigned_by
+        UNKNOWN enable
         UUID id
         UUID profile_id
     }
     public__agent_profiles {
-        NOT_EXISTS_synced_from_registry_at_TIMESTAMPTZ IF
         TEXT agent_type
-        TEXT__ allowed_operations
-        TEXT__ blocked_operations
+        TEXT allowed_operations
+        TEXT blocked_operations
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         BOOLEAN enabled
         UUID id
         INT max_api_calls_per_hour
@@ -835,20 +825,23 @@ erDiagram
         JSONB metadata
         TEXT name
         JSONB network_policy
+        TIMESTAMPTZ synced_from_registry_at
         INT trust_level
         TIMESTAMPTZ updated_at
     }
     public__agent_sessions {
-        NOT_EXISTS_delegated_from_TEXT IF
         TEXT agent_id
         TEXT agent_type
-        TEXT__ capabilities
+        TEXT capabilities
         TEXT current_task
+        TEXT delegated_from
+        UNKNOWN enable
         TIMESTAMPTZ ended_at
-        TEXT__ files_modified
+        TEXT files_modified
         TEXT id
         TIMESTAMPTZ last_heartbeat
         JSONB metadata
+        TEXT phase_archetype
         TIMESTAMPTZ started_at
         TEXT status
         TEXT task_description
@@ -861,6 +854,7 @@ erDiagram
         TIMESTAMPTZ created_at
         TIMESTAMPTZ decided_at
         TEXT decided_by
+        UNKNOWN enable
         TIMESTAMPTZ expires_at
         UUID id
         TEXT operation
@@ -869,11 +863,12 @@ erDiagram
         TEXT status
     }
     public__audit_log {
-        NOT_EXISTS_delegated_from_TEXT IF
         TEXT agent_id
         TEXT agent_type
         TIMESTAMPTZ created_at
+        TEXT delegated_from
         INT duration_ms
+        UNKNOWN enable
         TEXT error_message
         UUID id
         TEXT operation
@@ -884,6 +879,7 @@ erDiagram
     public__cedar_entities {
         JSONB attributes
         TIMESTAMPTZ created_at
+        UNKNOWN enable
         TEXT entity_id
         TEXT entity_type
         UUID id
@@ -891,13 +887,14 @@ erDiagram
         TIMESTAMPTZ updated_at
     }
     public__cedar_policies {
-        NOT_EXISTS_policy_version_INTEGER IF
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         BOOLEAN enabled
         UUID id
         TEXT name
         TEXT policy_text
+        INTEGER policy_version
         INTEGER priority
         TIMESTAMPTZ updated_at
     }
@@ -918,6 +915,7 @@ erDiagram
         TEXT commit_sha
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         UUID id
         TEXT session_id
         TEXT status
@@ -947,13 +945,12 @@ erDiagram
         UUID index_id
     }
     public__code_search_indexes {
-        code_search_indexes_natural_key CONSTRAINT
-        NOT_EXISTS_policy_fingerprint_TEXT IF
         INTEGER attempt_count
         INTEGER chunk_count
         TIMESTAMPTZ completed_at
         TIMESTAMPTZ created_at
         TIMESTAMPTZ deleted_at
+        TEXT embedder_fingerprint
         TEXT embedder_model
         INTEGER embedding_dim
         UUID index_id
@@ -963,20 +960,23 @@ erDiagram
         UUID lease_token
         TEXT namespace_key
         TEXT namespace_kind
+        UUID parent_index_id
+        TEXT pipeline_fingerprint
+        TEXT policy_fingerprint
         TEXT repo_slug
         TIMESTAMPTZ retention_until
-        TEXT source_revision
         TIMESTAMPTZ started_at
         TEXT status
         TEXT storage_key
         TIMESTAMPTZ updated_at
     }
     public__code_search_registry {
-        NOT_EXISTS_canonical_index_id_UUID IF
+        UUID canonical_index_id
         INTEGER chunk_count
         TIMESTAMPTZ created_at
         TEXT embedder_model
         INTEGER embedding_dim
+        TEXT git_common_dir_fingerprint
         TEXT last_indexed_commit
         TEXT repo_root
         TEXT repo_slug
@@ -987,16 +987,16 @@ erDiagram
         TIMESTAMPTZ completed_at
         TEXT feature_id
         INTEGER merge_priority
-        JSONB metadata
         TIMESTAMPTZ registered_at
         TEXT registered_by
-        TEXT__ resource_claims
+        TEXT resource_claims
         TEXT status
         TEXT title
         TIMESTAMPTZ updated_at
     }
     public__file_locks {
         TEXT agent_type
+        UNKNOWN enable
         TIMESTAMPTZ expires_at
         TEXT file_path
         TIMESTAMPTZ locked_at
@@ -1012,6 +1012,7 @@ erDiagram
         TEXT category
         JSONB context
         TIMESTAMPTZ created_at
+        UNKNOWN enable
         UUID id
         TEXT matched_text
         TEXT operation_text
@@ -1019,22 +1020,24 @@ erDiagram
         INT trust_level
     }
     public__handoff_documents {
-        NOT_EXISTS_supervisor_record_JSONB IF
         TEXT agent_name
         JSONB completed_work
         TIMESTAMPTZ created_at
         JSONB decisions
+        UNKNOWN enable
         UUID id
         JSONB in_progress
         JSONB next_steps
         JSONB relevant_files
         TEXT session_id
         TEXT summary
+        JSONB supervisor_record
     }
     public__issue_comments {
         TEXT author
         TEXT body
         TIMESTAMPTZ created_at
+        UNKNOWN enable
         UUID id
         UUID issue_id
     }
@@ -1042,20 +1045,22 @@ erDiagram
         TEXT agent_id
         TIMESTAMPTZ created_at
         JSONB details
+        UNKNOWN enable
         TEXT event_type
         UUID id
-        TEXT__ lessons
+        TEXT lessons
         TEXT outcome
         FLOAT relevance_score
         TEXT session_id
         TEXT summary
-        TEXT__ tags
+        TEXT tags
     }
     public__network_access_log {
         TEXT agent_id
         BOOLEAN allowed
         TIMESTAMPTZ created_at
         TEXT domain
+        UNKNOWN enable
         UUID id
         UUID policy_id
         TEXT reason
@@ -1065,6 +1070,7 @@ erDiagram
         TIMESTAMPTZ created_at
         TEXT description
         TEXT domain_pattern
+        UNKNOWN enable
         BOOLEAN enabled
         UUID id
         INT priority
@@ -1083,6 +1089,7 @@ erDiagram
         TEXT category
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         BOOLEAN enabled
         UUID id
         INT min_trust_level
@@ -1104,45 +1111,45 @@ erDiagram
         JSONB config
         TIMESTAMPTZ created_at
         TEXT description
+        UNKNOWN enable
         BOOLEAN enabled
-        verification_executor executor
+        UNKNOWN executor
         TEXT file_pattern
         UUID id
         TEXT name
         INT priority
-        verification_tier tier
+        UNKNOWN tier
     }
     public__verification_results {
         UUID changeset_id
         TIMESTAMPTZ completed_at
         TIMESTAMPTZ created_at
         INT duration_ms
+        UNKNOWN enable
         TEXT error_message
-        verification_executor executor
+        UNKNOWN executor
         UUID id
         JSONB result
         TIMESTAMPTZ started_at
-        verification_status status
-        verification_tier tier
+        UNKNOWN status
+        UNKNOWN tier
     }
     public__work_queue {
-        NOT_EXISTS_labels_TEXT__ IF
-        INTEGER attempt_count
+        JSONB agent_requirements
+        TEXT assignee
         TIMESTAMPTZ claimed_at
         TEXT claimed_by
-        TIMESTAMPTZ completed_at
-        TIMESTAMPTZ created_at
-        TIMESTAMPTZ deadline
-        UUID__ depends_on
+        TEXT close_reason
+        TIMESTAMPTZ closed_at
         TEXT description
-        TEXT error_message
+        UNKNOWN enable
         UUID id
         JSONB input_data
-        INTEGER max_attempts
+        TEXT issue_type
+        TEXT labels
+        JSONB metadata
+        UUID parent_id
         INTEGER priority
-        JSONB result
-        TIMESTAMPTZ started_at
-        TEXT status
         TEXT task_type
     }
     public__work_queue_projection_heads {
@@ -1150,5 +1157,9 @@ erDiagram
         TEXT phase
         INTEGER transition_sequence
         TIMESTAMPTZ updated_at
+    }
+    public__work_queue_projection_ownership {
+        TIMESTAMPTZ created_at
+        UUID task_id
     }
 ```

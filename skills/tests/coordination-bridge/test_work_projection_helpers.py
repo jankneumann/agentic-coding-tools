@@ -48,9 +48,14 @@ def test_submit_forwards_projection_key_and_deduplication(monkeypatch) -> None:
         task_type="autopilot-phase",
         task_description="project phase",
         projection_key=_key(),
+        projection_labels=["change:ri-08", "projection:autopilot-phase"],
     )
 
     assert captured["payload"]["projection_key"] == _key()
+    assert captured["payload"]["projection_labels"] == [
+        "change:ri-08",
+        "projection:autopilot-phase",
+    ]
     assert result["response"]["created"] is False
     assert result["response"]["deduplicated"] is True
 
@@ -68,10 +73,15 @@ def test_reconcile_derives_payload_and_never_raises_transport_failure(monkeypatc
         projection_key=_key(),
         task_type="autopilot-phase",
         task_description="repair phase projection",
+        projection_labels=["change:ri-08", "projection:autopilot-phase"],
     )
 
     assert captured["path"] == "/work/reconcile"
     assert captured["payload"]["projection_key"] == _key()
+    assert captured["payload"]["projection_labels"] == [
+        "change:ri-08",
+        "projection:autopilot-phase",
+    ]
     assert result == {"status": "skipped", "reason": "coordinator_unreachable"}
 
 

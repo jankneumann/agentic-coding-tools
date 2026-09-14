@@ -1,0 +1,38 @@
+# Proposal: Mirror Autopilot Phase State into the Work Queue
+
+## Why
+
+Ri-08 made queue projection idempotent and crash-repairable, but left its callback optional and unregistered. Consequently a real coordinated Autopilot run can advance authoritative `loop-state.json` while the coordinator queue—and therefore `apps/kanban-viz`—shows no current phase.
+
+## What Changes
+
+Add one explicitly selected coordinated projection adapter that derives a work-queue task exclusively from the just-persisted `LoopState`, using `(change_id, current_phase, total_iterations)` as the projection identity. Submit/reconcile creates a `task_type=issue`, priority-1 row and atomically maintains the adapter-owned `change:<id>` and `projection:autopilot-phase` labels inside the coordinator per-change transaction. This also enforces the existing issue-row non-claimability intent in `claim_task`. Register canonical `runner.py init` and `runner.py transition` writers plus an explicit `runner.py project-state` command at the real prose-driven Autopilot host boundary and reconcile it from durable loop-state on resume. Local-parallel and sequential execution do not import, construct, or register the projection publisher and make no projection submit or reconcile request; pre-existing tier detection and archetype resolution remain unchanged.
+
+Make the host-driven CLI protocol call `project-state --mode submit` after its canonical state writes and `project-state --mode reconcile` before resumed work, so supervised runs inherit phase mirroring without a supervise-specific publisher. Projection results remain observability-only: failures are reported, and queue responses never advance or repair loop-state.
+
+## Scope
+
+- coordinated Autopilot projection adapter and host/CLI registration;
+- live transition, duplicate replay, outage, and crash/resume tests;
+- coordinator-backed behavioral proof that queue rows remain derivable from loop-state and visible through the existing kanban data path;
+- documentation of latency and degradation behavior.
+
+## Out of Scope
+
+- changing kanban-viz polling/filter semantics or treating the board as authoritative;
+- changing work-queue projection identity or general claim ordering; migration 037 only enforces the already documented exclusion of `task_type=issue` rows;
+- requiring a coordinator in local-parallel or sequential tiers;
+- adding a second phase-state store.
+
+## Dependencies
+
+- ri-07: work-queue truth/projection contract.
+- ri-08: idempotent submit/reconcile APIs and persist-before-project callback seam.
+
+## Acceptance
+
+- A coordinated live run projects and labels each durable phase generation and refreshes an already connected kanban SSE client within 5 seconds.
+- Every projected row is reproducible from the corresponding `loop-state.json` tuple and bounded metadata.
+- Restart reconciliation cancels stale active rows and ensures exactly one current row without duplicates.
+- Coordinator failure never changes loop-state and is surfaced as degraded projection.
+- Coordinator-free tiers perform zero projection-module imports/construction and zero projection submit, reconcile, or coordinator-only label-helper calls; existing detection/archetype bridge use is unchanged.

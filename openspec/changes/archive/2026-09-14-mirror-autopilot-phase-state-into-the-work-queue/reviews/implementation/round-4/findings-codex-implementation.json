@@ -1,0 +1,126 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "description": "Concurrent projection publishers can remove the newer canonical row's labels while both report success. Label repair occurs after the database reconciliation lock has been released and identifies stale rows only by inequality with the task ID returned to that invocation. A deterministic interleaving is: generation N reconciles and receives row N; generation N+1 reconciles, cancels row N, and labels row N+1; the delayed generation-N invocation then labels its cancelled row, lists both double-labelled rows, treats row N+1 as stale because it differs from row N, and clears row N+1's labels at lines 127-144. Generation N can also relabel its cancelled row after generation N+1 has already completed cleanup. The current projection is consequently absent or accompanied by a stale projection even though both adapters return status ok, violating exact reconciliation and the exactly-one-current-row contract.",
+      "resolution": "Make projection label repair generation-aware and serialized with projection-head advancement. Prefer updating canonical labels and clearing stale labels inside the same server-side transaction/advisory lock as reconciliation, or provide compare-and-set endpoints that update or clear labels only when the supplied task ID and projection generation still match the current head. Add a controlled interleaving test for generations N and N+1.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "line_range": {
+        "start": 99,
+        "end": 146
+      },
+      "axis": "resilience",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 2,
+      "type": "contract_mismatch",
+      "criticality": "high",
+      "description": "Normal reconciliation can send a cancelled projection row to Kanban, whose runtime status domain cannot render it. The reconciliation RPC cancels stale rows before the adapter labels the canonical row and later clears stale labels. Canonical labeling emits an SSE snapshot while cancelled stale rows may still carry change:<id>; event_stream._build_snapshot lists change-labelled issues without a status filter at lines 178-184. IssueService likewise applies no status predicate when status is omitted, while Kanban's IssueStatus union contains pending, claimed, running, completed, failed, and blocked but not cancelled, and issueStatusToColumn has no cancelled branch. A snapshot or polling request between canonical labeling and cleanup therefore makes Board index an undefined column; a cleanup failure leaves that condition persistent. This contradicts the promised unchanged, live Kanban visibility path.",
+      "resolution": "Ensure cancelled stale projection rows cannot be observed with projection labels, ideally by atomically changing statuses and labels in one database transaction so notifications expose only the committed final set. Add defense-in-depth filtering or explicit cancelled-status handling at the snapshot/frontend boundary, plus an integration test that renders the snapshot produced during reconciliation and after cleanup failure.",
+      "disposition": "fix",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "line_range": {
+        "start": 163,
+        "end": 200
+      },
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 3,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "Canonical failure edges into ESCALATE do not preserve the required resume metadata. TRANSITIONS maps numerous ordinary outcomes such as PLAN failed, IMPLEMENT failed, and review max_iter directly to ESCALATE. _apply_transition then only assigns current_phase, timestamp, and total_iterations at lines 807-815; it never sets previous_phase or escalation_reason. Both run_loop and the new runner.py transition command persist this incomplete state. A later ESCALATE resolved transition deterministically raises \"previous_phase is None\", so the run cannot resume to its originating phase. This violates the base escalation contract requiring previous_phase and escalation_reason whenever ESCALATE is entered.",
+      "resolution": "Centralize every edge whose resolved target is ESCALATE through enter_escalate, supplying an outcome-specific reason, and skip the generic sequence increment so the generation advances exactly once. Cover every transition-table edge targeting ESCALATE through both run_loop and runner.py transition, including a successful resolved resume.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 786,
+        "end": 823
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 4,
+      "type": "behavioral_failure",
+      "criticality": "high",
+      "description": "The new canonical runner transition does not implement goal-gate refusal semantics. _apply_transition raises GoalGateRefused when SUBMIT_PR -> DONE lacks valid validation evidence, but _cmd_transition catches only GatePending, ValueError, and OSError. GoalGateRefused is a RuntimeError, so it escapes runner.main, no ESCALATE state is saved, no new projection generation is submitted, and the durable run remains in SUBMIT_PR. This breaks the host-driven auto-approved merge-gate path and contradicts the requirement that a goal-gate refusal durably enter ESCALATE with the failing reason.",
+      "resolution": "Catch GoalGateRefused at the canonical runner boundary, call enter_escalate with the refusal reason, durably save the resulting state, and return the successful-mutation status that causes the host to submit its projection. Keep save failures classified as operational exit 1 and add a CLI regression covering an invalid or stale validation report.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "line_range": {
+        "start": 392,
+        "end": 410
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 5,
+      "type": "correctness",
+      "criticality": "medium",
+      "description": "apply_outcome_or_escalate remains a second ESCALATE writer that bypasses the new generation rule and projection seam. On a non-zero apply-outcome result it manually sets previous_phase and current_phase at lines 659-665 but never increments total_iterations. It then returns the original non-zero code and has no projection callback, while the host protocol suppresses projection after non-zero mutation exits. The durable phase can therefore change to ESCALATE with the previous projection identity and leave the old queue generation live until a later resume reconciliation, contrary to the requirement that every direct ESCALATE transition increment once and every durable coordinated mutation project immediately.",
+      "resolution": "Route this failure path through the same enter_escalate sequencing contract, preserving unknown JSON fields while incrementing total_iterations exactly once. Give the helper an explicit post-save projection seam or return a distinct structured outcome that makes the host project the successfully persisted escalation despite the underlying apply-outcome failure. Add assertions for sequence advancement and immediate projection.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "line_range": {
+        "start": 629,
+        "end": 666
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 6,
+      "type": "spec_gap",
+      "criticality": "high",
+      "description": "The required live integration proof is absent although tasks 3.1-3.3 and 4.3 are checked complete. agent-coordinator/tests/test_autopilot_projection_visibility.py only string-scans migration 037, exercises SSE with a FakeBus and mocked snapshots, inspects selected OpenAPI fields, and unit-tests missing task IDs. It never applies migration 037 to PostgreSQL, invokes a live coordinator projection sequence, attempts an unfiltered claim against an issue row, verifies database NOTIFY OLD-label fallback, seeds more than 50 issues, or renders/polls Kanban during cancellation and label cleanup. change-context.md explicitly records 0/1 requirements with evidence and says the live PostgreSQL/coordinator proof is deferred. The claimed acceptance and migration safety are therefore unverified, and the missing cross-boundary test would have exposed the cancelled-status and concurrency defects above.",
+      "resolution": "Add environment-gated but committed PostgreSQL/coordinator integration tests that apply migrations through 037 and exercise three generations, duplicate replay, unfiltered claim exclusion, interrupted cleanup, OLD-label notification routing, more-than-50-row selection, connected SSE, polling, and actual Kanban snapshot consumption within five seconds. Do not mark the corresponding tasks complete until pass/fail evidence is recorded.",
+      "disposition": "fix",
+      "package_id": "wp-live-integration",
+      "file_path": "agent-coordinator/tests/test_autopilot_projection_visibility.py",
+      "line_range": {
+        "start": 13,
+        "end": 191
+      },
+      "axis": "correctness",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    },
+    {
+      "id": 7,
+      "type": "contract_mismatch",
+      "criticality": "medium",
+      "description": "The revision-2 OpenAPI request schemas remain more permissive than the runtime projection API. WorkSubmitRequest and WorkReconcileRequest use Pydantic extra=\"forbid\", require non-empty task_type and task_description, constrain priority to 1-10, and validate submit dependencies as UUIDs. The authored /work/submit and /work/reconcile schemas at lines 89-100 and 129-139 omit additionalProperties:false, minLength constraints, priority bounds, and UUID formats. A client generated from the declared contract can therefore produce requests the runtime rejects with 422, so the parity test's selected-field assertions do not establish actual OpenAPI parity.",
+      "resolution": "Mirror the Pydantic constraints in both OpenAPI request schemas: forbid additional properties, require non-empty strings, constrain priority to 1 through 10, and declare dependency items as UUID-formatted strings. Extend contract tests to compare the complete relevant validation surface rather than checking only projection_key, agent_requirements, and response references.",
+      "disposition": "fix",
+      "package_id": "wp-projection-adapter",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/work-queue.yaml",
+      "line_range": {
+        "start": 85,
+        "end": 139
+      },
+      "axis": "compatibility",
+      "severity": "critical",
+      "evidence_class": "judgment"
+    }
+  ]
+}

@@ -871,31 +871,34 @@ class CliVendorAdapter:
 
         Handles both direct findings objects and vendor CLI envelopes. grok
         ``--output-format json --json-schema`` places the schema-conforming
-        object under ``structuredOutput`` (E6), so unwrap that key when the
-        top level is not already a findings object.
+        object under ``structuredOutput`` (E6), while agy places the schema
+        object under ``structured_output`` or JSON text under ``response``.
+        Unwrap any when the top level is not already a findings object.
         """
         if "findings" in data:
             return data
-        # Unwrap grok's structured-output envelope (E6). structuredOutput is
-        # normally the parsed object, but tolerate a JSON-string form too.
-        structured = data.get("structuredOutput")
-        if isinstance(structured, dict) and "findings" in structured:
-            return structured
-        if isinstance(structured, str):
-            try:
-                inner = json.loads(structured)
-                if isinstance(inner, dict) and "findings" in inner:
-                    return inner
-            except json.JSONDecodeError:
-                pass
+        # grok uses structuredOutput; agy uses structured_output or response.
+        # Each envelope may carry the parsed object or schema-valid JSON text.
+        for key in ("structuredOutput", "structured_output", "response"):
+            nested = data.get(key)
+            if isinstance(nested, dict) and "findings" in nested:
+                return nested
+            if isinstance(nested, str):
+                try:
+                    inner = json.loads(nested)
+                    if isinstance(inner, dict) and "findings" in inner:
+                        return inner
+                except json.JSONDecodeError:
+                    pass
         return None
 
     @staticmethod
     def _parse_json_blob(text: str) -> dict[str, Any] | None:
         """Parse a findings object from a single text blob.
 
-        Handles a bare JSON object, a vendor envelope (grok
-        ``structuredOutput``), and prose wrapped around the JSON.
+        Handles a bare JSON object, vendor envelopes (grok
+        ``structuredOutput``, agy ``structured_output``, and agy
+        ``response``), and prose wrapped around the JSON.
         """
         text = text.strip()
         if not text:
@@ -2517,6 +2520,7 @@ CHECK_VENDORS_BELOW_QUORUM = 2
 def _check_vendors(
     *,
     agents_yaml: str | None = None,
+    cwd: Path | None = None,
     exclude_vendor: str | None = None,
     min_vendors: int = 2,
     dispatch_mode: str = "review",
@@ -2529,12 +2533,7 @@ def _check_vendors(
     resolving the roster reports "below quorum" rather than passing silently.
     """
     try:
-        if agents_yaml:
-            orch = ReviewOrchestrator.from_agents_yaml(Path(agents_yaml))
-        else:
-            orch = ReviewOrchestrator.from_coordinator()
-            if not orch.adapters:
-                orch = ReviewOrchestrator.from_agents_yaml()
+        orch = _orchestrator_for_dispatch(agents_yaml, cwd or Path("."))
         reviewers = orch.discover_reviewers(
             exclude_vendor=exclude_vendor,
             dispatch_mode=dispatch_mode,
@@ -2571,6 +2570,25 @@ def _check_vendors(
         )
         return CHECK_VENDORS_BELOW_QUORUM
     return 0
+
+
+def _orchestrator_for_dispatch(
+    agents_yaml: str | None,
+    cwd: Path,
+) -> ReviewOrchestrator:
+    """Resolve dispatch config from the reviewed checkout before global state."""
+    if agents_yaml:
+        return ReviewOrchestrator.from_agents_yaml(Path(agents_yaml))
+
+    local = ReviewOrchestrator._find_local_agents_yaml(cwd)
+    if local is not None:
+        return ReviewOrchestrator.from_agents_yaml(local)
+
+    orchestrator = ReviewOrchestrator.from_coordinator()
+    if not orchestrator.adapters and not orchestrator.sdk_adapters:
+        logger.info("Coordinator unavailable, trying agents.yaml on disk")
+        orchestrator = ReviewOrchestrator.from_agents_yaml()
+    return orchestrator
 
 
 def main() -> int:
@@ -2647,6 +2665,7 @@ def main() -> int:
     if args.check_vendors:
         return _check_vendors(
             agents_yaml=args.agents_yaml,
+            cwd=Path(args.cwd),
             exclude_vendor=args.exclude_vendor,
             min_vendors=args.min_vendors,
             dispatch_mode=args.mode,
@@ -2654,12 +2673,7 @@ def main() -> int:
 
     # --list-agents: show available agents and exit
     if args.list_agents:
-        if args.agents_yaml:
-            orch = ReviewOrchestrator.from_agents_yaml(Path(args.agents_yaml))
-        else:
-            orch = ReviewOrchestrator.from_coordinator()
-            if not orch.adapters:
-                orch = ReviewOrchestrator.from_agents_yaml()
+        orch = _orchestrator_for_dispatch(args.agents_yaml, Path(args.cwd))
         if not orch.adapters and not orch.sdk_adapters:
             print("No agents with dispatch configs found")
             return 1
@@ -2706,14 +2720,8 @@ def main() -> int:
         print("Error: --prompt or --prompt-file required", file=sys.stderr)
         return 1
 
-    # Create orchestrator — try coordinator first, fall back to agents.yaml
-    if args.agents_yaml:
-        orch = ReviewOrchestrator.from_agents_yaml(Path(args.agents_yaml))
-    else:
-        orch = ReviewOrchestrator.from_coordinator()
-        if not orch.adapters:
-            logger.info("Coordinator unavailable, trying agents.yaml on disk")
-            orch = ReviewOrchestrator.from_agents_yaml()
+    # Review the target checkout with the vendor config from that checkout.
+    orch = _orchestrator_for_dispatch(args.agents_yaml, Path(args.cwd))
 
     # Discover (three-tier selection)
     reviewers = orch.discover_reviewers(

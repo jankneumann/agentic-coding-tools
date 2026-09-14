@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-14T03:18:47+00:00",
+  "generated_at": "2026-09-14T14:49:14+00:00",
   "summary": {
-    "total_comments": 2604,
+    "total_comments": 2610,
     "total_with_markers": 21,
     "marker_totals": {
       "NOTE": 4,
@@ -11,9 +11,9 @@
       "DEPRECATED": 3,
       "TODO": 1
     },
-    "total_graph_nodes": 1887,
+    "total_graph_nodes": 1901,
     "documented_nodes": 281,
-    "documentation_coverage": 0.149
+    "documentation_coverage": 0.148
   },
   "marker_hotspots": [
     {
@@ -299,7 +299,7 @@
     },
     {
       "file": "event_stream.py",
-      "total_comments": 40,
+      "total_comments": 46,
       "with_markers": 0,
       "languages": [
         "python"

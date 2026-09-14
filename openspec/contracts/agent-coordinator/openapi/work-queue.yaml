@@ -8,7 +8,7 @@
 openapi: 3.1.0
 info:
   title: "agent-coordinator: Work queue"
-  version: 1.0.0
+  version: 2.1.0
   description: >-
     Task claiming, completion, submission, and unclaimed reads. Spec lines
     114-145, 941-963, 1950-1956 (HTTP-7).
@@ -88,16 +88,108 @@ paths:
           application/json:
             schema:
               type: object
+              additionalProperties: false
               required: [task_type, task_description]
+              allOf:
+                - if:
+                    required: [projection_labels]
+                  then:
+                    required: [projection_key, task_type]
+                    properties:
+                      task_type: {const: issue}
               properties:
-                task_type: {type: string}
-                task_description: {type: string}
+                task_type: {type: string, minLength: 1}
+                task_description: {type: string, minLength: 1}
                 input_data: {type: object}
-                priority: {type: integer}
-                depends_on: {type: array, items: {type: string}}
+                priority: {type: integer, minimum: 1, maximum: 10}
+                depends_on: {type: array, items: {type: string, format: uuid}}
+                agent_requirements: {type: object}
+                projection_key:
+                  $ref: "#/components/schemas/ProjectionKey"
+                projection_labels:
+                  type: array
+                  description: >-
+                    Ordered canonical pair. The first item MUST equal
+                    change:<projection_key.change_id>; the second item is fixed.
+                  minItems: 2
+                  maxItems: 2
+                  prefixItems:
+                    - {type: string, pattern: "^change:[a-z0-9][a-z0-9-]{0,127}$", maxLength: 135}
+                    - {type: string, const: "projection:autopilot-phase"}
+                  items: false
       responses:
-        "200": {description: Task created with its task_id (spec 138-139)}
-        "401": {description: Missing or invalid X-API-Key}
+        "200":
+          description: Task created with its task_id (spec 138-139)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionMutationResult"
+        "401":
+          $ref: "#/components/responses/Problem401"
+        "403":
+          $ref: "#/components/responses/Problem403"
+        "409":
+          $ref: "#/components/responses/Problem409"
+        "422":
+          $ref: "#/components/responses/Problem422"
+  /work/reconcile:
+    post:
+      operationId: reconcileWorkProjection
+      summary: Reconcile one authoritative projection generation
+      security:
+        - coordinatorApiKey: []
+      x-traceability:
+        requirements:
+          - skill-workflow.coordinated-autopilot-phase-projection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [projection_key, task_type, task_description]
+              allOf:
+                - if:
+                    required: [projection_labels]
+                  then:
+                    required: [projection_key, task_type]
+                    properties:
+                      task_type: {const: issue}
+              properties:
+                projection_key:
+                  $ref: "#/components/schemas/ProjectionKey"
+                projection_labels:
+                  type: array
+                  description: >-
+                    Ordered canonical pair. The first item MUST equal
+                    change:<projection_key.change_id>; the second item is fixed.
+                  minItems: 2
+                  maxItems: 2
+                  prefixItems:
+                    - {type: string, pattern: "^change:[a-z0-9][a-z0-9-]{0,127}$", maxLength: 135}
+                    - {type: string, const: "projection:autopilot-phase"}
+                  items: false
+                task_type: {type: string, minLength: 1}
+                task_description: {type: string, minLength: 1}
+                input_data: {type: object}
+                priority: {type: integer, minimum: 1, maximum: 10}
+                agent_requirements: {type: object}
+      responses:
+        "200":
+          description: Canonical generation ensured and stale rows cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectionMutationResult"
+        "401":
+          $ref: "#/components/responses/Problem401"
+        "403":
+          $ref: "#/components/responses/Problem403"
+        "409":
+          $ref: "#/components/responses/Problem409"
+        "422":
+          $ref: "#/components/responses/Problem422"
   /work/get:
     post:
       operationId: getWork
@@ -128,6 +220,68 @@ paths:
         "401": {description: Missing or invalid X-API-Key}
         "404": {description: Unknown task_id (spec 955-957)}
 components:
+  schemas:
+    ProjectionKey:
+      type: object
+      additionalProperties: false
+      required: [change_id, phase, transition_sequence]
+      properties:
+        change_id:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]{0,127}$"
+        phase:
+          type: string
+          enum: [INIT, GATEKEEPER, PLAN, PLAN_ITERATE, PLAN_REVIEW, PLAN_FIX, IMPLEMENT, IMPL_ITERATE, IMPL_REVIEW, IMPL_FIX, VALIDATE, VAL_REVIEW, VAL_FIX, SUBMIT_PR, ESCALATE, DONE]
+        transition_sequence:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+    ProjectionMutationResult:
+      type: object
+      required: [success, task_id]
+      properties:
+        success: {type: boolean}
+        task_id: {type: string}
+        created: {type: boolean}
+        deduplicated: {type: boolean}
+        status: {type: string}
+        cancelled_task_ids:
+          type: array
+          items: {type: string}
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, detail]
+      properties:
+        type: {type: string}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+  responses:
+    Problem401:
+      description: Projection authentication required
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Problem403:
+      description: Projection operation forbidden
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Problem409:
+      description: Projection generation conflict
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Problem422:
+      description: Projection request validation failed
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
   securitySchemes:
     coordinatorApiKey:
       type: apiKey

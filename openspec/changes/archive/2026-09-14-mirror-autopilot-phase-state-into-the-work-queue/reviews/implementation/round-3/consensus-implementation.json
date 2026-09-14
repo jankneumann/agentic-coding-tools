@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "mirror-autopilot-phase-state-into-the-work-queue",
+  "reviewers": [
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 12,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": false,
+  "quorum_requested": 2,
+  "quorum_received": 1,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Projection issue helpers treat HTTP-200 business failures as non-success. `_require_projection_operation_success` (coordination_bridge.py:1233-1247) keeps status ok only when `response.success is True`; otherwise it rewrites to status failed with a bounded reason. `try_projection_issue_update` (1348-1369) and `try_projection_issue_list` (1250-1271) both route through that gate, and `QueueProjectionAdapter` (queue_projection.py:107-108, 123-124, 143-144) degrades on any non-ok label/list/cleanup envelope, satisfying the outage-is-degraded scenario."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Missing canonical task IDs are rejected on both sides of the boundary. `_projection_mutation_payload` (coordination_api.py:130-131) raises `_ProjectionProblemError(\"canonical_task_id_missing\", status=422)` before stringifying a null id, and the adapter additionally refuses non-string/empty `task_id` with degraded reason `canonical_task_id_missing` (queue_projection.py:95-97). The HTTP-200 `\"None\"` stringify path from the prior review is closed."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "performance",
+      "agreed_axis": "performance",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: One capability snapshot is detected once per adapter call and reused for the full chain. `QueueProjectionAdapter.__call__` calls `detect_coordination` once (queue_projection.py:60-62), embeds it in the shared call dict as `_coordination_state` (82), and passes the same object into submit/reconcile, label update, list, and stale clears (100-105, 117-121, 136-141). `_execute_single_endpoint_operation` (coordination_bridge.py:529-533) prefers that snapshot over re-probing. `test_projection_reuses_one_capability_snapshot_for_all_bridge_calls` pins identity reuse across three chained helpers."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Migration 037 removes legacy claim_task overloads before installing the sole issue-excluding form. It DROP FUNCTION IF EXISTS the three-arg and five-arg signatures (037_autopilot_phase_projection_visibility.sql:7-8), then CREATE OR REPLACE the six-arg `claim_task` with `AND task_type <> 'issue'` (10-25). Static guard `test_migration_excludes_all_issue_rows_and_uses_old_label_fallback` asserts both DROP statements and the exclusion predicate. After 037, SQL callers cannot resolve an unfiltered historical overload."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Runner pending/validation/operational exits are distinct and match the SKILL protocol. `_cmd_transition` returns 0 for `GatePending` (runner.py:401-403), 2 for `ValueError` (404-406), and 1 for `OSError` (407-409). `_cmd_project_state` returns 2 for validation, 1 for I/O/unexpected errors, and 1 when the projection envelope is non-ok (426-436). SKILL.md:74-76 documents the same 0/1/2 contract; focused runner tests cover gate-pending stop, unknown-outcome exit 2, and missing-state project-state exit 1."
+    },
+    {
+      "id": 6,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "contract_mismatch",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Projection OpenAPI 401/200/request/problem shapes match runtime. `/work/submit` and `/work/reconcile` declare Problem401/403/409/422 as `application/problem+json` Problem refs (work-queue.yaml:108-115, 147-154, 213-246), 200 content as `ProjectionMutationResult` including `cancelled_task_ids` (201-212), and `agent_requirements` on both request bodies (98, 139). Runtime `projection_http_problem_handler` emits the same four-field problem body for 401/403 on those paths (coordination_api.py:857-871), and `_projection_mutation_payload` returns success/task_id/cancelled_task_ids (132-139). `test_projection_openapi_problem_contract_matches_runtime` locks the parity."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Exclusive label ownership still confines full-array replacement to adapter-owned projection rows. Canonical labeling writes exactly `change:<id>` + `projection:autopilot-phase` (queue_projection.py:99-106); reconcile cleanup lists with both labels and clears only non-canonical matches (116-144). `IssueService.list_issues` documents and applies AND semantics via PostgREST `cs` plus `all(label in i.labels ...)` (issue_service.py:302, 329-344) after `task_type=eq.issue` (314), so ordinary change-only issues are never selected for wipe."
+    },
+    {
+      "id": 8,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Exact nested 409 reconciliation remains narrow and spec-correct. `_requires_reconciliation` demands status error, status_code 409, dict response, and `detail == \"reconciliation_required\"` (queue_projection.py:149-158). Sibling 409 `projection_generation_mismatch` degrades without reconcile (`test_only_exact_reconciliation_required_conflict_advances_head`). Runtime `projection_problem_handler` places the raw reason in `detail` (coordination_api.py:835-854), matching the nested check byte-for-byte."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: `enter_escalate` sequencing is atomic and idempotent. On first entry it sets `previous_phase`, moves to ESCALATE, and increments `total_iterations` together (autopilot.py:505-508); re-entry while already in ESCALATE only refreshes reason/timestamp, keeping the projection identity stable. `test_direct_escalation_advances_projection_sequence_once` locks the single bump."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: SSE projection coalescing and unsubscribe remain sound. `_on_task_event` latches `projection_refresh_pending` and enqueues one marker for `projection.labels_changed` bursts (event_stream.py:276-280); both consumption paths clear the latch before/after snapshot work so mid-refresh events re-arm exactly once (324, 346-347). The `finally` block identity-unregisters both bus callbacks on every exit (355-360). Migration 037's OLD-label fallback (87-99) keeps removals change-routable after `labels=[]` clears."
+    },
+    {
+      "id": 11,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Coordinator-free isolation is structural. `runner.py` imports `queue_projection` only inside `_cmd_project_state` (418-419); `persist_and_project` short-circuits to `projection_callback_absent` when `queue_projection_fn is None` (autopilot.py:199-200). AST guard `test_autopilot_and_runner_do_not_eagerly_import_projection_module` (test_phase_projection_isolation.py:12-27) and fail-fast transport spies in `test_coordinator_free_run_cannot_call_projection_transport` (47-86) prove no publisher traffic on the callback-free path."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 12,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: PostgreSQL compatibility and skill mirror parity hold at HEAD c552e233. Migration 037 uses `EXECUTE FUNCTION` for the work_queue notify trigger (037:137-140), matching the repo-wide migration idiom already present since 008/015 and compatible with the ParadeDB/Postgres 14+ baseline in docker-compose. Canonical skill sources under `skills/` are byte-identical to both `.agents/skills/` and `.claude/skills/` mirrors for autopilot SKILL.md, queue_projection.py, runner.py, autopilot.py, and coordination_bridge.py."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 12,
+    "confirmed_count": 0,
+    "unconfirmed_count": 12,
+    "disagreement_count": 0,
+    "blocking_count": 0
+  }
+}

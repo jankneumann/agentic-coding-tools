@@ -1,0 +1,398 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Migration 038 preserves legacy non-projection submit and reconcile behavior. When p_projection_labels is NULL or the payload lacks the full projection tuple (change_id, phase, transition_sequence), the unkeyed path executes standard insertion/reconciliation without touching labels or requiring projection head checks. Ordinary change-labelled issues are never selected by projection-label predicates because they lack the projection identity tuple in input_data. Verified in agent-coordinator/database/migrations/038_atomic_projection_labels.sql lines 30-47 and live test test_unlabelled_legacy_issue_collision_keeps_pre039_dedupe_semantics.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/038_atomic_projection_labels.sql",
+      "id": 1,
+      "line_range": {
+        "end": 47,
+        "start": 30
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Migration 039 creates work_queue_projection_ownership as the sole database-backed authority for projection ownership, with no automatic runtime seeding from mutable payload fields or labels. Existing pre-039 rows remain unowned and fail closed unless explicitly registered by a database administrator. Post-migration runtime ownership checks in submit_task (lines 100-102) and reconcile_work_projection (lines 202-204) strictly check EXISTS in work_queue_projection_ownership. Spoofed input_data markers or labels cannot confer ownership. Verified in migration 039 and live tests test_owned_projection_cannot_take_over_unowned_issue_key and test_reconcile_leaves_unowned_spoofed_projection_issue_untouched.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "id": 2,
+      "line_range": {
+        "end": 110,
+        "start": 4
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Labelled projection key collisions fail closed before any transaction mutation or state change. If an existing row with the same projection key exists, submit_task and reconcile_work_projection verify that the existing row has task_type='issue' and is registered in work_queue_projection_ownership; otherwise, they immediately return failure with reason 'projection_key_collision' (mapped to HTTP 409 Conflict) without advancing heads, cancelling rows, or modifying labels. Verified in migration 039 lines 86-105 (submit) and 185-205 (reconcile) and live tests test_submit_collision_with_nonissue_is_fail_closed, test_reconcile_collision_with_nonissue_preserves_head_and_active_row, and test_projection_key_collision_maps_to_conflict.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "id": 3,
+      "line_range": {
+        "end": 105,
+        "start": 86
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "low",
+      "description": "Legacy unlabelled reconcile (where p_projection_labels IS NULL) preserves pre-039 deduplication and cancellation behavior. It cancels stale active rows based on tuple inequality without requiring ownership checks or modifying labels, ensuring full backward compatibility with unlabelled legacy consumers. Verified in migration 039 lines 180-215 and live test test_unlabelled_legacy_issue_collision_keeps_pre039_dedupe_semantics.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "id": 4,
+      "line_range": {
+        "end": 215,
+        "start": 180
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "compatibility"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Concurrent generations for the same change_id serialize cleanly. Both submit_task (line 72) and reconcile_work_projection (line 166) acquire pg_advisory_xact_lock(hashtextextended(v_change, 0)) at transaction start before reading or updating work_queue_projection_heads and work_queue rows. This prevents race conditions between concurrent N and N+1 publishers and guarantees serialized label repair and head tracking. Verified in migration 039 and live tests.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "id": 5,
+      "line_range": {
+        "end": 80,
+        "start": 70
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Every ESCALATE transition durably records resume metadata (previous_phase, escalation_reason, phase_started_at) and advances total_iterations exactly once. If already parked in ESCALATE, repeated enter_escalate calls are retry-idempotent and preserve the original incident metadata without re-escalating or incrementing total_iterations. Similarly, runner.py transition and escalate guard against mutating terminal DONE states (runner.py:419-420, 485-486). Verified in skills/autopilot/scripts/autopilot.py lines 514-528 and skills/tests/autopilot/test_runner_cli.py.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "id": 6,
+      "line_range": {
+        "end": 528,
+        "start": 514
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Failures in goal-gate evaluation and apply_outcome_or_escalate persist the new ESCALATE generation and immediately project the updated state to the work queue. The authoritative phase is captured before transition, previous_phase is set, total_iterations is incremented, and _project_saved_state is called. Retries while parked preserve the authoritative phase and generation. Verified in skills/autopilot/scripts/autopilot.py lines 674-690 and test_apply_outcome_contract.py.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "id": 7,
+      "line_range": {
+        "end": 690,
+        "start": 674
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Console-approved and automatic escalate_resume paths share one identical canonical resolved edge ({'outcome': 'resolved', 'target': state.previous_phase}). When auto-proceeding, _evaluate_gate flushes _apply_transition and persists the state before continuing. When parking for console approval, session.park persists the exact same edge before host projection. Verified in skills/autopilot/scripts/runner.py lines 169-185 and test_gate_evaluate_cli.py.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "id": 8,
+      "line_range": {
+        "end": 185,
+        "start": 169
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "resilience",
+      "criticality": "low",
+      "description": "Queue responses remain strictly non-authoritative. QueueProjectionAdapter._degraded extracts error reasons prioritizing explicit reason, then RFC 7807 response.detail, then generic error text. When degraded, runner.py project-state logs the degradation and exits 0, ensuring authoritative loop execution is never halted or mutated by work queue or coordinator failures. Verified in skills/autopilot/scripts/queue_projection.py lines 28-35 and test_runner_project_state_reports_degraded_without_halting_authoritative_work in test_queue_projection.py.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/queue_projection.py",
+      "id": 9,
+      "line_range": {
+        "end": 35,
+        "start": 28
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "resilience"
+    },
+    {
+      "axis": "architecture",
+      "criticality": "low",
+      "description": "Coordinator-free tiers remain completely isolated from coordinator infrastructure. In standalone or uncoordinated environments, the runner operates without attempting network contact or projection requests, and queue responses never feed back into loop state. Verified in skills/autopilot/scripts/runner.py and test_phase_projection_isolation.py.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "id": 10,
+      "line_range": {
+        "end": 56,
+        "start": 44
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "architecture"
+    },
+    {
+      "axis": "observability",
+      "criticality": "low",
+      "description": "First-insert and terminal-reactivation paths emit projection.labels_changed events inside the per-change transaction. The AFTER INSERT trigger notify_projection_insert (lines 260-285) fires on initial projection issue creation, and submit/reconcile reactivation branches (lines 130-141, 242-252) fire coordinator_notify with snapshot_required=true on terminal row reactivation. Live integration test test_connected_sse_refreshes_for_first_canonical_projection_insert and test_terminal_reactivation_refreshes_connected_sse confirm real SSE delivery within 1 second.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "id": 11,
+      "line_range": {
+        "end": 285,
+        "start": 130
+      },
+      "package_id": "wp-live-integration",
+      "resolution": "none",
+      "severity": "none",
+      "type": "observability"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Same-generation submit cleanup atomically clears stale owned projection labels from non-canonical rows for the same change before setting canonical labels. Migration 039 lines 122-129 updates labels to empty array for id <> v_id where task_type='issue', change matches, and ownership exists in work_queue_projection_ownership. Verified by test_same_generation_submit_replay_clears_noncanonical_owned_labels.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "id": 12,
+      "line_range": {
+        "end": 129,
+        "start": 122
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Implicit label-filtered issue reads exclude cancelled rows. In IssueService.list_issues (agent-coordinator/src/issue_service.py lines 319-322), when querying by labels without an explicit status filter, status is constrained to 'status=in.(pending,claimed,running,completed,failed,blocked)', excluding 'cancelled'. Consequently, work queue projection queries see only current active rows. Verified in issue_service.py and test_issue_service.py.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/issue_service.py",
+      "id": 13,
+      "line_range": {
+        "end": 322,
+        "start": 319
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "low",
+      "description": "Runtime Pydantic models in coordination_api.py (ProjectionLabels tuple with ProjectionChangeLabel pattern and literal 'projection:autopilot-phase') and OpenAPI specifications in openspec/contracts/agent-coordinator/openapi/work-queue.yaml (minItems: 2, maxItems: 2, prefixItems with change pattern and const, items: false) agree on identical heterogeneous tuple bounds, regex patterns, and length limits (135). Verified in test_autopilot_projection_visibility.py tests.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/work-queue.yaml",
+      "id": 14,
+      "line_range": {
+        "end": 140,
+        "start": 88
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "compatibility"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "The round-9 dispatcher config-precedence fix in _orchestrator_for_dispatch correctly prioritizes checkout-local configuration. Resolution order: (1) explicit --agents-yaml argument; (2) reviewed checkout's agent-coordinator/agents.yaml under cwd; (3) coordinator service; (4) global agents.yaml fallback. This ensures the vendor CLI configurations defined in the change under review are honored over stale coordinator or global settings. Verified in skills/parallel-infrastructure/scripts/review_dispatcher.py lines 2576-2595 and test_dispatch_prefers_review_cwd_agents_yaml in test_review_dispatcher.py.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "id": 15,
+      "line_range": {
+        "end": 2595,
+        "start": 2576
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Antigravity review dispatch correctly constructs CLI arguments and extracts response envelopes. In agent-coordinator/agents.yaml line 275, --output-format json precedes --json-schema @review-findings-schema with prompt passed via --prompt. In review_dispatcher.py, _extract_findings unwraps grok's structuredOutput, agy's structured_output, and agy's JSON string in response. Verified by test_repo_antigravity_schema_review_uses_json_output_mode, test_repo_antigravity_live_dispatch_pairs_json_mode_and_schema, test_antigravity_response_json_string, and test_antigravity_structured_output_dict.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "id": 16,
+      "line_range": {
+        "end": 895,
+        "start": 870
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "low",
+      "description": "The config-precedence implementation in _orchestrator_for_dispatch preserves both the highest-priority explicit --agents-yaml override and the lowest-priority fallback to global disk agents.yaml when the coordinator is unavailable. All existing CLI dispatch paths and test cases in test_review_dispatcher.py continue to pass without regression.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "id": 17,
+      "line_range": {
+        "end": 2595,
+        "start": 2576
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "compatibility"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Runtime skill mirrors in .claude/skills and .agents/skills match the canonical skills directory. CI materializes both mirrors via install.sh --mode copy --force before validating with install.sh --check. Running install.sh --check verifies byte-level parity across both runtime mirrors. Verified in skills/install.sh and test_consumer_portability.py.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "id": 18,
+      "line_range": {
+        "end": 270,
+        "start": 230
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "observability",
+      "criticality": "low",
+      "description": "Generated architecture artifacts satisfy the schema_version 2 provenance contract. The provenance record pins source_revision to 83b104394341936572b550afe410150cb6b4ec94 with zero validation errors, accounts for all committed and local-cache artifacts with valid SHA-256 digests, and passes all 26 test cases in skills/tests/refresh-architecture-contracts/test_architecture_provenance_contract.py.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "docs/architecture-analysis/architecture.provenance.json",
+      "id": 19,
+      "line_range": {
+        "end": 145,
+        "start": 1
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "observability"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Transition and escalate commands in runner.py return 0 without mutating loop state when current_phase is DONE. A completed change cannot be inadvertently reopened or transitioned into ESCALATE. Verified in skills/autopilot/scripts/runner.py lines 419-420 and 485-486, and test_runner_transition_done_is_noop in test_runner_cli.py.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "id": 20,
+      "line_range": {
+        "end": 486,
+        "start": 419
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Runner init persists host invocation flags (--force, --val-review, --no-review) during initial creation, ensuring subsequent resumes retain the original invocation options. Verified in skills/autopilot/scripts/runner.py lines 380-402 and test_runner_init_persists_host_options in test_runner_cli.py.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/runner.py",
+      "id": 21,
+      "line_range": {
+        "end": 402,
+        "start": 380
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Comprehensive live PostgreSQL integration tests verify multi-generation replay (three generations), stale rejection, idempotent replay, exclusion of projection issues from worker claims, window queries with over 50 ordinary issues, real EventBus/SSE refreshes, and fail-closed behavior on collision. All 16 live acceptance tests pass against PostgreSQL.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/tests/integration/postgres/test_autopilot_projection_acceptance_postgres.py",
+      "id": 22,
+      "line_range": {
+        "end": 250,
+        "start": 38
+      },
+      "package_id": "wp-live-integration",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "The round-5 disposition ledger at openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/reviews/implementation/round-5/dispositions.md is restored, documenting dispositions for round-5 findings. All historical review rounds (rounds 1-9) remain intact as audit evidence.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/reviews/implementation/round-5/dispositions.md",
+      "id": 23,
+      "line_range": {
+        "end": 8,
+        "start": 1
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "none",
+      "severity": "none",
+      "type": "correctness"
+    }
+  ]
+}

@@ -340,6 +340,62 @@ class TestWorkQueueProjectionMigrationContract:
         assert replay.created is False
 
 
+    @pytest.mark.asyncio
+    async def test_concurrent_generations_leave_only_newest_projection_labelled(
+        self, pg_work_queue, postgres_db
+    ):
+        labels = [
+            "change:concurrent-projection",
+            "projection:autopilot-phase",
+        ]
+        old_key = {
+            "change_id": "concurrent-projection",
+            "phase": "IMPLEMENT",
+            "transition_sequence": 20,
+        }
+        new_key = {
+            "change_id": "concurrent-projection",
+            "phase": "VALIDATE",
+            "transition_sequence": 21,
+        }
+        await pg_work_queue.submit(
+            task_type="issue",
+            description="old generation",
+            projection_key=old_key,
+            projection_labels=labels,
+        )
+
+        await asyncio.gather(
+            pg_work_queue.reconcile_projection(
+                projection_key=old_key,
+                task_type="issue",
+                description="delayed old generation",
+                projection_labels=labels,
+            ),
+            pg_work_queue.reconcile_projection(
+                projection_key=new_key,
+                task_type="issue",
+                description="new generation",
+                projection_labels=labels,
+            ),
+        )
+
+        rows = await postgres_db.query(
+            "work_queue", "task_type=eq.issue&order=created_at.asc&limit=100"
+        )
+        labelled = [row for row in rows if row.get("labels") == labels]
+        assert len(labelled) == 1
+        assert labelled[0]["input_data"]["transition_sequence"] == 21
+        stale = [
+            row
+            for row in rows
+            if row["input_data"]["transition_sequence"] == 20
+        ]
+        assert stale
+        assert all(row["status"] == "cancelled" for row in stale)
+        assert all("projection:autopilot-phase" not in row.get("labels", []) for row in stale)
+
+
 class TestCompleteTaskTerminalCancellation:
     """Migration 036: cancellation by reconciliation must be terminal.
 

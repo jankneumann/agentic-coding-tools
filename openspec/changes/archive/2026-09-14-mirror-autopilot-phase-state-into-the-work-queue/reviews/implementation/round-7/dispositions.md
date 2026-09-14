@@ -1,0 +1,11 @@
+# Round 7 implementation-review dispositions
+
+- Dispatch: all five configured vendor harnesses received the same verified exact-head prompt. Claude, Grok, and Pi returned schema-valid protocol reviews, satisfying quorum. Antigravity returned a wrapper containing one complete schema-valid review followed by an extra tool payload; the first review is preserved as out-of-band evidence. Codex exhausted the 900-second budget.
+- Claude 1 (high): fixed. The fresh-checkout CI job now installs both ignored runtime mirrors with dependency/bootstrap side effects disabled before running install.sh --check. A regression pins the ordering, and the cross-repo guide describes check as a post-sync verification.
+- Claude 2 (medium): fixed. Runtime ownership now consults only work_queue_projection_ownership after the one-time migration seed. Spoofed input_data and the exact reserved labels cannot make an ordinary keyed issue canonical; live submit/reconcile tests prove fail-closed behavior.
+- Claude 3 (medium): fixed. runner.py transition returns an idempotent no-op for DONE state, preserving loop-state bytes and preventing a completed projection from reopening in ESCALATE.
+- Claude 4 (low): fixed. runner.py init accepts and persists --force, --val-review, and --no-review on first creation; idempotent resume retains the original options, and the skill protocol passes only requested flags.
+- Claude 5 (low): fixed. Terminal canonical-row reactivation emits projection.labels_changed in the same transaction; a connected real EventBus/SSE test observes completed-to-pending refresh.
+- Claude 6: accepted and documented as a conservative upgrade caveat. A pre-038 ambiguous unlabeled keyed row is never auto-adopted; it fails closed until database-controlled repair or a new generation.
+- Claude 7-14, Pi 1-20, and recovered Antigravity 1-20: accepted as positive deterministic verification. Grok returned a schema-valid placeholder observation and added no evidence. No other behavioral gap was identified.
+- Verification: focused RED tests failed on all five changed behaviors before implementation and pass afterward. Full fresh-migration, live PostgreSQL/E2E, installer, Autopilot, strict OpenSpec, Ruff, mirror, and architecture gates are rerun on the integrated fix commit.

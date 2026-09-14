@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-09-14T05:30:41+00:00",
+  "generated_at": "2026-09-14T14:49:14+00:00",
   "threshold": 5,
   "total_high_impact": 123,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
-      "dependent_count": 182
+      "dependent_count": 183
     },
     {
       "id": "py:http_proxy._error_response",
@@ -29,7 +29,7 @@
     },
     {
       "id": "py:audit.get_audit_service",
-      "dependent_count": 43
+      "dependent_count": 44
     },
     {
       "id": "py:config",
@@ -41,7 +41,7 @@
     },
     {
       "id": "py:teams.CrewManifest.validate",
-      "dependent_count": 31
+      "dependent_count": 32
     },
     {
       "id": "py:coordination_cli._print_dict",
@@ -64,6 +64,10 @@
       "dependent_count": 27
     },
     {
+      "id": "py:profile_loader.interpolate",
+      "dependent_count": 27
+    },
+    {
       "id": "py:coordination_cli._run",
       "dependent_count": 26
     },
@@ -72,7 +76,7 @@
       "dependent_count": 26
     },
     {
-      "id": "py:profile_loader.interpolate",
+      "id": "py:profile_loader._load_secrets_file",
       "dependent_count": 26
     },
     {
@@ -80,28 +84,24 @@
       "dependent_count": 25
     },
     {
-      "id": "py:profile_loader._load_secrets_file",
-      "dependent_count": 25
-    },
-    {
       "id": "py:agents_config._default_agents_path",
-      "dependent_count": 21
+      "dependent_count": 22
     },
     {
       "id": "py:agents_config._default_secrets_path",
-      "dependent_count": 21
+      "dependent_count": 22
     },
     {
       "id": "py:agents_config.load_agents_config._parse_mode",
+      "dependent_count": 22
+    },
+    {
+      "id": "py:agents_config.load_agents_config",
       "dependent_count": 21
     },
     {
       "id": "py:code_search_authorization._is_normalized_relative",
       "dependent_count": 21
-    },
-    {
-      "id": "py:agents_config.load_agents_config",
-      "dependent_count": 20
     },
     {
       "id": "py:code_search_authorization.validate_safe_glob",
@@ -133,11 +133,11 @@
     },
     {
       "id": "py:profiles.get_profiles_service",
-      "dependent_count": 15
+      "dependent_count": 16
     },
     {
       "id": "py:agents_config.get_agents_config",
-      "dependent_count": 14
+      "dependent_count": 15
     },
     {
       "id": "py:openspec_proposals_api._run_git",
@@ -192,6 +192,10 @@
       "dependent_count": 9
     },
     {
+      "id": "py:agents_config.get_agent_config",
+      "dependent_count": 9
+    },
+    {
       "id": "py:agents_config.load_archetypes_config",
       "dependent_count": 9
     },
@@ -230,10 +234,6 @@
     {
       "id": "py:telemetry.get_tracer",
       "dependent_count": 9
-    },
-    {
-      "id": "py:agents_config.get_agent_config",
-      "dependent_count": 8
     },
     {
       "id": "py:code_search_runtime._grant_resolver_from_env.resolve",
@@ -281,6 +281,10 @@
     },
     {
       "id": "py:trust_resolution",
+      "dependent_count": 8
+    },
+    {
+      "id": "py:trust_resolution._audit_trust_resolution_failure",
       "dependent_count": 8
     },
     {
@@ -340,7 +344,7 @@
       "dependent_count": 7
     },
     {
-      "id": "py:trust_resolution._audit_trust_resolution_failure",
+      "id": "py:trust_resolution.resolve_trust_level",
       "dependent_count": 7
     },
     {
@@ -393,10 +397,6 @@
     },
     {
       "id": "py:telemetry.get_policy_meter",
-      "dependent_count": 6
-    },
-    {
-      "id": "py:trust_resolution.resolve_trust_level",
       "dependent_count": 6
     },
     {

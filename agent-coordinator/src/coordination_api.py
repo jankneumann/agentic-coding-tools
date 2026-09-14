@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sys
 import time
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -95,7 +95,9 @@ class _CodeSearchProblemError(Exception):
 _PROJECTION_CONFLICTS = {
     "stale_projection",
     "projection_generation_mismatch",
+    "projection_mode_mismatch",
     "reconciliation_required",
+    "projection_key_collision",
 }
 _PROJECTION_FORBIDDEN = {
     "operation_not_permitted",
@@ -106,6 +108,7 @@ _PROJECTION_INVALID = {
     "invalid_projection_key",
     "reserved_projection_key",
     "guardrail_denied",
+    "invalid_projection_labels",
 }
 
 
@@ -127,6 +130,8 @@ def _projection_mutation_payload(result: Any) -> dict[str, Any]:
         if result.reason in _PROJECTION_INVALID:
             raise _ProjectionProblemError(result.reason, status=422)
         raise _ProjectionProblemError(result.reason or "projection_mutation_failed", status=422)
+    if result.task_id is None:
+        raise _ProjectionProblemError("canonical_task_id_missing", status=422)
     return {
         "success": True,
         "task_id": str(result.task_id),
@@ -213,12 +218,23 @@ class ProjectionKeyRequest(BaseModel):
     transition_sequence: StrictInt = Field(ge=0, le=2147483647)
 
 
+ProjectionChangeLabel = Annotated[
+    str,
+    Field(max_length=135, pattern=r"^change:[a-z0-9][a-z0-9-]{0,127}$"),
+]
+ProjectionLabels = tuple[
+    ProjectionChangeLabel,
+    Literal["projection:autopilot-phase"],
+]
+
+
 class WorkSubmitRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     task_type: str = Field(min_length=1)
     task_description: str = Field(min_length=1)
     projection_key: ProjectionKeyRequest | None = None
+    projection_labels: ProjectionLabels | None = None
     input_data: dict[str, Any] | None = None
     priority: int = Field(default=5, ge=1, le=10)
     depends_on: list[UUID] | None = None
@@ -229,6 +245,7 @@ class WorkReconcileRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     projection_key: ProjectionKeyRequest
+    projection_labels: ProjectionLabels | None = None
     task_type: str = Field(min_length=1)
     task_description: str = Field(min_length=1)
     input_data: dict[str, Any] | None = None
@@ -376,14 +393,17 @@ class StatusReportRequest(BaseModel):
     # (defense in depth) and the report_status.py client-side validation.
     # Older clients omit this field (no 400 — backward compatible) — the
     # ``| None`` admits both omission and explicit ``null``.
-    phase_archetype: Literal[
-        "architect",
-        "reviewer",
-        "implementer",
-        "analyst",
-        "runner",
-        "gatekeeper",
-    ] | None = Field(default=None)
+    phase_archetype: (
+        Literal[
+            "architect",
+            "reviewer",
+            "implementer",
+            "analyst",
+            "runner",
+            "gatekeeper",
+        ]
+        | None
+    ) = Field(default=None)
 
 
 class ResolveForPhaseRequest(BaseModel):
@@ -499,6 +519,7 @@ class AffectedTestsRequest(BaseModel):
 
 
 # ── Kanban-viz request models ──────────────────────────────────────────────
+
 
 class EventsAuthRequest(BaseModel):
     change_ids: list[str] = Field(min_length=1, description="change-ids to scope the token")
@@ -616,11 +637,7 @@ def resolve_identity(
             status_code=403,
             detail="API key is not permitted to act as requested agent_id",
         )
-    if (
-        bound_agent_type
-        and request_agent_type
-        and request_agent_type != bound_agent_type
-    ):
+    if bound_agent_type and request_agent_type and request_agent_type != bound_agent_type:
         raise HTTPException(
             status_code=403,
             detail="API key is not permitted to act as requested agent_type",
@@ -746,13 +763,15 @@ def create_coordination_api() -> FastAPI:
                 await notifier.start_digest_loop()
             except Exception:  # noqa: BLE001
                 logging.getLogger(__name__).warning(
-                    "Notifier digest loop startup failed.", exc_info=True,
+                    "Notifier digest loop startup failed.",
+                    exc_info=True,
                 )
             try:
                 await watchdog.start()
             except Exception:  # noqa: BLE001
                 logging.getLogger(__name__).warning(
-                    "Watchdog startup failed.", exc_info=True,
+                    "Watchdog startup failed.",
+                    exc_info=True,
                 )
 
         # Start merge-train sweeper (R1/R2 — task 5.9). Disable via
@@ -765,7 +784,8 @@ def create_coordination_api() -> FastAPI:
                 await sweeper.start()
             except Exception:  # noqa: BLE001
                 logging.getLogger(__name__).warning(
-                    "MergeTrainSweeper startup failed.", exc_info=True,
+                    "MergeTrainSweeper startup failed.",
+                    exc_info=True,
                 )
 
         from .merge_watcher import get_merge_watcher
@@ -776,7 +796,8 @@ def create_coordination_api() -> FastAPI:
                 await merge_watcher.start()
             except Exception:  # noqa: BLE001
                 logging.getLogger(__name__).warning(
-                    "MergeWatcher startup failed.", exc_info=True,
+                    "MergeWatcher startup failed.",
+                    exc_info=True,
                 )
 
         yield
@@ -952,9 +973,7 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Acquire a file lock. Cloud agents call this before modifying files."""
-        agent_id, agent_type = resolve_identity(
-            principal, request.agent_id, request.agent_type
-        )
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, request.agent_type)
         await authorize_operation(
             agent_id=agent_id,
             agent_type=agent_type,
@@ -989,9 +1008,7 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Release a file lock."""
-        agent_id, _agent_type = resolve_identity(
-            principal, request.agent_id, None
-        )
+        agent_id, _agent_type = resolve_identity(principal, request.agent_id, None)
         await authorize_operation(
             agent_id=agent_id,
             agent_type=_agent_type,
@@ -1107,9 +1124,7 @@ def create_coordination_api() -> FastAPI:
             }
             for m in memories
         ]
-        return list_envelope(
-            "memories", rows, limit=request.limit, truncated=truncated
-        )
+        return list_envelope("memories", rows, limit=request.limit, truncated=truncated)
 
     # --------------------------------------------------------------------- #
     # WORK QUEUE
@@ -1121,9 +1136,7 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Claim a task from the work queue."""
-        agent_id, agent_type = resolve_identity(
-            principal, request.agent_id, request.agent_type
-        )
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, request.agent_type)
         await authorize_operation(
             agent_id=agent_id,
             agent_type=agent_type,
@@ -1189,11 +1202,25 @@ def create_coordination_api() -> FastAPI:
         """Submit new work to the queue."""
 
         agent_id, agent_type = resolve_identity(principal, None, None)
+        projection_change_id = (
+            request.projection_key.change_id if request.projection_key else None
+        )
         await authorize_operation(
             agent_id=agent_id,
             agent_type=agent_type,
-            operation="submit_work",
-            context={"task_type": request.task_type, "priority": request.priority},
+            operation=(
+                "publish_work_projection" if projection_change_id else "submit_work"
+            ),
+            resource=projection_change_id or "",
+            context={
+                "task_type": request.task_type,
+                "priority": request.priority,
+                **(
+                    {"mode": "submit", "change_id": projection_change_id}
+                    if projection_change_id
+                    else {}
+                ),
+            },
         )
 
         depends_on_uuids = request.depends_on
@@ -1210,6 +1237,9 @@ def create_coordination_api() -> FastAPI:
             projection_key=(
                 request.projection_key.model_dump() if request.projection_key else None
             ),
+            projection_labels=(
+                list(request.projection_labels) if request.projection_labels else None
+            ),
         )
         payload = _projection_mutation_payload(result)
         if request.projection_key is None:
@@ -1225,9 +1255,11 @@ def create_coordination_api() -> FastAPI:
         await authorize_operation(
             agent_id=agent_id,
             agent_type=agent_type,
-            operation="submit_work",
+            operation="publish_work_projection",
+            resource=request.projection_key.change_id,
             context={
                 "mode": "reconcile",
+                "change_id": request.projection_key.change_id,
                 "task_type": request.task_type,
                 "priority": request.priority,
             },
@@ -1236,6 +1268,9 @@ def create_coordination_api() -> FastAPI:
 
         result = await get_work_queue_service().reconcile_projection(
             projection_key=request.projection_key.model_dump(),
+            projection_labels=(
+                list(request.projection_labels) if request.projection_labels else None
+            ),
             task_type=request.task_type,
             description=request.task_description,
             input_data=request.input_data,
@@ -1299,13 +1334,11 @@ def create_coordination_api() -> FastAPI:
         """Create a new issue."""
         from uuid import UUID
 
-        from .issue_service import get_issue_service
+        from .issue_service import ProjectionIssueMutationError, get_issue_service
 
         service = get_issue_service()
         parent_uuid = UUID(request.parent_id) if request.parent_id else None
-        depends_uuids = (
-            [UUID(d) for d in request.depends_on] if request.depends_on else None
-        )
+        depends_uuids = [UUID(d) for d in request.depends_on] if request.depends_on else None
 
         try:
             issue = await service.create(
@@ -1319,6 +1352,8 @@ def create_coordination_api() -> FastAPI:
                 depends_on=depends_uuids,
             )
             return {"success": True, "issue": issue.to_dict()}
+        except ProjectionIssueMutationError as e:
+            raise HTTPException(status_code=403, detail=str(e)) from e
         except ValueError as e:
             return {"success": False, "reason": str(e)}
         except Exception as e:  # noqa: BLE001
@@ -1394,7 +1429,7 @@ def create_coordination_api() -> FastAPI:
         """Update an issue."""
         from uuid import UUID
 
-        from .issue_service import get_issue_service
+        from .issue_service import ProjectionIssueMutationError, get_issue_service
 
         service = get_issue_service()
         try:
@@ -1408,6 +1443,8 @@ def create_coordination_api() -> FastAPI:
                 assignee=request.assignee,
                 issue_type=request.issue_type,
             )
+        except ProjectionIssueMutationError as e:
+            raise HTTPException(status_code=403, detail=str(e)) from e
         except ValueError as e:
             return {"success": False, "reason": str(e)}
         except Exception as e:  # noqa: BLE001
@@ -1426,7 +1463,7 @@ def create_coordination_api() -> FastAPI:
         """Close one or more issues."""
         from uuid import UUID
 
-        from .issue_service import get_issue_service
+        from .issue_service import ProjectionIssueMutationError, get_issue_service
 
         service = get_issue_service()
         id_uuid = UUID(request.issue_id) if request.issue_id else None
@@ -1438,6 +1475,8 @@ def create_coordination_api() -> FastAPI:
                 issue_ids=ids_uuids,
                 reason=request.reason,
             )
+        except ProjectionIssueMutationError as e:
+            raise HTTPException(status_code=403, detail=str(e)) from e
         except ValueError as e:
             return {"success": False, "reason": str(e)}
         except Exception as e:  # noqa: BLE001
@@ -1628,9 +1667,7 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Write a handoff document for session continuity."""
-        agent_id, agent_type = resolve_identity(
-            principal, request.agent_id, request.agent_type
-        )
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, request.agent_type)
 
         from .handoffs import get_handoff_service
 
@@ -1689,9 +1726,7 @@ def create_coordination_api() -> FastAPI:
         # No top-level ``next_steps`` here: each handoff row already carries a
         # semantic ``next_steps`` field, so reusing the key for command
         # suggestions would be ambiguous.
-        return list_envelope(
-            "handoffs", rows, limit=request.limit, truncated=result.truncated
-        )
+        return list_envelope("handoffs", rows, limit=request.limit, truncated=result.truncated)
 
     # --------------------------------------------------------------------- #
     # POLICY
@@ -1703,9 +1738,7 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Check if an operation is authorized by the policy engine."""
-        agent_id, agent_type = resolve_identity(
-            principal, request.agent_id, request.agent_type
-        )
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, request.agent_type)
 
         from .policy_engine import get_policy_engine
 
@@ -1798,9 +1831,7 @@ def create_coordination_api() -> FastAPI:
                 "realtime_port": alloc.realtime_port,
                 "api_port": alloc.api_port,
                 "compose_project_name": alloc.compose_project_name,
-                "remaining_ttl_minutes": max(
-                    0, (alloc.expires_at - time.time()) / 60
-                ),
+                "remaining_ttl_minutes": max(0, (alloc.expires_at - time.time()) / 60),
             }
             for alloc in allocations
         ]
@@ -1902,9 +1933,7 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Register a feature with resource claims."""
-        agent_id, agent_type = resolve_identity(
-            principal, request.agent_id, None
-        )
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, None)
         await authorize_operation(
             agent_id=agent_id,
             agent_type=agent_type,
@@ -2209,9 +2238,7 @@ def create_coordination_api() -> FastAPI:
         from .merge_train_service import get_merge_train_service
 
         try:
-            composition = await get_merge_train_service().compose_train(
-                caller_trust_level=trust
-            )
+            composition = await get_merge_train_service().compose_train(caller_trust_level=trust)
         except TrainAuthorizationError as exc:
             raise HTTPException(status_code=403, detail=str(exc))
 
@@ -2391,18 +2418,9 @@ def create_coordination_api() -> FastAPI:
         except Exception:
             entries = []
 
-        merge_count = sum(
-            1 for e in entries
-            if (e.result or {}).get("event_type") == "merge"
-        )
-        revert_count = sum(
-            1 for e in entries
-            if (e.result or {}).get("event_type") == "revert"
-        )
-        rebase_count = sum(
-            1 for e in entries
-            if (e.result or {}).get("event_type") == "rebase"
-        )
+        merge_count = sum(1 for e in entries if (e.result or {}).get("event_type") == "merge")
+        revert_count = sum(1 for e in entries if (e.result or {}).get("event_type") == "revert")
+        rebase_count = sum(1 for e in entries if (e.result or {}).get("event_type") == "rebase")
 
         return {
             "total_events": len(entries),
@@ -2454,6 +2472,7 @@ def create_coordination_api() -> FastAPI:
                 )
             except Exception:  # noqa: BLE001
                 import logging as _logging
+
                 _logging.getLogger(__name__).debug(
                     "Audit logging failed for resolve_archetype_for_phase",
                     exc_info=True,
@@ -2676,9 +2695,7 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Register an agent session for discovery."""
-        agent_id, agent_type = resolve_identity(
-            principal, request.agent_id, request.agent_type
-        )
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, request.agent_type)
         await authorize_operation(
             agent_id=agent_id,
             agent_type=agent_type,
@@ -2722,9 +2739,7 @@ def create_coordination_api() -> FastAPI:
                     "capabilities": a.capabilities,
                     "status": a.status,
                     "current_task": a.current_task,
-                    "last_heartbeat": a.last_heartbeat.isoformat()
-                    if a.last_heartbeat
-                    else None,
+                    "last_heartbeat": a.last_heartbeat.isoformat() if a.last_heartbeat else None,
                     "started_at": a.started_at.isoformat() if a.started_at else None,
                     # wire-autopilot-phase-subagents (D-1): surface the resolved
                     # archetype for the agent's current phase. None for legacy
@@ -2741,9 +2756,7 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Send a heartbeat for an agent session."""
-        agent_id, agent_type = resolve_identity(
-            principal, request.agent_id, request.agent_type
-        )
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, request.agent_type)
         await authorize_operation(
             agent_id=agent_id,
             agent_type=agent_type,
@@ -2964,9 +2977,7 @@ def create_coordination_api() -> FastAPI:
 
         config = get_config()
         if not config.session_grants.enabled:
-            raise HTTPException(
-                status_code=400, detail="Session grants are not enabled"
-            )
+            raise HTTPException(status_code=400, detail="Session grants are not enabled")
 
         from .session_grants import get_session_grant_service
 
@@ -2993,9 +3004,7 @@ def create_coordination_api() -> FastAPI:
         principal: dict[str, Any] = Depends(verify_api_key),
     ) -> dict[str, Any]:
         """Submit a human-in-the-loop approval request."""
-        agent_id, agent_type = resolve_identity(
-            principal, request.agent_id, request.agent_type
-        )
+        agent_id, agent_type = resolve_identity(principal, request.agent_id, request.agent_type)
         await authorize_operation(
             agent_id=agent_id,
             agent_type=agent_type,
@@ -3006,9 +3015,7 @@ def create_coordination_api() -> FastAPI:
 
         config = get_config()
         if not config.approval.enabled:
-            raise HTTPException(
-                status_code=400, detail="Approval gates are not enabled"
-            )
+            raise HTTPException(status_code=400, detail="Approval gates are not enabled")
 
         service = get_approval_service()
         approval_request = await service.submit_request(
@@ -3227,9 +3234,7 @@ def create_coordination_api() -> FastAPI:
             return EventSourceResponse(generator)
         except Exception as exc:
             logger.error("SSE stream setup failed: %s", exc)
-            return JSONResponse(
-                status_code=500, content={"error": "stream setup failed"}
-            )
+            return JSONResponse(status_code=500, content={"error": "stream setup failed"})
 
     @app.patch("/issues/{issue_id}/labels")
     async def patch_issue_labels(
@@ -3239,13 +3244,13 @@ def create_coordination_api() -> FastAPI:
     ) -> dict[str, Any]:
         """Add or remove labels on a work_queue row (drag-to-Ready interaction).
 
-        Wraps IssueService.update with a labels-only mutation path.
+        Wraps IssueService.update with a labels-only mutation path on an issue row.
         Reversibility: reversible-write; audit emitted.
         """
         from uuid import UUID
 
         from .audit import get_audit_service
-        from .issue_service import IssueService
+        from .issue_service import IssueService, ProjectionIssueMutationError
 
         service = IssueService()
         try:
@@ -3259,10 +3264,13 @@ def create_coordination_api() -> FastAPI:
         current_labels.update(request.add)
         current_labels.difference_update(request.remove)
 
-        updated = await service.update(
-            issue_id=UUID(issue_id),
-            labels=list(current_labels),
-        )
+        try:
+            updated = await service.update(
+                issue_id=UUID(issue_id),
+                labels=list(current_labels),
+            )
+        except ProjectionIssueMutationError as e:
+            raise HTTPException(status_code=403, detail=str(e)) from e
         if updated is None:
             raise HTTPException(status_code=404, detail=f"Issue {issue_id!r} not found")
 
@@ -3394,6 +3402,7 @@ def create_coordination_api() -> FastAPI:
         # 2. Update agent_sessions
         try:
             from .db import get_db
+
             db = get_db()
             await db.update(
                 "agent_sessions",
@@ -3409,6 +3418,7 @@ def create_coordination_api() -> FastAPI:
         held_locks: list[str] = []
         try:
             from .locks import get_lock_service
+
             locks = await get_lock_service().check(locked_by=agent_id)
             held_locks = [lk.file_path for lk in locks]
         except Exception:
@@ -3605,8 +3615,7 @@ def create_coordination_api() -> FastAPI:
                 content={
                     "error": error_code,
                     "message": (
-                        "This coordinator instance has no .git directory in its "
-                        "runtime checkout."
+                        "This coordinator instance has no .git directory in its runtime checkout."
                         if error_code == "git_unavailable"
                         else str(exc)
                     ),

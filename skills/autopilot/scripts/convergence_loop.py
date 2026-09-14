@@ -53,6 +53,7 @@ from consensus_synthesizer import (  # noqa: E402
 from review_dispatcher import (  # noqa: E402
     ReviewOrchestrator,
     ReviewResult,
+    _orchestrator_for_dispatch,
 )
 from review_ledger import (  # noqa: E402
     adjudication_items as ledger_adjudication_items,
@@ -611,7 +612,7 @@ def converge(
         if agents_yaml_path:
             orchestrator = ReviewOrchestrator.from_agents_yaml(agents_yaml_path)
         else:
-            orchestrator = ReviewOrchestrator.from_coordinator()
+            orchestrator = _orchestrator_for_dispatch(None, worktree_path)
 
     synthesizer = ConsensusSynthesizer(quorum=min_quorum)
     trend: list[int] = []
