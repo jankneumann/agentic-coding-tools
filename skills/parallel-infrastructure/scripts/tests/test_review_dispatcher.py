@@ -64,6 +64,14 @@ def _adapter(
     )
 
 
+def _resolved_primary(vendor: str = "codex") -> str:
+    """Primary model label when cli.model is null (archetypes.yaml premium)."""
+    from review_dispatcher import _resolve_review_model_spec
+
+    model, _ = _resolve_review_model_spec(vendor)
+    return model or "(default)"
+
+
 VALID_FINDINGS_JSON = json.dumps({
     "review_type": "plan",
     "target": "test-feature",
@@ -278,7 +286,7 @@ class TestDispatch:
         adapter = _adapter(model_fallbacks=["o3"])
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is True
-        assert result.models_attempted == ["(default)", "o3"]
+        assert result.models_attempted == [_resolved_primary(), "o3"]
         assert result.model_used == "o3"
 
     @patch("review_dispatcher.subprocess.run")
@@ -291,7 +299,7 @@ class TestDispatch:
         adapter = _adapter(model_fallbacks=["o3", "gpt-4.1"])
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is False
-        assert result.models_attempted == ["(default)", "o3", "gpt-4.1"]
+        assert result.models_attempted == [_resolved_primary(), "o3", "gpt-4.1"]
         assert result.error_class == ErrorClass.CAPACITY
 
     @patch("review_dispatcher.subprocess.run")
@@ -305,7 +313,7 @@ class TestDispatch:
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is False
         assert result.error_class == ErrorClass.AUTH
-        assert result.models_attempted == ["(default)"]  # No fallback attempted
+        assert result.models_attempted == [_resolved_primary()]  # No fallback attempted
 
     @patch("review_dispatcher.subprocess.run")
     def test_timeout(self, mock_run: MagicMock, tmp_path: Path) -> None:
@@ -357,7 +365,7 @@ class TestDispatch:
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is False
         assert result.error_class == ErrorClass.UNAVAILABLE
-        assert result.models_attempted == ["(default)"]  # account-scoped: no fallback
+        assert result.models_attempted == [_resolved_primary()]  # account-scoped: no fallback
         assert "Insufficient credits" in (result.error or "")
 
     @patch("review_dispatcher.subprocess.run")
@@ -372,7 +380,7 @@ class TestDispatch:
         result = adapter.dispatch("review", "prompt", cwd=tmp_path)
         assert result.success is False
         assert result.error_class == ErrorClass.UNAVAILABLE
-        assert result.models_attempted == ["(default)"]
+        assert result.models_attempted == [_resolved_primary()]
 
     @patch("review_dispatcher.subprocess.run")
     def test_json_embedded_in_text(self, mock_run: MagicMock, tmp_path: Path) -> None:

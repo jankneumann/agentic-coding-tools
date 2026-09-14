@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -18,15 +19,20 @@ from review_dispatcher import (  # noqa: E402
 )
 
 
-def test_resolve_premium_matches_archetypes_yaml() -> None:
-    from skills.shared.archetype_roster import (  # type: ignore
-        clear_archetypes_raw_cache,
-        resolve_tier_for_provider,
-    )
+def _roster():
+    path = Path(__file__).resolve().parents[3] / "shared" / "archetype_roster.py"
+    spec = importlib.util.spec_from_file_location("archetype_roster", path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    return mod
 
-    clear_archetypes_raw_cache()
+
+def test_resolve_premium_matches_archetypes_yaml() -> None:
+    roster = _roster()
+    roster.clear_archetypes_raw_cache()
     for vendor in ("claude_code", "codex", "antigravity", "grok", "pi"):
-        expected = resolve_tier_for_provider(vendor, "premium")
+        expected = roster.resolve_tier_for_provider(vendor, "premium")
         assert _resolve_review_model_spec(vendor) == expected
         assert expected[0], f"{vendor} premium model missing"
 
@@ -65,7 +71,6 @@ def test_build_command_injects_tier_model_and_thinking() -> None:
             prompt_via_stdin=True,
         ),
     )
-    # Avoid schema file dependency: stub _resolve_args
     adapter._resolve_args = lambda args: [  # type: ignore[method-assign]
         a if a != "@review-findings-schema" else "<schema>" for a in args
     ]
@@ -73,5 +78,4 @@ def test_build_command_injects_tier_model_and_thinking() -> None:
     assert cmd[0] == "claude"
     assert "--effort" in cmd and "medium" in cmd
     assert "--model" in cmd and model in cmd
-    # Stale effort flags must not double up
     assert cmd.count("--effort") == 1
