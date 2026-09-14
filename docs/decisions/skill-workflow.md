@@ -5,58 +5,80 @@
 
 ---
 
-## 2026-09-14 — retire-skill-literal-model-hints
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
 
 ### Phase: Plan
 
 **Gate 2 approve plan** — User approved complete plan; proceed to implementation.
 
 - Status: `active`
-- Source: [openspec/changes/retire-skill-literal-model-hints/session-log.md](/openspec/changes/retire-skill-literal-model-hints/session-log.md) (D1)
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D1)
 
 ---
 
-## 2026-09-14 — retire-skill-literal-model-hints
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
+
+### Phase: Cleanup
+
+**Rebase-merge with force-approval** — OpenSpec default rebase strategy; operator authorized merge without waiting for formal review after CI green.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D1)
+
+---
+
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
 
 ### Phase: Plan
 
 **Harden test_skill_model_hints in place** — Reuse existing CI hook; empty opus/sonnet/haiku allowlist; extend Agent/-m checks.
 
 - Status: `active`
-- Source: [openspec/changes/retire-skill-literal-model-hints/session-log.md](/openspec/changes/retire-skill-literal-model-hints/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D2)
 
 ---
 
-## 2026-09-14 — retire-skill-literal-model-hints
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
 
 ### Phase: Implementation
 
 **Dual economy resolve for cite-requirements (D2)** — Resolve economy tier for claude_code and codex via resolve_tier_for_provider; labels are observed placeholders not policy pins.
 
 - Status: `active`
-- Source: [openspec/changes/retire-skill-literal-model-hints/session-log.md](/openspec/changes/retire-skill-literal-model-hints/session-log.md) (D2)
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D2)
 
 ---
 
-## 2026-09-14 — retire-skill-literal-model-hints
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
+
+### Phase: Cleanup
+
+**Non-deployable validation gate** — deployable:false → only Spec Compliance required; Docker unavailable so deploy/smoke/security/e2e N/A.
+
+- Status: `active`
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D2)
+
+---
+
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
 
 ### Phase: Plan
 
 **cite-requirements dual economy-tier resolve** — Keep dual-vendor diversity without hardcoded haiku/luna pins.
 
 - Status: `active`
-- Source: [openspec/changes/retire-skill-literal-model-hints/session-log.md](/openspec/changes/retire-skill-literal-model-hints/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D3)
 
 ---
 
-## 2026-09-14 — retire-skill-literal-model-hints
+## 2026-09-14 — 2026-09-13-retire-skill-literal-model-hints
 
 ### Phase: Implementation
 
 **context_impact surfaces documentation + semantic_code** — SKILL.md/markdown implies documentation; guard .py implies semantic_code. Spurious rationale keys removed.
 
 - Status: `active`
-- Source: [openspec/changes/retire-skill-literal-model-hints/session-log.md](/openspec/changes/retire-skill-literal-model-hints/session-log.md) (D3)
+- Source: [openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md](/openspec/changes/archive/2026-09-13-retire-skill-literal-model-hints/session-log.md) (D3)
 
 ---
 

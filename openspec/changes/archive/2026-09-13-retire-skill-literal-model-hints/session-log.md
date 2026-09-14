@@ -104,3 +104,35 @@ Gate 2 approved Approach A plan. Coordinator task seeding attempted. Ready for /
 ### Context
 Implemented Approach A: hardened test_skill_model_hints to ban string-literal model= / Agent model= / CLI -m pins (27 tests green, 0 FP on lifecycle resolve patterns); rewrote cite-requirements dual economy-tier resolve, plan-roadmap narrative defaults, lifecycle illustrative comments, and labeled AUTOPILOT override as escape hatch.
 
+---
+
+## Phase: Cleanup (2026-09-14)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Rebase-merge with force-approval** `architectural: skill-workflow` — OpenSpec default rebase strategy; operator authorized merge without waiting for formal review after CI green.
+2. **Non-deployable validation gate** `architectural: skill-workflow` — deployable:false → only Spec Compliance required; Docker unavailable so deploy/smoke/security/e2e N/A.
+
+### Alternatives Considered
+- Wait for formal GitHub approving review: rejected because Operator chose fix-CI-then-merge path
+
+### Trade-offs
+- Accepted force-approval bypass for sole-maintainer workflow over blocking on empty reviewDecision because User-authorized cleanup
+
+### Completed Work
+- merge
+- task-migration-skipped-all-checked
+- archive-pending
+
+### Next Steps
+- openspec archive
+- make decisions
+- branch/worktree cleanup
+
+### Relevant Files
+- `openspec/changes/retire-skill-literal-model-hints/` — About to archive
+
+### Context
+Merged PR #539 via rebase with --force-approval (operator authorized merge without GitHub review after fixing context-drift-gate). All tasks checked — no migration. Archiving OpenSpec change and regenerating docs/decisions in the same commit.
+

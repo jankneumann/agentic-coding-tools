@@ -29,22 +29,23 @@ The mapping from workflow stage to archetype SHALL remain:
 Phase 1 string literals such as `model="sonnet"` or `model="haiku"` SHALL NOT
 be treated as a valid end state for skill-authored policy.
 
-#### Scenario: Plan-feature resolves analyst before Explore tasks
+#### Scenario: Plan-feature uses analyst for exploration
 
 - **WHEN** `/plan-feature` dispatches parallel Explore tasks in Step 2
 - **THEN** the skill SHALL resolve the analyst archetype (or mapped tier) before dispatch
 - **AND** each Task() call SHALL use `model=<resolved_variable>` when resolution succeeds
 - **AND** the skill SHALL omit `model=` when resolution fails
-- **AND** the skill SHALL NOT hardcode a raw model id string as the selection policy
+- **AND** the skill SHALL NOT hardcode a raw model id string (including `model="sonnet"`) as the selection policy
 
-#### Scenario: Implement-feature resolves runner for quality checks
+#### Scenario: Implement-feature uses runner for quality checks
 
-- **WHEN** `/implement-feature` dispatches quality check tasks
+- **WHEN** `/implement-feature` dispatches quality check tasks in Step 6
 - **THEN** the skill SHALL resolve the runner archetype (or mapped tier) before dispatch
 - **AND** each Task() call SHALL use `model=<resolved_variable>` when resolution succeeds
+- **AND** the skill SHALL omit `model=` when resolution fails
 - **AND** the skill SHALL NOT hardcode `model="haiku"` (or any raw model version) as policy
 
-#### Scenario: Skill Task() call missing model parameter when documenting dispatch
+#### Scenario: Skill Task() call missing model or archetype parameter
 
 - **WHEN** a target lifecycle skill SKILL.md contains a fenced `Task(` dispatch example without a `model=` parameter and without an omit-on-failure instruction for that call
 - **THEN** the validation test SHALL fail
