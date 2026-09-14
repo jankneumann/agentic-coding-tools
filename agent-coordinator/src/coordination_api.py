@@ -3250,7 +3250,7 @@ def create_coordination_api() -> FastAPI:
         from uuid import UUID
 
         from .audit import get_audit_service
-        from .issue_service import IssueService
+        from .issue_service import IssueService, ProjectionIssueMutationError
 
         service = IssueService()
         try:
@@ -3264,10 +3264,13 @@ def create_coordination_api() -> FastAPI:
         current_labels.update(request.add)
         current_labels.difference_update(request.remove)
 
-        updated = await service.update(
-            issue_id=UUID(issue_id),
-            labels=list(current_labels),
-        )
+        try:
+            updated = await service.update(
+                issue_id=UUID(issue_id),
+                labels=list(current_labels),
+            )
+        except ProjectionIssueMutationError as e:
+            raise HTTPException(status_code=403, detail=str(e)) from e
         if updated is None:
             raise HTTPException(status_code=404, detail=f"Issue {issue_id!r} not found")
 

@@ -344,6 +344,31 @@ async def test_039_unlabelled_reconcile_fails_closed_on_reserved_upgrade_row(
         await conn.close()
 
 
+async def test_039_issue_mutation_fails_closed_on_reserved_upgrade_row(
+    pre039_upgrade_database,
+) -> None:
+    dsn, _legitimate_id, spoof_id = pre039_upgrade_database
+    conn = await _connect(dsn)
+    try:
+        result = json.loads(
+            await conn.fetchval(
+                "SELECT mutate_issue_if_unowned($1, $2::jsonb)",
+                spoof_id,
+                json.dumps({"status": "completed"}),
+            )
+        )
+        assert result["success"] is False
+        assert result["reason"] == "reserved_projection_label"
+        assert await conn.fetchrow(
+            "SELECT status,labels FROM work_queue WHERE id=$1", spoof_id
+        ) == (
+            "pending",
+            ["change:upgrade-spoof", "projection:autopilot-phase"],
+        )
+    finally:
+        await conn.close()
+
+
 async def test_every_migration_applies_to_an_empty_database(migrated_database) -> None:
     """No migration may be skipped, and none may fail.
 
@@ -382,7 +407,7 @@ async def test_reserved_projection_rows_are_database_owned_and_issue_immutable(
         )
         reserved_patch = json.loads(
             await conn.fetchval(
-                "SELECT mutate_issue_if_unowned($1,$2::jsonb)",
+                "SELECT mutate_issue_if_unowned($1, $2::jsonb)",
                 ordinary_id,
                 json.dumps({"labels": labels}),
             )
@@ -410,7 +435,7 @@ async def test_reserved_projection_rows_are_database_owned_and_issue_immutable(
 
         immutable = json.loads(
             await conn.fetchval(
-                "SELECT mutate_issue_if_unowned($1,$2::jsonb)",
+                "SELECT mutate_issue_if_unowned($1, $2::jsonb)",
                 projection_id,
                 json.dumps({"description": "tampered", "status": "completed"}),
             )

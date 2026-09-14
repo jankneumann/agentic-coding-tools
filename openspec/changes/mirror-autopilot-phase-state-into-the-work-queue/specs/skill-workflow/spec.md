@@ -55,11 +55,12 @@ A coordinated Autopilot host SHALL project every durably persisted phase generat
 #### Scenario: Reserved projection identity and owned rows reject ordinary issue mutation
 
 - **GIVEN** migration 039 is active
-- **WHEN** an ordinary issue create or update supplies `projection:autopilot-phase`
-- **OR** an ordinary issue update or close targets a registry-owned projection row
+- **WHEN** an ordinary issue create, update, or label-PATCH supplies `projection:autopilot-phase`
+- **OR** an ordinary issue update, label-PATCH, or close targets a registry-owned projection row
 - **THEN** the issue API SHALL return HTTP 403 before changing the target row
 - **AND** a database insert or label update SHALL reject the reserved marker unless the row UUID is already registry-owned
 - **AND** a projection RPC SHALL insert without labels, register ownership, and apply the canonical label pair within one transaction
+- **AND** ordinary mutation of an unowned pre-registry reserved-labelled row SHALL return a structured `reserved_projection_label` refusal without reaching the label trigger
 - **AND** no forged board or SSE projection and no future reconciliation wedge SHALL be created
 
 #### Scenario: Labelled and legacy unlabelled projection modes cannot collide

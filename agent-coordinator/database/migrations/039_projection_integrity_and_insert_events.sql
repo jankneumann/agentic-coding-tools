@@ -435,6 +435,9 @@ BEGIN
   ) THEN
     RETURN jsonb_build_object('success',FALSE,'reason','projection_issue_immutable');
   END IF;
+  IF 'projection:autopilot-phase'=ANY(COALESCE(v_issue.labels,ARRAY[]::TEXT[])) THEN
+    RETURN jsonb_build_object('success',FALSE,'reason','reserved_projection_label');
+  END IF;
   IF p_patch ? 'labels' AND EXISTS (
     SELECT 1 FROM jsonb_array_elements_text(p_patch->'labels') AS label(value)
     WHERE label.value='projection:autopilot-phase'
