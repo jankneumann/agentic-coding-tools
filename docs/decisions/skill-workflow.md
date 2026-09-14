@@ -82,6 +82,28 @@
 
 ---
 
+## 2026-09-14 — add-deterministic-review-preprocessing
+
+### Phase: Plan
+
+**Port OCR's deterministic stages as stdlib Python rather than shelling out to the ocr binary** — Delegate mode does not expose the resolver or the review filter; a Go binary on the core review path is absent from cloud containers; preview and run must share one selection function.
+
+- Status: `active`
+- Source: [openspec/changes/add-deterministic-review-preprocessing/session-log.md](/openspec/changes/add-deterministic-review-preprocessing/session-log.md) (D1)
+
+---
+
+## 2026-09-14 — add-deterministic-review-preprocessing
+
+### Phase: Plan
+
+**Line resolution anchors on a verbatim existing_code snippet resolved at ingest, no model relocation** — Fixes consensus line drift, gives the ledger a snippet fingerprint, and lets compact re-verify by snippet presence; relocation cost is deferred until the fixture set shows the miss rate.
+
+- Status: `active`
+- Source: [openspec/changes/add-deterministic-review-preprocessing/session-log.md](/openspec/changes/add-deterministic-review-preprocessing/session-log.md) (D2)
+
+---
+
 ## 2026-09-13 — 2026-09-13-pack-and-parallelize-vendor-review
 
 ### Phase: Cleanup
