@@ -516,13 +516,13 @@ def enter_escalate(
     reason: str,
     status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
 ) -> LoopState:
-    """Transition *state* into ESCALATE, recording the originating phase."""
+    """Enter ESCALATE once, preserving the original incident on retries."""
     if state.current_phase != "ESCALATE":
         state.previous_phase = state.current_phase
         state.current_phase = "ESCALATE"
         state.total_iterations += 1
-    state.escalation_reason = reason
-    state.phase_started_at = _now_iso()
+        state.escalation_reason = reason
+        state.phase_started_at = _now_iso()
     _safe_status_call(
         status_fn,
         state,
@@ -610,14 +610,16 @@ def apply_outcome_or_escalate(
     """Run apply-outcome and escalate on failure (design D9).
 
     Invokes ``runner.py apply-outcome`` (via *apply_runner*, injectable for
-    tests). On a zero exit, returns 0 and leaves the state as apply-outcome
-    wrote it. On a non-zero exit the orchestrator MUST NOT continue silently;
+    tests). On a zero exit, leaves the state as apply-outcome wrote it and
+    best-effort projects that durable unchanged generation before returning 0.
+    On a non-zero exit the orchestrator MUST NOT continue silently;
     instead it:
 
       1. Retains the un-applied handoff file (this function never deletes it).
       2. Appends a ``phase_history`` entry recording the apply-outcome failure.
       3. Transitions ``current_phase`` to ``ESCALATE`` with ``previous_phase``
-         set to the failing *phase*.
+         set from the authoritative durable phase; the caller phase remains
+         diagnostic history only.
 
     Best-effort (D9.1): if the ESCALATE write ALSO fails (corrupt/read-only
     loop-state), the failure is logged at CRITICAL with the handoff path and
@@ -635,6 +637,15 @@ def apply_outcome_or_escalate(
         allow_phase_mismatch=allow_phase_mismatch,
     )
     if rc == 0:
+        if queue_projection_fn is not None:
+            try:
+                _project_saved_state(
+                    load_state(state_path), queue_projection_fn, mode="submit"
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Could not project successful apply-outcome state: %s", exc
+                )
         return 0
 
     # Non-zero exit — escalate. Operate on the raw JSON dict so unknown keys
@@ -671,8 +682,11 @@ def apply_outcome_or_escalate(
         # the same generation and retain its original resume target. This
         # mirrors ``enter_escalate`` rather than inventing a second ESCALATE
         # writer with different generation semantics.
-        if raw.get("current_phase") != "ESCALATE":
-            raw["previous_phase"] = phase
+        authoritative_phase = raw.get("current_phase")
+        if not isinstance(authoritative_phase, str) or not authoritative_phase:
+            raise ValueError(f"loop state has invalid current_phase in {path}")
+        if authoritative_phase != "ESCALATE":
+            raw["previous_phase"] = authoritative_phase
             raw["current_phase"] = "ESCALATE"
             raw["total_iterations"] = int(raw.get("total_iterations", 0)) + 1
             raw["escalation_reason"] = (

@@ -140,9 +140,14 @@ verified false negatives are pinned as mutation cases in the test.
 
 A failed state write stops before projection. A failed projection never rewrites
 the durable loop-state; resume re-derives the desired generation, atomically
-cancels stale active rows, and ensures the current row exists. Completed,
-failed, and cancelled current rows are treated as already satisfied. Queue
-metadata is observability only and is never read back into `LoopState`.
+cancels stale active rows, and ensures the current row exists. An exact replay
+whose canonical row is completed, failed, or cancelled is reactivated to
+`pending` with prior execution metadata cleared, so the current projection is
+visible and executable again. Existing blocked rows remain blocked; resolving
+that status is an operator/workflow decision rather than projection repair.
+Queue metadata is observability only and is never read back into `LoopState`.
+
+Migration 039 intentionally does not auto-adopt existing labelled rows: pre-registry payload and label fields are client-mutable and cannot prove ownership. Before replaying a migration-038 projection, a database administrator must verify its provenance and insert its UUID into `work_queue_projection_ownership`. Until then the replay fails closed with `projection_key_collision`, and projection repair will not cancel or relabel the unowned row.
 
 ## Visibility, isolation, and recovery
 

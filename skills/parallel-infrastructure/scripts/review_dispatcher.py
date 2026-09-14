@@ -871,31 +871,34 @@ class CliVendorAdapter:
 
         Handles both direct findings objects and vendor CLI envelopes. grok
         ``--output-format json --json-schema`` places the schema-conforming
-        object under ``structuredOutput`` (E6), so unwrap that key when the
-        top level is not already a findings object.
+        object under ``structuredOutput`` (E6), while agy places the schema
+        object under ``structured_output`` or JSON text under ``response``.
+        Unwrap any when the top level is not already a findings object.
         """
         if "findings" in data:
             return data
-        # Unwrap grok's structured-output envelope (E6). structuredOutput is
-        # normally the parsed object, but tolerate a JSON-string form too.
-        structured = data.get("structuredOutput")
-        if isinstance(structured, dict) and "findings" in structured:
-            return structured
-        if isinstance(structured, str):
-            try:
-                inner = json.loads(structured)
-                if isinstance(inner, dict) and "findings" in inner:
-                    return inner
-            except json.JSONDecodeError:
-                pass
+        # grok uses structuredOutput; agy uses structured_output or response.
+        # Each envelope may carry the parsed object or schema-valid JSON text.
+        for key in ("structuredOutput", "structured_output", "response"):
+            nested = data.get(key)
+            if isinstance(nested, dict) and "findings" in nested:
+                return nested
+            if isinstance(nested, str):
+                try:
+                    inner = json.loads(nested)
+                    if isinstance(inner, dict) and "findings" in inner:
+                        return inner
+                except json.JSONDecodeError:
+                    pass
         return None
 
     @staticmethod
     def _parse_json_blob(text: str) -> dict[str, Any] | None:
         """Parse a findings object from a single text blob.
 
-        Handles a bare JSON object, a vendor envelope (grok
-        ``structuredOutput``), and prose wrapped around the JSON.
+        Handles a bare JSON object, vendor envelopes (grok
+        ``structuredOutput``, agy ``structured_output``, and agy
+        ``response``), and prose wrapped around the JSON.
         """
         text = text.strip()
         if not text:

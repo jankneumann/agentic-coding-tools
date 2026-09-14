@@ -124,6 +124,66 @@ def test_check_detects_stale_installed_skill_payload(tmp_path: Path) -> None:
     assert "autopilot" in stale.stderr
     assert "differ" in stale.stderr
 
+
+def test_check_detects_shared_reference_and_manifest_drift_in_both_runtimes(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "complete-mirror-check"
+    target.mkdir()
+    install_args = [
+        "bash",
+        str(INSTALL_SH),
+        "--target",
+        str(target),
+        "--agents",
+        "claude,agents",
+        "--mode",
+        "copy",
+        "--deps",
+        "none",
+        "--openspec-assets",
+        "none",
+        "--openspec-cli",
+        "none",
+        "--python-tools",
+        "none",
+    ]
+    installed = subprocess.run(
+        install_args,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=_clean_env(),
+    )
+    assert installed.returncode == 0, installed.stderr
+
+    for runtime in (".claude", ".agents"):
+        for relative in (
+            Path("shared/approval_gate.py"),
+            Path("references/security-checklist.md"),
+            Path("install-manifest.json"),
+        ):
+            mirror = target / runtime / "skills" / relative
+            original = mirror.read_bytes()
+            mirror.write_bytes(original + b"\n# stale payload\n")
+            checked = subprocess.run(
+                [*install_args, "--check"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=_clean_env(),
+            )
+            mirror.write_bytes(original)
+            assert checked.returncode != 0, (runtime, relative, checked.stdout)
+            assert str(relative.parts[0]) in checked.stderr
+
+
+def test_cross_repo_setup_checks_the_explicit_consumer_target() -> None:
+    guide = (SKILLS_ROOT.parent / "docs/cross-repo-setup.md").read_text()
+    verification = guide.split("After syncing, verify", 1)[1].split("```", 2)[1]
+    assert "--target ~/Coding/<your-repo>" in verification
+    assert "--check" in verification
+
 def _import_file(path: Path) -> subprocess.CompletedProcess[str]:
     code = (
         "import importlib.util, pathlib; "

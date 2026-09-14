@@ -26,6 +26,7 @@ role permitted to CREATE DATABASE; skipped otherwise.
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 
 import asyncpg
@@ -144,6 +145,157 @@ async def migrated_database():
                 await admin.close()
         except Exception:  # noqa: BLE001 - cleanup is advisory
             pass
+
+
+@pytest.fixture
+async def pre039_upgrade_database(tmp_path):
+    """A 038-era database upgraded through 039 with ambiguous labelled rows."""
+    if not _postgres_available:
+        pytest.skip("PostgreSQL not running (start with: docker-compose up -d)")
+
+    name = f"migtest_{uuid.uuid4().hex[:12]}"
+    try:
+        admin = await asyncio.wait_for(_connect(POSTGRES_DSN), timeout=ADMIN_TIMEOUT)
+    except (TimeoutError, OSError) as exc:
+        pytest.skip(f"could not reach PostgreSQL to create a test database: {exc}")
+
+    try:
+        await admin.execute(f'CREATE DATABASE "{name}"')
+    except asyncpg.InsufficientPrivilegeError:
+        pytest.skip("role may not CREATE DATABASE")
+    finally:
+        await admin.close()
+
+    dsn = _admin_dsn_for(name)
+    pre039_dir = tmp_path / "pre039"
+    post039_dir = tmp_path / "post039"
+    pre039_dir.mkdir()
+    post039_dir.mkdir()
+    for sequence, filename, path in discover_migrations():
+        if sequence < 39:
+            (pre039_dir / filename).symlink_to(path)
+        elif sequence == 39:
+            (post039_dir / filename).symlink_to(path)
+
+    try:
+        await asyncio.wait_for(
+            run_migrations(dsn, migrations_dir=pre039_dir), timeout=MIGRATE_TIMEOUT
+        )
+        conn = await _connect(dsn)
+        try:
+            legitimate_raw = await conn.fetchval(
+                "SELECT submit_task('issue', 'Autopilot phase INIT', $1::jsonb, "
+                "1, NULL::uuid[], NULL::timestamptz, NULL::jsonb, $2::text[])",
+                json.dumps(
+                    {
+                        "change_id": "upgrade-legitimate",
+                        "phase": "INIT",
+                        "transition_sequence": 0,
+                    }
+                ),
+                ["change:upgrade-legitimate", "projection:autopilot-phase"],
+            )
+            legitimate = json.loads(legitimate_raw)
+            assert legitimate["success"] is True
+            assert legitimate["created"] is True
+            legitimate_id = uuid.UUID(legitimate["task_id"])
+            spoof_id = await conn.fetchval(
+                "INSERT INTO work_queue "
+                "(task_type, description, input_data, priority, labels) "
+                "VALUES ('issue', 'ordinary spoof', $1::jsonb, 5, $2::text[]) "
+                "RETURNING id",
+                json.dumps(
+                    {
+                        "change_id": "upgrade-spoof",
+                        "phase": "PLAN",
+                        "transition_sequence": 7,
+                    }
+                ),
+                ["change:upgrade-spoof", "projection:autopilot-phase"],
+            )
+        finally:
+            await conn.close()
+
+        await asyncio.wait_for(
+            run_migrations(dsn, migrations_dir=post039_dir), timeout=MIGRATE_TIMEOUT
+        )
+        yield dsn, legitimate_id, spoof_id
+    finally:
+        try:
+            admin = await asyncio.wait_for(_connect(POSTGRES_DSN), timeout=ADMIN_TIMEOUT)
+            try:
+                await admin.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
+            finally:
+                await admin.close()
+        except Exception:
+            pass
+
+
+async def test_039_upgrade_fails_closed_until_owner_registers_verified_row(
+    pre039_upgrade_database,
+) -> None:
+    dsn, legitimate_id, spoof_id = pre039_upgrade_database
+    labels = ["change:upgrade-legitimate", "projection:autopilot-phase"]
+    conn = await _connect(dsn)
+    try:
+        ownership = await conn.fetch(
+            "SELECT task_id FROM work_queue_projection_ownership ORDER BY task_id"
+        )
+        assert ownership == []
+
+        collision_raw = await conn.fetchval(
+            "SELECT submit_task('issue', 'Autopilot phase INIT', $1::jsonb, "
+            "1, NULL::uuid[], NULL::timestamptz, NULL::jsonb, $2::text[])",
+            json.dumps(
+                {
+                    "change_id": "upgrade-legitimate",
+                    "phase": "INIT",
+                    "transition_sequence": 0,
+                }
+            ),
+            labels,
+        )
+        collision = json.loads(collision_raw)
+        assert collision["success"] is False
+        assert collision["reason"] == "projection_key_collision"
+
+        await conn.execute(
+            "INSERT INTO work_queue_projection_ownership(task_id) VALUES ($1)",
+            legitimate_id,
+        )
+        replay_raw = await conn.fetchval(
+            "SELECT submit_task('issue', 'Autopilot phase INIT', $1::jsonb, "
+            "1, NULL::uuid[], NULL::timestamptz, NULL::jsonb, $2::text[])",
+            json.dumps(
+                {
+                    "change_id": "upgrade-legitimate",
+                    "phase": "INIT",
+                    "transition_sequence": 0,
+                }
+            ),
+            labels,
+        )
+        replay = json.loads(replay_raw)
+        assert replay["success"] is True
+        assert replay["created"] is False
+        assert replay["task_id"] == str(legitimate_id)
+
+        spoof = await conn.fetchrow(
+            "SELECT status, labels, result FROM work_queue WHERE id=$1", spoof_id
+        )
+        assert spoof["status"] == "pending"
+        assert spoof["labels"] == [
+            "change:upgrade-spoof",
+            "projection:autopilot-phase",
+        ]
+        assert spoof["result"] is None
+        assert await conn.fetchval(
+            "SELECT EXISTS (SELECT 1 FROM work_queue_projection_ownership "
+            "WHERE task_id=$1)",
+            spoof_id,
+        ) is False
+    finally:
+        await conn.close()
 
 
 async def test_every_migration_applies_to_an_empty_database(migrated_database) -> None:

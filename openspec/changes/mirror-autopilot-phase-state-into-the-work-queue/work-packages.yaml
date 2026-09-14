@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: mirror-autopilot-phase-state-into-the-work-queue
   title: Mirror Autopilot phase state into the work queue
-  plan_revision: 4
+  plan_revision: 5
   created_by: codex
   deployable: false
 
@@ -32,6 +32,9 @@ packages:
     depends_on: []
     locks:
       files:
+        - .github/workflows/ci.yml
+        - agent-coordinator/agents.yaml
+        - skills/autopilot/scripts/autopilot.py
         - skills/autopilot/scripts/queue_projection.py
         - skills/autopilot/scripts/runner.py
         - skills/autopilot/SKILL.md
@@ -43,6 +46,13 @@ packages:
         - agent-coordinator/src/coordination_api.py
         - agent-coordinator/src/issue_service.py
         - agent-coordinator/src/work_queue.py
+        - skills/install.sh
+        - skills/parallel-infrastructure/scripts/review_dispatcher.py
+        - skills/parallel-infrastructure/scripts/vendor_health.py
+        - skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py
+        - skills/parallel-infrastructure/tests/test_vendor_health.py
+        - skills/tests/install_sh/test_consumer_portability.py
+        - docs/cross-repo-setup.md
         - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
       keys:
         - feature:autopilot-live-queue-projection:modify
@@ -50,11 +60,19 @@ packages:
       reason: One publisher and one host registration boundary
     scope:
       write_allow:
+        - .github/workflows/ci.yml
+        - agent-coordinator/agents.yaml
         - skills/autopilot/scripts/**
         - skills/autopilot/SKILL.md
         - skills/coordination-bridge/scripts/coordination_bridge.py
         - skills/tests/autopilot/**
         - skills/tests/coordination-bridge/**
+        - skills/tests/install_sh/**
+        - skills/install.sh
+        - skills/parallel-infrastructure/scripts/review_dispatcher.py
+        - skills/parallel-infrastructure/scripts/vendor_health.py
+        - skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py
+        - skills/parallel-infrastructure/tests/test_vendor_health.py
         - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
         - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
         - agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql
@@ -63,11 +81,13 @@ packages:
         - agent-coordinator/src/issue_service.py
         - agent-coordinator/src/work_queue.py
         - agent-coordinator/tests/**
+        - docs/cross-repo-setup.md
         - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
       read_allow:
         - skills/**
         - agent-coordinator/**
         - docs/guides/work-queue-truth-projection.md
+        - docs/architecture-analysis/**
         - openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/**
       deny:
         - agent-coordinator/database/migrations/00*.sql
@@ -148,6 +168,7 @@ packages:
     locks:
       files:
         - docs/guides/work-queue-truth-projection.md
+        - docs/architecture-analysis
       keys:
         - feature:autopilot-live-queue-projection:verify
       ttl_minutes: 90
@@ -158,6 +179,7 @@ packages:
         - skills/tests/coordination-bridge/**
         - agent-coordinator/tests/**
         - docs/guides/work-queue-truth-projection.md
+        - docs/architecture-analysis/**
         - openspec/changes/mirror-autopilot-phase-state-into-the-work-queue/**
       read_allow:
         - '**'

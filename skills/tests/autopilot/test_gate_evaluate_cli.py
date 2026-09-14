@@ -210,6 +210,64 @@ def test_auto_escalate_resume_transitions_and_flushes_before_continue(
     assert json.loads(capsys.readouterr().out) == state["gate_decisions"][-1]
 
 
+def test_console_approved_escalate_resume_applies_edge_before_projection(
+    workspace: Path,
+    evaluator: _EvaluatorSpy,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state_path = seed(
+        workspace,
+        current_phase="ESCALATE",
+        previous_phase="IMPLEMENT",
+        escalation_reason="implementation stalled",
+        total_iterations=4,
+    )
+
+    assert runner.main(["gate-check", "demo", "--gate", "escalate_resume"]) == 0
+    assert runner.main(
+        [
+            "gate-answer",
+            "demo",
+            "--gate",
+            "escalate_resume",
+            "--decision",
+            "approved",
+        ]
+    ) == 0
+
+    state = read_state(state_path)
+    assert state["pending_gate"] is None
+    assert state["current_phase"] == "IMPLEMENT"
+    assert state["previous_phase"] == "IMPLEMENT"
+    assert state["total_iterations"] == 5
+
+    import queue_projection
+
+    projected: list[tuple[str, int, str]] = []
+
+    class _Adapter:
+        def __init__(self, **_kwargs: Any) -> None:
+            pass
+
+        def __call__(self, current: Any, *, mode: str) -> dict[str, str]:
+            projected.append((current.current_phase, current.total_iterations, mode))
+            return {"status": "ok"}
+
+    monkeypatch.setattr(queue_projection, "QueueProjectionAdapter", _Adapter)
+    assert runner.main(
+        [
+            "project-state",
+            "--change-id",
+            "demo",
+            "--mode",
+            "submit",
+            "--coordinator-url",
+            "https://coordinator.test",
+        ]
+    ) == 0
+    assert projected == [("IMPLEMENT", 5, "submit")]
+
+
 # ---------------------------------------------------------------------------
 # posture_block — exit 0, "ask the operator"
 # ---------------------------------------------------------------------------

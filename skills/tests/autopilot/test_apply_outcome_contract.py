@@ -201,6 +201,78 @@ def test_apply_outcome_success_does_not_escalate(chdir_tmp: Path) -> None:
     assert state["current_phase"] == "IMPLEMENT"
 
 
+def test_apply_outcome_success_projects_durable_unchanged_generation(
+    chdir_tmp: Path,
+) -> None:
+    state_path = _seed_state(
+        chdir_tmp,
+        "demo",
+        current_phase="IMPLEMENT",
+        total_iterations=7,
+    )
+    projected: list[tuple[str, int, str]] = []
+
+    rc = autopilot.apply_outcome_or_escalate(
+        change_id="demo",
+        phase="IMPLEMENT",
+        outcome="complete",
+        handoff_id="h-ok",
+        state_path=state_path,
+        apply_runner=lambda **_kwargs: 0,
+        queue_projection_fn=lambda state, *, mode: projected.append(
+            (state.current_phase, state.total_iterations, mode)
+        )
+        or {"status": "degraded", "reason": "coordinator_unreachable"},
+    )
+
+    assert rc == 0
+    assert projected == [("IMPLEMENT", 7, "submit")]
+
+
+def test_repeated_enter_escalate_preserves_original_incident() -> None:
+    state = autopilot.LoopState(
+        change_id="demo",
+        current_phase="ESCALATE",
+        previous_phase="IMPLEMENT",
+        escalation_reason="original implementation failure",
+        phase_started_at="2026-09-14T10:00:00+00:00",
+        total_iterations=7,
+    )
+
+    autopilot.enter_escalate(state, "retry encountered another error")
+
+    assert state.escalation_reason == "original implementation failure"
+    assert state.phase_started_at == "2026-09-14T10:00:00+00:00"
+    assert state.previous_phase == "IMPLEMENT"
+    assert state.total_iterations == 7
+
+
+def test_apply_outcome_failure_resumes_authoritative_durable_phase(
+    chdir_tmp: Path,
+) -> None:
+    state_path = _seed_state(
+        chdir_tmp,
+        "demo",
+        current_phase="IMPLEMENT",
+        total_iterations=4,
+    )
+
+    rc = autopilot.apply_outcome_or_escalate(
+        change_id="demo",
+        phase="VALIDATE",
+        outcome="failed",
+        handoff_id="h-stale-caller",
+        state_path=state_path,
+        apply_runner=lambda **_kwargs: 2,
+    )
+
+    assert rc == 2
+    state = json.loads(state_path.read_text())
+    assert state["current_phase"] == "ESCALATE"
+    assert state["previous_phase"] == "IMPLEMENT"
+    assert state["phase_history"][-1]["phase"] == "VALIDATE"
+
+
 # ---------------------------------------------------------------------------
 # v5 pass-through (encode-autopilot-gates-and-goal-gate-in-code, D7)
 # ---------------------------------------------------------------------------

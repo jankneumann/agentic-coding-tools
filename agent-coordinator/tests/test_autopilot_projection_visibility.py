@@ -238,6 +238,64 @@ def test_projection_label_runtime_item_length_matches_openapi() -> None:
         WorkReconcileRequest(**common)
 
 
+@pytest.mark.parametrize("request_type", ["submit", "reconcile"])
+def test_projection_label_runtime_uses_heterogeneous_prefix_bounds(
+    request_type: str,
+) -> None:
+    from pydantic import ValidationError
+
+    from src.coordination_api import WorkReconcileRequest, WorkSubmitRequest
+
+    request_model = (
+        WorkSubmitRequest if request_type == "submit" else WorkReconcileRequest
+    )
+    change_id = "a" * 128
+    common = {
+        "task_type": "issue",
+        "task_description": "phase projection",
+        "projection_key": {
+            "change_id": change_id,
+            "phase": "IMPLEMENT",
+            "transition_sequence": 9,
+        },
+    }
+    valid = request_model(
+        **common,
+        projection_labels=[
+            f"change:{change_id}",
+            "projection:autopilot-phase",
+        ],
+    )
+    assert tuple(valid.projection_labels or ()) == (
+        f"change:{change_id}",
+        "projection:autopilot-phase",
+    )
+
+    with pytest.raises(ValidationError):
+        request_model(
+            **common,
+            projection_labels=[
+                "change:" + "a" * 129,
+                "projection:autopilot-phase",
+            ],
+        )
+
+    with pytest.raises(ValidationError):
+        request_model(
+            **common,
+            projection_labels=[f"change:{change_id}", "x" * 160],
+        )
+
+
+def test_truth_projection_guide_documents_terminal_reactivation() -> None:
+    guide = (
+        Path(__file__).parents[2] / "docs/guides/work-queue-truth-projection.md"
+    ).read_text()
+    normalized = " ".join(guide.split())
+    assert "reactivated to `pending`" in normalized
+    assert "blocked rows remain blocked" in normalized
+
+
 def test_projection_payload_rejects_missing_canonical_task_id() -> None:
     from types import SimpleNamespace
 

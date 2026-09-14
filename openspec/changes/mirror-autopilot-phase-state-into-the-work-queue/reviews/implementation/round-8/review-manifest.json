@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "implementation",
+  "created_at": "2026-09-14T09:32:53Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gemini-3.8-flash-high"
+      ],
+      "elapsed_seconds": 0.10954273026436567,
+      "error": "Error: --json-schema can only be used when --output-format is 'json' or 'stream-json'\n",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "claude_code",
+      "success": true,
+      "model_used": "fable",
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 773.203724144958,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "codex",
+      "success": true,
+      "model_used": "gpt-5.6-sol",
+      "models_attempted": [
+        "gpt-5.6-sol"
+      ],
+      "elapsed_seconds": 605.356013584882,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "grok",
+      "success": true,
+      "model_used": "grok-4.5",
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 493.05603810586035,
+      "error": null,
+      "error_class": null
+    },
+    {
+      "vendor": "pi",
+      "success": true,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 118.99237858410925,
+      "error": null,
+      "error_class": null
+    }
+  ],
+  "quorum_requested": 5,
+  "quorum_received": 4,
+  "vendors": [
+    {
+      "name": "claude_code",
+      "findings_path": "findings-claude_code-implementation.json",
+      "finding_count": 10
+    },
+    {
+      "name": "codex",
+      "findings_path": "findings-codex-implementation.json",
+      "finding_count": 12
+    },
+    {
+      "name": "grok",
+      "findings_path": "findings-grok-implementation.json",
+      "finding_count": 13
+    },
+    {
+      "name": "pi",
+      "findings_path": "findings-pi-implementation.json",
+      "finding_count": 15
+    }
+  ]
+}

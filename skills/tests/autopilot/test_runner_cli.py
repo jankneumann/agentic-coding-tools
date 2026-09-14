@@ -223,6 +223,24 @@ def test_runner_transition_after_done_is_idempotent(workspace: Path) -> None:
     assert state_path.read_bytes() == before
 
 
+def test_runner_escalate_after_done_is_idempotent(workspace: Path) -> None:
+    state_path = _seed_state(
+        workspace, "demo", current_phase="DONE", total_iterations=12
+    )
+    before = state_path.read_bytes()
+
+    result = _run_cli(
+        workspace,
+        "escalate",
+        "--change-id",
+        "demo",
+        "--reason",
+        "late host failure",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert state_path.read_bytes() == before
+
 
 def test_runner_escalate_is_executable_after_apply_outcome_failure(
     workspace: Path,

@@ -130,6 +130,32 @@ def test_only_exact_reconciliation_required_conflict_advances_head(monkeypatch) 
     assert calls == ["submit"]
 
 
+@pytest.mark.parametrize(
+    "detail",
+    ["projection_generation_mismatch", "projection_key_collision"],
+)
+def test_degraded_projection_prefers_canonical_problem_detail(
+    monkeypatch: pytest.MonkeyPatch,
+    detail: str,
+) -> None:
+    monkeypatch.setattr(
+        queue_projection.bridge,
+        "try_submit_work",
+        lambda **_kw: {
+            "status": "error",
+            "status_code": 409,
+            "response": {"detail": detail},
+            "error": "HTTP Error 409: Conflict",
+        },
+    )
+
+    result = queue_projection.QueueProjectionAdapter(http_url="x")(
+        _state(), mode="submit"
+    )
+
+    assert result == {"status": "degraded", "reason": detail}
+
+
 def test_reconcile_cleans_only_double_labelled_noncanonical_rows(monkeypatch) -> None:
     calls: list[dict] = []
     monkeypatch.setattr(

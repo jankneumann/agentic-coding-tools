@@ -140,8 +140,10 @@ the decision before returning: exit 3 means the posture authorized the resume an
 the run continues from `previous_phase`; exit 0 means a person has to answer first;
 exit 4 means the gate was blocked in a way no console answer resolves (a rejection
 already recorded, a timeout that defaulted to block, or an unreachable coordinator)
-and the run stays parked in ESCALATE. `--decision approved` records the resume
-authorization; `--decision rejected` leaves it parked with the note as the reason.
+and the run stays parked in ESCALATE. `--decision approved` applies the canonical
+`resolved` edge, persists the resumed phase, and records authorization before the
+host submits projection; `--decision rejected` leaves it parked with the note as
+the reason.
 The loop cannot be advanced around this: `apply-outcome` refuses to record anything
 while a gate is pending.
 

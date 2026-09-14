@@ -182,9 +182,15 @@ def _evaluate_gate(args: argparse.Namespace) -> int:
         sys.stdout.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
         return EXIT_NO_PENDING_GATE
 
-    # No `edge`: on this path the orchestrator owns current_phase (apply-outcome
-    # never moves it), so gate-answer records the answer and the caller resumes.
-    if session.park(state, decision, phase=phase, context=context) == autopilot.GATE_PENDING:
+    # Most gates authorize work inside the current phase and carry no edge.
+    # Escalate-resume is different: console approval must persist the same
+    # canonical resolved edge used by automatic approval before host projection.
+    edge = None
+    if gate is Gate.ESCALATE_RESUME:
+        edge = {"outcome": "resolved", "target": state.previous_phase}
+    if session.park(
+        state, decision, phase=phase, context=context, edge=edge
+    ) == autopilot.GATE_PENDING:
         sys.stdout.write(
             json.dumps(state.pending_gate, indent=2, sort_keys=True) + "\n"
         )
@@ -482,6 +488,9 @@ def _cmd_escalate(args: argparse.Namespace) -> int:
     except OSError as exc:
         sys.stderr.write(f"runner: escalate failed: {exc}\n")
         return 1
+
+    if state.current_phase == "DONE":
+        return 0
 
     state.phase_history.append(
         {

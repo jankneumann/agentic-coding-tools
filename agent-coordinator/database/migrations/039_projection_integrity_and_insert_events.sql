@@ -7,14 +7,14 @@ CREATE TABLE IF NOT EXISTS work_queue_projection_ownership (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Seed durable ownership for projection rows produced by migrations 037/038.
-INSERT INTO work_queue_projection_ownership(task_id)
-SELECT id FROM work_queue
-WHERE task_type='issue'
-  AND input_data ? 'change_id' AND input_data ? 'phase'
-  AND input_data ? 'transition_sequence'
-  AND 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[]))
-ON CONFLICT DO NOTHING;
+-- Ownership cannot be inferred safely from mutable payloads or labels. Existing
+-- 038-era rows remain unowned and therefore fail closed until a database
+-- administrator verifies provenance out of band and explicitly inserts the row id.
+COMMENT ON TABLE work_queue_projection_ownership IS
+  'Database-owned Autopilot projection identities. Upgrade from 038: after '
+  'verifying provenance out of band, a database administrator may adopt a row '
+  'with INSERT INTO work_queue_projection_ownership(task_id) VALUES (<verified-id>). '
+  'Runtime projection functions never infer ownership from work_queue fields.';
 
 DROP FUNCTION IF EXISTS submit_task(TEXT,TEXT,JSONB,INTEGER,UUID[],TIMESTAMPTZ,JSONB);
 DROP FUNCTION IF EXISTS submit_task(TEXT,TEXT,JSONB,INTEGER,UUID[],TIMESTAMPTZ,JSONB,TEXT[]);
@@ -125,13 +125,18 @@ BEGIN
       AND input_data ? 'change_id' AND input_data ? 'phase'
       AND input_data ? 'transition_sequence'
       AND input_data->>'change_id'=v_change
+      AND EXISTS (SELECT 1 FROM work_queue_projection_ownership AS ownership
+                  WHERE ownership.task_id=work_queue.id)
       AND 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[]));
     UPDATE work_queue SET labels=p_projection_labels WHERE id=v_id;
     UPDATE work_queue SET
       status='pending', claimed_by=NULL, claimed_at=NULL, started_at=NULL,
       completed_at=NULL, result=NULL, error_message=NULL,
       closed_at=NULL, close_reason=NULL, attempt_count=0
-    WHERE id=v_id AND status IN ('cancelled','completed','failed');
+    WHERE id=v_id
+      AND EXISTS (SELECT 1 FROM work_queue_projection_ownership AS ownership
+                  WHERE ownership.task_id=work_queue.id)
+      AND status IN ('cancelled','completed','failed');
     GET DIAGNOSTICS v_reactivated = ROW_COUNT;
     IF v_reactivated > 0 THEN
       PERFORM coordinator_notify(
@@ -232,6 +237,8 @@ BEGIN
       result=jsonb_build_object('reason','cancelled_by_projection_reconcile',
         'change_id',p_change_id,'phase',p_phase,'transition_sequence',p_transition_sequence)
     WHERE status IN ('pending','claimed','running')
+      AND EXISTS (SELECT 1 FROM work_queue_projection_ownership AS ownership
+                  WHERE ownership.task_id=work_queue.id)
       AND input_data ? 'change_id' AND input_data->>'change_id'=p_change_id
       AND NOT (input_data->>'phase'=p_phase
                AND input_data->>'transition_sequence'=p_transition_sequence::TEXT)
@@ -245,13 +252,18 @@ BEGIN
       AND input_data ? 'change_id' AND input_data ? 'phase'
       AND input_data ? 'transition_sequence'
       AND input_data->>'change_id'=p_change_id
+      AND EXISTS (SELECT 1 FROM work_queue_projection_ownership AS ownership
+                  WHERE ownership.task_id=work_queue.id)
       AND 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[]));
     UPDATE work_queue SET labels=p_projection_labels WHERE id=v_id;
     UPDATE work_queue SET
       status='pending', claimed_by=NULL, claimed_at=NULL, started_at=NULL,
       completed_at=NULL, result=NULL, error_message=NULL,
       closed_at=NULL, close_reason=NULL, attempt_count=0
-    WHERE id=v_id AND status IN ('cancelled','completed','failed');
+    WHERE id=v_id
+      AND EXISTS (SELECT 1 FROM work_queue_projection_ownership AS ownership
+                  WHERE ownership.task_id=work_queue.id)
+      AND status IN ('cancelled','completed','failed');
     GET DIAGNOSTICS v_reactivated = ROW_COUNT;
     IF v_reactivated > 0 THEN
       PERFORM coordinator_notify(
@@ -305,6 +317,8 @@ UPDATE work_queue SET labels=ARRAY[]::TEXT[]
 WHERE status='cancelled' AND task_type='issue'
   AND input_data ? 'change_id' AND input_data ? 'phase'
   AND input_data ? 'transition_sequence'
+  AND EXISTS (SELECT 1 FROM work_queue_projection_ownership AS ownership
+              WHERE ownership.task_id=work_queue.id)
   AND 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[]));
 
 COMMIT;

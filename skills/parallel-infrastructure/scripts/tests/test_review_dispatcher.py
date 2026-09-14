@@ -430,6 +430,37 @@ class TestDispatch:
         assert len(result.findings["findings"]) == 1
 
     @patch("review_dispatcher.subprocess.run")
+    def test_antigravity_response_json_string(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """agy JSON mode nests schema-valid JSON text under response."""
+        envelope = json.dumps({"response": VALID_FINDINGS_JSON, "usage": {}})
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=envelope, stderr="",
+        )
+        adapter = _adapter()
+        result = adapter.dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
+
+    @patch("review_dispatcher.subprocess.run")
+    def test_antigravity_structured_output_dict(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        """agy JSON mode may return the schema object under structured_output."""
+        envelope = json.dumps(
+            {"structured_output": json.loads(VALID_FINDINGS_JSON)}
+        )
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=envelope, stderr="",
+        )
+        result = _adapter().dispatch("review", "prompt", cwd=tmp_path)
+        assert result.success is True
+        assert result.findings is not None
+        assert len(result.findings["findings"]) == 1
+
+    @patch("review_dispatcher.subprocess.run")
     def test_grok_envelope_missing_findings_key(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
@@ -1761,3 +1792,34 @@ def test_repo_antigravity_schema_review_uses_json_output_mode() -> None:
     output_index = command.index("--output-format")
     assert command[output_index + 1] == "json"
     assert output_index < schema_index
+    schema = json.loads(command[schema_index + 1])
+    assert schema["type"] == "object"
+    assert command[command.index("--prompt") + 1] == "review"
+
+
+@patch("review_dispatcher.subprocess.run")
+def test_repo_antigravity_live_dispatch_pairs_json_mode_and_schema(
+    mock_run: MagicMock, tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[4]
+    orchestrator = ReviewOrchestrator.from_agents_yaml(
+        repo_root / "agent-coordinator" / "agents.yaml"
+    )
+    adapter = orchestrator.adapters["antigravity-local"]
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=[], returncode=0,
+        stdout=json.dumps({"response": VALID_FINDINGS_JSON}), stderr="",
+    )
+
+    result = adapter.dispatch(
+        "review", "review this", cwd=tmp_path,
+        archetype_model="gemini-3.8-flash-high",
+    )
+
+    assert result.success is True
+    command = mock_run.call_args.args[0]
+    output_index = command.index("--output-format")
+    schema_index = command.index("--json-schema")
+    assert command[output_index + 1] == "json"
+    assert output_index < schema_index
+    assert json.loads(command[schema_index + 1])["type"] == "object"

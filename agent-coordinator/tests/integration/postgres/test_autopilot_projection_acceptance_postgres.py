@@ -275,6 +275,10 @@ async def test_same_generation_submit_replay_clears_noncanonical_owned_labels(
             "labels": labels,
         },
     )
+    await postgres_db.insert(
+        "work_queue_projection_ownership",
+        {"task_id": str(stale["id"])},
+    )
 
     replay = await pg_work_queue.submit(
         task_type="issue",
@@ -292,6 +296,51 @@ async def test_same_generation_submit_replay_clears_noncanonical_owned_labels(
     labels_by_id = {str(row["id"]): row["labels"] for row in rows}
     assert labels_by_id[str(canonical.task_id)] == labels
     assert labels_by_id[str(stale["id"])] == []
+
+
+async def test_reconcile_leaves_unowned_spoofed_projection_issue_untouched(
+    pg_work_queue,
+    postgres_db,
+) -> None:
+    change_id = "live-unowned-noncanonical-spoof"
+    labels = [f"change:{change_id}", _PROJECTION_LABEL]
+    canonical = await pg_work_queue.submit(
+        task_type="issue",
+        description="Autopilot phase INIT",
+        priority=1,
+        projection_key=_key(change_id, "INIT", 0),
+        projection_labels=labels,
+    )
+    spoof = await postgres_db.insert(
+        "work_queue",
+        {
+            "task_type": "issue",
+            "description": "ordinary issue spoofing projection metadata",
+            "input_data": _key(change_id, "PLAN", 99),
+            "priority": 5,
+            "labels": labels,
+        },
+    )
+
+    reconciled = await pg_work_queue.reconcile_projection(
+        task_type="issue",
+        description="Autopilot phase IMPLEMENT",
+        priority=1,
+        projection_key=_key(change_id, "IMPLEMENT", 1),
+        projection_labels=labels,
+    )
+
+    assert reconciled.success is True
+    assert canonical.task_id in reconciled.cancelled_task_ids
+    assert str(spoof["id"]) not in {str(item) for item in reconciled.cancelled_task_ids}
+    rows = await postgres_db.query(
+        "work_queue", f"input_data->>change_id=eq.{change_id}&order=created_at.asc"
+    )
+    rows_by_id = {str(row["id"]): row for row in rows}
+    spoof_row = rows_by_id[str(spoof["id"])]
+    assert spoof_row["status"] == "pending"
+    assert spoof_row["labels"] == labels
+    assert spoof_row["result"] is None
 
 
 async def test_submit_collision_with_nonissue_is_fail_closed(

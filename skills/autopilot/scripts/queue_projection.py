@@ -27,9 +27,12 @@ def _bounded_reason(value: object, default: str) -> str:
 
 def _degraded(envelope: object, default: str = "projection_failed") -> dict[str, str]:
     if isinstance(envelope, dict):
-        reason = envelope.get("reason") or envelope.get("error")
-        if reason is None and isinstance(envelope.get("response"), dict):
-            reason = envelope["response"].get("detail")
+        reason = envelope.get("reason")
+        response = envelope.get("response")
+        if reason is None and isinstance(response, dict):
+            reason = response.get("detail")
+        if reason is None:
+            reason = envelope.get("error")
         return {"status": "degraded", "reason": _bounded_reason(reason, default)}
     return {"status": "degraded", "reason": default}
 

@@ -32,7 +32,7 @@ an undeclared skill/library. After syncing, verify that both installed runtime m
 
 ```bash
 cd ~/Coding/agentic-coding-tools
-bash skills/install.sh --check
+bash skills/install.sh --target ~/Coding/<your-repo> --check
 ```
 
 Changes that move behavior between coordinator and skills boundaries must also

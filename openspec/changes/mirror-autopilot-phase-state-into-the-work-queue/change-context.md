@@ -28,6 +28,9 @@
 | R6 remainder | both | advisory/positive | low | accepted | Schema-valid quorum and out-of-band raw evidence are recorded with finding-level dispositions. |
 | R7-Claude-1-5 | wp-projection-adapter | CI/correctness/operability | high-low | fixed | CI installs mirrors before checking, registry ownership ignores mutable labels, DONE replay is idempotent, init persists flags, and terminal reactivation refreshes SSE clients. |
 | R7 remainder | both | advisory/positive | low | accepted | Three protocol-valid reviews plus recovered schema-valid Antigravity evidence confirm the remaining recovery seams; the legacy unlabeled upgrade caveat is documented and fail-closed. |
+| R8 critical/high | both | correctness/safety/audit | critical-high | fixed | Manual resume now persists the resolved edge; stale callers resume the durable phase; registry ownership gates every row mutation and never auto-seeds mutable legacy fields; package scope revision 5 covers the recovery surface. |
+| R8 medium/low | both | contract/operability/documentation | medium-low | fixed | Completed mirror checking, canonical degraded reasons, Antigravity envelope ingestion, exact runtime/OpenAPI tuple bounds, DONE/retry idempotence, and operator guidance. |
+| R8 positives | both | verification | none | accepted | Four protocol-valid vendor reviews supplied independent positive evidence; the exact-SHA prompt typo is preserved and corrected by the next exact-head round. |
 
 ## Coverage Summary
 

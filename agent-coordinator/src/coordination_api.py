@@ -217,7 +217,14 @@ class ProjectionKeyRequest(BaseModel):
     transition_sequence: StrictInt = Field(ge=0, le=2147483647)
 
 
-ProjectionLabel = Annotated[str, Field(max_length=160)]
+ProjectionChangeLabel = Annotated[
+    str,
+    Field(max_length=135, pattern=r"^change:[a-z0-9][a-z0-9-]{0,127}$"),
+]
+ProjectionLabels = tuple[
+    ProjectionChangeLabel,
+    Literal["projection:autopilot-phase"],
+]
 
 
 class WorkSubmitRequest(BaseModel):
@@ -226,9 +233,7 @@ class WorkSubmitRequest(BaseModel):
     task_type: str = Field(min_length=1)
     task_description: str = Field(min_length=1)
     projection_key: ProjectionKeyRequest | None = None
-    projection_labels: list[ProjectionLabel] | None = Field(
-        default=None, min_length=2, max_length=2
-    )
+    projection_labels: ProjectionLabels | None = None
     input_data: dict[str, Any] | None = None
     priority: int = Field(default=5, ge=1, le=10)
     depends_on: list[UUID] | None = None
@@ -239,9 +244,7 @@ class WorkReconcileRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     projection_key: ProjectionKeyRequest
-    projection_labels: list[ProjectionLabel] | None = Field(
-        default=None, min_length=2, max_length=2
-    )
+    projection_labels: ProjectionLabels | None = None
     task_type: str = Field(min_length=1)
     task_description: str = Field(min_length=1)
     input_data: dict[str, Any] | None = None
@@ -1219,7 +1222,9 @@ def create_coordination_api() -> FastAPI:
             projection_key=(
                 request.projection_key.model_dump() if request.projection_key else None
             ),
-            projection_labels=request.projection_labels,
+            projection_labels=(
+                list(request.projection_labels) if request.projection_labels else None
+            ),
         )
         payload = _projection_mutation_payload(result)
         if request.projection_key is None:
@@ -1246,7 +1251,9 @@ def create_coordination_api() -> FastAPI:
 
         result = await get_work_queue_service().reconcile_projection(
             projection_key=request.projection_key.model_dump(),
-            projection_labels=request.projection_labels,
+            projection_labels=(
+                list(request.projection_labels) if request.projection_labels else None
+            ),
             task_type=request.task_type,
             description=request.task_description,
             input_data=request.input_data,
