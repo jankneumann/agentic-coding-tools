@@ -1,7 +1,7 @@
 # Validation Report: mirror-autopilot-phase-state-into-the-work-queue
 
-**Date**: 2026-09-14T03:12:13-04:00
-**Validated commit**: `ccd47fd0`
+**Date**: 2026-09-14T03:58:34-04:00
+**Validated commit**: `5693a3206ab0ffb0a232c69f569629f975be1635`
 **Branch**: `openspec/recover-ri-09-work-queue-projection`
 **Surface**: non-deployable change with locally validated API, PostgreSQL, and Kanban paths
 
@@ -10,7 +10,7 @@
 | Phase | Result | Details |
 |---|---|---|
 | Deploy | not applicable | No external environment was mutated; the repository-defined disposable PostgreSQL stack was used for validation. |
-| Smoke | pass | Migration 038 applied on the live stack and fresh-database migration tests passed. |
+| Smoke | pass | Migrations 038-039 applied on the live stack and the fresh full migration chain passed. |
 | Gen-Eval | not applicable | No generator/evaluator scenario surface changed. |
 | Security | pass | No dependency or credential changes; projection labels are exact, coordinator-only, and policy/auth handlers retain typed failures. |
 | E2E | pass | FastAPI to service to asyncpg to PostgreSQL projection lifecycle and board query passed. |
@@ -21,24 +21,21 @@
 
 ## Evidence
 
-- 432 Autopilot tests passed.
+- 436 Autopilot tests passed.
 - 96 coordination-bridge tests passed.
-- 127 coordinator queue, issue, projection-visibility, and API tests passed.
-- 30 live PostgreSQL migration, projection, EventBus/SSE, and HTTP E2E tests passed.
+- 143 coordinator queue, issue, projection-visibility, and API tests passed.
+- 18 focused live PostgreSQL migration, projection, EventBus/SSE, and HTTP E2E tests passed; the broader earlier live run passed 30 tests.
 - 224 Kanban tests passed with 6 declared skips; the production build passed.
-- 4,762 canonical skills tests passed with 13 declared skips.
+- 4,763 canonical skills tests passed with 13 declared skips.
 - All 90 OpenSpec artifacts passed strict validation.
-- Scoped Ruff, dependency direction, skill mirror portability, work-package schema/DAG/locks, and diff checks passed.
-- Architecture refresh completed with 0 errors; canonical freshness passed. The standalone flow validator reported 0 errors, 2,716 repository-wide warnings, and 89 informational findings to a temporary diagnostic file.
+- Scoped Ruff, dependency direction, byte-level skill mirror parity, installer regression (29 passed), work-package schema/DAG/locks, and diff checks passed.
+- Architecture refresh completed with 0 errors; canonical freshness passed. Optional TypeScript analysis remained unavailable and 2,716 existing repository-wide warnings remain advisory.
 
 ## Review and recovery
 
-Round 4 reached substantive quorum from Claude Code, Codex, and Grok. Its
-credible findings produced canonical ESCALATE recovery, non-halting degraded
-projection, runtime/OpenAPI parity, transactionally serialized projection
-labels, cancelled-row filtering, and live acceptance coverage. Antigravity and
-Pi degradations are recorded in the round manifest/dispositions. Round 5 reviews
-this exact post-fix surface across every configured available harness.
+Round 4 reached substantive quorum from Claude Code, Codex, and Grok and drove canonical ESCALATE recovery, non-halting projection degradation, and atomic label repair.
+
+Round 5 attempted every configured locally addressable vendor type. Codex and Grok supplied substantive schema-valid findings; Pi supplied 20 additional schema-valid findings preserved out of band after its adapter returned protocol NDJSON. The credible gaps produced first-insert SSE notification, replay/collision/terminal-row integrity, executable and idempotent ESCALATE recovery, auto-resume persistence, exact runtime/OpenAPI bounds, and a real installed-payload parity gate. Round 6 reviews the integrated post-fix commit with the repository-local vendor configuration forced explicitly so Antigravity receives its required JSON output mode.
 
 The explicit monolithic `pytest tests` command was rejected as an invalid gate:
 it bypasses the curated skills `testpaths` ordering and creates known flat-module

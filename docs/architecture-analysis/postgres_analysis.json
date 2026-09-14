@@ -3552,7 +3552,7 @@
     },
     {
       "name": "public.submit_task",
-      "file": "038_atomic_projection_labels.sql",
+      "file": "039_projection_integrity_and_insert_events.sql",
       "line": 7,
       "language": "plpgsql",
       "parameters": [
@@ -3599,8 +3599,8 @@
     },
     {
       "name": "public.reconcile_work_projection",
-      "file": "038_atomic_projection_labels.sql",
-      "line": 100,
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 124,
       "language": "plpgsql",
       "parameters": [
         {
@@ -3650,6 +3650,15 @@
         "public.work_queue",
         "public.work_queue_projection_heads"
       ]
+    },
+    {
+      "name": "public.notify_projection_insert",
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 228,
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": []
     }
   ],
   "triggers": [
@@ -3715,6 +3724,13 @@
       "event": "UPDATE",
       "timing": "AFTER",
       "function": "public.notify_work_queue_change"
+    },
+    {
+      "name": "trg_work_queue_projection_insert_notify",
+      "table": "public.work_queue",
+      "event": "INSERT",
+      "timing": "AFTER",
+      "function": "public.notify_projection_insert"
     }
   ],
   "fk_graph": [
