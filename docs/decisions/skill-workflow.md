@@ -9,6 +9,17 @@
 
 ### Phase: Plan
 
+**Gate 2 approve plan** — User approved complete plan; proceed to implementation.
+
+- Status: `active`
+- Source: [openspec/changes/retire-skill-literal-model-hints/session-log.md](/openspec/changes/retire-skill-literal-model-hints/session-log.md) (D1)
+
+---
+
+## 2026-09-14 — retire-skill-literal-model-hints
+
+### Phase: Plan
+
 **Harden test_skill_model_hints in place** — Reuse existing CI hook; empty opus/sonnet/haiku allowlist; extend Agent/-m checks.
 
 - Status: `active`

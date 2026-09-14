@@ -45,3 +45,22 @@
 ### Context
 Planned Phase 2 after consolidate-model-tier-sources. Gate 1 selected Approach A: skills author archetype/tier vocabulary from archetypes.yaml; harnesses still receive resolved model ids. CI hardens test_skill_model_hints to ban string literals; cite-requirements dual-resolves economy tiers.
 
+---
+
+## Phase: Plan (2026-09-14)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Gate 2 approve plan** `architectural: skill-workflow` — User approved complete plan; proceed to implementation.
+
+### Completed Work
+- gate-2-approved
+- task-seeding
+
+### Next Steps
+- /implement-feature retire-skill-literal-model-hints
+
+### Context
+Gate 2 approved Approach A plan. Coordinator task seeding attempted. Ready for /implement-feature.
+
