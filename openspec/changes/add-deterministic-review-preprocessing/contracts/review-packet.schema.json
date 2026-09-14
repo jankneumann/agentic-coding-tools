@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/review-packet.v2.schema.json",
+  "title": "Review packet metadata (v2)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "change_id", "round", "body_path", "sha256",
+    "char_length", "budget_chars", "tools_overflow", "includes_ledger",
+    "diff_kind", "selection", "rule_groups"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 2 },
+    "change_id": { "type": "string", "minLength": 1 },
+    "round": { "type": "integer", "minimum": 1 },
+    "body_path": { "type": "string", "minLength": 1 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "char_length": { "type": "integer", "minimum": 0 },
+    "budget_chars": { "type": "integer", "const": 320000 },
+    "tools_overflow": { "type": "boolean" },
+    "includes_ledger": { "type": "boolean" },
+    "diff_kind": { "type": "string", "enum": ["full", "last_fix", "empty"] },
+    "base_ref": { "type": "string" },
+    "head_ref": { "type": "string" },
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selected", "excluded", "truncated", "per_file_token_ceiling"],
+      "properties": {
+        "per_file_token_ceiling": { "type": "integer", "minimum": 1 },
+        "selected": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/decision" }
+        },
+        "excluded": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/decision" }
+        },
+        "truncated": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "rule_groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["group_id", "source", "pattern", "files"],
+        "properties": {
+          "group_id": { "type": "integer", "minimum": 1 },
+          "source": { "type": "string", "enum": ["project", "default"] },
+          "pattern": { "type": "string", "minLength": 1 },
+          "files": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "status", "reason", "gate", "est_tokens"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "enum": ["added", "modified", "deleted", "renamed", "binary"] },
+        "reason": {
+          "type": "string",
+          "enum": ["none", "binary", "user_exclude", "generated_path", "deleted", "too_large"]
+        },
+        "gate": {
+          "type": "string",
+          "enum": ["binary", "user_exclude", "user_include", "generated_path", "deleted", "too_large", "passed"]
+        },
+        "est_tokens": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
