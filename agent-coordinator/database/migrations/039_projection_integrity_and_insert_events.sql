@@ -95,7 +95,7 @@ BEGIN
       'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
   END IF;
   PERFORM pg_advisory_xact_lock(hashtextextended(v_change,0));
-  IF p_projection_labels IS NOT NULL AND EXISTS (
+  IF EXISTS (
     SELECT 1 FROM work_queue AS candidate
     WHERE 'projection:autopilot-phase'=ANY(COALESCE(candidate.labels,ARRAY[]::TEXT[]))
       AND (
@@ -108,6 +108,14 @@ BEGIN
       )
   ) THEN
     RETURN jsonb_build_object('success',FALSE,'reason','projection_key_collision',
+      'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
+  END IF;
+  IF p_projection_labels IS NULL AND EXISTS (
+    SELECT 1 FROM work_queue_projection_ownership AS ownership
+    JOIN work_queue AS owned ON owned.id=ownership.task_id
+    WHERE owned.input_data->>'change_id'=v_change
+  ) THEN
+    RETURN jsonb_build_object('success',FALSE,'reason','projection_mode_mismatch',
       'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
   END IF;
   SELECT phase,transition_sequence INTO v_head_phase,v_head_seq
@@ -223,7 +231,7 @@ BEGIN
       'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
   END IF;
   PERFORM pg_advisory_xact_lock(hashtextextended(p_change_id,0));
-  IF p_projection_labels IS NOT NULL AND EXISTS (
+  IF EXISTS (
     SELECT 1 FROM work_queue AS candidate
     WHERE 'projection:autopilot-phase'=ANY(COALESCE(candidate.labels,ARRAY[]::TEXT[]))
       AND (
@@ -236,6 +244,14 @@ BEGIN
       )
   ) THEN
     RETURN jsonb_build_object('success',FALSE,'reason','projection_key_collision',
+      'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
+  END IF;
+  IF p_projection_labels IS NULL AND EXISTS (
+    SELECT 1 FROM work_queue_projection_ownership AS ownership
+    JOIN work_queue AS owned ON owned.id=ownership.task_id
+    WHERE owned.input_data->>'change_id'=p_change_id
+  ) THEN
+    RETURN jsonb_build_object('success',FALSE,'reason','projection_mode_mismatch',
       'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
   END IF;
   SELECT transition_sequence INTO v_head_seq FROM work_queue_projection_heads
@@ -282,25 +298,39 @@ BEGIN
   ON CONFLICT(change_id) DO UPDATE SET phase=EXCLUDED.phase,
     transition_sequence=EXCLUDED.transition_sequence,updated_at=NOW();
 
-  WITH cancelled AS (
-    UPDATE work_queue SET status='cancelled',completed_at=NOW(),
-      labels=CASE
-        WHEN p_projection_labels IS NOT NULL AND task_type='issue'
-          AND 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[]))
-        THEN ARRAY[]::TEXT[] ELSE labels END,
-      result=jsonb_build_object('reason','cancelled_by_projection_reconcile',
-        'change_id',p_change_id,'phase',p_phase,'transition_sequence',p_transition_sequence)
-    WHERE status IN ('pending','claimed','running')
-      AND (p_projection_labels IS NULL OR EXISTS (
-        SELECT 1 FROM work_queue_projection_ownership AS ownership
-        WHERE ownership.task_id=work_queue.id
-      ))
-      AND input_data ? 'change_id' AND input_data->>'change_id'=p_change_id
-      AND NOT (input_data->>'phase'=p_phase
-               AND input_data->>'transition_sequence'=p_transition_sequence::TEXT)
-    RETURNING id)
-  SELECT COALESCE(array_agg(id ORDER BY id::TEXT),ARRAY[]::UUID[])
-    INTO v_cancelled FROM cancelled;
+  IF p_projection_labels IS NULL THEN
+    WITH cancelled AS (
+      UPDATE work_queue SET status='cancelled',completed_at=NOW(),
+        result=jsonb_build_object('reason','cancelled_by_projection_reconcile',
+          'change_id',p_change_id,'phase',p_phase,'transition_sequence',p_transition_sequence)
+      WHERE status IN ('pending','claimed','running')
+        AND input_data ? 'change_id' AND input_data->>'change_id'=p_change_id
+        AND NOT (input_data->>'phase'=p_phase
+                 AND input_data->>'transition_sequence'=p_transition_sequence::TEXT)
+      RETURNING id)
+    SELECT COALESCE(array_agg(id ORDER BY id::TEXT),ARRAY[]::UUID[])
+      INTO v_cancelled FROM cancelled;
+  ELSE
+    WITH cancelled AS (
+      UPDATE work_queue SET status='cancelled',completed_at=NOW(),
+        labels=CASE
+          WHEN task_type='issue'
+            AND 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[]))
+          THEN ARRAY[]::TEXT[] ELSE labels END,
+        result=jsonb_build_object('reason','cancelled_by_projection_reconcile',
+          'change_id',p_change_id,'phase',p_phase,'transition_sequence',p_transition_sequence)
+      WHERE status IN ('pending','claimed','running')
+        AND EXISTS (
+          SELECT 1 FROM work_queue_projection_ownership AS ownership
+          WHERE ownership.task_id=work_queue.id
+        )
+        AND input_data ? 'change_id' AND input_data->>'change_id'=p_change_id
+        AND NOT (input_data->>'phase'=p_phase
+                 AND input_data->>'transition_sequence'=p_transition_sequence::TEXT)
+      RETURNING id)
+    SELECT COALESCE(array_agg(id ORDER BY id::TEXT),ARRAY[]::UUID[])
+      INTO v_cancelled FROM cancelled;
+  END IF;
 
   IF p_projection_labels IS NOT NULL THEN
     UPDATE work_queue SET labels=ARRAY[]::TEXT[]

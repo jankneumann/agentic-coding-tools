@@ -525,13 +525,14 @@ def test_reconcile_authorizes_projection_publish_and_returns_cancellations(
     assert authorize.await_args.kwargs["context"]["mode"] == "reconcile"
 
 
-def test_stale_projection_returns_409_problem(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("reason", ["stale_projection", "projection_mode_mismatch"])
+def test_projection_conflict_returns_409_problem(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, reason: str
 ) -> None:
     from src.work_queue import SubmitResult
 
     mock_service = AsyncMock()
-    mock_service.submit.return_value = SubmitResult(success=False, reason="stale_projection")
+    mock_service.submit.return_value = SubmitResult(success=False, reason=reason)
     monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
     import src.work_queue
 
@@ -551,7 +552,7 @@ def test_stale_projection_returns_409_problem(
     )
     assert response.status_code == 409
     assert response.headers["content-type"].startswith("application/problem+json")
-    assert response.json()["type"].endswith(":stale_projection")
+    assert response.json()["type"].endswith(f":{reason}")
 
 
 # =============================================================================

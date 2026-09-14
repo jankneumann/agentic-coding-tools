@@ -478,6 +478,7 @@ async def proxy_submit_work(
     depends_on: list[str] | None = None,
     agent_requirements: dict[str, Any] | None = None,
     projection_key: dict[str, Any] | None = None,
+    projection_labels: list[str] | None = None,
 ) -> dict[str, Any]:
     """Proxy submit_work to POST /work/submit.
 
@@ -497,6 +498,8 @@ async def proxy_submit_work(
     }
     if projection_key is not None:
         body["projection_key"] = projection_key
+    if projection_labels is not None:
+        body["projection_labels"] = projection_labels
     return await _request("POST", "/work/submit", json_body=body)
 
 
@@ -507,6 +510,7 @@ async def proxy_reconcile_work_projection(
     input_data: dict[str, Any] | None = None,
     priority: int = 5,
     agent_requirements: dict[str, Any] | None = None,
+    projection_labels: list[str] | None = None,
 ) -> dict[str, Any]:
     """Proxy projection reconciliation to POST /work/reconcile.
 
@@ -522,6 +526,8 @@ async def proxy_reconcile_work_projection(
         "priority": priority,
         "agent_requirements": agent_requirements,
     }
+    if projection_labels is not None:
+        body["projection_labels"] = projection_labels
     return await _request("POST", "/work/reconcile", json_body=body)
 
 

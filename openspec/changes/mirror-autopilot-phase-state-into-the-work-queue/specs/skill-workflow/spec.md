@@ -62,6 +62,16 @@ A coordinated Autopilot host SHALL project every durably persisted phase generat
 - **AND** a projection RPC SHALL insert without labels, register ownership, and apply the canonical label pair within one transaction
 - **AND** no forged board or SSE projection and no future reconciliation wedge SHALL be created
 
+#### Scenario: Labelled and legacy unlabelled projection modes cannot collide
+
+- **GIVEN** a change has any registry-owned labelled projection row
+- **WHEN** a keyed submit or reconcile omits `projection_labels`
+- **THEN** it SHALL return `projection_mode_mismatch` before head or row mutation
+- **AND** the canonical owned row SHALL retain its status and exact label pair
+- **AND** direct MCP and HTTP-proxy projection calls SHALL accept and forward the exact label pair
+- **AND** an associated unowned reserved-labelled upgrade row SHALL return `projection_key_collision` in either mode
+- **AND** legacy unlabelled tuple cancellation SHALL remain available for changes with neither owned nor reserved-labelled projection state
+
 #### Scenario: Projection outage is degraded, not authoritative
 
 - **GIVEN** loop-state persistence succeeds

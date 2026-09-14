@@ -337,6 +337,52 @@ async def test_database_rejects_unowned_spoofed_projection_issue(
     ]
 
 
+@pytest.mark.parametrize("mode", ["submit", "reconcile"])
+async def test_unlabelled_projection_cannot_mutate_owned_labelled_namespace(
+    mode,
+    pg_work_queue,
+    postgres_db,
+) -> None:
+    change_id = f"live-owned-mode-isolation-{mode}"
+    labels = [f"change:{change_id}", _PROJECTION_LABEL]
+    canonical_key = _key(change_id, "INIT", 0)
+    canonical = await pg_work_queue.submit(
+        task_type="issue",
+        description="Autopilot phase INIT",
+        priority=1,
+        projection_key=canonical_key,
+        projection_labels=labels,
+    )
+    request = {
+        "task_type": "issue",
+        "description": "unlabelled projection",
+        "priority": 1,
+        "projection_key": (
+            canonical_key if mode == "submit" else _key(change_id, "PLAN", 1)
+        ),
+    }
+
+    if mode == "submit":
+        result = await pg_work_queue.submit(**request)
+    else:
+        result = await pg_work_queue.reconcile_projection(**request)
+
+    assert result.success is False
+    assert result.reason == "projection_mode_mismatch"
+    rows = await postgres_db.query(
+        "work_queue", f"input_data->>change_id=eq.{change_id}&order=created_at.asc"
+    )
+    assert [(str(row["id"]), row["status"], row["labels"]) for row in rows] == [
+        (str(canonical.task_id), "pending", labels)
+    ]
+    heads = await postgres_db.query(
+        "work_queue_projection_heads", f"change_id=eq.{change_id}"
+    )
+    assert [(row["phase"], row["transition_sequence"]) for row in heads] == [
+        ("INIT", 0)
+    ]
+
+
 async def test_submit_collision_with_nonissue_is_fail_closed(
     pg_work_queue,
     postgres_db,

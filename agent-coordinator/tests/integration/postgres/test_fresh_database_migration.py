@@ -316,6 +316,34 @@ async def test_039_upgrade_fails_closed_until_owner_registers_verified_row(
         await conn.close()
 
 
+async def test_039_unlabelled_reconcile_fails_closed_on_reserved_upgrade_row(
+    pre039_upgrade_database,
+) -> None:
+    dsn, _legitimate_id, spoof_id = pre039_upgrade_database
+    conn = await _connect(dsn)
+    try:
+        result = json.loads(
+            await conn.fetchval(
+                "SELECT reconcile_work_projection('upgrade-spoof','IMPLEMENT',8,"
+                "'issue','legacy caller','{}'::jsonb,1,NULL::jsonb,NULL::text[])"
+            )
+        )
+        assert result["success"] is False
+        assert result["reason"] == "projection_key_collision"
+        assert await conn.fetchrow(
+            "SELECT status,labels FROM work_queue WHERE id=$1", spoof_id
+        ) == (
+            "pending",
+            ["change:upgrade-spoof", "projection:autopilot-phase"],
+        )
+        assert await conn.fetchval(
+            "SELECT COUNT(*) FROM work_queue_projection_heads "
+            "WHERE change_id='upgrade-spoof'"
+        ) == 0
+    finally:
+        await conn.close()
+
+
 async def test_every_migration_applies_to_an_empty_database(migrated_database) -> None:
     """No migration may be skipped, and none may fail.
 

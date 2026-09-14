@@ -20,18 +20,23 @@ async def test_direct_mcp_submit_exposes_deduplicated_result(monkeypatch):
     monkeypatch.setattr(coordination_mcp, "get_work_queue_service", lambda: service)
 
     result = await coordination_mcp.submit_work(
-        task_type="implement",
+        task_type="issue",
         description="project",
         projection_key={
             "change_id": "projection-change",
             "phase": "IMPLEMENT",
             "transition_sequence": 3,
         },
+        projection_labels=["change:projection-change", "projection:autopilot-phase"],
     )
 
     assert result["task_id"] == str(task_id)
     assert result["created"] is False
     assert result["deduplicated"] is True
+    assert service.submit.await_args.kwargs["projection_labels"] == [
+        "change:projection-change",
+        "projection:autopilot-phase",
+    ]
 
 
 @pytest.mark.asyncio
@@ -55,12 +60,17 @@ async def test_direct_mcp_reconcile_maps_projection_result(monkeypatch):
             "phase": "IMPLEMENT",
             "transition_sequence": 4,
         },
-        task_type="implement",
+        task_type="issue",
         description="resume",
+        projection_labels=["change:projection-change", "projection:autopilot-phase"],
     )
 
     assert result["cancelled_task_ids"] == [str(UUID(int=2))]
     assert result["created"] is True
+    assert service.reconcile_projection.await_args.kwargs["projection_labels"] == [
+        "change:projection-change",
+        "projection:autopilot-phase",
+    ]
 
 
 @pytest.mark.asyncio
@@ -77,8 +87,13 @@ async def test_proxy_mcp_forwards_one_explicit_projection_key(monkeypatch):
     monkeypatch.setattr(coordination_mcp.http_proxy, "proxy_submit_work", proxy)
     key = {"change_id": "projection-change", "phase": "IMPLEMENT", "transition_sequence": 5}
 
+    labels = ["change:projection-change", "projection:autopilot-phase"]
     await coordination_mcp.submit_work(
-        task_type="implement", description="proxy", projection_key=key
+        task_type="issue",
+        description="proxy",
+        projection_key=key,
+        projection_labels=labels,
     )
 
     assert proxy.await_args.kwargs["projection_key"] == key
+    assert proxy.await_args.kwargs["projection_labels"] == labels

@@ -95,6 +95,7 @@ class _CodeSearchProblemError(Exception):
 _PROJECTION_CONFLICTS = {
     "stale_projection",
     "projection_generation_mismatch",
+    "projection_mode_mismatch",
     "reconciliation_required",
     "projection_key_collision",
 }

@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: mirror-autopilot-phase-state-into-the-work-queue
   title: Mirror Autopilot phase state into the work queue
-  plan_revision: 7
+  plan_revision: 8
   created_by: codex
   deployable: false
 
@@ -26,7 +26,7 @@ packages:
   - package_id: wp-projection-adapter
     title: Coordinated phase projection adapter and host registration
     task_type: integration
-    description: Implement tasks 1.1 through 2.9 with TDD, including canonical host writers, head advancement, elevated change-scoped publication, fail-closed trust resolution, database-owned reserved labels, immutable projection issues, upgrade-safe serialized repair, and reviewed-checkout vendor discovery while preserving the coordinator-free default and one-way authority contract.
+    description: Implement tasks 1.1 through 2.10 with TDD, including canonical host writers, head advancement, elevated change-scoped publication, fail-closed trust resolution, database-owned reserved labels, immutable projection issues, labelled/unlabelled namespace isolation, transport label parity, upgrade-safe serialized repair, and reviewed-checkout vendor discovery while preserving the coordinator-free default and one-way authority contract.
     role: implementer
     priority: 1
     depends_on: []
@@ -48,6 +48,8 @@ packages:
         - agent-coordinator/src/event_stream.py
         - agent-coordinator/src/agents_config.py
         - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/src/coordination_mcp.py
+        - agent-coordinator/src/http_proxy.py
         - agent-coordinator/src/issue_service.py
         - agent-coordinator/src/policy_engine.py
         - agent-coordinator/src/work_queue.py
@@ -90,6 +92,8 @@ packages:
         - agent-coordinator/src/event_stream.py
         - agent-coordinator/src/agents_config.py
         - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/src/coordination_mcp.py
+        - agent-coordinator/src/http_proxy.py
         - agent-coordinator/src/issue_service.py
         - agent-coordinator/src/policy_engine.py
         - agent-coordinator/src/work_queue.py
@@ -169,6 +173,8 @@ packages:
         - agent-coordinator/src/event_stream.py
         - agent-coordinator/src/agents_config.py
         - agent-coordinator/src/coordination_api.py
+        - agent-coordinator/src/coordination_mcp.py
+        - agent-coordinator/src/http_proxy.py
         - agent-coordinator/src/issue_service.py
         - agent-coordinator/src/policy_engine.py
         - agent-coordinator/src/work_queue.py
