@@ -71,7 +71,7 @@ WRITE_ACTIONS = frozenset({
 # Admin actions requiring trust_level >= MIN_ADMIN_TRUST (TrustLevel.ELEVATED)
 ADMIN_ACTIONS = frozenset({
     "force_push", "delete_branch", "cleanup_agents",
-    "rollback_policy",
+    "rollback_policy", "publish_work_projection",
 })
 
 # Known-allowed network domains (matches default Cedar policies)

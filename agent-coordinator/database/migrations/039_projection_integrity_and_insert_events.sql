@@ -7,6 +7,30 @@ CREATE TABLE IF NOT EXISTS work_queue_projection_ownership (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+UPDATE agent_profiles
+SET allowed_operations = ARRAY(
+      SELECT DISTINCT operation
+      FROM unnest(allowed_operations || ARRAY['publish_work_projection']) operation
+      ORDER BY operation
+    ),
+    updated_at = NOW()
+WHERE trust_level >= 3;
+
+INSERT INTO cedar_policies (name, policy_text, description, priority, enabled)
+VALUES (
+  'work-projection-operations',
+  'permit(principal, action == Action::"publish_work_projection", resource) when { principal.trust_level >= 3 };',
+  'Allow only elevated agents to publish authoritative work projections',
+  30,
+  TRUE
+)
+ON CONFLICT (name) DO UPDATE SET
+  policy_text=EXCLUDED.policy_text,
+  description=EXCLUDED.description,
+  priority=EXCLUDED.priority,
+  enabled=EXCLUDED.enabled,
+  updated_at=NOW();
+
 -- Ownership cannot be inferred safely from mutable payloads or labels. Existing
 -- 038-era rows remain unowned and therefore fail closed until a database
 -- administrator verifies provenance out of band and explicitly inserts the row id.
@@ -71,6 +95,21 @@ BEGIN
       'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
   END IF;
   PERFORM pg_advisory_xact_lock(hashtextextended(v_change,0));
+  IF p_projection_labels IS NOT NULL AND EXISTS (
+    SELECT 1 FROM work_queue AS candidate
+    WHERE 'projection:autopilot-phase'=ANY(COALESCE(candidate.labels,ARRAY[]::TEXT[]))
+      AND (
+        candidate.input_data->>'change_id'=v_change
+        OR 'change:' || v_change=ANY(COALESCE(candidate.labels,ARRAY[]::TEXT[]))
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM work_queue_projection_ownership AS ownership
+        WHERE ownership.task_id=candidate.id
+      )
+  ) THEN
+    RETURN jsonb_build_object('success',FALSE,'reason','projection_key_collision',
+      'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
+  END IF;
   SELECT phase,transition_sequence INTO v_head_phase,v_head_seq
   FROM work_queue_projection_heads WHERE change_id=v_change FOR UPDATE;
   IF NOT FOUND THEN
@@ -184,6 +223,21 @@ BEGIN
       'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
   END IF;
   PERFORM pg_advisory_xact_lock(hashtextextended(p_change_id,0));
+  IF p_projection_labels IS NOT NULL AND EXISTS (
+    SELECT 1 FROM work_queue AS candidate
+    WHERE 'projection:autopilot-phase'=ANY(COALESCE(candidate.labels,ARRAY[]::TEXT[]))
+      AND (
+        candidate.input_data->>'change_id'=p_change_id
+        OR 'change:' || p_change_id=ANY(COALESCE(candidate.labels,ARRAY[]::TEXT[]))
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM work_queue_projection_ownership AS ownership
+        WHERE ownership.task_id=candidate.id
+      )
+  ) THEN
+    RETURN jsonb_build_object('success',FALSE,'reason','projection_key_collision',
+      'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
+  END IF;
   SELECT transition_sequence INTO v_head_seq FROM work_queue_projection_heads
   WHERE change_id=p_change_id FOR UPDATE;
   IF FOUND AND p_transition_sequence < v_head_seq THEN

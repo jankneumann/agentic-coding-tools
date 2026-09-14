@@ -425,7 +425,8 @@ def test_projection_submit_exposes_additive_result(
     mock_service.submit.return_value = SubmitResult(
         success=True, task_id=task_uuid, created=False, deduplicated=True, status="pending"
     )
-    monkeypatch.setattr("src.coordination_api.authorize_operation", AsyncMock())
+    authorize = AsyncMock()
+    monkeypatch.setattr("src.coordination_api.authorize_operation", authorize)
     import src.work_queue
 
     monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
@@ -451,9 +452,39 @@ def test_projection_submit_exposes_additive_result(
         "status": "pending",
         "cancelled_task_ids": [],
     }
+    assert authorize.await_args.kwargs["operation"] == "publish_work_projection"
+    assert authorize.await_args.kwargs["resource"] == "projection-change"
+    assert authorize.await_args.kwargs["context"]["change_id"] == "projection-change"
 
 
-def test_reconcile_authorizes_submit_work_mode_and_returns_cancellations(
+@pytest.mark.parametrize("path", ["/work/submit", "/work/reconcile"])
+def test_standard_trust_cannot_publish_projection(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, path: str
+) -> None:
+    mock_service = AsyncMock()
+    import src.work_queue
+
+    monkeypatch.setattr(src.work_queue, "_work_queue_service", mock_service)
+    response = client.post(
+        path,
+        headers=_auth_headers(),
+        json={
+            "task_type": "issue",
+            "task_description": "poison victim projection",
+            "projection_key": {
+                "change_id": "victim-change",
+                "phase": "DONE",
+                "transition_sequence": 2147483647,
+            },
+        },
+    )
+
+    assert response.status_code == 403
+    mock_service.submit.assert_not_awaited()
+    mock_service.reconcile_projection.assert_not_awaited()
+
+
+def test_reconcile_authorizes_projection_publish_and_returns_cancellations(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from src.work_queue import ReconcileResult
@@ -488,7 +519,9 @@ def test_reconcile_authorizes_submit_work_mode_and_returns_cancellations(
     )
     assert response.status_code == 200
     assert response.json()["cancelled_task_ids"] == [str(UUID(int=2))]
-    assert authorize.await_args.kwargs["operation"] == "submit_work"
+    assert authorize.await_args.kwargs["operation"] == "publish_work_projection"
+    assert authorize.await_args.kwargs["resource"] == "projection-change"
+    assert authorize.await_args.kwargs["context"]["change_id"] == "projection-change"
     assert authorize.await_args.kwargs["context"]["mode"] == "reconcile"
 
 

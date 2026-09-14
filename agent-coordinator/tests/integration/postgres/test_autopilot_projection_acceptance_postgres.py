@@ -298,7 +298,7 @@ async def test_same_generation_submit_replay_clears_noncanonical_owned_labels(
     assert labels_by_id[str(stale["id"])] == []
 
 
-async def test_reconcile_leaves_unowned_spoofed_projection_issue_untouched(
+async def test_reconcile_fails_closed_on_unowned_spoofed_projection_issue(
     pg_work_queue,
     postgres_db,
 ) -> None:
@@ -330,9 +330,9 @@ async def test_reconcile_leaves_unowned_spoofed_projection_issue_untouched(
         projection_labels=labels,
     )
 
-    assert reconciled.success is True
-    assert canonical.task_id in reconciled.cancelled_task_ids
-    assert str(spoof["id"]) not in {str(item) for item in reconciled.cancelled_task_ids}
+    assert reconciled.success is False
+    assert reconciled.reason == "projection_key_collision"
+    assert reconciled.cancelled_task_ids == []
     rows = await postgres_db.query(
         "work_queue", f"input_data->>change_id=eq.{change_id}&order=created_at.asc"
     )
@@ -341,6 +341,18 @@ async def test_reconcile_leaves_unowned_spoofed_projection_issue_untouched(
     assert spoof_row["status"] == "pending"
     assert spoof_row["labels"] == labels
     assert spoof_row["result"] is None
+    canonical_row = rows_by_id[str(canonical.task_id)]
+    assert canonical_row["status"] == "pending"
+    assert canonical_row["labels"] == labels
+    assert not any(
+        row["input_data"].get("transition_sequence") == 1 for row in rows
+    )
+    heads = await postgres_db.query(
+        "work_queue_projection_heads", f"change_id=eq.{change_id}"
+    )
+    assert [(row["phase"], row["transition_sequence"]) for row in heads] == [
+        ("INIT", 0)
+    ]
 
 
 async def test_submit_collision_with_nonissue_is_fail_closed(

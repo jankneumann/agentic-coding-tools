@@ -1,0 +1,279 @@
+{
+  "review_type": "implementation",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "antigravity",
+  "findings": [
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Explicit --agents-yaml overrides everything, checkout-local agents.yaml beneath reviewed --cwd precedes coordinator and global state, and missing-local config falls back to coordinator before disk. Verified in _orchestrator_for_dispatch (review_dispatcher.py:2575-2591) and tested with exact reviewed cwd assertion and full precedence coverage in test_review_dispatcher.py:1783-1853.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "id": 1,
+      "line_range": {
+        "end": 2591,
+        "start": 2575
+      },
+      "package_id": "whole-branch",
+      "resolution": "Accept config precedence resolver and regression suite.",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "low",
+      "description": "Vendor availability probe (--check-vendors) and agent listing (--list-agents) share the exact same _orchestrator_for_dispatch resolver and reviewed --cwd as review dispatch. A live check reports all 5 configured vendors available (5/2 available). Verified in review_dispatcher.py:2520-2545, 2665-2679 and test_check_vendors.py:103-116.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "id": 2,
+      "line_range": {
+        "end": 2680,
+        "start": 2520
+      },
+      "package_id": "whole-branch",
+      "resolution": "Accept shared resolver routing across all CLI entry points.",
+      "severity": "none",
+      "type": "compatibility"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Antigravity structured review command pairs --output-format json before --json-schema and delivers prompt via --prompt. Review dispatcher _extract_findings correctly unwraps structuredOutput, structured_output, and JSON-string response envelopes. Verified in agent-coordinator/agents.yaml:254-284, review_dispatcher.py:869-893, and test_review_dispatcher.py:1855-1899.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+      "id": 3,
+      "line_range": {
+        "end": 893,
+        "start": 869
+      },
+      "package_id": "whole-branch",
+      "resolution": "Accept Antigravity command flags and envelope extraction.",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Migration 038 preserves legacy non-projection submit and reconcile semantics: when p_projection_labels is NULL and projection tuple is absent, tasks are inserted directly without projection head checks or label mutation. Verified in 038_atomic_projection_labels.sql:25-56 and live postgres test test_unlabelled_legacy_issue_collision_keeps_pre039_dedupe_semantics.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/038_atomic_projection_labels.sql",
+      "id": 4,
+      "line_range": {
+        "end": 56,
+        "start": 25
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "Accept legacy submit and reconcile preservation.",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "security",
+      "criticality": "low",
+      "description": "Migration 039 establishes work_queue_projection_ownership as sole database-backed authority. Unowned rows fail closed without auto-adopting mutable fields, preventing ordinary tasks from being commandeered even if payload or labels are spoofed. Verified in 039_projection_integrity_and_insert_events.sql:5-18, 100-113, 207-220 and test_owned_projection_cannot_take_over_unowned_issue_key.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "id": 5,
+      "line_range": {
+        "end": 113,
+        "start": 5
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "Accept database-owned UUID registry authority.",
+      "severity": "none",
+      "type": "security"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Labelled collisions on unowned or non-issue tasks fail closed with projection_key_collision mapped to HTTP 409 Conflict prior to any transaction mutation or head advancement. Verified in 039_projection_integrity_and_insert_events.sql:108-112, 215-219 and coordination_api.py:1420-1445.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "id": 6,
+      "line_range": {
+        "end": 219,
+        "start": 108
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "Accept fail-closed projection key collision handling.",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "low",
+      "description": "Legacy unlabelled reconcile where p_projection_labels IS NULL retains backward compatibility by cancelling stale active rows based on tuple inequality without requiring registry ownership or modifying labels. Verified in 039_projection_integrity_and_insert_events.sql:240-244 and work_queue.py:405-440.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "id": 7,
+      "line_range": {
+        "end": 244,
+        "start": 240
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "Accept legacy unlabelled reconcile compatibility.",
+      "severity": "none",
+      "type": "compatibility"
+    },
+    {
+      "axis": "resilience",
+      "criticality": "low",
+      "description": "Concurrent generations for the same change serialize cleanly via pg_advisory_xact_lock(hashtextextended(v_change, 0)) acquired at transaction start in both submit_task and reconcile_work_projection. Verified in 039_projection_integrity_and_insert_events.sql:72-80, 166-174.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql",
+      "id": 8,
+      "line_range": {
+        "end": 174,
+        "start": 72
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "Accept advisory transaction locking for generation serialization.",
+      "severity": "none",
+      "type": "resilience"
+    },
+    {
+      "axis": "resilience",
+      "criticality": "low",
+      "description": "Every ESCALATE transition durably records previous_phase, escalation_reason, phase_started_at, and increments total_iterations once. Re-entering ESCALATE is retry-idempotent and preserves the original incident metadata. DONE is strictly terminal in transition and escalate commands. Verified in autopilot.py:514-534 and runner.py:425-427, 492-494.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "id": 9,
+      "line_range": {
+        "end": 534,
+        "start": 514
+      },
+      "package_id": "whole-branch",
+      "resolution": "Accept durable escalation recording, idempotence, and terminal guards.",
+      "severity": "none",
+      "type": "resilience"
+    },
+    {
+      "axis": "correctness",
+      "criticality": "low",
+      "description": "Console-approved and automatic escalate_resume share one canonical persisted edge ('resolved' -> previous_phase). Escalate-resume parking persists the resolved edge before host projection. Verified in autopilot.py:1867-1885 and runner.py:185-198.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "id": 10,
+      "line_range": {
+        "end": 1885,
+        "start": 1867
+      },
+      "package_id": "whole-branch",
+      "resolution": "Accept shared resolved edge persistence across approval modes.",
+      "severity": "none",
+      "type": "correctness"
+    },
+    {
+      "axis": "resilience",
+      "criticality": "low",
+      "description": "Failed apply-outcome retains the un-applied handoff file, logs the failure, and transitions to ESCALATE with previous_phase derived from the authoritative durable loop state rather than caller state. Verified in autopilot.py:685-705 and test_apply_outcome_contract.py.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/autopilot/scripts/autopilot.py",
+      "id": 11,
+      "line_range": {
+        "end": 705,
+        "start": 685
+      },
+      "package_id": "whole-branch",
+      "resolution": "Accept authoritative durable phase recovery on apply-outcome failure.",
+      "severity": "none",
+      "type": "resilience"
+    },
+    {
+      "axis": "architecture",
+      "criticality": "low",
+      "description": "Coordinator-free execution tiers remain completely isolated: autopilot.py and runner.py do not eagerly import queue_projection, and coordinator-free runs cannot invoke coordination bridge transport. Verified in test_phase_projection_isolation.py:12-86 and SKILL.md:30-45.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/tests/autopilot/test_phase_projection_isolation.py",
+      "id": 12,
+      "line_range": {
+        "end": 86,
+        "start": 12
+      },
+      "package_id": "whole-branch",
+      "resolution": "Accept coordinator-free tier isolation and lazy import boundaries.",
+      "severity": "none",
+      "type": "architecture"
+    },
+    {
+      "axis": "observability",
+      "criticality": "low",
+      "description": "Projection SSE visibility is current-only: projection.labels_changed event bursts coalesce into a single snapshot rebuild using label-filtered list_issues, which excludes cancelled rows from the board view. Verified in event_stream.py:272-282, 320-329.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "agent-coordinator/src/event_stream.py",
+      "id": 13,
+      "line_range": {
+        "end": 329,
+        "start": 272
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "Accept current-only SSE projection coalescing and exclusion.",
+      "severity": "none",
+      "type": "observability"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "low",
+      "description": "OpenAPI 3.1 specification for work-queue matches runtime constraints: ProjectionKey defines exact regex, enum, and integer ranges; projection_labels specifies ordered heterogeneous prefixItems with 2 items bounds; Problem details schema aligns with RFC 7807. Verified in openspec/contracts/agent-coordinator/openapi/work-queue.yaml:90-180, 220-280.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "openspec/contracts/agent-coordinator/openapi/work-queue.yaml",
+      "id": 14,
+      "line_range": {
+        "end": 280,
+        "start": 90
+      },
+      "package_id": "wp-projection-adapter",
+      "resolution": "Accept OpenAPI 3.1 schema alignment with runtime constraints.",
+      "severity": "none",
+      "type": "compatibility"
+    },
+    {
+      "axis": "compatibility",
+      "criticality": "low",
+      "description": "install.sh --check performs byte-level diff comparisons across skills, shared libraries, and install-manifest across runtime mirrors. Verified in install.sh:237-306 and test_consumer_portability.py:90-127 (11/11 tests passed).",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "skills/install.sh",
+      "id": 15,
+      "line_range": {
+        "end": 306,
+        "start": 237
+      },
+      "package_id": "whole-branch",
+      "resolution": "Accept runtime mirror byte-parity validation.",
+      "severity": "none",
+      "type": "compatibility"
+    },
+    {
+      "axis": "observability",
+      "criticality": "low",
+      "description": "Architecture artifacts declare explicit provenance with pinned source_revision, restricted input roots, and fingerprint-based freshness; post-revision skills-only dispatcher updates remain outside coordinator input roots and do not cause freshness divergence. Verified in docs/architecture-analysis/architecture.provenance.json:1-80.",
+      "disposition": "accept",
+      "evidence_class": "judgment",
+      "file_path": "docs/architecture-analysis/architecture.provenance.json",
+      "id": 16,
+      "line_range": {
+        "end": 80,
+        "start": 1
+      },
+      "package_id": "whole-branch",
+      "resolution": "Accept architecture provenance and freshness contract.",
+      "severity": "none",
+      "type": "observability"
+    }
+  ]
+}

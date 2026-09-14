@@ -89,9 +89,12 @@ def _make_app():
     os.environ["DB_BACKEND"] = "postgres"
     os.environ["POSTGRES_DSN"] = POSTGRES_DSN
     os.environ["COORDINATION_API_KEYS"] = _API_KEY
-    os.environ["COORDINATION_API_KEY_IDENTITIES"] = "{}"
-    os.environ["AGENT_ID"] = "e2e-agent"
-    os.environ["AGENT_TYPE"] = "test_agent"
+    os.environ["COORDINATION_API_KEY_IDENTITIES"] = (
+        '{"e2e-test-key":{"agent_id":"claude-local",'
+        '"agent_type":"claude_code"}}'
+    )
+    os.environ["AGENT_ID"] = "claude-local"
+    os.environ["AGENT_TYPE"] = "claude_code"
     os.environ["COORDINATOR_PROFILE"] = "local"
     # Ensure SESSION_ID is unset so handoff writes don't hit FK constraint
     os.environ.pop("SESSION_ID", None)

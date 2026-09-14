@@ -147,7 +147,9 @@ visible and executable again. Existing blocked rows remain blocked; resolving
 that status is an operator/workflow decision rather than projection repair.
 Queue metadata is observability only and is never read back into `LoopState`.
 
-Migration 039 intentionally does not auto-adopt existing labelled rows: pre-registry payload and label fields are client-mutable and cannot prove ownership. Before replaying a migration-038 projection, a database administrator must verify its provenance and insert its UUID into `work_queue_projection_ownership`. Until then the replay fails closed with `projection_key_collision`, and projection repair will not cancel or relabel the unowned row.
+Migration 039 intentionally does not auto-adopt existing labelled rows: pre-registry payload and label fields are client-mutable and cannot prove ownership. Before replaying a migration-038 projection, a database administrator must verify its provenance and insert its UUID into `work_queue_projection_ownership`. Until then both same-generation replay and newer-generation repair fail closed with `projection_key_collision` before head or row mutation; projection repair will not insert around, cancel, or relabel the unowned row.
+
+Projection publication has a separate authorization boundary from ordinary work submission. HTTP projection submit and every reconcile authorize `publish_work_projection` against the exact change ID before mutation. Trust-level-2 remote workers may submit ordinary work but cannot advance or repair projection heads; trust-level-3 coordinator publishers receive the elevated operation. Trust-resolution failures are propagated and fail closed on both paths.
 
 ## Visibility, isolation, and recovery
 

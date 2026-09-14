@@ -1201,11 +1201,25 @@ def create_coordination_api() -> FastAPI:
         """Submit new work to the queue."""
 
         agent_id, agent_type = resolve_identity(principal, None, None)
+        projection_change_id = (
+            request.projection_key.change_id if request.projection_key else None
+        )
         await authorize_operation(
             agent_id=agent_id,
             agent_type=agent_type,
-            operation="submit_work",
-            context={"task_type": request.task_type, "priority": request.priority},
+            operation=(
+                "publish_work_projection" if projection_change_id else "submit_work"
+            ),
+            resource=projection_change_id or "",
+            context={
+                "task_type": request.task_type,
+                "priority": request.priority,
+                **(
+                    {"mode": "submit", "change_id": projection_change_id}
+                    if projection_change_id
+                    else {}
+                ),
+            },
         )
 
         depends_on_uuids = request.depends_on
@@ -1240,9 +1254,11 @@ def create_coordination_api() -> FastAPI:
         await authorize_operation(
             agent_id=agent_id,
             agent_type=agent_type,
-            operation="submit_work",
+            operation="publish_work_projection",
+            resource=request.projection_key.change_id,
             context={
                 "mode": "reconcile",
+                "change_id": request.projection_key.change_id,
                 "task_type": request.task_type,
                 "priority": request.priority,
             },

@@ -952,6 +952,8 @@ class WorkQueueService:
                     created=False,
                     reason="guardrail_denied",
                 )
+        except TrustResolutionError:
+            raise
         except Exception:
             logger.error("Guardrails check failed during reconcile", exc_info=True)
 

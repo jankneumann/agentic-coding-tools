@@ -35,6 +35,23 @@ A coordinated Autopilot host SHALL project every durably persisted phase generat
 - **AND** exactly one active canonical row carrying both adapter-owned labels SHALL represent the loaded generation
 - **AND** interrupted cleanup across at most 100 concurrently double-labelled projection rows SHALL be retried without modifying ordinary change-labelled issues
 
+#### Scenario: Projection publication is elevated and change-scoped
+
+- **GIVEN** a trust-level-2 principal may submit ordinary work
+- **WHEN** it submits a request carrying `projection_key` or calls projection reconciliation
+- **THEN** authorization SHALL evaluate the distinct `publish_work_projection` operation against the exact requested change ID
+- **AND** the request SHALL fail with HTTP 403 before any projection service or database mutation
+- **AND** trust-resolution failure during submit or reconcile SHALL fail closed before the mutating RPC
+- **AND** a trust-level-3 coordinator publisher SHALL retain the operation through native policy and synchronized capability profiles
+
+#### Scenario: Pre-registry rows block every labelled generation repair
+
+- **GIVEN** a pre-migration active row carries the reserved projection label and identifies a change by payload or exact change label but lacks registry ownership
+- **WHEN** a labelled submit or reconcile requests either the same generation or a newer generation for that change
+- **THEN** it SHALL return `projection_key_collision` before head advancement, insertion, cancellation, reactivation, or relabelling
+- **AND** the legacy row, requested row, and projection head SHALL remain unchanged
+- **AND** repair SHALL succeed only after an administrator verifies provenance and explicitly registers the legacy row UUID
+
 #### Scenario: Projection outage is degraded, not authoritative
 
 - **GIVEN** loop-state persistence succeeds

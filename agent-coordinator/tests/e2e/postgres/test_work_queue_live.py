@@ -97,8 +97,8 @@ class TestWorkQueueLifecycleLive:
             "/work/claim",
             headers=auth_headers,
             json={
-                "agent_id": "e2e-agent",
-                "agent_type": "test_agent",
+                "agent_id": "claude-local",
+                "agent_type": "claude_code",
                 "task_types": ["refactor"],
             },
         )
@@ -113,7 +113,7 @@ class TestWorkQueueLifecycleLive:
             headers=auth_headers,
             json={
                 "task_id": task_id,
-                "agent_id": "e2e-agent",
+                "agent_id": "claude-local",
                 "success": True,
                 "result": {"files_modified": ["src/locks.py"]},
             },
@@ -126,8 +126,8 @@ class TestWorkQueueLifecycleLive:
             "/work/claim",
             headers=auth_headers,
             json={
-                "agent_id": "e2e-agent",
-                "agent_type": "test_agent",
+                "agent_id": "claude-local",
+                "agent_type": "claude_code",
                 "task_types": ["nonexistent"],
             },
         )

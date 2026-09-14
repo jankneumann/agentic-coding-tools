@@ -259,26 +259,43 @@ async def test_039_upgrade_fails_closed_until_owner_registers_verified_row(
         assert collision["success"] is False
         assert collision["reason"] == "projection_key_collision"
 
+        reconcile_raw = await conn.fetchval(
+            "SELECT reconcile_work_projection('upgrade-legitimate', 'PLAN', 1, "
+            "'issue', 'Autopilot phase PLAN', '{}'::jsonb, 1, NULL::jsonb, "
+            "$1::text[])",
+            labels,
+        )
+        reconcile = json.loads(reconcile_raw)
+        assert reconcile["success"] is False
+        assert reconcile["reason"] == "projection_key_collision"
+        assert await conn.fetchval(
+            "SELECT COUNT(*) FROM work_queue WHERE input_data->>'change_id'="
+            "'upgrade-legitimate'"
+        ) == 1
+        assert await conn.fetchrow(
+            "SELECT phase, transition_sequence FROM work_queue_projection_heads "
+            "WHERE change_id='upgrade-legitimate'"
+        ) == ("INIT", 0)
+
         await conn.execute(
             "INSERT INTO work_queue_projection_ownership(task_id) VALUES ($1)",
             legitimate_id,
         )
         replay_raw = await conn.fetchval(
-            "SELECT submit_task('issue', 'Autopilot phase INIT', $1::jsonb, "
-            "1, NULL::uuid[], NULL::timestamptz, NULL::jsonb, $2::text[])",
-            json.dumps(
-                {
-                    "change_id": "upgrade-legitimate",
-                    "phase": "INIT",
-                    "transition_sequence": 0,
-                }
-            ),
+            "SELECT reconcile_work_projection('upgrade-legitimate', 'PLAN', 1, "
+            "'issue', 'Autopilot phase PLAN', '{}'::jsonb, 1, NULL::jsonb, "
+            "$1::text[])",
             labels,
         )
         replay = json.loads(replay_raw)
         assert replay["success"] is True
-        assert replay["created"] is False
-        assert replay["task_id"] == str(legitimate_id)
+        assert replay["created"] is True
+        assert str(legitimate_id) in replay["cancelled_task_ids"]
+        legitimate = await conn.fetchrow(
+            "SELECT status, labels FROM work_queue WHERE id=$1", legitimate_id
+        )
+        assert legitimate["status"] == "cancelled"
+        assert legitimate["labels"] == []
 
         spoof = await conn.fetchrow(
             "SELECT status, labels, result FROM work_queue WHERE id=$1", spoof_id

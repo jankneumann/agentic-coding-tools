@@ -1,0 +1,600 @@
+{
+  "schema_version": 1,
+  "review_type": "implementation",
+  "target": "mirror-autopilot-phase-state-into-the-work-queue",
+  "reviewers": [
+    {
+      "vendor": "antigravity",
+      "agent_id": "antigravity",
+      "success": true,
+      "findings_count": 16,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "codex",
+      "agent_id": "codex",
+      "success": true,
+      "findings_count": 12,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "grok",
+      "agent_id": "grok",
+      "success": true,
+      "findings_count": 17,
+      "elapsed_seconds": 0.0,
+      "error": null
+    },
+    {
+      "vendor": "pi",
+      "agent_id": "pi",
+      "success": true,
+      "findings_count": 11,
+      "elapsed_seconds": 0.0,
+      "error": null
+    }
+  ],
+  "quorum_met": true,
+  "quorum_requested": 4,
+  "quorum_received": 4,
+  "consensus_findings": [
+    {
+      "id": 1,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 1,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: `/work/submit` and `/work/reconcile` authorize labelled projection mutations as generic `submit_work` operations without binding authorization to `projection_key.change_id` (`agent-coordinator/src/coordination_api.py:1203-1209,1239-1248`). The active policy permits `submit_work` to every trust-level-2 principal (`agent-coordinator/database/migrations/026_remote_worker_feature_handoff_permissions.sql:39-47`), while labelled reconciliation creates registry ownership, advances the per-change head, and cancels prior owned generations (`agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql:221-249`). An ordinary submit-capable principal can therefore reconcile an arbitrary change at a maximal sequence, cancel its legitimate projection, and make subsequent durable generations stale."
+    },
+    {
+      "id": 2,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: Migration 039 does not enforce its documented pre-registry upgrade gate when reconciliation targets a newer generation. Given an active migration-038 row at sequence N, that row is unowned after upgrade. Reconciliation at N+1 inserts and registers the new row and advances the head at lines 194-229, but cancellation and label cleanup at lines 231-259 affect only registry-owned rows. The legacy row therefore remains pending with both projection labels while the call returns success, producing two active board-visible generations. The upgrade regression at `agent-coordinator/tests/integration/postgres/test_fresh_database_migration.py:234-281` covers only same-tuple replay and misses this path. This contradicts `design.md:74`, which explicitly states that advancing a generation alone is not a repair."
+    },
+    {
+      "id": 3,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 3,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "high",
+      "recommended_disposition": "accept",
+      "description": "Critical: `WorkQueueService.reconcile_projection` catches `TrustResolutionError` in its blanket `except Exception` handler and then proceeds to the mutating reconciliation RPC without completing the guardrail scan. The sibling submit path explicitly re-raises this error at lines 820-827 to prevent exactly this fail-open behavior. The structural regression in `agent-coordinator/tests/test_trust_resolution_fail_open.py:200-222` enumerates claim, complete, and submit but omits the now production-used reconcile path."
+    },
+    {
+      "id": 4,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Nit: `_orchestrator_for_dispatch` decides coordinator resolution failed solely from an empty CLI-adapter map. A valid SDK-only coordinator roster is discarded in favor of process/global disk configuration even though `ReviewOrchestrator` explicitly supports SDK-only inputs (`review_dispatcher.py:1862-1875,1927-1943`) and the coordinator serializer accepts agents with `cli` or `sdk` (`agent-coordinator/src/agents_config.py:1773-1788`). This violates coordinator-before-disk precedence for dispatch, `--check-vendors`, and `--list-agents`. A no-write reproduction at exact HEAD returned the disk orchestrator and invoked `from_agents_yaml()` for an SDK-only coordinator roster. Existing precedence tests do not cover coordinator-nonempty-to-no-disk behavior."
+    },
+    {
+      "id": 5,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 13,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "medium",
+      "recommended_disposition": "accept",
+      "description": "Optional: In-process Autopilot `converge()` still constructs `ReviewOrchestrator.from_coordinator()` when `agents_yaml_path` is omitted, so HTTP/MCP/global config can still win over checkout-local `agent-coordinator/agents.yaml` under `worktree_path` \u2014 the same stale-template class that broke Antigravity in round 9, outside the fixed CLI `_orchestrator_for_dispatch` path."
+    },
+    {
+      "id": 6,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 1,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 11
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 1
+        },
+        {
+          "vendor": "pi",
+          "finding_id": 1
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Explicit --agents-yaml overrides everything, checkout-local agents.yaml beneath reviewed --cwd precedes coordinator and global state, and missing-local config falls back to coordinator before disk. Verified in _orchestrator_for_dispatch (review_dispatcher.py:2575-2591) and tested with exact reviewed cwd assertion and full precedence coverage in test_review_dispatcher.py:1783-1853."
+    },
+    {
+      "id": 7,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Vendor availability probe (--check-vendors) and agent listing (--list-agents) share the exact same _orchestrator_for_dispatch resolver and reviewed --cwd as review dispatch. A live check reports all 5 configured vendors available (5/2 available). Verified in review_dispatcher.py:2520-2545, 2665-2679 and test_check_vendors.py:103-116."
+    },
+    {
+      "id": 8,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 3,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 12
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 3
+        },
+        {
+          "vendor": "pi",
+          "finding_id": 2
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Antigravity structured review command pairs --output-format json before --json-schema and delivers prompt via --prompt. Review dispatcher _extract_findings correctly unwraps structuredOutput, structured_output, and JSON-string response envelopes. Verified in agent-coordinator/agents.yaml:254-284, review_dispatcher.py:869-893, and test_review_dispatcher.py:1855-1899."
+    },
+    {
+      "id": 9,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 4,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Migration 038 preserves legacy non-projection submit and reconcile semantics: when p_projection_labels is NULL and projection tuple is absent, tasks are inserted directly without projection head checks or label mutation. Verified in 038_atomic_projection_labels.sql:25-56 and live postgres test test_unlabelled_legacy_issue_collision_keeps_pre039_dedupe_semantics."
+    },
+    {
+      "id": 10,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "security",
+      "agreed_axis": "security",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Migration 039 establishes work_queue_projection_ownership as sole database-backed authority. Unowned rows fail closed without auto-adopting mutable fields, preventing ordinary tasks from being commandeered even if payload or labels are spoofed. Verified in 039_projection_integrity_and_insert_events.sql:5-18, 100-113, 207-220 and test_owned_projection_cannot_take_over_unowned_issue_key."
+    },
+    {
+      "id": 11,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 6,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 7
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 4
+        },
+        {
+          "vendor": "pi",
+          "finding_id": 4
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Labelled collisions on unowned or non-issue tasks fail closed with projection_key_collision mapped to HTTP 409 Conflict prior to any transaction mutation or head advancement. Verified in 039_projection_integrity_and_insert_events.sql:108-112, 215-219 and coordination_api.py:1420-1445."
+    },
+    {
+      "id": 12,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Legacy unlabelled reconcile where p_projection_labels IS NULL retains backward compatibility by cancelling stale active rows based on tuple inequality without requiring registry ownership or modifying labels. Verified in 039_projection_integrity_and_insert_events.sql:240-244 and work_queue.py:405-440."
+    },
+    {
+      "id": 13,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 8,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 6
+        },
+        {
+          "vendor": "pi",
+          "finding_id": 7
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Concurrent generations for the same change serialize cleanly via pg_advisory_xact_lock(hashtextextended(v_change, 0)) acquired at transaction start in both submit_task and reconcile_work_projection. Verified in 039_projection_integrity_and_insert_events.sql:72-80, 166-174."
+    },
+    {
+      "id": 14,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Every ESCALATE transition durably records previous_phase, escalation_reason, phase_started_at, and increments total_iterations once. Re-entering ESCALATE is retry-idempotent and preserves the original incident metadata. DONE is strictly terminal in transition and escalate commands. Verified in autopilot.py:514-534 and runner.py:425-427, 492-494."
+    },
+    {
+      "id": 15,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Console-approved and automatic escalate_resume share one canonical persisted edge ('resolved' -> previous_phase). Escalate-resume parking persists the resolved edge before host projection. Verified in autopilot.py:1867-1885 and runner.py:185-198."
+    },
+    {
+      "id": 16,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Failed apply-outcome retains the un-applied handoff file, logs the failure, and transitions to ESCALATE with previous_phase derived from the authoritative durable loop state rather than caller state. Verified in autopilot.py:685-705 and test_apply_outcome_contract.py."
+    },
+    {
+      "id": 17,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 12,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 10
+        },
+        {
+          "vendor": "grok",
+          "finding_id": 11
+        },
+        {
+          "vendor": "pi",
+          "finding_id": 3
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "architecture",
+      "agreed_axis": "architecture",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Coordinator-free execution tiers remain completely isolated: autopilot.py and runner.py do not eagerly import queue_projection, and coordinator-free runs cannot invoke coordination bridge transport. Verified in test_phase_projection_isolation.py:12-86 and SKILL.md:30-45."
+    },
+    {
+      "id": 18,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 13,
+      "matched_findings": [
+        {
+          "vendor": "codex",
+          "finding_id": 8
+        },
+        {
+          "vendor": "pi",
+          "finding_id": 6
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Projection SSE visibility is current-only: projection.labels_changed event bursts coalesce into a single snapshot rebuild using label-filtered list_issues, which excludes cancelled rows from the board view. Verified in event_stream.py:272-282, 320-329."
+    },
+    {
+      "id": 19,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 14,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "OpenAPI 3.1 specification for work-queue matches runtime constraints: ProjectionKey defines exact regex, enum, and integer ranges; projection_labels specifies ordered heterogeneous prefixItems with 2 items bounds; Problem details schema aligns with RFC 7807. Verified in openspec/contracts/agent-coordinator/openapi/work-queue.yaml:90-180, 220-280."
+    },
+    {
+      "id": 20,
+      "status": "confirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 15,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 12
+        },
+        {
+          "vendor": "pi",
+          "finding_id": 10
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "install.sh --check performs byte-level diff comparisons across skills, shared libraries, and install-manifest across runtime mirrors. Verified in install.sh:237-306 and test_consumer_portability.py:90-127 (11/11 tests passed)."
+    },
+    {
+      "id": 21,
+      "status": "unconfirmed",
+      "primary_vendor": "antigravity",
+      "primary_finding_id": 16,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Architecture artifacts declare explicit provenance with pinned source_revision, restricted input roots, and fingerprint-based freshness; post-revision skills-only dispatcher updates remain outside coordinator input roots and do not cause freshness divergence. Verified in docs/architecture-analysis/architecture.provenance.json:1-80."
+    },
+    {
+      "id": 22,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: The projection adapter derives identity exclusively from durable LoopState fields, sends `task_type=issue`, priority 1, and the exact owned-label pair, routes explicit reconcile directly, and advances submit through reconciliation only for the exact `status=error`/HTTP-409/`reconciliation_required` envelope. Successful projection additionally requires a non-empty canonical task ID."
+    },
+    {
+      "id": 23,
+      "status": "unconfirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 6,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "resilience",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: State persistence precedes projection, projection exceptions and non-success envelopes are degraded without feeding queue data back into state, and resume reconciliation occurs before gate handling or phase work. Direct ESCALATE entry advances the generation once and preserves the original incident on retry. Focused Autopilot projection, ordering, recovery, gate, and isolation regressions passed at exact HEAD."
+    },
+    {
+      "id": 24,
+      "status": "confirmed",
+      "primary_vendor": "codex",
+      "primary_finding_id": 9,
+      "matched_findings": [
+        {
+          "vendor": "grok",
+          "finding_id": 9
+        },
+        {
+          "vendor": "pi",
+          "finding_id": 8
+        }
+      ],
+      "match_score": 0.8,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Runtime request models and OpenAPI agree on the heterogeneous ordered projection-label pair: a canonical change label with the 135-character bound followed by the fixed `projection:autopilot-phase` label. Projection conflict and invalid-reason mappings remain aligned with the RFC 7807 API responses."
+    },
+    {
+      "id": 25,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 2,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Precedence regressions assert the reviewed cwd and each branch: local wins (`find_local.assert_called_once_with(tmp_path)`), explicit bypasses local/coordinator, missing-local falls through coordinator then disk; `--check-vendors` records `(None, tmp_path)`. Focused pytest: 9 dispatcher + 9 check-vendors tests passed."
+    },
+    {
+      "id": 26,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 5,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "compatibility",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Migration 038 preserves legacy non-projection submit (plain insert; labels rejected without projection keys) and gates label mutation on `p_projection_labels IS NOT NULL`, so ordinary change-labelled issues are not selected by the projection repair path."
+    },
+    {
+      "id": 27,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 7,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Projection SSE visibility is current-only: `projection.labels_changed` coalesces into one snapshot rebuild via label-filtered `IssueService.list_issues`, and implicit label reads exclude cancelled rows (`status=in.(pending,claimed,running,completed,failed,blocked)`)."
+    },
+    {
+      "id": 28,
+      "status": "confirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 8,
+      "matched_findings": [
+        {
+          "vendor": "pi",
+          "finding_id": 5
+        }
+      ],
+      "match_score": 0.95,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Automatic and console-approved `escalate_resume` share one persisted resolved edge; `enter_escalate` advances generation once and preserves the original incident; failed `apply_outcome_or_escalate` resumes from durable `current_phase`; DONE transition/escalate writers are byte-preserving no-ops."
+    },
+    {
+      "id": 29,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 10,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "none: Degraded projection prefers canonical problem detail over transport text and `project-state` exits 0 on structured degradation, so authoritative loop-state is never halted or rewritten by queue responses."
+    },
+    {
+      "id": 30,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 14,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "compatibility",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: `vendor_health.load_agents_yaml` still prefers `COORDINATION_API_URL` HTTP dispatch-configs over checkout-local agents.yaml and only falls back to `Path.cwd()/agent-coordinator/agents.yaml` (no reviewed `--cwd` walk). Consumers such as vendor-status/prototype-feature can therefore probe a different roster than review_dispatcher after the round-9/10 fix."
+    },
+    {
+      "id": 31,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 15,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Optional: Ordinary issue create/label APIs still accept the reserved `projection:autopilot-phase` label without registry ownership. This cannot commandeer projection rows (039 fail-closed remains), but can pollute change-label board/SSE snapshots with non-owned cosmetic markers."
+    },
+    {
+      "id": 32,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 16,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "observability",
+      "agreed_axis": "observability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "FYI: `validation-report.md` still pins validated commit `4982835fe14c0c2e2cb8b3398fe3758444d0164a`, not review HEAD `71f34700\u2026`; later review-infra commits are outside that ledger even though focused regressions at HEAD are green."
+    },
+    {
+      "id": 33,
+      "status": "unconfirmed",
+      "primary_vendor": "grok",
+      "primary_finding_id": 17,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "style",
+      "agreed_axis": "readability",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Nit: `parallel-review-implementation` / `parallel-review-plan` skill docs still describe agent discovery as coordinator-MCP-first with `--agents-yaml` only as fallback, which contradicts the HEAD CLI resolver that prefers checkout-local config under `--cwd`."
+    },
+    {
+      "id": 34,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 9,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "resilience",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Degraded projection never halts authoritative work: QueueProjectionAdapter._degraded extracts reason from envelope.reason \u2192 RFC 7807 response.detail \u2192 generic error; runner.py project-state exits 0 on structured degradation; queue responses never feed back into loop-state transitions."
+    },
+    {
+      "id": 35,
+      "status": "unconfirmed",
+      "primary_vendor": "pi",
+      "primary_finding_id": 11,
+      "matched_findings": [],
+      "match_score": 0.0,
+      "agreed_type": "correctness",
+      "agreed_axis": "correctness",
+      "agreed_criticality": "low",
+      "recommended_disposition": "accept",
+      "description": "Full behavioral test coverage confirmed: 445 Autopilot tests, 100 review_dispatcher tests, 9 check_vendors tests, 204 parallel-infrastructure tests, 96 coordination-bridge tests, 32 install_sh tests, 38 work_queue tests, 11 projection_visibility tests, 37 issue_service tests, 16 live PostgreSQL acceptance tests, 5 fresh migration tests \u2014 all pass at exact HEAD 71f34700."
+    }
+  ],
+  "summary": {
+    "total_unique_findings": 35,
+    "confirmed_count": 9,
+    "unconfirmed_count": 26,
+    "disagreement_count": 0,
+    "blocking_count": 0,
+    "advisory_count": 35
+  }
+}

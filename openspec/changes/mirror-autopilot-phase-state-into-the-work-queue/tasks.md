@@ -18,6 +18,7 @@
 
 - [x] 2.6 Add migration `038_atomic_projection_labels.sql` so submit/reconcile applies canonical labels and clears owned stale labels while holding the per-change advisory transaction; exclude cancelled rows from implicit issue-list status selection as defense in depth, and declare the optional exact `projection_labels` request in the runtime/OpenAPI contract.
 - [x] 2.7 Add migration `039_projection_integrity_and_insert_events.sql` for first-insert refresh, replay repair, registry-only mutation/ownership with explicit verified administrator adoption for every pre-registry row, fail-closed unowned-row collisions, active-row preservation, owned terminal-row reactivation with connected-client refresh, and label-spoof resistance; add executable retry-idempotent ESCALATE recovery and flush both automatic and console-approved `escalate_resume` before continuing.
+- [x] 2.8 Require the elevated, change-scoped `publish_work_projection` operation for HTTP projection submit/reconcile; keep trust-level-2 ordinary submitters unable to advance projection heads; fail closed on reconcile trust-resolution errors; block newer-generation repair while any unowned reserved-labelled legacy row remains; and preserve SDK-only coordinator rosters in review-vendor discovery.
 
 ## Phase 3 — Behavioral and crash recovery proof
 

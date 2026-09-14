@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: mirror-autopilot-phase-state-into-the-work-queue
   title: Mirror Autopilot phase state into the work queue
-  plan_revision: 5
+  plan_revision: 6
   created_by: codex
   deployable: false
 
@@ -26,7 +26,7 @@ packages:
   - package_id: wp-projection-adapter
     title: Coordinated phase projection adapter and host registration
     task_type: integration
-    description: Implement tasks 1.1 through 2.6 with TDD, including canonical host writers, head advancement, and transactionally serialized coordinator-only label repair while preserving the coordinator-free default and one-way authority contract.
+    description: Implement tasks 1.1 through 2.8 with TDD, including canonical host writers, head advancement, elevated change-scoped publication, fail-closed trust resolution, upgrade-safe serialized label repair, and reviewed-checkout vendor discovery while preserving the coordinator-free default and one-way authority contract.
     role: implementer
     priority: 1
     depends_on: []
@@ -34,6 +34,8 @@ packages:
       files:
         - .github/workflows/ci.yml
         - agent-coordinator/agents.yaml
+        - agent-coordinator/cedar/default_policies.cedar
+        - agent-coordinator/cedar/schema.cedarschema
         - skills/autopilot/scripts/autopilot.py
         - skills/autopilot/scripts/queue_projection.py
         - skills/autopilot/scripts/runner.py
@@ -43,13 +45,17 @@ packages:
         - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
         - agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql
         - agent-coordinator/src/event_stream.py
+        - agent-coordinator/src/agents_config.py
         - agent-coordinator/src/coordination_api.py
         - agent-coordinator/src/issue_service.py
+        - agent-coordinator/src/policy_engine.py
         - agent-coordinator/src/work_queue.py
         - skills/install.sh
         - skills/parallel-infrastructure/scripts/review_dispatcher.py
         - skills/parallel-infrastructure/scripts/vendor_health.py
         - skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py
+        - skills/parallel-review-implementation/SKILL.md
+        - skills/parallel-review-plan/SKILL.md
         - skills/parallel-infrastructure/tests/test_vendor_health.py
         - skills/tests/install_sh/test_consumer_portability.py
         - docs/cross-repo-setup.md
@@ -62,6 +68,8 @@ packages:
       write_allow:
         - .github/workflows/ci.yml
         - agent-coordinator/agents.yaml
+        - agent-coordinator/cedar/default_policies.cedar
+        - agent-coordinator/cedar/schema.cedarschema
         - skills/autopilot/scripts/**
         - skills/autopilot/SKILL.md
         - skills/coordination-bridge/scripts/coordination_bridge.py
@@ -72,13 +80,17 @@ packages:
         - skills/parallel-infrastructure/scripts/review_dispatcher.py
         - skills/parallel-infrastructure/scripts/vendor_health.py
         - skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py
+        - skills/parallel-review-implementation/SKILL.md
+        - skills/parallel-review-plan/SKILL.md
         - skills/parallel-infrastructure/tests/test_vendor_health.py
         - agent-coordinator/database/migrations/037_autopilot_phase_projection_visibility.sql
         - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
         - agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql
         - agent-coordinator/src/event_stream.py
+        - agent-coordinator/src/agents_config.py
         - agent-coordinator/src/coordination_api.py
         - agent-coordinator/src/issue_service.py
+        - agent-coordinator/src/policy_engine.py
         - agent-coordinator/src/work_queue.py
         - agent-coordinator/tests/**
         - docs/cross-repo-setup.md
@@ -153,9 +165,16 @@ packages:
         - agent-coordinator/database/migrations/038_atomic_projection_labels.sql
         - agent-coordinator/database/migrations/039_projection_integrity_and_insert_events.sql
         - agent-coordinator/src/event_stream.py
+        - agent-coordinator/src/agents_config.py
         - agent-coordinator/src/coordination_api.py
         - agent-coordinator/src/issue_service.py
+        - agent-coordinator/src/policy_engine.py
         - agent-coordinator/src/work_queue.py
+        - agent-coordinator/cedar/default_policies.cedar
+        - agent-coordinator/cedar/schema.cedarschema
+        - skills/parallel-infrastructure/scripts/review_dispatcher.py
+        - skills/parallel-review-implementation/SKILL.md
+        - skills/parallel-review-plan/SKILL.md
         - openspec/contracts/agent-coordinator/openapi/work-queue.yaml
 
   - package_id: wp-live-integration
@@ -186,7 +205,7 @@ packages:
       deny:
         - agent-coordinator/database/migrations/**
     context_impact:
-      surfaces: [architecture, documentation, semantic_code]
+      surfaces: [architecture, capabilities, documentation, semantic_code]
     worktree:
       name: ri09-wp-live-integration
       mode: isolated

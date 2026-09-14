@@ -137,11 +137,15 @@ class _FakeGuardrails:
 class _SubmitDB:
     def __init__(self) -> None:
         self.submitted = False
+        self.reconciled = False
 
     async def rpc(self, function_name: str, params: dict[str, Any]) -> Any:
         if function_name == "submit_task":
             self.submitted = True
             return {"success": True, "task_id": "00000000-0000-4000-8000-000000000123"}
+        if function_name == "reconcile_work_projection":
+            self.reconciled = True
+            return {"success": True, "task_id": "00000000-0000-4000-8000-000000000124"}
         return {}
 
     async def query(self, *args: Any, **kwargs: Any) -> list[Any]:
@@ -211,7 +215,7 @@ class TestTrustFailureNeverSkipsGuardrails:
             Path(__file__).resolve().parent.parent / "src" / "work_queue.py"
         ).read_text()
 
-        for phase in ("claim", "complete", "submit"):
+        for phase in ("claim", "complete", "submit", "reconcile"):
             marker = f'"Guardrails check failed during {phase}"'
             assert marker in source, f"guardrail handler for {phase} not found"
             preceding = source[: source.index(marker)]
@@ -220,6 +224,34 @@ class TestTrustFailureNeverSkipsGuardrails:
                 f"the guardrail handler in {phase}() can still swallow a "
                 f"TrustResolutionError and skip the scan"
             )
+
+    async def test_reconcile_propagates_instead_of_writing_unscanned(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src import guardrails, trust_resolution
+
+        async def _boom(agent_id: str, agent_type: str, *a: Any, **k: Any) -> int:
+            raise TrustResolutionError(agent_id, agent_type, "projection broken")
+
+        monkeypatch.setattr(trust_resolution, "resolve_trust_level", _boom)
+        scanner = _FakeGuardrails()
+        monkeypatch.setattr(guardrails, "get_guardrails_service", lambda: scanner)
+
+        db = _SubmitDB()
+        service = WorkQueueService(db=db)
+        with pytest.raises(TrustResolutionError):
+            await service.reconcile_projection(
+                projection_key={
+                    "change_id": "guarded-change",
+                    "phase": "IMPLEMENT",
+                    "transition_sequence": 3,
+                },
+                task_type="issue",
+                description="rm -rf / --no-preserve-root",
+            )
+
+        assert not scanner.called
+        assert not db.reconciled
 
 
 # ---------------------------------------------------------------------------

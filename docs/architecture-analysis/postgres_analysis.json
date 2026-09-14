@@ -3588,7 +3588,7 @@
     {
       "name": "public.submit_task",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 20,
+      "line": 44,
       "language": "plpgsql",
       "parameters": [
         {
@@ -3637,7 +3637,7 @@
     {
       "name": "public.reconcile_work_projection",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 156,
+      "line": 195,
       "language": "plpgsql",
       "parameters": [
         {
@@ -3693,7 +3693,7 @@
     {
       "name": "public.notify_projection_insert",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 282,
+      "line": 336,
       "language": "plpgsql",
       "parameters": [],
       "return_type": "trigger",

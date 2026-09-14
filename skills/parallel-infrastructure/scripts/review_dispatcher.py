@@ -2585,7 +2585,7 @@ def _orchestrator_for_dispatch(
         return ReviewOrchestrator.from_agents_yaml(local)
 
     orchestrator = ReviewOrchestrator.from_coordinator()
-    if not orchestrator.adapters:
+    if not orchestrator.adapters and not orchestrator.sdk_adapters:
         logger.info("Coordinator unavailable, trying agents.yaml on disk")
         orchestrator = ReviewOrchestrator.from_agents_yaml()
     return orchestrator

@@ -1852,6 +1852,26 @@ def test_dispatch_without_local_config_falls_back_to_global_disk(
     from_global.assert_called_once_with()
 
 
+def test_dispatch_preserves_sdk_only_coordinator_roster(
+    tmp_path: Path,
+) -> None:
+    coordinator = ReviewOrchestrator({}, {"sdk-agent": object()})
+
+    with (
+        patch.object(
+            ReviewOrchestrator, "_find_local_agents_yaml", return_value=None
+        ),
+        patch.object(
+            ReviewOrchestrator, "from_coordinator", return_value=coordinator
+        ),
+        patch.object(ReviewOrchestrator, "from_agents_yaml") as from_disk,
+    ):
+        actual = _orchestrator_for_dispatch(None, tmp_path)
+
+    assert actual is coordinator
+    from_disk.assert_not_called()
+
+
 def test_repo_antigravity_schema_review_uses_json_output_mode() -> None:
     repo_root = Path(__file__).resolve().parents[4]
     orchestrator = ReviewOrchestrator.from_agents_yaml(
