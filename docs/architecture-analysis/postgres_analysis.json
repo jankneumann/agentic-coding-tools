@@ -3637,7 +3637,7 @@
     {
       "name": "public.reconcile_work_projection",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 203,
+      "line": 218,
       "language": "plpgsql",
       "parameters": [
         {
@@ -3693,7 +3693,7 @@
     {
       "name": "public.enforce_projection_label_ownership",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 366,
+      "line": 396,
       "language": "plpgsql",
       "parameters": [],
       "return_type": "trigger",
@@ -3704,7 +3704,7 @@
     {
       "name": "public.mutate_issue_if_unowned",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 387,
+      "line": 417,
       "language": "plpgsql",
       "parameters": [
         {
@@ -3727,7 +3727,7 @@
     {
       "name": "public.notify_projection_insert",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 433,
+      "line": 463,
       "language": "plpgsql",
       "parameters": [],
       "return_type": "trigger",
