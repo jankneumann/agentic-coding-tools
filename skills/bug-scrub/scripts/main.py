@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from aggregate import aggregate
+from bug_candidate_work import write_projection
 from collect_architecture import collect as collect_architecture
 from collect_deferred import collect as collect_deferred
 from collect_markers import collect as collect_markers
@@ -54,6 +55,7 @@ def run(
     fmt: str = "both",
     parallel: bool = False,
     max_workers: int | None = None,
+    candidate_work_output: str | None = None,
 ) -> int:
     """Run bug-scrub collection, aggregation, and reporting.
 
@@ -105,6 +107,17 @@ def run(
     for path in written:
         print(f"Report written: {path}")
 
+    rich_name = (
+        "bug-scrub-report.json" if fmt in ("json", "both")
+        else "bug-scrub-report.md"
+    )
+    candidate_path = (
+        Path(candidate_work_output) if candidate_work_output
+        else Path(out_dir) / "bug-scrub-candidate-work.json"
+    )
+    write_projection(report, candidate_path, str(Path(out_dir) / rich_name))
+    print(f"Candidate work written: {candidate_path}")
+
     # Summary
     total = len(report.findings)
     by_sev = report.summary_by_severity()
@@ -150,6 +163,12 @@ def main() -> None:
         help="Output directory (default: docs/bug-scrub)",
     )
     parser.add_argument(
+        "--candidate-work-output",
+        type=str,
+        default=None,
+        help="Candidate-work sidecar path (default: adjacent to report)",
+    )
+    parser.add_argument(
         "--format",
         type=str,
         default="both",
@@ -178,6 +197,7 @@ def main() -> None:
         fmt=args.format,
         parallel=args.parallel,
         max_workers=args.max_workers,
+        candidate_work_output=args.candidate_work_output,
     )
     sys.exit(exit_code)
 
