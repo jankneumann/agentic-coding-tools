@@ -1,7 +1,7 @@
 # Validation Report: mirror-autopilot-phase-state-into-the-work-queue
 
-**Date**: 2026-09-14T05:59:01-04:00
-**Validated commit**: `4982835fe14c0c2e2cb8b3398fe3758444d0164a`
+**Date**: 2026-09-14T07:28:46-04:00
+**Validated commit**: `92aa8a346db96e7def9d03e9aea52b12e142e188`
 **Branch**: `openspec/recover-ri-09-work-queue-projection`
 **Surface**: non-deployable change with locally validated API, PostgreSQL, and Kanban paths
 
@@ -12,7 +12,7 @@
 | Deploy | not applicable | No external environment was mutated; the repository-defined disposable PostgreSQL stack was used for validation. |
 | Smoke | pass | Migrations 038-039 applied on the live stack and the fresh full migration chain passed. |
 | Gen-Eval | not applicable | No generator/evaluator scenario surface changed. |
-| Security | pass | No dependency or credential changes; projection labels are exact, coordinator-only, and policy/auth handlers retain typed failures. |
+| Security | pass | Projection publication is a distinct trust-level-3 operation bound to the exact change ID; trust-level-2 ordinary submitters and trust-resolution failures stop before mutation. |
 | E2E | pass | FastAPI to service to asyncpg to PostgreSQL projection lifecycle and board query passed. |
 | Architecture | pass with advisory warnings | Deterministic artifacts are fresh; flow validation returned 0 errors. Optional TypeScript analysis was unavailable and existing graph coverage warnings remain advisory. |
 | Spec Compliance | pass | 1/1 traced requirement has live and focused evidence; 0 gaps and 0 deferred items. |
@@ -23,12 +23,12 @@
 
 - 445 Autopilot tests passed.
 - 96 coordination-bridge tests passed.
-- 146 coordinator work-queue, issue, projection-visibility, and API tests passed with 18 declared skips.
+- 2,502 coordinator CI-selected tests passed with 11 declared skips and 124 live-marker deselections.
 - 44 live PostgreSQL migration, projection, EventBus/SSE, and HTTP E2E tests passed.
 - 224 Kanban tests passed with 6 declared skips; the production build passed.
-- 4,766 canonical skills tests passed with 13 declared skips.
+- 4,767 canonical skills tests passed with 13 declared skips.
 - All 90 OpenSpec artifacts passed strict validation.
-- Scoped Ruff, dependency direction, byte-level skill mirror parity, installer regressions (32 passed), review-dispatcher regressions (97 passed), work-package schema/DAG/locks, and diff checks passed.
+- Canonical coordinator and skills Ruff gates, mypy over all 77 coordinator source files, byte-level skill mirror parity, and work-package schema/DAG/locks/context-impact checks passed.
 - Architecture refresh completed with 0 errors; canonical freshness passed. Optional TypeScript analysis remained unavailable and 2,716 existing repository-wide warnings remain advisory.
 
 ## Review and recovery
@@ -40,6 +40,10 @@ Round 5 attempted every configured locally addressable vendor type. Codex and Gr
 Round 7 again addressed every configured harness and reached protocol-valid quorum from Claude Code, Grok, and Pi; Antigravity complete schema-valid review was recovered as out-of-band evidence after its adapter appended an extra payload, while Codex timed out. The credible findings drove a fresh-checkout CI mirror install, label-spoof-resistant registry ownership, terminal-state transition idempotence, persistence of initialization options, and EventBus/SSE refresh on terminal-row reactivation. The ambiguous pre-038 unlabeled-row upgrade case remains deliberately fail-closed and is now documented. All fixes have executable regression coverage, and the post-fix validation matrix passes.
 
 Round 8 reached four-vendor protocol quorum and exposed additional critical state-recovery and database-ownership defects, plus package-ledger, mirror, schema, dispatcher, and operator-documentation gaps. Manual and automatic escalation resumes now share one persisted resolved edge; stale apply-outcome callers cannot change the durable resume phase; all labelled-row mutations require database-owned UUID registration; migration 039 never auto-adopts mutable legacy fields; and the historical unlabelled reconcile contract remains intact. The complete mirror payload, heterogeneous request tuple, canonical problem details, and Antigravity structured-output envelopes are pinned by tests. A full-suite compatibility failure was reproduced, corrected, and guarded before this report.
+
+Rounds 9 and 10 addressed every configured harness and corrected the review infrastructure itself. Exact reviewed-worktree vendor configuration now wins over stale coordinator/global state unless an explicit configuration is supplied; dispatch, vendor checks, and agent listing share that resolver; exact reviewed cwd and fallback behavior are regression tested. Round 10 reached schema-valid Antigravity/Grok quorum and independently reported no remaining projection defect.
+
+Round 11 reached four-vendor schema-valid quorum from Antigravity, Codex, Grok, and Pi. Codex identified three critical defects that were independently reproduced: trust-level-2 HTTP callers could publish projections, newer-generation repair could insert around an unowned pre-registry row, and reconciliation swallowed trust-resolution failure before mutating. It also found an SDK-only coordinator-roster fallback bug. All four were fixed test-first. Projection publication now uses a distinct elevated operation against the exact change resource, both labelled SQL paths preflight every associated unowned reserved-labelled row before mutation, reconciliation propagates trust failure, and SDK-only rosters remain authoritative. The package, spec, operator guide, review-skill documentation, policy profiles, Cedar policy/schema, migration upgrade path, and live tests encode the recovered contract.
 
 The explicit monolithic `pytest tests` command was rejected as an invalid gate:
 it bypasses the curated skills `testpaths` ordering and creates known flat-module
