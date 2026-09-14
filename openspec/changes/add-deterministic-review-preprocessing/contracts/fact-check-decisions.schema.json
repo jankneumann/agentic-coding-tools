@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-coding-tools.dev/schemas/fact-check-decisions.schema.json",
+  "title": "Fact-check decisions",
+  "description": "Written per vendor to .review-cache/round-N/fact-check-<vendor>.json after the raw vendor checkpoint and before synthesis.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "vendor", "round", "status", "model", "tokens", "decisions"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "vendor": { "type": "string", "minLength": 1 },
+    "round": { "type": "integer", "minimum": 1 },
+    "status": { "type": "string", "enum": ["ran", "skipped", "disabled"] },
+    "skip_reason": { "type": "string" },
+    "model": { "type": ["string", "null"] },
+    "tokens": { "type": "integer", "minimum": 0 },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["finding_id", "verdict"],
+        "properties": {
+          "finding_id": { "type": "string", "minLength": 1 },
+          "verdict": { "type": "string", "enum": ["kept", "removed", "vetoed"] },
+          "ground": { "type": "string", "enum": ["A_absent_from_subject_diff", "B_contradicted_by_diff_line"] },
+          "evidence_line": { "type": "string" },
+          "vetoed": { "type": "string", "enum": ["protected_subject", "value_only"] }
+        }
+      }
+    }
+  }
+}
