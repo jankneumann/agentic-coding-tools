@@ -80,6 +80,12 @@ def test_explicit_hint_is_normalized_without_an_identity_suffix() -> None:
     )
 
 
+@pytest.mark.parametrize("generator", ["bug-scrub", "improve-harness", "explore-feature"])
+def test_blank_source_identity_is_rejected(generator: str) -> None:
+    with pytest.raises(ValueError, match="source_id must not be blank"):
+        derive_suggested_change_id(generator, "  \t\n")
+
+
 def test_unknown_generator_cannot_invent_a_source_identity_rule() -> None:
     with pytest.raises(ValueError, match="unsupported candidate-work generator"):
         normalize_source_identity("new-generator", "source-1")
