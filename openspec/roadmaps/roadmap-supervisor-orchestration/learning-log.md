@@ -10,3 +10,4 @@
 | ri-10 | implementation | RI-10 merged through PR #505 after exact-head CI passed and the change was archi |
 | ri-16 | implementation | Item executed successfully through all phases |
 | ri-13 | implementation | Item executed successfully through all phases |
+| ri-12 | implementation | Recovery landed through commit f3094662 after full validation; the original supe |
