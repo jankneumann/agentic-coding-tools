@@ -254,3 +254,36 @@ def test_escalate_wrapper_preserves_existing_gate_records(chdir_tmp: Path) -> No
     )
 
     assert json.loads(state_path.read_text())["gate_decisions"] == decisions
+
+
+def test_apply_outcome_failure_advances_generation_and_projects_escalate(
+    chdir_tmp: Path,
+) -> None:
+    state_path = _seed_state(
+        chdir_tmp,
+        "demo",
+        current_phase="IMPLEMENT",
+        total_iterations=4,
+        unknown_extension={"preserve": True},
+    )
+    projected: list[tuple[str, int, str]] = []
+
+    def project(state: autopilot.LoopState, *, mode: str) -> dict[str, str]:
+        projected.append((state.current_phase, state.total_iterations, mode))
+        return {"status": "ok"}
+
+    rc = autopilot.apply_outcome_or_escalate(
+        change_id="demo",
+        phase="IMPLEMENT",
+        outcome="complete",
+        handoff_id="h-generation",
+        state_path=state_path,
+        apply_runner=lambda **_kwargs: 1,
+        queue_projection_fn=project,
+    )
+
+    assert rc == 1
+    state = json.loads(state_path.read_text())
+    assert state["total_iterations"] == 5
+    assert state["unknown_extension"] == {"preserve": True}
+    assert projected == [("ESCALATE", 5, "submit")]

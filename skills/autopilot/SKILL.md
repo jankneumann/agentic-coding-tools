@@ -82,7 +82,9 @@ nothing and remains parked for `gate-answer`.
 For `gate-check`, exits 0, 3, and 4 all mean a decision or park was durably
 recorded, so submit projection before asking, continuing, or stopping; exits 1
 and 2 suppress projection. Projection failure is reported as degraded but never
-reverts or rewrites `loop-state.json`.
+reverts or rewrites `loop-state.json`. A `project-state` command that emits a
+structured degraded JSON envelope exits 0 so authoritative phase work continues;
+exit 1 is reserved for failures that prevent producing that envelope.
 
 ```bash
 python3 "<skill-base-dir>/scripts/runner.py" project-state \

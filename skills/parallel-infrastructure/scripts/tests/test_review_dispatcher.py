@@ -1746,3 +1746,18 @@ class TestConcurrentGitSnapshotFallback:
         assert cmd[:4] == ["git", "worktree", "add", "--detach"]
         assert str(dest) in cmd
         assert "HEAD" in cmd
+
+
+def test_repo_antigravity_schema_review_uses_json_output_mode() -> None:
+    repo_root = Path(__file__).resolve().parents[4]
+    orchestrator = ReviewOrchestrator.from_agents_yaml(
+        repo_root / "agent-coordinator" / "agents.yaml"
+    )
+    adapter = orchestrator.adapters["antigravity-local"]
+
+    command = adapter.build_command("review", "review", "gemini-3.8-flash-high")
+
+    schema_index = command.index("--json-schema")
+    output_index = command.index("--output-format")
+    assert command[output_index + 1] == "json"
+    assert output_index < schema_index

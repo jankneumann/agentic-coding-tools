@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import autopilot
+import pytest
 import queue_projection
 import runner
 
@@ -106,3 +108,90 @@ def test_runner_transition_validation_and_project_state_io_exit_codes(
             "https://coordinator.invalid",
         ]
     ) == 1
+
+
+@pytest.mark.parametrize(
+    ("phase", "outcome"),
+    [
+        ("PLAN", "failed"),
+        ("PLAN_ITERATE", "failed"),
+        ("PLAN_REVIEW", "max_iter"),
+        ("PLAN_FIX", "stuck"),
+        ("IMPLEMENT", "failed"),
+        ("IMPL_ITERATE", "failed"),
+        ("IMPL_REVIEW", "max_iter"),
+        ("IMPL_FIX", "stuck"),
+        ("VAL_REVIEW", "max_iter"),
+        ("VAL_FIX", "stuck"),
+    ],
+)
+def test_every_table_transition_to_escalate_is_resumable(
+    phase: str, outcome: str
+) -> None:
+    state = autopilot.LoopState(
+        change_id="demo",
+        current_phase=phase,
+        total_iterations=7,
+    )
+
+    autopilot._apply_transition(state, outcome)
+
+    assert state.current_phase == "ESCALATE"
+    assert state.previous_phase == phase
+    assert state.escalation_reason
+    assert state.total_iterations == 8
+    autopilot._apply_transition(state, "resolved")
+    assert state.current_phase == phase
+
+
+def test_runner_transition_persists_goal_gate_refusal_as_escalate(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert runner.main(["init", "--change-id", "demo"]) == 0
+    state_path = tmp_path / "openspec/changes/demo/loop-state.json"
+    state = json.loads(state_path.read_text())
+    state["current_phase"] = "SUBMIT_PR"
+    state_path.write_text(json.dumps(state))
+
+    assert runner.main(
+        ["transition", "--change-id", "demo", "--outcome", "created"]
+    ) == 0
+
+    refused = json.loads(state_path.read_text())
+    assert refused["current_phase"] == "ESCALATE"
+    assert refused["previous_phase"] == "SUBMIT_PR"
+    assert "goal gate refused" in refused["escalation_reason"]
+    assert refused["total_iterations"] == 1
+
+
+def test_runner_project_state_reports_degraded_without_halting_authoritative_work(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert runner.main(["init", "--change-id", "demo"]) == 0
+    state_path = tmp_path / "openspec/changes/demo/loop-state.json"
+    before = state_path.read_bytes()
+
+    class DegradedAdapter:
+        def __init__(self, **_kwargs):
+            pass
+
+        def __call__(self, _state, *, mode):
+            assert mode == "submit"
+            return {"status": "failed", "reason": "coordinator_unavailable"}
+
+    monkeypatch.setattr(queue_projection, "QueueProjectionAdapter", DegradedAdapter)
+    assert runner.main(
+        [
+            "project-state",
+            "--change-id",
+            "demo",
+            "--mode",
+            "submit",
+            "--coordinator-url",
+            "https://coordinator.invalid",
+        ]
+    ) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "failed"
+    assert state_path.read_bytes() == before

@@ -201,6 +201,16 @@ def persist_and_project(
     the previous queue generation may still be live.
     """
     save_state(state, path)
+    return _project_saved_state(state, queue_projection_fn, mode=mode)
+
+
+def _project_saved_state(
+    state: LoopState,
+    queue_projection_fn: Callable[..., Any] | None,
+    *,
+    mode: str,
+) -> dict[str, Any]:
+    """Best-effort projection for a state that is already durable."""
     if queue_projection_fn is None:
         return {"status": "skipped", "reason": "projection_callback_absent"}
     try:
@@ -595,6 +605,7 @@ def apply_outcome_or_escalate(
     allow_phase_mismatch: bool = False,
     apply_runner: ApplyOutcomeRunner | None = None,
     status_fn: Callable[[LoopState, str, str, bool], None] | None = None,
+    queue_projection_fn: Callable[..., Any] | None = None,
 ) -> int:
     """Run apply-outcome and escalate on failure (design D9).
 
@@ -658,12 +669,16 @@ def apply_outcome_or_escalate(
         raw["schema_version"] = LOOP_STATE_SCHEMA_VERSION
         raw["previous_phase"] = phase
         raw["current_phase"] = "ESCALATE"
+        raw["total_iterations"] = int(raw.get("total_iterations", 0)) + 1
         raw["escalation_reason"] = (
             f"apply-outcome failed (exit {rc}) for phase {phase}; handoff "
             f"{handoff_id} retained un-applied"
         )
         raw["phase_started_at"] = _now_iso()
         path.write_text(json.dumps(raw, indent=2) + "\n")
+        _project_saved_state(
+            load_state(path), queue_projection_fn, mode="submit"
+        )
 
         if status_fn is not None:
             # Reload a dataclass view for the status callback signature.
@@ -809,6 +824,12 @@ def _apply_transition(
 
     if next_phase == "DONE":
         _check_done_evidence(state, old_phase, outcome, change_dir)
+    if next_phase == "ESCALATE":
+        return enter_escalate(
+            state,
+            f"{old_phase} transitioned to ESCALATE via outcome {outcome!r}",
+            status_fn=status_fn,
+        )
 
     state.current_phase = next_phase
     state.phase_started_at = _now_iso()

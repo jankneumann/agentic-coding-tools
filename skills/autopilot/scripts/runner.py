@@ -401,6 +401,15 @@ def _cmd_transition(args: argparse.Namespace) -> int:
     except autopilot.GatePending as exc:
         sys.stderr.write(f"runner: transition stopped: {exc}\n")
         return 0
+    except autopilot.GoalGateRefused as exc:
+        autopilot.enter_escalate(state, f"goal gate refused: {exc.reason}")
+        try:
+            autopilot.save_state(state, _state_path(args.change_id))
+        except OSError as save_exc:
+            sys.stderr.write(f"runner: transition failed: {save_exc}\n")
+            return 1
+        sys.stderr.write(f"runner: transition escalated: {exc}\n")
+        return 0
     except ValueError as exc:
         sys.stderr.write(f"runner: transition failed: {exc}\n")
         return 2
@@ -433,7 +442,9 @@ def _cmd_project_state(args: argparse.Namespace) -> int:
         sys.stderr.write(f"runner: project-state failed: {exc}\n")
         return 1
     sys.stdout.write(json.dumps(result, sort_keys=True) + "\n")
-    return 0 if result.get("status") == "ok" else 1
+    # Projection is observability-only. A structured degraded envelope is a
+    # successfully reported projection attempt and must not halt phase work.
+    return 0
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
