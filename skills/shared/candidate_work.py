@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 import tempfile
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -13,6 +15,10 @@ from typing import Any, Literal
 
 SCHEMA_FILENAME = "candidate-work.schema.json"
 _TERMINAL_STATUSES = frozenset({"completed", "failed", "skipped", "superseded"})
+_SUPPORTED_GENERATORS = frozenset(
+    {"bug-scrub", "explore-feature", "improve-harness"}
+)
+_CANONICAL_CHANGE_PREFIXES = ("add", "update", "remove", "refactor")
 
 LifecycleSource = Literal["candidate", "roadmap", "active_change", "archive"]
 DependencyOutcome = Literal["satisfied", "live", "unresolved", "ambiguous"]
@@ -33,6 +39,55 @@ class CandidateWorkValidationError(ValueError):
 
 class CandidateWorkCollisionError(ValueError):
     """Raised when an explicit destination belongs to another generator."""
+
+
+def normalize_source_identity(generator: str, source_id: str) -> str:
+    """Return the producer-specific immutable source identity."""
+    if generator not in _SUPPORTED_GENERATORS:
+        raise ValueError(f"unsupported candidate-work generator: {generator!r}")
+    if not isinstance(source_id, str):
+        raise TypeError("source_id must be a string")
+    if generator == "improve-harness":
+        return " ".join(source_id.split()).lower()
+    return source_id
+
+
+def _ascii_slug(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug or "item"
+
+
+def normalize_suggested_change_id(suggested_id: str) -> str:
+    """Normalize a suggested ID to an ASCII slug and canonical prefix."""
+    if not isinstance(suggested_id, str):
+        raise TypeError("suggested_id must be a string")
+    slug = _ascii_slug(suggested_id)
+    if slug.startswith("fix-"):
+        return f"update-{slug.removeprefix('fix-')}"
+    if slug.startswith(tuple(f"{prefix}-" for prefix in _CANONICAL_CHANGE_PREFIXES)):
+        return slug
+    return f"update-{slug}"
+
+
+def derive_suggested_change_id(
+    generator: str,
+    source_id: str,
+    explicit_hint: str | None = None,
+) -> str:
+    """Derive a stable suggested ID from immutable producer identity."""
+    normalized_source_id = normalize_source_identity(generator, source_id)
+    if explicit_hint is not None:
+        return normalize_suggested_change_id(explicit_hint)
+    identity = {"generator": generator, "source_id": normalized_source_id}
+    encoded = json.dumps(
+        identity,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    identity_hash = hashlib.sha256(encoded).hexdigest()[:8]
+    base = normalize_suggested_change_id(normalized_source_id)
+    return f"{base}-{identity_hash}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -374,11 +429,14 @@ __all__ = [
     "LifecycleRecord",
     "canonical_candidate_work_bytes",
     "cli",
+    "derive_suggested_change_id",
     "find_schema_path",
     "group_lifecycle_records",
     "load_candidate_work",
     "load_candidate_work_files",
     "load_schema",
+    "normalize_source_identity",
+    "normalize_suggested_change_id",
     "resolve_dependency",
     "validate_candidate_work",
     "validate_candidate_work_batch",
