@@ -237,8 +237,10 @@ BEGIN
       result=jsonb_build_object('reason','cancelled_by_projection_reconcile',
         'change_id',p_change_id,'phase',p_phase,'transition_sequence',p_transition_sequence)
     WHERE status IN ('pending','claimed','running')
-      AND EXISTS (SELECT 1 FROM work_queue_projection_ownership AS ownership
-                  WHERE ownership.task_id=work_queue.id)
+      AND (p_projection_labels IS NULL OR EXISTS (
+        SELECT 1 FROM work_queue_projection_ownership AS ownership
+        WHERE ownership.task_id=work_queue.id
+      ))
       AND input_data ? 'change_id' AND input_data->>'change_id'=p_change_id
       AND NOT (input_data->>'phase'=p_phase
                AND input_data->>'transition_sequence'=p_transition_sequence::TEXT)
