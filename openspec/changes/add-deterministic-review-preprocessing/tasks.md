@@ -116,23 +116,23 @@ flagged in design D9 as the chained dispatcher work.
 
 ## 5. Snippet anchor and line resolver
 
-- [ ] 5.1 Write tests for hunk parsing, new-side, old-side, full-file, unresolved, and vendor-range precedence (size: M)
+- [x] 5.1 Write tests for hunk parsing, new-side, old-side, full-file, unresolved, and vendor-range precedence (size: M)
   **Spec scenarios**: skill-workflow Ingest-Time Line Resolution From Verbatim Snippet (all four scenarios)
   **Contracts**: `contracts/vendor-coverage.schema.json` (finding fragment)
   **Design decisions**: D3
   **Dependencies**: 1.2
   **Files**: `skills/parallel-infrastructure/scripts/tests/test_line_resolver.py`
 
-- [ ] 5.2 Implement `line_resolver.py` (size: M)
+- [x] 5.2 Implement `line_resolver.py` (size: M)
   **Dependencies**: 5.1
   **Files**: `skills/parallel-infrastructure/scripts/line_resolver.py`
 
-- [ ] 5.3 Write schema tests for optional `existing_code`, `line_resolution`, and `coverage` on canonical, mirror, and sentinel-derived copies (size: S)
+- [x] 5.3 Write schema tests for optional `existing_code`, `line_resolution`, and `coverage` on canonical, mirror, and sentinel-derived copies (size: S)
   **Spec scenarios**: skill-workflow Review Findings Schema Extension (snippet and coverage are optional; schema copies stay identical)
   **Dependencies**: 1.2
   **Files**: `skills/tests/parallel-infrastructure/test_review_findings_schema.py`
 
-- [ ] 5.4 Add the optional fields to the canonical schema and its install_assets mirror (size: XS)
+- [x] 5.4 Add the optional fields to the canonical schema and its install_assets mirror (size: XS)
   **Dependencies**: 5.3
   **Files**: `openspec/schemas/review-findings.schema.json`, `skills/parallel-infrastructure/install_assets/openspec/schemas/review-findings.schema.json`
 

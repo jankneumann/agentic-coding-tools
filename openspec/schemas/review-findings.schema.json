@@ -23,6 +23,35 @@
     "reviewer_vendor": {
       "type": "string"
     },
+    "coverage": {
+      "type": "object",
+      "description": "Optional per-vendor coverage report added by add-deterministic-review-preprocessing. Absent means 'unreported' — the dispatcher treats an absent block as full coverage, never as a penalty.",
+      "properties": {
+        "reviewed": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Paths this vendor actually reviewed."
+        },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "reason"],
+            "properties": {
+              "path": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          },
+          "description": "Paths this vendor was asked to review but did not, with why."
+        },
+        "rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "reviewed / (reviewed + skipped), computed by the dispatcher if the vendor did not supply it."
+        }
+      }
+    },
     "findings": {
       "type": "array",
       "items": {
@@ -140,6 +169,21 @@
             ],
             "default": "deterministic",
             "description": "How this finding was established. 'deterministic' means a reproducible observation \u2014 a test failed, a schema mismatched, a scanner rule fired; re-running the same input yields the same finding, and a seeded defect can prove the detector works. 'judgment' means a model reasoned about the artifact; the finding may be correct and valuable but is not reproducible and cannot be falsified by seeding a defect. Only deterministic findings are counted as blocking by the consensus synthesizer. Optional and defaulting to 'deterministic' so existing emitters are unchanged; callers dispatching a judgment-class reviewer declare it at ingest rather than trusting the model to self-label."
+          },
+          "existing_code": {
+            "type": "string",
+            "description": "Optional verbatim excerpt of one or more consecutive lines from the reviewed diff that this finding targets, added by add-deterministic-review-preprocessing. Leading diff markers ('+'/'-') and surrounding whitespace are ignored by the ingest-time line resolver; a vendor-supplied line_range still wins when both are present."
+          },
+          "line_resolution": {
+            "type": "string",
+            "enum": [
+              "vendor",
+              "hunk_new",
+              "hunk_old",
+              "file",
+              "unresolved"
+            ],
+            "description": "How line_range was determined, added by add-deterministic-review-preprocessing. 'vendor' means the vendor supplied a usable line_range directly; 'hunk_new'/'hunk_old'/'file' mean the ingest-time resolver matched existing_code on that side of the diff or in the full file; 'unresolved' means matching failed and line_range is absent (the finding is kept regardless)."
           }
         }
       }
