@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "change_id": null,
+  "review_type": "plan",
+  "created_at": "2026-09-14T15:56:42Z",
+  "target": "cli-dispatch",
+  "dispatches": [
+    {
+      "vendor": "antigravity",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "gemini-3.8-flash-high"
+      ],
+      "elapsed_seconds": 60.085000241175294,
+      "error": "Timeout after 60s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "claude_code",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "fable"
+      ],
+      "elapsed_seconds": 2.0763436392880976,
+      "error": "Unknown error",
+      "error_class": "unknown"
+    },
+    {
+      "vendor": "grok",
+      "success": false,
+      "model_used": null,
+      "models_attempted": [
+        "grok-4.5"
+      ],
+      "elapsed_seconds": 60.01156660076231,
+      "error": "Timeout after 60s",
+      "error_class": "transient"
+    },
+    {
+      "vendor": "pi",
+      "success": false,
+      "model_used": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models_attempted": [
+        "nvidia/nemotron-3-ultra-550b-a55b"
+      ],
+      "elapsed_seconds": 30.517485860269517,
+      "error": "{\"type\":\"session\",\"version\":3,\"id\":\"01a0a0a1-a3c9-724b-91bc-490a444e614e\",\"timestamp\":\"2026-09-14T15:55:42.921Z\",\"cwd\":\"/home/jankneumann/Coding/agentic-coding-tools/.git-worktrees/route-parked-escalations-through-the-escalate-resume-gate\"}\n{\"type\":\"agent_start\"}\n{\"type\":\"turn_start\"}\n{\"type\":\"message_start\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Review the OpenSpec plan for route-parked-escalations-through-the-escalate-resume-gate. Read proposal.md, design.md, tasks.md, cont",
+      "error_class": "auth_required"
+    }
+  ],
+  "quorum_requested": 4,
+  "quorum_received": 0,
+  "vendors": []
+}

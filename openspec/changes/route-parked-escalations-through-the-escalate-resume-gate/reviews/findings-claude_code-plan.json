@@ -1,0 +1,82 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "claude_code",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "critical",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": {
+        "start": 396,
+        "end": 443
+      },
+      "description": "Critical: D2 requires the workspace state lock to be released across approval-service I/O (spec 'Same-generation routing is concurrency safe' -> 'approval-service waiting does not hold the workspace state lock'; task 1.4 requires an unrelated workspace transition to remain available during a blocked coordinator wait), but the decision-persistence path it routes through is a whole-file, read-modify-write of the SAME file that holds dispatch_attempts, taken from a snapshot read BEFORE the wait. `gate_router.evaluate` loads the checkpoint at gate_router.py:398, then blocks inside `service.evaluate` for the full notify_with_timeout window (approval_gate.py polls with `self.sleep` until timeout), then persists at gate_router.py:442 via `CheckpointManager.record_gate_decision` -> `save` -> `models.save_checkpoint`, which writes `checkpoint.to_dict()` wholesale (checkpoint.py:55-62, 98-123; models.py:1137-1153). Any durable transition another host task commits under `execution._state_lock` during that window (child_start's generation CAS, acknowledge, enter, a second batch's apply) is reverted when routing's decision is written; conversely, `ExecutionAdapter.apply` \u2014 which itself holds the workspace lock across the replan_required gate window at orchestrator.py:1095-1108 \u2014 will later save its own pre-route snapshot and silently drop the gate_decisions record that routing just wrote, leaving a mirror pending entry whose `decision_id` resolves to nothing and making `require_approval_ref` reject a proceed that was really granted. The reverted-claim case is durably corrupting: the attempt reverts to `prepared` while its exclusive launch marker still exists on disk, so `_write_marker_exclusive`'s O_EXCL create (execution.py:262-283) fails on every subsequent claim and the dispatch can never be re-launched. No decision, task, or test in the plan closes this: the plan adds only a gate-subject lock, which does not serialize against workspace transitions at all.",
+      "resolution": "Add a decision to D2 requiring that gate-decision persistence (and the mirror projection that follows it) re-read durable state under the workspace state lock immediately before writing, rather than saving a snapshot captured before approval I/O \u2014 e.g. make the persist step take `execution._state_lock` (lazily imported, matching the existing cycle_state lazy-import convention), reload the checkpoint, append the record, and save; or make `CheckpointManager.record_gate_decision` merge the record into the on-disk JSON instead of overwriting from the in-memory dataclass. Add a RED test (extend task 1.4) that commits an unrelated `child_start`/`acknowledge` transition during a blocked coordinator wait and asserts it is still durable after the decision is recorded, and a second that asserts the routed decision survives a concurrent `apply` on another batch. If the merge lands in `skills/roadmap-runtime/scripts/checkpoint.py`, add that path to wp-escalation-routing `locks.files` and `scope.write_allow`, which currently allow only execution.py, gate_router.py, cycle_state.py, SKILL.md, tests, and the gate-decision schema."
+    },
+    {
+      "id": 2,
+      "type": "spec_gap",
+      "criticality": "high",
+      "axis": "correctness",
+      "severity": "critical",
+      "disposition": "fix",
+      "file_path": "skills/autopilot-roadmap/scripts/orchestrator.py",
+      "line_range": {
+        "start": 613,
+        "end": 648
+      },
+      "description": "Critical: D7 and the spec scenario 'Auto posture resumes a fresh application generation' assert that clearing the generation-G `application_journal` is sufficient for the resumed generation to 'start, acknowledge, enter, and apply a fresh journal', but for any batch with more than one member that apply call cannot be made under the plan's own constraints. `resume` preserves the dispatch ID (execution.py:857-906), dispatch IDs are `{batch_id}:{item_id}:attempt-N` (orchestrator.py:320-324), and `_batch_attempts` selects every attempt with that batch prefix, so the resumed member stays in its original batch. `apply_delegated_batch` then rejects any call whose result set is not exactly the whole batch ('result membership mismatch for delegated batch', orchestrator.py:636-638), and `ExecutionAdapter.apply` is frozen unchanged by D1/the contract note, so the natural implementation \u2014 apply the resumed member's new result alone \u2014 always raises. Re-submitting the whole batch is not a safe fallback either: `execution.apply` re-runs `_validate_exact_evidence` for every success/parked member (execution.py:930-931, 961-1003), which re-resolves each sibling's worktree, branch, HEAD commit, and loop-state digest, so an already-completed sibling whose worktree was torn down, merged, or advanced after completion makes the resumed member's apply permanently unappliable. The plan's only end-to-end proof (task 1.2, test 6) is single-member, so this never surfaces in the specified test set, while task 3.4's documentation guards and task 3.1's protocol update say nothing about post-resume batch membership.",
+      "resolution": "State the post-resume apply protocol explicitly in D7 and in the SKILL.md collect/apply protocol (task 3.1): whether the host must re-submit the full batch membership with each already-applied member's byte-identical prior result (and how sibling evidence revalidation is expected to survive worktree teardown), or whether a resumed generation is applied through a different seam. Add a RED test under task 1.2 that parks one member of a two-member batch, resumes it, and applies its fresh generation-G+1 result while the sibling is already `effects_applied` \u2014 including the case where the sibling's worktree is no longer resolvable \u2014 and pin the chosen rule with a documentation guard in task 3.4."
+    },
+    {
+      "id": 3,
+      "type": "compatibility",
+      "criticality": "medium",
+      "axis": "compatibility",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": {
+        "start": 160,
+        "end": 181
+      },
+      "description": "Nit: D3 makes the `escalate_resume` subject key and `_matches_subject` generation-scoped, but says nothing about the `escalate_resume` records ri-04 already wrote, which carry no `lease_generation` (the field is newly optional in the gate-decision schema). Under a generation-aware `_matches_subject`, a legacy blocked record for a currently parked dispatch no longer matches its own subject, so the first route after upgrade files and notifies a second coordinator approval for a park that is already pending, and `_apply_prior_record`'s `check_filed` reuse path is skipped for the original approval_id. D8's retirement rule compounds it: retiring 'earlier records at lower generations' has no ordering against a record with no generation, so the legacy pending mirror entry is never removed and lingers in every rehydrate and handoff.",
+      "resolution": "Add one sentence to D3/D8 defining the legacy case: an `escalate_resume` record with no `lease_generation` matches the currently parked generation for subject lookup (so the existing filing is reused, not re-filed), and generation-less same-gate/roadmap/dispatch decision IDs are retired alongside lower-generation ones. Cover it with a task 1.5 case that seeds a pre-upgrade record without `lease_generation`."
+    },
+    {
+      "id": 4,
+      "type": "architecture",
+      "criticality": "low",
+      "axis": "architecture",
+      "severity": "nit",
+      "disposition": "fix",
+      "file_path": "skills/supervise/scripts/gate_router.py",
+      "line_range": {
+        "start": 640,
+        "end": 647
+      },
+      "description": "Nit: D5 and the contract note scope the exact six-key context and the literal reason 'supervised phase retry budget exhausted' to 'an automatic policy pause', but the seam that builds that context is `gate_router.resolve_parked`, which is shared with the manual reconciliation path the proposal deliberately keeps in scope ('Sweeping policy pauses from earlier batches; those keep the existing manual reconciliation path') and which SKILL.md documents as the only sanctioned resume entry point. Today that call site passes the child-provided `parked.reason` through verbatim (gate_router.py:646). The plan never says whether the literal reason and allowlist replace it for all `policy_pause` resolutions or only route-initiated ones \u2014 so the same gate subject can be filed with two different context shapes depending on caller, and the 'no child-provided reason' privacy property does not actually hold on the retained manual path.",
+      "resolution": "State in D5 whether the allowlist and literal reason apply to every `policy_pause` resolution through `resolve_parked` (recommended \u2014 one subject, one context shape) or only to `route_parked_escalations`-initiated ones, and pin the chosen rule in the task 1.8 guard so the manually reconciled path is asserted too."
+    },
+    {
+      "id": 5,
+      "type": "resilience",
+      "criticality": "low",
+      "axis": "resilience",
+      "severity": "optional",
+      "disposition": "fix",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 11,
+        "end": 11
+      },
+      "description": "Optional: D1 grounds the entire safety argument \u2014 that no evaluation, notification, or resume happens before the whole batch is durable \u2014 on an unchecked caller contract ('the host calls route_parked_escalations only after apply returns successfully, which proves every batch member is terminal with application_journal.state == effects_applied'). Nothing in the plan makes `route_parked_escalations` verify that itself, and the only enforcement listed is a task 3.4 documentation guard, which asserts SKILL.md prose rather than runtime behavior. A host that calls route in an error path (exactly the shape the round-2 plan endorsed, so a plausible mis-port) would evaluate and resume members of a half-applied batch with no failure. The check is free: route already loads the named batch's attempts and `application_journal.state` is a persisted field (orchestrator.py:722-758).",
+      "resolution": "Add to D1 and task 2.1 that `route_parked_escalations` fails closed \u2014 raising before any evaluate/notify/resume \u2014 unless every named-batch attempt is terminal with `application_journal.state == \"effects_applied\"`, and add a RED case under task 1.1 that calls route directly after a partial apply and asserts it raises with `dispatch_fn` still at one call and no gate decision recorded."
+    }
+  ]
+}
