@@ -51,10 +51,13 @@ while preserving their existing rich artifacts.
 - **THEN** its derived suggested ID SHALL remain unchanged
 - **AND** the identity object SHALL contain exactly `generator` and `source_id`
 - **AND** bug-scrub SHALL use `bug-finding-<semantic-hash>`, improve-harness SHALL use the trimmed, whitespace-collapsed, lowercase capability gap, and explore-feature SHALL use the exact stable opportunity ID
-- **AND** bug-scrub `semantic-hash` SHALL be the first 16 lowercase SHA-256 hex characters over canonical JSON containing exactly `source`, `source_key`, `category`, `file_path`, `detail`, `origin_change_id`, and `origin_artifact_path`
+- **AND** bug-scrub base semantic JSON SHALL contain exactly `source`, `source_key`, `category`, `file_path`, `detail`, `origin_change_id`, and `origin_artifact_path`, with one-based `occurrence` as the exact eighth final fingerprint field
+- **AND** paths SHALL only slash-normalize while preserving whitespace
+- **AND** detail SHALL strip only an exact leading full `<file_path>:<numeric-line>:` prefix independent of line metadata, SHALL NOT strip a basename-only prefix, and SHALL then whitespace-collapse
 - **AND** bug-scrub `source_key` SHALL retain stable pytest/security/other collector keys while stripping known volatile ruff/mypy/marker line suffixes, architecture/deferred ordinals, and OpenSpec ordinals already represented by semantic detail/path
-- **AND** bug-scrub SHALL exclude the unmodified finding ID, line, age, origin line/task/index, severity, title, report path, and collector order/rank from semantic identity while retaining the original finding ID in provenance
-- **AND** semantically distinct bug-scrub fingerprints that collide on the compact source ID MUST fail the complete batch
+- **AND** equal base identities SHALL receive deterministic occurrence ordinals after sorting by line and the documented stable fallbacks, so repeated equivalent findings remain distinct while singleton line shifts and global collector reorder remain stable
+- **AND** bug-scrub SHALL exclude the unmodified finding ID, line, age, origin line/task/index, severity, title, report path, and collector order/rank from base semantic identity while retaining the original finding ID in provenance
+- **AND** `semantic-hash` SHALL be the first 16 lowercase SHA-256 hex characters of final canonical JSON, and distinct final fingerprints that collide on the compact source ID MUST fail the complete batch
 - **AND** the readable base SHALL derive only from `source_id` by the documented ASCII slug algorithm and `item` fallback
 - **AND** canonical serialization SHALL use sorted keys, compact comma/colon separators, unescaped Unicode, and UTF-8 before SHA-256
 - **AND** explicit source hints SHALL remain normalized but unsuffixed

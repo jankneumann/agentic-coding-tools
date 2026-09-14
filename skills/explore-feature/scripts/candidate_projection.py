@@ -13,8 +13,6 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
 
 from candidate_work import (
-    CandidateWorkCollisionError,
-    CandidateWorkValidationError,
     collect_lifecycle_records,
     derive_suggested_change_id,
     write_candidate_work,
@@ -240,12 +238,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         destination = run(args.opportunities, args.output)
-    except (
-        CandidateWorkCollisionError,
-        CandidateWorkValidationError,
-        OSError,
-        ValueError,
-    ) as exc:
+    except (OSError, ValueError) as exc:
         print(f"error: candidate-work sidecar not written: {exc}", file=sys.stderr)
         return 2
     print(destination)

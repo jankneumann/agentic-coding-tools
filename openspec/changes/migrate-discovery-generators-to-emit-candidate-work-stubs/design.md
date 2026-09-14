@@ -58,22 +58,32 @@ first eight lowercase hex characters of SHA-256 over an identity object containi
 exactly `generator` and `source_id`. Improve-harness uses the normalized capability
 gap (trim surrounding whitespace, collapse internal whitespace to one ASCII space,
 and lowercase), and explore-feature requires and uses the exact stable opportunity ID.
-Bug-scrub uses `bug-finding-<semantic-hash>`, where `semantic-hash` is the first 16
-lowercase hex characters of SHA-256 over a second canonical JSON object containing
-exactly `source`, `source_key`, `category`, `file_path`, `detail`,
+Bug-scrub uses `bug-finding-<semantic-hash>`. It first builds a base semantic
+identity containing exactly `source`, `source_key`, `category`, `file_path`, `detail`,
 `origin_change_id`, and `origin_artifact_path`. Source and category are
-whitespace-collapsed and lowercased; paths use forward slashes; detail is
-whitespace-collapsed and removes an exact leading `<file_path>:<line>:` diagnostic
-coordinate. `source_key` preserves the normalized collector finding key, except
-ruff/mypy/markers strip trailing `:<line>`, architecture/deferred strip trailing
-`-<ordinal>`, and OpenSpec uses `openspec` because detail/path carry its semantic key;
-pytest, security, and other stable keys remain intact. Empty origin values are empty
-strings. The unmodified finding ID, line, age, origin line/task/index, severity, title,
-report path, and collector order/rank are excluded from semantic identity, while the
-original finding ID remains in provenance. Both identity objects use
-`json.dumps(identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False)` and
-UTF-8 before hashing. A compact bug-scrub source-ID collision between distinct full
-semantic fingerprints fails the whole batch. Duplicate final IDs, including two
+whitespace-collapsed and lowercased. Paths only replace backslashes with forward
+slashes, preserving all whitespace. Detail removes only an exact leading full
+`<file_path>:<numeric-line>:` prefix, independent of `finding.line`, never a basename
+prefix, and then whitespace-collapses. `source_key` preserves the normalized collector
+finding key, except ruff/mypy/markers strip trailing `:<line>`,
+architecture/deferred strip trailing `-<ordinal>`, and OpenSpec uses `openspec` because
+detail/path carry its semantic key; pytest, security, and other stable keys remain
+intact. Empty origin values are empty strings.
+
+Equivalent base identities form an occurrence group. Members sort by
+`(line_missing, line, origin_artifact_path, origin_task_number, original_finding_id,
+report_index)`, where line uses integer `finding.line`, then the stripped full-path
+detail coordinate when metadata is absent. One-based `occurrence` is added as the
+eighth and final semantic field. The first 16 lowercase SHA-256 hex characters over
+that final canonical object form `semantic-hash`. Thus a singleton survives line
+shifts and global collector reorder, while repeated equivalent findings remain
+distinct and retain stable ordinals as their relative source positions remain stable.
+The unmodified finding ID, line, age, origin line/task/index, severity, title, report
+path, and collector order/rank are excluded from the base identity; the original
+finding ID remains in provenance and is only a late position fallback. All identity
+objects use `json.dumps(identity, sort_keys=True, separators=(",", ":"),
+ensure_ascii=False)` and UTF-8 before hashing. A compact bug-scrub source-ID collision
+between distinct full semantic fingerprints fails the whole batch. Duplicate final IDs, including two
 colliding explicit hints, also fail the whole batch.
 
 All emitted stubs populate `provenance.generator` even though the schema leaves it
