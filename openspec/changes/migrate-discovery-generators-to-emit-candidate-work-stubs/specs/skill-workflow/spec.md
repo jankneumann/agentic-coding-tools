@@ -125,7 +125,7 @@ a repeatable `--candidate-work PATH` option and rank candidate stubs from all su
 - **THEN** the dependency SHALL precede its dependent
 - **AND** deterministic tie-breakers SHALL produce a stable order
 - **AND** candidate entries SHALL remain distinct from proposal entries
-- **AND** the shared resolver SHALL collapse all-terminal lifecycle duplicates and preserve one unique live match
+- **AND** the shared resolver SHALL collapse duplicate completed/archive lifecycle records and preserve one unique live match
 - **AND** an active-incomplete or unknown external dependency SHALL mark its candidate and all transitive in-batch dependents blocked
 - **AND** ready components SHALL precede blocked components without violating dependency order
 

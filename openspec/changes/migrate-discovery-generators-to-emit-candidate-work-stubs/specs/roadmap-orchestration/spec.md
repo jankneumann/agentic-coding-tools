@@ -32,13 +32,13 @@ without hand-editing intermediate artifacts.
 #### Scenario: Candidate dependencies retain explicit resolution
 
 - **WHEN** the shared resolver groups exact dependency matches across candidate, roadmap, active-change, and archive sources
-- **THEN** plan-roadmap SHALL collapse duplicate terminal lifecycle records and record an all-terminal group as satisfied rationale
+- **THEN** plan-roadmap SHALL collapse duplicate completed/archive lifecycle records and record an all-completed group as satisfied rationale
 - **AND** exactly one live target-roadmap item SHALL map to its local item ID and exactly one live item in another roadmap SHALL map to the canonical external reference
 - **AND** the preview SHALL show that conversion without silently dropping the source change ID
 
 #### Scenario: Candidate dependency cannot be resolved
 
-- **WHEN** a stub dependency is unknown, has multiple live matches, or points to active work without a unique roadmap item
+- **WHEN** a stub dependency is unknown, has multiple live matches, points to active work without a unique roadmap item, or has only failed/skipped/superseded records
 - **THEN** plan-roadmap MUST fail with the unresolved dependency name
 - **AND** it MUST NOT silently drop or rewrite the dependency
 
