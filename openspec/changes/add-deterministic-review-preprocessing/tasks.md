@@ -194,17 +194,17 @@ flagged in design D9 as the chained dispatcher work.
 
 ## 8. Fixture set
 
-- [ ] 8.1 Write the fixture-driven tests for fact-check precision against a recorded transcript and for the line-resolution floor (size: S)
+- [x] 8.1 Write the fixture-driven tests for fact-check precision against a recorded transcript and for the line-resolution floor (size: S)
   **Spec scenarios**: skill-workflow Labeled Review Fixture Set (both scenarios)
   **Design decisions**: D8
   **Dependencies**: 2.4, 5.6
   **Files**: `skills/tests/parallel-infrastructure/test_fact_check_fixture.py`, `skills/tests/parallel-infrastructure/test_line_resolver_fixture.py`
 
-- [ ] 8.2 Author the labeled fixture manifest from real diffs with at least ten findings (size: M)
+- [x] 8.2 Author the labeled fixture manifest from real diffs with at least ten findings (size: M)
   **Dependencies**: 8.1
   **Files**: `skills/tests/parallel-infrastructure/fixtures/review-fixtures/manifest.json`, `skills/tests/parallel-infrastructure/fixtures/review-fixtures/*.diff`, `skills/tests/parallel-infrastructure/fixtures/review-fixtures/*.findings.json`, `skills/tests/parallel-infrastructure/fixtures/review-fixtures/fact-check-transcript.json`
 
-- [ ] Checkpoint: run fixture tests, review diff, verify scope
+- [x] Checkpoint: run fixture tests, review diff, verify scope
 
 ## 9. Integration
 

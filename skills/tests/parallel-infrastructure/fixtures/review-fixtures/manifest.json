@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "description": "Labeled review fixture set (add-deterministic-review-preprocessing, D8). Each case is a small real-shaped diff plus a set of findings, hand-labeled true (a genuine, diff-grounded observation) or false (contradicted by, or absent from, the diff). Consumed by test_fact_check_fixture.py against a recorded transcript, and by test_line_resolver_fixture.py for the resolution floor.",
+  "cases": [
+    {
+      "id": "case-1",
+      "diff_file": "case-1.diff",
+      "findings_file": "case-1.findings.json",
+      "labels": [
+        {
+          "finding_id": 1,
+          "label": true,
+          "justification": "The added line calls user.email.lower() with no prior guard; the diff shows no null check anywhere in this hunk."
+        },
+        {
+          "finding_id": 2,
+          "label": false,
+          "justification": "The diff never mentions currency or charge_card's arguments beyond receipt_to; nothing in the hunk supports this claim."
+        }
+      ]
+    },
+    {
+      "id": "case-2",
+      "diff_file": "case-2.diff",
+      "findings_file": "case-2.findings.json",
+      "labels": [
+        {
+          "finding_id": 1,
+          "label": true,
+          "justification": "time.sleep(delay) runs unconditionally inside the loop body, including on the last iteration before the loop exits and raises."
+        },
+        {
+          "finding_id": 2,
+          "label": false,
+          "justification": "The diff adds delay *= 2 right after the sleep call, so the delay does increase between attempts; the finding directly contradicts that line."
+        },
+        {
+          "finding_id": 3,
+          "label": true,
+          "justification": "A real (if loosely worded) observation about the loop; kept in this fixture specifically to exercise the protected-subject veto on the off-by-one keyword, which must keep a true finding even if a verdict attempts to remove it."
+        }
+      ]
+    },
+    {
+      "id": "case-3",
+      "diff_file": "case-3.diff",
+      "findings_file": "case-3.findings.json",
+      "labels": [
+        {
+          "finding_id": 1,
+          "label": true,
+          "justification": "data = render(report, fmt) executes before the fmt not in SUPPORTED_FORMATS check that follows it in the diff."
+        },
+        {
+          "finding_id": 2,
+          "label": false,
+          "justification": "The diff's added line is logger.info(\"exporting report as %s\", fmt) — the format is now included; the finding describes the deleted line as if it were current."
+        },
+        {
+          "finding_id": 3,
+          "label": false,
+          "justification": "No docstring appears anywhere in this hunk, added or removed; there is nothing in the diff to support the claim."
+        }
+      ]
+    },
+    {
+      "id": "case-4",
+      "diff_file": "case-4.diff",
+      "findings_file": "case-4.findings.json",
+      "labels": [
+        {
+          "finding_id": 1,
+          "label": true,
+          "justification": "get() only reads from self.store with no touch/reorder step; nothing in this diff or the surrounding class implements LRU eviction."
+        },
+        {
+          "finding_id": 2,
+          "label": false,
+          "justification": "The diff changes the signature to def __init__(self, capacity=128): — capacity now has a default, directly contradicting the finding."
+        }
+      ]
+    }
+  ]
+}

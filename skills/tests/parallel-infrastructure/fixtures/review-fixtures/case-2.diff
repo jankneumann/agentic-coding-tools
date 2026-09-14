@@ -1,0 +1,16 @@
+diff --git a/src/retry.py b/src/retry.py
+index e69de29..2222222 100644
+--- a/src/retry.py
++++ b/src/retry.py
+@@ -4,6 +4,9 @@ def fetch_with_retry(url, attempts=3):
+ def fetch_with_retry(url, attempts=3):
+-    for i in range(attempts):
++    delay = 0.5
++    for i in range(attempts):
+         try:
+             return http_get(url)
+         except TransientError:
+-            continue
++            time.sleep(delay)
++            delay *= 2
++    raise RetryExhausted(url)

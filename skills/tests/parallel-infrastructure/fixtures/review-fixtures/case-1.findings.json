@@ -1,0 +1,25 @@
+{
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "high",
+      "severity": "high",
+      "disposition": "fix",
+      "axis": "correctness",
+      "file_path": "src/orders.py",
+      "existing_code": "normalized_email = user.email.lower()",
+      "description": "Missing null check before calling .lower() on user.email; a user with no email on file raises AttributeError here."
+    },
+    {
+      "id": 2,
+      "type": "correctness",
+      "criticality": "medium",
+      "severity": "medium",
+      "disposition": "fix",
+      "axis": "correctness",
+      "file_path": "src/orders.py",
+      "description": "The charge_card call is missing a currency argument, so all charges default to USD."
+    }
+  ]
+}
