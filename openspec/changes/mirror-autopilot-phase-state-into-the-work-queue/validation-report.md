@@ -1,7 +1,7 @@
 # Validation Report: mirror-autopilot-phase-state-into-the-work-queue
 
-**Date**: 2026-09-14T10:28:17-04:00
-**Validated commit**: `ad19fda5ff92c0182434684a4833b4e323858e60`
+**Date**: 2026-09-14T10:52:50-04:00
+**Validated commit**: `5e9827886e920ebb3b57b70f637fc919e2da2d4a`
 **Branch**: `openspec/recover-ri-09-work-queue-projection`
 **Surface**: non-deployable change with locally validated API, PostgreSQL, and Kanban paths
 
@@ -64,7 +64,9 @@ it bypasses the curated skills `testpaths` ordering and creates known flat-modul
 import collisions. The canonical `cd skills && .venv/bin/python -m pytest -q`
 gate passed with the result above.
 
+Before GitHub landing, the exact 54-commit ri-09 range was rebased from the canonical roadmap branch point `2b755a5d` onto current `origin/main` at `f3094662`. `git range-diff` reported 53 patch-equivalent commits and one expected generated-architecture delta caused by the newer main schema. Architecture artifacts were regenerated with zero errors, then the full 2,514-test coordinator suite, 4,767-test skills suite, Ruff, mypy, all 90 strict OpenSpec validations, and architecture freshness were rerun successfully on reachable rebased commit `5e982788`.
+
 ## Result
 
 **PASS** — All locally executable required phases pass. The implementation is
-ready for the final exact-head convergence review and pull-request checks.
+ready for pull-request checks.
