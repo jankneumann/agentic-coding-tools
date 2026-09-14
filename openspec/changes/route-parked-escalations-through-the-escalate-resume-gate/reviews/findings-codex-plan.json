@@ -1,0 +1,82 @@
+{
+  "review_type": "plan",
+  "target": "cli-dispatch",
+  "reviewer_vendor": "codex",
+  "findings": [
+    {
+      "id": 1,
+      "type": "correctness",
+      "criticality": "low",
+      "description": "The revised plan closes the complete-apply boundary defect: routing, evaluation, notification, and resume are forbidden until every named-batch member reaches terminal effects_applied, partial apply recovery replays apply through the existing journal without a second dispatch_fn call, and route failure after that boundary retries route only.",
+      "disposition": "accept",
+      "axis": "correctness",
+      "severity": "none",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 9,
+        "end": 12
+      },
+      "resolution": "No unresolved defect."
+    },
+    {
+      "id": 2,
+      "type": "resilience",
+      "criticality": "low",
+      "description": "The concurrency contract is now coherent: gate_router owns a generation-aware decision-subject lock across evaluate, answer, resolve, and optional resume, while route_parked_escalations does not hold the workspace state lock across approval-service I/O and resume uses only the short state CAS.",
+      "disposition": "accept",
+      "axis": "resilience",
+      "severity": "none",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 13,
+        "end": 15
+      },
+      "resolution": "No unresolved defect."
+    },
+    {
+      "id": 3,
+      "type": "security",
+      "criticality": "low",
+      "description": "The generation identity path is specified end to end: escalate_resume records include parked lease_generation, late-answer correlation retains it, backward-compatible gate-answer selects the newest blocked generation, explicit generation selection is supported, and require_approval_ref must reject stale-generation proceed references.",
+      "disposition": "accept",
+      "axis": "security",
+      "severity": "none",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 17,
+        "end": 21
+      },
+      "resolution": "No unresolved defect."
+    },
+    {
+      "id": 4,
+      "type": "observability",
+      "criticality": "low",
+      "description": "The mirror and retry semantics are now closed: later generation decisions retire older same-dispatch escalate_resume pending mirror entries, already-resumed prepared continuations are reported as already_routed with decided and resumed generations, and resumed generations clear the previous application journal before fresh apply.",
+      "disposition": "accept",
+      "axis": "observability",
+      "severity": "none",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/design.md",
+      "line_range": {
+        "start": 33,
+        "end": 43
+      },
+      "resolution": "No unresolved defect."
+    },
+    {
+      "id": 5,
+      "type": "contract_mismatch",
+      "criticality": "low",
+      "description": "The response, outbound context, work-package scope, and verification contract cover the requested surfaces: route results distinguish decided_lease_generation from resumed_lease_generation, approval context is exact and literal, cycle_state and gate-decision schema are in write scope, and validation includes supervise/recovery tests, Ruff, strict change and all-OpenSpec validation, package/DAG checks, context drift, and scope compliance.",
+      "disposition": "accept",
+      "axis": "compatibility",
+      "severity": "none",
+      "file_path": "openspec/changes/route-parked-escalations-through-the-escalate-resume-gate/work-packages.yaml",
+      "line_range": {
+        "start": 38,
+        "end": 129
+      },
+      "resolution": "No unresolved defect."
+    }
+  ]
+}

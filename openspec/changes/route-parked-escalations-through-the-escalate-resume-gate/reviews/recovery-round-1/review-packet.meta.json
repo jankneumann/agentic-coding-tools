@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "change_id": "route-parked-escalations-through-the-escalate-resume-gate",
+  "round": 4,
+  "body_path": "review-packet.md",
+  "sha256": "4cdc082fd2be84c4550d3a4b4654ca1df0b034eb5d7f3ecf20afd45f57175284",
+  "char_length": 320000,
+  "budget_chars": 320000,
+  "tools_overflow": true,
+  "includes_ledger": false,
+  "diff_kind": "full"
+}
