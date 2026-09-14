@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-14T23:54:04.241369+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "claude_code",
+    "session_id": "session_01EFcxuxU66D4u1B7ir1VqYb",
+    "summary": "Implemented all 9 work packages of the OpenSpec change: deterministic file selection and path-glob rule groups, a diff-grounded fact-check pass, an optional OCR reviewer vendor, ingest-time line resolution, snippet-based cross-vendor matching and ledger fingerprinting, per-vendor coverage scoring, a labeled fixture set, and documentation. 1115 tests pass, ruff and install.sh --check are clean, and `openspec validate --strict` passes.",
+    "completed_work": [
+      "wp-fact-check: diff-grounded fact-check pass (fact_check.py) wired into converge()",
+      "wp-ocr-vendor: optional ocr-local reviewer vendor (ocr_adapter.py)",
+      "wp-packet: five-gate file selection and path-glob rule groups in the review packet",
+      "wp-resolver: ingest-time line resolution (line_resolver.py) wired into the dispatcher",
+      "wp-ledger-match: snippet-equality match band and snippet-aware ledger fingerprinting",
+      "wp-coverage: per-vendor coverage scoring, narrowed consensus eligibility, manifest fields",
+      "wp-fixtures: 10-finding labeled fixture set with recorded fact-check transcript",
+      "wp-integration: full suite green, SKILL.md/workflow.md docs, validation-report.md, closed a finding-coercion.json/review-rules.json root-mirror drift found while running install.sh"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Recover the packet's selected-file list from the rendered prompt, not a new parameter",
+        "rationale": "review_dispatcher._ingest_stdout only ever sees the prompt text. Rather than widen review_dispatcher.py's scope to import review_packet, coverage scoring parses the packet's own \"### Rule groups\" section (every selected file is listed there under some group before any budget truncation runs) \u2014 the same trick already used for the diff fence.",
+        "capability": "review-coverage",
+        "supersedes": null
+      },
+      {
+        "title": "eligible_vendors narrows, never widens, existing consensus counts",
+        "rationale": "VendorResult.reviewed_files defaults to None (full eligibility), so a caller that never wires in coverage info gets identical eligible_vendors counts to before the field existed \u2014 Rule 4 applied at the data-flow level, not just config defaults.",
+        "capability": "review-coverage",
+        "supersedes": null
+      },
+      {
+        "title": "Ledger fingerprint keys on the normalized snippet when present, tokens otherwise",
+        "rationale": "OCR's sliding-window resolver and LLM line drift both break line-number-anchored fingerprints. fingerprint() now hashes on existing_code when a finding carries one, falling back to the prior token-based scheme so a defect keeps its ledger id across rewordings without losing legacy findings that never set existing_code.",
+        "capability": "review-ledger",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Live-vendor validation run: fact-check precision and round token-spend delta against real vendor CLIs (validation-report.md's DEGRADED rows)",
+      "Create the pull request for branch claude/alibaba-code-review-cli-p1p48p"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/parallel-infrastructure/scripts/fact_check.py",
+        "description": "diff-grounded fact-check pass"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/ocr_adapter.py",
+        "description": "optional OCR reviewer vendor"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/file_selection.py",
+        "description": "five-gate file selection"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_rules.py",
+        "description": "path-glob rule resolution"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/line_resolver.py",
+        "description": "ingest-time line resolution"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/consensus_synthesizer.py",
+        "description": "snippet matching, eligible_vendors"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_ledger.py",
+        "description": "snippet-aware fingerprint and compact"
+      },
+      {
+        "path": "skills/parallel-infrastructure/scripts/review_dispatcher.py",
+        "description": "coverage scoring, coercion, line resolution"
+      },
+      {
+        "path": "skills/tests/parallel-infrastructure/fixtures/review-fixtures/manifest.json",
+        "description": "labeled fixture set"
+      },
+      {
+        "path": "openspec/changes/add-deterministic-review-preprocessing/validation-report.md",
+        "description": "gate results and DEGRADED live-vendor rows"
+      }
+    ]
+  }
+}
