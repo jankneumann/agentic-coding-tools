@@ -390,6 +390,9 @@ def _cmd_init(args: argparse.Namespace) -> int:
     now = autopilot._now_iso()
     state = autopilot.LoopState(
         change_id=args.change_id,
+        force=args.force,
+        val_review_enabled=args.val_review,
+        cli_review_enabled=not args.no_review,
         started_at=now,
         phase_started_at=now,
     )
@@ -412,6 +415,9 @@ def _cmd_transition(args: argparse.Namespace) -> int:
     except OSError as exc:
         sys.stderr.write(f"runner: transition failed: {exc}\n")
         return 1
+
+    if state.current_phase == "DONE":
+        return 0
 
     try:
         autopilot._apply_transition(
@@ -536,6 +542,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
     init = sub.add_parser("init", help="Idempotently create canonical INIT state.")
     init.add_argument("--change-id", required=True)
+    init.add_argument("--force", action="store_true")
+    init.add_argument("--val-review", action="store_true")
+    init.add_argument("--no-review", action="store_true")
     init.set_defaults(func=_cmd_init)
 
     tr = sub.add_parser("transition", help="Apply and persist a canonical phase edge.")

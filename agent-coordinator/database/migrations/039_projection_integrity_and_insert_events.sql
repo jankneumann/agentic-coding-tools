@@ -30,6 +30,7 @@ DECLARE
   v_head_phase TEXT; v_head_seq INTEGER; v_any BOOLEAN; v_complete BOOLEAN;
   v_head_missing BOOLEAN:=FALSE; v_existing_task_type TEXT;
   v_existing_owned BOOLEAN:=FALSE;
+  v_reactivated INTEGER:=0;
 BEGIN
   v_any:=COALESCE(p_input_data ?| ARRAY['change_id','phase','transition_sequence'],FALSE);
   v_complete:=COALESCE(p_input_data ? 'change_id' AND p_input_data ? 'phase'
@@ -98,8 +99,7 @@ BEGIN
     v_created:=FALSE;
     SELECT id,status,task_type,
       (EXISTS (SELECT 1 FROM work_queue_projection_ownership AS ownership
-               WHERE ownership.task_id=work_queue.id)
-       OR 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[])))
+               WHERE ownership.task_id=work_queue.id))
       INTO v_id,v_status,v_existing_task_type,v_existing_owned FROM work_queue
     WHERE input_data ? 'change_id' AND input_data ? 'phase' AND input_data ? 'transition_sequence'
       AND jsonb_typeof(input_data->'transition_sequence')='number'
@@ -132,6 +132,14 @@ BEGIN
       completed_at=NULL, result=NULL, error_message=NULL,
       closed_at=NULL, close_reason=NULL, attempt_count=0
     WHERE id=v_id AND status IN ('cancelled','completed','failed');
+    GET DIAGNOSTICS v_reactivated = ROW_COUNT;
+    IF v_reactivated > 0 THEN
+      PERFORM coordinator_notify(
+        'coordinator_task', 'projection.labels_changed', v_id::TEXT,
+        'autopilot', 'Autopilot projection reactivated', v_change,
+        jsonb_build_object('snapshot_required',TRUE)
+      );
+    END IF;
     SELECT status INTO v_status FROM work_queue WHERE id=v_id;
   END IF;
   RETURN jsonb_build_object('success',TRUE,'task_id',v_id,'status',v_status,
@@ -151,6 +159,7 @@ DECLARE
   v_id UUID; v_status TEXT; v_created BOOLEAN:=TRUE;
   v_head_seq INTEGER; v_cancelled UUID[]:=ARRAY[]::UUID[]; v_payload JSONB;
   v_existing_task_type TEXT; v_existing_owned BOOLEAN:=FALSE;
+  v_reactivated INTEGER:=0;
 BEGIN
   IF p_change_id !~ '^[a-z0-9][a-z0-9-]{0,127}$'
     OR p_phase <> ALL (ARRAY[
@@ -192,8 +201,7 @@ BEGIN
     v_created:=FALSE;
     SELECT id,status,task_type,
       (EXISTS (SELECT 1 FROM work_queue_projection_ownership AS ownership
-               WHERE ownership.task_id=work_queue.id)
-       OR 'projection:autopilot-phase'=ANY(COALESCE(labels,ARRAY[]::TEXT[])))
+               WHERE ownership.task_id=work_queue.id))
       INTO v_id,v_status,v_existing_task_type,v_existing_owned FROM work_queue
     WHERE input_data ? 'change_id' AND input_data ? 'phase' AND input_data ? 'transition_sequence'
       AND jsonb_typeof(input_data->'transition_sequence')='number'
@@ -244,6 +252,14 @@ BEGIN
       completed_at=NULL, result=NULL, error_message=NULL,
       closed_at=NULL, close_reason=NULL, attempt_count=0
     WHERE id=v_id AND status IN ('cancelled','completed','failed');
+    GET DIAGNOSTICS v_reactivated = ROW_COUNT;
+    IF v_reactivated > 0 THEN
+      PERFORM coordinator_notify(
+        'coordinator_task', 'projection.labels_changed', v_id::TEXT,
+        'autopilot', 'Autopilot projection reactivated', p_change_id,
+        jsonb_build_object('snapshot_required',TRUE)
+      );
+    END IF;
     SELECT status INTO v_status FROM work_queue WHERE id=v_id;
   END IF;
   RETURN jsonb_build_object('success',TRUE,'task_id',v_id,'status',v_status,

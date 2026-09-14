@@ -28,7 +28,7 @@ and `<your-repo>/.agents/skills/`.
 Before syncing, `install.sh` validates `skills/install-manifest.json` and the
 complete portable payload. The install stops if a skill references private
 coordinator source, a canonical source-tree command, an escaping local link, or
-an undeclared skill/library. To run the same gate without changing a consumer:
+an undeclared skill/library. After syncing, verify that both installed runtime mirrors still match the canonical payload without changing the consumer:
 
 ```bash
 cd ~/Coding/agentic-coding-tools

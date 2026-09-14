@@ -404,7 +404,7 @@ async def test_owned_projection_cannot_take_over_unowned_issue_key(
             "description": "ordinary issue owns exact projection tuple",
             "input_data": {**target, "_projection_owner": "autopilot"},
             "priority": 5,
-            "labels": ["ordinary"],
+            "labels": labels,
         },
     )
     request = {
@@ -425,7 +425,7 @@ async def test_owned_projection_cannot_take_over_unowned_issue_key(
     rows = await postgres_db.query("work_queue", f"id=eq.{collision_id}")
     assert rows[0]["description"] == "ordinary issue owns exact projection tuple"
     assert rows[0]["status"] == "pending"
-    assert rows[0]["labels"] == ["ordinary"]
+    assert rows[0]["labels"] == labels
     heads = await postgres_db.query(
         "work_queue_projection_heads", f"change_id=eq.{change_id}"
     )
@@ -565,3 +565,48 @@ async def test_unlabelled_legacy_issue_collision_keeps_pre039_dedupe_semantics(
     rows = await postgres_db.query("work_queue", f"id=eq.{collision['id']}")
     assert rows[0]["task_type"] == "test"
     assert rows[0]["labels"] == ["ordinary"]
+
+
+async def test_terminal_reactivation_refreshes_connected_sse(
+    pg_work_queue,
+    postgres_db,
+) -> None:
+    change_id = "live-terminal-reactivation-sse"
+    labels = [f"change:{change_id}", _PROJECTION_LABEL]
+    key = _key(change_id, "VALIDATE", 7)
+    canonical = await pg_work_queue.submit(
+        task_type="issue",
+        description="Autopilot phase VALIDATE",
+        priority=1,
+        projection_key=key,
+        projection_labels=labels,
+    )
+    await postgres_db.update(
+        "work_queue",
+        {"id": str(canonical.task_id)},
+        {"status": "completed"},
+    )
+
+    bus = EventBusService(dsn=POSTGRES_DSN, channels=("coordinator_task",))
+    await bus.start()
+    await _wait_until_listening(bus)
+    stream = sse_event_generator([change_id], bus)
+    try:
+        initial = await asyncio.wait_for(stream.__anext__(), timeout=5)
+        initial_rows = json.loads(initial["data"])["work_queue"]
+        assert initial_rows[0]["status"] == "completed"
+
+        replay = await pg_work_queue.submit(
+            task_type="issue",
+            description="Autopilot phase VALIDATE",
+            priority=1,
+            projection_key=key,
+            projection_labels=labels,
+        )
+        assert replay.status == "pending"
+        refreshed = await asyncio.wait_for(stream.__anext__(), timeout=1)
+        refreshed_rows = json.loads(refreshed["data"])["work_queue"]
+        assert refreshed_rows[0]["status"] == "pending"
+    finally:
+        await stream.aclose()
+        await bus.stop()

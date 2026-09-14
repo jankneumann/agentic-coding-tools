@@ -209,6 +209,20 @@ def test_runner_apply_then_invalid_transition_escalates_and_can_project(
     ) == 0
     assert projected == [("ESCALATE", 7, "submit")]
 
+def test_runner_transition_after_done_is_idempotent(workspace: Path) -> None:
+    state_path = _seed_state(
+        workspace, "demo", current_phase="DONE", total_iterations=12
+    )
+    before = state_path.read_bytes()
+
+    result = _run_cli(
+        workspace, "transition", "--change-id", "demo", "--outcome", "complete"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert state_path.read_bytes() == before
+
+
 
 def test_runner_escalate_is_executable_after_apply_outcome_failure(
     workspace: Path,
@@ -339,3 +353,22 @@ def test_runner_gate_answer_rejects_an_unknown_gate_name(workspace: Path) -> Non
     )
 
     assert result.returncode != 0
+
+
+def test_runner_init_persists_host_options(workspace: Path) -> None:
+    result = _run_cli(
+        workspace,
+        "init",
+        "--change-id",
+        "demo-options",
+        "--force",
+        "--val-review",
+        "--no-review",
+    )
+
+    assert result.returncode == 0, result.stderr
+    state_path = workspace / "openspec/changes/demo-options/loop-state.json"
+    state = json.loads(state_path.read_text())
+    assert state["force"] is True
+    assert state["val_review_enabled"] is True
+    assert state["cli_review_enabled"] is False

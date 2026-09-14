@@ -150,8 +150,10 @@ while a gate is pending.
 Create state through the canonical writer. In coordinated mode, follow it with
 the submit call from the protocol above; if `init` fails, do not project.
 
+Append only the flags present in the Autopilot invocation; `init` persists them once, and an idempotent resume retains the original options.
+
 ```bash
-python3 "<skill-base-dir>/scripts/runner.py" init --change-id <change-id>
+python3 "<skill-base-dir>/scripts/runner.py" init --change-id <change-id> [--force] [--val-review] [--no-review]
 ```
 
 **Detect CLI mode** — check whether multi-vendor review is available:

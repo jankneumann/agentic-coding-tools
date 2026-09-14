@@ -61,6 +61,16 @@ def installed_target(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return target
 
 
+def test_ci_installs_runtime_mirrors_before_payload_check() -> None:
+    workflow = (SKILLS_ROOT.parent / ".github/workflows/ci.yml").read_text()
+    step = workflow.split("- name: Validate standalone skill install payload", 1)[1]
+    step = step.split("- name: Run infrastructure skill tests", 1)[0]
+    install = "bash install.sh --mode copy --force"
+    check = "bash install.sh --check"
+    assert install in step
+    assert step.index(install) < step.index(check)
+
+
 
 def test_check_detects_stale_installed_skill_payload(tmp_path: Path) -> None:
     target = tmp_path / "mirror-check"

@@ -26,6 +26,8 @@
 | R5-12-18 | both | advisory/positive | low | accepted | Positive verification and bounded observations are recorded in round-5 dispositions. |
 | R6-Codex-1,2 / Claude-1,2,3 | wp-projection-adapter | correctness/audit/contract | high-low | fixed | Added database-owned projection ownership, active-row preservation, HTTP 409 collision mapping, and restored round-5 dispositions. |
 | R6 remainder | both | advisory/positive | low | accepted | Schema-valid quorum and out-of-band raw evidence are recorded with finding-level dispositions. |
+| R7-Claude-1-5 | wp-projection-adapter | CI/correctness/operability | high-low | fixed | CI installs mirrors before checking, registry ownership ignores mutable labels, DONE replay is idempotent, init persists flags, and terminal reactivation refreshes SSE clients. |
+| R7 remainder | both | advisory/positive | low | accepted | Three protocol-valid reviews plus recovered schema-valid Antigravity evidence confirm the remaining recovery seams; the legacy unlabeled upgrade caveat is documented and fail-closed. |
 
 ## Coverage Summary
 

@@ -17,7 +17,7 @@
 - [x] 2.5 Bring `openspec/contracts/agent-coordinator/openapi/work-queue.yaml` up to revision 2 by declaring `projection_key`, `/work/reconcile`, and typed 403/409/422 problem responses used by the adapter.
 
 - [x] 2.6 Add migration `038_atomic_projection_labels.sql` so submit/reconcile applies canonical labels and clears owned stale labels while holding the per-change advisory transaction; exclude cancelled rows from implicit issue-list status selection as defense in depth, and declare the optional exact `projection_labels` request in the runtime/OpenAPI contract.
-- [x] 2.7 Add migration `039_projection_integrity_and_insert_events.sql` for first-insert refresh, replay repair, fail-closed unowned-row collisions through a durable ownership registry, active-row preservation, and owned terminal-row reactivation; add executable retry-idempotent ESCALATE recovery and flush auto `escalate_resume` before continuing.
+- [x] 2.7 Add migration `039_projection_integrity_and_insert_events.sql` for first-insert refresh, replay repair, fail-closed unowned-row collisions through a durable ownership registry, active-row preservation, owned terminal-row reactivation with connected-client refresh, and label-spoof resistance; add executable retry-idempotent ESCALATE recovery and flush auto `escalate_resume` before continuing.
 
 ## Phase 3 — Behavioral and crash recovery proof
 
