@@ -175,22 +175,22 @@ flagged in design D9 as the chained dispatcher work.
 
 ## 7. Per-vendor coverage
 
-- [ ] 7.1 Write tests for coverage rate, partial eligibility, unreported default, and skipped-reason fill (size: S)
+- [x] 7.1 Write tests for coverage rate, partial eligibility, unreported default, and skipped-reason fill (size: S)
   **Spec scenarios**: skill-workflow Per-Vendor Coverage Contract (all three scenarios), Review Manifest Generation (manifest carries selection and per-vendor quality fields)
   **Contracts**: `contracts/vendor-coverage.schema.json`
   **Design decisions**: D5
   **Dependencies**: 6.2, 6.4
   **Files**: `skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py`, `skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py`, `skills/tests/parallel-infrastructure/test_checkpoint_findings.py`
 
-- [ ] 7.2 Compute coverage in the dispatcher, honor partial eligibility in the synthesizer's quorum count, and write coverage fields to the manifest (size: L, flagged: three files in one chained package; splitting would separate the eligibility producer from its consumer and lose the round-trip test)
+- [x] 7.2 Compute coverage in the dispatcher, honor partial eligibility in the synthesizer's quorum count, and write coverage fields to the manifest (size: L, flagged: three files in one chained package; splitting would separate the eligibility producer from its consumer and lose the round-trip test)
   **Dependencies**: 7.1
   **Files**: `skills/parallel-infrastructure/scripts/review_dispatcher.py`, `skills/parallel-infrastructure/scripts/consensus_synthesizer.py`, `skills/parallel-infrastructure/scripts/checkpoint_findings.py`
 
-- [ ] 7.3 Add the coverage request to the schema-derived prompt contract block (size: XS)
+- [x] 7.3 Add the coverage request to the schema-derived prompt contract block (size: XS)
   **Dependencies**: 7.2
   **Files**: `skills/parallel-infrastructure/scripts/review_findings_schema.py`
 
-- [ ] Checkpoint: run coverage tests, review diff, verify scope
+- [x] Checkpoint: run coverage tests, review diff, verify scope
 
 ## 8. Fixture set
 

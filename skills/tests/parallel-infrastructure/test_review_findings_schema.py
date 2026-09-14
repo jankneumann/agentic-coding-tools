@@ -225,3 +225,13 @@ def test_prompt_contract_block_names_axis_and_severity():
     assert "axis" in block
     assert "severity" in block
     assert "criticality" in block
+
+
+def test_prompt_contract_block_requests_coverage_as_optional():
+    from review_findings_schema import prompt_contract_block
+
+    block = prompt_contract_block()
+    assert "coverage" in block
+    assert "OPTIONAL" in block
+    assert "reviewed" in block
+    assert "skipped" in block

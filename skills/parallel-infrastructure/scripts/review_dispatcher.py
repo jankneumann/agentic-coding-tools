@@ -186,6 +186,106 @@ def _extract_diff_from_prompt(prompt: str) -> str:
     return text
 
 
+_RULE_GROUPS_SECTION_RE = re.compile(r"### Rule groups\n(.*?)(?=\n### |\Z)", re.DOTALL)
+_APPLIES_TO_RE = re.compile(r"Applies to:\n((?:- .+\n?)+)")
+
+
+def _extract_selected_files_from_prompt(prompt: str) -> list[str] | None:
+    """Recover the packet's selected-file list from its rendered rule groups.
+
+    ``review_rules.group_files_by_rule`` resolves every selected file to
+    exactly one group (falling back to ``"(default)"``), and
+    ``review_packet._render_rule_groups`` lists each group's files under an
+    "Applies to:" bullet list — before any budget truncation runs — so this
+    recovers the same selected set :mod:`file_selection` produced, without
+    the dispatcher needing to import the packet-building path. Returns
+    ``None`` when the prompt carries no rule-groups section (a hand-authored
+    test prompt, or a packet format that predates this feature) or lists no
+    files, so coverage scoring is simply skipped — same posture as
+    ``_extract_diff_from_prompt``.
+    """
+    section_match = _RULE_GROUPS_SECTION_RE.search(prompt)
+    if not section_match:
+        return None
+    paths: list[str] = []
+    for block in _APPLIES_TO_RE.finditer(section_match.group(1)):
+        for line in block.group(1).splitlines():
+            line = line.strip()
+            if line.startswith("- "):
+                paths.append(line[2:])
+    return paths or None
+
+
+def _coverage_quorum_threshold(cwd: Path) -> float:
+    """Resolve the coverage-eligibility threshold for *cwd* (D5).
+
+    Reads the two-layer review-rules sidecar (project override over the
+    embedded default) via :mod:`review_rules`, degrading to its documented
+    default on any error — a missing or unreadable project file is already
+    handled inside ``review_rules.load_config``; this catches the case
+    where the module itself cannot be imported (a repo vendoring only this
+    file).
+    """
+    try:
+        import review_rules
+
+        return review_rules.load_config(cwd).coverage_quorum_threshold
+    except Exception:  # noqa: BLE001 — degrade to the documented default
+        return 0.8
+
+
+def _coerce_coverage_reasons(findings: dict[str, Any]) -> list[str]:
+    """Fill a missing ``reason`` on each ``coverage.skipped[]`` entry in place.
+
+    A vendor coverage block otherwise fails canonical-schema validation
+    entirely for one missing string (the schema requires ``path`` and
+    ``reason`` on every skipped entry) — the "Skipped file needs a reason"
+    scenario names this: coercion fills ``reason: unspecified`` instead of
+    losing the whole payload. Must run before ``_validate_findings_or_error``.
+    """
+    notes: list[str] = []
+    coverage = findings.get("coverage")
+    if not isinstance(coverage, dict):
+        return notes
+    skipped = coverage.get("skipped")
+    if not isinstance(skipped, list):
+        return notes
+    for entry in skipped:
+        if isinstance(entry, dict) and not entry.get("reason"):
+            entry["reason"] = "unspecified"
+            notes.append(f"coverage.skipped[{entry.get('path', '?')}].reason->unspecified")
+    return notes
+
+
+def _score_coverage(
+    findings: dict[str, Any],
+    selected_files: list[str] | None,
+    quorum_threshold: float,
+) -> tuple[float | None, str, str]:
+    """Score a vendor's optional ``coverage`` block against selected files (D5).
+
+    Returns ``(coverage_rate, coverage_eligibility, coverage_status)``.
+    Writes the computed rate back into ``findings["coverage"]["rate"]`` —
+    the canonical schema documents that field as dispatcher-computed. A
+    vendor that emits no ``coverage`` block, or whose ``coverage`` cannot be
+    scored because the selected-file list is unknown (the async-poll
+    dispatch path does not thread the prompt through — see
+    ``poll_for_result``), is full coverage, unreported: absent coverage
+    never penalizes a vendor.
+    """
+    coverage = findings.get("coverage")
+    if not isinstance(coverage, dict) or not selected_files:
+        return None, "full", "unreported"
+    selected = set(selected_files)
+    if not selected:
+        return None, "full", "unreported"
+    reviewed = {p for p in (coverage.get("reviewed") or []) if isinstance(p, str)}
+    rate = len(reviewed & selected) / len(selected)
+    coverage["rate"] = rate
+    eligibility = "partial" if rate < quorum_threshold else "full"
+    return rate, eligibility, "reported"
+
+
 def _validate_findings_or_error(
     findings: dict[str, Any] | None,
 ) -> tuple[dict[str, Any] | None, str | None]:
@@ -495,6 +595,15 @@ class ReviewResult:
     # run (no packet_diff available to _ingest_stdout) — see
     # _extract_diff_from_prompt and line_resolver.resolve_all.
     unanchored_findings: int = 0
+    # Per-vendor coverage scoring (add-deterministic-review-preprocessing,
+    # D5) — see _score_coverage. coverage_rate is None when the vendor
+    # reported no coverage block, or none could be scored (no selected-file
+    # list available); coverage_eligibility is "full" unless the rate fell
+    # below the contracted threshold; coverage_status is "unreported" unless
+    # a rate was actually computed.
+    coverage_rate: float | None = None
+    coverage_eligibility: str = "full"
+    coverage_status: str = "unreported"
 
 
 # ---------------------------------------------------------------------------
@@ -684,6 +793,8 @@ class CliVendorAdapter:
                         model_name=model_name,
                         models_attempted=models_attempted,
                         packet_diff=_extract_diff_from_prompt(prompt),
+                        selected_files=_extract_selected_files_from_prompt(prompt),
+                        coverage_quorum_threshold=_coverage_quorum_threshold(cwd),
                     )
                     if ingested.success or ingested.error_class in (
                         ErrorClass.AUTH, ErrorClass.UNAVAILABLE,
@@ -785,17 +896,23 @@ class CliVendorAdapter:
         models_attempted: list[str],
         enforce_empty_findings_grace: bool = True,
         packet_diff: str | None = None,
+        selected_files: list[str] | None = None,
+        coverage_quorum_threshold: float = 0.8,
     ) -> ReviewResult:
-        """Parse, coerce, validate, stamp, and line-resolve one vendor stdout blob.
+        """Parse, coerce, validate, stamp, line-resolve, and coverage-score
+        one vendor stdout blob.
 
         ``packet_diff`` is the raw diff text the reviewer was shown (see
         ``_extract_diff_from_prompt``). When supplied and non-empty, every
         validated finding runs through ``line_resolver.resolve_all`` so a
         vendor-supplied ``existing_code`` snippet gets a ``line_range``
-        without a model call. When absent (the async-poll path today does
-        not thread the prompt through), resolution is simply skipped —
-        findings are returned exactly as validated, same as before this
-        parameter existed.
+        without a model call. ``selected_files`` is the packet's selected
+        paths (see ``_extract_selected_files_from_prompt``), used to score
+        an optional ``coverage`` block via ``_score_coverage``. Both are
+        ``None`` on the async-poll path today (it does not thread the
+        prompt through) — resolution and coverage scoring are simply
+        skipped, findings are returned exactly as validated, same as before
+        either parameter existed.
         """
         from review_findings_schema import (
             coerce_findings_payload,
@@ -809,10 +926,15 @@ class CliVendorAdapter:
         coercions: list[str] = []
         unanchored_findings = 0
         if findings is not None:
-            findings, coercions = coerce_findings_payload(findings)
+            coverage_notes = _coerce_coverage_reasons(findings)
+            findings, generic_notes = coerce_findings_payload(findings)
+            coercions = coverage_notes + generic_notes
             findings, schema_error = _validate_findings_or_error(findings)
             if findings is not None:
                 findings = stamp_judgment_ingest(findings)
+                coverage_rate, coverage_eligibility, coverage_status = _score_coverage(
+                    findings, selected_files, coverage_quorum_threshold,
+                )
                 if packet_diff:
                     resolved, unanchored_findings = line_resolver.resolve_all(
                         findings.get("findings", []), packet_diff,
@@ -858,6 +980,9 @@ class CliVendorAdapter:
                     raw_stderr=stderr or None,
                     coercions=coercions,
                     unanchored_findings=unanchored_findings,
+                    coverage_rate=coverage_rate,
+                    coverage_eligibility=coverage_eligibility,
+                    coverage_status=coverage_status,
                 )
             zero_exit_class = classify_error(raw)
             if zero_exit_class in (ErrorClass.AUTH, ErrorClass.UNAVAILABLE, ErrorClass.CAPACITY):
@@ -2815,11 +2940,16 @@ def main() -> int:
                 review_type=args.review_type,
                 target="cli-dispatch",
                 findings=findings_array,
+                coverage=result.findings.get("coverage"),
             )
             vendors_index.append({
                 "name": result.vendor,
                 "findings_path": f"findings-{result.vendor}-{args.review_type}.json",
                 "finding_count": len(findings_array),
+                "unanchored_findings": result.unanchored_findings,
+                "coverage_rate": result.coverage_rate,
+                "coverage_eligibility": result.coverage_eligibility,
+                "coverage": result.coverage_status,
             })
             print(f"[OK] {result.vendor}: {len(findings_array)} findings"
                   f" (model: {result.model_used}, {result.elapsed_seconds:.1f}s)")
