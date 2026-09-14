@@ -154,10 +154,12 @@ jobs:
             tests/archive-roadmap \
             tests/autopilot \
             tests/autopilot-roadmap \
+            tests/candidate-work \
             tests/coordinator-task-status-renderer \
             tests/docs \
             tests/githooks \
             tests/integration \
+            tests/improve-harness \
             tests/iterate-on-plan \
             tests/langfuse \
             tests/phase-record-compaction \

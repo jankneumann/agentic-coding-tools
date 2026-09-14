@@ -11,7 +11,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
       **Contracts**: `contracts/README.md`, canonical candidate-work schema
       **Dependencies**: None
 - [ ] 0.2 Test and implement the shared candidate-work validator, canonical batch
-      serializer, duplicate guard, and atomic writer; retain the ri-11 CLI wrapper;
+      serializer, immutable-ID helper, lifecycle resolver, duplicate guard, and atomic writer; retain the ri-11 CLI wrapper;
       declare every new shared-runtime consumer in `skills/install-manifest.json` — **S**
       **Spec scenarios**: sw *Candidate batch validation fails*, *Candidate sidecar is deterministic and complete*, *Explicit sidecar destination collides*
       **Design decisions**: D1, D2
@@ -95,7 +95,7 @@ or XL. Capability abbreviations: `sw` = skill-workflow, `ro` = roadmap-orchestra
       unrelated generated diff — **S**
       **Design decisions**: D1-D6
       **Dependencies**: 4.1
-- [ ] 4.3 Run focused suites, full skills suite, ruff, package validation, and strict
-      OpenSpec validation; append implementation/validation records; commit and push — **S**
+- [ ] 4.3 Run focused suites, the canonical default plus isolated skills suites, ruff,
+      CI coverage, package validation, and strict OpenSpec validation; append implementation/validation records; commit and push — **S**
       **Dependencies**: 4.2
 - [ ] Checkpoint: all gates green; diff maps only to ri-12; branch is pushed
