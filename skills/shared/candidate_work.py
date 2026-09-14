@@ -47,9 +47,14 @@ def normalize_source_identity(generator: str, source_id: str) -> str:
         raise ValueError(f"unsupported candidate-work generator: {generator!r}")
     if not isinstance(source_id, str):
         raise TypeError("source_id must be a string")
-    if generator == "improve-harness":
-        return " ".join(source_id.split()).lower()
-    return source_id
+    normalized = (
+        " ".join(source_id.split()).lower()
+        if generator == "improve-harness"
+        else source_id
+    )
+    if not normalized.strip():
+        raise ValueError("source_id must not be blank")
+    return normalized
 
 
 def _ascii_slug(value: str) -> str:
