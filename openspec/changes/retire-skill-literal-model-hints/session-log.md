@@ -64,3 +64,43 @@ Planned Phase 2 after consolidate-model-tier-sources. Gate 1 selected Approach A
 ### Context
 Gate 2 approved Approach A plan. Coordinator task seeding attempted. Ready for /implement-feature.
 
+---
+
+## Phase: Implementation (2026-09-14)
+
+**Agent**: grok | **Session**: N/A
+
+### Decisions
+1. **Harden guard in place (D3)** `architectural: agent-archetypes` — Ban all string-literal model= in fenced Task/Agent and CLI -m; keep model=<var> valid. Removed VALID_MODELS allowlist.
+2. **Dual economy resolve for cite-requirements (D2)** `architectural: skill-workflow` — Resolve economy tier for claude_code and codex via resolve_tier_for_provider; labels are observed placeholders not policy pins.
+3. **context_impact surfaces documentation + semantic_code** `architectural: skill-workflow` — SKILL.md/markdown implies documentation; guard .py implies semantic_code. Spurious rationale keys removed.
+
+### Alternatives Considered
+- Native archetype= harness params (Approach B): rejected because Deferred — harnesses still require model ids without resolution support
+- Separate anti-literal scanner + allowlist file: rejected because Rejected as extra machinery; harden test_skill_model_hints in place
+
+### Trade-offs
+- Accepted Keep AUTOPILOT_PHASE_MODEL_OVERRIDE example with harness model ids over Remove override example entirely because D4 escape-hatch exception — labeled non-default bypass of YAML selection
+
+### Open Questions
+- [ ] Should validate-feature evidence phase attach pass SHAs for each RTM row?
+
+### Completed Work
+- WP1: CI guard bans literals; variables OK; 27 pytest passed
+- WP2: cite-requirements, plan-roadmap, lifecycle comments, autopilot escape hatch
+- WP3: openspec validate --strict green; tasks.md all checked
+- Context checkpoint wp-main.json status=declared
+
+### Next Steps
+- validate-feature --phase spec,evidence
+- PR review / cleanup-feature after approval
+
+### Relevant Files
+- `skills/validate-packages/scripts/tests/test_skill_model_hints.py` — Hardened CI guard
+- `skills/cite-requirements/SKILL.md` — Dual economy-tier resolve
+- `skills/plan-roadmap/SKILL.md` — Narrative tier vocabulary
+- `skills/autopilot/SKILL.md` — Escape-hatch labeling
+
+### Context
+Implemented Approach A: hardened test_skill_model_hints to ban string-literal model= / Agent model= / CLI -m pins (27 tests green, 0 FP on lifecycle resolve patterns); rewrote cite-requirements dual economy-tier resolve, plan-roadmap narrative defaults, lifecycle illustrative comments, and labeled AUTOPILOT override as escape hatch.
+
