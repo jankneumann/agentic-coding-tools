@@ -316,7 +316,13 @@ def load_candidate_work_files(
     active_schema = schema if schema is not None else load_schema()
     merged: list[dict[str, Any]] = []
     for path in paths:
-        loaded = load_candidate_work(Path(path), schema=active_schema)
+        try:
+            loaded = load_candidate_work(Path(path), schema=active_schema)
+        except CandidateWorkValidationError as exc:
+            local_index = exc.index if exc.index is not None else 0
+            raise CandidateWorkValidationError(
+                exc.errors, index=len(merged) + local_index
+            ) from exc
         merged.extend(loaded if isinstance(loaded, list) else [loaded])
     _reject_duplicate_ids(merged)
     return merged

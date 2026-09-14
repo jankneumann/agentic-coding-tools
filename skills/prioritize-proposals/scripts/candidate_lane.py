@@ -328,7 +328,8 @@ def escape_inert_text(value: object) -> str:
     escaped: list[str] = []
     for character in str(value):
         codepoint = ord(character)
-        if unicodedata.category(character).startswith("C"):
+        category = unicodedata.category(character)
+        if category.startswith("C") or category in {"Zl", "Zp"}:
             width = 4 if codepoint <= 0xFFFF else 8
             prefix = "u" if width == 4 else "U"
             escaped.append(f"\\{prefix}{codepoint:0{width}x}")
