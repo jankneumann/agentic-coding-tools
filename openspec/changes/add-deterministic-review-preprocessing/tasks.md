@@ -152,26 +152,26 @@ flagged in design D9 as the chained dispatcher work.
 
 ## 6. Matching and ledger on snippets
 
-- [ ] 6.1 Write tests for the snippet-equality match band and axis gate precedence (size: S)
+- [x] 6.1 Write tests for the snippet-equality match band and axis gate precedence (size: S)
   **Spec scenarios**: skill-workflow Cross-Vendor Finding Matching (equal snippets match despite drifted lines)
   **Design decisions**: D3
   **Dependencies**: 5.6
   **Files**: `skills/parallel-infrastructure/scripts/tests/test_consensus_synthesizer.py`
 
-- [ ] 6.2 Add the snippet band to `match_score` (size: XS)
+- [x] 6.2 Add the snippet band to `match_score` (size: XS)
   **Dependencies**: 6.1
   **Files**: `skills/parallel-infrastructure/scripts/consensus_synthesizer.py`
 
-- [ ] 6.3 Write tests for snippet fingerprint stability, token fallback, and compact by snippet presence (size: S)
+- [x] 6.3 Write tests for snippet fingerprint stability, token fallback, and compact by snippet presence (size: S)
   **Spec scenarios**: skill-workflow Gate-Time Review Ledger (snippet fingerprint is stable across rewording), Compact Before New Hunt (snippet presence decides for anchored items)
   **Dependencies**: 5.6
   **Files**: `skills/tests/parallel-infrastructure/test_review_ledger.py`
 
-- [ ] 6.4 Update `fingerprint` and `compact` in `review_ledger.py` (size: S)
+- [x] 6.4 Update `fingerprint` and `compact` in `review_ledger.py` (size: S)
   **Dependencies**: 6.3
   **Files**: `skills/parallel-infrastructure/scripts/review_ledger.py`
 
-- [ ] Checkpoint: run synthesizer and ledger tests, review diff, verify scope
+- [x] Checkpoint: run synthesizer and ledger tests, review diff, verify scope
 
 ## 7. Per-vendor coverage
 
