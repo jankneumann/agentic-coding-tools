@@ -54,6 +54,15 @@ def test_projects_only_untracked_and_scores_priority_and_dependencies() -> None:
     assert candidate["provenance"]["finding_ids"] == ["opportunity-immutable-7"]
 
 
+def test_real_opportunities_shape_uses_items_and_change_id_hint() -> None:
+    candidate = project_candidate_work(
+        {"items": [_opportunity(change_id_hint="Fix Trace UI")]},
+        "docs/feature-discovery/opportunities.json",
+    )[0]
+
+    assert candidate["suggested_change_id"] == "update-trace-ui"
+
+
 def test_id_survives_title_score_and_provenance_path_changes() -> None:
     first = project_candidate_work([_opportunity()], "first.json")[0]
     changed = project_candidate_work(
