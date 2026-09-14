@@ -5,11 +5,17 @@ Provides save/restore/advance operations with idempotent resume semantics.
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
+import hashlib
 import json
 import logging
+import os
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+from collections.abc import Iterator
 from typing import Any
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -28,6 +34,22 @@ from models import (  # type: ignore[import-untyped]
 )
 
 logger = logging.getLogger(__name__)
+
+
+@contextlib.contextmanager
+def workspace_state_lock(workspace: Path) -> Iterator[None]:
+    """Serialize short checkpoint read-modify-write sections per workspace."""
+    identity = hashlib.sha256(str(workspace.resolve()).encode()).hexdigest()
+    lock_dir = Path(tempfile.gettempdir()) / "roadmap-checkpoint-locks"
+    lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    descriptor = os.open(lock_dir / f"{identity}.lock", os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        with contextlib.suppress(OSError):
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
 
 
 class CheckpointManager:
@@ -53,6 +75,18 @@ class CheckpointManager:
             checkpoint.current_item_id,
             checkpoint.phase.value,
         )
+
+    @contextlib.contextmanager
+    def transaction(self) -> Iterator[Checkpoint]:
+        """Yield a freshly loaded checkpoint and atomically persist its mutation.
+
+        The lock only covers local checkpoint I/O and caller mutation; callers
+        must finish network or callback work before entering this context.
+        """
+        with workspace_state_lock(self.workspace):
+            checkpoint = self.load()
+            yield checkpoint
+            self.save(checkpoint)
 
     def create(self, roadmap: Roadmap) -> Checkpoint:
         """Create initial checkpoint for a roadmap."""
