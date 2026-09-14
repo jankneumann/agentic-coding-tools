@@ -32,13 +32,15 @@ def _normalized_text(value: object) -> str:
 
 
 def _normalized_path(value: object) -> str:
+    if value is None:
+        return ""
     return str(value).replace("\\", "/")
 
 
 def _source_key(finding: Finding) -> str:
-    """Retain stable collector identity while stripping known ordinals."""
+    """Retain exact stable collector identity while stripping known ordinals."""
     source = _normalized_text(finding.source).lower()
-    key = _normalized_text(finding.id)
+    key = str(finding.id)
     if source in {"ruff", "mypy", "markers"}:
         return re.sub(r":\d+$", "", key)
     if source == "architecture" or source.startswith("deferred:"):
@@ -50,22 +52,22 @@ def _source_key(finding: Finding) -> str:
 
 def _detail_and_line(finding: Finding) -> tuple[str, int | None]:
     """Normalize detail and remove only an exact full-path numeric prefix."""
-    detail = str(finding.detail).replace("\\", "/")
+    raw_detail = str(finding.detail)
+    trimmed = raw_detail.lstrip()
     path = _normalized_path(finding.file_path)
     if path:
-        match = re.fullmatch(
-            rf"{re.escape(path)}:(\d+):(.*)", detail, flags=re.DOTALL
-        )
+        comparison = trimmed.replace("\\", "/")
+        match = re.match(rf"{re.escape(path)}:(\d+):", comparison)
         if match is not None:
-            return _normalized_text(match.group(2)), int(match.group(1))
-    return _normalized_text(detail), None
+            return _normalized_text(trimmed[match.end() :]), int(match.group(1))
+    return _normalized_text(raw_detail), None
 
 
 def _semantic_detail(finding: Finding) -> str:
     return _detail_and_line(finding)[0]
 
 
-def _source_position(finding: Finding) -> tuple[bool, int, str, str, str]:
+def _source_position(finding: Finding) -> tuple[bool, int, str, str]:
     detail_line = _detail_and_line(finding)[1]
     explicit_line = (
         finding.line
@@ -73,17 +75,14 @@ def _source_position(finding: Finding) -> tuple[bool, int, str, str, str]:
         else None
     )
     line = explicit_line if explicit_line is not None else detail_line
-    origin_path = ""
     origin_task = ""
     if finding.origin is not None:
-        origin_path = _normalized_path(finding.origin.artifact_path)
         origin_task = _normalized_text(finding.origin.task_number or "")
     return (
         line is None,
         line if line is not None else 0,
-        origin_path,
         origin_task,
-        _normalized_text(finding.id),
+        str(finding.id),
     )
 
 
@@ -92,7 +91,8 @@ def _base_semantic_identity(finding: Finding) -> dict[str, str]:
     origin_change_id = ""
     origin_artifact_path = ""
     if finding.origin is not None:
-        origin_change_id = _normalized_text(finding.origin.change_id)
+        if finding.origin.change_id is not None:
+            origin_change_id = _normalized_text(finding.origin.change_id)
         origin_artifact_path = _normalized_path(finding.origin.artifact_path)
     return {
         "category": _normalized_text(finding.category).lower(),
