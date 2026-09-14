@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-14T05:02:46.259783+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "local durable fallback requested for finalization",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "ri-12 validation completed with converged multi-vendor evidence and all canonical repository gates green; only the existing main-branch autopilot failures tracked by GitHub issue 440 remain outside this change.",
+    "completed_work": [
+      "Configured default skills suite: 4741 passed, 13 skipped.",
+      "Affected isolated suites: bug-scrub 266, improve-harness 46, explore-feature 70, shared 70 passed/1 skipped, candidate-work 15, plan-roadmap 160, prioritize-proposals 77.",
+      "Strict OpenSpec validation: 92 passed; work-package schema, dependency DAG, locks, scopes, and overlap all passed.",
+      "Canonical Ruff, dependency-direction validation, skill mirror regeneration, and install.sh --check passed.",
+      "Seven all-configured-harness review attempts were recorded; final confirmation returned zero Codex findings and only a resolved test typing nit from Claude."
+    ],
+    "in_progress": [],
+    "decisions": [],
+    "next_steps": [
+      "Push and merge ri-12, archive the completed OpenSpec change, then resume supervisor roadmap recovery at ri-09."
+    ],
+    "relevant_files": [
+      {
+        "path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/tasks.md",
+        "description": "completed implementation ledger"
+      },
+      {
+        "path": "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/session-log.md",
+        "description": "durable phase evidence"
+      }
+    ]
+  }
+}

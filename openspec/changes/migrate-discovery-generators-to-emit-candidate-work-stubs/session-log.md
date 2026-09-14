@@ -236,3 +236,52 @@ Applied the operator-approved immutable source-identity basis for all derived ca
 ### Context
 Closed the terminal all-harness plan gate with operator adjudication. Revision 8 defines deterministic multi-sidecar merge, producer-specific destinations, shared lifecycle-aware dependency resolution, and immutable-source-derived IDs, and repairs confirmed scenario coverage.
 
+---
+
+## Phase: Implementation (2026-09-14)
+
+**Agent**: codex | **Session**: N/A
+
+### Capability Gaps Observed
+- **review_adapter_contract**: Antigravity output flags remain incompatible; Pi can emit schema-invalid findings and write into the review workspace; Grok may exhaust the per-vendor timeout. (skill: parallel-review-implementation, severity: high)
+- **sandbox_bootstrap**: Native apply_patch and sandboxed commands failed at bubblewrap loopback initialization, requiring narrow exact-file fallbacks and escalated command execution. (skill: test-driven-development, severity: high)
+
+### Completed Work
+- Implemented shared schema validation, canonical persistence, immutable identity, lifecycle collection, dependency resolution, and atomic collision guards.
+- Integrated bug-scrub, improve-harness, and explore-feature sidecars with repeatable prioritize-proposals intake and transaction-safe plan-roadmap mapping.
+- Closed all confirmed multi-vendor findings through seven bounded implementation-review rounds; final Codex review returned zero findings and Claude confirmed the remaining design with one test-only typing nit fixed.
+- Preserved rejected raw vendor outputs in ignored per-round caches and restored unintended reviewer writes to tracked findings.json.
+
+### Next Steps
+- Run and record final validation gates, push the branch, merge the approved pull request, and reconcile supervisor roadmap ri-12.
+
+### Relevant Files
+- `skills/shared/candidate_work.py` — shared candidate-work runtime
+- `skills/tests/candidate-work/test_cross_skill_integration.py` — producer-to-ranking-to-roadmap integration
+
+### Context
+Implemented ri-12 candidate-work sidecars, deterministic multi-producer ranking, lifecycle-aware roadmap intake, and the review-driven stability and failure-boundary hardening needed for convergence.
+
+---
+
+## Phase: Validation (2026-09-14)
+
+**Agent**: codex | **Session**: N/A
+
+### Completed Work
+- Configured default skills suite: 4741 passed, 13 skipped.
+- Affected isolated suites: bug-scrub 266, improve-harness 46, explore-feature 70, shared 70 passed/1 skipped, candidate-work 15, plan-roadmap 160, prioritize-proposals 77.
+- Strict OpenSpec validation: 92 passed; work-package schema, dependency DAG, locks, scopes, and overlap all passed.
+- Canonical Ruff, dependency-direction validation, skill mirror regeneration, and install.sh --check passed.
+- Seven all-configured-harness review attempts were recorded; final confirmation returned zero Codex findings and only a resolved test typing nit from Claude.
+
+### Next Steps
+- Push and merge ri-12, archive the completed OpenSpec change, then resume supervisor roadmap recovery at ri-09.
+
+### Relevant Files
+- `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/tasks.md` — completed implementation ledger
+- `openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/session-log.md` — durable phase evidence
+
+### Context
+ri-12 validation completed with converged multi-vendor evidence and all canonical repository gates green; only the existing main-branch autopilot failures tracked by GitHub issue 440 remain outside this change.
+
