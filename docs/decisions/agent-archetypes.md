@@ -18,6 +18,17 @@
 
 ## 2026-09-14 — retire-skill-literal-model-hints
 
+### Phase: Implementation
+
+**Harden guard in place (D3)** — Ban all string-literal model= in fenced Task/Agent and CLI -m; keep model=<var> valid. Removed VALID_MODELS allowlist.
+
+- Status: `active`
+- Source: [openspec/changes/retire-skill-literal-model-hints/session-log.md](/openspec/changes/retire-skill-literal-model-hints/session-log.md) (D1)
+
+---
+
+## 2026-09-14 — retire-skill-literal-model-hints
+
 ### Phase: Plan
 
 **Stay off archetypes.yaml / adaptive router** — Coexist with concurrent roster and routing proposals.

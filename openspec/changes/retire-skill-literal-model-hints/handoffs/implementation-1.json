@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-14T02:09:48.362963+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "grok",
+    "session_id": null,
+    "summary": "Implemented Approach A: hardened test_skill_model_hints to ban string-literal model= / Agent model= / CLI -m pins (27 tests green, 0 FP on lifecycle resolve patterns); rewrote cite-requirements dual economy-tier resolve, plan-roadmap narrative defaults, lifecycle illustrative comments, and labeled AUTOPILOT override as escape hatch.",
+    "completed_work": [
+      "WP1: CI guard bans literals; variables OK; 27 pytest passed",
+      "WP2: cite-requirements, plan-roadmap, lifecycle comments, autopilot escape hatch",
+      "WP3: openspec validate --strict green; tasks.md all checked",
+      "Context checkpoint wp-main.json status=declared"
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Harden guard in place (D3)",
+        "rationale": "Ban all string-literal model= in fenced Task/Agent and CLI -m; keep model=<var> valid. Removed VALID_MODELS allowlist.",
+        "capability": "agent-archetypes",
+        "supersedes": null
+      },
+      {
+        "title": "Dual economy resolve for cite-requirements (D2)",
+        "rationale": "Resolve economy tier for claude_code and codex via resolve_tier_for_provider; labels are observed placeholders not policy pins.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      },
+      {
+        "title": "context_impact surfaces documentation + semantic_code",
+        "rationale": "SKILL.md/markdown implies documentation; guard .py implies semantic_code. Spurious rationale keys removed.",
+        "capability": "skill-workflow",
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "validate-feature --phase spec,evidence",
+      "PR review / cleanup-feature after approval"
+    ],
+    "relevant_files": [
+      {
+        "path": "skills/validate-packages/scripts/tests/test_skill_model_hints.py",
+        "description": "Hardened CI guard"
+      },
+      {
+        "path": "skills/cite-requirements/SKILL.md",
+        "description": "Dual economy-tier resolve"
+      },
+      {
+        "path": "skills/plan-roadmap/SKILL.md",
+        "description": "Narrative tier vocabulary"
+      },
+      {
+        "path": "skills/autopilot/SKILL.md",
+        "description": "Escape-hatch labeling"
+      }
+    ]
+  }
+}
