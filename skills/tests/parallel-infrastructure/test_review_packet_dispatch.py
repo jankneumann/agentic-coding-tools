@@ -30,7 +30,7 @@ from review_dispatcher import (  # noqa: E402
 from review_findings_schema import prompt_contract, prompt_contract_block  # noqa: E402
 from review_packet import build_review_packet  # noqa: E402
 
-CONTRACTS = change_dir(REPO_ROOT, "pack-and-parallelize-vendor-review") / "contracts"
+CONTRACTS = change_dir(REPO_ROOT, "add-deterministic-review-preprocessing") / "contracts"
 PACKET_SCHEMA = json.loads((CONTRACTS / "review-packet.schema.json").read_text())
 
 SPEC_TOKEN = "PACKET_PLUS_CONCURRENCY_SPEC_TOKEN"
