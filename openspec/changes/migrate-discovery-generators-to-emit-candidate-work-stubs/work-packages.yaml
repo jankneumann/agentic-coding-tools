@@ -48,7 +48,7 @@ packages:
       read_allow: ["**"]
       deny: ["**/.venv/**"]
     context_impact:
-      surfaces: ["apis", "documentation"]
+      surfaces: ["apis", "documentation", "semantic_code"]
     worktree: {name: contracts, mode: isolated}
     timeout_minutes: 60
     retry_budget: 1
@@ -203,7 +203,7 @@ packages:
       read_allow: ["**"]
       deny: ["**/.venv/**", "openspec/roadmaps/**"]
     context_impact:
-      surfaces: ["documentation", "capabilities"]
+      surfaces: ["apis", "documentation", "capabilities", "semantic_code"]
     worktree: {name: integration, mode: shared}
     timeout_minutes: 120
     retry_budget: 2
