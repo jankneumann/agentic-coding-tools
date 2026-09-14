@@ -53,3 +53,27 @@ New `escalate_resume` records SHALL carry the parked positive integer `lease_gen
 - **WHEN** an operator answers `escalate_resume` with only a dispatch ID
 - **THEN** the router SHALL select the newest blocked generation
 - **AND** an optional explicit generation SHALL select only that blocked generation
+
+#### Scenario: Authoritative decision repairs a failed mirror projection
+
+- **WHEN** a blocked escalation decision commits but its post-commit mirror projection fails
+- **THEN** the checkpoint ledger SHALL remain authoritative and durable
+- **AND** rehydrate SHALL idempotently rebuild the normalized pending gate from that ledger before exposing pending gates to an operator
+
+#### Scenario: Proceed clears the prior generation journal atomically
+
+- **WHEN** an `escalate_resume` proceed authorizes a parked generation G
+- **THEN** the same shared checkpoint transaction SHALL record the decision, clear generation-G terminal fields including `application_journal`, and create the prepared G+1 continuation
+- **AND** the resumed attempt SHALL be included in the current unapplied apply cohort
+
+## MODIFIED Requirements
+
+### Requirement: Supervise Gate Routing
+
+For `escalate_resume`, the prior-record subject and resume authorization SHALL include the parked `lease_generation` in addition to the existing gate, roadmap, and dispatch correlation. A generationless legacy record SHALL be reusable for the matching current parked dispatch only; later generations SHALL require a new decision. Other gates retain the existing subject identity.
+
+#### Scenario: Resume rejects a generation-blind stale reference
+
+- **WHEN** a dispatch has later parked after a prior-generation `escalate_resume` proceed
+- **THEN** `require_approval_ref` SHALL reject that prior reference for the later parked generation
+- **AND** a matching legacy generationless record SHALL be reused without duplicate filing

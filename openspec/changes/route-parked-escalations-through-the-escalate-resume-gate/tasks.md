@@ -53,5 +53,5 @@
 - [ ] 4.2 (S) Run Ruff, strict change/repository OpenSpec validation, work-package/DAG validation, and context-drift validation.
   **Dependencies**: 4.1
 
-- [ ] 4.3 (M) Run fresh vendor-diverse plan review, address confirmed findings, and record dispositions before implementation begins.
+- [ ] 4.3 (M) Run vendor-diverse implementation review, address confirmed findings, and record dispositions before opening the PR.
   **Dependencies**: 4.2

@@ -22,3 +22,9 @@ A delegated batch apply SHALL require results for exactly the persisted attempts
 - **WHEN** the required cohort contains a resumed member
 - **THEN** a supplied already-applied peer result or a pre-resume result SHALL be rejected before callback
 - **AND** a terminal-persisted member that is not yet `effects_applied` SHALL remain required for recovery
+
+#### Scenario: Multiple resumed members form the exact current cohort
+
+- **WHEN** two members of an original batch are resumed at G+1 and every other peer is already `effects_applied`
+- **THEN** apply SHALL require exactly both current resumed results, regardless of submission order
+- **AND** it SHALL reject a missing resumed result or any historical peer result before callback
