@@ -276,6 +276,15 @@ def test_markdown_rendering_keeps_candidate_text_inert() -> None:
     assert "\\*\\*bold\\*\\*" in rendered
 
 
+def test_markdown_change_id_code_span_has_no_literal_backslash_escapes() -> None:
+    candidate = _candidate("update-auth-token-refresh")
+
+    rendered = render_candidate_markdown(rank_candidate_work([candidate]))
+
+    assert "- **Change ID**: `update-auth-token-refresh`" in rendered
+    assert "`update\\-auth\\-token\\-refresh`" not in rendered
+
+
 def test_cli_accepts_repeatable_candidate_work_and_keeps_lane_distinct(
     tmp_path: Path,
 ) -> None:
