@@ -3691,9 +3691,43 @@
       ]
     },
     {
-      "name": "public.notify_projection_insert",
+      "name": "public.enforce_projection_label_ownership",
       "file": "039_projection_integrity_and_insert_events.sql",
       "line": 336,
+      "language": "plpgsql",
+      "parameters": [],
+      "return_type": "trigger",
+      "referenced_tables": [
+        "public.work_queue_projection_ownership"
+      ]
+    },
+    {
+      "name": "public.mutate_issue_if_unowned",
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 357,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_ISSUE_ID UUID"
+        },
+        {
+          "name": "",
+          "type": "P_PATCH JSONB"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.jsonb_array_elements_text",
+        "public.v_issue",
+        "public.work_queue",
+        "public.work_queue_projection_ownership"
+      ]
+    },
+    {
+      "name": "public.notify_projection_insert",
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 403,
       "language": "plpgsql",
       "parameters": [],
       "return_type": "trigger",
@@ -3763,6 +3797,13 @@
       "event": "UPDATE",
       "timing": "AFTER",
       "function": "public.notify_work_queue_change"
+    },
+    {
+      "name": "trg_work_queue_projection_label_ownership",
+      "table": "public.work_queue",
+      "event": "INSERT|UPDATE",
+      "timing": "BEFORE",
+      "function": "public.enforce_projection_label_ownership"
     },
     {
       "name": "trg_work_queue_projection_insert_notify",
