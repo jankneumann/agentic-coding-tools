@@ -254,7 +254,7 @@ openspec status --change "<change-id>"
 ##### Archetype Resolution (Phase 2)
 
 Before dispatching implementation agents, resolve the archetype model. This enables
-complexity-based escalation from Sonnet to Opus for large work packages:
+complexity-based escalation from standard to frontier/premium tier for large work packages:
 
 ```python
 import sys
