@@ -164,7 +164,7 @@ Recovered ri-12 on current main and resolved substantive multi-vendor findings. 
 - Accepted Explicit satisfied-archive rationale without a live edge over Keeping an unresolvable execution edge because Completed work should remain auditable without blocking execution.
 
 ### Open Questions
-- [ ] Should derived IDs hash a minimal immutable producer identity tuple (recommended), require every producer to supply an explicit stable ID, or retain whole-provenance hashing despite drift?
+- [x] Derived IDs hash the operator-approved minimal immutable producer identity tuple; the decision is recorded in Plan Iteration 4.
 
 ### Completed Work
 - Resolved the confirmed dependency contract contradiction.
@@ -201,4 +201,38 @@ Resolved all confirmed revision-5 review findings and made dependency conversion
 
 ### Context
 Applied the operator-approved immutable source-identity basis for all derived candidate IDs. Revision 7 now excludes volatile provenance, pins exact serialization, keeps explicit hints unsuffixed, and fails duplicate final IDs before replacement.
+
+---
+
+## Phase: Plan Iteration 5 (2026-09-14)
+
+**Agent**: codex | **Session**: N/A
+
+### Decisions
+1. **Merge repeatable candidate-work inputs** — The integration flow must consume all producer sidecars without hand concatenation.
+2. **Protect producer-specific sidecars** — Defaults cannot erase another producer batch and explicit cross-generator collisions must fail unchanged.
+3. **Resolve dependencies by lifecycle identity** — Ranking and intake must agree when terminal artifacts and live records share a change ID.
+4. **Derive the complete ID from immutable source identity** — A stable hash is insufficient if a mutable title still controls the readable base.
+
+### Alternatives Considered
+- Keep a single candidate-work path: rejected because three producer outputs would still require a hand-edited intermediate batch
+- Use source-registry lookup precedence: rejected because the same lifecycle lineage legitimately appears in more than one registry
+
+### Trade-offs
+- Accepted less title-readable derived IDs over mutable title-based slugs because identity stability is an externally observable contract
+
+### Capability Gaps Observed
+- **review_adapter_schema**: Antigravity output flags and Pi finding-ID repair prevented two configured harness results from validating. (skill: parallel-review-plan, severity: medium)
+
+### Completed Work
+- Attempted all five configured harnesses and reached 3/5 substantive quorum.
+- Applied all four operator-approved high-impact decisions.
+- Added cross-producer deterministic, atomic, collision, merge, and refine-roadmap verification coverage.
+- Advanced the approved implementation plan to revision 8.
+
+### Next Steps
+- Implement the five-package ri-12 DAG tests-first, then run implementation review and validation.
+
+### Context
+Closed the terminal all-harness plan gate with operator adjudication. Revision 8 defines deterministic multi-sidecar merge, producer-specific destinations, shared lifecycle-aware dependency resolution, and immutable-source-derived IDs, and repairs confirmed scenario coverage.
 

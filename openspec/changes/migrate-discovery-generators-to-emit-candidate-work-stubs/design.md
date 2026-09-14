@@ -14,17 +14,22 @@ adds the conversational approval surface later.
 
 Each producer keeps its current output and projects eligible entries into a JSON
 array of candidate-work stubs. JSON serialization is byte-stable (`indent=2`,
-`sort_keys=True`, trailing newline). The default sidecar is adjacent to the rich
-artifact; an explicit output path may override it.
+`sort_keys=True`, trailing newline). Default sidecars are producer-specific and
+adjacent to the rich artifact: `bug-scrub-candidate-work.json`,
+`improve-harness-candidate-work.json`, and `explore-feature-candidate-work.json`. An
+explicit output path may override the default, but replacement fails if an existing
+valid non-empty batch at that path contains another generator.
 
 ### D2 — Validate before atomic persistence
 
 skills/shared/candidate_work.py owns schema discovery, single/batch validation,
 canonical JSON bytes, and atomic replacement. The existing ri-11 validator remains a
 thin compatibility wrapper, so producers do not import another product skill. The
-writer rejects duplicate final suggested IDs, validates the full list, sorts by
-priority, change ID, and provenance, and only then atomically writes canonical JSON. Failure
-preserves the prior file; successful empty discovery writes an empty array.
+writer rejects duplicate final suggested IDs, validates the full list, sorts by the
+total key `(priority, suggested_change_id)`, and only then atomically writes canonical
+JSON. Failure preserves the prior file; successful empty discovery writes an empty
+array. A shared multi-file loader validates each object or array independently,
+concatenates inputs in CLI order, and rejects duplicate final IDs across the union.
 
 ### D3 — Producer mappings are deterministic and conservative
 
@@ -44,17 +49,19 @@ preserves the prior file; successful empty discovery writes an empty array.
 Every adapter normalizes hinted or derived slugs through the canonical prefix set.
 An existing `add-`, `update-`, `remove-`, or `refactor-` prefix is retained; `fix-`
 is normalized to `update-`; and an unprefixed slug receives `update-`. An explicit
-source hint is normalized as-is and remains unsuffixed. A derived ID is always
-`<normalized-source-slug>-<identity-hash>`, where `identity-hash` is the first eight
-lowercase hex characters of SHA-256 over an immutable producer identity object with
-exactly `generator` and `source_id` keys. Bug-scrub uses the exact finding ID,
+source hint is normalized as-is and remains unsuffixed. Derived IDs use only the
+immutable producer `source_id` for both their readable base and identity hash. The base
+is formed by lowercasing `source_id`, replacing each maximal run outside ASCII
+`[a-z0-9]` with one hyphen, stripping edge hyphens, and using `item` if empty. The
+final ID is `<normalized-source-id-slug>-<identity-hash>`, where `identity-hash` is the
+first eight lowercase hex characters of SHA-256 over an identity object containing
+exactly `generator` and `source_id`. Bug-scrub uses the exact finding ID,
 improve-harness uses the normalized capability gap (trim surrounding whitespace,
 collapse internal whitespace to one ASCII space, and lowercase), and explore-feature
-uses the exact stable opportunity ID. The identity object is encoded with
+requires and uses the exact stable opportunity ID. The identity object is encoded with
 `json.dumps(identity, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`
-and UTF-8 before hashing. Report paths, source-entry collections, rank, and all other
-volatile provenance are excluded. Because derivation is per immutable source identity
-rather than dependent on batch membership or report location, later evidence cannot
+and UTF-8 before hashing. Titles, report paths, source-entry collections, rank, and all
+other volatile provenance are excluded. Later evidence or title edits therefore cannot
 rename an earlier candidate. Duplicate final IDs, including two colliding explicit
 hints, fail the whole batch.
 
@@ -63,8 +70,10 @@ optional.
 
 ### D4 — Candidate ranking is a distinct typed lane
 
-`/prioritize-proposals --candidate-work <path>` loads and validates an object or
-array, ranks stubs with stable tie-breakers, and can render them alongside active
+`/prioritize-proposals --candidate-work <path>` accepts a repeatable option, loads and
+validates each object or array, deterministically merges all supplied sidecars, rejects
+duplicate final IDs across the union, ranks stubs with stable tie-breakers, and
+renders them alongside active
 proposals without pretending a stub is already scaffolded. Every adapter emits a
 shared five-band priority estimate: critical/immediate=1, high=2, medium/normal=3,
 low=4, and informational/backlog=5. Bug-scrub severity and improve-harness `max_severity` map directly to those bands.
@@ -121,8 +130,9 @@ rejected rather than silently guessed. Improve-harness emits every ranked gap:
 critical/high/medium/low map to priority 1/2/3/4. Effort derives from affected-skill
 count rather than severity: one skill maps to S, two or three to M, and four or more
 to L; missing affected-skill evidence maps to M plus an `effort-estimate-default` tag.
-Source rank is retained in a bounded `source-rank-N` tag. A file report gets an
-adjacent sidecar; stdout-only behavior remains write-free without an explicit
+Source rank is retained in a bounded `source-rank-N` tag. A file report gets its
+producer-specific adjacent sidecar; stdout-only behavior remains write-free without
+an explicit
 candidate output, and the
 legacy proposal flag remains. Explore-feature emits only opportunities whose exact
 normalized hinted or derived change ID is absent from active and archived changes and
@@ -133,49 +143,55 @@ Shortlist rank is provenance only. Prose blockers are retained in rationale/tags
 
 All producers retain rich output and populate generator/source provenance. Derived
 slugs unconditionally receive the stable identity suffix defined in D3; duplicate
-final IDs are rejected. Bug-scrub derives its base from `Finding.title`,
-improve-harness from `capability_gap`, and explore-feature from its stable ID/title
-when no explicit hint exists.
+final IDs are rejected. Bug-scrub and explore-feature derive the base from their
+required immutable source IDs; improve-harness derives it from the normalized
+`capability_gap`. Mutable titles never contribute to a derived ID.
 Candidate text is inert data: renderers escape Markdown/terminal structure and never
 dereference, fetch, or execute provenance URIs.
 
 ### Candidate ranking
 
 Candidate work is a separate report lane, never an input to the active-proposal score.
-Dependencies resolve by exact change ID within the batch, then roadmap items, active
-OpenSpec changes, and archives. In-batch dependencies create graph edges and do not by themselves mark a
-candidate blocked. Completed external dependencies are satisfied. An active-incomplete
-or unknown external dependency marks its candidate and all transitive in-batch
-dependents blocked. Ranking uses Kahn topological traversal: among zero-indegree nodes,
-choose by `(blocked_tier, priority, effort XS..XL, generator_key,
-suggested_change_id)`, where ready is tier 0, blocked is tier 1, and
-`generator_key = provenance.generator or ""` for schema-valid hand-authored stubs. This preserves every
-dependency-before-dependent edge while keeping ready components before blocked
-components. Cycles and duplicate suggested IDs fail the lane before scoring.
+Ranking and intake share one resolver that groups every exact change-ID match across
+the candidate batch, roadmap items, active OpenSpec changes, and archives. If all
+matches are terminal, the dependency is satisfied. If exactly one live match remains,
+it determines the outcome: an in-batch candidate creates a graph edge, a live roadmap
+item is local or external according to its roadmap, and an active change without a
+roadmap item remains unresolved. Terminal records for the same lifecycle lineage do
+not make a unique live match ambiguous; two or more live matches do. Unknown or
+multiple-live dependencies fail intake and seed blocked status in ranking. In-batch
+dependencies create graph edges and do not by themselves mark a candidate blocked.
+Blocked status propagates to all transitive in-batch dependents. Ranking uses Kahn
+topological traversal: among zero-indegree nodes, choose by `(blocked_tier, priority,
+effort XS..XL, generator_key, suggested_change_id)`, where ready is tier 0, blocked is
+tier 1, and `generator_key = provenance.generator or ""` for schema-valid hand-authored
+stubs. This preserves every dependency-before-dependent edge while keeping ready
+components before blocked components. Cycles, duplicate suggested IDs, and conflicting
+live dependency matches fail the lane before scoring.
 
 ### Candidate intake
 
 The plan-roadmap candidate_intake helper accepts exactly one stub, nonblank
 operator-approved outcomes, and exactly one new-roadmap or existing-roadmap target.
 New-roadmap mode additionally requires a kebab-case roadmap ID and capability; it
-creates a complete schema-version-1 envelope whose `source_proposal` is the candidate
-provenance source and whose sole approved `ri-01` item carries the capability. Existing
-mode assigns the next free ri-NN and omits priority from the refine add operation so
-refine-roadmap assigns max+1 without collisions. Both modes preserve the candidate
+creates a complete schema-version-1 envelope whose `source_proposal` is
+`provenance.source_artifact` and whose sole approved `ri-01` item carries the
+capability. Existing mode freshly loads the target workspace, assigns the next free
+ri-NN in the one add request immediately before refine-roadmap preview, and omits
+priority so refine-roadmap validates the ID and assigns max+1 without collisions. Both
+modes preserve the candidate
 priority in the request rationale and assign exact change ID, actor, source, and
-rationale. Dependency change IDs resolve without ambiguity: a target-roadmap item
-becomes its local `ri-NN`; an item in another active roadmap becomes
-`external_depends_on: ["roadmap-id:ri-NN"]`; and a completed archived change is
-recorded as `Satisfied dependency: <change-id> (archived completed)` in the rationale
-with no live dependency edge. Each conversion is explicit in the preview, so no
-dependency is silently dropped or rewritten. Unknown or ambiguous dependencies and
-active/archive change-ID collisions fail before writes.
+rationale. The shared resolver collapses duplicate terminal lifecycle records. A uniquely live
+target-roadmap item becomes its local `ri-NN`; a uniquely live item in another roadmap
+becomes `external_depends_on: ["roadmap-id:ri-NN"]`; and an all-terminal dependency is
+recorded as `Satisfied dependency: <change-id> (completed)` in the rationale with no
+live edge. Each conversion is explicit in the preview. Unknown dependencies, active
+changes without a unique roadmap item, and multiple live matches fail before writes.
 
 New-roadmap mode feeds the existing validate/save/scaffold path with overwrite disabled.
-Existing-roadmap mode emits exactly one refine add operation against a freshly loaded
-workspace. Existing refine-roadmap behavior supplies omitted priority as max+1, rejects
-duplicate explicit `change_id` values already present in roadmap items, and assigns the
-next free item ID in that preview. Apply uses the preview base hash and refuses if the
+Existing-roadmap mode emits exactly one refine add operation against a freshly loaded workspace. Existing refine-roadmap behavior supplies omitted
+priority as max+1, rejects duplicate
+explicit `change_id` values already present in roadmap items, and validates the helper-assigned next free item ID in that preview. Apply uses the preview base hash and refuses if the
 roadmap changed, so neither the ID nor priority can go stale. The helper never writes an
 active roadmap. Measurable is an
 operator approval judgment; code validates a non-empty list of nonblank outcomes. ri-13
@@ -188,7 +204,7 @@ must call this helper after ri-12 rather than maintain a second mapping.
 - Invalid mixed batch: fail before ranking; include the offending batch index.
 - Duplicate suggested IDs or a dependency cycle: fail before ranking or persistence.
 - Missing acceptance outcomes: refuse candidate intake.
-- Dependency that cannot be resolved to one local item, one external roadmap item, or a completed archive: refuse and name it.
+- Dependency that cannot be resolved to one unique live local/external item or an all-terminal lifecycle group: refuse and name it.
 - Existing-roadmap mutation without refine-roadmap preview/apply: unsupported.
 
 ## Test strategy

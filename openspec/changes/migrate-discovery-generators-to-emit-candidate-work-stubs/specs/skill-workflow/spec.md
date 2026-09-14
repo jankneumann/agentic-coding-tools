@@ -25,6 +25,7 @@ while preserving their existing rich artifacts.
 - **WHEN** explore-feature persists a ranked shortlist
 - **THEN** every eligible untracked opportunity SHALL have a schema-valid candidate-work projection
 - **AND** the rich HMW, lens, and rejected-alternative data SHALL remain in `opportunities.json`
+- **AND** every projected opportunity SHALL provide a stable opportunity ID
 - **AND** already-scaffolded opportunities SHALL NOT create duplicate candidate work
 - **AND** hinted or derived IDs SHALL be normalized to the canonical change-ID prefixes
 - **AND** only blockers resolving to exact change IDs SHALL populate `depends_on`
@@ -46,19 +47,32 @@ while preserving their existing rich artifacts.
 
 #### Scenario: Derived candidate identity is stable
 
-- **WHEN** the same producer source is projected after report path, rank, or non-identity provenance changes
+- **WHEN** the same producer source is projected after title, report path, rank, or non-identity provenance changes
 - **THEN** its derived suggested ID SHALL remain unchanged
 - **AND** the identity object SHALL contain exactly `generator` and `source_id`
 - **AND** bug-scrub SHALL use the exact finding ID, improve-harness SHALL use the trimmed, whitespace-collapsed, lowercase capability gap, and explore-feature SHALL use the exact stable opportunity ID
+- **AND** the readable base SHALL derive only from `source_id` by the documented ASCII slug algorithm and `item` fallback
 - **AND** canonical serialization SHALL use sorted keys, compact comma/colon separators, unescaped Unicode, and UTF-8 before SHA-256
 - **AND** explicit source hints SHALL remain normalized but unsuffixed
 - **AND** duplicate final IDs MUST fail the whole batch before replacement
+
+#### Scenario: Bug-scrub effort rejects unknown categories
+
+- **WHEN** bug-scrub projects findings from its supported categories
+- **THEN** effort SHALL follow the exhaustive category-only mapping
+- **AND** an unknown category MUST fail the complete sidecar before replacement
 
 #### Scenario: Improve-harness effort is independent of urgency
 
 - **WHEN** improve-harness projects gaps with equal `max_severity` but different affected-skill counts
 - **THEN** priority SHALL remain equal while effort SHALL follow the documented affected-skill bands
 - **AND** missing affected-skill evidence SHALL map to M with an `effort-estimate-default` tag
+
+#### Scenario: Explicit sidecar destination collides
+
+- **WHEN** a producer targets an existing valid non-empty candidate batch owned by another generator
+- **THEN** it MUST refuse replacement and identify the generator collision
+- **AND** the existing destination bytes SHALL remain unchanged
 
 #### Scenario: Candidate batch validation fails
 
@@ -87,13 +101,14 @@ while preserving their existing rich artifacts.
 
 ### Requirement: Prioritize-proposals ranks mixed candidate work
 
-`/prioritize-proposals` SHALL accept a validated candidate-work object or array and
-rank candidate stubs from all supported generators with deterministic tie-breakers.
+`/prioritize-proposals` SHALL accept one or more candidate-work objects or arrays through
+a repeatable `--candidate-work PATH` option and rank candidate stubs from all supported generators with deterministic tie-breakers.
 
 #### Scenario: Mixed producer batch is ranked
 
-- **WHEN** a batch contains valid stubs from bug-scrub, improve-harness, and explore-feature
-- **THEN** the prioritization output SHALL include every stub exactly once
+- **WHEN** three supplied sidecars contain valid stubs from bug-scrub, improve-harness, and explore-feature
+- **THEN** the loader SHALL validate each file, concatenate them in argument order, and reject duplicate final IDs across the union
+- **AND** the prioritization output SHALL include every stub exactly once
 - **AND** each entry SHALL retain its generator and provenance
 - **AND** repeated ranking of identical input SHALL produce the same order
 - **AND** a missing optional provenance generator SHALL use the empty-string tie-break key
@@ -110,11 +125,12 @@ rank candidate stubs from all supported generators with deterministic tie-breake
 - **THEN** the dependency SHALL precede its dependent
 - **AND** deterministic tie-breakers SHALL produce a stable order
 - **AND** candidate entries SHALL remain distinct from proposal entries
+- **AND** the shared resolver SHALL collapse all-terminal lifecycle duplicates and preserve one unique live match
 - **AND** an active-incomplete or unknown external dependency SHALL mark its candidate and all transitive in-batch dependents blocked
 - **AND** ready components SHALL precede blocked components without violating dependency order
 
 #### Scenario: Mixed batch has a cycle or duplicate change ID
 
-- **WHEN** candidates form a cycle or repeat a suggested change ID
+- **WHEN** candidates form a cycle, repeat a suggested change ID, or a dependency has multiple live matches
 - **THEN** prioritization MUST refuse the lane before scoring
 - **AND** the error SHALL name the conflicting candidates

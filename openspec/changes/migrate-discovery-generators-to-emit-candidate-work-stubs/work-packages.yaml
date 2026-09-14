@@ -3,12 +3,12 @@ schema_version: 1
 feature:
   id: migrate-discovery-generators-to-emit-candidate-work-stubs
   title: "Migrate discovery generators to emit candidate-work stubs"
-  plan_revision: 7
+  plan_revision: 8
   created_by: plan-feature
   deployable: false
 
 contracts:
-  revision: 2
+  revision: 3
   openapi:
     # No OpenAPI surface; README is the contracts entrypoint per repo convention.
     primary: "openspec/changes/migrate-discovery-generators-to-emit-candidate-work-stubs/contracts/README.md"
@@ -104,7 +104,7 @@ packages:
   - package_id: wp-prioritize
     title: "Mixed candidate-work ranking lane"
     task_type: implementation
-    description: "Phase 2: candidate loader, stable ranking, report/CLI integration, and mixed-batch tests."
+    description: "Phase 2: repeatable candidate loaders, deterministic merge, stable ranking, report/CLI integration, and mixed-batch tests."
     role: implementer
     priority: 3
     depends_on: ["wp-contracts", "wp-producers"]
@@ -164,7 +164,7 @@ packages:
       steps:
         - name: "Plan-roadmap suite passes"
           kind: command
-          command: "skills/.venv/bin/python -m pytest skills/tests/plan-roadmap -q"
+          command: "skills/.venv/bin/python -m pytest skills/tests/plan-roadmap skills/tests/refine-roadmap -q"
           evidence: {artifacts: [], result_keys: ["roadmap_suite"]}
     metadata: {loc_estimate: 300, complexity: medium, package_kind: algorithm}
     outputs: {result_keys: ["roadmap_suite"]}

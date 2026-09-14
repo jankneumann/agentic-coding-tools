@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "written_at": "2026-09-14T01:39:34.913209+00:00",
+  "coordinator_error": {
+    "error_type": "rpc_failed",
+    "message": "unspecified coordinator error",
+    "http_status": null
+  },
+  "payload": {
+    "agent_name": "codex",
+    "session_id": null,
+    "summary": "Closed the terminal all-harness plan gate with operator adjudication. Revision 8 defines deterministic multi-sidecar merge, producer-specific destinations, shared lifecycle-aware dependency resolution, and immutable-source-derived IDs, and repairs confirmed scenario coverage.",
+    "completed_work": [
+      "Attempted all five configured harnesses and reached 3/5 substantive quorum.",
+      "Applied all four operator-approved high-impact decisions.",
+      "Added cross-producer deterministic, atomic, collision, merge, and refine-roadmap verification coverage.",
+      "Advanced the approved implementation plan to revision 8."
+    ],
+    "in_progress": [],
+    "decisions": [
+      {
+        "title": "Merge repeatable candidate-work inputs",
+        "rationale": "The integration flow must consume all producer sidecars without hand concatenation.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Protect producer-specific sidecars",
+        "rationale": "Defaults cannot erase another producer batch and explicit cross-generator collisions must fail unchanged.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Resolve dependencies by lifecycle identity",
+        "rationale": "Ranking and intake must agree when terminal artifacts and live records share a change ID.",
+        "capability": null,
+        "supersedes": null
+      },
+      {
+        "title": "Derive the complete ID from immutable source identity",
+        "rationale": "A stable hash is insufficient if a mutable title still controls the readable base.",
+        "capability": null,
+        "supersedes": null
+      }
+    ],
+    "next_steps": [
+      "Implement the five-package ri-12 DAG tests-first, then run implementation review and validation."
+    ],
+    "relevant_files": []
+  }
+}

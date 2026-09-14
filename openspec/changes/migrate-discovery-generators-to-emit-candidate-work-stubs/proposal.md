@@ -115,5 +115,4 @@ at the producer-write and consumer-read boundaries.
   covered by tests per generator.
 - An approved stub becomes a roadmap item via `/plan-roadmap` without hand-editing
   intermediate artifacts.
-- `/prioritize-proposals` successfully ranks a mixed batch of stubs from all three
-  generators.
+- `/prioritize-proposals` successfully consumes three producer sidecars through repeatable inputs and ranks the merged stubs.
