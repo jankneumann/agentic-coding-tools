@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -143,6 +144,57 @@ def _result(request: dict[str, Any], outcome: str = "success") -> dict[str, Any]
     if outcome == "success":
         result["handoff_id"] = f"handoff-{request['item_id']}"
     return result
+
+
+def _mark_attempt_effects_applied(
+    workspace: Path,
+    request: dict[str, Any],
+    *,
+    outcome: str = "success",
+) -> None:
+    """Persist one terminal attempt as already having applied all effects."""
+    checkpoint_path = workspace / "checkpoint.json"
+    checkpoint = json.loads(checkpoint_path.read_text())
+    attempt = next(
+        attempt
+        for attempt in checkpoint["dispatch_attempts"]
+        if attempt["dispatch_id"] == request["dispatch_id"]
+    )
+    result = _result(request, outcome=outcome)
+    if outcome == "parked":
+        result["parked"] = {
+            "kind": "pending_gate",
+            "reason": "operator approval required",
+            "gate": "deploy",
+        }
+    canonical = json.dumps(
+        result,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    attempt.update(
+        status="completed" if outcome == "success" else "parked",
+        outcome=outcome,
+        resolved_at=_NOW,
+        application_journal={
+            "schema_version": 1,
+            "state": "effects_applied",
+            "result": result,
+            "result_digest": hashlib.sha256(canonical).hexdigest(),
+            "bound_at": _NOW,
+            "callback_started_at": _NOW,
+            "callback_acknowledged_at": _NOW,
+            "terminal_persisted_at": _NOW,
+            "effects_applied_at": _NOW,
+        },
+    )
+    attempt["lease"]["state"] = "released"
+    if outcome == "success":
+        attempt["handoff_id"] = result["handoff_id"]
+    else:
+        attempt["parked"] = result["parked"]
+    checkpoint_path.write_text(json.dumps(checkpoint, indent=2) + "\n")
 
 
 def test_prepare_persists_exact_safe_batch_before_returning_requests(tmp_path: Path) -> None:
@@ -543,6 +595,164 @@ def test_apply_rejects_exact_correlation_mismatch_before_dispatch(
     checkpoint = json.loads((workspace / "checkpoint.json").read_text())
     assert checkpoint.get("completed_items", []) == []
     assert checkpoint["dispatch_attempts"][0]["status"] == "launched"
+
+
+
+def test_apply_omits_effects_applied_peer_from_current_result_cohort(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [
+            RoadmapItem("ri-01", "Applied", ItemStatus.APPROVED, 1, Effort.S, change_id="change-applied"),
+            RoadmapItem("ri-02", "Current", ItemStatus.APPROVED, 2, Effort.S, change_id="change-current"),
+        ],
+    )
+    _write_work_packages(repo, "change-applied", "src/applied/**")
+    _write_work_packages(repo, "change-current", "src/current/**")
+    prepared = prepare_delegated_batch(workspace, repo_root=repo, isolation_resolver=_isolation)
+    _mark_batch_launched(workspace)
+    _mark_attempt_effects_applied(workspace, prepared["requests"][0])
+    calls: list[str] = []
+
+    applied = apply_delegated_batch(
+        workspace,
+        prepared["batch_id"],
+        [_result(prepared["requests"][1])],
+        lambda item_id, _phase, context: calls.append(item_id) or context["dispatch_result"],
+        repo_root=repo,
+    )
+
+    assert applied["completed_item_ids"] == ["ri-02"]
+    assert calls == ["ri-02"]
+
+
+def test_apply_rejects_historical_result_for_effects_applied_peer_before_callback(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [
+            RoadmapItem("ri-01", "Applied", ItemStatus.APPROVED, 1, Effort.S, change_id="change-applied"),
+            RoadmapItem("ri-02", "Current", ItemStatus.APPROVED, 2, Effort.S, change_id="change-current"),
+        ],
+    )
+    _write_work_packages(repo, "change-applied", "src/applied/**")
+    _write_work_packages(repo, "change-current", "src/current/**")
+    prepared = prepare_delegated_batch(workspace, repo_root=repo, isolation_resolver=_isolation)
+    _mark_batch_launched(workspace)
+    _mark_attempt_effects_applied(workspace, prepared["requests"][0])
+    calls: list[str] = []
+
+    with pytest.raises(ValueError, match="historical dispatch result"):
+        apply_delegated_batch(
+            workspace,
+            prepared["batch_id"],
+            [_result(request) for request in prepared["requests"]],
+            lambda item_id, _phase, context: calls.append(item_id) or context["dispatch_result"],
+            repo_root=repo,
+        )
+
+    assert calls == []
+
+
+def test_apply_rejects_missing_current_result_before_callback(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [
+            RoadmapItem("ri-01", "Applied", ItemStatus.APPROVED, 1, Effort.S, change_id="change-applied"),
+            RoadmapItem("ri-02", "Current", ItemStatus.APPROVED, 2, Effort.S, change_id="change-current"),
+        ],
+    )
+    _write_work_packages(repo, "change-applied", "src/applied/**")
+    _write_work_packages(repo, "change-current", "src/current/**")
+    prepared = prepare_delegated_batch(workspace, repo_root=repo, isolation_resolver=_isolation)
+    _mark_batch_launched(workspace)
+    _mark_attempt_effects_applied(workspace, prepared["requests"][0])
+    calls: list[str] = []
+
+    with pytest.raises(ValueError, match="missing current dispatch result"):
+        apply_delegated_batch(
+            workspace,
+            prepared["batch_id"],
+            [],
+            lambda item_id, _phase, context: calls.append(item_id) or context["dispatch_result"],
+            repo_root=repo,
+        )
+
+    assert calls == []
+
+
+def test_apply_accepts_resumed_current_generation_with_applied_peer_omitted(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    workspace = _write_workspace(
+        repo,
+        [
+            RoadmapItem("ri-01", "Applied", ItemStatus.APPROVED, 1, Effort.S, change_id="change-applied"),
+            RoadmapItem("ri-02", "Resumed", ItemStatus.APPROVED, 2, Effort.S, change_id="change-resumed"),
+        ],
+    )
+    _write_work_packages(repo, "change-applied", "src/applied/**")
+    _write_work_packages(repo, "change-resumed", "src/resumed/**")
+    prepared = prepare_delegated_batch(workspace, repo_root=repo, isolation_resolver=_isolation)
+    _mark_batch_launched(workspace)
+    _mark_attempt_effects_applied(workspace, prepared["requests"][0])
+    _mark_attempt_effects_applied(workspace, prepared["requests"][1], outcome="parked")
+    checkpoint_path = workspace / "checkpoint.json"
+    checkpoint = json.loads(checkpoint_path.read_text())
+    resumed = checkpoint["dispatch_attempts"][1]
+    resumed.update(
+        status="launched",
+        lease_generation=2,
+        continuation={
+            "kind": "pending_gate",
+            "approval_ref": "gate-decision:22222222-3333-4444-8555-666666666666",
+        },
+        lease={
+            "generation": 2,
+            "owner_nonce": "owner-nonce-0002",
+            "state": "active",
+            "acquired_at": _NOW,
+            "heartbeat_at": _NOW,
+            "expires_at": "2026-09-01T00:05:00+00:00",
+        },
+        launch_evidence={
+            "kind": "host_ack",
+            "generation": 2,
+            "handle": "task-ri-02",
+            "observed_at": _NOW,
+        },
+        launch_gate={
+            "generation": 2,
+            "state": "entered",
+            "handle": "task-ri-02",
+            "go_released_at": _NOW,
+            "entered_at": _NOW,
+        },
+    )
+    for field in ("outcome", "resolved_at", "parked", "application_journal"):
+        resumed.pop(field, None)
+    checkpoint_path.write_text(json.dumps(checkpoint, indent=2) + "\n")
+    resumed_request = dict(prepared["requests"][1], lease_generation=2)
+    calls: list[str] = []
+
+    applied = apply_delegated_batch(
+        workspace,
+        prepared["batch_id"],
+        [_result(resumed_request)],
+        lambda item_id, _phase, context: calls.append(item_id) or context["dispatch_result"],
+        repo_root=repo,
+    )
+
+    assert applied["completed_item_ids"] == ["ri-02"]
+    assert calls == ["ri-02"]
 
 
 @pytest.mark.parametrize("membership", ["missing", "extra", "duplicate"])
