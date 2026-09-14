@@ -90,6 +90,11 @@ class Finding:
     file_path: str | None = None
     line_start: int | None = None
     line_end: int | None = None
+    # Verbatim snippet the finding targets (add-deterministic-review-
+    # preprocessing). Optional — legacy findings and vendors that never set
+    # it default to None, and match_score's snippet band simply never fires
+    # for them, falling through to the existing location/description bands.
+    existing_code: str | None = None
     vendor: str = ""
     # `axis` is required by review-findings.schema.json, but legacy payloads
     # (and internally-constructed findings) predate it — default to
@@ -115,6 +120,7 @@ class Finding:
             file_path=data.get("file_path"),
             line_start=line_start,
             line_end=line_end,
+            existing_code=data.get("existing_code"),
             vendor=vendor,
             axis=data.get("axis") or DEFAULT_AXIS,
             # Only ever *toward* judgment. A payload cannot promote itself to
@@ -268,6 +274,25 @@ def _jaccard(a: set[str], b: set[str]) -> float:
     return intersection / union if union > 0 else 0.0
 
 
+def _normalize_snippet(code: str) -> str:
+    """Normalize an existing_code snippet for equality comparison.
+
+    Splits into lines, strips whitespace and one leading diff marker
+    (+/-) per line, drops blank lines, rejoins with newline. Mirrors
+    line_resolver's line-level normalization so a snippet compares equal
+    across vendors regardless of indentation or which side of the diff
+    (old/new) it was quoted from.
+    """
+    lines: list[str] = []
+    for raw in code.split("\n"):
+        line = raw.strip()
+        if line.startswith(("+", "-")):
+            line = line[1:].strip()
+        if line:
+            lines.append(line)
+    return "\n".join(lines)
+
+
 def match_score(a: Finding, b: Finding) -> tuple[float, str]:
     """Compute match score and basis between two findings.
 
@@ -299,6 +324,15 @@ def match_score(a: Finding, b: Finding) -> tuple[float, str]:
             if same_type:
                 return 0.95, "location+type"
             return 0.8, "location"
+
+    # Snippet match: a shared verbatim excerpt is stronger evidence than
+    # vendor line arithmetic, so two findings on the same file and axis
+    # whose existing_code normalizes identically score in the highest band
+    # even when their vendor-reported lines have drifted apart or are
+    # missing entirely.
+    if same_file and a.existing_code and b.existing_code:
+        if _normalize_snippet(a.existing_code) == _normalize_snippet(b.existing_code):
+            return 0.9, "snippet"
 
     desc_sim = _jaccard(_tokenize(a.description), _tokenize(b.description))
 

@@ -27,6 +27,7 @@ from consensus_synthesizer import (  # noqa: E402
     Finding,
     MATCH_THRESHOLD,
     _normalize_path,
+    _normalize_snippet,
     _tokenize,
     match_score,
 )
@@ -60,6 +61,7 @@ _LEDGER_ITEM_KEYS = (
     "last_seen_round",
     "vendor_hits",
     "description",
+    "existing_code",
     "resolution",
     "parked_reason",
     "consensus_status",
@@ -140,13 +142,31 @@ def fingerprint(
     axis: str | None,
     file_path: str | None,
     description: str,
+    *,
+    existing_code: str | None = None,
 ) -> str:
-    """Stable identity: hash(canonical_axis + normalized_path + token-set)."""
+    """Stable identity for a ledger item.
+
+    When *existing_code* is present (add-deterministic-review-
+    preprocessing), the fingerprint is
+    ``hash(canonical_axis + normalized_path + "snippet:" + normalized_snippet)``
+    — a verbatim excerpt is stable across paraphrased descriptions, which is
+    exactly the case that broke the token-set fingerprint: reworded findings
+    about the same code used to mint new ids. Absent a snippet, the
+    fingerprint falls back to the original
+    ``hash(canonical_axis + normalized_path + token-set + raw)`` scheme, so
+    existing ledger items (all created before this field existed) keep
+    their ids unchanged.
+    """
     axis_c = (axis or DEFAULT_AXIS).strip().lower()
     path_n = _normalize_path(file_path) if file_path else ""
-    raw = (description or "").strip().lower()
-    tokens = " ".join(sorted(_tokenize(raw)))
-    payload = f"{axis_c}|{path_n}|{tokens}|{raw}"
+    normalized_snippet = _normalize_snippet(existing_code) if existing_code else ""
+    if normalized_snippet:
+        payload = f"{axis_c}|{path_n}|snippet:{normalized_snippet}"
+    else:
+        raw = (description or "").strip().lower()
+        tokens = " ".join(sorted(_tokenize(raw)))
+        payload = f"{axis_c}|{path_n}|{tokens}|{raw}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
@@ -171,6 +191,7 @@ def _as_finding(data: dict[str, Any], vendor: str = "") -> Finding:
         file_path=data.get("file_path"),
         line_start=data.get("line_start"),
         line_end=data.get("line_end"),
+        existing_code=data.get("existing_code"),
         vendor=vendor,
         axis=str(data.get("axis") or data.get("agreed_axis") or DEFAULT_AXIS),
         evidence_class=str(data.get("evidence_class") or DETERMINISTIC),
@@ -189,6 +210,7 @@ def _finding_fields(cf: dict[str, Any]) -> dict[str, Any]:
         "capability": cf.get("capability"),
         "line_start": cf.get("line_start"),
         "line_end": cf.get("line_end"),
+        "existing_code": cf.get("existing_code"),
         "description": cf.get("description") or "",
         "consensus_status": cf.get("status") or cf.get("consensus_status") or "unconfirmed",
         "vendor_hits": list(cf.get("vendor_hits") or []),
@@ -291,7 +313,10 @@ def merge_findings(
     merged: list[dict[str, Any]] = []
     for cf in consensus_findings:
         fields = _finding_fields(cf)
-        fp = fingerprint(fields["axis"], fields["file_path"], fields["description"])
+        fp = fingerprint(
+            fields["axis"], fields["file_path"], fields["description"],
+            existing_code=fields.get("existing_code"),
+        )
         existing = _match_existing(ledger, {**fields, "id": cf.get("id", 0)}, fp)
         if existing is not None:
             if existing.get("status") in {"retired", "parked"}:
@@ -302,6 +327,8 @@ def merge_findings(
             existing["last_seen_round"] = round_num
             existing["fingerprint"] = fp
             existing["description"] = fields["description"] or existing.get("description", "")
+            if fields.get("existing_code"):
+                existing["existing_code"] = fields["existing_code"]
             existing["criticality"] = fields["criticality"]
             existing["evidence_class"] = fields["evidence_class"]
             existing["consensus_status"] = fields["consensus_status"]
@@ -346,6 +373,8 @@ def merge_findings(
             item["line_start"] = fields["line_start"]
         if fields["line_end"] is not None:
             item["line_end"] = fields["line_end"]
+        if fields.get("existing_code"):
+            item["existing_code"] = fields["existing_code"]
         spec_file = fields.get("spec_file") or derive_spec_file(item, artifacts_dir)
         if spec_file:
             item["spec_file"] = spec_file
@@ -358,7 +387,15 @@ def _tokens_present(
     repo_root: Path,
     item: dict[str, Any],
 ) -> bool | None:
-    """Return True/False if file_path is set, None if the heuristic cannot run."""
+    """Return True/False if file_path is set, None if the heuristic cannot run.
+
+    An item carrying ``existing_code`` is checked by snippet presence
+    (normalized substring match against the current file) — a verbatim
+    excerpt is a sharper signal than description tokens and is what
+    add-deterministic-review-preprocessing's line resolver anchors
+    findings to. An item without a snippet falls back to the original
+    description-token heuristic unchanged.
+    """
     file_path = item.get("file_path")
     if not file_path:
         return None
@@ -372,13 +409,21 @@ def _tokens_present(
         if not path.parent.exists():
             return None
         return False
+
+    existing_code = item.get("existing_code")
+    normalized_snippet = _normalize_snippet(existing_code) if existing_code else ""
     tokens = significant_tokens(str(item.get("description") or ""))
-    if not tokens:
+    if not normalized_snippet and not tokens:
         return True
+
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return True
+
+    if normalized_snippet:
+        return normalized_snippet in _normalize_snippet(text)
+
     line_start = item.get("line_start")
     line_end = item.get("line_end")
     if isinstance(line_start, int):
@@ -397,13 +442,20 @@ def compact(ledger: dict[str, Any], repo_root: Path) -> dict[str, Any]:
         if status in {"retired", "parked"}:
             continue
         present = _tokens_present(repo_root, item)
+        has_snippet = bool(item.get("existing_code"))
         if present is False:
             item["status"] = "retired"
-            item["resolution"] = item.get("resolution") or "compact: tokens or file gone"
+            item["resolution"] = item.get("resolution") or (
+                "compact: snippet no longer present" if has_snippet
+                else "compact: tokens or file gone"
+            )
             continue
         if status == "addressed" and present is True:
             item["status"] = "open"
-            item["resolution"] = "compact: claimed fix did not take"
+            item["resolution"] = (
+                "compact: snippet still present" if has_snippet
+                else "compact: claimed fix did not take"
+            )
     ledger["compacted_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     return ledger
 

@@ -94,6 +94,47 @@ def test_fingerprint_match_merges_without_synthesizer_id() -> None:
     assert a != c
 
 
+def test_fingerprint_snippet_is_stable_across_rewording() -> None:
+    a = fingerprint(
+        "correctness", "src/api.py", "Missing null check in parse_line helper",
+        existing_code="if x.value is None: return x",
+    )
+    b = fingerprint(
+        "correctness", "src/api.py", "parse_line does not guard against a null value",
+        existing_code="if x.value is None: return x",
+    )
+    assert a == b
+
+
+def test_fingerprint_snippet_differs_by_normalized_content() -> None:
+    a = fingerprint(
+        "correctness", "src/api.py", "Missing null check",
+        existing_code="if x.value is None: return x",
+    )
+    b = fingerprint(
+        "correctness", "src/api.py", "Missing null check",
+        existing_code="if x.value is not None: return x",
+    )
+    assert a != b
+
+
+def test_fingerprint_falls_back_to_tokens_without_snippet() -> None:
+    with_snippet = fingerprint(
+        "correctness", "src/api.py", "Missing null check in parse_line helper",
+        existing_code="if x.value is None: return x",
+    )
+    without_snippet = fingerprint(
+        "correctness", "src/api.py", "Missing null check in parse_line helper",
+    )
+    assert with_snippet != without_snippet
+    # Two callers with no snippet still merge on description tokens alone.
+    repeat = fingerprint(
+        "correctness", "src/api.py", "Missing null check in parse_line helper",
+        existing_code=None,
+    )
+    assert without_snippet == repeat
+
+
 def test_new_defect_gets_new_id(tmp_path: Path) -> None:
     artifacts = tmp_path / "change"
     artifacts.mkdir()
@@ -157,6 +198,54 @@ def test_compact_reopens_addressed_if_tokens_remain(tmp_path: Path) -> None:
     ledger["items"][0]["status"] = "addressed"
     compact(ledger, tmp_path)
     assert ledger["items"][0]["status"] == "open"
+
+
+def test_compact_retires_by_snippet_absence(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    target = src / "api.py"
+    target.write_text("if x.value is None: return x\n")
+    artifacts = tmp_path / "change"
+    artifacts.mkdir()
+    ledger = load_or_create(artifacts, "demo")
+    merge_findings(
+        ledger,
+        [_cf(
+            description="Missing null check in parse_line helper",
+            file_path="src/api.py",
+            existing_code="if x.value is None: return x",
+        )],
+        round_num=1,
+    )
+    # The snippet is gone even though unrelated description tokens
+    # ("missing", "null", "check") would still match the rewritten file.
+    target.write_text("def ok():\n    return 1  # missing null check removed\n")
+    compact(ledger, tmp_path)
+    assert ledger["items"][0]["status"] == "retired"
+    assert "snippet" in ledger["items"][0]["resolution"]
+
+
+def test_compact_reopens_by_snippet_presence(tmp_path: Path) -> None:
+    src = tmp_path / "src"
+    src.mkdir()
+    target = src / "api.py"
+    target.write_text("if x.value is None: return x\n")
+    artifacts = tmp_path / "change"
+    artifacts.mkdir()
+    ledger = load_or_create(artifacts, "demo")
+    merge_findings(
+        ledger,
+        [_cf(
+            description="Missing null check in parse_line helper",
+            file_path="src/api.py",
+            existing_code="if x.value is None: return x",
+        )],
+        round_num=1,
+    )
+    ledger["items"][0]["status"] = "addressed"
+    compact(ledger, tmp_path)
+    assert ledger["items"][0]["status"] == "open"
+    assert "snippet" in ledger["items"][0]["resolution"]
 
 
 def test_unconfirmed_medium_judgment_does_not_block() -> None:
