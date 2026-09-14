@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
@@ -128,3 +131,50 @@ def test_cli_skips_candidate_already_owned_only_by_a_roadmap(
     destination = run(source)
 
     assert load_candidate_work(destination) == []
+
+
+def test_run_rejects_unknown_effort_with_item_and_field(tmp_path: Path) -> None:
+    source = tmp_path / "opportunities.json"
+    source.write_text(
+        json.dumps({"items": [_opportunity(effort="XXL")]}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="opportunity opportunity-immutable-7.*effort.*XXL",
+    ):
+        run(source)
+
+    assert not (tmp_path / "explore-feature-candidate-work.json").exists()
+
+
+def test_projection_rejects_unknown_level_with_item_and_field() -> None:
+    with pytest.raises(
+        ValueError,
+        match="opportunity opportunity-immutable-7.*impact.*urgent",
+    ):
+        project_candidate_work([_opportunity(impact="urgent")], "opportunities.json")
+
+
+def test_main_returns_concise_nonzero_projection_error_without_traceback(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "opportunities.json"
+    source.write_text(
+        json.dumps({"items": [_opportunity(id="")]}),
+        encoding="utf-8",
+    )
+
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPTS / "candidate_projection.py"), str(source)],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert proc.returncode == 2
+    assert proc.stdout == ""
+    assert proc.stderr.startswith("error: candidate-work sidecar not written:")
+    assert "stable non-empty id" in proc.stderr
+    assert "Traceback" not in proc.stderr

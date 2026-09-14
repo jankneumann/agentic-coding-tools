@@ -90,6 +90,33 @@ def test_producers_rank_twice_then_preview_and_create_approved_roadmaps(
     sidecars = tmp_path / "sidecars"
     sidecars.mkdir()
 
+    intake = _candidate_intake_module()
+    existing_path = (
+        repo_root / "openspec" / "roadmaps" / "existing" / "roadmap.yaml"
+    )
+    intake.save_roadmap(
+        intake.Roadmap(
+            schema_version=1,
+            roadmap_id="existing",
+            source_proposal="docs/existing.md",
+            status=intake.RoadmapStatus.APPROVED,
+            items=[
+                intake.RoadmapItem(
+                    item_id="ri-01",
+                    title="Existing base",
+                    description="Existing approved work.",
+                    rationale="Baseline.",
+                    status=intake.ItemStatus.APPROVED,
+                    effort=intake.Effort.S,
+                    priority=1,
+                    change_id="add-existing-base",
+                    acceptance_outcomes=["Baseline remains available"],
+                )
+            ],
+        ),
+        existing_path,
+    )
+
     bug_path = sidecars / "bug.json"
     _bug_projection(bug_path)
 
@@ -138,6 +165,7 @@ def test_producers_rank_twice_then_preview_and_create_approved_roadmaps(
                         "effort": "S",
                         "risk": "low",
                         "focus_match": 1,
+                        "blockers": ["add-existing-base"],
                     },
                 ]
             }
@@ -152,8 +180,8 @@ def test_producers_rank_twice_then_preview_and_create_approved_roadmaps(
         SKILLS / "prioritize-proposals" / "scripts" / "candidate_lane.py",
     )
     paths = [bug_path, improve_path, explore_path]
-    first = lane.rank_candidate_work(lane.load_candidate_inputs(paths))
-    second = lane.rank_candidate_work(lane.load_candidate_inputs(paths))
+    first = lane.load_and_rank_candidate_work(paths, repo_root=repo_root)
+    second = lane.load_and_rank_candidate_work(paths, repo_root=repo_root)
 
     assert first.to_dict() == second.to_dict()
     assert len(first.items) == 3
@@ -163,42 +191,31 @@ def test_producers_rank_twice_then_preview_and_create_approved_roadmaps(
     }
     assert set(by_generator) == {"bug-scrub", "improve-harness", "explore-feature"}
     assert by_generator["improve-harness"]["effort"] == "S"
-
-    intake = _candidate_intake_module()
-    existing_path = repo_root / "openspec" / "roadmaps" / "existing" / "roadmap.yaml"
-    intake.save_roadmap(
-        intake.Roadmap(
-            schema_version=1,
-            roadmap_id="existing",
-            source_proposal="docs/existing.md",
-            status=intake.RoadmapStatus.APPROVED,
-            items=[
-                intake.RoadmapItem(
-                    item_id="ri-01",
-                    title="Existing base",
-                    description="Existing approved work.",
-                    rationale="Baseline.",
-                    status=intake.ItemStatus.APPROVED,
-                    effort=intake.Effort.S,
-                    priority=1,
-                    change_id="add-existing-base",
-                    acceptance_outcomes=["Baseline remains available"],
-                )
-            ],
-        ),
-        existing_path,
+    explore_candidate = by_generator["explore-feature"]
+    assert explore_candidate["depends_on"] == ["add-existing-base"]
+    ranked_explore = next(
+        item
+        for item in first.items
+        if item.candidate["provenance"]["generator"] == "explore-feature"
     )
+    assert ranked_explore.blocked is True
+    assert any(
+        reason.startswith("add-existing-base:")
+        for reason in ranked_explore.blocked_reasons
+    )
+
     before = existing_path.read_bytes()
     preview = intake.preview_existing_roadmap(
-        by_generator["bug-scrub"],
+        explore_candidate,
         repo_root=repo_root,
         roadmap_path=existing_path,
-        acceptance_outcomes=["The stale marker is absent"],
+        acceptance_outcomes=["Candidate provenance is visible"],
         actor="integration-test",
     )
 
     preview_item = preview.request["operations"][0]["item"]
-    assert preview_item["change_id"] == by_generator["bug-scrub"]["suggested_change_id"]
+    assert preview_item["change_id"] == "add-trace-view"
+    assert preview_item["depends_on"] == ["ri-01"]
     assert existing_path.read_bytes() == before
 
     created = intake.create_new_roadmap(
@@ -211,4 +228,5 @@ def test_producers_rank_twice_then_preview_and_create_approved_roadmaps(
 
     assert created.roadmap.source_proposal == str(opportunities)
     assert created.roadmap.items[0].change_id == "add-trace-view"
+    assert created.roadmap.items[0].external_depends_on == ["existing:ri-01"]
     assert created.change_dir.exists()

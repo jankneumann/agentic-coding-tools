@@ -15,6 +15,19 @@ from typing import Any, Literal
 
 SCHEMA_FILENAME = "candidate-work.schema.json"
 _TERMINAL_STATUSES = frozenset({"completed", "failed", "skipped", "superseded"})
+_ROADMAP_ITEM_STATUSES = frozenset(
+    {
+        "candidate",
+        "approved",
+        "in_progress",
+        "completed",
+        "failed",
+        "blocked",
+        "replan_required",
+        "skipped",
+        "superseded",
+    }
+)
 _SUPPORTED_GENERATORS = frozenset(
     {"bug-scrub", "explore-feature", "improve-harness"}
 )
@@ -171,6 +184,11 @@ def _roadmap_lifecycle_records(
             raise LifecycleCollectionError(
                 f"roadmap {path.relative_to(repo_root)} item #{index} "
                 "has invalid lifecycle fields"
+            )
+        if status not in _ROADMAP_ITEM_STATUSES:
+            raise LifecycleCollectionError(
+                f"roadmap {path.relative_to(repo_root)} item #{index} "
+                f"has unknown roadmap item status {status!r}"
             )
         records.append(
             LifecycleRecord(

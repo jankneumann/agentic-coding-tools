@@ -5,12 +5,18 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "shared"))
 
 from improve_candidate_work import project_candidate_work, write_projection
-from candidate_work import load_candidate_work
+from candidate_work import (
+    CandidateWorkValidationError,
+    load_candidate_work,
+    write_candidate_work,
+)
 
 
 def _finding(**overrides: object) -> dict[str, object]:
@@ -132,3 +138,109 @@ def test_equal_severity_uses_affected_skill_effort_bands() -> None:
 
     assert [candidate["priority"] for candidate in candidates] == [2, 2, 2, 2]
     assert [candidate["effort"] for candidate in candidates] == ["S", "M", "M", "L"]
+
+
+def _run_file_cli(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    ranked: list[dict[str, object]],
+    *,
+    candidate_path: Path | None = None,
+) -> tuple[int, Path, Path]:
+    import analyze_failures
+    import generate_report
+
+    monkeypatch.setattr(analyze_failures, "query_memory", lambda **_kwargs: [{}])
+    monkeypatch.setattr(analyze_failures, "rank_findings", lambda _entries: ranked)
+    report_path = tmp_path / "capability-gaps.md"
+    destination = candidate_path or tmp_path / "improve-harness-candidate-work.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "generate_report.py",
+            "--output",
+            str(report_path),
+            "--candidate-work-output",
+            str(destination),
+        ],
+    )
+    return generate_report.main(), report_path, destination
+
+
+def test_cli_collision_is_concise_and_preserves_report_and_destination(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    destination = tmp_path / "candidate-work.json"
+    other = project_candidate_work([_finding()], "other-report.md")[0]
+    other["provenance"]["generator"] = "bug-scrub"
+    write_candidate_work(destination, [other], generator="bug-scrub")
+    before = destination.read_bytes()
+
+    result, report_path, _ = _run_file_cli(
+        tmp_path,
+        monkeypatch,
+        [_finding()],
+        candidate_path=destination,
+    )
+
+    captured = capsys.readouterr()
+    assert result == 2
+    assert captured.err.startswith("error: candidate-work sidecar not written:")
+    assert "bug-scrub" in captured.err
+    assert "Traceback" not in captured.err
+    assert report_path.exists()
+    assert destination.read_bytes() == before
+
+
+def test_cli_schema_failure_is_concise_and_preserves_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import improve_candidate_work
+
+    def fail_validation(*_args, **_kwargs):
+        raise CandidateWorkValidationError(
+            ["title: should be non-empty"], index=0
+        )
+
+    monkeypatch.setattr(improve_candidate_work, "write_projection", fail_validation)
+
+    result, report_path, destination = _run_file_cli(
+        tmp_path, monkeypatch, [_finding()]
+    )
+
+    captured = capsys.readouterr()
+    assert result == 2
+    assert captured.err.startswith("error: candidate-work sidecar not written:")
+    assert "title" in captured.err
+    assert "Traceback" not in captured.err
+    assert report_path.exists()
+    assert not destination.exists()
+
+
+def test_cli_projection_value_error_is_concise_and_preserves_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import improve_candidate_work
+
+    def fail_projection(*_args, **_kwargs):
+        raise ValueError("projection failed")
+
+    monkeypatch.setattr(improve_candidate_work, "write_projection", fail_projection)
+
+    result, report_path, destination = _run_file_cli(
+        tmp_path, monkeypatch, [_finding()]
+    )
+
+    captured = capsys.readouterr()
+    assert result == 2
+    assert captured.err == "error: candidate-work sidecar not written: projection failed\n"
+    assert "Traceback" not in captured.err
+    assert report_path.exists()
+    assert not destination.exists()

@@ -182,3 +182,26 @@ def test_shared_collector_reads_legacy_archived_roadmap_lifecycle(
     ) in records
     assert LifecycleRecord("add-live", "active_change", "active") in records
     assert LifecycleRecord("add-done", "archive", "completed") in records
+
+
+def test_shared_collector_rejects_unknown_roadmap_item_status(
+    tmp_path: Path,
+) -> None:
+    import candidate_work as runtime
+
+    roadmap = tmp_path / "openspec/roadmaps/runtime/roadmap.yaml"
+    roadmap.parent.mkdir(parents=True)
+    roadmap.write_text(
+        "roadmap_id: runtime\n"
+        "items:\n"
+        "  - item_id: ri-01\n"
+        "    change_id: add-runtime\n"
+        "    status: awaiting_oracle\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        runtime.LifecycleCollectionError,
+        match=r"unknown roadmap item status 'awaiting_oracle'",
+    ):
+        runtime.collect_lifecycle_records(tmp_path)
