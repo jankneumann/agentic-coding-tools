@@ -4,7 +4,7 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.diagnostics.json",
       "required": false,
-      "sha256": "9fa04949adc5d433ee461fa75b1806eee1124e031dbdcef827a2086e8b9a7ee9",
+      "sha256": "fb63612206989ae2dfec4d9ee10d68d56e47d24ea1b484f1556382a099c0b835",
       "size_bytes": 1051230,
       "tier": "committed"
     },
@@ -12,15 +12,15 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.graph.json",
       "required": true,
-      "sha256": "3b18a680a6a12d4721a965c28b0b64e11ecbfbde9be39ad673447a2fc80c695b",
-      "size_bytes": 884499,
+      "sha256": "9050ed4f0d647893f757993ac896c633098b9bfb59aef82dde7e7e2392d12d5e",
+      "size_bytes": 884957,
       "tier": "committed"
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.report.md",
       "required": false,
-      "sha256": "df2ce7d4da29b2bbcbf59f5b13dcd2c6be4795986d6718168ebfccaaa64c54c2",
+      "sha256": "5deb9905a24c093504e0d2ff21bb69fbb2c0dea44004ee5beeb92dd6fe322971",
       "size_bytes": 55402,
       "tier": "committed"
     },
@@ -28,15 +28,15 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/architecture.summary.json",
       "required": true,
-      "sha256": "c409fd5fac9445b1f845be7530def77ba014370abf30faf7717583ada6a3ac2b",
-      "size_bytes": 23692,
+      "sha256": "5f81a172072541434ef9f404f0ead467ce221bf60543bccabe5061179a6a820a",
+      "size_bytes": 23982,
       "tier": "committed"
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/comment_insights.json",
       "required": false,
-      "sha256": "7ea8e47594e901a01cc4ee74d0e74ce8a2e6d3cee104b54fb689b25b2118652a",
+      "sha256": "2d1f22108b482197c4e02a03c241b121180e4138b7011b206b6e2c4985f1d9cf",
       "size_bytes": 20830,
       "tier": "committed"
     },
@@ -44,15 +44,15 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/parallel_zones.json",
       "required": false,
-      "sha256": "11b2105dd21919aa3b04188381ae7fb6fc6befe12ffc211f5606a6a3667b0e36",
-      "size_bytes": 507680,
+      "sha256": "121b285c9561f59e592b9907b48ed51ab2813af29be08ef82a7ee81a795c60a6",
+      "size_bytes": 508657,
       "tier": "local-cache"
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/pattern_insights.json",
       "required": false,
-      "sha256": "447c27967b669153623bb8825aba454d99421651463cdb8cadbaeb282ddaab31",
+      "sha256": "8998285f0984a60bed7484a56296b4fc04fa7e78563e91f5753550eb62bfe8cf",
       "size_bytes": 4161,
       "tier": "committed"
     },
@@ -68,16 +68,16 @@
       "carried_over": false,
       "path": "docs/architecture-analysis/python_analysis.json",
       "required": false,
-      "sha256": "e18a117e31aaf541d9c1e94355ec107f41560b7de096c6b2f64474250d0ff309",
-      "size_bytes": 1018351,
+      "sha256": "ba577c11d2f1dae403febee455cfa84ee9fc2355d3c703fa05a6d109efd9f267",
+      "size_bytes": 1018874,
       "tier": "local-cache"
     },
     {
       "carried_over": false,
       "path": "docs/architecture-analysis/treesitter_enrichment.json",
       "required": false,
-      "sha256": "71683bb173e1aeca8d8785b7d68b98bb8da15115ff3e9028da2951a3af0ea69e",
-      "size_bytes": 1297352,
+      "sha256": "fd45eafe87281edc76310ca5ffe5b07c5dfdc2640f7f893fa9adf3f8548dc65d",
+      "size_bytes": 1292630,
       "tier": "local-cache"
     },
     {
@@ -129,9 +129,9 @@
       "tier": "committed"
     }
   ],
-  "generated_at": "2026-09-13T20:42:51+00:00",
+  "generated_at": "2026-09-14T00:51:59+00:00",
   "input_enumeration": "git",
-  "input_fingerprint": "14944a7400656b2a0c6e3918f04e3fe4e8cdbeea15be3ccbd58a6fa2bd239f68",
+  "input_fingerprint": "1ad907a3a37c5b7c655c7a530c39d8d5bd011dc212eaa8dbb3fc97b5dcaf2d11",
   "input_roots": [
     "agent-coordinator/database/migrations",
     "agent-coordinator/src",
@@ -166,7 +166,7 @@
   },
   "repository_id": "cleanup",
   "schema_version": 2,
-  "source_revision": "33fea288f530b6a3ff408265d14dcb99dfc8e37c",
+  "source_revision": "c43e10244957451d7b8c425a41791718986c361d",
   "validation": {
     "error_count": 0,
     "status": "passed",

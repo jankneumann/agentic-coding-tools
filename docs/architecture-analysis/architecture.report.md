@@ -2,8 +2,8 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-09-13T20:42:51+00:00  
-Git SHA: `33fea288f530b6a3ff408265d14dcb99dfc8e37c`
+Generated: 2026-09-14T00:51:59+00:00  
+Git SHA: `c43e10244957451d7b8c425a41791718986c361d`
 
 ## System Overview
 
@@ -14,7 +14,7 @@ This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (8
 | Metric | Count |
 |--------|-------|
 | Total nodes | 1887 |
-| Total edges | 1221 |
+| Total edges | 1223 |
 | Python modules | 77 |
 | Functions | 1111 (444 async) |
 | Classes | 255 |
@@ -331,7 +331,7 @@ Breakdown: 89 info, 8 warning.
 
 *Data sources: [high_impact_nodes.json](high_impact_nodes.json), [parallel_zones.json](parallel_zones.json)*
 
-120 nodes with >= 5 transitive dependents. Changes to these ripple through the codebase — test thoroughly.
+123 nodes with >= 5 transitive dependents. Changes to these ripple through the codebase — test thoroughly.
 
 | Node | Dependents | Risk |
 |------|------------|------|
@@ -344,6 +344,7 @@ Breakdown: 89 info, 8 warning.
 | `audit.get_audit_service` | 43 | Critical — affects 43 downstream functions (15 modules affected) |
 | `config` | 32 | Critical — affects 32 downstream functions (32 modules affected) |
 | `coordination_api.resolve_identity` | 32 | Critical — affects 32 downstream functions (modules: coordination_api) |
+| `teams.CrewManifest.validate` | 31 | Critical — affects 31 downstream functions (8 modules affected) |
 | `coordination_cli._print_dict` | 29 | Critical — affects 29 downstream functions (modules: coordination_cli) |
 | `coordination_api.authorize_operation` | 28 | Critical — affects 28 downstream functions (modules: coordination_api) |
 | `coordination_cli._output` | 28 | Critical — affects 28 downstream functions (modules: coordination_cli) |
@@ -354,7 +355,6 @@ Breakdown: 89 info, 8 warning.
 | `profile_loader.interpolate` | 26 | Critical — affects 26 downstream functions (9 modules affected) |
 | `db` | 25 | Critical — affects 25 downstream functions (25 modules affected) |
 | `profile_loader._load_secrets_file` | 25 | Critical — affects 25 downstream functions (9 modules affected) |
-| `teams.CrewManifest.validate` | 25 | Critical — affects 25 downstream functions (8 modules affected) |
 | `agents_config._default_agents_path` | 21 | Critical — affects 21 downstream functions (8 modules affected) |
 | `agents_config._default_secrets_path` | 21 | Critical — affects 21 downstream functions (8 modules affected) |
 | `agents_config.load_agents_config._parse_mode` | 21 | Critical — affects 21 downstream functions (8 modules affected) |
@@ -365,7 +365,7 @@ Breakdown: 89 info, 8 warning.
 | `feature_registry.get_feature_registry_service` | 19 | High — test `feature_registry` changes thoroughly (5 modules affected) |
 | `issue_service.get_issue_service` | 19 | High — test `issue_service` changes thoroughly (modules: coordination_api, coordination_mcp) |
 | `audit` | 17 | High — test `audit` changes thoroughly (16 modules affected) |
-| ... | | 90 more |
+| ... | | 93 more |
 
 ## Code Health Indicators
 
@@ -463,7 +463,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **1162 independent groups** identified. The largest interconnected group has 552 modules; 1470 modules are leaf nodes (safe to modify in isolation).
 
-**41 high-impact modules** act as coupling points — parallel changes touching these need coordination.
+**42 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
 ### Interconnected Groups
 

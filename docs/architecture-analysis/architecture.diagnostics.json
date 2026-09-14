@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-13T20:42:51+00:00",
+  "generated_at": "2026-09-14T00:51:59+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -1755,7 +1755,7 @@
       "message": "Function 'PollConfig' has no corresponding test references",
       "node_id": "py:agents_config.PollConfig",
       "file": "agents_config.py",
-      "line": 526,
+      "line": 507,
       "suggestion": "Add tests that reference 'PollConfig' (e.g., test_PollConfig or import it in a test file)"
     },
     {
@@ -1764,7 +1764,7 @@
       "message": "Function 'ModeConfig' has no corresponding test references",
       "node_id": "py:agents_config.ModeConfig",
       "file": "agents_config.py",
-      "line": 544,
+      "line": 525,
       "suggestion": "Add tests that reference 'ModeConfig' (e.g., test_ModeConfig or import it in a test file)"
     },
     {
@@ -1773,7 +1773,7 @@
       "message": "Function 'CliConfig' has no corresponding test references",
       "node_id": "py:agents_config.CliConfig",
       "file": "agents_config.py",
-      "line": 553,
+      "line": 534,
       "suggestion": "Add tests that reference 'CliConfig' (e.g., test_CliConfig or import it in a test file)"
     },
     {
@@ -1782,7 +1782,7 @@
       "message": "Function 'SdkConfig' has no corresponding test references",
       "node_id": "py:agents_config.SdkConfig",
       "file": "agents_config.py",
-      "line": 577,
+      "line": 558,
       "suggestion": "Add tests that reference 'SdkConfig' (e.g., test_SdkConfig or import it in a test file)"
     },
     {
@@ -1791,7 +1791,7 @@
       "message": "Function 'AgentEntry' has no corresponding test references",
       "node_id": "py:agents_config.AgentEntry",
       "file": "agents_config.py",
-      "line": 594,
+      "line": 575,
       "suggestion": "Add tests that reference 'AgentEntry' (e.g., test_AgentEntry or import it in a test file)"
     },
     {
@@ -1800,7 +1800,7 @@
       "message": "Function 'EscalationConfig' has no corresponding test references",
       "node_id": "py:agents_config.EscalationConfig",
       "file": "agents_config.py",
-      "line": 617,
+      "line": 598,
       "suggestion": "Add tests that reference 'EscalationConfig' (e.g., test_EscalationConfig or import it in a test file)"
     },
     {
@@ -1809,7 +1809,7 @@
       "message": "Function 'ArchetypeConfig' has no corresponding test references",
       "node_id": "py:agents_config.ArchetypeConfig",
       "file": "agents_config.py",
-      "line": 631,
+      "line": 612,
       "suggestion": "Add tests that reference 'ArchetypeConfig' (e.g., test_ArchetypeConfig or import it in a test file)"
     },
     {
@@ -1818,7 +1818,7 @@
       "message": "Function 'PhaseMappingEntry' has no corresponding test references",
       "node_id": "py:agents_config.PhaseMappingEntry",
       "file": "agents_config.py",
-      "line": 646,
+      "line": 627,
       "suggestion": "Add tests that reference 'PhaseMappingEntry' (e.g., test_PhaseMappingEntry or import it in a test file)"
     },
     {
@@ -1827,7 +1827,7 @@
       "message": "Function 'ModelSpec' has no corresponding test references",
       "node_id": "py:agents_config.ModelSpec",
       "file": "agents_config.py",
-      "line": 660,
+      "line": 641,
       "suggestion": "Add tests that reference 'ModelSpec' (e.g., test_ModelSpec or import it in a test file)"
     },
     {
@@ -1836,7 +1836,7 @@
       "message": "Function 'ResolvedArchetype' has no corresponding test references",
       "node_id": "py:agents_config.ResolvedArchetype",
       "file": "agents_config.py",
-      "line": 674,
+      "line": 655,
       "suggestion": "Add tests that reference 'ResolvedArchetype' (e.g., test_ResolvedArchetype or import it in a test file)"
     },
     {
@@ -1845,7 +1845,7 @@
       "message": "Function 'ProviderModelMappingError' has no corresponding test references",
       "node_id": "py:agents_config.ProviderModelMappingError",
       "file": "agents_config.py",
-      "line": 690,
+      "line": 671,
       "suggestion": "Add tests that reference 'ProviderModelMappingError' (e.g., test_ProviderModelMappingError or import it in a test file)"
     },
     {
@@ -1854,7 +1854,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:agents_config.ProviderModelMappingError.__init__",
       "file": "agents_config.py",
-      "line": 693,
+      "line": 674,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -1863,7 +1863,7 @@
       "message": "Function 'LocalRosterConfigError' has no corresponding test references",
       "node_id": "py:agents_config.LocalRosterConfigError",
       "file": "agents_config.py",
-      "line": 710,
+      "line": 691,
       "suggestion": "Add tests that reference 'LocalRosterConfigError' (e.g., test_LocalRosterConfigError or import it in a test file)"
     },
     {
@@ -1872,7 +1872,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:agents_config.LocalRosterConfigError.__init__",
       "file": "agents_config.py",
-      "line": 719,
+      "line": 700,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -1881,7 +1881,7 @@
       "message": "Function 'LocalProviderTrustBoundaryError' has no corresponding test references",
       "node_id": "py:agents_config.LocalProviderTrustBoundaryError",
       "file": "agents_config.py",
-      "line": 731,
+      "line": 712,
       "suggestion": "Add tests that reference 'LocalProviderTrustBoundaryError' (e.g., test_LocalProviderTrustBoundaryError or import it in a test file)"
     },
     {
@@ -1890,7 +1890,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:agents_config.LocalProviderTrustBoundaryError.__init__",
       "file": "agents_config.py",
-      "line": 739,
+      "line": 720,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -1899,7 +1899,7 @@
       "message": "Function '_default_agents_path' has no corresponding test references",
       "node_id": "py:agents_config._default_agents_path",
       "file": "agents_config.py",
-      "line": 756,
+      "line": 737,
       "suggestion": "Add tests that reference '_default_agents_path' (e.g., test__default_agents_path or import it in a test file)"
     },
     {
@@ -1908,7 +1908,7 @@
       "message": "Function '_default_secrets_path' has no corresponding test references",
       "node_id": "py:agents_config._default_secrets_path",
       "file": "agents_config.py",
-      "line": 760,
+      "line": 741,
       "suggestion": "Add tests that reference '_default_secrets_path' (e.g., test__default_secrets_path or import it in a test file)"
     },
     {
@@ -1917,7 +1917,7 @@
       "message": "Function 'load_agents_config' has no corresponding test references",
       "node_id": "py:agents_config.load_agents_config",
       "file": "agents_config.py",
-      "line": 764,
+      "line": 745,
       "suggestion": "Add tests that reference 'load_agents_config' (e.g., test_load_agents_config or import it in a test file)"
     },
     {
@@ -1926,7 +1926,7 @@
       "message": "Function '_parse_mode' has no corresponding test references",
       "node_id": "py:agents_config.load_agents_config._parse_mode",
       "file": "agents_config.py",
-      "line": 836,
+      "line": 817,
       "suggestion": "Add tests that reference '_parse_mode' (e.g., test__parse_mode or import it in a test file)"
     },
     {
@@ -1935,7 +1935,7 @@
       "message": "Function '_resolve_api_key_from_openbao' has no corresponding test references",
       "node_id": "py:agents_config._resolve_api_key_from_openbao",
       "file": "agents_config.py",
-      "line": 911,
+      "line": 892,
       "suggestion": "Add tests that reference '_resolve_api_key_from_openbao' (e.g., test__resolve_api_key_from_openbao or import it in a test file)"
     },
     {
@@ -1944,7 +1944,7 @@
       "message": "Function 'DuplicateApiKeyError' has no corresponding test references",
       "node_id": "py:agents_config.DuplicateApiKeyError",
       "file": "agents_config.py",
-      "line": 962,
+      "line": 943,
       "suggestion": "Add tests that reference 'DuplicateApiKeyError' (e.g., test_DuplicateApiKeyError or import it in a test file)"
     },
     {
@@ -1953,7 +1953,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:agents_config.DuplicateApiKeyError.__init__",
       "file": "agents_config.py",
-      "line": 970,
+      "line": 951,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -1962,7 +1962,7 @@
       "message": "Function 'get_api_key_identities' has no corresponding test references",
       "node_id": "py:agents_config.get_api_key_identities",
       "file": "agents_config.py",
-      "line": 980,
+      "line": 961,
       "suggestion": "Add tests that reference 'get_api_key_identities' (e.g., test_get_api_key_identities or import it in a test file)"
     },
     {
@@ -1971,7 +1971,7 @@
       "message": "Function 'ProfileSyncError' has no corresponding test references",
       "node_id": "py:agents_config.ProfileSyncError",
       "file": "agents_config.py",
-      "line": 1110,
+      "line": 1091,
       "suggestion": "Add tests that reference 'ProfileSyncError' (e.g., test_ProfileSyncError or import it in a test file)"
     },
     {
@@ -1980,7 +1980,7 @@
       "message": "Function 'ProfileSyncResult' has no corresponding test references",
       "node_id": "py:agents_config.ProfileSyncResult",
       "file": "agents_config.py",
-      "line": 1120,
+      "line": 1101,
       "suggestion": "Add tests that reference 'ProfileSyncResult' (e.g., test_ProfileSyncResult or import it in a test file)"
     },
     {
@@ -1989,7 +1989,7 @@
       "message": "Function 'mutations' has no corresponding test references",
       "node_id": "py:agents_config.ProfileSyncResult.mutations",
       "file": "agents_config.py",
-      "line": 1137,
+      "line": 1118,
       "suggestion": "Add tests that reference 'mutations' (e.g., test_mutations or import it in a test file)"
     },
     {
@@ -1998,7 +1998,7 @@
       "message": "Function 'derive_allowed_operations' has no corresponding test references",
       "node_id": "py:agents_config.derive_allowed_operations",
       "file": "agents_config.py",
-      "line": 1149,
+      "line": 1130,
       "suggestion": "Add tests that reference 'derive_allowed_operations' (e.g., test_derive_allowed_operations or import it in a test file)"
     },
     {
@@ -2007,7 +2007,7 @@
       "message": "Function '_is_unique_violation' has no corresponding test references",
       "node_id": "py:agents_config._is_unique_violation",
       "file": "agents_config.py",
-      "line": 1190,
+      "line": 1171,
       "suggestion": "Add tests that reference '_is_unique_violation' (e.g., test__is_unique_violation or import it in a test file)"
     },
     {
@@ -2016,7 +2016,7 @@
       "message": "Function '_registry_sync_timestamp' has no corresponding test references",
       "node_id": "py:agents_config._registry_sync_timestamp",
       "file": "agents_config.py",
-      "line": 1209,
+      "line": 1190,
       "suggestion": "Add tests that reference '_registry_sync_timestamp' (e.g., test__registry_sync_timestamp or import it in a test file)"
     },
     {
@@ -2025,7 +2025,7 @@
       "message": "Function '_desired_profile_row' has no corresponding test references",
       "node_id": "py:agents_config._desired_profile_row",
       "file": "agents_config.py",
-      "line": 1225,
+      "line": 1206,
       "suggestion": "Add tests that reference '_desired_profile_row' (e.g., test__desired_profile_row or import it in a test file)"
     },
     {
@@ -2034,7 +2034,7 @@
       "message": "Function '_profile_drift' has no corresponding test references",
       "node_id": "py:agents_config._profile_drift",
       "file": "agents_config.py",
-      "line": 1238,
+      "line": 1219,
       "suggestion": "Add tests that reference '_profile_drift' (e.g., test__profile_drift or import it in a test file)"
     },
     {
@@ -2043,7 +2043,7 @@
       "message": "Function '_emit_sync_audit' has no corresponding test references",
       "node_id": "py:agents_config._emit_sync_audit",
       "file": "agents_config.py",
-      "line": 1256,
+      "line": 1237,
       "suggestion": "Add tests that reference '_emit_sync_audit' (e.g., test__emit_sync_audit or import it in a test file)"
     },
     {
@@ -2052,7 +2052,7 @@
       "message": "Function '_sync_assignments' has no corresponding test references",
       "node_id": "py:agents_config._sync_assignments",
       "file": "agents_config.py",
-      "line": 1301,
+      "line": 1282,
       "suggestion": "Add tests that reference '_sync_assignments' (e.g., test__sync_assignments or import it in a test file)"
     },
     {
@@ -2061,7 +2061,7 @@
       "message": "Function 'sync_profiles' has no corresponding test references",
       "node_id": "py:agents_config.sync_profiles",
       "file": "agents_config.py",
-      "line": 1487,
+      "line": 1468,
       "suggestion": "Add tests that reference 'sync_profiles' (e.g., test_sync_profiles or import it in a test file)"
     },
     {
@@ -2070,7 +2070,7 @@
       "message": "Function 'get_mcp_env' has no corresponding test references",
       "node_id": "py:agents_config.get_mcp_env",
       "file": "agents_config.py",
-      "line": 1720,
+      "line": 1701,
       "suggestion": "Add tests that reference 'get_mcp_env' (e.g., test_get_mcp_env or import it in a test file)"
     },
     {
@@ -2079,7 +2079,7 @@
       "message": "Function 'get_agents_config' has no corresponding test references",
       "node_id": "py:agents_config.get_agents_config",
       "file": "agents_config.py",
-      "line": 1758,
+      "line": 1739,
       "suggestion": "Add tests that reference 'get_agents_config' (e.g., test_get_agents_config or import it in a test file)"
     },
     {
@@ -2088,7 +2088,7 @@
       "message": "Function 'get_agent_config' has no corresponding test references",
       "node_id": "py:agents_config.get_agent_config",
       "file": "agents_config.py",
-      "line": 1774,
+      "line": 1755,
       "suggestion": "Add tests that reference 'get_agent_config' (e.g., test_get_agent_config or import it in a test file)"
     },
     {
@@ -2097,7 +2097,7 @@
       "message": "Function 'reset_agents_config' has no corresponding test references",
       "node_id": "py:agents_config.reset_agents_config",
       "file": "agents_config.py",
-      "line": 1782,
+      "line": 1763,
       "suggestion": "Add tests that reference 'reset_agents_config' (e.g., test_reset_agents_config or import it in a test file)"
     },
     {
@@ -2106,7 +2106,7 @@
       "message": "Function 'get_dispatch_configs' has no corresponding test references",
       "node_id": "py:agents_config.get_dispatch_configs",
       "file": "agents_config.py",
-      "line": 1792,
+      "line": 1773,
       "suggestion": "Add tests that reference 'get_dispatch_configs' (e.g., test_get_dispatch_configs or import it in a test file)"
     },
     {
@@ -2115,7 +2115,7 @@
       "message": "Function 'get_agent_isolation' has no corresponding test references",
       "node_id": "py:agents_config.get_agent_isolation",
       "file": "agents_config.py",
-      "line": 1860,
+      "line": 1841,
       "suggestion": "Add tests that reference 'get_agent_isolation' (e.g., test_get_agent_isolation or import it in a test file)"
     },
     {
@@ -2124,7 +2124,7 @@
       "message": "Function '_default_archetypes_path' has no corresponding test references",
       "node_id": "py:agents_config._default_archetypes_path",
       "file": "agents_config.py",
-      "line": 1876,
+      "line": 1857,
       "suggestion": "Add tests that reference '_default_archetypes_path' (e.g., test__default_archetypes_path or import it in a test file)"
     },
     {
@@ -2133,7 +2133,7 @@
       "message": "Function '_as_positive_number' has no corresponding test references",
       "node_id": "py:agents_config._as_positive_number",
       "file": "agents_config.py",
-      "line": 1880,
+      "line": 1861,
       "suggestion": "Add tests that reference '_as_positive_number' (e.g., test__as_positive_number or import it in a test file)"
     },
     {
@@ -2142,7 +2142,7 @@
       "message": "Function '_validate_local_roster' has no corresponding test references",
       "node_id": "py:agents_config._validate_local_roster",
       "file": "agents_config.py",
-      "line": 1887,
+      "line": 1868,
       "suggestion": "Add tests that reference '_validate_local_roster' (e.g., test__validate_local_roster or import it in a test file)"
     },
     {
@@ -2151,7 +2151,7 @@
       "message": "Function 'load_archetypes_config' has no corresponding test references",
       "node_id": "py:agents_config.load_archetypes_config",
       "file": "agents_config.py",
-      "line": 2009,
+      "line": 1990,
       "suggestion": "Add tests that reference 'load_archetypes_config' (e.g., test_load_archetypes_config or import it in a test file)"
     },
     {
@@ -2160,7 +2160,7 @@
       "message": "Function 'get_archetype' has no corresponding test references",
       "node_id": "py:agents_config.get_archetype",
       "file": "agents_config.py",
-      "line": 2107,
+      "line": 2088,
       "suggestion": "Add tests that reference 'get_archetype' (e.g., test_get_archetype or import it in a test file)"
     },
     {
@@ -2169,7 +2169,7 @@
       "message": "Function 'get_phase_mapping' has no corresponding test references",
       "node_id": "py:agents_config.get_phase_mapping",
       "file": "agents_config.py",
-      "line": 2121,
+      "line": 2102,
       "suggestion": "Add tests that reference 'get_phase_mapping' (e.g., test_get_phase_mapping or import it in a test file)"
     },
     {
@@ -2178,7 +2178,7 @@
       "message": "Function 'reset_archetypes_config' has no corresponding test references",
       "node_id": "py:agents_config.reset_archetypes_config",
       "file": "agents_config.py",
-      "line": 2133,
+      "line": 2114,
       "suggestion": "Add tests that reference 'reset_archetypes_config' (e.g., test_reset_archetypes_config or import it in a test file)"
     },
     {
@@ -2187,7 +2187,7 @@
       "message": "Function '_served_local_roster' has no corresponding test references",
       "node_id": "py:agents_config._served_local_roster",
       "file": "agents_config.py",
-      "line": 2141,
+      "line": 2122,
       "suggestion": "Add tests that reference '_served_local_roster' (e.g., test__served_local_roster or import it in a test file)"
     },
     {
@@ -2196,7 +2196,7 @@
       "message": "Function '_with_served_local_roster' has no corresponding test references",
       "node_id": "py:agents_config._with_served_local_roster",
       "file": "agents_config.py",
-      "line": 2170,
+      "line": 2151,
       "suggestion": "Add tests that reference '_with_served_local_roster' (e.g., test__with_served_local_roster or import it in a test file)"
     },
     {
@@ -2205,7 +2205,7 @@
       "message": "Function '_normalize_provider_model_map' has no corresponding test references",
       "node_id": "py:agents_config._normalize_provider_model_map",
       "file": "agents_config.py",
-      "line": 2184,
+      "line": 2165,
       "suggestion": "Add tests that reference '_normalize_provider_model_map' (e.g., test__normalize_provider_model_map or import it in a test file)"
     },
     {
@@ -2214,7 +2214,7 @@
       "message": "Function 'get_provider_model_map' has no corresponding test references",
       "node_id": "py:agents_config.get_provider_model_map",
       "file": "agents_config.py",
-      "line": 2214,
+      "line": 2195,
       "suggestion": "Add tests that reference 'get_provider_model_map' (e.g., test_get_provider_model_map or import it in a test file)"
     },
     {
@@ -2223,7 +2223,7 @@
       "message": "Function '_tier_entry_to_spec' has no corresponding test references",
       "node_id": "py:agents_config._tier_entry_to_spec",
       "file": "agents_config.py",
-      "line": 2221,
+      "line": 2226,
       "suggestion": "Add tests that reference '_tier_entry_to_spec' (e.g., test__tier_entry_to_spec or import it in a test file)"
     },
     {
@@ -2232,7 +2232,7 @@
       "message": "Function '_best_defined_tier' has no corresponding test references",
       "node_id": "py:agents_config._best_defined_tier",
       "file": "agents_config.py",
-      "line": 2236,
+      "line": 2241,
       "suggestion": "Add tests that reference '_best_defined_tier' (e.g., test__best_defined_tier or import it in a test file)"
     },
     {
@@ -2241,7 +2241,7 @@
       "message": "Function 'resolve_provider_model_spec' has no corresponding test references",
       "node_id": "py:agents_config.resolve_provider_model_spec",
       "file": "agents_config.py",
-      "line": 2245,
+      "line": 2250,
       "suggestion": "Add tests that reference 'resolve_provider_model_spec' (e.g., test_resolve_provider_model_spec or import it in a test file)"
     },
     {
@@ -2250,7 +2250,7 @@
       "message": "Function 'resolve_provider_model' has no corresponding test references",
       "node_id": "py:agents_config.resolve_provider_model",
       "file": "agents_config.py",
-      "line": 2326,
+      "line": 2331,
       "suggestion": "Add tests that reference 'resolve_provider_model' (e.g., test_resolve_provider_model or import it in a test file)"
     },
     {
@@ -2259,7 +2259,7 @@
       "message": "Function 'compose_prompt' has no corresponding test references",
       "node_id": "py:agents_config.compose_prompt",
       "file": "agents_config.py",
-      "line": 2346,
+      "line": 2351,
       "suggestion": "Add tests that reference 'compose_prompt' (e.g., test_compose_prompt or import it in a test file)"
     },
     {
@@ -2268,7 +2268,7 @@
       "message": "Function '_unique_dir_prefixes' has no corresponding test references",
       "node_id": "py:agents_config._unique_dir_prefixes",
       "file": "agents_config.py",
-      "line": 2362,
+      "line": 2367,
       "suggestion": "Add tests that reference '_unique_dir_prefixes' (e.g., test__unique_dir_prefixes or import it in a test file)"
     },
     {
@@ -2277,7 +2277,7 @@
       "message": "Function 'resolve_model' has no corresponding test references",
       "node_id": "py:agents_config.resolve_model",
       "file": "agents_config.py",
-      "line": 2381,
+      "line": 2386,
       "suggestion": "Add tests that reference 'resolve_model' (e.g., test_resolve_model or import it in a test file)"
     },
     {
@@ -2286,7 +2286,7 @@
       "message": "Function '_resolve_model_spec' has no corresponding test references",
       "node_id": "py:agents_config._resolve_model_spec",
       "file": "agents_config.py",
-      "line": 2420,
+      "line": 2425,
       "suggestion": "Add tests that reference '_resolve_model_spec' (e.g., test__resolve_model_spec or import it in a test file)"
     },
     {
@@ -2295,7 +2295,7 @@
       "message": "Function '_finalize' has no corresponding test references",
       "node_id": "py:agents_config._resolve_model_spec._finalize",
       "file": "agents_config.py",
-      "line": 2429,
+      "line": 2434,
       "suggestion": "Add tests that reference '_finalize' (e.g., test__finalize or import it in a test file)"
     },
     {
@@ -2304,7 +2304,7 @@
       "message": "Function 'resolve_archetype_for_phase' has no corresponding test references",
       "node_id": "py:agents_config.resolve_archetype_for_phase",
       "file": "agents_config.py",
-      "line": 2490,
+      "line": 2495,
       "suggestion": "Add tests that reference 'resolve_archetype_for_phase' (e.g., test_resolve_archetype_for_phase or import it in a test file)"
     },
     {
@@ -14067,7 +14067,7 @@
       "message": "'PollConfig' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.PollConfig",
       "file": "agents_config.py",
-      "line": 526,
+      "line": 507,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14076,7 +14076,7 @@
       "message": "'ModeConfig' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ModeConfig",
       "file": "agents_config.py",
-      "line": 544,
+      "line": 525,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14085,7 +14085,7 @@
       "message": "'CliConfig' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.CliConfig",
       "file": "agents_config.py",
-      "line": 553,
+      "line": 534,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14094,7 +14094,7 @@
       "message": "'SdkConfig' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.SdkConfig",
       "file": "agents_config.py",
-      "line": 577,
+      "line": 558,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14103,7 +14103,7 @@
       "message": "'AgentEntry' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.AgentEntry",
       "file": "agents_config.py",
-      "line": 594,
+      "line": 575,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14112,7 +14112,7 @@
       "message": "'EscalationConfig' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.EscalationConfig",
       "file": "agents_config.py",
-      "line": 617,
+      "line": 598,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14121,7 +14121,7 @@
       "message": "'ArchetypeConfig' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ArchetypeConfig",
       "file": "agents_config.py",
-      "line": 631,
+      "line": 612,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14130,7 +14130,7 @@
       "message": "'PhaseMappingEntry' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.PhaseMappingEntry",
       "file": "agents_config.py",
-      "line": 646,
+      "line": 627,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14139,7 +14139,7 @@
       "message": "'ModelSpec' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ModelSpec",
       "file": "agents_config.py",
-      "line": 660,
+      "line": 641,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14148,7 +14148,7 @@
       "message": "'ResolvedArchetype' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ResolvedArchetype",
       "file": "agents_config.py",
-      "line": 674,
+      "line": 655,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14157,7 +14157,7 @@
       "message": "'ProviderModelMappingError' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ProviderModelMappingError",
       "file": "agents_config.py",
-      "line": 690,
+      "line": 671,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14166,7 +14166,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ProviderModelMappingError.__init__",
       "file": "agents_config.py",
-      "line": 693,
+      "line": 674,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14175,7 +14175,7 @@
       "message": "'LocalRosterConfigError' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.LocalRosterConfigError",
       "file": "agents_config.py",
-      "line": 710,
+      "line": 691,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14184,7 +14184,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.LocalRosterConfigError.__init__",
       "file": "agents_config.py",
-      "line": 719,
+      "line": 700,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14193,7 +14193,7 @@
       "message": "'LocalProviderTrustBoundaryError' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.LocalProviderTrustBoundaryError",
       "file": "agents_config.py",
-      "line": 731,
+      "line": 712,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14202,7 +14202,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.LocalProviderTrustBoundaryError.__init__",
       "file": "agents_config.py",
-      "line": 739,
+      "line": 720,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14211,7 +14211,7 @@
       "message": "'_resolve_api_key_from_openbao' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._resolve_api_key_from_openbao",
       "file": "agents_config.py",
-      "line": 911,
+      "line": 892,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14220,7 +14220,7 @@
       "message": "'DuplicateApiKeyError' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.DuplicateApiKeyError",
       "file": "agents_config.py",
-      "line": 962,
+      "line": 943,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14229,7 +14229,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.DuplicateApiKeyError.__init__",
       "file": "agents_config.py",
-      "line": 970,
+      "line": 951,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14238,7 +14238,7 @@
       "message": "'get_api_key_identities' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_api_key_identities",
       "file": "agents_config.py",
-      "line": 980,
+      "line": 961,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14247,7 +14247,7 @@
       "message": "'ProfileSyncError' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ProfileSyncError",
       "file": "agents_config.py",
-      "line": 1110,
+      "line": 1091,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14256,7 +14256,7 @@
       "message": "'ProfileSyncResult' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ProfileSyncResult",
       "file": "agents_config.py",
-      "line": 1120,
+      "line": 1101,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14265,7 +14265,7 @@
       "message": "'mutations' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.ProfileSyncResult.mutations",
       "file": "agents_config.py",
-      "line": 1137,
+      "line": 1118,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14274,7 +14274,7 @@
       "message": "'derive_allowed_operations' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.derive_allowed_operations",
       "file": "agents_config.py",
-      "line": 1149,
+      "line": 1130,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14283,7 +14283,7 @@
       "message": "'_is_unique_violation' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._is_unique_violation",
       "file": "agents_config.py",
-      "line": 1190,
+      "line": 1171,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14292,7 +14292,7 @@
       "message": "'_registry_sync_timestamp' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._registry_sync_timestamp",
       "file": "agents_config.py",
-      "line": 1209,
+      "line": 1190,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14301,7 +14301,7 @@
       "message": "'_desired_profile_row' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._desired_profile_row",
       "file": "agents_config.py",
-      "line": 1225,
+      "line": 1206,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14310,7 +14310,7 @@
       "message": "'_profile_drift' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._profile_drift",
       "file": "agents_config.py",
-      "line": 1238,
+      "line": 1219,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14319,7 +14319,7 @@
       "message": "'_emit_sync_audit' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._emit_sync_audit",
       "file": "agents_config.py",
-      "line": 1256,
+      "line": 1237,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14328,7 +14328,7 @@
       "message": "'_sync_assignments' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._sync_assignments",
       "file": "agents_config.py",
-      "line": 1301,
+      "line": 1282,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14337,7 +14337,7 @@
       "message": "'sync_profiles' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.sync_profiles",
       "file": "agents_config.py",
-      "line": 1487,
+      "line": 1468,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14346,7 +14346,7 @@
       "message": "'get_mcp_env' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_mcp_env",
       "file": "agents_config.py",
-      "line": 1720,
+      "line": 1701,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14355,7 +14355,7 @@
       "message": "'reset_agents_config' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.reset_agents_config",
       "file": "agents_config.py",
-      "line": 1782,
+      "line": 1763,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14364,7 +14364,7 @@
       "message": "'get_agent_isolation' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_agent_isolation",
       "file": "agents_config.py",
-      "line": 1860,
+      "line": 1841,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14373,7 +14373,7 @@
       "message": "'_default_archetypes_path' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._default_archetypes_path",
       "file": "agents_config.py",
-      "line": 1876,
+      "line": 1857,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14382,7 +14382,7 @@
       "message": "'_as_positive_number' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._as_positive_number",
       "file": "agents_config.py",
-      "line": 1880,
+      "line": 1861,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14391,7 +14391,7 @@
       "message": "'_validate_local_roster' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._validate_local_roster",
       "file": "agents_config.py",
-      "line": 1887,
+      "line": 1868,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14400,7 +14400,7 @@
       "message": "'load_archetypes_config' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.load_archetypes_config",
       "file": "agents_config.py",
-      "line": 2009,
+      "line": 1990,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14409,7 +14409,7 @@
       "message": "'get_archetype' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_archetype",
       "file": "agents_config.py",
-      "line": 2107,
+      "line": 2088,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14418,7 +14418,7 @@
       "message": "'get_phase_mapping' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_phase_mapping",
       "file": "agents_config.py",
-      "line": 2121,
+      "line": 2102,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14427,7 +14427,7 @@
       "message": "'reset_archetypes_config' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.reset_archetypes_config",
       "file": "agents_config.py",
-      "line": 2133,
+      "line": 2114,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14436,7 +14436,7 @@
       "message": "'_served_local_roster' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._served_local_roster",
       "file": "agents_config.py",
-      "line": 2141,
+      "line": 2122,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14445,7 +14445,7 @@
       "message": "'_with_served_local_roster' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._with_served_local_roster",
       "file": "agents_config.py",
-      "line": 2170,
+      "line": 2151,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14454,7 +14454,7 @@
       "message": "'_normalize_provider_model_map' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._normalize_provider_model_map",
       "file": "agents_config.py",
-      "line": 2184,
+      "line": 2165,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14463,7 +14463,7 @@
       "message": "'get_provider_model_map' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.get_provider_model_map",
       "file": "agents_config.py",
-      "line": 2214,
+      "line": 2195,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14472,7 +14472,7 @@
       "message": "'_tier_entry_to_spec' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._tier_entry_to_spec",
       "file": "agents_config.py",
-      "line": 2221,
+      "line": 2226,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14481,7 +14481,7 @@
       "message": "'_best_defined_tier' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._best_defined_tier",
       "file": "agents_config.py",
-      "line": 2236,
+      "line": 2241,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14490,7 +14490,7 @@
       "message": "'resolve_provider_model_spec' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_provider_model_spec",
       "file": "agents_config.py",
-      "line": 2245,
+      "line": 2250,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14499,7 +14499,7 @@
       "message": "'resolve_provider_model' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_provider_model",
       "file": "agents_config.py",
-      "line": 2326,
+      "line": 2331,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14508,7 +14508,7 @@
       "message": "'compose_prompt' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.compose_prompt",
       "file": "agents_config.py",
-      "line": 2346,
+      "line": 2351,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14517,7 +14517,7 @@
       "message": "'_unique_dir_prefixes' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._unique_dir_prefixes",
       "file": "agents_config.py",
-      "line": 2362,
+      "line": 2367,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14526,7 +14526,7 @@
       "message": "'resolve_model' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_model",
       "file": "agents_config.py",
-      "line": 2381,
+      "line": 2386,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14535,7 +14535,7 @@
       "message": "'_resolve_model_spec' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._resolve_model_spec",
       "file": "agents_config.py",
-      "line": 2420,
+      "line": 2425,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14544,7 +14544,7 @@
       "message": "'_finalize' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config._resolve_model_spec._finalize",
       "file": "agents_config.py",
-      "line": 2429,
+      "line": 2434,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -14553,7 +14553,7 @@
       "message": "'resolve_archetype_for_phase' is unreachable from any entrypoint or test",
       "node_id": "py:agents_config.resolve_archetype_for_phase",
       "file": "agents_config.py",
-      "line": 2490,
+      "line": 2495,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {

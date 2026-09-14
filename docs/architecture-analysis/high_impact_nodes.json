@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-13T20:42:51+00:00",
+  "generated_at": "2026-09-14T00:51:59+00:00",
   "threshold": 5,
-  "total_high_impact": 120,
+  "total_high_impact": 123,
   "high_impact_nodes": [
     {
       "id": "py:config.get_config",
@@ -38,6 +38,10 @@
     {
       "id": "py:coordination_api.resolve_identity",
       "dependent_count": 32
+    },
+    {
+      "id": "py:teams.CrewManifest.validate",
+      "dependent_count": 31
     },
     {
       "id": "py:coordination_cli._print_dict",
@@ -77,10 +81,6 @@
     },
     {
       "id": "py:profile_loader._load_secrets_file",
-      "dependent_count": 25
-    },
-    {
-      "id": "py:teams.CrewManifest.validate",
       "dependent_count": 25
     },
     {
@@ -156,6 +156,10 @@
       "dependent_count": 12
     },
     {
+      "id": "py:agents_config._as_positive_number",
+      "dependent_count": 11
+    },
+    {
       "id": "py:agents_config._with_served_local_roster",
       "dependent_count": 11
     },
@@ -168,7 +172,15 @@
       "dependent_count": 11
     },
     {
+      "id": "py:agents_config._default_archetypes_path",
+      "dependent_count": 10
+    },
+    {
       "id": "py:agents_config._normalize_provider_model_map",
+      "dependent_count": 10
+    },
+    {
+      "id": "py:agents_config._validate_local_roster",
       "dependent_count": 10
     },
     {
@@ -177,6 +189,10 @@
     },
     {
       "id": "py:agents_config",
+      "dependent_count": 9
+    },
+    {
+      "id": "py:agents_config.load_archetypes_config",
       "dependent_count": 9
     },
     {
@@ -382,10 +398,6 @@
     {
       "id": "py:trust_resolution.resolve_trust_level",
       "dependent_count": 6
-    },
-    {
-      "id": "py:agents_config._as_positive_number",
-      "dependent_count": 5
     },
     {
       "id": "py:agents_config.resolve_provider_model_spec",

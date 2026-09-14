@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-13T20:42:51+00:00",
+  "generated_at": "2026-09-14T00:51:59+00:00",
   "python_patterns": {
     "assertions": {
       "count": 2,
@@ -13,7 +13,7 @@
       "files": {}
     },
     "broad_except": {
-      "count": 133,
+      "count": 134,
       "files": {
         "coordination_api.py": 29,
         "work_queue.py": 17,
@@ -27,9 +27,9 @@
         "notifications/gmail.py": 5,
         "code_search.py": 4,
         "discovery.py": 4,
+        "agents_config.py": 3,
         "github_openspec_fetcher.py": 3,
         "merge_queue.py": 3,
-        "agents_config.py": 2,
         "audit_triage.py": 2,
         "feature_registry.py": 2,
         "handoffs.py": 2,
@@ -126,8 +126,8 @@
   },
   "exception_handling": {
     "bare_except": 0,
-    "broad_except": 133,
-    "total_except_issues": 133
+    "broad_except": 134,
+    "total_except_issues": 134
   },
   "security": {
     "total": 10,

@@ -102,3 +102,10 @@ TDD order within each WP: tests before implementation. None complete yet.
 
 - [ ] F1 File/plan `retire-skill-literal-model-hints` — replace skill
   `Task(model=…)` literals with archetype/tier resolution (Phase 2)
+
+## Migration Notes
+
+Open tasks migrated to follow-up proposal `retire-skill-literal-model-hints`
+on 2026-09-14 during `/cleanup-feature consolidate-model-tier-sources
+--post-merge --pr 538`. F1 remains unchecked here for archive traceability;
+work continues under the follow-up change-id.
