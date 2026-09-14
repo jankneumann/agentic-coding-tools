@@ -2,26 +2,26 @@
 
 **agent-coordinator** — Multi-agent coordination MCP server
 
-Generated: 2026-09-14T13:42:57+00:00  
-Git SHA: `bb690747e5dda0e9f478d291e44aec79cfaa121b`
+Generated: 2026-09-14T14:24:22+00:00  
+Git SHA: `6156be2c31ed454accc2708dc0365dbc46bd04bb`
 
 ## System Overview
 
 *Data sources: [architecture.graph.json](architecture.graph.json), [architecture.summary.json](architecture.summary.json), [python_analysis.json](python_analysis.json)*
 
-This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (84 tools, 11 resources, 2 prompts), backed by **29 Postgres tables**. The codebase contains 1114 functions (444 async) and 256 classes.
+This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (84 tools, 11 resources, 2 prompts), backed by **29 Postgres tables**. The codebase contains 1115 functions (444 async) and 256 classes.
 
 | Metric | Count |
 |--------|-------|
-| Total nodes | 1899 |
+| Total nodes | 1901 |
 | Total edges | 1228 |
 | Python modules | 77 |
-| Functions | 1114 (444 async) |
+| Functions | 1115 (444 async) |
 | Classes | 256 |
 | Mcp Endpoints | 97 |
 | DB tables | 29 |
-| Python nodes | 1447 |
-| Sql nodes | 452 |
+| Python nodes | 1448 |
+| Sql nodes | 453 |
 
 ## Module Responsibility Map
 
@@ -279,18 +279,18 @@ This is a **Python MCP server** with 77 modules exposing **97 MCP endpoints** (8
 
 *Data source: [architecture.diagnostics.json](architecture.diagnostics.json)*
 
-**2811 findings** across 4 categories:
+**2813 findings** across 4 categories:
 
-### Orphan — 1247
+### Orphan — 1248
 
-1247 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
+1248 symbols are unreachable from any entrypoint — may be dead code or missing wiring.
 
 - '__init__' is unreachable from any entrypoint or test
 - 'agents_config' is unreachable from any entrypoint or test
 - 'PollConfig' is unreachable from any entrypoint or test
 - 'ModeConfig' is unreachable from any entrypoint or test
 - 'CliConfig' is unreachable from any entrypoint or test
-- ... and 1242 more
+- ... and 1243 more
 
 ### Reachability — 97
 
@@ -305,16 +305,16 @@ Breakdown: 89 info, 8 warning.
 - Entrypoint 'query_memories' has downstream dependencies but none touch a DB or produce side effects
 - ... and 92 more
 
-### Test Coverage — 1370
+### Test Coverage — 1371
 
-1370 functions lack test references — consider adding tests for critical paths.
+1371 functions lack test references — consider adding tests for critical paths.
 
 - Function 'PollConfig' has no corresponding test references
 - Function 'ModeConfig' has no corresponding test references
 - Function 'CliConfig' has no corresponding test references
 - Function 'SdkConfig' has no corresponding test references
 - Function 'AgentEntry' has no corresponding test references
-- ... and 1365 more
+- ... and 1366 more
 
 ### Disconnected Flow (expected) — 97
 
@@ -375,9 +375,9 @@ Breakdown: 89 info, 8 warning.
 
 | Indicator | Value |
 |-----------|-------|
-| Async ratio | 444/1114 (40%) |
-| Docstring coverage | 792/1114 (71%) |
-| Dead code candidates | 513 |
+| Async ratio | 444/1115 (40%) |
+| Docstring coverage | 792/1115 (71%) |
+| Dead code candidates | 514 |
 
 ### Hot Functions
 
@@ -398,7 +398,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ### Dead Code Candidates
 
-513 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
+514 functions are unreachable from entrypoints via static analysis. Some may be used dynamically (e.g., classmethods, test helpers).
 
 - **agents_config** (10): `mutations`, `get_mcp_env`, `reset_agents_config`, `get_agent_isolation`, `get_phase_mapping`, `reset_archetypes_config`, ... (+4)
 - **approval** (8): `db`, `submit_request`, `check_request`, `decide_request`, `expire_stale_requests`, `list_pending`, ... (+2)
@@ -426,7 +426,7 @@ Functions called by the most other functions — changes here have wide blast ra
 - **guardrails** (5): `reset_guardrail_instruments`, `from_dict`, `db`, `_load_patterns`, `check_operation`
 - **handoffs** (4): `db`, `write`, `read`, `get_recent`
 - **help_service** (1): `_register`
-- **issue_service** (11): `db`, `create`, `list_issues`, `show`, `update`, `close`, ... (+5)
+- **issue_service** (12): `db`, `create`, `list_issues`, `show`, `update`, `close`, ... (+6)
 - **kanban_viz_files** (2): `_change_dir`, `_load_schema`
 - **langfuse_middleware** (1): `dispatch`
 - **langfuse_tracing** (4): `create_span`, `end_span`, `trace_operation`, `reset_langfuse`
@@ -461,7 +461,7 @@ Functions called by the most other functions — changes here have wide blast ra
 
 *Data source: [parallel_zones.json](parallel_zones.json)*
 
-**1170 independent groups** identified. The largest interconnected group has 554 modules; 1480 modules are leaf nodes (safe to modify in isolation).
+**1172 independent groups** identified. The largest interconnected group has 554 modules; 1482 modules are leaf nodes (safe to modify in isolation).
 
 **42 high-impact modules** act as coupling points — parallel changes touching these need coordination.
 
@@ -489,9 +489,9 @@ Functions called by the most other functions — changes here have wide blast ra
 
 **Group 9** (6 members spanning 1 modules): `model_routing`
 
-### Leaf Modules (1480)
+### Leaf Modules (1482)
 
-1480 modules have no dependents — changes are fully isolated. 1145 of the 1170 groups are singletons.
+1482 modules have no dependents — changes are fully isolated. 1147 of the 1172 groups are singletons.
 
 ## Architecture Diagrams
 
@@ -501,8 +501,8 @@ Functions called by the most other functions — changes here have wide blast ra
 
 ```mermaid
 flowchart TB
-    Backend["Backend (1447 nodes)"]
-    Database["Database (452 nodes)"]
+    Backend["Backend (1448 nodes)"]
+    Database["Database (453 nodes)"]
 ```
 
 ### Backend Components
@@ -541,7 +541,7 @@ flowchart TB
     handoffs["handoffs (14 symbols)"]
     help_service["help_service (6 symbols)"]
     http_proxy["http_proxy (70 symbols)"]
-    issue_service["issue_service (26 symbols)"]
+    issue_service["issue_service (27 symbols)"]
     kanban_viz_files["kanban_viz_files (11 symbols)"]
     langfuse_middleware["langfuse_middleware (5 symbols)"]
     langfuse_tracing["langfuse_tracing (10 symbols)"]

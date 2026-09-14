@@ -3588,7 +3588,7 @@
     {
       "name": "public.submit_task",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 44,
+      "line": 46,
       "language": "plpgsql",
       "parameters": [
         {
@@ -3637,7 +3637,7 @@
     {
       "name": "public.reconcile_work_projection",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 218,
+      "line": 220,
       "language": "plpgsql",
       "parameters": [
         {
@@ -3693,7 +3693,7 @@
     {
       "name": "public.enforce_projection_label_ownership",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 396,
+      "line": 398,
       "language": "plpgsql",
       "parameters": [],
       "return_type": "trigger",
@@ -3704,7 +3704,7 @@
     {
       "name": "public.mutate_issue_if_unowned",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 417,
+      "line": 419,
       "language": "plpgsql",
       "parameters": [
         {
@@ -3725,9 +3725,30 @@
       ]
     },
     {
+      "name": "public.close_issues_if_unowned",
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "line": 468,
+      "language": "plpgsql",
+      "parameters": [
+        {
+          "name": "",
+          "type": "P_REQUEST JSONB"
+        }
+      ],
+      "return_type": "jsonb",
+      "referenced_tables": [
+        "public.jsonb_array_elements_text",
+        "public.unnest",
+        "public.v_issues",
+        "public.v_reason",
+        "public.work_queue",
+        "public.work_queue_projection_ownership"
+      ]
+    },
+    {
       "name": "public.notify_projection_insert",
       "file": "039_projection_integrity_and_insert_events.sql",
-      "line": 466,
+      "line": 533,
       "language": "plpgsql",
       "parameters": [],
       "return_type": "trigger",

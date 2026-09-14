@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-14T13:42:57+00:00",
+  "generated_at": "2026-09-14T14:24:22+00:00",
   "python_patterns": {
     "assertions": {
       "count": 2,
@@ -63,7 +63,7 @@
       }
     },
     "type_hints": {
-      "count": 2083,
+      "count": 2085,
       "files": {
         "coordination_api.py": 194,
         "coordination_mcp.py": 137,
@@ -81,9 +81,9 @@
         "git_adapter.py": 38,
         "openspec_proposals_api.py": 38,
         "db_postgres.py": 36,
+        "issue_service.py": 35,
         "event_bus.py": 33,
         "feature_flags.py": 33,
-        "issue_service.py": 33,
         "github_openspec_fetcher.py": 30
       }
     }
@@ -121,8 +121,8 @@
     }
   },
   "type_hint_coverage": {
-    "functions_with_return_type": 1018,
-    "typed_parameters": 988
+    "functions_with_return_type": 1019,
+    "typed_parameters": 989
   },
   "exception_handling": {
     "bare_except": 0,

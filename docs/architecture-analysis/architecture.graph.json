@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "generated_at": "2026-09-14T13:42:57+00:00",
-      "git_sha": "bb690747e5dda0e9f478d291e44aec79cfaa121b",
+      "generated_at": "2026-09-14T14:24:22+00:00",
+      "git_sha": "6156be2c31ed454accc2708dc0365dbc46bd04bb",
       "tool_versions": {
         "graph_builder": "2.0.0"
       },
@@ -3256,8 +3256,8 @@
       "name": "Issue",
       "file": "issue_service.py",
       "span": {
-        "start": 94,
-        "end": 197
+        "start": 89,
+        "end": 192
       },
       "tags": [],
       "signatures": {}
@@ -3269,8 +3269,8 @@
       "name": "Comment",
       "file": "issue_service.py",
       "span": {
-        "start": 201,
-        "end": 230
+        "start": 196,
+        "end": 225
       },
       "tags": [],
       "signatures": {}
@@ -3282,8 +3282,8 @@
       "name": "IssueService",
       "file": "issue_service.py",
       "span": {
-        "start": 233,
-        "end": 660
+        "start": 228,
+        "end": 650
       },
       "tags": [],
       "signatures": {}
@@ -14562,7 +14562,7 @@
       "file": "issue_service.py",
       "span": {
         "start": 72,
-        "end": 90
+        "end": 85
       },
       "tags": [
         "private"
@@ -14576,8 +14576,8 @@
       "name": "from_row",
       "file": "issue_service.py",
       "span": {
-        "start": 119,
-        "end": 153
+        "start": 114,
+        "end": 148
       },
       "tags": [
         "classmethod",
@@ -14592,8 +14592,8 @@
       "name": "parse_dt",
       "file": "issue_service.py",
       "span": {
-        "start": 120,
-        "end": 125
+        "start": 115,
+        "end": 120
       },
       "tags": [],
       "signatures": {}
@@ -14605,8 +14605,8 @@
       "name": "to_dict",
       "file": "issue_service.py",
       "span": {
-        "start": 155,
-        "end": 197
+        "start": 150,
+        "end": 192
       },
       "tags": [
         "db_access"
@@ -14620,8 +14620,8 @@
       "name": "from_row",
       "file": "issue_service.py",
       "span": {
-        "start": 211,
-        "end": 221
+        "start": 206,
+        "end": 216
       },
       "tags": [
         "classmethod",
@@ -14636,8 +14636,8 @@
       "name": "to_dict",
       "file": "issue_service.py",
       "span": {
-        "start": 223,
-        "end": 230
+        "start": 218,
+        "end": 225
       },
       "tags": [],
       "signatures": {}
@@ -14649,8 +14649,8 @@
       "name": "__init__",
       "file": "issue_service.py",
       "span": {
-        "start": 236,
-        "end": 237
+        "start": 231,
+        "end": 232
       },
       "tags": [
         "dunder"
@@ -14664,8 +14664,8 @@
       "name": "db",
       "file": "issue_service.py",
       "span": {
-        "start": 240,
-        "end": 243
+        "start": 235,
+        "end": 238
       },
       "tags": [
         "property"
@@ -14679,8 +14679,8 @@
       "name": "create",
       "file": "issue_service.py",
       "span": {
-        "start": 245,
-        "end": 297
+        "start": 240,
+        "end": 292
       },
       "tags": [
         "async",
@@ -14695,8 +14695,8 @@
       "name": "list_issues",
       "file": "issue_service.py",
       "span": {
-        "start": 299,
-        "end": 361
+        "start": 294,
+        "end": 351
       },
       "tags": [
         "async",
@@ -14711,8 +14711,8 @@
       "name": "show",
       "file": "issue_service.py",
       "span": {
-        "start": 363,
-        "end": 399
+        "start": 353,
+        "end": 389
       },
       "tags": [
         "async",
@@ -14727,8 +14727,8 @@
       "name": "update",
       "file": "issue_service.py",
       "span": {
-        "start": 401,
-        "end": 465
+        "start": 391,
+        "end": 455
       },
       "tags": [
         "async",
@@ -14743,8 +14743,8 @@
       "name": "close",
       "file": "issue_service.py",
       "span": {
-        "start": 467,
-        "end": 508
+        "start": 457,
+        "end": 489
       },
       "tags": [
         "async"
@@ -14758,11 +14758,27 @@
       "name": "_issue_from_mutation_result",
       "file": "issue_service.py",
       "span": {
-        "start": 511,
-        "end": 524
+        "start": 492,
+        "end": 505
       },
       "tags": [
         "staticmethod",
+        "private",
+        "db_access"
+      ],
+      "signatures": {}
+    },
+    {
+      "id": "py:issue_service.IssueService._issues_from_close_result",
+      "kind": "function",
+      "language": "python",
+      "name": "_issues_from_close_result",
+      "file": "issue_service.py",
+      "span": {
+        "start": 507,
+        "end": 518
+      },
+      "tags": [
         "private",
         "db_access"
       ],
@@ -14775,8 +14791,8 @@
       "name": "comment",
       "file": "issue_service.py",
       "span": {
-        "start": 526,
-        "end": 550
+        "start": 520,
+        "end": 544
       },
       "tags": [
         "async",
@@ -14791,8 +14807,8 @@
       "name": "ready",
       "file": "issue_service.py",
       "span": {
-        "start": 552,
-        "end": 596
+        "start": 546,
+        "end": 588
       },
       "tags": [
         "async",
@@ -14807,8 +14823,8 @@
       "name": "blocked",
       "file": "issue_service.py",
       "span": {
-        "start": 598,
-        "end": 625
+        "start": 590,
+        "end": 615
       },
       "tags": [
         "async",
@@ -14823,8 +14839,8 @@
       "name": "search",
       "file": "issue_service.py",
       "span": {
-        "start": 627,
-        "end": 660
+        "start": 617,
+        "end": 650
       },
       "tags": [
         "async",
@@ -14839,8 +14855,8 @@
       "name": "get_issue_service",
       "file": "issue_service.py",
       "span": {
-        "start": 667,
-        "end": 672
+        "start": 657,
+        "end": 662
       },
       "tags": [],
       "signatures": {}
@@ -27280,8 +27296,8 @@
       "name": "public.submit_task",
       "file": "039_projection_integrity_and_insert_events.sql",
       "span": {
-        "start": 44,
-        "end": 44
+        "start": 46,
+        "end": 46
       },
       "tags": [],
       "signatures": {}
@@ -27293,8 +27309,8 @@
       "name": "public.reconcile_work_projection",
       "file": "039_projection_integrity_and_insert_events.sql",
       "span": {
-        "start": 218,
-        "end": 218
+        "start": 220,
+        "end": 220
       },
       "tags": [],
       "signatures": {}
@@ -27306,8 +27322,8 @@
       "name": "public.enforce_projection_label_ownership",
       "file": "039_projection_integrity_and_insert_events.sql",
       "span": {
-        "start": 396,
-        "end": 396
+        "start": 398,
+        "end": 398
       },
       "tags": [],
       "signatures": {}
@@ -27319,8 +27335,21 @@
       "name": "public.mutate_issue_if_unowned",
       "file": "039_projection_integrity_and_insert_events.sql",
       "span": {
-        "start": 417,
-        "end": 417
+        "start": 419,
+        "end": 419
+      },
+      "tags": [],
+      "signatures": {}
+    },
+    {
+      "id": "pg:public.public.close_issues_if_unowned",
+      "kind": "stored_function",
+      "language": "sql",
+      "name": "public.close_issues_if_unowned",
+      "file": "039_projection_integrity_and_insert_events.sql",
+      "span": {
+        "start": 468,
+        "end": 468
       },
       "tags": [],
       "signatures": {}
@@ -27332,8 +27361,8 @@
       "name": "public.notify_projection_insert",
       "file": "039_projection_integrity_and_insert_events.sql",
       "span": {
-        "start": 466,
-        "end": 466
+        "start": 533,
+        "end": 533
       },
       "tags": [],
       "signatures": {}

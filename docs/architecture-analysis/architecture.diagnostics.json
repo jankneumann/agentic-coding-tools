@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-14T13:42:57+00:00",
+  "generated_at": "2026-09-14T14:24:22+00:00",
   "scope": "full",
   "changed_files": [],
   "findings": [
@@ -9432,7 +9432,7 @@
       "message": "Function 'Issue' has no corresponding test references",
       "node_id": "py:issue_service.Issue",
       "file": "issue_service.py",
-      "line": 94,
+      "line": 89,
       "suggestion": "Add tests that reference 'Issue' (e.g., test_Issue or import it in a test file)"
     },
     {
@@ -9441,7 +9441,7 @@
       "message": "Function 'from_row' has no corresponding test references",
       "node_id": "py:issue_service.Issue.from_row",
       "file": "issue_service.py",
-      "line": 119,
+      "line": 114,
       "suggestion": "Add tests that reference 'from_row' (e.g., test_from_row or import it in a test file)"
     },
     {
@@ -9450,7 +9450,7 @@
       "message": "Function 'parse_dt' has no corresponding test references",
       "node_id": "py:issue_service.Issue.from_row.parse_dt",
       "file": "issue_service.py",
-      "line": 120,
+      "line": 115,
       "suggestion": "Add tests that reference 'parse_dt' (e.g., test_parse_dt or import it in a test file)"
     },
     {
@@ -9459,7 +9459,7 @@
       "message": "Function 'to_dict' has no corresponding test references",
       "node_id": "py:issue_service.Issue.to_dict",
       "file": "issue_service.py",
-      "line": 155,
+      "line": 150,
       "suggestion": "Add tests that reference 'to_dict' (e.g., test_to_dict or import it in a test file)"
     },
     {
@@ -9468,7 +9468,7 @@
       "message": "Function 'Comment' has no corresponding test references",
       "node_id": "py:issue_service.Comment",
       "file": "issue_service.py",
-      "line": 201,
+      "line": 196,
       "suggestion": "Add tests that reference 'Comment' (e.g., test_Comment or import it in a test file)"
     },
     {
@@ -9477,7 +9477,7 @@
       "message": "Function 'from_row' has no corresponding test references",
       "node_id": "py:issue_service.Comment.from_row",
       "file": "issue_service.py",
-      "line": 211,
+      "line": 206,
       "suggestion": "Add tests that reference 'from_row' (e.g., test_from_row or import it in a test file)"
     },
     {
@@ -9486,7 +9486,7 @@
       "message": "Function 'to_dict' has no corresponding test references",
       "node_id": "py:issue_service.Comment.to_dict",
       "file": "issue_service.py",
-      "line": 223,
+      "line": 218,
       "suggestion": "Add tests that reference 'to_dict' (e.g., test_to_dict or import it in a test file)"
     },
     {
@@ -9495,7 +9495,7 @@
       "message": "Function 'IssueService' has no corresponding test references",
       "node_id": "py:issue_service.IssueService",
       "file": "issue_service.py",
-      "line": 233,
+      "line": 228,
       "suggestion": "Add tests that reference 'IssueService' (e.g., test_IssueService or import it in a test file)"
     },
     {
@@ -9504,7 +9504,7 @@
       "message": "Function '__init__' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.__init__",
       "file": "issue_service.py",
-      "line": 236,
+      "line": 231,
       "suggestion": "Add tests that reference '__init__' (e.g., test___init__ or import it in a test file)"
     },
     {
@@ -9513,7 +9513,7 @@
       "message": "Function 'db' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.db",
       "file": "issue_service.py",
-      "line": 240,
+      "line": 235,
       "suggestion": "Add tests that reference 'db' (e.g., test_db or import it in a test file)"
     },
     {
@@ -9522,7 +9522,7 @@
       "message": "Function 'create' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.create",
       "file": "issue_service.py",
-      "line": 245,
+      "line": 240,
       "suggestion": "Add tests that reference 'create' (e.g., test_create or import it in a test file)"
     },
     {
@@ -9531,7 +9531,7 @@
       "message": "Function 'list_issues' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.list_issues",
       "file": "issue_service.py",
-      "line": 299,
+      "line": 294,
       "suggestion": "Add tests that reference 'list_issues' (e.g., test_list_issues or import it in a test file)"
     },
     {
@@ -9540,7 +9540,7 @@
       "message": "Function 'show' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.show",
       "file": "issue_service.py",
-      "line": 363,
+      "line": 353,
       "suggestion": "Add tests that reference 'show' (e.g., test_show or import it in a test file)"
     },
     {
@@ -9549,7 +9549,7 @@
       "message": "Function 'update' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.update",
       "file": "issue_service.py",
-      "line": 401,
+      "line": 391,
       "suggestion": "Add tests that reference 'update' (e.g., test_update or import it in a test file)"
     },
     {
@@ -9558,7 +9558,7 @@
       "message": "Function 'close' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.close",
       "file": "issue_service.py",
-      "line": 467,
+      "line": 457,
       "suggestion": "Add tests that reference 'close' (e.g., test_close or import it in a test file)"
     },
     {
@@ -9567,8 +9567,17 @@
       "message": "Function '_issue_from_mutation_result' has no corresponding test references",
       "node_id": "py:issue_service.IssueService._issue_from_mutation_result",
       "file": "issue_service.py",
-      "line": 511,
+      "line": 492,
       "suggestion": "Add tests that reference '_issue_from_mutation_result' (e.g., test__issue_from_mutation_result or import it in a test file)"
+    },
+    {
+      "severity": "warning",
+      "category": "test_coverage",
+      "message": "Function '_issues_from_close_result' has no corresponding test references",
+      "node_id": "py:issue_service.IssueService._issues_from_close_result",
+      "file": "issue_service.py",
+      "line": 507,
+      "suggestion": "Add tests that reference '_issues_from_close_result' (e.g., test__issues_from_close_result or import it in a test file)"
     },
     {
       "severity": "warning",
@@ -9576,7 +9585,7 @@
       "message": "Function 'comment' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.comment",
       "file": "issue_service.py",
-      "line": 526,
+      "line": 520,
       "suggestion": "Add tests that reference 'comment' (e.g., test_comment or import it in a test file)"
     },
     {
@@ -9585,7 +9594,7 @@
       "message": "Function 'ready' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.ready",
       "file": "issue_service.py",
-      "line": 552,
+      "line": 546,
       "suggestion": "Add tests that reference 'ready' (e.g., test_ready or import it in a test file)"
     },
     {
@@ -9594,7 +9603,7 @@
       "message": "Function 'blocked' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.blocked",
       "file": "issue_service.py",
-      "line": 598,
+      "line": 590,
       "suggestion": "Add tests that reference 'blocked' (e.g., test_blocked or import it in a test file)"
     },
     {
@@ -9603,7 +9612,7 @@
       "message": "Function 'search' has no corresponding test references",
       "node_id": "py:issue_service.IssueService.search",
       "file": "issue_service.py",
-      "line": 627,
+      "line": 617,
       "suggestion": "Add tests that reference 'search' (e.g., test_search or import it in a test file)"
     },
     {
@@ -9612,7 +9621,7 @@
       "message": "Function 'get_issue_service' has no corresponding test references",
       "node_id": "py:issue_service.get_issue_service",
       "file": "issue_service.py",
-      "line": 667,
+      "line": 657,
       "suggestion": "Add tests that reference 'get_issue_service' (e.g., test_get_issue_service or import it in a test file)"
     },
     {
@@ -20628,7 +20637,7 @@
       "message": "'Issue' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Issue",
       "file": "issue_service.py",
-      "line": 94,
+      "line": 89,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20637,7 +20646,7 @@
       "message": "'from_row' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Issue.from_row",
       "file": "issue_service.py",
-      "line": 119,
+      "line": 114,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20646,7 +20655,7 @@
       "message": "'parse_dt' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Issue.from_row.parse_dt",
       "file": "issue_service.py",
-      "line": 120,
+      "line": 115,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20655,7 +20664,7 @@
       "message": "'to_dict' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Issue.to_dict",
       "file": "issue_service.py",
-      "line": 155,
+      "line": 150,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20664,7 +20673,7 @@
       "message": "'Comment' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Comment",
       "file": "issue_service.py",
-      "line": 201,
+      "line": 196,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20673,7 +20682,7 @@
       "message": "'from_row' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Comment.from_row",
       "file": "issue_service.py",
-      "line": 211,
+      "line": 206,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20682,7 +20691,7 @@
       "message": "'to_dict' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.Comment.to_dict",
       "file": "issue_service.py",
-      "line": 223,
+      "line": 218,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20691,7 +20700,7 @@
       "message": "'IssueService' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService",
       "file": "issue_service.py",
-      "line": 233,
+      "line": 228,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20700,7 +20709,7 @@
       "message": "'__init__' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.__init__",
       "file": "issue_service.py",
-      "line": 236,
+      "line": 231,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20709,7 +20718,7 @@
       "message": "'db' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.db",
       "file": "issue_service.py",
-      "line": 240,
+      "line": 235,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20718,7 +20727,7 @@
       "message": "'create' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.create",
       "file": "issue_service.py",
-      "line": 245,
+      "line": 240,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20727,7 +20736,7 @@
       "message": "'list_issues' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.list_issues",
       "file": "issue_service.py",
-      "line": 299,
+      "line": 294,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20736,7 +20745,7 @@
       "message": "'show' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.show",
       "file": "issue_service.py",
-      "line": 363,
+      "line": 353,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20745,7 +20754,7 @@
       "message": "'update' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.update",
       "file": "issue_service.py",
-      "line": 401,
+      "line": 391,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20754,7 +20763,7 @@
       "message": "'close' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.close",
       "file": "issue_service.py",
-      "line": 467,
+      "line": 457,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20763,7 +20772,16 @@
       "message": "'_issue_from_mutation_result' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService._issue_from_mutation_result",
       "file": "issue_service.py",
-      "line": 511,
+      "line": 492,
+      "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
+    },
+    {
+      "severity": "warning",
+      "category": "orphan",
+      "message": "'_issues_from_close_result' is unreachable from any entrypoint or test",
+      "node_id": "py:issue_service.IssueService._issues_from_close_result",
+      "file": "issue_service.py",
+      "line": 507,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20772,7 +20790,7 @@
       "message": "'comment' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.comment",
       "file": "issue_service.py",
-      "line": 526,
+      "line": 520,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20781,7 +20799,7 @@
       "message": "'ready' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.ready",
       "file": "issue_service.py",
-      "line": 552,
+      "line": 546,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20790,7 +20808,7 @@
       "message": "'blocked' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.blocked",
       "file": "issue_service.py",
-      "line": 598,
+      "line": 590,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -20799,7 +20817,7 @@
       "message": "'search' is unreachable from any entrypoint or test",
       "node_id": "py:issue_service.IssueService.search",
       "file": "issue_service.py",
-      "line": 627,
+      "line": 617,
       "suggestion": "Remove the dead code or add an entrypoint/test that exercises it"
     },
     {
@@ -25304,12 +25322,12 @@
     }
   ],
   "summary": {
-    "total_findings": 2811,
+    "total_findings": 2813,
     "errors": 0,
-    "warnings": 2722,
+    "warnings": 2724,
     "info": 89,
     "entrypoints_checked": 97,
     "flows_with_coverage": 0,
-    "flows_without_coverage": 1370
+    "flows_without_coverage": 1371
   }
 }
