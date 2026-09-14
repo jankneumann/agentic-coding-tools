@@ -97,12 +97,17 @@ suggested change ID, uses `provenance.source_artifact` for the new roadmap
 use approved `ri-01` with the candidate priority and capability. Existing roadmaps
 are freshly loaded, receive the next monotonic `ri-NN`, and omit priority so
 refine-roadmap assigns max+1; the candidate priority remains in request rationale.
+New-roadmap creation stages the roadmap and scaffold, claims their exact destinations
+exclusively, and rolls back only directories created by that intake attempt if
+installation fails.
 
 Dependencies resolve by exact change ID through the shared lifecycle resolver. A
 unique target-roadmap item becomes a local item ID, a unique sibling-roadmap item
 becomes `<roadmap-id>:<item-id>`, and an all-completed group is recorded as
 satisfied rationale. Unknown, ambiguous, active-without-roadmap, and
 failed/skipped/superseded-only dependencies fail before writes.
+Local and external conversions remain explicit as
+`Resolved dependency: <change-id> -> <item-ref>` rationale lines.
 
 ## Output
 
