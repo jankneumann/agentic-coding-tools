@@ -67,11 +67,7 @@ packages:
     context_impact:
       surfaces:
         - documentation
-        - capabilities
-      rationale:
-        apis:
-          reason: "No API surface; skill instructions + CI fitness + OpenSpec deltas only."
-          approved_by: plan
+        - semantic_code
     worktree:
       name: retire-skill-literal-model-hints-wp-main
       mode: isolated
