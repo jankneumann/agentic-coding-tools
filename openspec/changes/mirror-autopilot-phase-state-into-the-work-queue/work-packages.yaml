@@ -3,7 +3,7 @@ schema_version: 1
 feature:
   id: mirror-autopilot-phase-state-into-the-work-queue
   title: Mirror Autopilot phase state into the work queue
-  plan_revision: 8
+  plan_revision: 9
   created_by: codex
   deployable: false
 
@@ -26,7 +26,7 @@ packages:
   - package_id: wp-projection-adapter
     title: Coordinated phase projection adapter and host registration
     task_type: integration
-    description: Implement tasks 1.1 through 2.10 with TDD, including canonical host writers, head advancement, elevated change-scoped publication, fail-closed trust resolution, database-owned reserved labels, immutable projection issues, labelled/unlabelled namespace isolation, transport label parity, upgrade-safe serialized repair, and reviewed-checkout vendor discovery while preserving the coordinator-free default and one-way authority contract.
+    description: Implement tasks 1.1 through 2.11 with TDD, including canonical host writers, head advancement, elevated change-scoped publication, fail-closed trust resolution, database-owned reserved labels, immutable projection issues, labelled/unlabelled namespace isolation, transport label parity, upgrade-safe serialized repair, and reviewed-checkout vendor discovery while preserving the coordinator-free default and one-way authority contract.
     role: implementer
     priority: 1
     depends_on: []

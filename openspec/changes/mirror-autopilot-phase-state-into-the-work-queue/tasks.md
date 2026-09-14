@@ -21,6 +21,7 @@
 - [x] 2.8 Require the elevated, change-scoped `publish_work_projection` operation for HTTP projection submit/reconcile; keep trust-level-2 ordinary submitters unable to advance projection heads; fail closed on reconcile trust-resolution errors; block newer-generation repair while any unowned reserved-labelled legacy row remains; and preserve SDK-only coordinator rosters in review-vendor discovery.
 - [x] 2.9 Enforce projection ownership at ordinary issue create/update/close and at the database reserved-label boundary; stage projection insert/ownership/labels transactionally; authorize local service projection publication with the elevated change-scoped operation; resolve Cedar trust through the shared fail-closed path; and make in-process convergence discover vendors from the reviewed worktree.
 - [x] 2.10 Prevent unlabelled keyed submit/reconcile from mutating a registry-owned labelled change namespace; make reserved upgrade-row collision structured in either mode; preserve ordinary legacy tuple cancellation outside labelled namespaces; and propagate the exact label pair through direct MCP and its HTTP proxy.
+- [x] 2.11 Prevent labelled submit/reconcile from entering any change namespace that already contains a complete unowned projection tuple, returning `projection_key_collision` before head or row mutation.
 
 ## Phase 3 — Behavioral and crash recovery proof
 

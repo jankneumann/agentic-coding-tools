@@ -110,6 +110,21 @@ BEGIN
     RETURN jsonb_build_object('success',FALSE,'reason','projection_key_collision',
       'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
   END IF;
+  IF p_projection_labels IS NOT NULL AND EXISTS (
+    SELECT 1 FROM work_queue AS candidate
+    WHERE candidate.input_data ? 'change_id'
+      AND candidate.input_data ? 'phase'
+      AND candidate.input_data ? 'transition_sequence'
+      AND jsonb_typeof(candidate.input_data->'transition_sequence')='number'
+      AND candidate.input_data->>'change_id'=v_change
+      AND NOT EXISTS (
+        SELECT 1 FROM work_queue_projection_ownership AS ownership
+        WHERE ownership.task_id=candidate.id
+      )
+  ) THEN
+    RETURN jsonb_build_object('success',FALSE,'reason','projection_key_collision',
+      'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
+  END IF;
   IF p_projection_labels IS NULL AND EXISTS (
     SELECT 1 FROM work_queue_projection_ownership AS ownership
     JOIN work_queue AS owned ON owned.id=ownership.task_id
@@ -238,6 +253,21 @@ BEGIN
         candidate.input_data->>'change_id'=p_change_id
         OR 'change:' || p_change_id=ANY(COALESCE(candidate.labels,ARRAY[]::TEXT[]))
       )
+      AND NOT EXISTS (
+        SELECT 1 FROM work_queue_projection_ownership AS ownership
+        WHERE ownership.task_id=candidate.id
+      )
+  ) THEN
+    RETURN jsonb_build_object('success',FALSE,'reason','projection_key_collision',
+      'created',FALSE,'deduplicated',FALSE,'cancelled_task_ids','[]'::JSONB);
+  END IF;
+  IF p_projection_labels IS NOT NULL AND EXISTS (
+    SELECT 1 FROM work_queue AS candidate
+    WHERE candidate.input_data ? 'change_id'
+      AND candidate.input_data ? 'phase'
+      AND candidate.input_data ? 'transition_sequence'
+      AND jsonb_typeof(candidate.input_data->'transition_sequence')='number'
+      AND candidate.input_data->>'change_id'=p_change_id
       AND NOT EXISTS (
         SELECT 1 FROM work_queue_projection_ownership AS ownership
         WHERE ownership.task_id=candidate.id

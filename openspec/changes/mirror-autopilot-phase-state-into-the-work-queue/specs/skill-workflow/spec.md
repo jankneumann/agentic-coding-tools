@@ -68,6 +68,7 @@ A coordinated Autopilot host SHALL project every durably persisted phase generat
 - **WHEN** a keyed submit or reconcile omits `projection_labels`
 - **THEN** it SHALL return `projection_mode_mismatch` before head or row mutation
 - **AND** the canonical owned row SHALL retain its status and exact label pair
+- **AND** a labelled submit or reconcile SHALL return `projection_key_collision` before mutation when the change already contains any complete unowned projection tuple
 - **AND** direct MCP and HTTP-proxy projection calls SHALL accept and forward the exact label pair
 - **AND** an associated unowned reserved-labelled upgrade row SHALL return `projection_key_collision` in either mode
 - **AND** legacy unlabelled tuple cancellation SHALL remain available for changes with neither owned nor reserved-labelled projection state
