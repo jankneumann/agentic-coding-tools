@@ -198,3 +198,22 @@ class TestGateDecisionSidecar:
         mgr.save(checkpoint)
 
         assert observed_payloads[0]["gate_decisions"] == [record]
+
+
+class TestCheckpointTransaction:
+    def test_transaction_reloads_current_state_and_commits_one_payload(self, tmp_path):
+        """A transaction starts from durable state, never its caller's snapshot."""
+        mgr = CheckpointManager(tmp_path)
+        stale = mgr.create(_make_roadmap())
+
+        concurrent = mgr.load()
+        mgr.advance_phase(concurrent, CheckpointPhase.IMPLEMENTING)
+
+        with mgr.transaction() as current:
+            assert current.phase == CheckpointPhase.IMPLEMENTING
+            current.gate_decisions.append({"gate": "escalate_resume", "outcome": "blocked"})
+
+        assert stale.phase == CheckpointPhase.PLANNING
+        reloaded = mgr.load()
+        assert reloaded.phase == CheckpointPhase.IMPLEMENTING
+        assert reloaded.gate_decisions == [{"gate": "escalate_resume", "outcome": "blocked"}]
