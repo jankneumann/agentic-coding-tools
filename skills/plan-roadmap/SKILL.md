@@ -13,7 +13,7 @@ triggers:
 
 Decompose a long-form markdown proposal into a prioritized set of OpenSpec change candidates, each with a dependency DAG, effort estimate, and acceptance outcomes. Produces a `roadmap.yaml` artifact and optionally scaffolds the approved changes as OpenSpec change directories.
 
-The decomposition itself is done by a premium model: the orchestrator dispatches a generator (a Claude subagent by default, or an external vendor such as `gpt-5.5` / `gemini-3.1-pro`) that reads the **entire** proposal against an explicit output contract and returns a `roadmap.yaml`. Python's role is the deterministic backstop — proposal-readiness checks before generation, and schema / dependency / DAG validation afterwards.
+The decomposition itself is done by a **premium-tier** generator: the orchestrator dispatches a Claude subagent by default, or an external vendor (`codex` / `gemini`) whose model is taken from the premium tier in `agent-coordinator/archetypes.yaml`. The generator reads the **entire** proposal against an explicit output contract and returns a `roadmap.yaml`. Python's role is the deterministic backstop — proposal-readiness checks before generation, and schema / dependency / DAG validation afterwards.
 
 When no proposal yet exists, the skill scaffolds one from the template at `openspec/schemas/roadmap/templates/proposal.md` so the operator (or the agent itself, in `--draft` mode) can fill it in before decomposition.
 
@@ -36,7 +36,7 @@ When no proposal yet exists, the skill scaffolds one from the template at `opens
    gate proceeds; without the request file this form is refused. See **Replan Mode**.
 
 Optional flags:
-- `--vendor <claude|codex|gemini>` — Choose the generator. Default `claude` dispatches a Claude subagent via the Agent tool. `codex` / `gemini` route through the shared CLI dispatcher to the external vendor (`gpt-5.5` / `gemini-3.1-pro`).
+- `--vendor <claude|codex|gemini>` — Choose the generator. Default `claude` dispatches a Claude subagent via the Agent tool. `codex` / `gemini` route through the shared CLI dispatcher using each vendor's **premium** tier from `archetypes.yaml` (not a hardcoded model version).
 - `--workspace <path>` — Override the default output workspace (default: `openspec/roadmaps/<roadmap_id>/`).
 - `--force` — Overwrite an existing `roadmap.yaml` at the target. Without this, `/plan-roadmap` aborts on collision to protect operator edits to `status` / `priority`.
 
