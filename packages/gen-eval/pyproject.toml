@@ -48,7 +48,7 @@ dev = [
     # runtime one: the point of shipping the schemas is that consumers can
     # validate without gen-eval's runtime, so gen-eval must not need a
     # validator either.
-    "jsonschema>=4.23",
+    "jsonschema>=4.26.0",
 ]
 
 [tool.ruff]
