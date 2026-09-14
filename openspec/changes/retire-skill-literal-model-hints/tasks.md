@@ -69,7 +69,7 @@ TDD order within each WP: tests before implementation. Approach A (Gate 1).
   **Dependencies**: 1.4
   **Files**: `skills/plan-roadmap/templates/generation-prompt.md`
 
-- [ ] 2.5 Rewrite lifecycle illustrative comments that name sonnet/opus to
+- [x] 2.5 Rewrite lifecycle illustrative comments that name sonnet/opus to
   archetype/tier language (S)
   **Spec scenarios**: agent-archetypes — Plan-feature / Implement-feature
   resolve scenarios

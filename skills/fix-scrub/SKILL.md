@@ -143,7 +143,7 @@ with open("docs/bug-scrub/agent-fix-prompts.json") as f:
 for entry in prompts:
     Task(
         subagent_type="general-purpose",
-        model=resolved_model,  # archetype: implementer (sonnet, or opus if escalated)
+        model=resolved_model,  # archetype: implementer (standard tier; frontier/premium on escalation)
         description=f"Fix issues in {entry['file']}",
         prompt=entry["prompt"],
         run_in_background=True,
