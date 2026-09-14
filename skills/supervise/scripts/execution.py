@@ -7,9 +7,7 @@ selects a provider or starts a model client.
 
 from __future__ import annotations
 
-import contextlib
 import copy
-import fcntl
 import functools
 import hashlib
 import json
@@ -18,7 +16,7 @@ import os
 import re
 import sys
 import tempfile
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal, Protocol
@@ -31,7 +29,7 @@ for _directory in (_SCRIPTS_ROOT, _SKILLS_ROOT, _RUNTIME_SCRIPTS, _ORCHESTRATOR_
     if str(_directory) not in sys.path:
         sys.path.insert(0, str(_directory))
 
-from checkpoint import CheckpointManager  # type: ignore[import-untyped]  # noqa: E402
+from checkpoint import CheckpointManager, workspace_state_lock  # type: ignore[import-untyped]  # noqa: E402
 from models import (  # type: ignore[import-untyped]  # noqa: E402
     Checkpoint,
     load_roadmap,
@@ -113,29 +111,13 @@ def _contains(root: Path, candidate: Path) -> bool:
     return True
 
 
-@contextlib.contextmanager
-def _state_lock(workspace: Path) -> Iterator[None]:
-    """Serialize checkpoint read-modify-write transitions across host tasks."""
-    identity = hashlib.sha256(str(workspace.resolve()).encode()).hexdigest()
-    lock_dir = Path(tempfile.gettempdir()) / "supervised-dispatch-state-locks"
-    lock_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-    lock_path = lock_dir / f"{identity}.lock"
-    descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
-    try:
-        fcntl.flock(descriptor, fcntl.LOCK_EX)
-        yield
-    finally:
-        with contextlib.suppress(OSError):
-            fcntl.flock(descriptor, fcntl.LOCK_UN)
-        os.close(descriptor)
-
 
 def _serialized_transition(method: Callable[..., Any]) -> Callable[..., Any]:
     """Run one workspace state transition under the shared advisory lock."""
 
     @functools.wraps(method)
     def wrapped(self: Any, workspace: Path, *args: Any, **kwargs: Any) -> Any:
-        with _state_lock(workspace):
+        with workspace_state_lock(workspace):
             return method(self, workspace, *args, **kwargs)
 
     return wrapped
@@ -748,7 +730,7 @@ class ExecutionAdapter:
         owner_nonce: str,
     ) -> dict[str, Any]:
         """Revalidate ownership and durable go immediately before host entry."""
-        with _state_lock(workspace):
+        with workspace_state_lock(workspace):
             manager, checkpoint, attempt = _load_attempt(workspace, dispatch_id)
             lease = attempt.get("lease", {})
             gate = attempt.get("launch_gate", {})
@@ -884,7 +866,8 @@ class ExecutionAdapter:
             Gate.ESCALATE_RESUME if kind == "policy_pause" else Gate(attempt["parked"]["gate"])
         )
         gate_router.require_approval_ref(
-            checkpoint, approval_ref, gate=expected_gate, dispatch_id=dispatch_id
+            checkpoint, approval_ref, gate=expected_gate, dispatch_id=dispatch_id,
+            lease_generation=attempt["lease_generation"] if kind == "policy_pause" else None,
         )
         _remove_owned_marker(attempt)
         attempt["status"] = "prepared"
