@@ -45,27 +45,27 @@ flagged in design D9 as the chained dispatcher work.
 
 ## 3. OCR vendor
 
-- [ ] 3.1 Write tests for the OCR adapter rewrite and coercion aliases, including zero-line comments and a missing binary (size: S)
+- [x] 3.1 Write tests for the OCR adapter rewrite and coercion aliases, including zero-line comments and a missing binary (size: S)
   **Spec scenarios**: skill-workflow Optional OCR Reviewer Vendor (all three scenarios), Finding Coercion Before Validation (OCR vocabulary is coerced)
   **Contracts**: `contracts/ocr-adapter.md`
   **Design decisions**: D7
   **Dependencies**: 1.2
   **Files**: `skills/parallel-infrastructure/scripts/tests/test_ocr_adapter.py`, `skills/tests/parallel-infrastructure/test_finding_coercion.py`
 
-- [ ] 3.2 Implement `ocr_adapter.py` (size: M)
+- [x] 3.2 Implement `ocr_adapter.py` (size: M)
   **Dependencies**: 3.1
   **Files**: `skills/parallel-infrastructure/scripts/ocr_adapter.py`
 
-- [ ] 3.3 Add OCR aliases to the coercion sidecar and its install_assets mirror (size: XS)
+- [x] 3.3 Add OCR aliases to the coercion sidecar and its install_assets mirror (size: XS)
   **Dependencies**: 3.1
   **Files**: `skills/parallel-infrastructure/scripts/finding-coercion.json`, `skills/parallel-infrastructure/install_assets/openspec/schemas/finding-coercion.json`
 
-- [ ] 3.4 Write a discovery test asserting `ocr-local` is Tier 3 when the binary is absent (size: XS)
+- [x] 3.4 Write a discovery test asserting `ocr-local` is Tier 3 when the binary is absent (size: XS)
   **Spec scenarios**: skill-workflow Optional OCR Reviewer Vendor (OCR absent leaves dispatch unchanged)
   **Dependencies**: 3.2
   **Files**: `skills/parallel-infrastructure/scripts/tests/test_review_dispatcher.py`
 
-- [ ] 3.5 Declare the `ocr-local` agent in `agents.yaml` with review mode only (size: XS)
+- [x] 3.5 Declare the `ocr-local` agent in `agents.yaml` with review mode only (size: XS)
   **Dependencies**: 3.4
   **Files**: `agent-coordinator/agents.yaml`
 

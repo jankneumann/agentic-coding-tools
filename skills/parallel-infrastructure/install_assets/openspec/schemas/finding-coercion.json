@@ -22,7 +22,11 @@
     "scope": "architecture",
     "consistency": "correctness",
     "parallelizability": "architecture",
-    "assumptions": "architecture"
+    "assumptions": "architecture",
+    "maintainability": "architecture",
+    "test": "correctness",
+    "documentation": "style",
+    "other": "style"
   },
   "axis_aliases": {
     "completeness": "architecture",
@@ -34,7 +38,11 @@
     "parallelizability": "architecture",
     "assumptions": "architecture",
     "bug": "correctness",
-    "lint": "readability"
+    "lint": "readability",
+    "maintainability": "architecture",
+    "documentation": "readability",
+    "test": "correctness",
+    "other": "correctness"
   },
   "severity_from_criticality": {
     "critical": "critical",
