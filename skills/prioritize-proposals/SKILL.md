@@ -21,6 +21,7 @@ Analyze all active OpenSpec change proposals against recent code history and pro
 - `--since <git-ref>` — analyze commits since this ref (default: `HEAD~50`)
 - `--format <md|json>` — output format (default: `md`)
 - `--retain <N>` — keep the N most recent dated-run directories under `openspec/priorities/` (default: `30`). Older directories are moved to `openspec/priorities/archive/`, never deleted.
+- `--candidate-work <path>` - add a canonical candidate-work object or array to the separate candidate lane; repeat the flag to merge multiple files in argument order.
 
 ## Prerequisites
 
@@ -65,6 +66,22 @@ The file may hold a single stub object or a JSON array of stubs. Do not proceed 
 scoring with input that fails this gate — fix the generator output or drop the
 offending stub first. Programmatic callers can import
 `validate_candidate_work` / `load_candidate_work` from the same module.
+
+For ranking, use the lane CLI rather than invoking the validator once per file:
+
+```bash
+python3 "<skill-base-dir>/scripts/candidate_lane.py" \
+  --candidate-work path/to/bug-scrub-candidate-work.json \
+  --candidate-work path/to/improve-harness-candidate-work.json \
+  --candidate-work path/to/explore-feature-candidate-work.json \
+  --repo-root . \
+  --format md
+```
+
+The shared multi-file loader validates complete files, concatenates them in argument
+order, and rejects duplicate suggested change IDs across the union. Candidate text
+and provenance URIs are inert input: the Markdown renderer escapes control and
+Markdown syntax and performs no URI dereference, fetch, or execution.
 
 ### 2. Inventory Active Proposals
 
@@ -154,6 +171,29 @@ Assign a composite priority score based on:
 | Scope size | Low | Smaller scope = quicker wins = slightly higher priority |
 
 Sort proposals by composite score (descending).
+
+### 5.5. Rank Candidate Work as a Separate Lane
+
+Do not feed candidate stubs into the active-proposal composite score. Build their
+own typed lane with `candidate_lane.py`. Exact dependency IDs are resolved against
+the complete in-batch, roadmap, active-change, and archive lifecycle registry through
+the shared resolver.
+
+In-batch candidate dependencies become graph edges. Completed roadmap/archive groups
+are satisfied. Unknown, active-incomplete, failed/skipped/superseded-only, and unique
+live roadmap dependencies mark the candidate blocked; blocked state propagates to all
+transitive in-batch dependents. Multiple live owners fail the entire lane.
+
+Order the graph with Kahn traversal. At every zero-indegree choice, use exactly
+`(blocked_tier, priority, effort XS..XL, generator_key, suggested_change_id)`,
+where ready is tier 0, blocked is tier 1, and a missing optional generator uses the
+empty string. This keeps every dependency before its dependent, exhausts ready
+components before blocked components, and remains stable across identical input.
+Cycles and duplicate final IDs fail before a ranking is emitted.
+
+The JSON form has top-level `lane: candidate_work` and `candidates`; Markdown uses
+a separate `# Candidate Work Prioritization` section. Preserve every validated stub
+inside its ranked entry so approval and roadmap intake retain full provenance.
 
 ### 6. Identify Parallelizable Workstreams
 
