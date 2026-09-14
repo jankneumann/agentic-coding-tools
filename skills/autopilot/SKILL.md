@@ -478,6 +478,39 @@ of this contract is durability for postmortem and manual recovery, not
 automatic recovery — see the shipped
 [manual recovery reference](references/convergence-recovery.md).
 
+#### Deterministic Preprocessing Before Each Round
+
+Ported from alibaba/open-code-review (Apache-2.0) — see openspec change
+`add-deterministic-review-preprocessing`. Every packet `converge()` builds
+now goes through a deterministic pass before a single reviewer token is
+spent:
+
+- **Selection and rules** — `review_packet.build_review_packet()` runs
+  `file_selection.select_files()` (five gates: binary, excludes, includes,
+  generated paths, deletions, per-file size) and `review_rules` path-glob
+  grouping before rendering. Excluded files and their reasons land in the
+  packet metadata (schema `v2`), never silently.
+- **Fact-check** — `converge(fact_check=True)` (the default) runs one
+  economy-tier model call per vendor after that vendor's raw findings are
+  checkpointed and before consensus synthesis, removing only findings the
+  diff itself disproves. Protected-subject findings (memory safety,
+  concurrency, declaration consistency, behavioral/compatibility change,
+  unused parameter) are never removed. Pass `fact_check=False` to disable
+  it for an A/B comparison run; the per-round manifest records
+  `fact_check_tokens`, `fact_check`, and `fact_check_removed` either way.
+- **Line resolution and coverage** — a vendor's `existing_code` snippet is
+  resolved to a `line_range` at ingest (before synthesis ever sees it), and
+  an optional per-vendor `coverage` report narrows that vendor's quorum
+  eligibility to the files it actually reviewed. Both are visible on the
+  round manifest (`unanchored_findings`, `coverage_rate`,
+  `coverage_eligibility`).
+- **OCR vendor** — `ocr-local` (declared in `agent-coordinator/agents.yaml`)
+  joins the panel automatically when the `ocr` binary is on PATH; absent,
+  dispatch is unchanged.
+
+None of this changes `converge()`'s call signature except the new
+`fact_check` keyword (default `True`, so existing callers are unaffected).
+
 ### 3.5. Write-Capable Phase Isolation
 
 In local CLI execution, the shared checkout is read-only. Every autopilot phase

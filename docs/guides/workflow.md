@@ -34,7 +34,7 @@ Old `linear-*` and `parallel-*` prefixed names are accepted as trigger aliases (
 ## Infrastructure Skills
 
 - **`coordination-bridge`** — Coordinator detection (`check_coordinator.py`) and HTTP fallback bridge
-- **`parallel-infrastructure`** — Shared parallel execution scripts: DAG scheduler, review dispatcher, consensus synthesizer, scope checker
+- **`parallel-infrastructure`** — Shared parallel execution scripts: DAG scheduler, review dispatcher, consensus synthesizer, scope checker. Also carries the deterministic review-preprocessing pipeline ported from alibaba/open-code-review (Apache-2.0): five-gate file selection, path-glob rule groups, ingest-time line resolution, per-vendor coverage scoring, a diff-grounded fact-check pass, and an optional `ocr-local` reviewer vendor — see the skill's own SKILL.md and openspec change `add-deterministic-review-preprocessing`
 - **`roadmap-runtime`** — Shared roadmap library: artifact models, checkpoint management, learning-log helpers, sanitization, context assembly
 - **`validate-feature`** — Validation phases (spec, evidence, deploy, smoke, security, e2e); called by implement-feature, cleanup-feature, and merge-pull-requests with `--phase` selectors
 - **`parallel-review-plan`** / **`parallel-review-implementation`** — Vendor-diverse review utilities (used by implement-feature and autopilot)
